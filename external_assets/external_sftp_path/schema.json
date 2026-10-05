@@ -43,6 +43,70 @@
       "default": null,
       "ui:widget": "code"
     },
+    "create_observation_sensor": {
+      "type": "boolean",
+      "label": "Create Observation Sensor",
+      "description": "Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone sftp_path_observation_sensor component). When False (default), this component only declares the AssetSpec.",
+      "required": false,
+      "default": false
+    },
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique sensor name. Defaults to '{asset_key}__observation_sensor'. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null
+    },
+    "port": {
+      "type": "integer",
+      "label": "Port",
+      "description": "SFTP port. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": 22
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var with SFTP username. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": ""
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var with SFTP password. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "private_key_env_var": {
+      "type": "string",
+      "label": "Private Key Env Var",
+      "description": "Env var with path to SSH private key. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null
+    },
+    "check_interval_seconds": {
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between health checks. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": 300
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Dagster resource key exposing `.observe(source) -> dict`. Only used when create_observation_sensor=True; unset uses paramiko directly.",
+      "required": false,
+      "default": null
+    },
+    "emit_materialization": {
+      "type": "boolean",
+      "label": "Emit Materialization",
+      "description": "When True (default), the sensor emits AssetMaterialization. When False, emits AssetObservation instead. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": true
+    },
     "partition_type": {
       "type": "string",
       "label": "Partition Type",

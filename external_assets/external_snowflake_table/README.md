@@ -25,6 +25,19 @@ This component does not read from or write to Snowflake Table. It is a **lineage
 | `schema_name` | `str` | Snowflake schema name |
 | `table_name` | `str` | Snowflake table name |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `username_env_var` | `str` | — | Env var with Snowflake username. Only used when create_observation_sensor=True. |
+| `password_env_var` | `str` | — | Env var with password. Only used when create_observation_sensor=True. |
+| `authenticator` | `str` | — | Snowflake authenticator: 'SNOWFLAKE_JWT' (keypair), 'externalbrowser' (SSO), 'oauth', etc. Only used when create_observation_sensor=True. |
+| `private_key_file_env_var` | `str` | — | Env var holding the path to a PEM RSA private key file (for authenticator='SNOWFLAKE_JWT'). Only used when create_observation_sensor=True. |
+| `private_key_file_pwd_env_var` | `str` | — | Env var holding the passphrase for an encrypted private key file (optional). Only used when create_observation_sensor=True. |
+| `token_env_var` | `str` | — | Env var holding an OAuth / PAT token (with authenticator='oauth' or PAT). Only used when create_observation_sensor=True. |
+| `warehouse` | `str` | — | Snowflake warehouse to use. Only used when create_observation_sensor=True. |
+| `resource_key` | `str` | — | Optional Dagster resource key. Only used when create_observation_sensor=True. |
+
 ### Catalog metadata
 
 | Field | Type | Default | Description |
@@ -41,10 +54,21 @@ This component does not read from or write to Snowflake Table. It is a **lineage
 | `partition_values` | `str` | — | Comma-separated values for static / multi partition types (e.g. 'us,eu,apac'). |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec. List of dim dicts: [{name, type: daily\|weekly\|monthly\|hourly\|static\|dynamic, start, values, dynamic_partition_name}]. Overrides the flat fields when set. Use this for (tenant, date), (stat… _(full docs in schema.json + component README)_ |
 
+### Sensor configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{asset_key}__observation_sensor'. Only used when create_observation_sensor=True. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `create_observation_sensor` | `bool` | `false` | Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone snowflake_table_observation_sensor component). When False (default), this component only declares… _(full docs in schema.json + component README)_ |
+| `check_interval_seconds` | `int` | `300` | Seconds between health checks. Only used when create_observation_sensor=True. |
+| `include_preview_metadata` | `bool` | `false` | Run an extra `SELECT * LIMIT preview_rows` against the table and include the result as a markdown preview on the AssetObservation. Only used when create_observation_sensor=True. |
+| `preview_rows` | `int` | `25` | Rows in the preview SELECT when include_preview_metadata=True. |
+| `emit_materialization` | `bool` | `true` | When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, downstream AutomationCondition.eager() fires on parent updates). When False, emits AssetObservation instead (no Dagster+ credit charg… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name argument for DynamicPartitionsDefinition (when partition_type='dynamic'). Runtime tooling uses this to register/read keys, e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)
@@ -62,9 +86,28 @@ attributes:
   # description: None  # optional
 ```
 
-## Pair with the observation sensor
+## Observation sensor
 
-Use the companion observation sensor to periodically health-check the table and record metrics as `AssetObservation` events:
+Set `create_observation_sensor: true` to also get the polling sensor that keeps this asset's
+health/data-version current — one component, one YAML, no manual `asset_key` wiring:
+
+```yaml
+type: dagster_component_templates.ExternalSnowflakeTableAsset
+attributes:
+  asset_key: external/snowflake
+  account: ACCOUNT
+  database: DATABASE
+  schema_name: PUBLIC
+  table_name: ORDERS
+  create_observation_sensor: true
+  check_interval_seconds: 300
+  username_env_var: SNOWFLAKE_USERNAME
+  password_env_var: SNOWFLAKE_PASSWORD
+```
+
+If the sensor needs to observe an `asset_key` declared by a *different* component (or you want the
+asset and sensor on independent lifecycles), pair this component with the standalone
+`snowflake_table_observation_sensor` component instead:
 
 ```yaml
 # 1. Declare the external asset (lineage node)
@@ -73,16 +116,22 @@ attributes:
   asset_key: external/snowflake
   account: ACCOUNT
   database: DATABASE
+  schema_name: PUBLIC
+  table_name: ORDERS
 
 ---
 
 # 2. Observe it on a schedule
-type: dagster_component_templates.SnowflakeTableObservationSensorComponentObservationSensorComponent
+type: dagster_component_templates.SnowflakeTableObservationSensorComponent
 attributes:
   sensor_name: snowflake_table_observer
   asset_key: external/snowflake
   account: ACCOUNT
   database: DATABASE
+  schema_name: PUBLIC
+  table_name: ORDERS
+  username_env_var: SNOWFLAKE_USERNAME
+  password_env_var: SNOWFLAKE_PASSWORD
 ```
 
 ## Requirements

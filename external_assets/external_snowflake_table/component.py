@@ -1,4 +1,12 @@
-"""External Snowflake Table Asset Component."""
+"""External Snowflake Table Asset Component.
+
+Set `create_observation_sensor: true` to also get the polling sensor that
+`snowflake_table_observation_sensor` provides standalone -- one component,
+one YAML, asset + sensor wired together automatically. The standalone
+sensor component is unaffected and still exists for cases where the
+sensor needs to observe an asset_key defined elsewhere.
+"""
+import re
 from typing import Any, Dict, List, Optional
 
 import dagster as dg
@@ -136,6 +144,90 @@ class ExternalSnowflakeTableAsset(dg.Component, dg.Model, dg.Resolvable):
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     description: Optional[str] = Field(default=None, description="Human-readable description")
 
+    create_observation_sensor: bool = Field(
+        default=False,
+        description=(
+            "Also create the polling sensor that keeps this external asset's health/data-version "
+            "current (same logic as the standalone snowflake_table_observation_sensor component). "
+            "When False (default), this component only declares the AssetSpec -- pair it with a "
+            "separate snowflake_table_observation_sensor component yourself if you want observation."
+        ),
+    )
+    sensor_name: Optional[str] = Field(
+        default=None,
+        description="Unique sensor name. Defaults to '{asset_key}__observation_sensor'. Only used when create_observation_sensor=True.",
+    )
+    username_env_var: str = Field(
+        default="",
+        description="Env var with Snowflake username. Only used when create_observation_sensor=True.",
+    )
+    password_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var with password. Only used when create_observation_sensor=True.",
+    )
+    authenticator: Optional[str] = Field(
+        default=None,
+        description=(
+            "Snowflake authenticator: 'SNOWFLAKE_JWT' (keypair), 'externalbrowser' (SSO), 'oauth', etc. "
+            "Only used when create_observation_sensor=True."
+        ),
+    )
+    private_key_file_env_var: Optional[str] = Field(
+        default=None,
+        description=(
+            "Env var holding the path to a PEM RSA private key file (for authenticator='SNOWFLAKE_JWT'). "
+            "Only used when create_observation_sensor=True."
+        ),
+    )
+    private_key_file_pwd_env_var: Optional[str] = Field(
+        default=None,
+        description=(
+            "Env var holding the passphrase for an encrypted private key file (optional). "
+            "Only used when create_observation_sensor=True."
+        ),
+    )
+    token_env_var: Optional[str] = Field(
+        default=None,
+        description=(
+            "Env var holding an OAuth / PAT token (with authenticator='oauth' or PAT). "
+            "Only used when create_observation_sensor=True."
+        ),
+    )
+    warehouse: Optional[str] = Field(
+        default=None,
+        description="Snowflake warehouse to use. Only used when create_observation_sensor=True.",
+    )
+    check_interval_seconds: int = Field(
+        default=300,
+        description="Seconds between health checks. Only used when create_observation_sensor=True.",
+    )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description="Optional Dagster resource key. Only used when create_observation_sensor=True.",
+    )
+    include_preview_metadata: bool = Field(
+        default=False,
+        description=(
+            "Run an extra `SELECT * LIMIT preview_rows` against the table and include the result as a "
+            "markdown preview on the AssetObservation. Only used when create_observation_sensor=True."
+        ),
+    )
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description="Rows in the preview SELECT when include_preview_metadata=True.",
+    )
+    emit_materialization: bool = Field(
+        default=True,
+        description=(
+            "When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, "
+            "downstream AutomationCondition.eager() fires on parent updates). When False, emits "
+            "AssetObservation instead (no Dagster+ credit charge, but eager()-style conditions won't "
+            "fire). Only used when create_observation_sensor=True."
+        ),
+    )
+
     # ── Partition fields (canonical shape across the registry) ──────────
     partition_type: Optional[str] = Field(
         default=None,
@@ -193,4 +285,131 @@ class ExternalSnowflakeTableAsset(dg.Component, dg.Model, dg.Resolvable):
             },
             partitions_def=partitions_def,
         )
-        return dg.Definitions(assets=[spec])
+
+        if not self.create_observation_sensor:
+            return dg.Definitions(assets=[spec])
+
+        _self = self
+        sensor_name = self.sensor_name or f"{re.sub(r'[^A-Za-z0-9_]+', '_', self.asset_key).strip('_')}__observation_sensor"
+        resource_key = self.resource_key
+        required_resource_keys = {resource_key} if resource_key else set()
+
+        @dg.sensor(
+            name=sensor_name,
+            minimum_interval_seconds=self.check_interval_seconds,
+            required_resource_keys=required_resource_keys,
+            asset_selection=dg.AssetSelection.keys(dg.AssetKey.from_user_string(self.asset_key)),
+        )
+        def _sf_obs(context: dg.SensorEvaluationContext):
+            import os
+            from dagster._core.definitions.data_version import DATA_VERSION_TAG
+            _event_cls = dg.AssetMaterialization if _self.emit_materialization else dg.AssetObservation
+
+            # ── Resource-backed path ────────────────────────────────────────
+            if resource_key:
+                client = getattr(context.resources, resource_key, None)
+                if client is None:
+                    return dg.SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+                try:
+                    source = f"{_self.database}.{_self.schema_name}.{_self.table_name}"
+                    observed: dict[str, Any] = dict(client.observe(source))
+                except Exception as e:
+                    context.log.error(f"resource '{resource_key}'.observe failed: {e}")
+                    return dg.SensorResult(skip_reason=f"resource observe failed: {e}")
+                data_version = str(observed.pop("data_version", ""))
+                return dg.SensorResult(asset_events=[_event_cls(
+                    asset_key=dg.AssetKey.from_user_string(_self.asset_key),
+                    metadata=observed,
+                    tags={DATA_VERSION_TAG: data_version} if data_version else None,
+                )])
+
+            # ── Native snowflake-connector-python path ──────────────────────
+            try:
+                import snowflake.connector
+            except ImportError:
+                return dg.SensorResult(skip_reason="snowflake-connector-python not installed")
+
+            username = os.environ.get(_self.username_env_var, "")
+            password = os.environ.get(_self.password_env_var, "") if _self.password_env_var else ""
+            try:
+                conn_kwargs = {
+                    "account": _self.account,
+                    "user": username,
+                    "database": _self.database,
+                    "schema": _self.schema_name,
+                }
+                if _self.warehouse:
+                    conn_kwargs["warehouse"] = _self.warehouse
+                if _self.authenticator:
+                    conn_kwargs["authenticator"] = _self.authenticator
+                    if _self.private_key_file_env_var:
+                        pk_path = os.environ.get(_self.private_key_file_env_var)
+                        if pk_path:
+                            conn_kwargs["private_key_file"] = pk_path
+                        if _self.private_key_file_pwd_env_var:
+                            pk_pwd = os.environ.get(_self.private_key_file_pwd_env_var)
+                            if pk_pwd:
+                                conn_kwargs["private_key_file_pwd"] = pk_pwd
+                    elif _self.token_env_var:
+                        tok = os.environ.get(_self.token_env_var)
+                        if tok:
+                            conn_kwargs["token"] = tok
+                elif password:
+                    conn_kwargs["password"] = password
+                conn = snowflake.connector.connect(**conn_kwargs)
+                cursor = conn.cursor()
+            except Exception as e:
+                return dg.SensorResult(skip_reason=f"Connect failed: {e}")
+
+            try:
+                # Row count via direct COUNT(*) on the table — works for any
+                # role with SELECT.
+                cursor.execute(f"SELECT COUNT(*) FROM {_self.database}.{_self.schema_name}.{_self.table_name}")
+                row_count = cursor.fetchone()[0]
+                # Table info via SHOW TABLES — works for any role with USAGE on
+                # the schema; INFORMATION_SCHEMA.TABLES can be invisible to
+                # least-privilege roles.
+                cursor.execute(f"SHOW TABLES LIKE '{_self.table_name}' IN SCHEMA {_self.database}.{_self.schema_name}")
+                info = cursor.fetchone()
+                info_cols = [c[0].lower() for c in cursor.description] if info else []
+                info_dict = dict(zip(info_cols, info)) if info else {}
+            except Exception as e:
+                conn.close()
+                return dg.SensorResult(skip_reason=f"Query failed: {e}")
+
+            created_on = str(info_dict.get("created_on", "")) if info_dict else ""
+            data_version = f"{row_count}-{created_on}"
+            metadata: dict[str, Any] = {
+                "row_count": row_count,
+                "database": _self.database,
+                "schema": _self.schema_name,
+                "table": _self.table_name,
+            }
+            if info_dict:
+                # Surface the SHOW TABLES fields that are universally useful
+                # (works for any role that could see the table at all).
+                metadata.update({
+                    k: info_dict[k] for k in ("bytes", "owner", "kind") if k in info_dict
+                })
+                if created_on:
+                    metadata["created_on"] = created_on
+            if _self.include_preview_metadata and row_count > 0:
+                try:
+                    fqn = f"{_self.database}.{_self.schema_name}.{_self.table_name}"
+                    cursor.execute(f"SELECT * FROM {fqn} LIMIT {_self.preview_rows}")
+                    cols = [d[0] for d in cursor.description]
+                    rows = cursor.fetchall()
+                    if rows:
+                        import pandas as pd
+                        df = pd.DataFrame(rows, columns=cols)
+                        metadata["preview"] = dg.MetadataValue.md(df.to_markdown(index=False))
+                except Exception as e:
+                    context.log.warning(f"Preview query failed: {e}")
+            conn.close()
+            return dg.SensorResult(asset_events=[_event_cls(
+                asset_key=dg.AssetKey.from_user_string(_self.asset_key),
+                metadata=metadata,
+                tags={DATA_VERSION_TAG: data_version},
+            )])
+
+        return dg.Definitions(assets=[spec], sensors=[_sf_obs])

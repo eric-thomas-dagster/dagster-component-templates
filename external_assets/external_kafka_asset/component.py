@@ -1,7 +1,21 @@
-"""External Kafka Asset Component."""
+"""External Kafka Asset Component.
+
+Set `create_observation_sensor: true` to also get the polling sensor that
+`KafkaObservationSensorComponent` provides standalone -- one component,
+one YAML, asset + sensor wired together automatically. The standalone
+sensor component is unaffected and still exists for cases where the
+sensor needs to observe an asset_key defined elsewhere.
+"""
+import json
+import re
 from typing import Any, Dict, List, Optional
 import dagster as dg
 from pydantic import Field
+
+def _safe_sensor_name_part(s: str) -> str:
+    """Sanitize a vendor identifier (which may contain '-', '.', '/', '+', etc.)
+    into a valid Dagster sensor-name fragment (must match ^[A-Za-z0-9_]+$)."""
+    return re.sub(r"[^A-Za-z0-9_]", "_", s)
 
 def _build_partitions_def(
     partition_type,
@@ -112,6 +126,42 @@ class ExternalKafkaAsset(dg.Component, dg.Model, dg.Resolvable):
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     description: Optional[str] = Field(default=None, description="Human-readable description")
 
+    create_observation_sensor: bool = Field(
+        default=False,
+        description=(
+            "Also create the polling sensor that keeps this external asset's health/data-version "
+            "current (same logic as the standalone KafkaObservationSensorComponent). "
+            "When False (default), this component only declares the AssetSpec -- pair it with a "
+            "separate KafkaObservationSensorComponent yourself if you want observation."
+        ),
+    )
+    sensor_name: Optional[str] = Field(
+        default=None,
+        description="Unique sensor name. Defaults to '{topic}__observation_sensor'. Only used when create_observation_sensor=True.",
+    )
+    check_interval_seconds: int = Field(
+        default=300,
+        description="Seconds between health checks. Only used when create_observation_sensor=True.",
+    )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster resource key exposing `.observe(topic) -> dict` that returns "
+            "`{'data_version': str, **metadata}`. When set, the sensor uses this "
+            "instead of connecting to bootstrap_servers directly. Only used when "
+            "create_observation_sensor=True."
+        ),
+    )
+    emit_materialization: bool = Field(
+        default=True,
+        description=(
+            "When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, "
+            "downstream AutomationCondition.eager() fires on parent updates). When False, emits "
+            "AssetObservation instead (no Dagster+ credit charge, but eager()-style conditions won't "
+            "fire). Only used when create_observation_sensor=True."
+        ),
+    )
+
     partition_type: Optional[str] = Field(
         default=None,
         description="Partition type: 'daily'|'weekly'|'monthly'|'hourly'|'static'|'dynamic'|'multi', or None for unpartitioned.",
@@ -153,4 +203,71 @@ class ExternalKafkaAsset(dg.Component, dg.Model, dg.Resolvable):
             },
             partitions_def=partitions_def,
         )
-        return dg.Definitions(assets=[spec])
+
+        if not self.create_observation_sensor:
+            return dg.Definitions(assets=[spec])
+
+        _self = self
+        sensor_name = self.sensor_name or f"{_safe_sensor_name_part(self.topic)}__observation_sensor"
+        resource_key = self.resource_key
+        required_resource_keys = {resource_key} if resource_key else set()
+
+        @dg.sensor(
+            name=sensor_name,
+            minimum_interval_seconds=self.check_interval_seconds,
+            required_resource_keys=required_resource_keys,
+            asset_selection=dg.AssetSelection.keys(dg.AssetKey.from_user_string(self.asset_key)),
+        )
+        def _kafka_obs(context: dg.SensorEvaluationContext, **_resources):
+            from dagster._core.definitions.data_version import DATA_VERSION_TAG
+            _event_cls = dg.AssetMaterialization if _self.emit_materialization else dg.AssetObservation
+            # ── Resource-backed path (preferred) ────────────────────────────
+            if resource_key:
+                client = getattr(context.resources, resource_key, None)
+                if client is None:
+                    return dg.SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+                try:
+                    observed: dict[str, Any] = dict(client.observe(_self.topic))
+                except Exception as e:
+                    context.log.error(f"resource '{resource_key}'.observe failed: {e}")
+                    return dg.SensorResult(skip_reason=f"resource observe failed: {e}")
+                data_version = str(observed.pop("data_version", ""))
+                return dg.SensorResult(asset_events=[_event_cls(
+                    asset_key=dg.AssetKey.from_user_string(_self.asset_key),
+                    metadata=observed,
+                    tags={DATA_VERSION_TAG: data_version} if data_version else None,
+                )])
+
+            # ── Native kafka-python path ────────────────────────────────────
+            try:
+                from kafka import KafkaConsumer, TopicPartition
+            except ImportError:
+                return dg.SensorResult(skip_reason="kafka-python not installed")
+
+            try:
+                consumer = KafkaConsumer(bootstrap_servers=_self.bootstrap_servers)
+                partitions = consumer.partitions_for_topic(_self.topic) or set()
+                tps = [TopicPartition(_self.topic, p) for p in partitions]
+                end_offsets = consumer.end_offsets(tps) if tps else {}
+                total_messages = sum(end_offsets.values())
+                consumer.close()
+            except Exception as e:
+                return dg.SensorResult(skip_reason=f"Offset query failed: {e}")
+
+            # Per-partition offsets → repartition-safe DataVersion.
+            offsets_by_partition = {str(tp.partition): int(off) for tp, off in end_offsets.items()}
+            data_version = json.dumps(offsets_by_partition, sort_keys=True)
+
+            obs_metadata = {
+                "partition_count": len(partitions),
+                "total_end_offset": total_messages,
+                "topic": _self.topic,
+                "bootstrap_servers": _self.bootstrap_servers,
+            }
+            return dg.SensorResult(asset_events=[_event_cls(
+                asset_key=dg.AssetKey.from_user_string(_self.asset_key),
+                metadata=obs_metadata,
+                tags={DATA_VERSION_TAG: data_version},
+            )])
+
+        return dg.Definitions(assets=[spec], sensors=[_kafka_obs])

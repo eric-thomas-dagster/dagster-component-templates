@@ -28,6 +28,7 @@ clickhouse-connect>=0.6.0
 | `port` | `int` | `8443` | ClickHouse port |
 | `username_env_var` | `str` | — | Env var with ClickHouse username |
 | `password_env_var` | `str` | — | Env var with ClickHouse password |
+| `resource_key` | `str` | — | Key of a ClickHouseResource exposing `.observe(source) -> dict` (source is 'database.table') that returns `{'data_version': str, **metadata}`. Only used when create_observation_sensor=True; unset uses clickhouse-connect… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -46,10 +47,20 @@ clickhouse-connect>=0.6.0
 | `partition_values` | `str` | — | Comma-separated values for static / multi partition types. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec; overrides flat fields when set. |
 
+### Sensor configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{table}__observation_sensor'. Only used when create_observation_sensor=True. |
+| `default_status` | `str` | `"running"` | running or stopped. Only used when create_observation_sensor=True. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `create_observation_sensor` | `bool` | `false` | Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone clickhouse_table_observation_sensor component). When False (default), this component only declares… _(full docs in schema.json + component README)_ |
+| `check_interval_seconds` | `int` | `300` | Seconds between observations. Only used when create_observation_sensor=True. |
+| `emit_materialization` | `bool` | `true` | When True (default), emit AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When False, emit… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 
 [//]: # (FIELDS:END)
@@ -65,4 +76,51 @@ attributes:
   host_env_var: CLICKHOUSE_HOST
   password_env_var: CLICKHOUSE_PASSWORD
   group_name: clickhouse
+```
+
+## Observation sensor
+
+Set `create_observation_sensor: true` to also get the polling sensor that keeps this asset's
+health/data-version current — one component, one YAML, no manual `asset_key` wiring:
+
+```yaml
+type: dagster_component_templates.ExternalClickHouseTableComponent
+attributes:
+  asset_key: clickhouse/analytics/events
+  database: analytics
+  table: events
+  host_env_var: CLICKHOUSE_HOST
+  password_env_var: CLICKHOUSE_PASSWORD
+  group_name: clickhouse
+  create_observation_sensor: true
+  check_interval_seconds: 300
+```
+
+If the sensor needs to observe an `asset_key` declared by a *different* component (or you want the
+asset and sensor on independent lifecycles), pair this component with the standalone
+`clickhouse_table_observation_sensor` component instead:
+
+```yaml
+# 1. Declare the external asset (lineage node)
+type: dagster_component_templates.ExternalClickHouseTableComponent
+attributes:
+  asset_key: clickhouse/analytics/events
+  database: analytics
+  table: events
+  host_env_var: CLICKHOUSE_HOST
+  password_env_var: CLICKHOUSE_PASSWORD
+  group_name: clickhouse
+
+---
+
+# 2. Observe it on a schedule
+type: dagster_component_templates.ClickHouseTableObservationSensorComponent
+attributes:
+  sensor_name: clickhouse_events_observation
+  asset_key: clickhouse/analytics/events
+  database: analytics
+  table: events
+  host_env_var: CLICKHOUSE_HOST
+  password_env_var: CLICKHOUSE_PASSWORD
+  check_interval_seconds: 300
 ```

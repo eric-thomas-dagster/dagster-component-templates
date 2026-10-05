@@ -22,6 +22,13 @@ This component does not read from or write to Servicebus. It is a **lineage decl
 | `asset_key` | `str` | Dagster asset key |
 | `namespace` | `str` | Azure Service Bus namespace |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `connection_string_env_var` | `str` | — | Env var with connection string. Only used when create_observation_sensor=True. |
+| `resource_key` | `str` | — | Optional Dagster resource key exposing `.observe(source) -> dict`. Only used when create_observation_sensor=True. |
+
 ### Catalog metadata
 
 | Field | Type | Default | Description |
@@ -38,6 +45,12 @@ This component does not read from or write to Servicebus. It is a **lineage decl
 | `partition_values` | `str` | — | Comma-separated values for static / multi partition types. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec; overrides flat fields when set. |
 
+### Sensor configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{queue_name or topic_name or namespace}__observation_sensor' (sanitized to valid sensor-name characters). Only used when create_observation_sensor=True. |
+
 ### Source / target
 
 | Field | Type | Default | Description |
@@ -49,6 +62,10 @@ This component does not read from or write to Servicebus. It is a **lineage decl
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `create_observation_sensor` | `bool` | `false` | Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone servicebus_observation_sensor component). When False (default), this component only declares the A… _(full docs in schema.json + component README)_ |
+| `subscription_name` | `str` | — | Subscription name (for topics). Only used when create_observation_sensor=True. |
+| `check_interval_seconds` | `int` | `60` | Seconds between health checks. Only used when create_observation_sensor=True. |
+| `emit_materialization` | `bool` | `true` | When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, downstream AutomationCondition.eager() fires on parent updates). When False, emits AssetObservation instead (no Dagster+ credit charg… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 
 [//]: # (FIELDS:END)
@@ -65,9 +82,24 @@ attributes:
   # description: None  # optional
 ```
 
-## Pair with the observation sensor
+## Observation sensor
 
-Use the companion observation sensor to periodically health-check the resource and record metrics as `AssetObservation` events:
+Set `create_observation_sensor: true` to also get the polling sensor that keeps this asset's
+health/data-version current — one component, one YAML, no manual `asset_key` wiring:
+
+```yaml
+type: dagster_component_templates.ExternalServiceBusAsset
+attributes:
+  asset_key: external/servicebus
+  namespace: my_namespace
+  queue_name: my_queue
+  create_observation_sensor: true
+  check_interval_seconds: 60
+```
+
+If the sensor needs to observe an `asset_key` declared by a *different* component (or you want the
+asset and sensor on independent lifecycles), pair this component with the standalone
+`servicebus_observation_sensor` component instead:
 
 ```yaml
 # 1. Declare the external asset (lineage node)

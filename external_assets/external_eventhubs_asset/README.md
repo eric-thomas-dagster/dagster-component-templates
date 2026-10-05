@@ -23,6 +23,13 @@ This component does not read from or write to Eventhubs. It is a **lineage decla
 | `namespace` | `str` | Azure Event Hubs namespace (without .servicebus.windows.net) |
 | `eventhub_name` | `str` | Event Hub name |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `connection_string_env_var` | `str` | — | Env var with connection string. Only used when create_observation_sensor=True. |
+| `resource_key` | `str` | — | Optional Dagster resource key. Only used when create_observation_sensor=True. |
+
 ### Catalog metadata
 
 | Field | Type | Default | Description |
@@ -39,10 +46,19 @@ This component does not read from or write to Eventhubs. It is a **lineage decla
 | `partition_values` | `str` | — | Comma-separated values for static / multi partition types. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec; overrides flat fields when set. |
 
+### Sensor configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{eventhub_name}__observation_sensor'. Only used when create_observation_sensor=True. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `create_observation_sensor` | `bool` | `false` | Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone eventhubs_observation_sensor component). When False (default), this component only declares the As… _(full docs in schema.json + component README)_ |
+| `check_interval_seconds` | `int` | `300` | Seconds between health checks. Only used when create_observation_sensor=True. |
+| `emit_materialization` | `bool` | `true` | When True (default), emit AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When False, emit… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 
 [//]: # (FIELDS:END)
@@ -58,9 +74,24 @@ attributes:
   # description: None  # optional
 ```
 
-## Pair with the observation sensor
+## Observation sensor
 
-Use the companion observation sensor to periodically health-check the resource and record metrics as `AssetObservation` events:
+Set `create_observation_sensor: true` to also get the polling sensor that keeps this asset's
+health/data-version current — one component, one YAML, no manual `asset_key` wiring:
+
+```yaml
+type: dagster_component_templates.ExternalEventHubsAsset
+attributes:
+  asset_key: external/eventhubs
+  namespace: my_namespace
+  eventhub_name: my_eventhub
+  create_observation_sensor: true
+  check_interval_seconds: 300
+```
+
+If the sensor needs to observe an `asset_key` declared by a *different* component (or you want the
+asset and sensor on independent lifecycles), pair this component with the standalone
+`eventhubs_observation_sensor` component instead:
 
 ```yaml
 # 1. Declare the external asset (lineage node)

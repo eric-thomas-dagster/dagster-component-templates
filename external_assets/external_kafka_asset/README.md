@@ -23,6 +23,12 @@ This component does not read from or write to Kafka. It is a **lineage declarati
 | `bootstrap_servers` | `str` | Comma-separated Kafka broker addresses |
 | `topic` | `str` | Kafka topic name |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | — | Dagster resource key exposing `.observe(topic) -> dict` that returns `{'data_version': str, **metadata}`. When set, the sensor uses this instead of connecting to bootstrap_servers directly. Only used when create_observation_sensor=True. |
+
 ### Catalog metadata
 
 | Field | Type | Default | Description |
@@ -39,10 +45,19 @@ This component does not read from or write to Kafka. It is a **lineage declarati
 | `partition_values` | `str` | — | Comma-separated values for static / multi partition types. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec; overrides flat fields when set. |
 
+### Sensor configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{topic}__observation_sensor'. Only used when create_observation_sensor=True. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `create_observation_sensor` | `bool` | `false` | Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone KafkaObservationSensorComponent). When False (default), this component only declares the AssetSpec… _(full docs in schema.json + component README)_ |
+| `check_interval_seconds` | `int` | `300` | Seconds between health checks. Only used when create_observation_sensor=True. |
+| `emit_materialization` | `bool` | `true` | When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, downstream AutomationCondition.eager() fires on parent updates). When False, emits AssetObservation instead (no Dagster+ credit charg… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 
 [//]: # (FIELDS:END)
@@ -58,9 +73,24 @@ attributes:
   # description: None  # optional
 ```
 
-## Pair with the observation sensor
+## Observation sensor
 
-Use the companion observation sensor to periodically health-check the topic and record metrics as `AssetObservation` events:
+Set `create_observation_sensor: true` to also get the polling sensor that keeps this asset's
+health/data-version current — one component, one YAML, no manual `asset_key` wiring:
+
+```yaml
+type: dagster_component_templates.ExternalKafkaAsset
+attributes:
+  asset_key: external/kafka
+  bootstrap_servers: BOOTSTRAP_SERVERS
+  topic: TOPIC
+  create_observation_sensor: true
+  check_interval_seconds: 300
+```
+
+If the sensor needs to observe an `asset_key` declared by a *different* component (or you want the
+asset and sensor on independent lifecycles), pair this component with the standalone
+`KafkaObservationSensorComponent` component instead:
 
 ```yaml
 # 1. Declare the external asset (lineage node)

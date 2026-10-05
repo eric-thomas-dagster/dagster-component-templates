@@ -23,6 +23,15 @@ This component does not read from or write to Rabbitmq. It is a **lineage declar
 | `host` | `str` | RabbitMQ host |
 | `queue_name` | `str` | RabbitMQ queue name |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `port` | `int` | `5672` | AMQP port. Only used when create_observation_sensor=True. |
+| `username_env_var` | `str` | — | Env var with username. Only used when create_observation_sensor=True. |
+| `password_env_var` | `str` | — | Env var with password. Only used when create_observation_sensor=True. |
+| `resource_key` | `str` | — | Optional Dagster resource key exposing `.observe(source) -> dict`. Only used when create_observation_sensor=True. |
+
 ### Catalog metadata
 
 | Field | Type | Default | Description |
@@ -39,11 +48,20 @@ This component does not read from or write to Rabbitmq. It is a **lineage declar
 | `partition_values` | `str` | — | Comma-separated values for static / multi partition types. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec; overrides flat fields when set. |
 
+### Sensor configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{queue_name}__observation_sensor' (sanitized to valid sensor-name characters). Only used when create_observation_sensor=True. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `virtual_host` | `str` | `"/"` | RabbitMQ virtual host |
+| `create_observation_sensor` | `bool` | `false` | Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone rabbitmq_observation_sensor component). When False (default), this component only declares the Ass… _(full docs in schema.json + component README)_ |
+| `check_interval_seconds` | `int` | `60` | Seconds between health checks. Only used when create_observation_sensor=True. |
+| `emit_materialization` | `bool` | `true` | When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, downstream AutomationCondition.eager() fires on parent updates). When False, emits AssetObservation instead (no Dagster+ credit charg… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 
 [//]: # (FIELDS:END)
@@ -60,9 +78,24 @@ attributes:
   # description: None  # optional
 ```
 
-## Pair with the observation sensor
+## Observation sensor
 
-Use the companion observation sensor to periodically health-check the queue and record metrics as `AssetObservation` events:
+Set `create_observation_sensor: true` to also get the polling sensor that keeps this asset's
+health/data-version current — one component, one YAML, no manual `asset_key` wiring:
+
+```yaml
+type: dagster_component_templates.ExternalRabbitmqAsset
+attributes:
+  asset_key: external/rabbitmq
+  host: my-rabbitmq.internal
+  queue_name: my_queue
+  create_observation_sensor: true
+  check_interval_seconds: 60
+```
+
+If the sensor needs to observe an `asset_key` declared by a *different* component (or you want the
+asset and sensor on independent lifecycles), pair this component with the standalone
+`rabbitmq_observation_sensor` component instead:
 
 ```yaml
 # 1. Declare the external asset (lineage node)

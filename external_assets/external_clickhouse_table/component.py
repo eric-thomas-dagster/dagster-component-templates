@@ -3,7 +3,11 @@
 Declares a ClickHouse table as an observable external asset in Dagster.
 Includes a ClickHouseResource for reuse across components.
 
-Use alongside clickhouse_table_observation_sensor for continuous health monitoring.
+Set `create_observation_sensor: true` to also get the polling sensor that
+`clickhouse_table_observation_sensor` provides standalone -- one component,
+one YAML, asset + sensor wired together automatically. The standalone sensor
+component is unaffected and still exists for cases where the sensor needs to
+observe an asset_key defined elsewhere.
 """
 from typing import Any, Dict, List, Optional
 import dagster as dg
@@ -174,6 +178,49 @@ class ExternalClickHouseTableComponent(dg.Component, dg.Model, dg.Resolvable):
     group_name: Optional[str] = Field(default="clickhouse", description="Dagster asset group name")
     owners: Optional[list] = Field(default=None, description="List of owner emails or team names")
 
+    create_observation_sensor: bool = Field(
+        default=False,
+        description=(
+            "Also create the polling sensor that keeps this external asset's health/data-version "
+            "current (same logic as the standalone clickhouse_table_observation_sensor component). "
+            "When False (default), this component only declares the AssetSpec -- pair it with a "
+            "separate clickhouse_table_observation_sensor component yourself if you want observation."
+        ),
+    )
+    sensor_name: Optional[str] = Field(
+        default=None,
+        description="Unique sensor name. Defaults to '{table}__observation_sensor'. Only used when create_observation_sensor=True.",
+    )
+    check_interval_seconds: int = Field(
+        default=300,
+        description="Seconds between observations. Only used when create_observation_sensor=True.",
+    )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Key of a ClickHouseResource exposing `.observe(source) -> dict` (source is "
+            "'database.table') that returns `{'data_version': str, **metadata}`. Only used when "
+            "create_observation_sensor=True; unset uses clickhouse-connect directly via "
+            "host_env_var/port/username_env_var/password_env_var."
+        ),
+    )
+    default_status: str = Field(
+        default="running",
+        description="running or stopped. Only used when create_observation_sensor=True.",
+    )
+    emit_materialization: bool = Field(
+        default=True,
+        description=(
+            "When True (default), emit AssetMaterialization on the target asset key. External assets "
+            "show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires "
+            "naturally on parent updates. When False, emit AssetObservation -- free of Dagster+ credit "
+            "charges, but the target asset renders as observed-external (dashed border, gray) and "
+            "downstream conditions that gate on ~any_deps_missing() (including eager()) will not fire. "
+            "Both event types carry the same dagster/data_version tag. Only used when "
+            "create_observation_sensor=True."
+        ),
+    )
+
     partition_type: Optional[str] = Field(
         default=None,
         description="Partition type: 'daily'|'weekly'|'monthly'|'hourly'|'static'|'dynamic'|'multi', or None for unpartitioned.",
@@ -218,4 +265,102 @@ class ExternalClickHouseTableComponent(dg.Component, dg.Model, dg.Resolvable):
             },
             partitions_def=partitions_def,
         )
-        return dg.Definitions(assets=[spec])
+
+        if not self.create_observation_sensor:
+            return dg.Definitions(assets=[spec])
+
+        from dagster._core.definitions.sensor_definition import DefaultSensorStatus
+
+        _self = self
+        sensor_name = self.sensor_name or f"{self.table}__observation_sensor"
+        resource_key = self.resource_key
+        required_resource_keys = {resource_key} if resource_key else set()
+        asset_key = dg.AssetKey.from_user_string(self.asset_key)
+        default_status = (
+            DefaultSensorStatus.RUNNING if self.default_status == "running"
+            else DefaultSensorStatus.STOPPED
+        )
+
+        @dg.sensor(
+            name=sensor_name,
+            minimum_interval_seconds=self.check_interval_seconds,
+            default_status=default_status,
+            required_resource_keys=required_resource_keys,
+            asset_selection=dg.AssetSelection.keys(asset_key),
+        )
+        def _ch_obs(context: dg.SensorEvaluationContext):
+            from dagster._core.definitions.data_version import DATA_VERSION_TAG
+            _event_cls = dg.AssetMaterialization if _self.emit_materialization else dg.AssetObservation
+
+            # ── Resource-backed path ────────────────────────────────────────
+            if resource_key:
+                resource = getattr(context.resources, resource_key, None)
+                if resource is None:
+                    return dg.SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+                try:
+                    source = f"{_self.database}.{_self.table}"
+                    observed: dict[str, Any] = dict(resource.observe(source))
+                except Exception as e:
+                    context.log.error(f"resource '{resource_key}'.observe failed: {e}")
+                    return dg.SensorResult(skip_reason=f"resource observe failed: {e}")
+                data_version = str(observed.pop("data_version", ""))
+                return dg.SensorResult(asset_events=[_event_cls(
+                    asset_key=asset_key,
+                    metadata=observed,
+                    tags={DATA_VERSION_TAG: data_version} if data_version else None,
+                )])
+
+            # ── Native clickhouse-connect path ──────────────────────────────
+            import os
+
+            try:
+                import clickhouse_connect
+            except ImportError:
+                return dg.SensorResult(skip_reason="clickhouse-connect not installed. Run: pip install clickhouse-connect")
+
+            host = os.environ.get(_self.host_env_var or "", "")
+            username = os.environ.get(_self.username_env_var or "", "default") if _self.username_env_var else "default"
+            password = os.environ.get(_self.password_env_var or "", "") if _self.password_env_var else ""
+            client = clickhouse_connect.get_client(
+                host=host, port=_self.port, username=username, password=password,
+                secure=(_self.port == 8443),
+            )
+
+            db, tbl = _self.database, _self.table
+            try:
+                row_count = client.command(f"SELECT count() FROM {db}.{tbl}")
+                size_bytes = client.command(
+                    f"SELECT sum(bytes_on_disk) FROM system.parts "
+                    f"WHERE database = '{db}' AND table = '{tbl}' AND active"
+                )
+                last_modified = client.command(
+                    f"SELECT max(modification_time) FROM system.parts "
+                    f"WHERE database = '{db}' AND table = '{tbl}' AND active"
+                )
+                parts_count = client.command(
+                    f"SELECT count() FROM system.parts "
+                    f"WHERE database = '{db}' AND table = '{tbl}' AND active"
+                )
+                engine = client.command(
+                    f"SELECT engine FROM system.tables WHERE database = '{db}' AND name = '{tbl}'"
+                )
+            except Exception as e:
+                return dg.SensorResult(skip_reason=f"ClickHouse query error: {e}")
+
+            data_version = f"{int(row_count or 0)}-{last_modified or ''}"
+            observation = _event_cls(
+                asset_key=asset_key,
+                metadata={
+                    "row_count": dg.MetadataValue.int(int(row_count or 0)),
+                    "size_bytes": dg.MetadataValue.int(int(size_bytes or 0)),
+                    "active_parts": dg.MetadataValue.int(int(parts_count or 0)),
+                    "engine": dg.MetadataValue.text(str(engine or "")),
+                    "last_modified": dg.MetadataValue.text(str(last_modified or "")),
+                    "database": dg.MetadataValue.text(db),
+                    "table": dg.MetadataValue.text(tbl),
+                },
+                tags={DATA_VERSION_TAG: data_version},
+            )
+            return dg.SensorResult(asset_events=[observation])
+
+        return dg.Definitions(assets=[spec], sensors=[_ch_obs])

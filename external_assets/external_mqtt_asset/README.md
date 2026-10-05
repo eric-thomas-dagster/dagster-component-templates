@@ -23,6 +23,12 @@ This component does not read from or write to Mqtt. It is a **lineage declaratio
 | `broker_host` | `str` | MQTT broker hostname |
 | `topic` | `str` | MQTT topic (supports + and # wildcards) |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | — | Optional Dagster resource key. Only used when create_observation_sensor=True. |
+
 ### Catalog metadata
 
 | Field | Type | Default | Description |
@@ -39,11 +45,21 @@ This component does not read from or write to Mqtt. It is a **lineage declaratio
 | `partition_values` | `str` | — | Comma-separated values for static / multi partition types. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec; overrides flat fields when set. |
 
+### Sensor configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{topic}__observation_sensor'. Only used when create_observation_sensor=True. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `broker_port` | `int` | `1883` | MQTT broker port |
+| `create_observation_sensor` | `bool` | `false` | Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone MqttObservationSensorComponent). When False (default), this component only declares the AssetSpec… _(full docs in schema.json + component README)_ |
+| `connect_timeout_seconds` | `float` | `5.0` | Seconds to wait for connection. Only used when create_observation_sensor=True. |
+| `check_interval_seconds` | `int` | `300` | Seconds between health checks. Only used when create_observation_sensor=True. |
+| `emit_materialization` | `bool` | `true` | When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, downstream AutomationCondition.eager() fires on parent updates). When False, emits AssetObservation instead (no Dagster+ credit charg… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 
 [//]: # (FIELDS:END)
@@ -60,9 +76,24 @@ attributes:
   # description: None  # optional
 ```
 
-## Pair with the observation sensor
+## Observation sensor
 
-Use the companion observation sensor to periodically health-check the resource and record metrics as `AssetObservation` events:
+Set `create_observation_sensor: true` to also get the polling sensor that keeps this asset's
+health/data-version current — one component, one YAML, no manual `asset_key` wiring:
+
+```yaml
+type: dagster_component_templates.ExternalMqttAsset
+attributes:
+  asset_key: external/mqtt
+  broker_host: my-mqtt.internal
+  topic: TOPIC
+  create_observation_sensor: true
+  check_interval_seconds: 300
+```
+
+If the sensor needs to observe an `asset_key` declared by a *different* component (or you want the
+asset and sensor on independent lifecycles), pair this component with the standalone
+`MqttObservationSensorComponent` component instead:
 
 ```yaml
 # 1. Declare the external asset (lineage node)

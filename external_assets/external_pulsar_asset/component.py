@@ -1,4 +1,11 @@
-"""External Pulsar Asset Component."""
+"""External Pulsar Asset Component.
+
+Set `create_observation_sensor: true` to also get the polling sensor that
+`pulsar_observation_sensor` provides standalone -- one component, one YAML,
+asset + sensor wired together automatically. The standalone sensor
+component is unaffected and still exists for cases where the sensor needs
+to observe an asset_key defined elsewhere.
+"""
 from typing import Any, Dict, List, Optional
 import dagster as dg
 from pydantic import Field
@@ -112,6 +119,45 @@ class ExternalPulsarAsset(dg.Component, dg.Model, dg.Resolvable):
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     description: Optional[str] = Field(default=None, description="Human-readable description")
 
+    create_observation_sensor: bool = Field(
+        default=False,
+        description=(
+            "Also create the polling sensor that keeps this external asset's health/data-version "
+            "current (same logic as the standalone pulsar_observation_sensor component). "
+            "When False (default), this component only declares the AssetSpec -- pair it with a "
+            "separate pulsar_observation_sensor component yourself if you want observation."
+        ),
+    )
+    sensor_name: Optional[str] = Field(
+        default=None,
+        description="Unique sensor name. Defaults to '{topic}__observation_sensor' (topic sanitized to valid sensor-name characters). Only used when create_observation_sensor=True.",
+    )
+    admin_url: Optional[str] = Field(
+        default=None,
+        description="Pulsar admin URL (default: HTTP port of service_url). Only used when create_observation_sensor=True.",
+    )
+    jwt_token_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var with JWT auth token. Only used when create_observation_sensor=True.",
+    )
+    check_interval_seconds: int = Field(
+        default=300,
+        description="Seconds between health checks. Only used when create_observation_sensor=True.",
+    )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description="Optional Dagster resource key exposing `.observe(source) -> dict`. Only used when create_observation_sensor=True.",
+    )
+    emit_materialization: bool = Field(
+        default=True,
+        description=(
+            "When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, "
+            "downstream AutomationCondition.eager() fires on parent updates). When False, emits "
+            "AssetObservation instead (no Dagster+ credit charge, but eager()-style conditions won't "
+            "fire). Only used when create_observation_sensor=True."
+        ),
+    )
+
     partition_type: Optional[str] = Field(
         default=None,
         description="Partition type: 'daily'|'weekly'|'monthly'|'hourly'|'static'|'dynamic'|'multi', or None for unpartitioned.",
@@ -153,4 +199,87 @@ class ExternalPulsarAsset(dg.Component, dg.Model, dg.Resolvable):
             },
             partitions_def=partitions_def,
         )
-        return dg.Definitions(assets=[spec])
+
+        if not self.create_observation_sensor:
+            return dg.Definitions(assets=[spec])
+
+        _self = self
+        if self.sensor_name:
+            sensor_name = self.sensor_name
+        else:
+            import re as _re
+            _safe_topic = _re.sub(r"[^A-Za-z0-9_]", "_", self.topic)
+            sensor_name = f"{_safe_topic}__observation_sensor"
+        resource_key = self.resource_key
+        required_resource_keys = {resource_key} if resource_key else set()
+
+        @dg.sensor(
+            name=sensor_name,
+            minimum_interval_seconds=self.check_interval_seconds,
+            required_resource_keys=required_resource_keys,
+            asset_selection=dg.AssetSelection.keys(dg.AssetKey.from_user_string(self.asset_key)),
+        )
+        def _pulsar_obs(context: dg.SensorEvaluationContext):
+            import json as _json
+            from dagster._core.definitions.data_version import DATA_VERSION_TAG
+            _event_cls = dg.AssetMaterialization if _self.emit_materialization else dg.AssetObservation
+
+            if resource_key:
+                _rk_client = getattr(context.resources, resource_key, None)
+                if _rk_client is None:
+                    return dg.SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+                try:
+                    _rk_observed = dict(_rk_client.observe(_self.topic))
+                except Exception as _rk_e:
+                    context.log.error(f"resource '{resource_key}'.observe failed: {_rk_e}")
+                    return dg.SensorResult(skip_reason=f"resource observe failed: {_rk_e}")
+                _rk_dv = str(_rk_observed.pop("data_version", ""))
+                return dg.SensorResult(asset_events=[_event_cls(
+                    asset_key=dg.AssetKey.from_user_string(_self.asset_key),
+                    metadata=_rk_observed,
+                    tags={DATA_VERSION_TAG: _rk_dv} if _rk_dv else None,
+                )])
+
+            import os, urllib.request
+            # Use Pulsar admin REST API to get topic stats
+            admin_url = _self.admin_url
+            if not admin_url:
+                # Derive admin URL from service URL
+                admin_url = _self.service_url.replace("pulsar://", "http://").replace("pulsar+ssl://", "https://")
+                # Replace broker port 6650 with admin port 8080
+                admin_url = admin_url.replace(":6650", ":8080")
+
+            # Build topic REST path: persistent/public/default/my-topic
+            topic = _self.topic
+            if topic.startswith("persistent://") or topic.startswith("non-persistent://"):
+                parts = topic.replace("persistent://", "").replace("non-persistent://", "")
+                kind = "persistent" if "persistent://" in topic else "non-persistent"
+                stats_url = f"{admin_url}/admin/v2/{kind}/{parts}/stats"
+            else:
+                stats_url = f"{admin_url}/admin/v2/persistent/public/default/{topic}/stats"
+
+            headers = {}
+            if _self.jwt_token_env_var:
+                token = os.environ.get(_self.jwt_token_env_var, "")
+                if token:
+                    headers["Authorization"] = f"Bearer {token}"
+
+            metadata = {"topic": _self.topic, "service_url": _self.service_url}
+            try:
+                req = urllib.request.Request(stats_url, headers=headers)
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    stats = _json.loads(resp.read())
+                metadata["producer_count"] = stats.get("producersCount", 0)
+                metadata["subscription_count"] = stats.get("subscriptionsCount", 0)
+                metadata["msg_rate_in"] = stats.get("msgRateIn", 0.0)
+                metadata["storage_size_bytes"] = stats.get("storageSize", 0)
+            except Exception as e:
+                context.log.warning(f"Could not fetch Pulsar stats: {e}")
+
+            return dg.SensorResult(asset_events=[_event_cls(
+                asset_key=dg.AssetKey.from_user_string(_self.asset_key),
+                metadata=metadata,
+                tags={DATA_VERSION_TAG: _json.dumps(metadata, sort_keys=True, default=str)},
+            )])
+
+        return dg.Definitions(assets=[spec], sensors=[_pulsar_obs])

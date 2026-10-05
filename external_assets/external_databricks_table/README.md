@@ -29,6 +29,8 @@ This component does not read from or write to Databricks Table. It is a **lineag
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `catalog` | `str` | — | Unity Catalog catalog name (leave blank for Hive Metastore) |
+| `resource_key` | `str` | — | Dagster resource key exposing `.observe(source) -> dict` (source is 'catalog.schema.table' or 'schema.table') that returns `{'data_version': str, **metadata}`. Only used when create_observation_sensor=True; unset uses da… _(full docs in schema.json + component README)_ |
+| `token_env_var` | `str` | — | Env var with Databricks personal access token. Only used when create_observation_sensor=True (native path, no resource_key). |
 
 ### Catalog metadata
 
@@ -46,10 +48,20 @@ This component does not read from or write to Databricks Table. It is a **lineag
 | `partition_values` | `str` | — | Comma-separated values for static / multi partition types. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec; overrides flat fields when set. |
 
+### Sensor configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{table_name}__observation_sensor'. Only used when create_observation_sensor=True. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `create_observation_sensor` | `bool` | `false` | Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone databricks_table_observation_sensor component). When False (default), this component only declares… _(full docs in schema.json + component README)_ |
+| `check_interval_seconds` | `int` | `300` | Seconds between health checks. Only used when create_observation_sensor=True. |
+| `http_path` | `str` | — | SQL warehouse HTTP path (from connection details). Only used when create_observation_sensor=True (native path, no resource_key). |
+| `emit_materialization` | `bool` | `true` | When True (default), the sensor emits AssetMaterialization on the target asset key. External assets show healthy/green in the Dagster UI and downstream AutomationCondition.eager() fires naturally on parent updates. When… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 
 [//]: # (FIELDS:END)
@@ -67,9 +79,27 @@ attributes:
   # description: None  # optional
 ```
 
-## Pair with the observation sensor
+## Observation sensor
 
-Use the companion observation sensor to periodically health-check the table and record metrics as `AssetObservation` events:
+Set `create_observation_sensor: true` to also get the polling sensor that keeps this asset's
+health/data-version current — one component, one YAML, no manual `asset_key` wiring:
+
+```yaml
+type: dagster_component_templates.ExternalDatabricksTableAsset
+attributes:
+  asset_key: external/databricks
+  workspace_url: WORKSPACE_URL
+  schema_name: my_schema
+  table_name: my_table
+  create_observation_sensor: true
+  check_interval_seconds: 300
+  token_env_var: DATABRICKS_TOKEN
+  http_path: /sql/1.0/warehouses/abc123
+```
+
+If the sensor needs to observe an `asset_key` declared by a *different* component (or you want the
+asset and sensor on independent lifecycles), pair this component with the standalone
+`databricks_table_observation_sensor` component instead:
 
 ```yaml
 # 1. Declare the external asset (lineage node)
@@ -78,16 +108,20 @@ attributes:
   asset_key: external/databricks
   workspace_url: WORKSPACE_URL
   schema_name: my_schema
+  table_name: my_table
 
 ---
 
 # 2. Observe it on a schedule
-type: dagster_component_templates.DatabricksTableObservationSensorComponentObservationSensorComponent
+type: dagster_component_templates.DatabricksTableObservationSensorComponent
 attributes:
   sensor_name: databricks_table_observer
   asset_key: external/databricks
   workspace_url: WORKSPACE_URL
   schema_name: my_schema
+  table_name: my_table
+  token_env_var: DATABRICKS_TOKEN
+  http_path: /sql/1.0/warehouses/abc123
 ```
 
 ## Requirements

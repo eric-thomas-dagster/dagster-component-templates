@@ -1,4 +1,12 @@
-"""External BigQuery Table Asset Component."""
+"""External BigQuery Table Asset Component.
+
+Set `create_observation_sensor: true` to also get the polling sensor that
+`bigquery_table_observation_sensor` provides standalone -- one component,
+one YAML, asset + sensor wired together automatically (same pattern as
+OpenaiLlmBatchComponent's auto-created status sensor). The standalone
+sensor component is unaffected and still exists for cases where the
+sensor needs to observe an asset_key defined elsewhere.
+"""
 from typing import Any, Dict, List, Optional
 import dagster as dg
 from pydantic import Field
@@ -129,6 +137,54 @@ class ExternalBigQueryTableAsset(dg.Component, dg.Model, dg.Resolvable):
         description="Extra metadata merged on top of the auto-populated {project_id, dataset_id, table_id, dagster/uri, dagster.observability_type}.",
     )
 
+    create_observation_sensor: bool = Field(
+        default=False,
+        description=(
+            "Also create the polling sensor that keeps this external asset's health/data-version "
+            "current (same logic as the standalone bigquery_table_observation_sensor component). "
+            "When False (default), this component only declares the AssetSpec -- pair it with a "
+            "separate bigquery_table_observation_sensor component yourself if you want observation."
+        ),
+    )
+    sensor_name: Optional[str] = Field(
+        default=None,
+        description="Unique sensor name. Defaults to '{table_id}__observation_sensor'. Only used when create_observation_sensor=True.",
+    )
+    check_interval_seconds: int = Field(
+        default=300,
+        description="Seconds between health checks. Only used when create_observation_sensor=True.",
+    )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster resource key exposing `.observe(source) -> dict` (source is "
+            "'project.dataset.table') that returns `{'data_version': str, **metadata}`. "
+            "Only used when create_observation_sensor=True; unset uses google-cloud-bigquery directly."
+        ),
+    )
+    include_preview_metadata: bool = Field(
+        default=False,
+        description=(
+            "Run an extra `SELECT * LIMIT preview_rows` against the table and include the result as "
+            "markdown preview on the AssetObservation. Only used when create_observation_sensor=True."
+        ),
+    )
+    preview_rows: int = Field(
+        default=25,
+        ge=1,
+        le=500,
+        description="Rows in the preview SELECT when include_preview_metadata=True.",
+    )
+    emit_materialization: bool = Field(
+        default=True,
+        description=(
+            "When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, "
+            "downstream AutomationCondition.eager() fires on parent updates). When False, emits "
+            "AssetObservation instead (no Dagster+ credit charge, but eager()-style conditions won't "
+            "fire). Only used when create_observation_sensor=True."
+        ),
+    )
+
     partition_type: Optional[str] = Field(
         default=None,
         description="Partition type: 'daily'|'weekly'|'monthly'|'hourly'|'static'|'dynamic'|'multi', or None for unpartitioned.",
@@ -177,4 +233,76 @@ class ExternalBigQueryTableAsset(dg.Component, dg.Model, dg.Resolvable):
             owners=self.owners or [],
             partitions_def=partitions_def,
         )
-        return dg.Definitions(assets=[spec])
+
+        if not self.create_observation_sensor:
+            return dg.Definitions(assets=[spec])
+
+        _self = self
+        sensor_name = self.sensor_name or f"{self.table_id}__observation_sensor"
+        resource_key = self.resource_key
+        required_resource_keys = {resource_key} if resource_key else set()
+
+        @dg.sensor(
+            name=sensor_name,
+            minimum_interval_seconds=self.check_interval_seconds,
+            required_resource_keys=required_resource_keys,
+            asset_selection=dg.AssetSelection.keys(dg.AssetKey.from_user_string(self.asset_key)),
+        )
+        def _bq_obs(context: dg.SensorEvaluationContext):
+            from dagster._core.definitions.data_version import DATA_VERSION_TAG
+            _event_cls = dg.AssetMaterialization if _self.emit_materialization else dg.AssetObservation
+
+            if resource_key:
+                client = getattr(context.resources, resource_key, None)
+                if client is None:
+                    return dg.SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+                try:
+                    source = f"{_self.project_id}.{_self.dataset_id}.{_self.table_id}"
+                    observed: dict[str, Any] = dict(client.observe(source))
+                except Exception as e:
+                    context.log.error(f"resource '{resource_key}'.observe failed: {e}")
+                    return dg.SensorResult(skip_reason=f"resource observe failed: {e}")
+                data_version = str(observed.pop("data_version", ""))
+                return dg.SensorResult(asset_events=[_event_cls(
+                    asset_key=dg.AssetKey.from_user_string(_self.asset_key),
+                    metadata=observed,
+                    tags={DATA_VERSION_TAG: data_version} if data_version else None,
+                )])
+
+            try:
+                from google.cloud import bigquery
+            except ImportError:
+                return dg.SensorResult(skip_reason="google-cloud-bigquery not installed")
+
+            try:
+                client = bigquery.Client(project=_self.project_id)
+                table_ref = client.get_table(f"{_self.project_id}.{_self.dataset_id}.{_self.table_id}")
+            except Exception as e:
+                return dg.SensorResult(skip_reason=f"Connect or get_table failed: {e}")
+
+            modified_iso = table_ref.modified.isoformat() if table_ref.modified else ""
+            data_version = f"{table_ref.num_rows}-{modified_iso}"
+            obs_metadata: dict[str, Any] = {
+                "row_count": table_ref.num_rows,
+                "size_bytes": table_ref.num_bytes,
+                "modified_time_iso": modified_iso,
+                "created_time_iso": table_ref.created.isoformat() if table_ref.created else "",
+                "project_id": _self.project_id,
+                "dataset_id": _self.dataset_id,
+                "table_id": _self.table_id,
+            }
+            if _self.include_preview_metadata:
+                try:
+                    fqn = f"`{_self.project_id}.{_self.dataset_id}.{_self.table_id}`"
+                    df = client.query(f"SELECT * FROM {fqn} LIMIT {_self.preview_rows}").to_dataframe()
+                    if len(df) > 0:
+                        obs_metadata["preview"] = dg.MetadataValue.md(df.to_markdown(index=False))
+                except Exception as e:
+                    context.log.warning(f"Preview query failed: {e}")
+            return dg.SensorResult(asset_events=[_event_cls(
+                asset_key=dg.AssetKey.from_user_string(_self.asset_key),
+                metadata=obs_metadata,
+                tags={DATA_VERSION_TAG: data_version},
+            )])
+
+        return dg.Definitions(assets=[spec], sensors=[_bq_obs])

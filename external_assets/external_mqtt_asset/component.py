@@ -1,7 +1,22 @@
-"""External MQTT Asset Component."""
+"""External MQTT Asset Component.
+
+Set `create_observation_sensor: true` to also get the polling sensor that
+`MqttObservationSensorComponent` provides standalone -- one component,
+one YAML, asset + sensor wired together automatically. The standalone
+sensor component is unaffected and still exists for cases where the
+sensor needs to observe an asset_key defined elsewhere.
+"""
+import json
+import re
+import threading
 from typing import Any, Dict, List, Optional
 import dagster as dg
 from pydantic import Field
+
+def _safe_sensor_name_part(s: str) -> str:
+    """Sanitize a vendor identifier (which may contain '-', '.', '/', '+', etc.)
+    into a valid Dagster sensor-name fragment (must match ^[A-Za-z0-9_]+$)."""
+    return re.sub(r"[^A-Za-z0-9_]", "_", s)
 
 def _build_partitions_def(
     partition_type,
@@ -113,6 +128,41 @@ class ExternalMqttAsset(dg.Component, dg.Model, dg.Resolvable):
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     description: Optional[str] = Field(default=None, description="Human-readable description")
 
+    create_observation_sensor: bool = Field(
+        default=False,
+        description=(
+            "Also create the polling sensor that keeps this external asset's health/data-version "
+            "current (same logic as the standalone MqttObservationSensorComponent). "
+            "When False (default), this component only declares the AssetSpec -- pair it with a "
+            "separate MqttObservationSensorComponent yourself if you want observation."
+        ),
+    )
+    sensor_name: Optional[str] = Field(
+        default=None,
+        description="Unique sensor name. Defaults to '{topic}__observation_sensor'. Only used when create_observation_sensor=True.",
+    )
+    connect_timeout_seconds: float = Field(
+        default=5.0,
+        description="Seconds to wait for connection. Only used when create_observation_sensor=True.",
+    )
+    check_interval_seconds: int = Field(
+        default=300,
+        description="Seconds between health checks. Only used when create_observation_sensor=True.",
+    )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description="Optional Dagster resource key. Only used when create_observation_sensor=True.",
+    )
+    emit_materialization: bool = Field(
+        default=True,
+        description=(
+            "When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, "
+            "downstream AutomationCondition.eager() fires on parent updates). When False, emits "
+            "AssetObservation instead (no Dagster+ credit charge, but eager()-style conditions won't "
+            "fire). Only used when create_observation_sensor=True."
+        ),
+    )
+
     partition_type: Optional[str] = Field(
         default=None,
         description="Partition type: 'daily'|'weekly'|'monthly'|'hourly'|'static'|'dynamic'|'multi', or None for unpartitioned.",
@@ -155,4 +205,80 @@ class ExternalMqttAsset(dg.Component, dg.Model, dg.Resolvable):
             },
             partitions_def=partitions_def,
         )
-        return dg.Definitions(assets=[spec])
+
+        if not self.create_observation_sensor:
+            return dg.Definitions(assets=[spec])
+
+        _self = self
+        sensor_name = self.sensor_name or f"{_safe_sensor_name_part(self.topic)}__observation_sensor"
+        resource_key = self.resource_key
+        required_resource_keys = {resource_key} if resource_key else set()
+
+        @dg.sensor(
+            name=sensor_name,
+            minimum_interval_seconds=self.check_interval_seconds,
+            required_resource_keys=required_resource_keys,
+            asset_selection=dg.AssetSelection.keys(dg.AssetKey.from_user_string(self.asset_key)),
+        )
+        def _mqtt_obs(context: dg.SensorEvaluationContext, **_resources):
+            from dagster._core.definitions.data_version import DATA_VERSION_TAG
+            _event_cls = dg.AssetMaterialization if _self.emit_materialization else dg.AssetObservation
+            # ── Resource-backed path (v0.10.46) ─────────────────────────────
+            if resource_key:
+                _rk_client = getattr(context.resources, resource_key, None)
+                if _rk_client is None:
+                    return dg.SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+                try:
+                    _rk_observed = dict(_rk_client.observe(_self.topic))
+                except Exception as _rk_e:
+                    context.log.error(f"resource '{resource_key}'.observe failed: {_rk_e}")
+                    return dg.SensorResult(skip_reason=f"resource observe failed: {_rk_e}")
+                _rk_dv = str(_rk_observed.pop("data_version", ""))
+                return dg.SensorResult(asset_events=[_event_cls(
+                    asset_key=dg.AssetKey.from_user_string(_self.asset_key),
+                    metadata=_rk_observed,
+                    tags={DATA_VERSION_TAG: _rk_dv} if _rk_dv else None,
+                )])
+            try:
+                import paho.mqtt.client as mqtt
+            except ImportError:
+                return dg.SensorResult(skip_reason="paho-mqtt not installed")
+
+            connected = threading.Event()
+            broker_reachable = False
+            broker_version = ""
+
+            def on_connect(client, userdata, flags, rc):
+                nonlocal broker_reachable, broker_version
+                if rc == 0:
+                    broker_reachable = True
+                connected.set()
+
+            if resource_key:
+                # resource is expected to be a connected client
+                broker_reachable = True
+            else:
+                try:
+                    client = mqtt.Client()
+                    client.on_connect = on_connect
+                    client.connect(_self.broker_host, _self.broker_port, keepalive=10)
+                    client.loop_start()
+                    connected.wait(timeout=_self.connect_timeout_seconds)
+                    client.loop_stop()
+                    client.disconnect()
+                except Exception as e:
+                    pass
+
+            obs_metadata = {
+                "broker_reachable": broker_reachable,
+                "broker_host": _self.broker_host,
+                "broker_port": _self.broker_port,
+                "topic": _self.topic,
+            }
+            return dg.SensorResult(asset_events=[_event_cls(
+                asset_key=dg.AssetKey.from_user_string(_self.asset_key),
+                metadata=obs_metadata,
+                tags={DATA_VERSION_TAG: json.dumps(obs_metadata, sort_keys=True, default=str)},
+            )])
+
+        return dg.Definitions(assets=[spec], sensors=[_mqtt_obs])

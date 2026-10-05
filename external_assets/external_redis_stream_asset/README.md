@@ -28,6 +28,8 @@ This component does not read from or write to Redis Stream. It is a **lineage de
 |---|---|---|---|
 | `host` | `str` | `"localhost"` | Redis host |
 | `port` | `int` | `6379` | Redis port |
+| `password_env_var` | `str` | — | Env var with Redis password. Only used when create_observation_sensor=True. |
+| `resource_key` | `str` | — | Optional Dagster resource key exposing `.observe(source) -> dict`. Only used when create_observation_sensor=True. |
 
 ### Catalog metadata
 
@@ -45,10 +47,20 @@ This component does not read from or write to Redis Stream. It is a **lineage de
 | `partition_values` | `str` | — | Comma-separated values for static / multi partition types. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec; overrides flat fields when set. |
 
+### Sensor configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{stream_name}__observation_sensor' (sanitized to valid sensor-name characters). Only used when create_observation_sensor=True. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `create_observation_sensor` | `bool` | `false` | Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone redis_stream_observation_sensor component). When False (default), this component only declares the… _(full docs in schema.json + component README)_ |
+| `db` | `int` | `0` | Redis database index. Only used when create_observation_sensor=True. |
+| `check_interval_seconds` | `int` | `60` | Seconds between health checks. Only used when create_observation_sensor=True. |
+| `emit_materialization` | `bool` | `true` | When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, downstream AutomationCondition.eager() fires on parent updates). When False, emits AssetObservation instead (no Dagster+ credit charg… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 
 [//]: # (FIELDS:END)
@@ -65,9 +77,23 @@ attributes:
   # description: None  # optional
 ```
 
-## Pair with the observation sensor
+## Observation sensor
 
-Use the companion observation sensor to periodically health-check the stream and record metrics as `AssetObservation` events:
+Set `create_observation_sensor: true` to also get the polling sensor that keeps this asset's
+health/data-version current — one component, one YAML, no manual `asset_key` wiring:
+
+```yaml
+type: dagster_component_templates.ExternalRedisStreamAsset
+attributes:
+  asset_key: external/redis_stream
+  stream_name: my_stream
+  create_observation_sensor: true
+  check_interval_seconds: 60
+```
+
+If the sensor needs to observe an `asset_key` declared by a *different* component (or you want the
+asset and sensor on independent lifecycles), pair this component with the standalone
+`redis_stream_observation_sensor` component instead:
 
 ```yaml
 # 1. Declare the external asset (lineage node)

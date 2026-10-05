@@ -1,7 +1,21 @@
-"""External Pub/Sub Asset Component."""
+"""External Pub/Sub Asset Component.
+
+Set `create_observation_sensor: true` to also get the polling sensor that
+`PubsubObservationSensorComponent` provides standalone -- one component,
+one YAML, asset + sensor wired together automatically. The standalone
+sensor component is unaffected and still exists for cases where the
+sensor needs to observe an asset_key defined elsewhere.
+"""
+import json
+import re
 from typing import Any, Dict, List, Optional
 import dagster as dg
 from pydantic import Field
+
+def _safe_sensor_name_part(s: str) -> str:
+    """Sanitize a vendor identifier (which may contain '-', '.', '/', '+', etc.)
+    into a valid Dagster sensor-name fragment (must match ^[A-Za-z0-9_]+$)."""
+    return re.sub(r"[^A-Za-z0-9_]", "_", s)
 
 def _build_partitions_def(
     partition_type,
@@ -112,6 +126,41 @@ class ExternalPubsubAsset(dg.Component, dg.Model, dg.Resolvable):
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     description: Optional[str] = Field(default=None, description="Human-readable description")
 
+    create_observation_sensor: bool = Field(
+        default=False,
+        description=(
+            "Also create the polling sensor that keeps this external asset's health/data-version "
+            "current (same logic as the standalone PubsubObservationSensorComponent). "
+            "When False (default), this component only declares the AssetSpec -- pair it with a "
+            "separate PubsubObservationSensorComponent yourself if you want observation."
+        ),
+    )
+    sensor_name: Optional[str] = Field(
+        default=None,
+        description="Unique sensor name. Defaults to '{topic_id}__observation_sensor'. Only used when create_observation_sensor=True.",
+    )
+    subscription_id: Optional[str] = Field(
+        default=None,
+        description="Subscription ID for lag metrics. Only used when create_observation_sensor=True.",
+    )
+    check_interval_seconds: int = Field(
+        default=300,
+        description="Seconds between health checks. Only used when create_observation_sensor=True.",
+    )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description="Optional Dagster resource key. Only used when create_observation_sensor=True.",
+    )
+    emit_materialization: bool = Field(
+        default=True,
+        description=(
+            "When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, "
+            "downstream AutomationCondition.eager() fires on parent updates). When False, emits "
+            "AssetObservation instead (no Dagster+ credit charge, but eager()-style conditions won't "
+            "fire). Only used when create_observation_sensor=True."
+        ),
+    )
+
     partition_type: Optional[str] = Field(
         default=None,
         description="Partition type: 'daily'|'weekly'|'monthly'|'hourly'|'static'|'dynamic'|'multi', or None for unpartitioned.",
@@ -154,4 +203,77 @@ class ExternalPubsubAsset(dg.Component, dg.Model, dg.Resolvable):
             },
             partitions_def=partitions_def,
         )
-        return dg.Definitions(assets=[spec])
+
+        if not self.create_observation_sensor:
+            return dg.Definitions(assets=[spec])
+
+        _self = self
+        sensor_name = self.sensor_name or f"{_safe_sensor_name_part(self.topic_id)}__observation_sensor"
+        resource_key = self.resource_key
+        required_resource_keys = {resource_key} if resource_key else set()
+
+        @dg.sensor(
+            name=sensor_name,
+            minimum_interval_seconds=self.check_interval_seconds,
+            required_resource_keys=required_resource_keys,
+            asset_selection=dg.AssetSelection.keys(dg.AssetKey.from_user_string(self.asset_key)),
+        )
+        def _pubsub_obs(context: dg.SensorEvaluationContext, **_resources):
+            from dagster._core.definitions.data_version import DATA_VERSION_TAG
+            _event_cls = dg.AssetMaterialization if _self.emit_materialization else dg.AssetObservation
+            # ── Resource-backed path (v0.10.46) ─────────────────────────────
+            if resource_key:
+                _rk_client = getattr(context.resources, resource_key, None)
+                if _rk_client is None:
+                    return dg.SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+                try:
+                    _rk_observed = dict(_rk_client.observe(f'projects/{_self.project_id}/topics/{_self.topic_id}'))
+                except Exception as _rk_e:
+                    context.log.error(f"resource '{resource_key}'.observe failed: {_rk_e}")
+                    return dg.SensorResult(skip_reason=f"resource observe failed: {_rk_e}")
+                _rk_dv = str(_rk_observed.pop("data_version", ""))
+                return dg.SensorResult(asset_events=[_event_cls(
+                    asset_key=dg.AssetKey.from_user_string(_self.asset_key),
+                    metadata=_rk_observed,
+                    tags={DATA_VERSION_TAG: _rk_dv} if _rk_dv else None,
+                )])
+            try:
+                from google.cloud import pubsub_v1
+            except ImportError:
+                return dg.SensorResult(skip_reason="google-cloud-pubsub not installed")
+
+            try:
+                if resource_key:
+                    publisher = getattr(context.resources, resource_key)
+                else:
+                    publisher = pubsub_v1.PublisherClient()
+            except Exception as e:
+                return dg.SensorResult(skip_reason=f"Connect failed: {e}")
+
+            topic_path = f"projects/{_self.project_id}/topics/{_self.topic_id}"
+            obs_metadata = {"topic_path": topic_path, "project_id": _self.project_id, "topic_id": _self.topic_id}
+
+            try:
+                topic = publisher.get_topic(request={"topic": topic_path})
+                obs_metadata["message_retention_duration_seconds"] = (
+                    topic.message_retention_duration.seconds if topic.message_retention_duration else 0
+                )
+            except Exception as e:
+                context.log.warning(f"Could not get topic details: {e}")
+
+            if _self.subscription_id:
+                try:
+                    subscriber = pubsub_v1.SubscriberClient()
+                    sub_path = f"projects/{_self.project_id}/subscriptions/{_self.subscription_id}"
+                    sub = subscriber.get_subscription(request={"subscription": sub_path})
+                    obs_metadata["subscription_id"] = _self.subscription_id
+                except Exception as e:
+                    context.log.warning(f"Could not get subscription details: {e}")
+
+            return dg.SensorResult(asset_events=[_event_cls(
+                asset_key=dg.AssetKey.from_user_string(_self.asset_key),
+                metadata=obs_metadata,
+                tags={DATA_VERSION_TAG: json.dumps(obs_metadata, sort_keys=True, default=str)},
+            )])
+
+        return dg.Definitions(assets=[spec], sensors=[_pubsub_obs])

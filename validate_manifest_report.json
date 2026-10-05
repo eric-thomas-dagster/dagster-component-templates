@@ -1,13 +1,12 @@
 {
   "summary": {
-    "PASS": 809,
-    "WARN": 14,
-    "SKIP_OPTIONAL_DEP": 78,
-    "SKIP_EXAMPLE_MULTI_DOC": 51,
-    "SKIP_PROJECT_REQUIRED": 24,
-    "FAIL": 7,
-    "SKIP_RELATIVE_IMPORT": 4,
-    "SKIP_CREDENTIALS": 36
+    "PASS": 1138,
+    "WARN": 19,
+    "SKIP_OPTIONAL_DEP": 67,
+    "SKIP_PROJECT_REQUIRED": 25,
+    "SKIP_CREDENTIALS": 40,
+    "SKIP_RELATIVE_IMPORT": 3,
+    "FAIL": 7
   },
   "results": [
     {
@@ -83,6 +82,22 @@
       "error_class": null
     },
     {
+      "id": "activecampaign_ingestion",
+      "path": "assets/ingestion/activecampaign_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "acuity_scheduling_ingestion",
+      "path": "assets/ingestion/acuity_scheduling_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "ad_spend_standardizer",
       "path": "assets/analytics/ad_spend_standardizer",
       "status": "PASS",
@@ -95,9 +110,9 @@
     {
       "id": "adaptive_research_brief",
       "path": "assets/ai/adaptive_research_brief",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
-        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+        "UserWarning: Field name \"model\" in \"AdaptiveResearchBriefComponent\" shadows an attribute in parent \"Resolvable\""
       ],
       "error": null,
       "error_class": null
@@ -105,18 +120,18 @@
     {
       "id": "address_standardize",
       "path": "assets/transforms/address_standardize",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"AdaptiveResearchBriefComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
     {
       "id": "adls_cleanup_job",
       "path": "jobs/adls_cleanup_job",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"AdaptiveResearchBriefComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -131,9 +146,8 @@
     {
       "id": "adls_observation_sensor",
       "path": "observations/adls_observation_sensor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"AdaptiveResearchBriefComponent\" shadows an attribute in parent \"Resolvable\"",
         "DeprecationWarning: Function `AssetSelection.keys` is deprecated and will be removed in 2.0. Use AssetSelection.assets instead."
       ],
       "error": null,
@@ -142,6 +156,22 @@
     {
       "id": "adls_to_database_asset",
       "path": "assets/ingestion/adls_to_database_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "adp_workforce_now_ingestion",
+      "path": "assets/ingestion/adp_workforce_now_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "adyen_ingestion",
+      "path": "assets/ingestion/adyen_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -212,6 +242,14 @@
       "error_class": null
     },
     {
+      "id": "airtable_record_upsert",
+      "path": "assets/reverse_etl/airtable_record_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "airtable_resource",
       "path": "resources/airtable_resource",
       "status": "PASS",
@@ -220,8 +258,48 @@
       "error_class": null
     },
     {
+      "id": "alation_export_job",
+      "path": "jobs/alation_export_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "algolia_index_upsert",
+      "path": "assets/reverse_etl/algolia_index_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "algolia_resource",
+      "path": "resources/algolia_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "alter_row",
       "path": "transforms/alter_row",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "amplitude_event_track",
+      "path": "assets/reverse_etl/amplitude_event_track",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "amplitude_ingestion",
+      "path": "assets/ingestion/amplitude_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -268,6 +346,14 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "anthropic_llm_batch",
+      "path": "assets/ai/anthropic_llm_batch",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -332,9 +418,11 @@
     {
       "id": "arima_forecast",
       "path": "assets/transforms/arima_forecast",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -358,9 +446,11 @@
     {
       "id": "array_exploder",
       "path": "assets/transforms/array_exploder",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -374,6 +464,14 @@
     {
       "id": "asana_resource",
       "path": "resources/asana_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "asana_task_create",
+      "path": "assets/reverse_etl/asana_task_create",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -404,11 +502,21 @@
       "error_class": null
     },
     {
+      "id": "audio_diarized_transcriber",
+      "path": "assets/ai/audio_diarized_transcriber",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "audio_transcriber",
       "path": "assets/ai/audio_transcriber",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -492,6 +600,30 @@
       "error_class": null
     },
     {
+      "id": "auth0_management_ingestion",
+      "path": "assets/ingestion/auth0_management_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "auth0_resource",
+      "path": "resources/auth0_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "auth0_user_upsert",
+      "path": "assets/reverse_etl/auth0_user_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "auto_field",
       "path": "assets/transforms/auto_field",
       "status": "PASS",
@@ -514,6 +646,16 @@
       "path": "assets/infrastructure/automation_condition_applicator",
       "status": "PASS",
       "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "automl_asset",
+      "path": "assets/analytics/automl_asset",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
       "error": null,
       "error_class": null
     },
@@ -560,40 +702,33 @@
     {
       "id": "aws_dms",
       "path": "integrations/aws_dms",
-      "status": "FAIL",
+      "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "'NoneType' object has no attribute 'Session'",
-      "error_class": "AttributeError",
-      "traceback": [
-        "             ^^^^^^^^^^^^^^^^^^",
-        "  File \"/private/tmp/dagster-component-templates-check/integrations/aws_dms/component.py\", line 136, in _get_client",
-        "    session = boto3.Session(**session_config)",
-        "              ^^^^^^^^^^^^^",
-        "AttributeError: 'NoneType' object has no attribute 'Session'"
-      ]
+      "error": "An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'YSq5u8ldZ0pLuFzLwj4DZt/hGogzVkQEhe4+WbA7q0Q='.",
+      "error_class": null
     },
     {
       "id": "aws_glue",
       "path": "integrations/aws_glue",
-      "status": "SKIP_OPTIONAL_DEP",
+      "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'boto3'",
+      "error": "Could not find dg.toml or pyproject.toml in .",
       "error_class": null
     },
     {
       "id": "aws_kinesis",
       "path": "integrations/aws_kinesis",
-      "status": "SKIP_OPTIONAL_DEP",
+      "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'boto3'",
+      "error": "Operation cannot be paginated: list_delivery_streams",
       "error_class": null
     },
     {
       "id": "aws_redshift",
       "path": "integrations/aws_redshift",
-      "status": "SKIP_OPTIONAL_DEP",
+      "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'boto3'",
+      "error": "Unable to locate credentials",
       "error_class": null
     },
     {
@@ -607,9 +742,9 @@
     {
       "id": "aws_sagemaker",
       "path": "integrations/aws_sagemaker",
-      "status": "SKIP_OPTIONAL_DEP",
+      "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'boto3'",
+      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'dHaBhP2yJ3evmxSJv4t+aGj5oHAS5ahqH5yLhwi7L/k='.",
       "error_class": null
     },
     {
@@ -693,6 +828,14 @@
       "error_class": null
     },
     {
+      "id": "bamboohr_ingestion",
+      "path": "assets/ingestion/bamboohr_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "bank_statement_extractor",
       "path": "assets/ai/bank_statement_extractor",
       "status": "PASS",
@@ -703,8 +846,56 @@
       "error_class": null
     },
     {
+      "id": "basecamp_ingestion",
+      "path": "assets/ingestion/basecamp_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "basecamp_resource",
+      "path": "resources/basecamp_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "basecamp_todo_upsert",
+      "path": "assets/reverse_etl/basecamp_todo_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "bicep_asset",
       "path": "assets/infrastructure/bicep_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "bigcommerce_ingestion",
+      "path": "assets/ingestion/bigcommerce_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "bigcommerce_product_upsert",
+      "path": "assets/reverse_etl/bigcommerce_product_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "bigcommerce_resource",
+      "path": "resources/bigcommerce_resource",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -795,6 +986,7 @@
       "path": "observations/bigquery_table_observation_sensor",
       "status": "PASS",
       "warnings": [
+        "DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).",
         "DeprecationWarning: Function `AssetSelection.keys` is deprecated and will be removed in 2.0. Use AssetSelection.assets instead."
       ],
       "error": null,
@@ -825,6 +1017,22 @@
       "error_class": "ValueError"
     },
     {
+      "id": "bill_com_ingestion",
+      "path": "assets/ingestion/bill_com_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "bitbucket_ingestion",
+      "path": "assets/ingestion/bitbucket_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "blob_convert",
       "path": "assets/transforms/blob_convert",
       "status": "PASS",
@@ -843,14 +1051,48 @@
     {
       "id": "bounding_box_filter",
       "path": "assets/analytics/bounding_box_filter",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "box_ingestion",
+      "path": "assets/ingestion/box_ingestion",
+      "status": "PASS",
       "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "braze_ingestion",
+      "path": "assets/ingestion/braze_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
       "error_class": null
     },
     {
       "id": "braze_resource",
       "path": "resources/braze_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "braze_sink",
+      "path": "assets/reverse_etl/braze_sink",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "brex_ingestion",
+      "path": "assets/ingestion/brex_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -865,7 +1107,7 @@
       "error_class": "ModuleNotFoundError",
       "traceback": [
         "  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed",
-        "  File \"<frozen importlib._bootstrap>\", line 1387, in _gcd_import",
+        "  File \"<frozen importlib._bootstrap>\", line 1395, in _gcd_import",
         "  File \"<frozen importlib._bootstrap>\", line 1360, in _find_and_load",
         "  File \"<frozen importlib._bootstrap>\", line 1324, in _find_and_load_unlocked",
         "ModuleNotFoundError: No module named 'my_project'"
@@ -874,6 +1116,14 @@
     {
       "id": "buffer",
       "path": "assets/analytics/buffer",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "buildkite_ingestion",
+      "path": "assets/ingestion/buildkite_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -890,6 +1140,14 @@
     {
       "id": "cached_asset",
       "path": "assets/infrastructure/cached_asset",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "calendly_ingestion",
+      "path": "assets/ingestion/calendly_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -934,8 +1192,11 @@
     {
       "id": "catalog_agent",
       "path": "assets/ai/catalog_agent",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"CatalogAgentComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"CatalogAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -948,6 +1209,38 @@
       "error_class": "ModuleNotFoundError"
     },
     {
+      "id": "chargebee_customer_upsert",
+      "path": "assets/reverse_etl/chargebee_customer_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "chargebee_ingestion",
+      "path": "assets/ingestion/chargebee_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "chargebee_resource",
+      "path": "resources/chargebee_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "chargify_ingestion",
+      "path": "assets/ingestion/chargify_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "chroma_resource",
       "path": "resources/chroma_resource",
       "status": "SKIP_OPTIONAL_DEP",
@@ -958,10 +1251,8 @@
     {
       "id": "chromadb_asset",
       "path": "assets/analytics/chromadb_asset",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"CatalogAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -982,6 +1273,38 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "churnzero_ingestion",
+      "path": "assets/ingestion/churnzero_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "churnzero_resource",
+      "path": "resources/churnzero_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "circleci_ingestion",
+      "path": "assets/ingestion/circleci_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "clerk_ingestion",
+      "path": "assets/ingestion/clerk_ingestion",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -1016,6 +1339,54 @@
       "warnings": [
         "DeprecationWarning: Function `AssetSelection.keys` is deprecated and will be removed in 2.0. Use AssetSelection.assets instead."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "clickup_ingestion",
+      "path": "assets/ingestion/clickup_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "clickup_resource",
+      "path": "resources/clickup_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "clickup_task_upsert",
+      "path": "assets/reverse_etl/clickup_task_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "close_crm_ingestion",
+      "path": "assets/ingestion/close_crm_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "close_crm_lead_upsert",
+      "path": "assets/reverse_etl/close_crm_lead_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "close_crm_resource",
+      "path": "resources/close_crm_resource",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -1100,14 +1471,6 @@
       "error_class": null
     },
     {
-      "id": "coalesce_project",
-      "path": "assets/infrastructure/coalesce_run_asset",
-      "status": "SKIP_PROJECT_REQUIRED",
-      "warnings": [],
-      "error": "Could not find dg.toml or pyproject.toml in .",
-      "error_class": null
-    },
-    {
       "id": "coalesce_run_asset",
       "path": "assets/infrastructure/coalesce_run_asset",
       "status": "SKIP_PROJECT_REQUIRED",
@@ -1155,9 +1518,9 @@
       "error": "ModuleNotFoundError: No module named 'dagster_community_components'",
       "error_class": "ModuleNotFoundError",
       "traceback": [
-        "  File \"<frozen importlib._bootstrap_external>\", line 999, in exec_module",
+        "  File \"<frozen importlib._bootstrap_external>\", line 1023, in exec_module",
         "  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed",
-        "  File \"/private/tmp/dagster-component-templates-check/integrations/cognos_workspace/component.py\", line 66, in <module>",
+        "  File \"/Users/ericthomasii/https-::github.com:eric-thomas-dagster:dagster-component-templates/dagster-component-templates/integrations/cognos_workspace/component.py\", line 66, in <module>",
         "    from dagster_community_components import CognosResource",
         "ModuleNotFoundError: No module named 'dagster_community_components'"
       ]
@@ -1169,6 +1532,14 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "collibra_export_job",
+      "path": "jobs/collibra_export_job",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -1187,6 +1558,54 @@
       "warnings": [],
       "error": "Provide credentials, credentials_path, or set GOOGLE_APPLICATION_CREDENTIALS.",
       "error_class": "ValueError"
+    },
+    {
+      "id": "concur_ingestion",
+      "path": "assets/ingestion/concur_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "confluence_ingestion",
+      "path": "assets/ingestion/confluence_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "confluence_page_upsert",
+      "path": "assets/reverse_etl/confluence_page_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "confluence_resource",
+      "path": "resources/confluence_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "constant_contact_ingestion",
+      "path": "assets/ingestion/constant_contact_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "context_engineering_pipeline",
+      "path": "assets/ai/context_engineering_pipeline",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "contract_extractor",
@@ -1217,11 +1636,45 @@
       "error_class": null
     },
     {
+      "id": "convertkit_ingestion",
+      "path": "assets/ingestion/convertkit_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "coordinate_transformer",
       "path": "assets/analytics/coordinate_transformer",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "copper_ingestion",
+      "path": "assets/ingestion/copper_ingestion",
+      "status": "PASS",
       "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "copper_record_upsert",
+      "path": "assets/reverse_etl/copper_record_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "copper_resource",
+      "path": "resources/copper_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
       "error_class": null
     },
     {
@@ -1295,6 +1748,14 @@
       "error_class": null
     },
     {
+      "id": "coupa_ingestion",
+      "path": "assets/ingestion/coupa_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "create_points",
       "path": "assets/analytics/create_points",
       "status": "PASS",
@@ -1351,9 +1812,11 @@
     {
       "id": "cross_validation",
       "path": "assets/analytics/cross_validation",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -1378,13 +1841,23 @@
       "id": "customer_health_score",
       "path": "assets/analytics/customer_health_score",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
       "error": null,
       "error_class": null
     },
     {
       "id": "customer_io_resource",
       "path": "resources/customer_io_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "customer_io_sink",
+      "path": "assets/reverse_etl/customer_io_sink",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -1409,6 +1882,46 @@
       "error_class": null
     },
     {
+      "id": "customerio_ingestion",
+      "path": "assets/ingestion/customerio_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dagster_asset_materialization_prune_job",
+      "path": "jobs/dagster_asset_materialization_prune_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dagster_audit_to_warehouse_job",
+      "path": "jobs/dagster_audit_to_warehouse_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dagster_check_results_prune_job",
+      "path": "jobs/dagster_check_results_prune_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dagster_compute_logs_archive_job",
+      "path": "jobs/dagster_compute_logs_archive_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "dagster_failures_to_otlp_sensor",
       "path": "sensors/dagster_failures_to_otlp_sensor",
       "status": "PASS",
@@ -1420,9 +1933,7 @@
       "id": "dagster_materializations_to_prometheus_sensor",
       "path": "sensors/dagster_materializations_to_prometheus_sensor",
       "status": "PASS",
-      "warnings": [
-        "DependencyWarning: SOCKS support in urllib3 requires the installation of optional dependencies: specifically, PySocks.  For more information, see https://urllib3.readthedocs.io/en/latest/advanced-usage.html#socks-proxies"
-      ],
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -1453,6 +1964,14 @@
     {
       "id": "dagster_plus_to_siem_job",
       "path": "jobs/dagster_plus_to_siem_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dagster_run_prune_job",
+      "path": "jobs/dagster_run_prune_job",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -1507,12 +2026,28 @@
       "error_class": null
     },
     {
+      "id": "dagster_stale_partition_cleanup_job",
+      "path": "jobs/dagster_stale_partition_cleanup_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "dagstermill_notebook_asset",
       "path": "assets/infrastructure/dagstermill_notebook_asset",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
       "error": "ModuleNotFoundError: No module named 'dagstermill'",
       "error_class": "ModuleNotFoundError"
+    },
+    {
+      "id": "data360_export_job",
+      "path": "jobs/data360_export_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "data_cleansing",
@@ -1535,16 +2070,21 @@
     {
       "id": "data_enricher",
       "path": "assets/ai/data_enricher",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
       "id": "data_masking",
       "path": "transforms/data_masking",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"DataEnricherComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"DataEnricherComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -1661,6 +2201,14 @@
       "warnings": [],
       "error": "ModuleNotFoundError: No module named 'dagster_databricks'",
       "error_class": "ModuleNotFoundError"
+    },
+    {
+      "id": "databricks_sql_resource",
+      "path": "resources/databricks_sql_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "databricks_table_observation_sensor",
@@ -1787,14 +2335,6 @@
       "error_class": null
     },
     {
-      "id": "dataframe_to_amplitude",
-      "path": "assets/sinks/dataframe_to_amplitude",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
       "id": "dataframe_to_avro",
       "path": "assets/sinks/dataframe_to_avro",
       "status": "PASS",
@@ -1819,14 +2359,6 @@
       "error_class": null
     },
     {
-      "id": "dataframe_to_braze",
-      "path": "assets/sinks/dataframe_to_braze",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
       "id": "dataframe_to_clickhouse",
       "path": "assets/sinks/dataframe_to_clickhouse",
       "status": "PASS",
@@ -1837,14 +2369,6 @@
     {
       "id": "dataframe_to_csv",
       "path": "assets/sinks/dataframe_to_csv",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
-      "id": "dataframe_to_customer_io",
-      "path": "assets/sinks/dataframe_to_customer_io",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -1931,14 +2455,6 @@
       "error_class": null
     },
     {
-      "id": "dataframe_to_iterable",
-      "path": "assets/sinks/dataframe_to_iterable",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
       "id": "dataframe_to_json",
       "path": "assets/sinks/dataframe_to_json",
       "status": "PASS",
@@ -1947,24 +2463,8 @@
       "error_class": null
     },
     {
-      "id": "dataframe_to_klaviyo",
-      "path": "assets/sinks/dataframe_to_klaviyo",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
       "id": "dataframe_to_kusto",
       "path": "assets/sinks/dataframe_to_kusto",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
-      "id": "dataframe_to_mixpanel",
-      "path": "assets/sinks/dataframe_to_mixpanel",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -2051,22 +2551,6 @@
       "error_class": null
     },
     {
-      "id": "dataframe_to_segment",
-      "path": "assets/sinks/dataframe_to_segment",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
-      "id": "dataframe_to_sendgrid",
-      "path": "assets/sinks/dataframe_to_sendgrid",
-      "status": "PASS",
-      "warnings": [],
-      "error": null,
-      "error_class": null
-    },
-    {
       "id": "dataframe_to_sentry",
       "path": "assets/sinks/dataframe_to_sentry",
       "status": "PASS",
@@ -2143,6 +2627,14 @@
       "error_class": null
     },
     {
+      "id": "datahub_export_job",
+      "path": "jobs/datahub_export_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "dataiku_asset",
       "path": "assets/analytics/dataiku_asset",
       "status": "SKIP_PROJECT_REQUIRED",
@@ -2189,7 +2681,7 @@
       "path": "resources/dbt_cloud_resource",
       "status": "SKIP_PROJECT_REQUIRED",
       "warnings": [],
-      "error": "deadlock detected by _ModuleLock('dagster_dbt.components') at 4540115920",
+      "error": "deadlock detected by _ModuleLock('dagster_dbt.components.dbt_project.component') at 4798381520",
       "error_class": "_DeadlockError"
     },
     {
@@ -2219,9 +2711,19 @@
     {
       "id": "decision_tree_model",
       "path": "assets/analytics/decision_tree_model",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "deel_ingestion",
+      "path": "assets/ingestion/deel_ingestion",
+      "status": "PASS",
       "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "error": null,
       "error_class": null
     },
     {
@@ -2267,9 +2769,11 @@
     {
       "id": "distance_calculator",
       "path": "assets/analytics/distance_calculator",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -2287,6 +2791,14 @@
       "warnings": [],
       "error": "ModuleNotFoundError: No module named 'dagster_dlt'",
       "error_class": "ModuleNotFoundError"
+    },
+    {
+      "id": "docebo_ingestion",
+      "path": "assets/ingestion/docebo_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "docker_container_asset",
@@ -2343,10 +2855,17 @@
     {
       "id": "document_merger",
       "path": "assets/transforms/document_merger",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
+      "status": "FAIL",
       "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
-      "error_class": null
+      "error": "2 validation errors for DocumentMergerComponent\non\n  Field required [type=missing, input_value={'asset_name': 'merged_or... 'flatten_result': True}, input_type=dict]\n    For further information visit https://errors.pydantic.dev/2.13/v/missing\n1\n  Keys should be strings [type=invalid_key, input_value=True, input_type=bool]\n    For further information visit https://errors.pydantic.dev/2.13/v/invalid_key",
+      "error_class": "ValidationError",
+      "traceback": [
+        "  Field required [type=missing, input_value={'asset_name': 'merged_or... 'flatten_result': True}, input_type=dict]",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/missing",
+        "1",
+        "  Keys should be strings [type=invalid_key, input_value=True, input_type=bool]",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/invalid_key"
+      ]
     },
     {
       "id": "document_summarizer",
@@ -2365,6 +2884,30 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "docusign_envelope_send",
+      "path": "assets/reverse_etl/docusign_envelope_send",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "docusign_ingestion",
+      "path": "assets/ingestion/docusign_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "docusign_resource",
+      "path": "resources/docusign_resource",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -2409,8 +2952,40 @@
       "error_class": null
     },
     {
+      "id": "drift_conversations_ingestion",
+      "path": "assets/ingestion/drift_conversations_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "drift_resource",
+      "path": "resources/drift_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "drive_time",
       "path": "assets/transforms/drive_time",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dropbox_ingestion",
+      "path": "assets/ingestion/dropbox_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dropbox_sign_ingestion",
+      "path": "assets/ingestion/dropbox_sign_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -2471,10 +3046,10 @@
     {
       "id": "duckdb_resource",
       "path": "resources/duckdb_resource",
-      "status": "SKIP_OPTIONAL_DEP",
+      "status": "PASS",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'dagster_duckdb'",
-      "error_class": "ModuleNotFoundError"
+      "error": null,
+      "error_class": null
     },
     {
       "id": "duckdb_table_writer",
@@ -2509,6 +3084,30 @@
       "error_class": null
     },
     {
+      "id": "dynamics_crm_ingestion",
+      "path": "assets/ingestion/dynamics_crm_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dynamics_crm_record_upsert",
+      "path": "assets/reverse_etl/dynamics_crm_record_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "dynamics_crm_resource",
+      "path": "resources/dynamics_crm_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "dynamodb_reader",
       "path": "assets/sources/dynamodb_reader",
       "status": "PASS",
@@ -2521,9 +3120,9 @@
     {
       "id": "dynamodb_resource",
       "path": "resources/dynamodb_resource",
-      "status": "SKIP_OPTIONAL_DEP",
+      "status": "PASS",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'boto3'",
+      "error": null,
       "error_class": null
     },
     {
@@ -2557,6 +3156,14 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "egnyte_ingestion",
+      "path": "assets/ingestion/egnyte_ingestion",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -2597,9 +3204,11 @@
     {
       "id": "email_parser",
       "path": "assets/transforms/email_parser",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -2615,9 +3224,30 @@
     {
       "id": "enhanced_data_quality_checks",
       "path": "asset_checks/enhanced_data_quality_checks",
-      "status": "SKIP_OPTIONAL_DEP",
-      "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'scipy'",
+      "status": "PASS",
+      "warnings": [
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/",
+        "PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/"
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -2656,9 +3286,11 @@
     {
       "id": "ets_forecast",
       "path": "assets/transforms/ets_forecast",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -2676,6 +3308,46 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "event_log_to_bigquery_job",
+      "path": "jobs/event_log_to_bigquery_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "event_log_to_datadog_job",
+      "path": "jobs/event_log_to_datadog_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "event_log_to_s3_job",
+      "path": "jobs/event_log_to_s3_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "event_log_to_snowflake_job",
+      "path": "jobs/event_log_to_snowflake_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "event_log_to_splunk_job",
+      "path": "jobs/event_log_to_splunk_job",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -2712,6 +3384,14 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "expensify_ingestion",
+      "path": "assets/ingestion/expensify_ingestion",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -3074,14 +3754,40 @@
     {
       "id": "field_mapper",
       "path": "assets/transforms/field_mapper",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "figment_resource",
+      "path": "resources/figment_resource",
+      "status": "PASS",
       "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "figment_staking_rewards_ingestion",
+      "path": "assets/ingestion/figment_staking_rewards_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
       "error_class": null
     },
     {
       "id": "file_ingestion",
       "path": "assets/ingestion/file_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "file_lister",
+      "path": "assets/source/file_lister",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -3122,6 +3828,14 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "firebase_fcm_send",
+      "path": "assets/reverse_etl/firebase_fcm_send",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -3172,7 +3886,7 @@
       "path": "resources/firestore_resource",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'google.cloud'",
+      "error": "cannot import name 'firestore' from 'google.cloud' (unknown location)",
       "error_class": null
     },
     {
@@ -3234,6 +3948,14 @@
       "error_class": null
     },
     {
+      "id": "freshdesk_contact_upsert",
+      "path": "assets/reverse_etl/freshdesk_contact_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "freshdesk_ingestion",
       "path": "assets/ingestion/freshdesk_ingestion",
       "status": "PASS",
@@ -3260,6 +3982,54 @@
       "error_class": null
     },
     {
+      "id": "freshservice_ingestion",
+      "path": "assets/ingestion/freshservice_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "freshservice_resource",
+      "path": "resources/freshservice_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "freshservice_ticket_upsert",
+      "path": "assets/reverse_etl/freshservice_ticket_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "front_ingestion",
+      "path": "assets/ingestion/front_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "frontegg_ingestion",
+      "path": "assets/ingestion/frontegg_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "fullstory_ingestion",
+      "path": "assets/ingestion/fullstory_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "funnel_analysis",
       "path": "assets/analytics/funnel_analysis",
       "status": "PASS",
@@ -3274,6 +4044,22 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "gainsight_ingestion",
+      "path": "assets/ingestion/gainsight_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "gainsight_resource",
+      "path": "resources/gainsight_resource",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -3452,6 +4238,14 @@
       "error_class": null
     },
     {
+      "id": "github_issue_upsert",
+      "path": "assets/reverse_etl/github_issue_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "github_resource",
       "path": "resources/github_resource",
       "status": "PASS",
@@ -3468,20 +4262,28 @@
       "error_class": null
     },
     {
+      "id": "gmail_ingestion",
+      "path": "assets/ingestion/gmail_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "gong_call_summary_asset",
       "path": "assets/ai/gong_call_summary_asset",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"GongCallSummaryAssetComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
     {
       "id": "gong_calls_ingestion",
       "path": "assets/ingestion/gong_calls_ingestion",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"GongCallSummaryAssetComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -3494,12 +4296,26 @@
       "error_class": null
     },
     {
+      "id": "google_ads_customer_match_upsert",
+      "path": "assets/reverse_etl/google_ads_customer_match_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "google_ads_ingestion",
       "path": "assets/ingestion/google_ads_ingestion",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"GongCallSummaryAssetComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "google_ads_resource",
+      "path": "resources/google_ads_resource",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -3524,7 +4340,7 @@
       "path": "integrations/google_bigquery",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'google.cloud'",
+      "error": "cannot import name 'bigquery' from 'google.cloud' (unknown location)",
       "error_class": null
     },
     {
@@ -3540,7 +4356,7 @@
       "path": "integrations/google_cloud_functions",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'google.cloud'",
+      "error": "cannot import name 'functions_v2' from 'google.cloud' (unknown location)",
       "error_class": null
     },
     {
@@ -3548,7 +4364,7 @@
       "path": "integrations/google_cloud_run_jobs",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'google.cloud'",
+      "error": "cannot import name 'run_v2' from 'google.cloud' (unknown location)",
       "error_class": null
     },
     {
@@ -3556,7 +4372,7 @@
       "path": "integrations/google_dataflow",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'google.cloud'",
+      "error": "cannot import name 'dataflow_v1beta3' from 'google.cloud' (unknown location)",
       "error_class": null
     },
     {
@@ -3564,7 +4380,7 @@
       "path": "integrations/google_datastream",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'google.cloud'",
+      "error": "cannot import name 'datastream_v1' from 'google.cloud' (unknown location)",
       "error_class": null
     },
     {
@@ -3588,7 +4404,7 @@
       "path": "integrations/google_pubsub",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'google.cloud'",
+      "error": "cannot import name 'pubsub_v1' from 'google.cloud' (unknown location)",
       "error_class": null
     },
     {
@@ -3608,19 +4424,53 @@
       "error_class": null
     },
     {
+      "id": "google_sheets_row_upsert",
+      "path": "assets/reverse_etl/google_sheets_row_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "google_vertex_ai",
       "path": "integrations/google_vertex_ai",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'google.cloud'",
+      "error": "cannot import name 'aiplatform' from 'google.cloud' (unknown location)",
+      "error_class": null
+    },
+    {
+      "id": "gorgias_resource",
+      "path": "resources/gorgias_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "gorgias_tickets_ingestion",
+      "path": "assets/ingestion/gorgias_tickets_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
       "error_class": null
     },
     {
       "id": "gradient_boosting_model",
       "path": "assets/analytics/gradient_boosting_model",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "grafana_cloud_ingestion",
+      "path": "assets/ingestion/grafana_cloud_ingestion",
+      "status": "PASS",
       "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "error": null,
       "error_class": null
     },
     {
@@ -3640,8 +4490,40 @@
       "error_class": null
     },
     {
+      "id": "greenhouse_candidate_update",
+      "path": "assets/reverse_etl/greenhouse_candidate_update",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "greenhouse_harvest_ingestion",
+      "path": "assets/ingestion/greenhouse_harvest_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "greenhouse_resource",
+      "path": "resources/greenhouse_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "groq_llm",
       "path": "assets/ai/groq_llm",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "gusto_ingestion",
+      "path": "assets/ingestion/gusto_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -3664,8 +4546,48 @@
       "error_class": null
     },
     {
+      "id": "heap_resource",
+      "path": "resources/heap_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "heap_user_property_sync",
+      "path": "assets/reverse_etl/heap_user_property_sync",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "helm_deploy",
       "path": "assets/infrastructure/helm_deploy",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "help_scout_conversation_upsert",
+      "path": "assets/reverse_etl/help_scout_conversation_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "help_scout_ingestion",
+      "path": "assets/ingestion/help_scout_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "help_scout_resource",
+      "path": "resources/help_scout_resource",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -3682,6 +4604,14 @@
     {
       "id": "hl7_v2_parser",
       "path": "assets/transforms/hl7_v2_parser",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "honeycomb_ingestion",
+      "path": "assets/ingestion/honeycomb_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -3706,9 +4636,11 @@
     {
       "id": "html_parser",
       "path": "assets/transforms/html_parser",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -3753,7 +4685,7 @@
     },
     {
       "id": "hubspot_object_upsert",
-      "path": "assets/sinks/hubspot_object_upsert",
+      "path": "assets/reverse_etl/hubspot_object_upsert",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -3883,16 +4815,20 @@
     {
       "id": "image_captioner",
       "path": "assets/ai/image_captioner",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
       "id": "image_classifier",
       "path": "assets/ai/image_classifier",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"ImageCaptionerComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"ImageCaptionerComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -4021,6 +4957,30 @@
       "error_class": null
     },
     {
+      "id": "insightly_ingestion",
+      "path": "assets/ingestion/insightly_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "insightly_record_upsert",
+      "path": "assets/reverse_etl/insightly_record_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "insightly_resource",
+      "path": "resources/insightly_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "instructor_extractor",
       "path": "assets/ai/instructor_extractor",
       "status": "PASS",
@@ -4037,6 +4997,22 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "intercom_contact_upsert",
+      "path": "assets/reverse_etl/intercom_contact_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "intercom_ingestion",
+      "path": "assets/ingestion/intercom_ingestion",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -4083,10 +5059,21 @@
       "error_class": null
     },
     {
-      "id": "iterative_supervisor_agent",
-      "path": "assets/ai/iterative_supervisor_agent",
+      "id": "iterable_sink",
+      "path": "assets/reverse_etl/iterable_sink",
       "status": "PASS",
       "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "iterative_supervisor_agent",
+      "path": "assets/ai/iterative_supervisor_agent",
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -4117,11 +5104,8 @@
     {
       "id": "jde_orchestration_status_sensor",
       "path": "sensors/jde_orchestration_status_sensor",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"IterativeSupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -4149,9 +5133,9 @@
       "error": "ModuleNotFoundError: No module named 'dagster_community_components'",
       "error_class": "ModuleNotFoundError",
       "traceback": [
-        "  File \"<frozen importlib._bootstrap_external>\", line 999, in exec_module",
+        "  File \"<frozen importlib._bootstrap_external>\", line 1023, in exec_module",
         "  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed",
-        "  File \"/private/tmp/dagster-component-templates-check/integrations/jde_orchestrator_workspace/component.py\", line 68, in <module>",
+        "  File \"/Users/ericthomasii/https-::github.com:eric-thomas-dagster:dagster-component-templates/dagster-component-templates/integrations/jde_orchestrator_workspace/component.py\", line 68, in <module>",
         "    from dagster_community_components import JDEOrchestratorResource",
         "ModuleNotFoundError: No module named 'dagster_community_components'"
       ]
@@ -4181,8 +5165,40 @@
       "error_class": null
     },
     {
+      "id": "jira_issue_upsert",
+      "path": "assets/reverse_etl/jira_issue_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "jira_resource",
       "path": "resources/jira_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "jira_service_management_ingestion",
+      "path": "assets/ingestion/jira_service_management_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "jira_service_management_request_upsert",
+      "path": "assets/reverse_etl/jira_service_management_request_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "jira_service_management_resource",
+      "path": "resources/jira_service_management_resource",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -4201,17 +5217,21 @@
     {
       "id": "json_flatten",
       "path": "assets/transforms/json_flatten",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
       "id": "json_path_extractor",
       "path": "assets/transforms/json_path_extractor",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -4249,9 +5269,11 @@
     {
       "id": "k_means_clustering",
       "path": "assets/analytics/k_means_clustering",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -4299,9 +5321,11 @@
     {
       "id": "keyword_extractor",
       "path": "assets/ai/keyword_extractor",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -4331,8 +5355,40 @@
       "error_class": null
     },
     {
+      "id": "klaviyo_ingestion",
+      "path": "assets/ingestion/klaviyo_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "klaviyo_profile_upsert",
+      "path": "assets/reverse_etl/klaviyo_profile_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "klaviyo_resource",
       "path": "resources/klaviyo_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "kustomer_conversations_ingestion",
+      "path": "assets/ingestion/kustomer_conversations_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "kustomer_resource",
+      "path": "resources/kustomer_resource",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -4375,8 +5431,14 @@
     {
       "id": "langchain_chain_asset",
       "path": "assets/ai/langchain_chain_asset",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LangChainChainAssetComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -4391,17 +5453,43 @@
     {
       "id": "language_detector",
       "path": "assets/ai/language_detector",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "launchdarkly_ingestion",
+      "path": "assets/ingestion/launchdarkly_ingestion",
+      "status": "PASS",
       "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "launchdarkly_resource",
+      "path": "resources/launchdarkly_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "launchdarkly_segment_update",
+      "path": "assets/reverse_etl/launchdarkly_segment_update",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
       "error_class": null
     },
     {
       "id": "lead_scoring",
       "path": "assets/analytics/lead_scoring",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LangChainChainAssetComponent\" shadows an attribute in parent \"Resolvable\""
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
       "error_class": null
@@ -4409,12 +5497,34 @@
     {
       "id": "legal_document_extractor",
       "path": "assets/ai/legal_document_extractor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LangGraphStep\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"LangGraphAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "lever_candidate_upsert",
+      "path": "assets/reverse_etl/lever_candidate_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "lever_ingestion",
+      "path": "assets/ingestion/lever_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "lever_resource",
+      "path": "resources/lever_resource",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -4429,9 +5539,11 @@
     {
       "id": "lift_chart",
       "path": "assets/analytics/lift_chart",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -4507,6 +5619,14 @@
       "error_class": null
     },
     {
+      "id": "linear_ingestion",
+      "path": "assets/ingestion/linear_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "linear_issue_sensor",
       "path": "sensors/linear_issue_sensor",
       "status": "PASS",
@@ -4515,11 +5635,29 @@
       "error_class": null
     },
     {
+      "id": "linear_issue_upsert",
+      "path": "assets/reverse_etl/linear_issue_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "linear_regression_model",
       "path": "assets/analytics/linear_regression_model",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "linear_resource",
+      "path": "resources/linear_resource",
+      "status": "PASS",
       "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "error": null,
       "error_class": null
     },
     {
@@ -4533,6 +5671,14 @@
     {
       "id": "linkedin_ads_resource",
       "path": "resources/linkedin_ads_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "linkedin_matched_audience_upsert",
+      "path": "assets/reverse_etl/linkedin_matched_audience_upsert",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -4625,8 +5771,9 @@
     {
       "id": "llm_chain_executor",
       "path": "assets/ai/llm_chain_executor",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -4635,16 +5782,20 @@
     {
       "id": "llm_evaluator",
       "path": "assets/ai/llm_evaluator",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"LLMChainExecutorComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
     {
       "id": "llm_judge",
       "path": "assets/ai/llm_judge",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"LlmMultiPathRouterComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"LlmMultiPathRouterComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -4671,9 +5822,8 @@
     {
       "id": "llm_prompt_executor",
       "path": "assets/ai/llm_prompt_executor",
-      "status": "WARN",
+      "status": "PASS",
       "warnings": [
-        "UserWarning: Field name \"model\" in \"LlmMultiPathRouterComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -4714,9 +5864,11 @@
     {
       "id": "logistic_regression_model",
       "path": "assets/analytics/logistic_regression_model",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -4742,6 +5894,54 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "magento_ingestion",
+      "path": "assets/ingestion/magento_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "magento_product_upsert",
+      "path": "assets/reverse_etl/magento_product_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "magento_resource",
+      "path": "resources/magento_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "mailchimp_ingestion",
+      "path": "assets/ingestion/mailchimp_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "mailchimp_member_upsert",
+      "path": "assets/reverse_etl/mailchimp_member_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "mailchimp_resource",
+      "path": "resources/mailchimp_resource",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -4782,9 +5982,11 @@
     {
       "id": "markdown_stripper",
       "path": "assets/transforms/markdown_stripper",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -4802,6 +6004,14 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "marketo_lead_upsert",
+      "path": "assets/reverse_etl/marketo_lead_upsert",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -4848,8 +6058,11 @@
     {
       "id": "mcp_tool_picker",
       "path": "assets/ai/mcp_tool_picker",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -4866,20 +6079,56 @@
     {
       "id": "memcached_cache_flush_job",
       "path": "jobs/memcached_cache_flush_job",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
     {
       "id": "memcached_resource",
       "path": "resources/memcached_resource",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"MCPToolPickerComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "meta_custom_audience_upsert",
+      "path": "assets/reverse_etl/meta_custom_audience_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "metabase_ingestion",
+      "path": "assets/ingestion/metabase_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "metronome_invoices_ingestion",
+      "path": "assets/ingestion/metronome_invoices_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "metronome_resource",
+      "path": "resources/metronome_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "metronome_usage_event_send",
+      "path": "assets/reverse_etl/metronome_usage_event_send",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -4894,6 +6143,22 @@
     {
       "id": "minio_resource",
       "path": "resources/minio_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "mistral_llm",
+      "path": "assets/ai/mistral_llm",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "mixpanel_event_track",
+      "path": "assets/reverse_etl/mixpanel_event_track",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -4998,9 +6263,11 @@
     {
       "id": "model_comparison",
       "path": "assets/analytics/model_comparison",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -5014,6 +6281,30 @@
     {
       "id": "moderation_scorer",
       "path": "assets/ai/moderation_scorer",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "monday_board_items_ingestion",
+      "path": "assets/ingestion/monday_board_items_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "monday_ingestion",
+      "path": "assets/ingestion/monday_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "monday_resource",
+      "path": "resources/monday_resource",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -5120,12 +6411,20 @@
       "error_class": null
     },
     {
+      "id": "msteams_message_send",
+      "path": "assets/sinks/msteams_message_send",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "msteams_resource",
       "path": "resources/msteams_resource",
-      "status": "SKIP_OPTIONAL_DEP",
+      "status": "PASS",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'dagster_msteams'",
-      "error_class": "ModuleNotFoundError"
+      "error": null,
+      "error_class": null
     },
     {
       "id": "multi_approver_gate",
@@ -5200,9 +6499,11 @@
     {
       "id": "naive_bayes_model",
       "path": "assets/analytics/naive_bayes_model",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -5232,11 +6533,21 @@
       "error_class": null
     },
     {
+      "id": "navan_ingestion",
+      "path": "assets/ingestion/navan_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "nearest_neighbors",
       "path": "assets/analytics/nearest_neighbors",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -5268,17 +6579,45 @@
     {
       "id": "nested_field_extractor",
       "path": "assets/transforms/nested_field_extractor",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "netsuite_ingestion",
+      "path": "assets/ingestion/netsuite_ingestion",
+      "status": "PASS",
       "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "netsuite_record_upsert",
+      "path": "assets/reverse_etl/netsuite_record_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "netsuite_resource",
+      "path": "resources/netsuite_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
       "error_class": null
     },
     {
       "id": "neural_network_model",
       "path": "assets/analytics/neural_network_model",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -5306,8 +6645,24 @@
       "error_class": null
     },
     {
+      "id": "notion_database_upsert",
+      "path": "assets/reverse_etl/notion_database_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "notion_ingestion",
       "path": "assets/ingestion/notion_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "notion_page_sync",
+      "path": "assets/reverse_etl/notion_page_sync",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -5414,8 +6769,32 @@
       "error_class": null
     },
     {
+      "id": "okta_management_ingestion",
+      "path": "assets/ingestion/okta_management_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "okta_resource",
+      "path": "resources/okta_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "okta_system_log_ingestion",
       "path": "ingestion/okta_system_log_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "okta_user_upsert",
+      "path": "assets/reverse_etl/okta_user_upsert",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -5430,6 +6809,14 @@
       "error_class": null
     },
     {
+      "id": "omni_ingestion",
+      "path": "assets/ingestion/omni_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "one_hot_encoding",
       "path": "assets/transforms/one_hot_encoding",
       "status": "WARN",
@@ -5437,6 +6824,30 @@
         "UserWarning: Field name \"model\" in \"OllamaInferenceAssetComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "onedrive_ingestion",
+      "path": "assets/ingestion/onedrive_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "onesignal_push_send",
+      "path": "assets/reverse_etl/onesignal_push_send",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "onesignal_resource",
+      "path": "resources/onesignal_resource",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -5457,6 +6868,14 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "openai_llm_batch",
+      "path": "assets/ai/openai_llm_batch",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -5493,8 +6912,40 @@
       "error_class": null
     },
     {
+      "id": "openmetadata_export_job",
+      "path": "jobs/openmetadata_export_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "openrouter_llm",
       "path": "assets/ai/openrouter_llm",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "opensearch_index_upsert",
+      "path": "assets/reverse_etl/opensearch_index_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "opensearch_resource",
+      "path": "resources/opensearch_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "opsgenie_ingestion",
+      "path": "assets/ingestion/opsgenie_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -5507,6 +6958,14 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "optimizely_ingestion",
+      "path": "assets/ingestion/optimizely_ingestion",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -5529,11 +6988,45 @@
       "error_class": null
     },
     {
+      "id": "outreach_prospects_ingestion",
+      "path": "assets/ingestion/outreach_prospects_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "outreach_resource",
+      "path": "resources/outreach_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "oversample_field",
       "path": "assets/analytics/oversample_field",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "paddle_ingestion",
+      "path": "assets/ingestion/paddle_ingestion",
+      "status": "PASS",
       "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "pagerduty_events_ingestion",
+      "path": "assets/ingestion/pagerduty_events_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
       "error_class": null
     },
     {
@@ -5553,8 +7046,40 @@
       "error_class": null
     },
     {
+      "id": "pagerduty_incident_upsert",
+      "path": "assets/reverse_etl/pagerduty_incident_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "pagerduty_resource",
       "path": "resources/pagerduty_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "pandadoc_document_create",
+      "path": "assets/reverse_etl/pandadoc_document_create",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "pandadoc_ingestion",
+      "path": "assets/ingestion/pandadoc_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "pandadoc_resource",
+      "path": "resources/pandadoc_resource",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -5619,11 +7144,47 @@
       "error_class": null
     },
     {
+      "id": "paylocity_ingestion",
+      "path": "assets/ingestion/paylocity_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "paypal_ingestion",
+      "path": "assets/ingestion/paypal_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "payscale_compensation_enrichment",
+      "path": "assets/analytics/payscale_compensation_enrichment",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "payscale_resource",
+      "path": "resources/payscale_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "pca",
       "path": "assets/analytics/pca",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -5647,14 +7208,24 @@
     {
       "id": "pdf_text_extractor",
       "path": "assets/transforms/pdf_text_extractor",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
       "id": "pearson_correlation",
       "path": "assets/analytics/pearson_correlation",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "pendo_ingestion",
+      "path": "assets/ingestion/pendo_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -5679,6 +7250,22 @@
     {
       "id": "per_row_http_fetcher",
       "path": "assets/transforms/per_row_http_fetcher",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "perplexity_llm",
+      "path": "assets/ai/perplexity_llm",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "persona_ingestion",
+      "path": "assets/ingestion/persona_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -5721,17 +7308,31 @@
     {
       "id": "pii_detector",
       "path": "assets/ai/pii_detector",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "pii_hasher",
+      "path": "assets/transforms/pii_hasher",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
       "id": "pii_redactor",
       "path": "assets/ai/pii_redactor",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -5761,8 +7362,32 @@
       "error_class": null
     },
     {
+      "id": "pinterest_ads_resource",
+      "path": "resources/pinterest_ads_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "pinterest_audience_upsert",
+      "path": "assets/reverse_etl/pinterest_audience_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "pipedrive_ingestion",
       "path": "assets/ingestion/pipedrive_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "pipedrive_person_upsert",
+      "path": "assets/reverse_etl/pipedrive_person_upsert",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -5803,9 +7428,11 @@
     {
       "id": "point_in_polygon",
       "path": "assets/analytics/point_in_polygon",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -5939,9 +7566,19 @@
     {
       "id": "precision_match",
       "path": "assets/ai/precision_match",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "prefect_background_task",
+      "path": "assets/infrastructure/prefect_background_task",
+      "status": "PASS",
       "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "error": null,
       "error_class": null
     },
     {
@@ -5955,8 +7592,11 @@
     {
       "id": "prefect_flow_run_sensor",
       "path": "sensors/prefect_flow_run_sensor",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"PrecisionMatchComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"PrecisionMatchComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -5966,6 +7606,14 @@
       "status": "PASS",
       "warnings": [],
       "error": null,
+      "error_class": null
+    },
+    {
+      "id": "prefect_workspace",
+      "path": "integrations/prefect_workspace",
+      "status": "SKIP_PROJECT_REQUIRED",
+      "warnings": [],
+      "error": "Could not find dg.toml or pyproject.toml in .",
       "error_class": null
     },
     {
@@ -6001,6 +7649,14 @@
     {
       "id": "product_usage_analytics",
       "path": "assets/analytics/product_usage_analytics",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "productboard_ingestion",
+      "path": "assets/ingestion/productboard_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -6115,6 +7771,14 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "purview_export_job",
+      "path": "jobs/purview_export_job",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -6239,6 +7903,38 @@
       "error_class": null
     },
     {
+      "id": "qualtrics_ingestion",
+      "path": "assets/ingestion/qualtrics_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "quickbooks_customer_upsert",
+      "path": "assets/reverse_etl/quickbooks_customer_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "quickbooks_ingestion",
+      "path": "assets/ingestion/quickbooks_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "quickbooks_resource",
+      "path": "resources/quickbooks_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "r_script",
       "path": "assets/transforms/r_script",
       "status": "PASS",
@@ -6281,6 +7977,14 @@
       "error_class": null
     },
     {
+      "id": "rag_grounding_check",
+      "path": "assets/ai/rag_grounding_check",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "rag_pipeline",
       "path": "assets/ai/rag_pipeline",
       "status": "PASS",
@@ -6291,11 +7995,21 @@
       "error_class": null
     },
     {
+      "id": "ramp_ingestion",
+      "path": "assets/ingestion/ramp_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "random_forest_model",
       "path": "assets/analytics/random_forest_model",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -6325,6 +8039,30 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "recurly_account_upsert",
+      "path": "assets/reverse_etl/recurly_account_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "recurly_ingestion",
+      "path": "assets/ingestion/recurly_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "recurly_resource",
+      "path": "resources/recurly_resource",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -6455,9 +8193,11 @@
     {
       "id": "reverse_geocoder",
       "path": "assets/analytics/reverse_geocoder",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -6467,6 +8207,22 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "ringcentral_ingestion",
+      "path": "assets/ingestion/ringcentral_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "rippling_ingestion",
+      "path": "assets/ingestion/rippling_ingestion",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -6527,6 +8283,14 @@
       "error_class": null
     },
     {
+      "id": "run_history_to_warehouse_job",
+      "path": "jobs/run_history_to_warehouse_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "rundeck_integration",
       "path": "integrations/rundeck_integration",
       "status": "PASS",
@@ -6563,9 +8327,9 @@
     {
       "id": "s3_csv_io_manager",
       "path": "io_managers/s3_csv_io_manager",
-      "status": "SKIP_RELATIVE_IMPORT",
+      "status": "PASS",
       "warnings": [],
-      "error": "attempted relative import with no known parent package",
+      "error": null,
       "error_class": null
     },
     {
@@ -6597,9 +8361,25 @@
     {
       "id": "s3_to_database_asset",
       "path": "assets/ingestion/s3_to_database_asset",
-      "status": "SKIP_OPTIONAL_DEP",
+      "status": "PASS",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'boto3'",
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "sage_intacct_ar_invoices_ingestion",
+      "path": "assets/ingestion/sage_intacct_ar_invoices_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "sage_intacct_resource",
+      "path": "resources/sage_intacct_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
       "error_class": null
     },
     {
@@ -6620,7 +8400,7 @@
     },
     {
       "id": "salesforce_record_upsert",
-      "path": "assets/sinks/salesforce_record_upsert",
+      "path": "assets/reverse_etl/salesforce_record_upsert",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -6629,6 +8409,22 @@
     {
       "id": "salesforce_resource",
       "path": "resources/salesforce_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "salesloft_people_ingestion",
+      "path": "assets/ingestion/salesloft_people_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "salesloft_resource",
+      "path": "resources/salesloft_resource",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -6731,9 +8527,11 @@
     {
       "id": "schema_validator",
       "path": "assets/transforms/schema_validator",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -6747,8 +8545,24 @@
       "error_class": null
     },
     {
+      "id": "segment_ingestion",
+      "path": "assets/ingestion/segment_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "segment_resource",
       "path": "resources/segment_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "segment_track",
+      "path": "assets/reverse_etl/segment_track",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -6767,6 +8581,14 @@
     {
       "id": "select_records",
       "path": "assets/transforms/select_records",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "sendgrid_contact_upsert",
+      "path": "assets/reverse_etl/sendgrid_contact_upsert",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -6860,7 +8682,7 @@
     },
     {
       "id": "servicenow_record_upsert",
-      "path": "assets/sinks/servicenow_record_upsert",
+      "path": "assets/reverse_etl/servicenow_record_upsert",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -6968,7 +8790,7 @@
     },
     {
       "id": "shopify_product_upsert",
-      "path": "assets/sinks/shopify_product_upsert",
+      "path": "assets/reverse_etl/shopify_product_upsert",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -7001,6 +8823,30 @@
     {
       "id": "sifflet_check",
       "path": "asset_checks/sifflet_check",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "sigma_input_table_upsert",
+      "path": "assets/reverse_etl/sigma_input_table_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "sigma_resource",
+      "path": "resources/sigma_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "sigma_workbook_ingestion",
+      "path": "assets/ingestion/sigma_workbook_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -7049,11 +8895,19 @@
       "error_class": null
     },
     {
+      "id": "slack_message_send",
+      "path": "assets/sinks/slack_message_send",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "slack_notification",
       "path": "sensors/slack_notification",
-      "status": "SKIP_OPTIONAL_DEP",
+      "status": "PASS",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'slack_sdk'",
+      "error": null,
       "error_class": null
     },
     {
@@ -7067,10 +8921,10 @@
     {
       "id": "slack_resource",
       "path": "resources/slack_resource",
-      "status": "SKIP_OPTIONAL_DEP",
+      "status": "PASS",
       "warnings": [],
-      "error": "ModuleNotFoundError: No module named 'dagster_slack'",
-      "error_class": "ModuleNotFoundError"
+      "error": null,
+      "error_class": null
     },
     {
       "id": "sling_replication_asset",
@@ -7083,6 +8937,30 @@
     {
       "id": "smart_retry",
       "path": "assets/infrastructure/smart_retry",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "smartsheet_ingestion",
+      "path": "assets/ingestion/smartsheet_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "smartsheet_resource",
+      "path": "resources/smartsheet_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "smartsheet_row_upsert",
+      "path": "assets/reverse_etl/smartsheet_row_upsert",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -7252,7 +9130,9 @@
       "id": "snowflake_stored_procedure",
       "path": "integrations/snowflake_stored_procedure",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "UserWarning: Found version mismatch between `dagster-shared` (1.13.24) expected library version (0.29.24) and `dagster-slack` (0.29.25)."
+      ],
       "error": null,
       "error_class": null
     },
@@ -7367,9 +9247,11 @@
     {
       "id": "spatial_cluster",
       "path": "assets/analytics/spatial_cluster",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -7383,9 +9265,11 @@
     {
       "id": "spatial_join",
       "path": "assets/analytics/spatial_join",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -7423,9 +9307,11 @@
     {
       "id": "sql_generator",
       "path": "assets/ai/sql_generator",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -7439,8 +9325,10 @@
     {
       "id": "sql_observation_sensor",
       "path": "observations/sql_observation_sensor",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"SqlGeneratorComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"SqlGeneratorComponent\" shadows an attribute in parent \"Resolvable\"",
         "DeprecationWarning: Function `AssetSelection.keys` is deprecated and will be removed in 2.0. Use AssetSelection.assets instead."
       ],
       "error": null,
@@ -7489,6 +9377,14 @@
       "error_class": null
     },
     {
+      "id": "square_ingestion",
+      "path": "assets/ingestion/square_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "ssh_asset",
       "path": "assets/ingestion/ssh_asset",
       "status": "SKIP_OPTIONAL_DEP",
@@ -7515,6 +9411,22 @@
     {
       "id": "starrocks_resource",
       "path": "resources/starrocks_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "statsig_ingestion",
+      "path": "assets/ingestion/statsig_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "statuspage_ingestion",
+      "path": "assets/ingestion/statuspage_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -7561,6 +9473,14 @@
       "error_class": null
     },
     {
+      "id": "stripe_customer_upsert",
+      "path": "assets/reverse_etl/stripe_customer_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "stripe_event_sensor",
       "path": "sensors/stripe_event_sensor",
       "status": "PASS",
@@ -7585,6 +9505,24 @@
       "error_class": null
     },
     {
+      "id": "structured_document_extractor",
+      "path": "assets/ai/structured_document_extractor",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "stuck_run_terminator_job",
+      "path": "jobs/stuck_run_terminator_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "subscription_metrics",
       "path": "assets/analytics/subscription_metrics",
       "status": "PASS",
@@ -7601,6 +9539,14 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "sumo_logic_ingestion",
+      "path": "assets/ingestion/sumo_logic_ingestion",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -7647,11 +9593,8 @@
     {
       "id": "support_ticket_ingestion",
       "path": "assets/ingestion/support_ticket_ingestion",
-      "status": "WARN",
-      "warnings": [
-        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
-        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
-      ],
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -7668,6 +9611,17 @@
     {
       "id": "surrogate_key",
       "path": "transforms/surrogate_key",
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"SupervisorAgentToolSpec\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"SupervisorAgentComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "surveymonkey_ingestion",
+      "path": "assets/ingestion/surveymonkey_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -7676,9 +9630,11 @@
     {
       "id": "survival_analysis",
       "path": "assets/analytics/survival_analysis",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -7708,9 +9664,11 @@
     {
       "id": "synthetic_data",
       "path": "assets/ai/synthetic_data",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -7726,8 +9684,13 @@
     {
       "id": "synthetic_image_generator",
       "path": "assets/source/synthetic_image_generator",
-      "status": "PASS",
-      "warnings": [],
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"schema\" in \"SyntheticDataComponent\" shadows an attribute in parent \"Model\"",
+        "UserWarning: Field name \"model\" in \"SyntheticDataComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"schema\" in \"SyntheticDataComponent\" shadows an attribute in parent \"Model\"",
+        "UserWarning: Field name \"model\" in \"SyntheticDataComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },
@@ -7772,6 +9735,14 @@
       "error_class": null
     },
     {
+      "id": "talkdesk_ingestion",
+      "path": "assets/ingestion/talkdesk_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "task_asset",
       "path": "assets/infrastructure/task_asset",
       "status": "FAIL",
@@ -7780,7 +9751,7 @@
       "error_class": "ModuleNotFoundError",
       "traceback": [
         "  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed",
-        "  File \"<frozen importlib._bootstrap>\", line 1387, in _gcd_import",
+        "  File \"<frozen importlib._bootstrap>\", line 1395, in _gcd_import",
         "  File \"<frozen importlib._bootstrap>\", line 1360, in _find_and_load",
         "  File \"<frozen importlib._bootstrap>\", line 1324, in _find_and_load_unlocked",
         "ModuleNotFoundError: No module named 'my_project'"
@@ -7915,17 +9886,21 @@
     {
       "id": "text_preprocessing",
       "path": "assets/analytics/text_preprocessing",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
       "id": "text_similarity",
       "path": "assets/ai/text_similarity",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -7959,6 +9934,22 @@
     {
       "id": "tiktok_ads_ingestion",
       "path": "assets/ingestion/tiktok_ads_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "tiktok_ads_resource",
+      "path": "resources/tiktok_ads_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "tiktok_custom_audience_upsert",
+      "path": "assets/reverse_etl/tiktok_custom_audience_upsert",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -8040,12 +10031,20 @@
       "error": "ModuleNotFoundError: No module named 'dagster_community_components'",
       "error_class": "ModuleNotFoundError",
       "traceback": [
-        "  File \"<frozen importlib._bootstrap_external>\", line 999, in exec_module",
+        "  File \"<frozen importlib._bootstrap_external>\", line 1023, in exec_module",
         "  File \"<frozen importlib._bootstrap>\", line 488, in _call_with_frames_removed",
-        "  File \"/private/tmp/dagster-component-templates-check/integrations/tm1_workspace/component.py\", line 66, in <module>",
+        "  File \"/Users/ericthomasii/https-::github.com:eric-thomas-dagster:dagster-component-templates/dagster-component-templates/integrations/tm1_workspace/component.py\", line 66, in <module>",
         "    from dagster_community_components import TM1Resource",
         "ModuleNotFoundError: No module named 'dagster_community_components'"
       ]
+    },
+    {
+      "id": "toggl_track_ingestion",
+      "path": "assets/ingestion/toggl_track_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "top_n_per_group",
@@ -8060,17 +10059,37 @@
     {
       "id": "topic_modeler",
       "path": "assets/ai/topic_modeler",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
       "id": "topic_modeling",
       "path": "assets/analytics/topic_modeling",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "totango_ingestion",
+      "path": "assets/ingestion/totango_ingestion",
+      "status": "PASS",
       "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "totango_resource",
+      "path": "resources/totango_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
       "error_class": null
     },
     {
@@ -8098,6 +10117,30 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "trello_card_upsert",
+      "path": "assets/reverse_etl/trello_card_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "trello_ingestion",
+      "path": "assets/ingestion/trello_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "trello_resource",
+      "path": "resources/trello_resource",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -8146,9 +10189,11 @@
     {
       "id": "ts_filler",
       "path": "assets/transforms/ts_filler",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
-      "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
       "error_class": null
     },
     {
@@ -8196,6 +10241,14 @@
       "error_class": null
     },
     {
+      "id": "twilio_sms_send",
+      "path": "assets/reverse_etl/twilio_sms_send",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "twitter_ads_ingestion",
       "path": "assets/ingestion/twitter_ads_ingestion",
       "status": "PASS",
@@ -8204,11 +10257,53 @@
       "error_class": null
     },
     {
+      "id": "twitter_ads_resource",
+      "path": "resources/twitter_ads_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "twitter_ads_tailored_audience_upsert",
+      "path": "assets/reverse_etl/twitter_ads_tailored_audience_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "type_coercer",
       "path": "assets/transforms/type_coercer",
-      "status": "SKIP_EXAMPLE_MULTI_DOC",
+      "status": "PASS",
+      "warnings": [
+        "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
+      ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "typeform_ingestion",
+      "path": "assets/ingestion/typeform_ingestion",
+      "status": "PASS",
       "warnings": [],
-      "error": "example.yaml has no document with both `type:` and `attributes:`",
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "typesense_index_upsert",
+      "path": "assets/reverse_etl/typesense_index_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "typesense_resource",
+      "path": "resources/typesense_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
       "error_class": null
     },
     {
@@ -8272,8 +10367,10 @@
     {
       "id": "vector_store_query",
       "path": "assets/ai/vector_store_query",
-      "status": "PASS",
+      "status": "WARN",
       "warnings": [
+        "UserWarning: Field name \"model\" in \"VantaEvidenceResponseAgentComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"VantaEvidenceResponseAgentComponent\" shadows an attribute in parent \"Resolvable\"",
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
       "error": null,
@@ -8300,6 +10397,14 @@
     {
       "id": "vercel_deployment_sensor",
       "path": "sensors/vercel_deployment_sensor",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "vercel_ingestion",
+      "path": "assets/ingestion/vercel_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -8370,6 +10475,14 @@
       "error_class": null
     },
     {
+      "id": "video_scene_summarizer",
+      "path": "assets/ai/video_scene_summarizer",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "vif",
       "path": "assets/analytics/vif",
       "status": "PASS",
@@ -8392,6 +10505,22 @@
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "vitally_ingestion",
+      "path": "assets/ingestion/vitally_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "vitally_resource",
+      "path": "resources/vitally_resource",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     },
@@ -8536,12 +10665,44 @@
       "error_class": null
     },
     {
+      "id": "warm_scheduled_job",
+      "path": "assets/infrastructure/warm_scheduled_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "weaviate_resource",
       "path": "resources/weaviate_resource",
       "status": "SKIP_OPTIONAL_DEP",
       "warnings": [],
       "error": "ModuleNotFoundError: No module named 'dagster_weaviate'",
       "error_class": "ModuleNotFoundError"
+    },
+    {
+      "id": "webex_ingestion",
+      "path": "assets/ingestion/webex_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "webflow_ingestion",
+      "path": "assets/ingestion/webflow_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "webhook_lineage_export_job",
+      "path": "jobs/webhook_lineage_export_job",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
     },
     {
       "id": "weighted_average",
@@ -8562,6 +10723,30 @@
       "error_class": null
     },
     {
+      "id": "woocommerce_ingestion",
+      "path": "assets/ingestion/woocommerce_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "woocommerce_product_upsert",
+      "path": "assets/reverse_etl/woocommerce_product_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "woocommerce_resource",
+      "path": "resources/woocommerce_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "word_cloud",
       "path": "assets/ai/word_cloud",
       "status": "PASS",
@@ -8572,8 +10757,32 @@
       "error_class": null
     },
     {
+      "id": "workable_candidate_upsert",
+      "path": "assets/reverse_etl/workable_candidate_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "workable_ingestion",
       "path": "assets/ingestion/workable_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "workable_resource",
+      "path": "resources/workable_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "workday_ingestion",
+      "path": "assets/ingestion/workday_ingestion",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -8588,8 +10797,64 @@
       "error_class": null
     },
     {
+      "id": "workos_ingestion",
+      "path": "assets/ingestion/workos_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "wrike_ingestion",
+      "path": "assets/ingestion/wrike_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "wrike_resource",
+      "path": "resources/wrike_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "wrike_task_upsert",
+      "path": "assets/reverse_etl/wrike_task_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "x12_edi_parser",
       "path": "assets/transforms/x12_edi_parser",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "xero_contact_upsert",
+      "path": "assets/reverse_etl/xero_contact_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "xero_ingestion",
+      "path": "assets/ingestion/xero_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "xero_resource",
+      "path": "resources/xero_resource",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -8630,12 +10895,108 @@
       "error_class": null
     },
     {
+      "id": "zendesk_user_upsert",
+      "path": "assets/reverse_etl/zendesk_user_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
       "id": "zero_shot_classifier",
       "path": "assets/ai/zero_shot_classifier",
       "status": "PASS",
       "warnings": [
         "BetaWarning: Function `build_column_schema_change_checks` is currently in beta, and may have breaking changes in minor version releases, with behavior changes in patch releases."
       ],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "zocdoc_appointments_ingestion",
+      "path": "assets/ingestion/zocdoc_appointments_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "zocdoc_availability_upsert",
+      "path": "assets/reverse_etl/zocdoc_availability_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "zocdoc_resource",
+      "path": "resources/zocdoc_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "zoho_crm_ingestion",
+      "path": "assets/ingestion/zoho_crm_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "zoho_crm_record_upsert",
+      "path": "assets/reverse_etl/zoho_crm_record_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "zoho_crm_resource",
+      "path": "resources/zoho_crm_resource",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "zoho_desk_ingestion",
+      "path": "assets/ingestion/zoho_desk_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "zoom_ingestion",
+      "path": "assets/ingestion/zoom_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "zuora_account_upsert",
+      "path": "assets/reverse_etl/zuora_account_upsert",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "zuora_ingestion",
+      "path": "assets/ingestion/zuora_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "zuora_resource",
+      "path": "resources/zuora_resource",
+      "status": "PASS",
+      "warnings": [],
       "error": null,
       "error_class": null
     }

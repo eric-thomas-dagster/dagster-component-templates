@@ -78,6 +78,54 @@
       "required": false,
       "default": null
     },
+    "create_observation_sensor": {
+      "type": "boolean",
+      "label": "Create Observation Sensor",
+      "description": "Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone clickhouse_table_observation_sensor component). When False (default), this component only declares the AssetSpec.",
+      "required": false,
+      "default": false
+    },
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique sensor name. Defaults to '{table}__observation_sensor'. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null
+    },
+    "check_interval_seconds": {
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between observations. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": 300
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of a ClickHouseResource exposing `.observe(source) -> dict`. Only used when create_observation_sensor=True; unset uses clickhouse-connect directly via host_env_var/port/username_env_var/password_env_var.",
+      "required": false,
+      "default": null,
+      "ui:widget": "resource-picker"
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "One of: STOPPED / RUNNING. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": "running",
+      "enum": [
+        "stopped",
+        "running"
+      ],
+      "ui:widget": "select"
+    },
+    "emit_materialization": {
+      "type": "boolean",
+      "label": "Emit Materialization",
+      "description": "When True (default), emit AssetMaterialization on the target asset key. When False, emit AssetObservation instead. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": true
+    },
     "partition_type": {
       "type": "string",
       "label": "Partition Type",

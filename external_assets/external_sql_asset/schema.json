@@ -43,6 +43,50 @@
       "default": null,
       "ui:widget": "code"
     },
+    "create_observation_sensor": {
+      "type": "boolean",
+      "label": "Create Observation Sensor",
+      "description": "Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone sql_observation_sensor component). When False (default), this component only declares the AssetSpec.",
+      "required": false,
+      "default": false
+    },
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique sensor name. Defaults to '{asset_key}__observation_sensor'. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null
+    },
+    "watermark_column": {
+      "type": "string",
+      "label": "Watermark Column",
+      "description": "Column for latest value metric (e.g. updated_at). Used to derive the DataVersion in the native path. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "check_interval_seconds": {
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between health checks. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": 300
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Dagster resource key exposing `.observe(table_name) -> dict`. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null,
+      "ui:widget": "resource-picker"
+    },
+    "emit_materialization": {
+      "type": "boolean",
+      "label": "Emit Materialization",
+      "description": "When True (default), the sensor emits AssetMaterialization. When False, emits AssetObservation instead. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": true
+    },
     "partition_type": {
       "type": "string",
       "label": "Partition Type",

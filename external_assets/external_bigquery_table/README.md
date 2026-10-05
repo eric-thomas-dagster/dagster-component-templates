@@ -24,12 +24,21 @@ This component does not read from or write to Bigquery Table. It is a **lineage 
 | `dataset_id` | `str` | BigQuery dataset ID |
 | `table_id` | `str` | BigQuery table ID |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | — | Dagster resource key exposing `.observe(source) -> dict` (source is 'project.dataset.table') that returns `{'data_version': str, **metadata}`. Only used when create_observation_sensor=True; unset uses google-cloud-bigquery directly. |
+
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | — | Dagster asset group name |
 | `description` | `str` | — | Human-readable description |
+| `kinds` | `List[str]` | — | Dagster asset kinds (max 3 badges per house convention). Defaults to ['bigquery', 'gcp', 'table']. |
+| `owners` | `List[str]` | — | Asset owners (e.g. ['team:data-platform', 'user:alice@example.com']). |
+| `metadata` | `Dict[str, Any]` | — | Extra metadata merged on top of the auto-populated {project_id, dataset_id, table_id, dagster/uri, dagster.observability_type}. |
 
 ### Partitions
 
@@ -40,10 +49,21 @@ This component does not read from or write to Bigquery Table. It is a **lineage 
 | `partition_values` | `str` | — | Comma-separated values for static / multi partition types. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec; overrides flat fields when set. |
 
+### Sensor configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{table_id}__observation_sensor'. Only used when create_observation_sensor=True. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `create_observation_sensor` | `bool` | `false` | Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone bigquery_table_observation_sensor component). When False (default), this component only declares t… _(full docs in schema.json + component README)_ |
+| `check_interval_seconds` | `int` | `300` | Seconds between health checks. Only used when create_observation_sensor=True. |
+| `include_preview_metadata` | `bool` | `false` | Run an extra `SELECT * LIMIT preview_rows` against the table and include the result as markdown preview on the AssetObservation. Only used when create_observation_sensor=True. |
+| `preview_rows` | `int` | `25` | Rows in the preview SELECT when include_preview_metadata=True. |
+| `emit_materialization` | `bool` | `true` | When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, downstream AutomationCondition.eager() fires on parent updates). When False, emits AssetObservation instead (no Dagster+ credit charg… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 
 [//]: # (FIELDS:END)
@@ -60,9 +80,25 @@ attributes:
   # description: None  # optional
 ```
 
-## Pair with the observation sensor
+## Observation sensor
 
-Use the companion observation sensor to periodically health-check the table and record metrics as `AssetObservation` events:
+Set `create_observation_sensor: true` to also get the polling sensor that keeps this asset's
+health/data-version current — one component, one YAML, no manual `asset_key` wiring:
+
+```yaml
+type: dagster_component_templates.ExternalBigQueryTableAsset
+attributes:
+  asset_key: external/bigquery
+  project_id: PROJECT_ID
+  dataset_id: DATASET_ID
+  table_id: TABLE_ID
+  create_observation_sensor: true
+  check_interval_seconds: 300
+```
+
+If the sensor needs to observe an `asset_key` declared by a *different* component (or you want the
+asset and sensor on independent lifecycles), pair this component with the standalone
+`bigquery_table_observation_sensor` component instead:
 
 ```yaml
 # 1. Declare the external asset (lineage node)
@@ -71,16 +107,18 @@ attributes:
   asset_key: external/bigquery
   project_id: PROJECT_ID
   dataset_id: DATASET_ID
+  table_id: TABLE_ID
 
 ---
 
 # 2. Observe it on a schedule
-type: dagster_component_templates.BigQueryTableObservationSensorComponentObservationSensorComponent
+type: dagster_component_templates.BigQueryTableObservationSensorComponent
 attributes:
   sensor_name: bigquery_table_observer
   asset_key: external/bigquery
   project_id: PROJECT_ID
   dataset_id: DATASET_ID
+  table_id: TABLE_ID
 ```
 
 ## Requirements

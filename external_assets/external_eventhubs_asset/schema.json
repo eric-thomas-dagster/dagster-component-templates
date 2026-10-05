@@ -43,6 +43,49 @@
       "default": null,
       "ui:widget": "code"
     },
+    "create_observation_sensor": {
+      "type": "boolean",
+      "label": "Create Observation Sensor",
+      "description": "Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone eventhubs_observation_sensor component). When False (default), this component only declares the AssetSpec.",
+      "required": false,
+      "default": false
+    },
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique sensor name. Defaults to '{eventhub_name}__observation_sensor'. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null
+    },
+    "connection_string_env_var": {
+      "type": "string",
+      "label": "Connection String Env Var",
+      "description": "Env var with connection string. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null
+    },
+    "check_interval_seconds": {
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between health checks. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": 300
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null,
+      "ui:widget": "resource-picker"
+    },
+    "emit_materialization": {
+      "type": "boolean",
+      "label": "Emit Materialization",
+      "description": "When True (default), emit AssetMaterialization on the target asset key (healthy/green, eager() fires). When False, emit AssetObservation instead (no Dagster+ credit charge, but eager()-style conditions won't fire). Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": true
+    },
     "partition_type": {
       "type": "string",
       "label": "Partition Type",

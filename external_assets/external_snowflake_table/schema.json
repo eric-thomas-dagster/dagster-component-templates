@@ -55,6 +55,105 @@
       "default": null,
       "ui:widget": "code"
     },
+    "create_observation_sensor": {
+      "type": "boolean",
+      "label": "Create Observation Sensor",
+      "description": "Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone snowflake_table_observation_sensor component). When False (default), this component only declares the AssetSpec.",
+      "required": false,
+      "default": false
+    },
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique sensor name. Defaults to '{asset_key}__observation_sensor'. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var with Snowflake username. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": ""
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var with password. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "authenticator": {
+      "type": "string",
+      "label": "Authenticator",
+      "description": "Snowflake authenticator: 'SNOWFLAKE_JWT' (keypair), 'externalbrowser' (SSO), 'oauth', etc. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null
+    },
+    "private_key_file_env_var": {
+      "type": "string",
+      "label": "Private Key File Env Var",
+      "description": "Env var holding the path to a PEM RSA private key file (for authenticator='SNOWFLAKE_JWT'). Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null
+    },
+    "private_key_file_pwd_env_var": {
+      "type": "string",
+      "label": "Private Key File Pwd Env Var",
+      "description": "Env var holding the passphrase for an encrypted private key file (optional). Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null
+    },
+    "token_env_var": {
+      "type": "string",
+      "label": "Token Env Var",
+      "description": "Env var holding an OAuth / PAT token (with authenticator='oauth' or PAT). Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null
+    },
+    "warehouse": {
+      "type": "string",
+      "label": "Warehouse",
+      "description": "Snowflake warehouse to use. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null
+    },
+    "check_interval_seconds": {
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between health checks. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": 300
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional Dagster resource key. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Run an extra `SELECT * LIMIT preview_rows` against the table and include the result as a markdown preview on the AssetObservation. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Rows in the preview SELECT when include_preview_metadata=True.",
+      "required": false,
+      "default": 25
+    },
+    "emit_materialization": {
+      "type": "boolean",
+      "label": "Emit Materialization",
+      "description": "When True (default), the sensor emits AssetMaterialization. When False, emits AssetObservation instead. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": true
+    },
     "partition_type": {
       "type": "string",
       "label": "Partition Type",

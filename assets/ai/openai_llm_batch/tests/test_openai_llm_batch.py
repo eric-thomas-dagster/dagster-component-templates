@@ -11,7 +11,7 @@ import dagster as dg
 import pandas as pd
 import pytest
 
-from .conftest import load_component_module, make_upstream_asset
+from .conftest import load_component_module, make_upstream_asset, requires_duckdb
 
 
 @pytest.fixture
@@ -334,6 +334,61 @@ def test_empty_upstream_short_circuits(mod):
     result = dg.materialize([upstream, *defs.assets], selection=["support_tickets", "support_results__submit"])
     assert result.success
     assert len(client.batches.create_calls) == 0
+
+
+def test_upstream_asset_key_and_source_mutually_exclusive():
+    import importlib.util, pathlib
+    spec = importlib.util.spec_from_file_location(
+        "openai_llm_batch_component_validate2",
+        pathlib.Path(__file__).resolve().parent.parent / "component.py",
+    )
+    mod2 = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod2)
+
+    with pytest.raises(ValueError, match="set exactly one"):
+        mod2.OpenaiLlmBatchComponent(
+            asset_name="x", prompt_column="body",
+        ).build_defs(context=None)  # neither set
+
+    with pytest.raises(ValueError, match="set exactly one"):
+        mod2.OpenaiLlmBatchComponent(
+            asset_name="x", prompt_column="body",
+            upstream_asset_key="y",
+            source={"kind": "warehouse_query", "resource_key": "r", "sql": "SELECT 1"},
+        ).build_defs(context=None)  # both set
+
+
+@requires_duckdb
+def test_source_warehouse_query_against_real_duckdb(mod):
+    import duckdb
+    import tempfile, os as _os
+    from dagster_duckdb import DuckDBResource
+
+    client = FakeClient()
+    _install_fake_client(mod, client)
+
+    tmp_dir = tempfile.mkdtemp()
+    db_path = _os.path.join(tmp_dir, "tickets.duckdb")
+    conn = duckdb.connect(db_path)
+    conn.execute("CREATE TABLE tickets AS SELECT * FROM (VALUES ('t1','help me'), ('t2','also help')) AS t(ticket_id, body)")
+    conn.close()
+
+    comp = mod.OpenaiLlmBatchComponent(
+        asset_name="support_results",
+        source={"kind": "warehouse_query", "resource_key": "duckdb_resource", "sql": "SELECT * FROM tickets"},
+        prompt_column="body",
+        id_column="ticket_id",
+    )
+    defs = comp.build_defs(context=None)
+    submit_asset = [a for a in defs.assets if a.key.to_user_string() == "support_results__submit"][0]
+    result = dg.materialize(
+        [submit_asset],
+        resources={"duckdb_resource": DuckDBResource(database=db_path)},
+    )
+    assert result.success
+    assert len(client.batches.create_calls) == 1
+    md = result.asset_materializations_for_node("support_results__submit")[0].metadata
+    assert md["request_count"].value == 2
 
 
 def test_mutually_exclusive_prompt_fields_raise():

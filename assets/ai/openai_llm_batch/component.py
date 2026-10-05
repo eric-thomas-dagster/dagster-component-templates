@@ -54,6 +54,35 @@ def _build_openai_client(api_key: str) -> Any:
     return OpenAI(api_key=api_key)
 
 
+def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
+    """Execute SQL via a Dagster resource that exposes .get_engine() (SQLAlchemy)
+    OR .get_connection() (DB-API), or a bare SQLAlchemy engine built from
+    `database_url_env_var` when no Dagster resource is registered. Same
+    helper, same contract, as every other dual-ingestion component in this
+    repo (e.g. automl_asset, logistic_regression_model, churn_prediction)."""
+    sql = source_config["sql"]
+    resource_key = source_config.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            return pd.read_sql(sql, resource.get_engine())
+        if hasattr(resource, "get_connection"):
+            with resource.get_connection() as conn:
+                return pd.read_sql(sql, conn)
+        raise ValueError(
+            f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy) "
+            f"or .get_connection() (DB-API); got {type(resource).__name__}"
+        )
+    env_var = source_config.get("database_url_env_var")
+    if env_var:
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        return pd.read_sql(sql, create_engine(url))
+    raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+
+
 def _resolve_column(col: Optional[Union[str, int]], columns: List[str]) -> Optional[str]:
     """Union[str, int] column refs: an int is a positional index into the
     upstream DataFrame's columns; a str is used as-is."""
@@ -256,7 +285,18 @@ class OpenaiLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
             "never need to name or wire those yourself."
         ),
     )
-    upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame of prompts.")
+    upstream_asset_key: Optional[str] = Field(
+        default=None,
+        description="Upstream asset key providing a DataFrame of prompts. Mutually exclusive with `source` -- set exactly one.",
+    )
+    source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Pull rows directly via SQL instead of from an upstream asset: "
+            "{kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. "
+            "Mutually exclusive with `upstream_asset_key` -- set exactly one."
+        ),
+    )
 
     prompt_column: Optional[Union[str, int]] = Field(
         default=None,
@@ -339,9 +379,12 @@ class OpenaiLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
             raise ValueError("OpenaiLlmBatchComponent: set prompt_column or prompt_template.")
         if self.prompt_column and self.prompt_template:
             raise ValueError("OpenaiLlmBatchComponent: set prompt_column OR prompt_template, not both.")
+        if bool(self.upstream_asset_key) == bool(self.source):
+            raise ValueError("OpenaiLlmBatchComponent: set exactly one of `upstream_asset_key` or `source`.")
 
         asset_name = self.asset_name
-        upstream_key = dg.AssetKey.from_user_string(self.upstream_asset_key)
+        upstream_key = dg.AssetKey.from_user_string(self.upstream_asset_key) if self.upstream_asset_key else None
+        source_cfg = self.source
         prompt_column = self.prompt_column
         prompt_template = self.prompt_template
         id_column = self.id_column
@@ -424,17 +467,25 @@ class OpenaiLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
             return client, batch, pairs, prompts_hash
 
         if self.wait_for_completion:
-            @dg.asset(
+            _blocking_kwargs: Dict[str, Any] = dict(
                 key=dg.AssetKey.from_user_string(asset_name),
-                description=self.description or f"OpenAI Batch API run over {self.upstream_asset_key} ({model}) — blocking.",
+                description=self.description or f"OpenAI Batch API run ({model}) — blocking.",
                 group_name=self.group_name,
                 kinds=_kinds,
                 tags=self.asset_tags or None,
                 owners=self.owners or None,
-                ins={"upstream": dg.AssetIn(key=upstream_key)},
                 retry_policy=retry_policy,
             )
-            def _blocking_asset(context: dg.AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+            if upstream_key:
+                _blocking_kwargs["ins"] = {"upstream": dg.AssetIn(key=upstream_key)}
+            if source_cfg and source_cfg.get("resource_key"):
+                _blocking_kwargs["required_resource_keys"] = {source_cfg["resource_key"]}
+
+            @dg.asset(**_blocking_kwargs)
+            def _blocking_asset(context: dg.AssetExecutionContext, **kwargs) -> pd.DataFrame:
+                upstream = kwargs.get("upstream")
+                if upstream is None:
+                    upstream = _ingest_warehouse_query(source_cfg, context)
                 client, batch, pairs, prompts_hash = _submit_or_reattach(context, upstream)
                 if not pairs:
                     context.log.info("OpenaiLlmBatchComponent: zero rows, nothing to submit.")
@@ -484,17 +535,25 @@ class OpenaiLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
         sensor_name = f"{asset_name}__batch_status_sensor"
         results_op_name = results_key.to_python_identifier()
 
-        @dg.asset(
+        _submit_kwargs: Dict[str, Any] = dict(
             key=submit_key,
-            description=f"OpenAI Batch API submission manifest over {self.upstream_asset_key} ({model}). See {asset_name} for parsed results.",
+            description=f"OpenAI Batch API submission manifest ({model}). See {asset_name} for parsed results.",
             group_name=self.group_name,
             kinds=_kinds,
             tags=self.asset_tags or None,
             owners=self.owners or None,
-            ins={"upstream": dg.AssetIn(key=upstream_key)},
             retry_policy=retry_policy,
         )
-        def _submit_asset(context: dg.AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+        if upstream_key:
+            _submit_kwargs["ins"] = {"upstream": dg.AssetIn(key=upstream_key)}
+        if source_cfg and source_cfg.get("resource_key"):
+            _submit_kwargs["required_resource_keys"] = {source_cfg["resource_key"]}
+
+        @dg.asset(**_submit_kwargs)
+        def _submit_asset(context: dg.AssetExecutionContext, **kwargs) -> pd.DataFrame:
+            upstream = kwargs.get("upstream")
+            if upstream is None:
+                upstream = _ingest_warehouse_query(source_cfg, context)
             client, batch, pairs, prompts_hash = _submit_or_reattach(context, upstream)
             if not pairs:
                 context.log.info("OpenaiLlmBatchComponent: zero rows, nothing to submit.")

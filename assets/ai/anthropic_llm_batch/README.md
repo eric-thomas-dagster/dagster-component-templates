@@ -104,7 +104,6 @@ environment.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the results asset -- the one downstream assets should depend on. When wait_for_completion=False, a companion '{asset_name}__submit' asset and a '{asset_name}__batch_status_sensor' sensor are also created automati… _(full docs in schema.json + component README)_ |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame of prompts. |
 
 ### Connection
 
@@ -149,6 +148,8 @@ environment.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `upstream_asset_key` | `str` | — | Upstream asset key providing a DataFrame of prompts. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `prompt_column` | `Union[str, int]` | — | Column holding the raw text to send as the user message. Mutually exclusive with prompt_template. |
 | `prompt_template` | `str` | — | Format-string template using row values, e.g. "Summarize: {body}". Rendered per row via str.format(**row_dict). Mutually exclusive with prompt_column. |
 | `id_column` | `Union[str, int]` | — | Column to use as each row's custom_id (must match ^[a-zA-Z0-9_-]{1,64}$). If unset, the row's positional index (as a string) is used. |

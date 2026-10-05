@@ -8,6 +8,22 @@ import pathlib
 from types import ModuleType
 
 import dagster as dg
+import pytest
+
+
+def _duckdb_available() -> bool:
+    try:
+        import duckdb  # noqa: F401
+        import dagster_duckdb  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
+requires_duckdb = pytest.mark.skipif(
+    not _duckdb_available(),
+    reason="requires duckdb + dagster-duckdb (pip install duckdb dagster-duckdb)",
+)
 
 
 def load_component_module() -> ModuleType:

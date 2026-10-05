@@ -1,0 +1,59 @@
+{
+  "component_type": "dagster_component_templates.DatabricksSqlResourceComponent",
+  "description": "Register a databricks-sql-connector connection to a Databricks SQL Warehouse for use by other components' source:{kind: warehouse_query} field. Not the same as databricks_resource (job/cluster management, no SQL query capability).",
+  "category": "resource",
+  "icon": "si:databricks",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "databricks_sql_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "databricks_sql_resource"
+    },
+    "server_hostname": {
+      "type": "string",
+      "label": "Server Hostname",
+      "description": "Databricks workspace hostname, e.g. 'dbc-a1b2345c-d6e7.cloud.databricks.com' (no scheme/path).",
+      "required": true
+    },
+    "http_path": {
+      "type": "string",
+      "label": "HTTP Path",
+      "description": "SQL Warehouse HTTP path, e.g. '/sql/1.0/warehouses/a1b234c567d8e9fa' (from the warehouse's Connection Details tab).",
+      "required": true
+    },
+    "access_token_env_var": {
+      "type": "string",
+      "label": "Access Token Env Var",
+      "description": "Env var holding a Databricks personal access token (or an OAuth token). Token-based auth only -- see the component docstring for scope.",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "catalog": {
+      "type": "string",
+      "label": "Catalog",
+      "description": "Default Unity Catalog catalog for the connection.",
+      "required": false,
+      "default": null
+    },
+    "schema_name": {
+      "type": "string",
+      "label": "Schema Name",
+      "description": "Default schema for the connection.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "resource",
+    "databricks",
+    "warehouse",
+    "sql"
+  ],
+  "name": "Databricks SQL Resource"
+}

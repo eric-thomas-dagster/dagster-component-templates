@@ -1,0 +1,6 @@
+type: dagster_component_templates.DatabricksSqlResourceComponent
+attributes:
+  resource_key: databricks_sql_resource
+  server_hostname: dbc-a1b2345c-d6e7.cloud.databricks.com
+  http_path: /sql/1.0/warehouses/a1b234c567d8e9fa
+  access_token_env_var: DATABRICKS_SQL_TOKEN

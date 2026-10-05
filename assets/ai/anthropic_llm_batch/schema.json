@@ -1,8 +1,8 @@
 {
-  "component_type": "dagster_community_components.OpenaiBatchSubmitComponent",
-  "description": "Submit a DataFrame of prompts to OpenAI's async Batch API (~50% cheaper than synchronous chat completions). Content-addressed idempotency: retries/re-runs with unchanged prompts reattach to the existing batch instead of resubmitting. wait_for_completion=False (default) returns immediately with a small manifest -- no worker blocks waiting; pair with openai_batch_status_sensor + openai_batch_results.",
+  "component_type": "dagster_community_components.AnthropicLlmBatchComponent",
+  "description": "Submit a DataFrame of prompts as an Anthropic Message Batch (~50% cheaper than synchronous messages.create). One component bundles the whole lifecycle: a submit asset, a results asset, and an auto-wired status sensor (wait_for_completion=False, the default) -- or a single blocking asset that submits, polls, and returns parsed results inline (wait_for_completion=True). Content-addressed idempotency: retries/re-runs with unchanged prompts reattach to the existing live batch instead of resubmitting.",
   "category": "ai",
-  "icon": "si:openai",
+  "icon": "si:anthropic",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",
@@ -11,14 +11,14 @@
     },
     "outputs": {
       "type": "dataframe",
-      "description": "Small manifest (batch_id/status/request_count), or the full parsed results DataFrame when wait_for_completion=True"
+      "description": "Parsed results DataFrame (or a small submission manifest for the internal __submit asset when wait_for_completion=False)"
     }
   },
   "attributes": {
     "asset_name": {
       "type": "string",
       "label": "Asset Name",
-      "description": "Output Dagster asset name.",
+      "description": "Name of the results asset -- the one downstream assets should depend on. When wait_for_completion=False, a companion '{asset_name}__submit' asset and a '{asset_name}__batch_status_sensor' sensor are also created automatically; you never need to name or wire those yourself.",
       "required": true
     },
     "upstream_asset_key": {
@@ -46,7 +46,7 @@
     "id_column": {
       "type": "string",
       "label": "ID Column",
-      "description": "Column to use as each row's custom_id in the batch request. If unset, the row's positional index (as a string) is used.",
+      "description": "Column to use as each row's custom_id (must match ^[a-zA-Z0-9_-]{1,64}$). If unset, the row's positional index (as a string) is used.",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -54,14 +54,14 @@
     "model": {
       "type": "string",
       "label": "Model",
-      "description": "OpenAI model id used in each batch request's body.",
+      "description": "Anthropic model id used in each batch request.",
       "required": false,
-      "default": "gpt-4o-mini"
+      "default": "claude-haiku-4-5-20251001"
     },
     "system_prompt": {
       "type": "string",
       "label": "System Prompt",
-      "description": "System message prepended to each request.",
+      "description": "System prompt prepended to each request.",
       "required": false,
       "default": null,
       "ui:widget": "textarea"
@@ -80,40 +80,59 @@
       "required": false,
       "default": 0.0
     },
-    "completion_window": {
+    "output_schema": {
       "type": "string",
-      "label": "Completion Window",
-      "description": "OpenAI batch completion window. Currently '24h' is the only value OpenAI accepts, but this stays a field for forward-compat.",
+      "label": "Output Schema",
+      "description": "Dotted path to a Pydantic model for typed output, e.g. 'my_project.schemas:SupportReply' (module.path:ClassName). Each row's raw_output is parsed as JSON and validated against this model; on success the model's fields are merged in as extra columns. On ANY failure (bad JSON, validation error) the row is marked invalid_output=True with raw_output kept as-is -- it never fails the asset.",
       "required": false,
-      "default": "24h"
+      "default": null
     },
     "wait_for_completion": {
       "type": "boolean",
       "label": "Wait For Completion",
-      "description": "If True, poll synchronously until the batch reaches a terminal state and return the fully parsed output DataFrame directly (blocking, 'give me everything now' mode). If False (default), return immediately after submit/reattach with a small manifest (batch_id/status/request_count) -- no worker blocks waiting; the paired openai_batch_status_sensor + openai_batch_results components fetch results later.",
+      "description": "If True, a single asset (named asset_name) submits, polls synchronously to processing_status=='ended', and returns the fully parsed results DataFrame directly -- blocking, no sensor created. If False (default), submit/reattach returns immediately with a small manifest under '{asset_name}__submit', and the auto-created '{asset_name}__batch_status_sensor' materializes '{asset_name}' once Anthropic finishes the batch -- no worker blocks waiting.",
       "required": false,
       "default": false
     },
     "poll_interval_seconds": {
       "type": "integer",
       "label": "Poll Interval Seconds",
-      "description": "Seconds between polls. Only used when wait_for_completion=True.",
+      "description": "Seconds between polls. Used when wait_for_completion=True (blocking) or by the status sensor's own live-status check.",
       "required": false,
       "default": 30
     },
     "timeout_seconds": {
       "type": "integer",
       "label": "Timeout Seconds",
-      "description": "Max seconds to wait for a terminal state before raising. Only used when wait_for_completion=True.",
+      "description": "Max seconds to wait for processing_status=='ended' before raising. Only used when wait_for_completion=True.",
       "required": false,
       "default": 3600
+    },
+    "sensor_minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Sensor Minimum Interval Seconds",
+      "description": "Minimum seconds between the auto-created status sensor's evaluations. Only used when wait_for_completion=False.",
+      "required": false,
+      "default": 60
+    },
+    "sensor_default_status": {
+      "type": "string",
+      "label": "Sensor Default Status",
+      "description": "'running' or 'stopped' -- initial status of the auto-created sensor. Only used when wait_for_completion=False.",
+      "required": false,
+      "default": "running",
+      "ui:widget": "select",
+      "enum": [
+        "running",
+        "stopped"
+      ]
     },
     "api_key_env_var": {
       "type": "string",
       "label": "API Key Env Var",
-      "description": "Env var holding the OpenAI API key.",
+      "description": "Env var holding the Anthropic API key.",
       "required": false,
-      "default": "OPENAI_API_KEY",
+      "default": "ANTHROPIC_API_KEY",
       "ui:widget": "env_var"
     },
     "group_name": {
@@ -133,14 +152,14 @@
     "asset_tags": {
       "type": "object",
       "label": "Asset Tags",
-      "description": "Additional key-value tags to apply to the asset, e.g. {'domain': 'support', 'tier': 'gold'}",
+      "description": "Additional key-value tags to apply to the assets, e.g. {'domain': 'support', 'tier': 'gold'}",
       "required": false,
       "default": null
     },
     "kinds": {
       "type": "array",
       "label": "Kinds",
-      "description": "Asset kinds for the Dagster catalog, e.g. ['openai', 'llm']. Defaults to ['openai', 'llm'] if not set.",
+      "description": "Asset kinds for the Dagster catalog, e.g. ['anthropic', 'llm']. Defaults to ['anthropic', 'llm'] if not set.",
       "required": false,
       "default": null
     },

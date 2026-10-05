@@ -66891,13 +66891,13 @@
       ]
     },
     {
-      "id": "openai_batch_submit",
-      "name": "Openai Batch Submit",
-      "component_type": "dagster_community_components.OpenaiBatchSubmitComponent",
-      "path": "assets/ai/openai_batch_submit",
+      "id": "openai_llm_batch",
+      "name": "Openai Llm Batch",
+      "component_type": "dagster_community_components.OpenaiLlmBatchComponent",
+      "path": "assets/ai/openai_llm_batch",
       "category": "ai",
       "icon": "si:openai",
-      "description": "Submit a DataFrame of prompts to OpenAI's async Batch API (~50% cheaper than synchronous chat completions). Content-addressed idempotency: retries/re-runs with unchanged prompts reattach to the existing batch instead of resubmitting. wait_for_completion=False (default) returns immediately with a small manifest -- no worker blocks waiting; pair with openai_batch_status_sensor + openai_batch_results.",
+      "description": "Submit a DataFrame of prompts to OpenAI's async Batch API (~50% cheaper than synchronous chat completions). One component bundles the whole lifecycle: a submit asset, a results asset, and an auto-wired status sensor (wait_for_completion=False, the default) -- or a single blocking asset that submits, polls, and returns parsed results inline (wait_for_completion=True). Content-addressed idempotency: retries/re-runs with unchanged prompts reattach to the existing batch instead of resubmitting.",
       "tags": [
         "ai",
         "llm",
@@ -66906,11 +66906,11 @@
         "async",
         "cost-optimization"
       ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_batch_submit/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_batch_submit/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_batch_submit/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_batch_submit/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_batch_submit/schema.json",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_llm_batch/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_llm_batch/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_llm_batch/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_llm_batch/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_llm_batch/schema.json",
       "dependencies": {
         "pip": [
           "openai>=1.0.0"
@@ -66918,13 +66918,14 @@
       },
       "validation": {
         "level": "code",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-component-templates/blob/main/assets/ai/openai_batch_submit/tests/",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-component-templates/blob/main/assets/ai/openai_llm_batch/tests/",
         "last_validated": "2026-10-05"
       },
       "version": "1.0.0",
       "author": "Dagster Community",
       "produces": [
-        "asset"
+        "asset",
+        "sensor"
       ],
       "agent_hints": {
         "input_type": "pd.DataFrame",
@@ -66945,118 +66946,13 @@
       ]
     },
     {
-      "id": "openai_batch_status_sensor",
-      "name": "Openai Batch Status Sensor",
-      "component_type": "dagster_community_components.OpenaiBatchStatusSensorComponent",
-      "path": "sensors/openai_batch_status_sensor",
-      "category": "sensor",
-      "icon": "si:openai",
-      "description": "Poll an OpenAI Batch API submission's live status (never trusting stale cached metadata); fire a Dagster run against the paired openai_batch_results asset once the batch reaches a terminal state. Cursor-deduped so downstream fires once per completion.",
-      "tags": [
-        "sensor",
-        "openai",
-        "batch",
-        "event-driven",
-        "async"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/openai_batch_status_sensor/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/openai_batch_status_sensor/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/openai_batch_status_sensor/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/openai_batch_status_sensor/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/openai_batch_status_sensor/schema.json",
-      "dependencies": {
-        "pip": [
-          "openai>=1.0.0"
-        ]
-      },
-      "validation": {
-        "level": "code",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-component-templates/blob/main/sensors/openai_batch_status_sensor/tests/",
-        "last_validated": "2026-10-05"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "produces": [
-        "sensor"
-      ],
-      "agent_hints": {
-        "outputs": "Poll an OpenAI Batch API submission's live status (never trusting stale cached metadata); fire a Dagster run against the paired openai_batch_results asset once the batch reaches a terminal state.",
-        "requires_pip": [
-          "openai>=1.0.0"
-        ]
-      },
-      "keywords": [
-        "gpt",
-        "gpt-4",
-        "chatgpt",
-        "o1",
-        "o3",
-        "trigger",
-        "event listener",
-        "watcher"
-      ]
-    },
-    {
-      "id": "openai_batch_results",
-      "name": "Openai Batch Results",
-      "component_type": "dagster_community_components.OpenaiBatchResultsComponent",
-      "path": "assets/ai/openai_batch_results",
-      "category": "ai",
-      "icon": "si:openai",
-      "description": "Fetch, parse, and optionally Pydantic-typed-validate a completed OpenAI Batch API run's output (+ error file). A row that fails JSON parsing or schema validation is marked invalid_output=True with the raw text preserved -- never fails the whole asset. batch_id is supplied dynamically via run_config by openai_batch_status_sensor, or set statically for manual/backfill runs.",
-      "tags": [
-        "ai",
-        "llm",
-        "openai",
-        "batch",
-        "async"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_batch_results/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_batch_results/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_batch_results/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_batch_results/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openai_batch_results/schema.json",
-      "dependencies": {
-        "pip": [
-          "openai>=1.0.0"
-        ]
-      },
-      "validation": {
-        "level": "code",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-component-templates/blob/main/assets/ai/openai_batch_results/tests/",
-        "last_validated": "2026-10-05"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "input_type": "pd.DataFrame",
-        "output_type": "pd.DataFrame",
-        "outputs": "Fetch, parse, and optionally Pydantic-typed-validate a completed OpenAI Batch API run's output (+ error file).",
-        "requires_pip": [
-          "openai>=1.0.0"
-        ]
-      },
-      "keywords": [
-        "gpt",
-        "gpt-4",
-        "chatgpt",
-        "o1",
-        "o3",
-        "llm",
-        "genai"
-      ]
-    },
-    {
-      "id": "anthropic_batch_submit",
-      "name": "Anthropic Batch Submit",
-      "component_type": "dagster_community_components.AnthropicBatchSubmitComponent",
-      "path": "assets/ai/anthropic_batch_submit",
+      "id": "anthropic_llm_batch",
+      "name": "Anthropic Llm Batch",
+      "component_type": "dagster_community_components.AnthropicLlmBatchComponent",
+      "path": "assets/ai/anthropic_llm_batch",
       "category": "ai",
       "icon": "si:anthropic",
-      "description": "Submit a DataFrame of prompts as an Anthropic Message Batch (~50% cheaper than synchronous messages.create). Content-addressed idempotency: retries/re-runs with unchanged prompts reattach to the existing live batch instead of resubmitting. wait_for_completion=False (default) returns immediately with a small manifest -- no worker blocks waiting; pair with anthropic_batch_status_sensor + anthropic_batch_results.",
+      "description": "Submit a DataFrame of prompts as an Anthropic Message Batch (~50% cheaper than synchronous messages.create). One component bundles the whole lifecycle: a submit asset, a results asset, and an auto-wired status sensor (wait_for_completion=False, the default) -- or a single blocking asset that submits, polls, and returns parsed results inline (wait_for_completion=True). Content-addressed idempotency: retries/re-runs with unchanged prompts reattach to the existing live batch instead of resubmitting.",
       "tags": [
         "ai",
         "llm",
@@ -67066,11 +66962,11 @@
         "async",
         "cost-optimization"
       ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_batch_submit/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_batch_submit/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_batch_submit/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_batch_submit/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_batch_submit/schema.json",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_llm_batch/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_llm_batch/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_llm_batch/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_llm_batch/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_llm_batch/schema.json",
       "dependencies": {
         "pip": [
           "anthropic"
@@ -67078,117 +66974,19 @@
       },
       "validation": {
         "level": "code",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-component-templates/blob/main/assets/ai/anthropic_batch_submit/tests/",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-component-templates/blob/main/assets/ai/anthropic_llm_batch/tests/",
         "last_validated": "2026-10-05"
       },
       "version": "1.0.0",
       "author": "Dagster Community",
       "produces": [
-        "asset"
+        "asset",
+        "sensor"
       ],
       "agent_hints": {
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame",
         "outputs": "Submit a DataFrame of prompts as an Anthropic Message Batch (~50% cheaper than synchronous messages.create).",
-        "requires_pip": [
-          "anthropic"
-        ]
-      },
-      "keywords": [
-        "claude",
-        "llm",
-        "genai"
-      ]
-    },
-    {
-      "id": "anthropic_batch_status_sensor",
-      "name": "Anthropic Batch Status Sensor",
-      "component_type": "dagster_community_components.AnthropicBatchStatusSensorComponent",
-      "path": "sensors/anthropic_batch_status_sensor",
-      "category": "sensor",
-      "icon": "si:anthropic",
-      "description": "Poll an Anthropic Message Batch's live processing_status (never trusting stale cached metadata); fire a Dagster run against the paired anthropic_batch_results asset once the batch reaches 'ended'. Cursor-deduped so downstream fires once per completion.",
-      "tags": [
-        "sensor",
-        "anthropic",
-        "claude",
-        "batch",
-        "event-driven",
-        "async"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/anthropic_batch_status_sensor/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/anthropic_batch_status_sensor/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/anthropic_batch_status_sensor/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/anthropic_batch_status_sensor/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/anthropic_batch_status_sensor/schema.json",
-      "dependencies": {
-        "pip": [
-          "anthropic"
-        ]
-      },
-      "validation": {
-        "level": "code",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-component-templates/blob/main/sensors/anthropic_batch_status_sensor/tests/",
-        "last_validated": "2026-10-05"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "produces": [
-        "sensor"
-      ],
-      "agent_hints": {
-        "outputs": "Poll an Anthropic Message Batch's live processing_status (never trusting stale cached metadata); fire a Dagster run against the paired anthropic_batch_results asset once the batch reaches 'ended'.",
-        "requires_pip": [
-          "anthropic"
-        ]
-      },
-      "keywords": [
-        "claude",
-        "trigger",
-        "event listener",
-        "watcher"
-      ]
-    },
-    {
-      "id": "anthropic_batch_results",
-      "name": "Anthropic Batch Results",
-      "component_type": "dagster_community_components.AnthropicBatchResultsComponent",
-      "path": "assets/ai/anthropic_batch_results",
-      "category": "ai",
-      "icon": "si:anthropic",
-      "description": "Fetch, parse, and optionally Pydantic-typed-validate a completed Anthropic Message Batch's results (succeeded/errored/canceled/expired). A row that fails JSON parsing or schema validation is marked invalid_output=True with the raw text preserved -- never fails the whole asset. batch_id is supplied dynamically via run_config by anthropic_batch_status_sensor, or set statically for manual/backfill runs.",
-      "tags": [
-        "ai",
-        "llm",
-        "anthropic",
-        "claude",
-        "batch",
-        "async"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_batch_results/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_batch_results/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_batch_results/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_batch_results/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/anthropic_batch_results/schema.json",
-      "dependencies": {
-        "pip": [
-          "anthropic"
-        ]
-      },
-      "validation": {
-        "level": "code",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-component-templates/blob/main/assets/ai/anthropic_batch_results/tests/",
-        "last_validated": "2026-10-05"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "produces": [
-        "asset"
-      ],
-      "agent_hints": {
-        "input_type": "pd.DataFrame",
-        "output_type": "pd.DataFrame",
-        "outputs": "Fetch, parse, and optionally Pydantic-typed-validate a completed Anthropic Message Batch's results (succeeded/errored/canceled/expired).",
         "requires_pip": [
           "anthropic"
         ]

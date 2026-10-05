@@ -1,0 +1,9 @@
+type: dagster_component_templates.AnthropicLlmBatchComponent
+attributes:
+  asset_name: support_reply_results
+  upstream_asset_key: support_tickets
+  prompt_column: body
+  id_column: ticket_id
+  model: claude-haiku-4-5-20251001
+  system_prompt: "Draft a helpful, concise reply to this support ticket."
+  wait_for_completion: false

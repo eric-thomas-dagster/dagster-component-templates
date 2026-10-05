@@ -1,0 +1,208 @@
+{
+  "component_type": "dagster_community_components.OpenaiLlmBatchComponent",
+  "description": "Submit a DataFrame of prompts to OpenAI's async Batch API (~50% cheaper than synchronous chat completions). One component bundles the whole lifecycle: a submit asset, a results asset, and an auto-wired status sensor (wait_for_completion=False, the default) -- or a single blocking asset that submits, polls, and returns parsed results inline (wait_for_completion=True). Content-addressed idempotency: retries/re-runs with unchanged prompts reattach to the existing batch instead of resubmitting.",
+  "category": "ai",
+  "icon": "si:openai",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame of prompts"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Parsed results DataFrame (or a small submission manifest for the internal __submit asset when wait_for_completion=False)"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the results asset -- the one downstream assets should depend on. When wait_for_completion=False, a companion '{asset_name}__submit' asset and a '{asset_name}__batch_status_sensor' sensor are also created automatically; you never need to name or wire those yourself.",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame of prompts.",
+      "required": true
+    },
+    "prompt_column": {
+      "type": "string",
+      "label": "Prompt Column",
+      "description": "Column holding the raw text to send as the user message. Mutually exclusive with prompt_template.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "prompt_template": {
+      "type": "string",
+      "label": "Prompt Template",
+      "description": "Format-string template using row values, e.g. \"Summarize: {body}\". Rendered per row via str.format(**row_dict). Mutually exclusive with prompt_column.",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "id_column": {
+      "type": "string",
+      "label": "ID Column",
+      "description": "Column to use as each row's custom_id in the batch request. If unset, the row's positional index (as a string) is used.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "description": "OpenAI model id used in each batch request's body.",
+      "required": false,
+      "default": "gpt-4o-mini"
+    },
+    "system_prompt": {
+      "type": "string",
+      "label": "System Prompt",
+      "description": "System message prepended to each request.",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "label": "Max Tokens",
+      "description": "Maximum tokens per completion.",
+      "required": false,
+      "default": 1000
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Temperature",
+      "description": "Sampling temperature.",
+      "required": false,
+      "default": 0.0
+    },
+    "completion_window": {
+      "type": "string",
+      "label": "Completion Window",
+      "description": "OpenAI batch completion window. Currently '24h' is the only value OpenAI accepts, but this stays a field for forward-compat.",
+      "required": false,
+      "default": "24h"
+    },
+    "output_schema": {
+      "type": "string",
+      "label": "Output Schema",
+      "description": "Dotted path to a Pydantic model for typed output, e.g. 'my_project.schemas:SupportReply' (module.path:ClassName). Each row's raw_output is parsed as JSON and validated against this model; on success the model's fields are merged in as extra columns. On ANY failure (bad JSON, validation error) the row is marked invalid_output=True with raw_output kept as-is -- it never fails the asset.",
+      "required": false,
+      "default": null
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "label": "Wait For Completion",
+      "description": "If True, a single asset (named asset_name) submits, polls synchronously to a terminal state, and returns the fully parsed results DataFrame directly -- blocking, no sensor created. If False (default), submit/reattach returns immediately with a small manifest under '{asset_name}__submit', and the auto-created '{asset_name}__batch_status_sensor' materializes '{asset_name}' once OpenAI finishes the batch -- no worker blocks waiting.",
+      "required": false,
+      "default": false
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between polls. Used when wait_for_completion=True (blocking) or by the status sensor's own live-status check.",
+      "required": false,
+      "default": 30
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Max seconds to wait for a terminal state before raising. Only used when wait_for_completion=True.",
+      "required": false,
+      "default": 3600
+    },
+    "sensor_minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Sensor Minimum Interval Seconds",
+      "description": "Minimum seconds between the auto-created status sensor's evaluations. Only used when wait_for_completion=False.",
+      "required": false,
+      "default": 60
+    },
+    "sensor_default_status": {
+      "type": "string",
+      "label": "Sensor Default Status",
+      "description": "'running' or 'stopped' -- initial status of the auto-created sensor. Only used when wait_for_completion=False.",
+      "required": false,
+      "default": "running",
+      "ui:widget": "select",
+      "enum": [
+        "running",
+        "stopped"
+      ]
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding the OpenAI API key.",
+      "required": false,
+      "default": "OPENAI_API_KEY",
+      "ui:widget": "env_var"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
+      "required": false,
+      "default": null
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Additional key-value tags to apply to the assets, e.g. {'domain': 'support', 'tier': 'gold'}",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Asset kinds for the Dagster catalog, e.g. ['openai', 'llm']. Defaults to ['openai', 'llm'] if not set.",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description shown in the Dagster catalog.",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Seconds between retries (default 1).",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "required": false,
+      "default": "exponential",
+      "ui:widget": "select",
+      "enum": [
+        "exponential",
+        "linear"
+      ]
+    }
+  }
+}

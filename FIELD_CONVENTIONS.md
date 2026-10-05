@@ -38,6 +38,58 @@ support_asset_key: support_tickets
 
 A handful of older analytics standardizers (`customer_360`, `customer_segmentation`, `revenue_attribution`, etc.) still use `<role>_data_asset` instead of `<role>_asset_key`. Those should be renamed in a future sweep with backward-compat aliases — same shape as the `source_asset` → `upstream_asset_key` migration.
 
+## Dataframe-or-SQL dual input
+
+Any component whose primary input is "a DataFrame of rows" (not a file,
+not a blob, not a nested document) can optionally also support pulling
+those rows directly via SQL, with no intermediate Dagster asset required.
+This is NOT the `source_asset`/`input_asset` naming mistake flagged
+above — `source` here is a structured config dict, not an asset
+reference, and it's a genuine alternative input mode, not a rename of
+`upstream_asset_key`.
+
+| Canonical | Type | Use when |
+|---|---|---|
+| `upstream_asset_key` | `Optional[str]` | Depend on one upstream Dagster asset (unchanged meaning — just made `Optional` so `source` can be the alternative) |
+| `source` | `Optional[Dict[str, Any]]` | `{kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}`. Mutually exclusive with `upstream_asset_key` — set exactly one. |
+
+**`build_defs()` must validate the mutual exclusivity** (copy verbatim, swap the class name):
+
+```python
+if bool(self.upstream_asset_key) == bool(self.source):
+    raise ValueError("MyComponent: set exactly one of `upstream_asset_key` or `source`.")
+```
+
+**The ingestion helper is copy-paste canonical, not reinvented per component.** Grep any of the 39 current adopters (e.g. `transforms/hash/component.py`, `assets/analytics/automl_asset/component.py`) for `_ingest_warehouse_query` and copy it verbatim — don't write a new one. It dispatches, in order:
+
+1. `.get_engine()` — SQLAlchemy engine (ClickHouse, SAP HANA, generic SQL resources)
+2. `.get_connection()` — DBAPI2 connection (Postgres, Snowflake, DuckDB, MySQL, Oracle, MSSQL, Databricks SQL, Trino/Starburst, TimescaleDB, DB2, Doris, StarRocks)
+3. `.get_client()` — vendor client, dispatched on the CLIENT's own shape (there's no universal `get_client` calling convention): BigQuery's `.query(sql).to_dataframe()`, Redshift's `.execute_query(sql, fetch_results=True, cursor_factory=RealDictCursor)`
+4. A bare SQLAlchemy engine built from `database_url_env_var`, when no Dagster resource is registered at all
+
+**Wiring the asset decorator** — `ins=`/`required_resource_keys` become conditional instead of assumed:
+
+```python
+ins=({"df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key))} if self.upstream_asset_key else None),
+required_resource_keys=({self.source["resource_key"]} if (self.source and self.source.get("resource_key")) else None),
+```
+
+```python
+def _asset(context: dg.AssetExecutionContext, **kwargs) -> pd.DataFrame:
+    df = kwargs.get("df")
+    if df is None:
+        df = _ingest_warehouse_query(self.source, context)
+    ...
+```
+
+**Known gaps, not silently unsupported:** Cassandra (`cassandra_resource`, CQL-based, only exposes `.get_session()`) and CosmosDB (`cosmosdb_resource`, `.get_client()` but a document-query API, not BigQuery/Redshift-shaped) aren't dispatchable yet — calling `source` against either raises the helper's own `"must expose .get_engine()/..."` error, not a silent wrong-data bug. Add a dispatch branch if someone actually needs one.
+
+**Out of scope by design, not by oversight:** components whose primary input is a file, blob, image, PDF, or nested document (not flat tabular rows) shouldn't get this field — there's no "SQL query" equivalent for "give me a PDF." Table-format catalogs without their own query engine (Iceberg) and RPC/REST-only resources (SAP RFC, NetSuite) are the same story on the resource side.
+
+**Two-input components** (joins, lookups, SCD comparisons) only get dual-input on the PRIMARY slot — the secondary join/lookup/target input stays an always-required asset dependency. Don't build combinatorial dual-mode for every input; the secondary side is reference data, not the thing being queried.
+
+**Fan-out components** (one asset per output, all siblings consuming the same upstream — e.g. `router`) run the SQL query once PER SIBLING when `source` is used, not once overall — Dagster doesn't share execution state across sibling consumers either way (an `ins=`-based fan-out re-reads the same materialized file per consumer too). Document this explicitly in the component's README; don't leave it as a silent surprise.
+
 ## Selecting columns
 
 | Canonical | Type | Use when |

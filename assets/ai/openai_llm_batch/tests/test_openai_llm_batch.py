@@ -336,6 +336,96 @@ def test_empty_upstream_short_circuits(mod):
     assert len(client.batches.create_calls) == 0
 
 
+def test_source_dispatches_to_bigquery_style_get_client(mod):
+    client = FakeClient()
+    _install_fake_client(mod, client)
+
+    class FakeQueryJob:
+        def to_dataframe(self):
+            return pd.DataFrame({"ticket_id": ["t1", "t2"], "body": ["help me", "also help"]})
+
+    class FakeBigQueryClient:
+        def __init__(self):
+            self.queries = []
+        def query(self, sql):
+            self.queries.append(sql)
+            return FakeQueryJob()
+
+    fake_bq_client = FakeBigQueryClient()
+
+    class FakeBigQueryResource:
+        def get_client(self):
+            return fake_bq_client
+
+    comp = mod.OpenaiLlmBatchComponent(
+        asset_name="support_results",
+        source={"kind": "warehouse_query", "resource_key": "bq", "sql": "SELECT * FROM tickets"},
+        prompt_column="body",
+        id_column="ticket_id",
+    )
+    defs = comp.build_defs(context=None)
+    submit_asset = [a for a in defs.assets if a.key.to_user_string() == "support_results__submit"][0]
+    result = dg.materialize([submit_asset], resources={"bq": FakeBigQueryResource()})
+    assert result.success
+    assert fake_bq_client.queries == ["SELECT * FROM tickets"]
+    assert len(client.batches.create_calls) == 1
+
+
+def test_source_dispatches_to_redshift_style_get_client(mod):
+    client = FakeClient()
+    _install_fake_client(mod, client)
+
+    class FakeRedshiftClient:
+        def __init__(self):
+            self.calls = []
+        def execute_query(self, sql, fetch_results=False, cursor_factory=None):
+            self.calls.append((sql, fetch_results, cursor_factory))
+            # Simulate RealDictCursor-style dict rows (what cursor_factory=RealDictCursor yields)
+            return [{"ticket_id": "t1", "body": "help me"}, {"ticket_id": "t2", "body": "also help"}]
+
+    fake_rs_client = FakeRedshiftClient()
+
+    class FakeRedshiftResource:
+        def get_client(self):
+            return fake_rs_client
+
+    comp = mod.OpenaiLlmBatchComponent(
+        asset_name="support_results",
+        source={"kind": "warehouse_query", "resource_key": "rs", "sql": "SELECT * FROM tickets"},
+        prompt_column="body",
+        id_column="ticket_id",
+    )
+    defs = comp.build_defs(context=None)
+    submit_asset = [a for a in defs.assets if a.key.to_user_string() == "support_results__submit"][0]
+    result = dg.materialize([submit_asset], resources={"rs": FakeRedshiftResource()})
+    assert result.success
+    assert fake_rs_client.calls[0][0] == "SELECT * FROM tickets"
+    assert fake_rs_client.calls[0][1] is True  # fetch_results=True
+    assert len(client.batches.create_calls) == 1
+
+
+def test_source_unknown_client_shape_raises_clear_error(mod):
+    client = FakeClient()
+    _install_fake_client(mod, client)
+
+    class FakeUnknownClient:
+        pass
+
+    class FakeUnknownResource:
+        def get_client(self):
+            return FakeUnknownClient()
+
+    comp = mod.OpenaiLlmBatchComponent(
+        asset_name="support_results",
+        source={"kind": "warehouse_query", "resource_key": "unk", "sql": "SELECT 1"},
+        prompt_column="body",
+    )
+    defs = comp.build_defs(context=None)
+    submit_asset = [a for a in defs.assets if a.key.to_user_string() == "support_results__submit"][0]
+    result = dg.materialize([submit_asset], resources={"unk": FakeUnknownResource()}, raise_on_error=False)
+    assert not result.success
+
+
 def test_upstream_asset_key_and_source_mutually_exclusive():
     import importlib.util, pathlib
     spec = importlib.util.spec_from_file_location(

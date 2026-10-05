@@ -41,9 +41,39 @@ def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
         if hasattr(resource, "get_connection"):
             with resource.get_connection() as conn:
                 return pd.read_sql(sql, conn)
+        if hasattr(resource, "get_client"):
+            # "get_client" means something different per vendor -- there's no
+            # universal calling convention, so dispatch on the CLIENT's own
+            # shape rather than assume one. Verified against the real APIs,
+            # not guessed:
+            client = resource.get_client()
+            if hasattr(client, "query"):
+                # BigQuery (google.cloud.bigquery.Client): .query(sql) returns
+                # a QueryJob; .to_dataframe() blocks until done and returns a
+                # pandas DataFrame directly -- no .result() call needed first.
+                job = client.query(sql)
+                if hasattr(job, "to_dataframe"):
+                    return job.to_dataframe()
+            if hasattr(client, "execute_query"):
+                # Redshift Data API (dagster_aws RedshiftClient):
+                # execute_query(sql, fetch_results=True) returns bare
+                # List[Tuple] with NO column names attached -- a
+                # RealDictCursor factory is required to get dict rows a
+                # DataFrame can use with correct column names.
+                try:
+                    from psycopg2.extras import RealDictCursor
+                    rows = client.execute_query(sql, fetch_results=True, cursor_factory=RealDictCursor)
+                except ImportError:
+                    rows = client.execute_query(sql, fetch_results=True)
+                return pd.DataFrame([dict(r) for r in (rows or [])])
+            raise ValueError(
+                f"resource {resource_key!r}'s get_client() returned {type(client).__name__}, "
+                "which this helper doesn't know how to query (no .query()/.to_dataframe() "
+                "or .execute_query() method found). Add a dispatch branch for it."
+            )
         raise ValueError(
-            f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy) "
-            f"or .get_connection() (DB-API); got {type(resource).__name__}"
+            f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy), "
+            f".get_connection() (DBAPI), or .get_client() (vendor client); got {type(resource).__name__}"
         )
     env_var = source_config.get("database_url_env_var")
     if env_var:

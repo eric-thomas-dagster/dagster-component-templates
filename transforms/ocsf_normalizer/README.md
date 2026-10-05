@@ -2,6 +2,23 @@
 
 Normalize source events to OCSF v1.1 with class_uid / category_uid / activity_id — per-source mapping tables for dagster_plus, cloudtrail, okta, github, azure_activity, slack.
 
+## SQL source
+
+Instead of `upstream_asset_key`, set `source` to pull rows directly via SQL
+-- no intermediate asset required:
+
+```yaml
+source:
+  kind: warehouse_query
+  resource_key: snowflake_resource   # or database_url_env_var: DATABASE_URL
+  sql: "SELECT * FROM my_table"
+```
+
+Mutually exclusive with `upstream_asset_key` -- set exactly one. Works with
+any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
+(DBAPI -- Postgres/Snowflake/DuckDB/MySQL/Databricks SQL), or `.get_client()`
+(BigQuery, Redshift).
+
 ## Dependencies
 - `pandas`
 
@@ -14,7 +31,6 @@ Normalize source events to OCSF v1.1 with class_uid / category_uid / activity_id
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream DataFrame to normalize |
 
 ### Catalog metadata
 
@@ -59,6 +75,8 @@ Normalize source events to OCSF v1.1 with class_uid / category_uid / activity_id
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `upstream_asset_key` | `str` | — | Upstream DataFrame to normalize. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `event_type_column` | `Union[str, int]` | — | Source column holding the event type string (auto-detected when None) |
 | `timestamp_column` | `Union[str, int]` | — | Source column for the event timestamp (auto-detected when None) |
 | `actor_email_column` | `Union[str, int]` | — | Source column for actor email (auto-detected when None) |

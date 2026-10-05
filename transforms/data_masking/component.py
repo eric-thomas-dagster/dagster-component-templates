@@ -4,18 +4,82 @@ Rule-based PII masking — hash, partial-mask (last 4 only), full-redact, or cha
 """
 
 import os
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 
 import dagster as dg
 import pandas as pd
 from pydantic import Field
 
 
+
+def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
+    """Execute SQL via a Dagster resource that exposes .get_engine()
+    (SQLAlchemy), .get_connection() (DBAPI), or .get_client() (vendor
+    client -- dispatched by the client's own shape since "get_client" means
+    something different per vendor: BigQuery's .query(sql).to_dataframe(),
+    Redshift's .execute_query(sql, fetch_results=True, cursor_factory=
+    RealDictCursor)), or a bare SQLAlchemy engine built from
+    `database_url_env_var` when no Dagster resource is registered. Same
+    helper, same contract, as every other dual-ingestion component in this
+    repo (e.g. automl_asset, logistic_regression_model, churn_prediction)."""
+    sql = source_config["sql"]
+    resource_key = source_config.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            return pd.read_sql(sql, resource.get_engine())
+        if hasattr(resource, "get_connection"):
+            with resource.get_connection() as conn:
+                return pd.read_sql(sql, conn)
+        if hasattr(resource, "get_client"):
+            client = resource.get_client()
+            if hasattr(client, "query"):
+                job = client.query(sql)
+                if hasattr(job, "to_dataframe"):
+                    return job.to_dataframe()
+            if hasattr(client, "execute_query"):
+                try:
+                    from psycopg2.extras import RealDictCursor
+                    rows = client.execute_query(sql, fetch_results=True, cursor_factory=RealDictCursor)
+                except ImportError:
+                    rows = client.execute_query(sql, fetch_results=True)
+                return pd.DataFrame([dict(r) for r in (rows or [])])
+            raise ValueError(
+                f"resource {resource_key!r}'s get_client() returned {type(client).__name__}, "
+                "which this helper doesn't know how to query (no .query()/.to_dataframe() "
+                "or .execute_query() method found). Add a dispatch branch for it."
+            )
+        raise ValueError(
+            f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy), "
+            f".get_connection() (DBAPI), or .get_client() (vendor client); got {type(resource).__name__}"
+        )
+    env_var = source_config.get("database_url_env_var")
+    if env_var:
+        import os
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        return pd.read_sql(sql, create_engine(url))
+    raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+
+
 class DataMaskingComponent(dg.Component, dg.Model, dg.Resolvable):
     """Rule-based PII masking — hash, partial-mask (last 4 only), full-redact, or character-substitute. Per-column policies."""
 
     asset_name: str = Field(description="Dagster asset name")
-    upstream_asset_key: str = Field(description="Upstream DataFrame asset key")
+    upstream_asset_key: Optional[str] = Field(
+        default=None,
+        description="Upstream DataFrame asset key. Mutually exclusive with `source` -- set exactly one.",
+    )
+    source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Pull rows directly via SQL instead of from an upstream asset: "
+            "{kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. "
+            "Mutually exclusive with `upstream_asset_key` -- set exactly one."
+        ),
+    )
 
     rules: list = Field(description="List of {column, method, ...} dicts. method: 'hash' | 'partial' | 'redact' | 'substitute' | 'pseudonymize'")
     salt_env: Optional[str] = Field(default="MASKING_SALT", description="Env var with hash salt (improves resistance to rainbow attacks)")
@@ -70,6 +134,8 @@ class DataMaskingComponent(dg.Component, dg.Model, dg.Resolvable):
     )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        if bool(self.upstream_asset_key) == bool(self.source):
+            raise ValueError("DataMaskingComponent: set exactly one of `upstream_asset_key` or `source`.")
         partitions_def = None
         if self.partition_type:
             from dagster import (
@@ -125,14 +191,18 @@ class DataMaskingComponent(dg.Component, dg.Model, dg.Resolvable):
             group_name=self.group_name,
             kinds=set(self.kinds or ['pii', 'masking', 'anonymize']),
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
-            ins={"df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key))},
+            ins=({"df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key))} if self.upstream_asset_key else None),
+            required_resource_keys=({self.source["resource_key"]} if (self.source and self.source.get("resource_key")) else None),
             owners=self.owners or None,
             tags=self.asset_tags or None,
             retry_policy=retry_policy,
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
-        def _asset(context: dg.AssetExecutionContext, df: Any) -> pd.DataFrame:
+        def _asset(context: dg.AssetExecutionContext, **kwargs) -> pd.DataFrame:
+            df = kwargs.get("df")
+            if df is None:
+                df = _ingest_warehouse_query(_self.source, context)
             # partition bridge dict-concat: when an unpartitioned
             # asset consumes a partitioned upstream, Dagster's IO
             # manager loads ALL partitions as a dict; concat to

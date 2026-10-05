@@ -2,6 +2,23 @@
 
 Replace values in a column according to a lookup dict — country code → country name, status code → status text, etc.
 
+## SQL source
+
+Instead of `upstream_asset_key`, set `source` to pull rows directly via SQL
+-- no intermediate asset required:
+
+```yaml
+source:
+  kind: warehouse_query
+  resource_key: snowflake_resource   # or database_url_env_var: DATABASE_URL
+  sql: "SELECT * FROM my_table"
+```
+
+Mutually exclusive with `upstream_asset_key` -- set exactly one. Works with
+any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
+(DBAPI -- Postgres/Snowflake/DuckDB/MySQL/Databricks SQL), or `.get_client()`
+(BigQuery, Redshift).
+
 ## Dependencies
 - `pandas`
 
@@ -14,7 +31,6 @@ Replace values in a column according to a lookup dict — country code → count
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key |
 | `column` | `Union[str, int]` | Column whose values to remap |
 | `mapping` | `dict` | {old: new} value mapping |
 
@@ -62,6 +78,8 @@ Replace values in a column according to a lookup dict — country code → count
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `upstream_asset_key` | `str` | — | Upstream DataFrame asset key. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `default_value` | `str` | — | Use this when no mapping match (None = keep original) |
 | `include_preview_metadata` | `bool` | `true` | — |
 | `preview_rows` | `int` | `20` | — |

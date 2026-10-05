@@ -2,6 +2,23 @@
 
 Slowly Changing Dimension Type 2 — keep history. Detect changed rows, expire prior versions, insert new versions with effective_from / effective_to / is_current.
 
+## SQL source
+
+Instead of `upstream_asset_key`, set `source` to pull rows directly via SQL
+-- no intermediate asset required:
+
+```yaml
+source:
+  kind: warehouse_query
+  resource_key: snowflake_resource   # or database_url_env_var: DATABASE_URL
+  sql: "SELECT * FROM my_table"
+```
+
+Mutually exclusive with `upstream_asset_key` -- set exactly one. Works with
+any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
+(DBAPI -- Postgres/Snowflake/DuckDB/MySQL/Databricks SQL), or `.get_client()`
+(BigQuery, Redshift).
+
 ## Dependencies
 - `pandas`
 
@@ -14,7 +31,6 @@ Slowly Changing Dimension Type 2 — keep history. Detect changed rows, expire p
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key |
 | `upstream_target_key` | `str` | Secondary upstream DataFrame key (see body) |
 | `upstream_target_key` | `str` | Existing SCD2 dimension (target) |
 | `business_key_columns` | `list` | Natural-key columns |
@@ -58,6 +74,8 @@ Slowly Changing Dimension Type 2 — keep history. Detect changed rows, expire p
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `upstream_asset_key` | `str` | — | Upstream DataFrame asset key. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `effective_from_column` | `Union[str, int]` | `"effective_from"` | Column for version start |
 | `effective_to_column` | `Union[str, int]` | `"effective_to"` | Column for version end (NULL for current) |
 | `is_current_column` | `Union[str, int]` | `"is_current"` | — |

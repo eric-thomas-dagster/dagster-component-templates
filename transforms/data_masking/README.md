@@ -2,6 +2,23 @@
 
 Rule-based PII masking — hash, partial-mask (last 4 only), full-redact, or character-substitute. Per-column policies.
 
+## SQL source
+
+Instead of `upstream_asset_key`, set `source` to pull rows directly via SQL
+-- no intermediate asset required:
+
+```yaml
+source:
+  kind: warehouse_query
+  resource_key: snowflake_resource   # or database_url_env_var: DATABASE_URL
+  sql: "SELECT * FROM my_table"
+```
+
+Mutually exclusive with `upstream_asset_key` -- set exactly one. Works with
+any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
+(DBAPI -- Postgres/Snowflake/DuckDB/MySQL/Databricks SQL), or `.get_client()`
+(BigQuery, Redshift).
+
 ## Dependencies
 - `pandas`
 
@@ -14,7 +31,6 @@ Rule-based PII masking — hash, partial-mask (last 4 only), full-redact, or cha
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key |
 | `rules` | `list` | List of {column, method, ...} dicts. method: 'hash' \| 'partial' \| 'redact' \| 'substitute' \| 'pseudonymize' |
 
 ### Catalog metadata
@@ -55,6 +71,8 @@ Rule-based PII masking — hash, partial-mask (last 4 only), full-redact, or cha
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `upstream_asset_key` | `str` | — | Upstream DataFrame asset key. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `salt_env` | `str` | `"MASKING_SALT"` | Env var with hash salt (improves resistance to rainbow attacks) |
 | `redacted_value` | `str` | `"***"` | Replacement value for 'redact' method |
 | `include_preview_metadata` | `bool` | `true` | — |

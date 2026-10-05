@@ -1,11 +1,11 @@
 {
   "component_type": "dagster_component_templates.AlterRowComponent",
-  "description": "Mark each row with a CDC operation (insert / update / delete / upsert) based on conditions \u2014 same semantics as ADF Alter Row.",
+  "description": "Mark each row with a CDC operation (insert / update / delete / upsert) based on conditions — same semantics as ADF Alter Row.",
   "category": "transformation",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",
-      "required": true
+      "required": false
     },
     "outputs": {
       "type": "dataframe"
@@ -22,13 +22,21 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Upstream Asset Key",
-      "description": "Upstream DataFrame asset key",
-      "required": true
+      "description": "Upstream DataFrame asset key. Mutually exclusive with `source` -- set exactly one.",
+      "required": false,
+      "default": null
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "description": "Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one.",
+      "required": false,
+      "default": null
     },
     "rules": {
       "type": "array",
       "label": "Rules",
-      "description": "Ordered list of {operation, condition} \u2014 first matching rule wins. operation: insert | update | delete | upsert",
+      "description": "Ordered list of {operation, condition} — first matching rule wins. operation: insert | update | delete | upsert",
       "required": true
     },
     "default_operation": {

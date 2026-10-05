@@ -1,11 +1,11 @@
 {
   "component_type": "dagster_component_templates.RouterComponent",
-  "description": "Multi-output conditional split \u2014 emit each output asset with rows matching its predicate. Equivalent to ADF Conditional Split / Informatica Router.",
+  "description": "Multi-output conditional split — emit each output asset with rows matching its predicate. Equivalent to ADF Conditional Split / Informatica Router.",
   "category": "transformation",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",
-      "required": true
+      "required": false
     },
     "outputs": {
       "type": "dataframe"
@@ -16,8 +16,16 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Upstream Asset Key",
-      "description": "Upstream DataFrame",
-      "required": true
+      "description": "Upstream DataFrame. Mutually exclusive with `source` -- set exactly one.",
+      "required": false,
+      "default": null
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "description": "Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one.",
+      "required": false,
+      "default": null
     },
     "routes": {
       "type": "array",

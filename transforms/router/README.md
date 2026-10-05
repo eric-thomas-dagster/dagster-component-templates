@@ -2,6 +2,30 @@
 
 Multi-output conditional split — emit each output asset with rows matching its predicate. Equivalent to ADF Conditional Split / Informatica Router.
 
+## SQL source
+
+Instead of `upstream_asset_key`, set `source` to pull rows directly via SQL
+-- no intermediate asset required:
+
+```yaml
+source:
+  kind: warehouse_query
+  resource_key: snowflake_resource   # or database_url_env_var: DATABASE_URL
+  sql: "SELECT * FROM my_table"
+```
+
+Mutually exclusive with `upstream_asset_key` -- set exactly one. Works with
+any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
+(DBAPI -- Postgres/Snowflake/DuckDB/MySQL/Databricks SQL), or `.get_client()`
+(BigQuery, Redshift).
+
+**Router-specific caveat:** each route is a separate sibling asset
+independently consuming the same upstream. In `source` mode this means the
+SQL query runs once **per route**, not once overall -- the same cost
+profile as N separate assets each depending on the same upstream asset via
+`ins=` (Dagster doesn't share execution state across sibling consumers
+either way), just paid at query time instead of IO-manager read time.
+
 ## Dependencies
 - `pandas`
 
@@ -13,7 +37,6 @@ Multi-output conditional split — emit each output asset with rows matching its
 
 | Field | Type | Description |
 |---|---|---|
-| `upstream_asset_key` | `str` | Upstream DataFrame |
 | `routes` | `list` | List of {asset_name, condition} dicts. Conditions evaluated in order; non-matching rows go to default route if set. |
 
 ### Catalog metadata
@@ -50,6 +73,8 @@ Multi-output conditional split — emit each output asset with rows matching its
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `upstream_asset_key` | `str` | — | Upstream DataFrame. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` --… _(full docs in schema.json + component README)_ |
 | `default_asset_name` | `str` | — | Name for the catch-all asset (rows that didn't match any condition) |
 | `exclusive` | `bool` | `true` | If True, each row goes to exactly one route (first match). If False, a row may appear in multiple routes (overlapping conditions). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |

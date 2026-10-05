@@ -1,11 +1,11 @@
 {
   "component_type": "dagster_component_templates.WindowCalculationComponent",
-  "description": "Window functions \u2014 PARTITION BY + ORDER BY + (lag, lead, rank, dense_rank, row_number, cumulative sum, moving avg). The full SQL window-function shape, in pandas.",
+  "description": "Window functions — PARTITION BY + ORDER BY + (lag, lead, rank, dense_rank, row_number, cumulative sum, moving avg). The full SQL window-function shape, in pandas.",
   "category": "transformation",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",
-      "required": true
+      "required": false
     },
     "outputs": {
       "type": "dataframe"
@@ -22,8 +22,16 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Upstream Asset Key",
-      "description": "Upstream DataFrame asset key",
-      "required": true
+      "description": "Upstream DataFrame asset key. Mutually exclusive with `source` -- set exactly one.",
+      "required": false,
+      "default": null
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "description": "Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one.",
+      "required": false,
+      "default": null
     },
     "partition_by": {
       "type": "array",

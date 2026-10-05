@@ -2,6 +2,23 @@
 
 Generate stable surrogate keys — deterministic SHA-256 hash of business-key columns, or sequential integers.
 
+## SQL source
+
+Instead of `upstream_asset_key`, set `source` to pull rows directly via SQL
+-- no intermediate asset required:
+
+```yaml
+source:
+  kind: warehouse_query
+  resource_key: snowflake_resource   # or database_url_env_var: DATABASE_URL
+  sql: "SELECT * FROM my_table"
+```
+
+Mutually exclusive with `upstream_asset_key` -- set exactly one. Works with
+any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
+(DBAPI -- Postgres/Snowflake/DuckDB/MySQL/Databricks SQL), or `.get_client()`
+(BigQuery, Redshift).
+
 ## Dependencies
 - `pandas`
 
@@ -14,7 +31,6 @@ Generate stable surrogate keys — deterministic SHA-256 hash of business-key co
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key |
 | `business_key_columns` | `list` | Columns that uniquely identify a record |
 
 ### Catalog metadata
@@ -61,6 +77,8 @@ Generate stable surrogate keys — deterministic SHA-256 hash of business-key co
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `upstream_asset_key` | `str` | — | Upstream DataFrame asset key. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `method` | `str` | `"sha256"` | 'sha256' (deterministic) \| 'md5' \| 'sequential' (1..N) |
 | `sequential_start` | `int` | `1` | Start value for sequential mode |
 | `truncate_chars` | `int` | — | Truncate hash to this many hex chars (e.g. 16) |

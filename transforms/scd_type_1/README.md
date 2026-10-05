@@ -2,6 +2,23 @@
 
 Slowly Changing Dimension Type 1 — overwrite in place. Merge incoming rows into a target on a business key, replacing changed attributes.
 
+## SQL source
+
+Instead of `upstream_asset_key`, set `source` to pull rows directly via SQL
+-- no intermediate asset required:
+
+```yaml
+source:
+  kind: warehouse_query
+  resource_key: snowflake_resource   # or database_url_env_var: DATABASE_URL
+  sql: "SELECT * FROM my_table"
+```
+
+Mutually exclusive with `upstream_asset_key` -- set exactly one. Works with
+any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
+(DBAPI -- Postgres/Snowflake/DuckDB/MySQL/Databricks SQL), or `.get_client()`
+(BigQuery, Redshift).
+
 ## Dependencies
 - `pandas`
 
@@ -14,7 +31,6 @@ Slowly Changing Dimension Type 1 — overwrite in place. Merge incoming rows int
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key |
 | `upstream_target_key` | `str` | Secondary upstream DataFrame key (see body) |
 | `upstream_target_key` | `str` | Existing dimension snapshot (target table) |
 | `business_key_columns` | `list` | Natural-key columns used to match incoming rows to existing |
@@ -57,6 +73,8 @@ Slowly Changing Dimension Type 1 — overwrite in place. Merge incoming rows int
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `upstream_asset_key` | `str` | — | Upstream DataFrame asset key. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `track_columns` | `list` | — | Columns to overwrite when changed (None = all non-key) |
 | `include_preview_metadata` | `bool` | `true` | — |
 | `preview_rows` | `int` | `20` | — |

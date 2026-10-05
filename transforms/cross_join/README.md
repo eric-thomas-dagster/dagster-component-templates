@@ -2,6 +2,23 @@
 
 Cartesian product of two DataFrames. Optional row-count guard to prevent memory blowups.
 
+## SQL source
+
+Instead of `upstream_asset_key`, set `source` to pull rows directly via SQL
+-- no intermediate asset required:
+
+```yaml
+source:
+  kind: warehouse_query
+  resource_key: snowflake_resource   # or database_url_env_var: DATABASE_URL
+  sql: "SELECT * FROM my_table"
+```
+
+Mutually exclusive with `upstream_asset_key` -- set exactly one. Works with
+any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
+(DBAPI -- Postgres/Snowflake/DuckDB/MySQL/Databricks SQL), or `.get_client()`
+(BigQuery, Redshift).
+
 ## Dependencies
 - `pandas`
 
@@ -14,7 +31,6 @@ Cartesian product of two DataFrames. Optional row-count guard to prevent memory 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key |
 | `upstream_right_key` | `str` | Secondary upstream DataFrame key (see body) |
 | `upstream_right_key` | `str` | Right-side DataFrame |
 
@@ -56,6 +72,8 @@ Cartesian product of two DataFrames. Optional row-count guard to prevent memory 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `upstream_asset_key` | `str` | — | Upstream DataFrame asset key. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `suffixes` | `list` | `lambda: ['_left', '_right']()` | Suffixes for overlapping column names |
 | `max_result_rows` | `int` | `10000000` | Fail if result would exceed this row count (None = no limit) |
 | `include_preview_metadata` | `bool` | `true` | — |

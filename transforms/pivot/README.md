@@ -2,6 +2,23 @@
 
 Pivot a DataFrame from long to wide — rotate row values into column headers with a chosen aggregation.
 
+## SQL source
+
+Instead of `upstream_asset_key`, set `source` to pull rows directly via SQL
+-- no intermediate asset required:
+
+```yaml
+source:
+  kind: warehouse_query
+  resource_key: snowflake_resource   # or database_url_env_var: DATABASE_URL
+  sql: "SELECT * FROM my_table"
+```
+
+Mutually exclusive with `upstream_asset_key` -- set exactly one. Works with
+any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
+(DBAPI -- Postgres/Snowflake/DuckDB/MySQL/Databricks SQL), or `.get_client()`
+(BigQuery, Redshift).
+
 ## Dependencies
 - `pandas`
 
@@ -14,7 +31,6 @@ Pivot a DataFrame from long to wide — rotate row values into column headers wi
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key |
 | `index_columns` | `list` | Columns that stay as rows (group keys) |
 | `pivot_column` | `Union[str, int]` | Column whose values become new column headers |
 | `value_column` | `Union[str, int]` | Column whose values fill the pivoted cells |
@@ -57,6 +73,8 @@ Pivot a DataFrame from long to wide — rotate row values into column headers wi
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `upstream_asset_key` | `str` | — | Upstream DataFrame asset key. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `agg_func` | `str` | `"sum"` | Aggregation when (index, pivot) collides: sum \| mean \| count \| min \| max \| first \| last |
 | `fill_value` | `float` | — | Fill NaN cells with this value |
 | `column_prefix` | `Union[str, int]` | — | Optional prefix prepended to each pivoted column name. Useful when the pivot's aggregation context should be visible in the column (e.g. prefix='Avg_' → pivoted 'Speed'/'Acceleration' become 'Avg_Speed'/'Avg_Acceleration'). |

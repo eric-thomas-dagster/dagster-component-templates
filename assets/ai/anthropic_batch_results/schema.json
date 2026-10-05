@@ -1,0 +1,78 @@
+{
+  "component_type": "dagster_community_components.AnthropicBatchResultsComponent",
+  "description": "Fetch, parse, and optionally Pydantic-typed-validate a completed Anthropic Message Batch's results (succeeded/errored/canceled/expired). A row that fails JSON parsing or schema validation is marked invalid_output=True with the raw text preserved -- never fails the whole asset. batch_id is supplied dynamically via run_config by anthropic_batch_status_sensor, or set statically for manual/backfill runs.",
+  "category": "ai",
+  "icon": "si:anthropic",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "Parsed batch results DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name. The underlying op's name is derived from this via AssetKey.to_python_identifier() — the paired anthropic_batch_status_sensor's results_asset_key field must equal this value so its RunRequest.run_config addresses the correct op.",
+      "required": true
+    },
+    "batch_id": {
+      "type": "string",
+      "label": "Batch ID",
+      "description": "Static batch_id for manual/backfill runs. Overridden at runtime by the `batch_id` op config value supplied by anthropic_batch_status_sensor's RunRequest.",
+      "required": false,
+      "default": null
+    },
+    "output_schema": {
+      "type": "string",
+      "label": "Output Schema",
+      "description": "Dotted path 'module.path:ClassName' to a Pydantic model used to validate/parse each succeeded row's raw_output as JSON. A row that fails to parse or validate is marked invalid_output=True (raw_output is kept, typed columns left null) rather than failing the whole asset.",
+      "required": false,
+      "default": null
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding the Anthropic API key",
+      "required": false,
+      "default": "ANTHROPIC_API_KEY",
+      "ui:widget": "env_var"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
+      "required": false,
+      "default": null
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'}",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Asset kinds for the Dagster catalog, e.g. ['anthropic', 'python']. Auto-inferred from component name if not set.",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description shown in the Dagster catalog.",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    }
+  }
+}

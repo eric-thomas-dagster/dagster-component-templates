@@ -1,0 +1,78 @@
+{
+  "component_type": "dagster_community_components.OpenaiBatchResultsComponent",
+  "description": "Fetch, parse, and optionally Pydantic-typed-validate a completed OpenAI Batch API run's output (+ error file). A row that fails JSON parsing or schema validation is marked invalid_output=True with the raw text preserved -- never fails the whole asset. batch_id is supplied dynamically via run_config by openai_batch_status_sensor, or set statically for manual/backfill runs.",
+  "category": "ai",
+  "icon": "si:openai",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "Parsed batch results DataFrame"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name.",
+      "required": true
+    },
+    "batch_id": {
+      "type": "string",
+      "label": "Batch ID",
+      "description": "OpenAI batch id to fetch results for. Settable statically for manual/backfill runs; normally supplied dynamically via run_config.batch_id by openai_batch_status_sensor, which takes precedence over this static value when present.",
+      "required": false,
+      "default": null
+    },
+    "output_schema": {
+      "type": "string",
+      "label": "Output Schema",
+      "description": "Dotted path to a Pydantic model for typed output, e.g. 'my_project.schemas:SupportReply' (module.path:ClassName). Each row's raw_output is parsed as JSON and validated against this model; on success the model's fields are merged in as extra columns. On ANY failure (bad JSON, validation error) the row is marked invalid_output=True with raw_output kept as-is -- it never fails the asset.",
+      "required": false,
+      "default": null
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding the OpenAI API key.",
+      "required": false,
+      "default": "OPENAI_API_KEY",
+      "ui:widget": "env_var"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
+      "required": false,
+      "default": null
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Additional key-value tags to apply to the asset, e.g. {'domain': 'support', 'tier': 'gold'}",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Asset kinds for the Dagster catalog, e.g. ['openai', 'llm']. Defaults to ['openai', 'llm'] if not set.",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description shown in the Dagster catalog.",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    }
+  }
+}

@@ -1,0 +1,9 @@
+type: dagster_component_templates.OpenaiBatchStatusSensorComponent
+attributes:
+  sensor_name: support_reply_batch_done
+  watch_asset_key: support_reply_batch
+  job_name: fetch_support_reply_results
+  results_asset_key: support_reply_results
+  api_key_env_var: OPENAI_API_KEY
+  minimum_interval_seconds: 60
+  default_status: running

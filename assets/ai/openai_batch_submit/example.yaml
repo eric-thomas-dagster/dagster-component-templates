@@ -1,0 +1,14 @@
+type: dagster_component_templates.OpenaiBatchSubmitComponent
+attributes:
+  asset_name: support_reply_batch
+  upstream_asset_key: support_tickets
+  prompt_column: body
+  id_column: ticket_id
+  model: gpt-4o-mini
+  system_prompt: "Draft a helpful, concise reply to this support ticket."
+  max_tokens: 500
+  temperature: 0.0
+  completion_window: "24h"
+  wait_for_completion: false
+  api_key_env_var: OPENAI_API_KEY
+  group_name: ai_batch

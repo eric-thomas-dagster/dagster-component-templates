@@ -1,0 +1,8 @@
+type: dagster_component_templates.AnthropicBatchResultsComponent
+attributes:
+  # asset_name must equal the `results_asset_key` configured on the paired
+  # anthropic_batch_status_sensor component (see that component's wiring note).
+  asset_name: support_ticket_batch_results
+  api_key_env_var: ANTHROPIC_API_KEY
+  # output_schema: my_project.schemas:TicketClassification
+  group_name: ai_batch

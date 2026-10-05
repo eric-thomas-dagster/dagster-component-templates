@@ -1,0 +1,6 @@
+type: dagster_component_templates.OpenaiBatchResultsComponent
+attributes:
+  asset_name: support_reply_results
+  output_schema: "my_project.schemas:SupportReply"
+  api_key_env_var: OPENAI_API_KEY
+  group_name: ai_batch

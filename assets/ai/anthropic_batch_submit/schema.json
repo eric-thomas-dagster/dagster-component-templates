@@ -1,0 +1,175 @@
+{
+  "component_type": "dagster_community_components.AnthropicBatchSubmitComponent",
+  "description": "Submit a DataFrame of prompts as an Anthropic Message Batch (~50% cheaper than synchronous messages.create). Content-addressed idempotency: retries/re-runs with unchanged prompts reattach to the existing live batch instead of resubmitting. wait_for_completion=False (default) returns immediately with a small manifest -- no worker blocks waiting; pair with anthropic_batch_status_sensor + anthropic_batch_results.",
+  "category": "ai",
+  "icon": "si:anthropic",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "Input DataFrame of prompts"
+    },
+    "outputs": {
+      "type": "dataframe",
+      "description": "Small manifest (batch_id/status/request_count), or the full parsed results DataFrame when wait_for_completion=True"
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream asset key providing a DataFrame of prompts",
+      "required": true
+    },
+    "prompt_column": {
+      "type": "string",
+      "label": "Prompt Column",
+      "description": "Column containing the raw text to send as the user message. Set this OR prompt_template, not both.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "prompt_template": {
+      "type": "string",
+      "label": "Prompt Template",
+      "description": "Format-string template using row values, e.g. \"Summarize: {body}\". Set this OR prompt_column, not both.",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "id_column": {
+      "type": "string",
+      "label": "ID Column",
+      "description": "Column to use as each row's custom_id (must match Anthropic's ^[a-zA-Z0-9_-]{1,64}$ pattern — a non-matching value raises a clear error rather than being silently mangled). If unset, the row's positional index (stringified) is used.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "model": {
+      "type": "string",
+      "label": "Model",
+      "description": "Anthropic model id for each batch request",
+      "required": false,
+      "default": "claude-haiku-4-5-20251001"
+    },
+    "system_prompt": {
+      "type": "string",
+      "label": "System Prompt",
+      "description": "System prompt applied to every request in the batch",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "max_tokens": {
+      "type": "integer",
+      "label": "Max Tokens",
+      "description": "Maximum tokens per completion",
+      "required": false,
+      "default": 1000
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Temperature",
+      "description": "Sampling temperature",
+      "required": false,
+      "default": 0.0
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "label": "Wait For Completion",
+      "description": "If True, poll in-process until the batch ends and return the full parsed results DataFrame. If False (default), submit/reattach and return only a small manifest (batch_id, processing_status, request_count) — the real results are fetched later by anthropic_batch_results once the status sensor confirms completion.",
+      "required": false,
+      "default": false
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between polls. Only used when wait_for_completion=True.",
+      "required": false,
+      "default": 30
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Max seconds to wait for the batch to end before raising. Only used when wait_for_completion=True.",
+      "required": false,
+      "default": 3600
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding the Anthropic API key",
+      "required": false,
+      "default": "ANTHROPIC_API_KEY",
+      "ui:widget": "env_var"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
+      "required": false,
+      "default": null
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'}",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Asset kinds for the Dagster catalog, e.g. ['anthropic', 'python']. Auto-inferred from component name if not set.",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description shown in the Dagster catalog.",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Seconds between retries (default 1).",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "required": false,
+      "default": "exponential",
+      "ui:widget": "select",
+      "enum": [
+        "exponential",
+        "linear"
+      ]
+    }
+  }
+}

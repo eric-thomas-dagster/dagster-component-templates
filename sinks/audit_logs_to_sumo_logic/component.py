@@ -122,7 +122,6 @@ class AuditLogsToSumoLogicComponent(dg.Component, dg.Model, dg.Resolvable):
             description=self.description or "Ship audit-log DataFrame to Sumo Logic via an HTTP Hosted Collector.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['sumo-logic', 'siem']),
-            deps=[dg.AssetKey.from_user_string(self.upstream_asset_key)],
             ins={"df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key))},
             owners=self.owners or None,
             tags=self.asset_tags or None,

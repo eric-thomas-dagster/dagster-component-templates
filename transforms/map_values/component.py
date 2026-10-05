@@ -125,7 +125,7 @@ class MapValuesComponent(dg.Component, dg.Model, dg.Resolvable):
             description=self.description or "Replace values in a column according to a lookup dict — country code → country name, status code → status text, etc.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['map-values', 'replace']),
-            deps=[dg.AssetKey.from_user_string(self.upstream_asset_key)] + [dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
             ins={"df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key))},
             owners=self.owners or None,
             tags=self.asset_tags or None,

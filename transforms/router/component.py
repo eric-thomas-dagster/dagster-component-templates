@@ -119,7 +119,6 @@ class RouterComponent(dg.Component, dg.Model, dg.Resolvable):
                 description=f"router branch: {condition}",
                 group_name=_self.group_name,
                 kinds=set(_self.kinds or ["router"]),
-                deps=[dg.AssetKey.from_user_string(upstream_key)],
                 ins={"df": dg.AssetIn(key=dg.AssetKey.from_user_string(upstream_key))},
                 retry_policy=retry_policy,
                 freshness_policy=freshness_policy,
@@ -143,7 +142,6 @@ class RouterComponent(dg.Component, dg.Model, dg.Resolvable):
                     description=f"router branch (exclusive): {condition}",
                     group_name=_self.group_name,
                     kinds=set(_self.kinds or ["router"]),
-                    deps=[dg.AssetKey.from_user_string(upstream_key)],
                     ins={"df": dg.AssetIn(key=dg.AssetKey.from_user_string(upstream_key))},
                 )
                 def _route(context: dg.AssetExecutionContext, df: pd.DataFrame) -> pd.DataFrame:

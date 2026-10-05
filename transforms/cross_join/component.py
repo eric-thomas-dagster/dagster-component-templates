@@ -125,7 +125,7 @@ class CrossJoinComponent(dg.Component, dg.Model, dg.Resolvable):
             description=self.description or "Cartesian product of two DataFrames. Optional row-count guard to prevent memory blowups.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['cross-join', 'cartesian']),
-            deps=[dg.AssetKey.from_user_string(self.upstream_asset_key)] + [dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
             ins={"df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key)), "right_df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_right_key))},
             owners=self.owners or None,
             tags=self.asset_tags or None,

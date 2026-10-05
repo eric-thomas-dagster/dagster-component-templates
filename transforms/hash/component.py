@@ -126,7 +126,7 @@ class HashComponent(dg.Component, dg.Model, dg.Resolvable):
             description=self.description or "Compute MD5/SHA-1/SHA-256 of one or more columns (or the whole row) — useful for change detection, anonymization, surrogate keys.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['hash', 'checksum']),
-            deps=[dg.AssetKey.from_user_string(self.upstream_asset_key)] + [dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
             ins={"df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key))},
             owners=self.owners or None,
             tags=self.asset_tags or None,

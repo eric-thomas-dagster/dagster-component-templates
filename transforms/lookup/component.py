@@ -127,7 +127,7 @@ class LookupComponent(dg.Component, dg.Model, dg.Resolvable):
             description=self.description or "Inline lookup — left-join an upstream DataFrame against a smaller reference DataFrame, optionally caching the reference per run.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['lookup', 'join']),
-            deps=[dg.AssetKey.from_user_string(self.upstream_asset_key)] + [dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
             ins={"df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key)), "lookup_df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_lookup_key))},
             owners=self.owners or None,
             tags=self.asset_tags or None,

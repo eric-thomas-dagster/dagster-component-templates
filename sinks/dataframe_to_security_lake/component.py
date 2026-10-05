@@ -134,7 +134,6 @@ class DataframeToSecurityLakeComponent(dg.Component, dg.Model, dg.Resolvable):
             description=self.description or "Write OCSF events to AWS Security Lake",
             group_name=self.group_name,
             kinds=set(self.kinds or ["aws", "security-lake", "parquet", "ocsf"]),
-            deps=[dg.AssetKey.from_user_string(self.upstream_asset_key)],
             ins={"df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key))},
             owners=self.owners or None,
             tags=self.asset_tags or None,

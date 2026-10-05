@@ -125,7 +125,6 @@ class AuditLogsToQradarComponent(dg.Component, dg.Model, dg.Resolvable):
             description=self.description or "Ship audit-log DataFrame to IBM QRadar via Syslog (TCP) — events go to a configured Log Source.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['qradar', 'ibm', 'siem']),
-            deps=[dg.AssetKey.from_user_string(self.upstream_asset_key)],
             ins={"df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key))},
             owners=self.owners or None,
             tags=self.asset_tags or None,

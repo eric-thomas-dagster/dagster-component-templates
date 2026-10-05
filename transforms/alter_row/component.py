@@ -124,7 +124,7 @@ class AlterRowComponent(dg.Component, dg.Model, dg.Resolvable):
             description=self.description or "Mark each row with a CDC operation (insert / update / delete / upsert) based on conditions — same semantics as ADF Alter Row.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['cdc', 'alter-row']),
-            deps=[dg.AssetKey.from_user_string(self.upstream_asset_key)] + [dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
             ins={"df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key))},
             owners=self.owners or None,
             tags=self.asset_tags or None,

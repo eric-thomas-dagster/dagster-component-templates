@@ -125,7 +125,7 @@ class ScdType1Component(dg.Component, dg.Model, dg.Resolvable):
             description=self.description or "Slowly Changing Dimension Type 1 — overwrite in place. Merge incoming rows into a target on a business key, replacing changed attributes.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['scd', 'scd-1', 'dimension']),
-            deps=[dg.AssetKey.from_user_string(self.upstream_asset_key)] + [dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
             ins={"df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key)), "target_df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_target_key))},
             owners=self.owners or None,
             tags=self.asset_tags or None,

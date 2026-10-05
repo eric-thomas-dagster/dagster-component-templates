@@ -135,7 +135,7 @@ class PivotComponent(dg.Component, dg.Model, dg.Resolvable):
             description=self.description or "Pivot a DataFrame from long to wide — rotate row values into column headers with a chosen aggregation.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['pivot']),
-            deps=[dg.AssetKey.from_user_string(self.upstream_asset_key)] + [dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
             ins={"df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key))},
             owners=self.owners or None,
             tags=self.asset_tags or None,

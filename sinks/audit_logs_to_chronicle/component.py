@@ -122,7 +122,6 @@ class AuditLogsToChronicleComponent(dg.Component, dg.Model, dg.Resolvable):
             description=self.description or "Ship audit-log DataFrame to Google Chronicle (SecOps) via the unstructuredlogentries ingestion API.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['chronicle', 'google', 'siem']),
-            deps=[dg.AssetKey.from_user_string(self.upstream_asset_key)],
             ins={"df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key))},
             owners=self.owners or None,
             tags=self.asset_tags or None,

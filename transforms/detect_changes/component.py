@@ -127,7 +127,7 @@ class DetectChangesComponent(dg.Component, dg.Model, dg.Resolvable):
             description=self.description or "Diff incoming DataFrame against a prior snapshot — emit rows with a change_type column (insert/update/delete/unchanged).",
             group_name=self.group_name,
             kinds=set(self.kinds or ['change-detection', 'diff']),
-            deps=[dg.AssetKey.from_user_string(self.upstream_asset_key)] + [dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
             ins={"df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key)), "prior_df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_prior_key))},
             owners=self.owners or None,
             tags=self.asset_tags or None,

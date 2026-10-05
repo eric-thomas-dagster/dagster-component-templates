@@ -126,7 +126,7 @@ class SurrogateKeyComponent(dg.Component, dg.Model, dg.Resolvable):
             description=self.description or "Generate stable surrogate keys — deterministic SHA-256 hash of business-key columns, or sequential integers.",
             group_name=self.group_name,
             kinds=set(self.kinds or ['surrogate-key', 'hash']),
-            deps=[dg.AssetKey.from_user_string(self.upstream_asset_key)] + [dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
             ins={"df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key))},
             owners=self.owners or None,
             tags=self.asset_tags or None,

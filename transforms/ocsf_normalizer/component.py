@@ -288,7 +288,6 @@ class OcsfNormalizerComponent(dg.Component, dg.Model, dg.Resolvable):
             description=self.description or f"OCSF v{self.ocsf_version} normalized events",
             group_name=self.group_name,
             kinds=set(self.kinds or ["ocsf", "security"]),
-            deps=[dg.AssetKey.from_user_string(self.upstream_asset_key)],
             ins={"df": dg.AssetIn(key=dg.AssetKey.from_user_string(self.upstream_asset_key))},
             owners=self.owners or None,
             tags=self.asset_tags or None,

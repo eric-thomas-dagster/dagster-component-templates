@@ -122,11 +122,74 @@ def _build_partitions_def(
     raise ValueError(f"unknown partition_type: {partition_type!r}")
 
 
+def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
+    """Execute SQL via a Dagster resource that exposes .get_engine()
+    (SQLAlchemy), .get_connection() (DBAPI), or .get_client() (vendor
+    client -- dispatched by the client's own shape since "get_client" means
+    something different per vendor: BigQuery's .query(sql).to_dataframe(),
+    Redshift's .execute_query(sql, fetch_results=True, cursor_factory=
+    RealDictCursor)), or a bare SQLAlchemy engine built from
+    `database_url_env_var` when no Dagster resource is registered. Same
+    helper, same contract, as every other dual-ingestion component in this
+    repo (e.g. automl_asset, logistic_regression_model, churn_prediction)."""
+    sql = source_config["sql"]
+    resource_key = source_config.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            return pd.read_sql(sql, resource.get_engine())
+        if hasattr(resource, "get_connection"):
+            with resource.get_connection() as conn:
+                return pd.read_sql(sql, conn)
+        if hasattr(resource, "get_client"):
+            client = resource.get_client()
+            if hasattr(client, "query"):
+                job = client.query(sql)
+                if hasattr(job, "to_dataframe"):
+                    return job.to_dataframe()
+            if hasattr(client, "execute_query"):
+                try:
+                    from psycopg2.extras import RealDictCursor
+                    rows = client.execute_query(sql, fetch_results=True, cursor_factory=RealDictCursor)
+                except ImportError:
+                    rows = client.execute_query(sql, fetch_results=True)
+                return pd.DataFrame([dict(r) for r in (rows or [])])
+            raise ValueError(
+                f"resource {resource_key!r}'s get_client() returned {type(client).__name__}, "
+                "which this helper doesn't know how to query (no .query()/.to_dataframe() "
+                "or .execute_query() method found). Add a dispatch branch for it."
+            )
+        raise ValueError(
+            f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy), "
+            f".get_connection() (DBAPI), or .get_client() (vendor client); got {type(resource).__name__}"
+        )
+    env_var = source_config.get("database_url_env_var")
+    if env_var:
+        import os
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        return pd.read_sql(sql, create_engine(url))
+    raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+
+
 class FindReplace(Component, Model, Resolvable):
     """Look up values in one column against a reference DataFrame and replace with mapped values."""
 
     asset_name: str = Field(description="Output Dagster asset name")
-    upstream_asset_key: str = Field(description="Main DataFrame asset key")
+    upstream_asset_key: Optional[str] = Field(
+        default=None,
+        description="Main DataFrame asset key. Mutually exclusive with `source` -- set exactly one.",
+    )
+    source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Pull the main DataFrame directly via SQL instead of from an upstream asset: "
+            "{kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. "
+            "Mutually exclusive with `upstream_asset_key` -- set exactly one."
+        ),
+    )
     lookup_asset_key: str = Field(description="Reference/lookup DataFrame asset key")
     lookup_key_column: Union[str, int] = Field(description="Column in lookup table to match against")
     lookup_value_column: Union[str, int] = Field(description="Column in lookup table with replacement values")
@@ -242,6 +305,8 @@ class FindReplace(Component, Model, Resolvable):
         return "Look up values in one column against a reference DataFrame and replace with mapped values."
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
+        if bool(self.upstream_asset_key) == bool(self.source):
+            raise ValueError("FindReplace: set exactly one of `upstream_asset_key` or `source`.")
         # Standard catalog fields — phase 2 wiring
         _retry_policy = None
         if self.retry_policy_max_retries is not None:
@@ -274,9 +339,13 @@ class FindReplace(Component, Model, Resolvable):
         group_name = self.group_name
 
         ins = {
-            "upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key)),
             "lookup": AssetIn(key=AssetKey.from_user_string(lookup_asset_key)),
         }
+        if upstream_asset_key:
+            ins["upstream"] = AssetIn(key=AssetKey.from_user_string(upstream_asset_key))
+        _required_resource_keys = (
+            {self.source["resource_key"]} if (self.source and self.source.get("resource_key")) else None
+        )
 
         partitions_def = _build_partitions_def(
             self.partition_type,
@@ -332,8 +401,11 @@ class FindReplace(Component, Model, Resolvable):
         if not column_lineage and hasattr(self, 'column') and self.column and hasattr(self, 'find') and hasattr(self, 'replace'):
             column_lineage = {self.column: [self.column]}
 
-        @asset(partitions_def=partitions_def, key=AssetKey.from_user_string(asset_name), ins=ins, group_name=group_name, retry_policy=_retry_policy, freshness_policy=_freshness_policy, owners=self.owners or [], tags=_all_tags, deps=[AssetKey.from_user_string(k) for k in (self.deps or [])])
-        def _asset(context: AssetExecutionContext, upstream: Any, lookup: pd.DataFrame) -> pd.DataFrame:
+        @asset(partitions_def=partitions_def, key=AssetKey.from_user_string(asset_name), ins=ins, required_resource_keys=_required_resource_keys, group_name=group_name, retry_policy=_retry_policy, freshness_policy=_freshness_policy, owners=self.owners or [], tags=_all_tags, deps=[AssetKey.from_user_string(k) for k in (self.deps or [])])
+        def _asset(context: AssetExecutionContext, lookup: pd.DataFrame, **kwargs) -> pd.DataFrame:
+            upstream = kwargs.get("upstream")
+            if upstream is None:
+                upstream = _ingest_warehouse_query(self.source, context)
             # partition bridge dict-concat: when an unpartitioned
             # asset consumes a partitioned upstream, Dagster's IO
             # manager loads ALL partitions as a dict; concat to

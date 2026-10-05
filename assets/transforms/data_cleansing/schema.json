@@ -6,7 +6,7 @@
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",
-      "required": true,
+      "required": false,
       "description": "Input DataFrame"
     },
     "outputs": {
@@ -24,8 +24,16 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Upstream Asset Key",
-      "description": "Upstream asset key providing a DataFrame",
-      "required": true
+      "description": "Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one.",
+      "required": false,
+      "default": null
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "description": "Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one.",
+      "required": false,
+      "default": null
     },
     "null_handling": {
       "type": "string",

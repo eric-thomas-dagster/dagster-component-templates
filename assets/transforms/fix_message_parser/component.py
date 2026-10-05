@@ -165,11 +165,75 @@ def _parse_message(raw: str) -> Dict[str, Any]:
     return out
 
 
+
+def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
+    """Execute SQL via a Dagster resource that exposes .get_engine()
+    (SQLAlchemy), .get_connection() (DBAPI), or .get_client() (vendor
+    client -- dispatched by the client's own shape since "get_client" means
+    something different per vendor: BigQuery's .query(sql).to_dataframe(),
+    Redshift's .execute_query(sql, fetch_results=True, cursor_factory=
+    RealDictCursor)), or a bare SQLAlchemy engine built from
+    `database_url_env_var` when no Dagster resource is registered. Same
+    helper, same contract, as every other dual-ingestion component in this
+    repo (e.g. automl_asset, logistic_regression_model, churn_prediction)."""
+    sql = source_config["sql"]
+    resource_key = source_config.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            return pd.read_sql(sql, resource.get_engine())
+        if hasattr(resource, "get_connection"):
+            with resource.get_connection() as conn:
+                return pd.read_sql(sql, conn)
+        if hasattr(resource, "get_client"):
+            client = resource.get_client()
+            if hasattr(client, "query"):
+                job = client.query(sql)
+                if hasattr(job, "to_dataframe"):
+                    return job.to_dataframe()
+            if hasattr(client, "execute_query"):
+                try:
+                    from psycopg2.extras import RealDictCursor
+                    rows = client.execute_query(sql, fetch_results=True, cursor_factory=RealDictCursor)
+                except ImportError:
+                    rows = client.execute_query(sql, fetch_results=True)
+                return pd.DataFrame([dict(r) for r in (rows or [])])
+            raise ValueError(
+                f"resource {resource_key!r}'s get_client() returned {type(client).__name__}, "
+                "which this helper doesn't know how to query (no .query()/.to_dataframe() "
+                "or .execute_query() method found). Add a dispatch branch for it."
+            )
+        raise ValueError(
+            f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy), "
+            f".get_connection() (DBAPI), or .get_client() (vendor client); got {type(resource).__name__}"
+        )
+    env_var = source_config.get("database_url_env_var")
+    if env_var:
+        import os
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        return pd.read_sql(sql, create_engine(url))
+    raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+
+
 class FixMessageParserComponent(Component, Model, Resolvable):
     """Parse FIX trading-protocol messages into a flat DataFrame."""
 
     asset_name: str = Field(description="Output asset name.")
-    upstream_asset_key: str = Field(description="Upstream DataFrame asset key.")
+    upstream_asset_key: Optional[str] = Field(
+        default=None,
+        description="Upstream DataFrame asset key.. Mutually exclusive with `source` -- set exactly one.",
+    )
+    source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Pull rows directly via SQL instead of from an upstream asset: "
+            "{kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. "
+            "Mutually exclusive with `upstream_asset_key` -- set exactly one."
+        ),
+    )
 
     message_column: Union[str, int] = Field(
         default="message",
@@ -229,6 +293,8 @@ class FixMessageParserComponent(Component, Model, Resolvable):
     )
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        if bool(self.upstream_asset_key) == bool(self.source):
+            raise ValueError("FixMessageParserComponent: set exactly one of `upstream_asset_key` or `source`.")
         partitions_def = None
         if self.partition_type:
             from dagster import (
@@ -277,7 +343,7 @@ class FixMessageParserComponent(Component, Model, Resolvable):
             )
 
         asset_name = self.asset_name
-        upstream_key = AssetKey.from_user_string(self.upstream_asset_key)
+        upstream_key = AssetKey.from_user_string(self.upstream_asset_key) if self.upstream_asset_key else None
         message_column = self.message_column
         msg_type_filter = {str(x) for x in self.msg_type_filter} if self.msg_type_filter else None
 
@@ -288,12 +354,16 @@ class FixMessageParserComponent(Component, Model, Resolvable):
             kinds={"fix", "fintech", "pandas"},
             tags=self.tags or None,
             owners=self.owners or None,
-            ins={"upstream": AssetIn(key=upstream_key)},
+            ins=({"upstream": AssetIn(key=upstream_key)} if upstream_key else None),
+            required_resource_keys=({self.source["resource_key"]} if (self.source and self.source.get("resource_key")) else None),
             retry_policy=retry_policy,
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
-        def _asset(context: AssetExecutionContext, upstream: Any):
+        def _asset(context: AssetExecutionContext, **kwargs):
+            upstream = kwargs.get("upstream")
+            if upstream is None:
+                upstream = _ingest_warehouse_query(self.source, context)
             # Defensive Output/MaterializeResult unwrap — see summarize for the rationale.
             # Tolerates upstream authors who annotate `-> Output` or
             # return `Output(value=df, ...)` / `MaterializeResult(value=df)`.

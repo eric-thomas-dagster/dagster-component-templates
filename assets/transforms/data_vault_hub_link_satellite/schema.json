@@ -5,7 +5,7 @@
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",
-      "required": true
+      "required": false
     },
     "outputs": {
       "type": "dataframe"
@@ -13,15 +13,83 @@
   },
   "icon": "AccountTree",
   "attributes": {
-    "entity": {"type": "string", "label": "Entity Name", "required": true, "description": "Base name — emitted assets are <entity>_hub / _link / _sat."},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": true, "description": "Raw source DataFrame asset key to consume."},
-    "business_keys": {"type": "array", "label": "Business Keys", "required": true, "description": "Business key column(s) that identify the entity in the source.", "x-dagster-widget": "columns"},
-    "satellite_columns": {"type": "array", "label": "Satellite Columns", "required": true, "description": "Descriptive columns that go into the satellite.", "x-dagster-widget": "columns"},
-    "link_business_keys": {"type": "array", "label": "Link Business Keys", "required": false, "description": "If provided, emit a <entity>_link asset. Usually business keys of both endpoints.", "x-dagster-widget": "columns"},
-    "record_source": {"type": "string", "label": "Record Source", "required": true, "description": "Value populated in the record_source system column."},
-    "load_date_column": {"description": "Name of the load-date system column.", "type": "string", "label": "Load Date Column Name", "required": false, "default": "load_date"},
-    "hash_algo": {"description": "Hash algorithm: sha256 \\| md5", "type": "string", "label": "Hash Algorithm", "required": false, "default": "sha256", "enum": ["sha256", "md5"], "ui:widget": "select"},
-    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name", "required": false},
-    "asset_key_prefix": {"type": "array", "label": "Asset Key Prefix", "required": false, "description": "Optional prefix segments prepended to every emitted asset key."}
+    "entity": {
+      "type": "string",
+      "label": "Entity Name",
+      "required": true,
+      "description": "Base name — emitted assets are <entity>_hub / _link / _sat."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Raw source DataFrame asset key to consume. Mutually exclusive with `source` -- set exactly one.",
+      "default": null
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "description": "Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one.",
+      "required": false,
+      "default": null
+    },
+    "business_keys": {
+      "type": "array",
+      "label": "Business Keys",
+      "required": true,
+      "description": "Business key column(s) that identify the entity in the source.",
+      "x-dagster-widget": "columns"
+    },
+    "satellite_columns": {
+      "type": "array",
+      "label": "Satellite Columns",
+      "required": true,
+      "description": "Descriptive columns that go into the satellite.",
+      "x-dagster-widget": "columns"
+    },
+    "link_business_keys": {
+      "type": "array",
+      "label": "Link Business Keys",
+      "required": false,
+      "description": "If provided, emit a <entity>_link asset. Usually business keys of both endpoints.",
+      "x-dagster-widget": "columns"
+    },
+    "record_source": {
+      "type": "string",
+      "label": "Record Source",
+      "required": true,
+      "description": "Value populated in the record_source system column."
+    },
+    "load_date_column": {
+      "description": "Name of the load-date system column.",
+      "type": "string",
+      "label": "Load Date Column Name",
+      "required": false,
+      "default": "load_date"
+    },
+    "hash_algo": {
+      "description": "Hash algorithm: sha256 \\| md5",
+      "type": "string",
+      "label": "Hash Algorithm",
+      "required": false,
+      "default": "sha256",
+      "enum": [
+        "sha256",
+        "md5"
+      ],
+      "ui:widget": "select"
+    },
+    "group_name": {
+      "description": "Dagster asset group name.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "asset_key_prefix": {
+      "type": "array",
+      "label": "Asset Key Prefix",
+      "required": false,
+      "description": "Optional prefix segments prepended to every emitted asset key."
+    }
   }
 }

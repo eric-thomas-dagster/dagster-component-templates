@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.AcordXmlParserComponent",
-  "description": "Parse ACORD insurance XML messages (P&C and Life) \u2014 flatten any ACORD envelope into one row per Policy / Claim / Application. Auto-detects namespaces; carries message-level metadata into every row.",
+  "description": "Parse ACORD insurance XML messages (P&C and Life) — flatten any ACORD envelope into one row per Policy / Claim / Application. Auto-detects namespaces; carries message-level metadata into every row.",
   "category": "transformation",
   "icon": "FileText",
   "x-dagster-io": {
@@ -8,7 +8,8 @@
       "upstream": {
         "type": "pandas.DataFrame",
         "required": true
-      }
+      },
+      "required": false
     },
     "outputs": {
       "type": "Output[DataFrame]"
@@ -24,8 +25,16 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Upstream Asset Key",
-      "description": "DataFrame asset with raw ACORD XML in one column",
-      "required": true
+      "description": "DataFrame asset with raw ACORD XML in one column. Mutually exclusive with `source` -- set exactly one.",
+      "required": false,
+      "default": null
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "description": "Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one.",
+      "required": false,
+      "default": null
     },
     "xml_column": {
       "type": "string",

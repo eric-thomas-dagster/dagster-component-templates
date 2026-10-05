@@ -17,10 +17,18 @@
       "required": true
     },
     "upstream_asset_key": {
-      "description": "Upstream DataFrame asset — the raw HRIS data.",
+      "description": "Upstream DataFrame asset — the raw HRIS data. Mutually exclusive with `source` -- set exactly one.",
       "type": "string",
       "label": "Upstream Asset Key",
-      "required": true
+      "required": false,
+      "default": null
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "description": "Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one.",
+      "required": false,
+      "default": null
     },
     "column_map": {
       "type": "object",

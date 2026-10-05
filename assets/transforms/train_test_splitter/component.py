@@ -5,7 +5,7 @@ using either a deterministic random split or a chronological cutoff. Supports
 stratified sampling on a label column and group-aware splitting (so all rows
 sharing a group key land in the same split — important for leakage prevention).
 """
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -21,6 +21,58 @@ from dagster import (
     asset,
 )
 from pydantic import Field
+
+
+def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
+    """Execute SQL via a Dagster resource that exposes .get_engine()
+    (SQLAlchemy), .get_connection() (DBAPI), or .get_client() (vendor
+    client -- dispatched by the client's own shape since "get_client" means
+    something different per vendor: BigQuery's .query(sql).to_dataframe(),
+    Redshift's .execute_query(sql, fetch_results=True, cursor_factory=
+    RealDictCursor)), or a bare SQLAlchemy engine built from
+    `database_url_env_var` when no Dagster resource is registered. Same
+    helper, same contract, as every other dual-ingestion component in this
+    repo (e.g. automl_asset, logistic_regression_model, churn_prediction)."""
+    sql = source_config["sql"]
+    resource_key = source_config.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            return pd.read_sql(sql, resource.get_engine())
+        if hasattr(resource, "get_connection"):
+            with resource.get_connection() as conn:
+                return pd.read_sql(sql, conn)
+        if hasattr(resource, "get_client"):
+            client = resource.get_client()
+            if hasattr(client, "query"):
+                job = client.query(sql)
+                if hasattr(job, "to_dataframe"):
+                    return job.to_dataframe()
+            if hasattr(client, "execute_query"):
+                try:
+                    from psycopg2.extras import RealDictCursor
+                    rows = client.execute_query(sql, fetch_results=True, cursor_factory=RealDictCursor)
+                except ImportError:
+                    rows = client.execute_query(sql, fetch_results=True)
+                return pd.DataFrame([dict(r) for r in (rows or [])])
+            raise ValueError(
+                f"resource {resource_key!r}'s get_client() returned {type(client).__name__}, "
+                "which this helper doesn't know how to query (no .query()/.to_dataframe() "
+                "or .execute_query() method found). Add a dispatch branch for it."
+            )
+        raise ValueError(
+            f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy), "
+            f".get_connection() (DBAPI), or .get_client() (vendor client); got {type(resource).__name__}"
+        )
+    env_var = source_config.get("database_url_env_var")
+    if env_var:
+        import os
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        return pd.read_sql(sql, create_engine(url))
+    raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
 
 
 class TrainTestSplitterComponent(Component, Model, Resolvable):
@@ -40,7 +92,18 @@ class TrainTestSplitterComponent(Component, Model, Resolvable):
     """
 
     asset_name: str = Field(description="Output asset prefix; produces '<asset_name>_train', '<asset_name>_test', and optionally '_val'.")
-    upstream_asset_key: str = Field(description="Upstream asset key providing a DataFrame")
+    upstream_asset_key: Optional[str] = Field(
+        default=None,
+        description="Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one.",
+    )
+    source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Pull rows directly via SQL instead of from an upstream asset: "
+            "{kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. "
+            "Mutually exclusive with `upstream_asset_key` -- set exactly one."
+        ),
+    )
     strategy: str = Field(default="random", description="Split strategy: 'random', 'time', or 'hash'.")
     test_size: float = Field(default=0.2, description="Fraction allocated to the test set (0.0–1.0).")
     val_size: float = Field(default=0.0, description="Fraction allocated to a validation set. 0.0 = no validation asset emitted.")
@@ -138,6 +201,8 @@ class TrainTestSplitterComponent(Component, Model, Resolvable):
         return "Split a DataFrame into train/test (and optional val) assets using random, time, or hash strategies."
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
+        if bool(self.upstream_asset_key) == bool(self.source):
+            raise ValueError("TrainTestSplitterComponent: set exactly one of `upstream_asset_key` or `source`.")
         # Standard catalog fields — phase 2 wiring
         _retry_policy = None
         if self.retry_policy_max_retries is not None:
@@ -291,16 +356,20 @@ class TrainTestSplitterComponent(Component, Model, Resolvable):
         def _make_asset(suffix: str, split_key: str):
             @asset(
                 name=f"{asset_name}_{suffix}",
-                ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+                ins=({"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))} if upstream_asset_key else None),
+                required_resource_keys=({self.source["resource_key"]} if (self.source and self.source.get("resource_key")) else None),
                 owners=owners,
                 tags=_all_tags,
                 freshness_policy=_freshness_policy,
                 group_name=group_name,
-                description=f"{suffix.capitalize()} split of {upstream_asset_key} ({strategy} strategy, test_size={test_size}, val_size={val_size}).",
+                description=f"{suffix.capitalize()} split ({strategy} strategy, test_size={test_size}, val_size={val_size}).",
                 retry_policy=_retry_policy,
                 deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-            def _a(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+            def _a(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
+                upstream = kwargs.get("upstream")
+                if upstream is None:
+                    upstream = _ingest_warehouse_query(self.source, context)
                 splits = _split(upstream)
                 out = splits[split_key]
                 from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
@@ -319,7 +388,7 @@ class TrainTestSplitterComponent(Component, Model, Resolvable):
                 _effective_lineage = column_lineage
                 if not _effective_lineage:
                     _effective_lineage = {c: [c] for c in out.columns if c in upstream.columns}
-                if _effective_lineage:
+                if _effective_lineage and upstream_asset_key:
                     _upstream_key = AssetKey.from_user_string(upstream_asset_key)
                     _lineage_deps = {
                         out_col: [TableColumnDep(asset_key=_upstream_key, column_name=ic) for ic in in_cols]

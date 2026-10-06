@@ -1,0 +1,12 @@
+type: dagster_community_components.CronScheduleComponent
+attributes:
+  schedule_name: daily_commerce_refresh
+  cron_expression: "0 6 * * *"
+  asset_keys:
+    - raw_customers
+    - raw_orders
+    - customer_rfm_segments
+  job_name: daily_commerce_job
+  default_status: RUNNING
+  tags:
+    pipeline: synthetic_commerce

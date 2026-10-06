@@ -1,0 +1,19 @@
+type: dagster_community_components.PandasDataframeCheckComponent
+attributes:
+  asset_key: raw_orders
+  required_columns:
+    - order_id
+    - customer_id
+    - order_date
+    - category
+    - num_items
+    - subtotal
+    - shipping
+    - tax
+    - total
+    - status
+    - region
+  column_types:
+    total: float64
+    num_items: int64
+  blocking: false

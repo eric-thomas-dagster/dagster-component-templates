@@ -1,0 +1,8 @@
+type: dagster_community_components.FilesystemMonitorSensorComponent
+attributes:
+  sensor_name: incoming_order_export_sensor
+  directory_path: "data/incoming"
+  file_pattern: ".*\\.csv$"
+  job_name: daily_commerce_job
+  minimum_interval_seconds: 30
+  default_status: running

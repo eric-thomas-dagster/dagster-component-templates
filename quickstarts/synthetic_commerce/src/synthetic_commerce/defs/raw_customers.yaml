@@ -1,0 +1,9 @@
+type: dagster_community_components.SyntheticDataGeneratorComponent
+attributes:
+  asset_name: raw_customers
+  schema_type: customers
+  row_count: 1000
+  random_state: 42
+  description: "Synthetic customer profiles for the demo commerce pipeline"
+  group_name: synthetic_commerce
+  include_preview_metadata: true

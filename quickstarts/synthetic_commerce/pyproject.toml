@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "synthetic-commerce-quickstart"
+version = "0.1.0"
+description = "Quickstart Dagster project: synthetic ingestion, a schedule, asset checks, and a sensor -- built entirely from dagster-community-components, no external credentials required."
+requires-python = ">=3.10"
+dependencies = [
+    "dagster>=1.10.0",
+    "dagster-community-components",
+    "pandas>=1.5.0",
+]
+
+[project.optional-dependencies]
+dev = ["dagster-webserver"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.dg]
+directory_type = "project"
+
+[tool.dg.project]
+root_module = "synthetic_commerce"
+registry_modules = ["dagster_community_components"]

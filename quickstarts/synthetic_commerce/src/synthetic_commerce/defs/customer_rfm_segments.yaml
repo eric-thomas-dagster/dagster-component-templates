@@ -1,0 +1,8 @@
+type: dagster_community_components.RFMSegmentationComponent
+attributes:
+  asset_name: customer_rfm_segments
+  upstream_asset_key: raw_orders
+  scoring_method: quintile
+  lookback_days: 365
+  description: "RFM (Recency / Frequency / Monetary) customer segments computed from synthetic order history"
+  group_name: synthetic_commerce

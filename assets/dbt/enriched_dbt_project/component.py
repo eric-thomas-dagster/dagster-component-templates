@@ -1071,7 +1071,7 @@ try:
         location."""
 
         # ── Phase 2 (Cloud) — scaffold only, wired in a follow-up commit ──
-        dbt_cloud_workspace: Optional[Any] = Field(default=None)
+        dbt_cloud_workspace: Optional[Any] = None
         """Set to a dagster-dbt DbtCloudWorkspace to switch to Cloud mode.
         NOT YET WIRED — raises NotImplementedError. Follow-up ports the
         mesh-demo's mid-run monitor + selection DSL."""

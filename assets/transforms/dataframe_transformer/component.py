@@ -721,7 +721,8 @@ group_name=group_name,
                 _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
                 for _key, _frame in dataframes.items():
                     if partition_date_column and partition_date_column in _frame.columns and _date_key:
-                        _frame = _frame[_frame[partition_date_column].astype(str) == _date_key]
+                        _col_dates = pd.to_datetime(_frame[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
+                        _frame = _frame[_col_dates == _date_key]
                     if partition_static_column and partition_static_column in _frame.columns and _static_key:
                         _frame = _frame[_frame[partition_static_column].astype(str) == _static_key]
                     elif partition_static_column and partition_static_column in _frame.columns and not _is_multi:

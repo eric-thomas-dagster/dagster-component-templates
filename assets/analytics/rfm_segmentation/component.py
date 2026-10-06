@@ -419,7 +419,23 @@ group_name=group_name,
             if upstream_keys and hasattr(context, 'load_asset_value'):
                 for key in upstream_keys:
                     try:
-                        value = context.load_asset_value(AssetKey(key))
+                        # If this asset is partitioned, the upstream asset is
+                        # commonly partitioned the same way -- the default IO
+                        # manager stores partitioned assets as one file per
+                        # partition key, and load_asset_value() with no
+                        # partition_key fails (e.g. "Is a directory") rather
+                        # than loading the current partition. Try with the
+                        # current partition_key first; fall back to an
+                        # unpartitioned load (upstream may not be partitioned
+                        # at all, in which case the partition_key attempt
+                        # raises and this covers that case too).
+                        if context.has_partition_key:
+                            try:
+                                value = context.load_asset_value(AssetKey(key), partition_key=context.partition_key)
+                            except Exception:
+                                value = context.load_asset_value(AssetKey(key))
+                        else:
+                            value = context.load_asset_value(AssetKey(key))
                         upstream_data[key] = value
                         context.log.info(f"Loaded {len(value)} rows from {key}")
                     except Exception as e:
@@ -444,7 +460,11 @@ group_name=group_name,
                 _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
                 _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
                 if partition_date_column and partition_date_column in df.columns and _date_key:
-                    df = df[df[partition_date_column].astype(str) == _date_key]
+                    # Compare at day granularity -- partition_date_column may hold a
+                    # full timestamp (e.g. "2026-09-15 02:44:56"), which never
+                    # string-equals the bare "YYYY-MM-DD" partition key.
+                    _col_dates = pd.to_datetime(df[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
+                    df = df[_col_dates == _date_key]
                 if partition_static_column and partition_static_column in df.columns and _static_key:
                     df = df[df[partition_static_column].astype(str) == _static_key]
                 elif partition_static_column and partition_static_column in df.columns and not _is_multi:

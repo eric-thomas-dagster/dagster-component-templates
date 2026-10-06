@@ -269,6 +269,11 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Extra static asset metadata merged onto the asset. Needed for e.g. a DB-table IO manager (DuckDB, Snowflake, etc.) on a partitioned asset, which requires {'partition_expr': '<column>'} to know which column to filter/delete on per partition.",
+    )
+
     include_preview_metadata: bool = Field(
         default=False,
         description="Include a preview of the output data in metadata (first 5 rows as markdown table). Used by builder UIs to render asset shape without warehouse access."
@@ -415,7 +420,7 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        @asset(retry_policy=_retry_policy,
             key=AssetKey.from_user_string(asset_name),
             description=description,
             partitions_def=partitions_def,
@@ -424,6 +429,7 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
 group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            metadata=self.metadata,
         )
         def synthetic_data_asset(context: AssetExecutionContext) -> pd.DataFrame:
             """Generate synthetic data based on schema type."""

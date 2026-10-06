@@ -256,6 +256,11 @@ class RFMSegmentationComponent(Component, Model, Resolvable):
         description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
     )
 
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Extra static asset metadata merged onto the asset. Needed for e.g. a DB-table IO manager (DuckDB, Snowflake, etc.) on a partitioned asset, which requires {'partition_expr': '<column>'} to know which column to filter/delete on per partition.",
+    )
+
     include_preview_metadata: bool = Field(
         default=True,
         description="Include sample data preview in metadata"
@@ -410,6 +415,7 @@ class RFMSegmentationComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
 group_name=group_name,
             deps=upstream_keys if upstream_keys else None,
+            metadata=self.metadata,
         )
         def rfm_segmentation_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
             """Asset that performs RFM customer segmentation."""
@@ -632,6 +638,12 @@ group_name=group_name,
             rfm[['rfm_segment', 'segment_label']] = rfm.apply(
                 assign_segment, axis=1, result_type='expand'
             )
+
+            # Stamp the as-of date this snapshot was computed for -- needed to
+            # tell one day's scores apart from another's in a shared warehouse
+            # table (a DB-table IO manager on a partitioned asset requires a
+            # real column for its partition_expr metadata; there was none).
+            rfm['score_date'] = context.partition_key if context.has_partition_key else pd.Timestamp.now().strftime('%Y-%m-%d')
 
             # Calculate segment statistics
             segment_stats = rfm.groupby('rfm_segment').agg({

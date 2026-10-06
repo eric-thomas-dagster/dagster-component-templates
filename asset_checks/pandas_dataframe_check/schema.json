@@ -37,6 +37,46 @@
       "type": "boolean",
       "label": "Blocking",
       "required": true
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Set this to match the checked asset's own partitioning (e.g. 'daily'), or the check can't resolve which partition's data to load. 'daily'|'weekly'|'monthly'|'hourly'|'static'|'dynamic'|'multi', or None for an unpartitioned target.",
+      "required": false,
+      "default": null,
+      "enum": ["daily", "hourly", "weekly", "monthly", "static", "multi", "dynamic"],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "ISO start date for time-based partition types (e.g. '2024-01-01'). Must match the checked asset's partition_start.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static / multi partition types.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "required": false,
+      "default": null
     }
   },
   "tags": [

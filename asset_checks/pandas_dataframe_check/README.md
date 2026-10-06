@@ -15,12 +15,22 @@ Wraps the official `pandas` package.
 | `asset_key` | `str` | Asset key the check validates. |
 | `required_columns` | `List[str]` | Columns that must be present. |
 
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Set this to match the checked asset's own partitioning (e.g. 'daily'), or the check can't resolve which partition's data to load. 'daily'\|'weekly'\|'monthly'\|'hourly'\|'static'\|'dynamic'\|'multi', or None for an unpartitioned target. |
+| `partition_start` | `str` | — | ISO start date for time-based partition types (e.g. '2024-01-01'). Must match the checked asset's partition_start. |
+| `partition_values` | `str` | — | Comma-separated values for static / multi partition types. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec; overrides flat fields when set. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `column_types` | `Dict[str, str]` | — | Mapping of column → expected dtype name (e.g. 'int64', 'object'). |
 | `blocking` | `bool` | `true` | If True, fail blocks downstream assets. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 
 [//]: # (FIELDS:END)
 

@@ -178,6 +178,13 @@
       "required": false,
       "ui:widget": "key-value"
     },
+    "metadata": {
+      "type": "object",
+      "label": "Metadata",
+      "description": "Extra static asset metadata merged onto the asset. Needed for e.g. a DB-table IO manager (DuckDB, Snowflake, etc.) on a partitioned asset, which requires {'partition_expr': '<column>'} to know which column to filter/delete on per partition.",
+      "required": false,
+      "default": null
+    },
     "include_preview_metadata": {
       "type": "boolean",
       "label": "Include Preview Metadata",

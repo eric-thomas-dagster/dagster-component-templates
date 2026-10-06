@@ -705,7 +705,7 @@
       "path": "integrations/aws_dms",
       "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'X2Xf77rWiJnvODszh3q7Idp5lHo23lopwHKLlF/JvKg='.",
+      "error": "An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'V1OvTn+gY9iAv7xnD5VryCqtlU+aNigmH6qEf9dLnAY='.",
       "error_class": null
     },
     {
@@ -745,7 +745,7 @@
       "path": "integrations/aws_sagemaker",
       "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'EMqYzYW3IluWYfeo5LAS5CjWmgn2LMf7AG5rLHesvlE='.",
+      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'zWq4AUUo4f5GIWZtBygsrcR+VZWmfFPry9chM8jJDrU='.",
       "error_class": null
     },
     {

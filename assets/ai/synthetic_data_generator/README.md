@@ -290,6 +290,7 @@ ACORD insurance XML envelopes — for acord_xml_parser demos:
 | `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'} |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']} |
+| `metadata` | `Dict[str, Any]` | — | Extra static asset metadata merged onto the asset. Needed for e.g. a DB-table IO manager (DuckDB, Snowflake, etc.) on a partitioned asset, which requires {'partition_expr': '<column>'} to know which column to filter/delete on per partition. |
 | `deps` | `list[str]` | — | Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset']) |
 
 ### Freshness

@@ -1,0 +1,8 @@
+synthetic_commerce_dbt:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: "../../data/synthetic_commerce.duckdb"
+      schema: main
+      threads: 1

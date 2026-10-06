@@ -4,5 +4,10 @@ attributes:
   upstream_asset_key: raw_orders
   scoring_method: quintile
   lookback_days: 365
-  description: "RFM (Recency / Frequency / Monetary) customer segments computed from synthetic order history"
+  description: "RFM (Recency / Frequency / Monetary) customer segments, one partition per day -- matches raw_orders' daily partitioning, so each run only scores that day's order batch."
   group_name: synthetic_commerce
+  partition_type: daily
+  partition_start: "2026-09-01"
+  partition_date_column: order_date
+  metadata:
+    partition_expr: score_date

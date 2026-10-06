@@ -1,0 +1,5 @@
+type: dagster_community_components.DuckDBIOManagerComponent
+attributes:
+  resource_key: io_manager
+  database: "{{ project_root }}/data/synthetic_commerce.duckdb"
+  schema_name: raw

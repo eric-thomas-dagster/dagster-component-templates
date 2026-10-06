@@ -1,14 +1,14 @@
-type: dagster_community_components.PandasDataframeCheckComponent
+type: dagster_community_components.EnhancedDataQualityChecks
 attributes:
-  asset_key: raw_customers
-  required_columns:
-    - customer_id
-    - first_name
-    - last_name
-    - email
-    - signup_date
-    - lifetime_value
-    - is_active
-  column_types:
-    lifetime_value: float64
-  blocking: true
+  assets:
+    raw_customers:
+      null_check:
+        - name: raw_customers_required_columns
+          columns: [customer_id, first_name, last_name, email, signup_date, lifetime_value, is_active]
+          blocking: true
+      data_type_check:
+        - name: raw_customers_dtypes
+          columns:
+            - column: lifetime_value
+              expected_type: float
+          blocking: true

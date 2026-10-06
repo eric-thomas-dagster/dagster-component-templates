@@ -1,19 +1,22 @@
-type: dagster_community_components.PandasDataframeCheckComponent
+type: dagster_community_components.EnhancedDataQualityChecks
 attributes:
-  asset_key: raw_orders
-  required_columns:
-    - order_id
-    - customer_id
-    - order_date
-    - category
-    - num_items
-    - subtotal
-    - shipping
-    - tax
-    - total
-    - status
-    - region
-  column_types:
-    total: float64
-    num_items: int64
-  blocking: false
+  assets:
+    raw_orders:
+      # Explicit override rather than relying on auto-inheriting raw_orders'
+      # partitions_def from sibling discovery -- must match raw_orders.yaml's
+      # partition_type/partition_start exactly.
+      partitions_def:
+        type: daily
+        start_date: "2026-09-01"
+      null_check:
+        - name: raw_orders_required_columns
+          columns: [order_id, customer_id, order_date, category, num_items, subtotal, shipping, tax, total, status, region]
+          blocking: false
+      data_type_check:
+        - name: raw_orders_dtypes
+          columns:
+            - column: total
+              expected_type: float
+            - column: num_items
+              expected_type: int
+          blocking: false

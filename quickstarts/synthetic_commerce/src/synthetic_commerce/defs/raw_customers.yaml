@@ -4,6 +4,6 @@ attributes:
   schema_type: customers
   row_count: 1000
   random_state: 42
-  description: "Synthetic customer profiles for the demo commerce pipeline"
+  description: "Synthetic customer profiles -- an unpartitioned master snapshot (not daily/hourly like raw_orders: the generator always emits CUST000001-CUST00000{row_count} starting from 1, so partitioning this the same way would regenerate the SAME customer_ids every partition instead of growing the customer base over time)."
   group_name: synthetic_commerce
   include_preview_metadata: true

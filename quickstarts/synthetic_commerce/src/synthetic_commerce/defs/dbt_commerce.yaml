@@ -1,0 +1,5 @@
+type: dagster_community_components.EnrichedDbtProjectComponent
+attributes:
+  project: "{{ project_root }}/dbt/synthetic_commerce_dbt"
+  cli_args:
+    - build

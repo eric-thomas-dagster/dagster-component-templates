@@ -1,0 +1,9 @@
+# Generated at run time -- not source.
+data/*.duckdb
+data/*.duckdb.wal
+dbt/synthetic_commerce_dbt/target/
+dbt/synthetic_commerce_dbt/dbt_packages/
+dbt/synthetic_commerce_dbt/logs/
+dbt/synthetic_commerce_dbt/.user.yml
+__pycache__/
+*.egg-info/

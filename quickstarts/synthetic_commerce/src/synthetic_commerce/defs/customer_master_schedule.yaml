@@ -1,0 +1,10 @@
+type: dagster_community_components.CronScheduleComponent
+attributes:
+  schedule_name: customer_master_refresh
+  cron_expression: "0 6 * * 0"
+  asset_keys:
+    - raw_customers
+  job_name: customer_master_job
+  default_status: RUNNING
+  tags:
+    pipeline: synthetic_commerce

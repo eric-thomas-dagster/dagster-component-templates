@@ -1,0 +1,17 @@
+name: 'synthetic_commerce_dbt'
+version: '1.0.0'
+config-version: 2
+
+profile: 'synthetic_commerce_dbt'
+
+model-paths: ["models"]
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  synthetic_commerce_dbt:
+    staging:
+      +materialized: view
+    marts:
+      +materialized: table

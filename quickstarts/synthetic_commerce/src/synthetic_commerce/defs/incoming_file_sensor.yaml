@@ -6,3 +6,5 @@ attributes:
   job_name: daily_commerce_job
   minimum_interval_seconds: 30
   default_status: running
+  partition_mode: static_partition
+  partition_key_template: "{file_stem}"

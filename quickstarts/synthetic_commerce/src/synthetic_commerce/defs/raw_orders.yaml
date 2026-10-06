@@ -2,8 +2,12 @@ type: dagster_community_components.SyntheticDataGeneratorComponent
 attributes:
   asset_name: raw_orders
   schema_type: orders
-  row_count: 5000
+  row_count: 200
   random_state: 42
-  description: "Synthetic e-commerce orders for the demo commerce pipeline (customer_id references raw_customers' CUST000001-CUST001000 range)"
+  description: "Synthetic e-commerce orders, one partition per day. customer_id always references raw_customers' CUST000001-CUST001000 range (orders don't need customers re-partitioned to stay consistent)."
   group_name: synthetic_commerce
   include_preview_metadata: true
+  partition_type: daily
+  partition_start: "2026-09-01"
+  metadata:
+    partition_expr: order_date

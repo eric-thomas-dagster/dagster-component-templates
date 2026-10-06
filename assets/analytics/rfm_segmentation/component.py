@@ -670,7 +670,7 @@ group_name=group_name,
                 except Exception:
                     pass
             if _effective_lineage:
-                _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
+                _upstream_key = AssetKey.from_user_string(source_asset) if source_asset else None
                 if _upstream_key:
                     _lineage_deps = {}
                     for out_col, in_cols in _effective_lineage.items():

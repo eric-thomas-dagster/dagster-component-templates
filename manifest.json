@@ -47067,16 +47067,16 @@
     {
       "id": "synthetic_data_generator",
       "name": "Synthetic Data Generator",
-      "category": "ai",
+      "category": "source",
       "description": "Component for generating synthetic/mock data for demos and testing.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ai/synthetic_data_generator",
       "tags": [
-        "ai",
         "synthetic",
         "data",
-        "generator"
+        "generator",
+        "mock"
       ],
       "dependencies": {
         "pip": [
@@ -47088,7 +47088,7 @@
       "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/synthetic_data_generator/schema.json",
       "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/synthetic_data_generator/example.yaml",
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/synthetic_data_generator/requirements.txt",
-      "icon": "Sparkles",
+      "icon": "Wand2",
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/adls_round_trip.md",
@@ -47107,8 +47107,8 @@
         "asset_check"
       ],
       "keywords": [
-        "llm",
-        "genai"
+        "read",
+        "load"
       ],
       "featured": true
     },

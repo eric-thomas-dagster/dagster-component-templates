@@ -65,6 +65,16 @@
       "required": false,
       "default": null
     },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Capabilities",
+      "description": "Our OWN verb taxonomy (NOT part of A2A/MCP) -- e.g. critique, supervise, triage, translate, summarize, classify, lookup, extract, generate, code_review. A delegate step's required_capabilities pre-filters on this before any LLM is involved.",
+      "required": false,
+      "default": null
+    },
     "invocation": {
       "type": "object",
       "label": "Invocation",

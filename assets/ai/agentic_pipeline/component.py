@@ -1392,6 +1392,29 @@ def _resolve_mcp_headers(cfg: Dict[str, Any], server_name: str) -> Dict[str, str
     return headers
 
 
+def _validate_tool_args_against_schema(
+    tool_args: Dict[str, Any], schema: Optional[Dict[str, Any]], tool_name: str
+) -> None:
+    """Validate rendered MCP tool_args against the tool's own real,
+    server-declared `inputSchema` -- a required field on every MCP `Tool`
+    (see mcp.types.Tool) -- before making the live call. Raises with the
+    validation error pre-call instead of letting a mismatched call reach the
+    server (a confusing live MCP error, or worse, silently-wrong data the
+    server happens to tolerate)."""
+    if not schema:
+        return
+    import jsonschema
+
+    try:
+        jsonschema.validate(instance=tool_args, schema=schema)
+    except jsonschema.ValidationError as e:
+        raise ValueError(
+            f"delegate: tool_args for MCP tool {tool_name!r} failed its server's "
+            f"declared inputSchema: {e.message} (path: {list(e.path)}). "
+            f"Rendered args: {tool_args!r}"
+        ) from e
+
+
 async def _call_mcp_tool_async(
     *,
     log,
@@ -1399,11 +1422,19 @@ async def _call_mcp_tool_async(
     tool_name: str,
     tool_args: Dict[str, Any],
     parse_as: str,
+    validate_input_schema: bool = False,
 ) -> Dict[str, Any]:
     """Async MCP tool call — supports stdio / http / sse transports.
 
     Mirrors the helper in `mcp_tool_picker/component.py` — kept local to
     keep this component's imports self-contained.
+
+    validate_input_schema: when True, lists the server's tools, finds
+    `tool_name`'s real inputSchema, and validates `tool_args` against it
+    before calling. Only set True by `delegate` (a dynamically-picked agent
+    might have a tool_args_template that doesn't actually match the real
+    tool) -- `mcp_call` passes a hand-authored, already-tested tool_args, so
+    it keeps the prior behavior (False) by default.
     """
     from contextlib import AsyncExitStack
 
@@ -1524,6 +1555,31 @@ async def _call_mcp_tool_async(
             session = _FastMCPShim()
         else:
             raise ValueError(f"MCP server {name!r} has unknown transport: {transport!r}")
+
+        if validate_input_schema:
+            # FastMCP's shim only implements call_tool (see _FastMCPShim
+            # above) -- list_tools has to go through the real `client` for
+            # that one transport; the other three use the real ClientSession
+            # directly.
+            list_target = client if transport == "fastmcp" else session
+            tools_result = await list_target.list_tools()
+            tool_list = tools_result.tools if hasattr(tools_result, "tools") else tools_result
+            matching = next(
+                (
+                    t for t in tool_list
+                    if (getattr(t, "name", None) or (t.get("name") if isinstance(t, dict) else None)) == tool_name
+                ),
+                None,
+            )
+            if matching is None:
+                available = [getattr(t, "name", None) or (t.get("name") if isinstance(t, dict) else None) for t in tool_list]
+                raise ValueError(
+                    f"MCP server {name!r} has no tool named {tool_name!r} -- available: {available}"
+                )
+            schema = getattr(matching, "inputSchema", None) or (
+                matching.get("inputSchema") if isinstance(matching, dict) else None
+            )
+            _validate_tool_args_against_schema(tool_args, schema, tool_name)
 
         call_result = await session.call_tool(tool_name, tool_args)
         parts = []
@@ -3370,23 +3426,64 @@ def _do_delegate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     invokes the pick over MCP or plain HTTP.
 
     Config:
-      task            — free-text description of what this step needs done
-                        (also passed to the invoked agent as its instruction).
-      required_tags   — optional list; pre-filters candidates by skill tag
-                        before the picker LLM ever sees them.
-      registry        — {manifest_url, manifest_path, discover_siblings=True,
-                        max_candidates=20}. Sibling cards are discovered ONCE
-                        at build time (see build_defs) and passed in via
-                        state["__sibling_agent_cards__"] -- this op only
-                        reads them, it does not call context.build_defs()
-                        itself (that method only exists on the build-time
-                        ComponentLoadContext, not the runtime
-                        AssetExecutionContext this op actually runs with).
-      picker          — {model, api_key_env_var, [api_base_env_var,
-                        temperature, max_tokens, reasoning_effort,
-                        thinking_budget]}
-      fallback        — agent_id to use if the picker fails to pick validly.
-      source / inputs — usual upstream ref; optional (task: stands alone).
+      task                 — free-text description of what this step needs
+                             done (also passed to the invoked agent as its
+                             instruction).
+      required_tags        — optional list; pre-filters candidates by skill
+                             tag (topic/domain) before the picker LLM ever
+                             sees them.
+      required_capabilities — optional list; pre-filters candidates by
+                             card.capabilities (OUR OWN verb taxonomy --
+                             e.g. critique, supervise, triage, translate,
+                             summarize, classify, lookup, extract, generate,
+                             code_review -- NOT part of the A2A or MCP
+                             standard, just a convention for this repo. See
+                             agent_card/README.md for the recommended starter
+                             list). This is the lever that keeps delegate
+                             usable at fleet scale: narrow hundreds of
+                             registered agents down to the handful that can
+                             even perform the kind of action needed, before
+                             any LLM reasoning over prose descriptions.
+      input_mode           — MIME type of what this step is actually sending
+                             (default "text/plain", the common case for this
+                             text-based pipeline). Candidates that DO declare
+                             default_input_modes (a real, required A2A
+                             AgentCard field) but don't list this mode are
+                             dropped before picking. Cards that don't declare
+                             modes at all are never excluded by this check
+                             (permissive-if-undeclared).
+      registry             — {manifest_url, manifest_path, discover_siblings=True,
+                             max_candidates=20}. Sibling cards are discovered ONCE
+                             at build time (see build_defs) and passed in via
+                             state["__sibling_agent_cards__"] -- this op only
+                             reads them, it does not call context.build_defs()
+                             itself (that method only exists on the build-time
+                             ComponentLoadContext, not the runtime
+                             AssetExecutionContext this op actually runs with).
+      picker                — {model, api_key_env_var, [api_base_env_var,
+                             temperature, max_tokens, reasoning_effort,
+                             thinking_budget]}
+      fallback              — agent_id to use if the picker fails to pick validly.
+      validate_mcp_schema   — default True. For an MCP-backed pick, lists the
+                             server's tools and validates the rendered
+                             tool_args against the tool's own real,
+                             server-declared inputSchema (a required MCP
+                             field) BEFORE calling -- catches a
+                             tool_args_template that doesn't actually match
+                             the real tool, with a clear error, instead of a
+                             confusing live MCP failure or silently-wrong
+                             data the server happens to tolerate. Set False
+                             only if a server's schema introspection is
+                             broken/unreliable.
+      source / inputs       — usual upstream ref; optional (task: stands alone).
+
+    Note on ceiling: required_tags/required_capabilities/input_mode and
+    validate_mcp_schema are the real enforcement surfaces available (A2A
+    modes + MCP inputSchema, plus our own capability-tag convention) --
+    there's no standard for deeper semantic/structural matching than "does
+    the declared MIME type match" / "does the JSON Schema validate." An
+    agent can still be the wrong SEMANTIC fit for a task even if it passes
+    every check here; that's still the picker LLM's job.
     """
     materialized_at = _now_iso()
     source_id = step.get("source") or _last_step_id(state)
@@ -3410,20 +3507,36 @@ def _do_delegate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     for card in sibling_cards:
         pool[card["agent_id"]] = card
 
-    required_tags = set(step.get("required_tags") or [])
     candidates = list(pool.values())
+
+    required_tags = set(step.get("required_tags") or [])
     if required_tags:
         candidates = [
             c for c in candidates
             if required_tags & {t for s in (c.get("skills") or []) for t in (s.get("tags") or [])}
         ]
+
+    required_capabilities = set(step.get("required_capabilities") or [])
+    if required_capabilities:
+        candidates = [
+            c for c in candidates
+            if required_capabilities & set(c.get("capabilities") or [])
+        ]
+
+    input_mode = step.get("input_mode", "text/plain")
+    candidates = [
+        c for c in candidates
+        if not c.get("default_input_modes") or input_mode in c["default_input_modes"]
+    ]
+
     max_candidates = registry.get("max_candidates", 20)
     candidates = candidates[:max_candidates]
 
     if not candidates:
         raise RuntimeError(
             "delegate: no agent cards available (checked sibling AgentCardComponent "
-            "instances + registry.manifest_url/manifest_path, after required_tags filtering)."
+            "instances + registry.manifest_url/manifest_path, after required_tags/"
+            "required_capabilities/input_mode filtering)."
         )
 
     ids = [c["agent_id"] for c in candidates]
@@ -3432,13 +3545,27 @@ def _do_delegate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
 
     # One tool per candidate card -- same forced-function-call mechanism as
     # `route`, just over a dynamic list instead of a static `specialists:`.
+    # Surfacing capabilities/modes here is a soft guard (helps the picker
+    # avoid an implausible pick) on top of the hard filters above -- it does
+    # NOT fetch live MCP schemas per candidate (that would mean one network
+    # round-trip per candidate just to build this prompt, which doesn't
+    # scale to hundreds of agents). Live schema validation happens once,
+    # after a pick is made, in the invocation step below.
     tools = []
     for c in candidates:
         skills_desc = "; ".join(
             f"{s.get('name', s.get('id', ''))}: {s.get('description', '')}"
             for s in (c.get("skills") or [])
         )
-        description = f"{c.get('description', '')} Skills: {skills_desc}"[:1000]
+        description = f"{c.get('description', '')} Skills: {skills_desc}"
+        if c.get("capabilities"):
+            description += f" Capabilities: {', '.join(c['capabilities'])}."
+        if c.get("default_input_modes") or c.get("default_output_modes"):
+            description += (
+                f" Accepts: {', '.join(c.get('default_input_modes') or ['any'])}."
+                f" Returns: {', '.join(c.get('default_output_modes') or ['any'])}."
+            )
+        description = description[:1000]
         tools.append({
             "type": "function",
             "function": {
@@ -3533,6 +3660,7 @@ def _do_delegate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
                 _call_mcp_tool_async(
                     log=context.log, server_cfg=server_cfg, tool_name=tool_name,
                     tool_args=tool_args, parse_as="auto",
+                    validate_input_schema=step.get("validate_mcp_schema", True),
                 )
             )
         except BaseExceptionGroup as eg:  # noqa: F821 (py311+)
@@ -3580,6 +3708,247 @@ def _do_delegate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     }
 
 
+def _resolve_component_class(component_type: str):
+    """Resolve a dotted `component_type` string to a real class, at STEP
+    EXECUTION time (inside a running op) -- NOT via a full `dg` CLI /
+    component-tree bootstrap, which this environment can't always do.
+
+    For `dagster_community_components.<ClassName>` (how every component in
+    this repo is addressed, in YAML `type:` and everywhere else), resolves
+    via that package's own `_CLASS_PATHS` registry + `_PACKAGE_ROOT`, trying
+    both the installed-package layout (`assets/` nested under the package)
+    and this repo's own dev layout (`assets/` as a sibling of the package
+    dir) -- both are real, valid layouts depending on how this is deployed.
+
+    For anything else, falls back to a plain `importlib.import_module` +
+    getattr (same convention as the `handoff` op's entry_module/entry_callable).
+    """
+    import importlib
+    import importlib.util
+    from pathlib import Path
+
+    if component_type.startswith("dagster_community_components."):
+        class_name = component_type.rsplit(".", 1)[1]
+        import dagster_community_components as dcc
+
+        rel_path = dcc._CLASS_PATHS.get(class_name)
+        if not rel_path:
+            raise ValueError(
+                f"invoke_component: {class_name!r} is not registered in "
+                f"dagster_community_components._CLASS_PATHS."
+            )
+        pkg_dir = Path(dcc.__file__).resolve().parent
+        for candidate_root in (pkg_dir, pkg_dir.parent):
+            full_path = candidate_root / rel_path
+            if full_path.exists():
+                spec = importlib.util.spec_from_file_location(class_name, full_path)
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                return getattr(mod, class_name)
+        raise ImportError(
+            f"invoke_component: could not locate {class_name}'s component.py at "
+            f"either {pkg_dir / rel_path} or {pkg_dir.parent / rel_path}."
+        )
+
+    module_path, _, class_name = component_type.rpartition(".")
+    if not module_path:
+        raise ValueError(
+            f"invoke_component: component_type must be a dotted path "
+            f"'module.ClassName', got {component_type!r}"
+        )
+    try:
+        mod = importlib.import_module(module_path)
+    except ImportError as e:
+        raise ImportError(f"invoke_component: could not import {module_path!r}: {e}") from e
+    cls = getattr(mod, class_name, None)
+    if cls is None:
+        raise ValueError(f"invoke_component: {class_name!r} not found in {module_path!r}")
+    return cls
+
+
+def _do_invoke_component(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
+    """Invoke an EXISTING component's real asset compute function directly,
+    in-process, against the pipeline's current in-flight data -- without
+    registering it as a Dagster asset or touching the asset graph/lineage at
+    all. This is how a deterministic transform already in the component
+    catalog (filter, rank, dedupe, ...) gets reused mid-pipeline, between two
+    agent steps, instead of reimplementing its logic here.
+
+    Mechanism: resolve `component_type` (see _resolve_component_class),
+    instantiate it with `attributes` (same shape as its own YAML config),
+    call its REAL build_defs() to get the real AssetsDefinition, then call
+    THAT directly as a function -- Dagster assets are directly callable,
+    the same mechanism Dagster's own testing docs use -- with a
+    `dagster.build_asset_context()` (a real, public Dagster testing utility
+    for invoking an asset's body outside of a real run) and the pipeline's
+    current data converted to a DataFrame. No real run, no materialization
+    event, no new node in the asset graph.
+
+    Config:
+      component_type  — dotted path, e.g.
+                        "dagster_community_components.FilterComponent".
+      attributes      — dict passed to the component's constructor (same
+                        fields as its own YAML `attributes:` block).
+                        IMPORTANT: most components' own Pydantic model
+                        requires asset-graph-specific fields (e.g.
+                        FilterComponent's `asset_name` + exactly one of
+                        `upstream_asset_key`/`source`) even though this op
+                        bypasses the graph entirely -- their VALUES don't
+                        matter here (no real asset gets registered), only
+                        that they satisfy whatever that component's own
+                        validation requires. Pass placeholders for those.
+      input_kwarg     — which of the target asset's input names receives
+                        the data. Auto-detected when the asset declares
+                        exactly one input (the common case for a
+                        single-upstream transform); required if it
+                        declares more than one or zero.
+      asset_name      — if the target's build_defs() returns more than one
+                        asset, the (Dagster) asset name to pick.
+      resources       — optional dict forwarded to
+                        dg.build_asset_context(resources=...), for a target
+                        that needs a real Dagster resource (e.g. a
+                        warehouse client) to run.
+      partition_key   — optional, forwarded to build_asset_context.
+      source / inputs — usual upstream ref; its text is parsed as a JSON
+                        list (same _parse_items as `map`/`reduce`) and
+                        turned into a DataFrame for the target's input.
+    """
+    import pandas as pd
+
+    materialized_at = _now_iso()
+    source_id = step.get("source", _last_step_id(state))
+    src_text = _get_source_text(state, source_id) if source_id else ""
+
+    component_type = step.get("component_type")
+    if not component_type:
+        raise ValueError("invoke_component requires `component_type: <dotted path>`")
+    attributes = dict(step.get("attributes") or {})
+
+    cls = _resolve_component_class(component_type)
+    try:
+        comp = cls(**attributes)
+    except Exception as e:
+        raise ValueError(
+            f"invoke_component: failed to instantiate {component_type!r} with "
+            f"attributes={attributes!r}: {e}"
+        ) from e
+
+    try:
+        defs = comp.build_defs(None)
+    except Exception as e:
+        raise ValueError(
+            f"invoke_component: {component_type!r}.build_defs() failed: {e}. "
+            f"Check that `attributes` satisfies that component's own required "
+            f"fields (asset-graph-specific ones included, even if their value "
+            f"doesn't matter for direct invocation)."
+        ) from e
+
+    assets_defs = [a for a in (defs.assets or []) if hasattr(a, "op")]
+    if not assets_defs:
+        raise ValueError(
+            f"invoke_component: {component_type!r}'s build_defs() produced no "
+            f"invokable AssetsDefinition (a declare-only/external component "
+            f"isn't valid here -- there's no compute function to call)."
+        )
+    asset_selector = step.get("asset_name")
+    if asset_selector:
+        matching = [a for a in assets_defs if asset_selector in [k.to_user_string() for k in a.keys]]
+        if not matching:
+            available = [k.to_user_string() for a in assets_defs for k in a.keys]
+            raise ValueError(
+                f"invoke_component: no asset named {asset_selector!r} in "
+                f"{component_type!r}'s build_defs() (available: {available})"
+            )
+        assets_def = matching[0]
+    elif len(assets_defs) == 1:
+        assets_def = assets_defs[0]
+    else:
+        available = [k.to_user_string() for a in assets_defs for k in a.keys]
+        raise ValueError(
+            f"invoke_component: {component_type!r}'s build_defs() produced "
+            f"{len(assets_defs)} assets ({available}); set `asset_name` to pick one."
+        )
+
+    input_names = list(assets_def.op.ins.keys())
+    input_kwarg = step.get("input_kwarg")
+    if not input_kwarg:
+        if len(input_names) == 1:
+            input_kwarg = input_names[0]
+        elif len(input_names) == 0:
+            input_kwarg = None
+        else:
+            raise ValueError(
+                f"invoke_component: {component_type!r}'s asset takes multiple "
+                f"inputs {input_names} -- set `input_kwarg` to pick which one "
+                f"receives this step's data."
+            )
+
+    items = _parse_items(src_text) if src_text else []
+    df = pd.DataFrame(items)
+
+    resources = step.get("resources") or None
+    partition_key = step.get("partition_key")
+    asset_ctx = dg.build_asset_context(resources=resources, partition_key=partition_key)
+
+    call_kwargs = {input_kwarg: df} if input_kwarg else {}
+    context.log.info(
+        f"[invoke_component:{step.get('id', '?')}] {component_type} "
+        f"({len(items)} input row(s) → {input_kwarg or 'no input'})"
+    )
+    t0 = time.time()
+    try:
+        result = assets_def(asset_ctx, **call_kwargs)
+    except Exception as e:
+        raise RuntimeError(
+            f"invoke_component: {component_type!r} raised during direct "
+            f"invocation: {e}"
+        ) from e
+    latency_ms = int((time.time() - t0) * 1000)
+
+    # Defensive Output/MaterializeResult unwrap -- same convention several
+    # components (e.g. FilterComponent, for ITS OWN upstream input) already
+    # use for authors who annotate `-> Output` instead of the value type.
+    if hasattr(result, "value") and hasattr(result, "metadata"):
+        result = result.value
+    try:
+        import polars as pl
+        if isinstance(result, pl.DataFrame):
+            result = result.to_pandas()
+    except ImportError:
+        pass
+
+    if isinstance(result, pd.DataFrame):
+        records = result.to_dict(orient="records")
+    elif isinstance(result, list):
+        records = result
+    elif isinstance(result, dict):
+        records = [result]
+    else:
+        records = None
+
+    if records is not None:
+        text = json.dumps(records, default=str)
+        items_out = [{"item": r, "text": json.dumps(r, default=str)} for r in records]
+        n_items = len(records)
+    else:
+        text = str(result)
+        items_out = None
+        n_items = None
+
+    return {
+        "text": text,
+        "items": items_out,
+        "n_items": n_items,
+        "component_type": component_type,
+        "asset_name": [k.to_user_string() for k in assets_def.keys][0] if assets_def.keys else None,
+        "input_kwarg": input_kwarg,
+        "n_input_rows": len(items),
+        "materialized_at": materialized_at,
+        "latency_ms": latency_ms,
+        "op": "invoke_component",
+    }
+
+
 _OPS = {
     "llm_call": _do_llm_call,
     "route": _do_route,
@@ -3598,6 +3967,7 @@ _OPS = {
     "sub_pipeline": _do_sub_pipeline,
     "agent_call": _do_agent_call,
     "delegate": _do_delegate,
+    "invoke_component": _do_invoke_component,
 }
 
 

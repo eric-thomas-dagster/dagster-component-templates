@@ -79,6 +79,13 @@ class AgentCardWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
     include_tags: Optional[List[str]] = Field(
         default=None, description="If set, only cards with at least one skill tag in this list are emitted."
     )
+    include_capabilities: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "If set, only cards with at least one capability (our own verb taxonomy -- "
+            "see AgentCardComponent.capabilities) in this list are emitted."
+        ),
+    )
     max_agents: int = Field(default=100, description="Defensive cap on how many cards from the manifest are emitted as assets.")
 
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name applied to every emitted asset.")
@@ -102,6 +109,12 @@ class AgentCardWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
             cards = [
                 c for c in cards
                 if wanted_tags & {t for s in (c.get("skills") or []) for t in (s.get("tags") or [])}
+            ]
+        if self.include_capabilities:
+            wanted_capabilities = set(self.include_capabilities)
+            cards = [
+                c for c in cards
+                if wanted_capabilities & set(c.get("capabilities") or [])
             ]
         cards = cards[: self.max_agents]
 

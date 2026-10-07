@@ -248,7 +248,8 @@ See [`SyntheticPromptGeneratorComponent`](../../source/synthetic_prompt_generato
 | `self_reflect` | ONE LLM call producing draft + self-critique + revised | Cost-sensitive alternative to `critique_loop` (which is 2N+1 calls). Structured `DRAFT / CRITIQUE / REVISED` sections parsed automatically. |
 | `sub_pipeline` | Invoke an inline sub-pipeline as one step | Compose / reuse common step blocks without duplicating YAML. `steps:` is a full inline sub-pipeline; `output_step_id` picks which sub-step's text flows back to this asset. Sub-state isolated from outer state. |
 | `agent_call` | Invoke a pre-declared agent by name | Dispatch to an agent declared in the top-level `agents:` block. Kinds: `openai_assistant` (thread + run against OpenAI Assistants API), `remote_agent` (authenticated HTTP call to your own deployed agent — sync or async polling), `handoff` (Python callable for LangGraph/AutoGen/CrewAI). One asset materializes with the agent's reply + latency + cost. |
-| `delegate` | 1 picker LLM → 1 DISCOVERED agent (MCP or HTTP) | Dynamic sibling of `route`/`agent_call`: instead of a fixed inline list, the candidate pool is discovered at build time from `AgentCardComponent` instances in the same defs folder and/or an external agent-card manifest. A picker LLM matches your `task:` against each candidate's declared `skills`/`tags` (same forced-function-call mechanism as `route`), then the pick is actually invoked — over MCP (reusing this file's own `_call_mcp_tool_async`) or plain HTTP (reusing `_call_remote_agent`, the same helper `agent_call`'s `remote_agent` kind uses). Use this when the set of agents isn't known at pipeline-write time, or changes without a YAML edit. |
+| `delegate` | 1 picker LLM → 1 DISCOVERED agent (MCP or HTTP) | Dynamic sibling of `route`/`agent_call`: instead of a fixed inline list, the candidate pool is discovered at build time from `AgentCardComponent` instances in the same defs folder and/or an external agent-card manifest. `required_tags`/`required_capabilities`/`input_mode` cheaply pre-filter the pool (no LLM involved) before a picker LLM matches your `task:` against each surviving candidate's declared `skills` (same forced-function-call mechanism as `route`); the pick is then invoked — over MCP (reusing this file's own `_call_mcp_tool_async`, which validates the rendered `tool_args` against the picked agent's real, server-declared `inputSchema` before calling, by default) or plain HTTP (reusing `_call_remote_agent`). Use this when the set of agents isn't known at pipeline-write time, scales to hundreds of registered agents, or changes without a YAML edit. |
+| `invoke_component` | Call an EXISTING component's real asset directly, in-process | Reuse a deterministic transform already in this repo's catalog (`FilterComponent`, `SortComponent`, `UniqueDedupComponent`, ...) mid-pipeline, between two agent steps — without reimplementing its logic and without it showing up as a new node in your asset lineage. Resolves `component_type`, instantiates it with `attributes` (same shape as its own YAML config), calls its real `build_defs()`, then calls the resulting `AssetsDefinition` directly as a function with `dagster.build_asset_context()` (a real Dagster testing utility for invoking an asset's body outside of a run) and this step's data as a DataFrame. No materialization event, no graph node — pure in-process reuse of real, already-tested logic. |
 
 ## Typed named inputs (v2 — join any op from any prior op by port name)
 
@@ -814,7 +815,9 @@ steps:
     op: delegate
     source: customer_message          # optional -- extra context for the picker
     task: "Look up the refund status for this customer's order."
-    required_tags: [refunds]          # optional -- pre-filter candidates before the LLM sees them
+    required_tags: [refunds]          # optional -- pre-filter candidates by skill tag before the LLM sees them
+    required_capabilities: [lookup]   # optional -- pre-filter by our own verb taxonomy (see agent_card/README.md)
+    input_mode: text/plain            # default -- drops candidates whose declared default_input_modes excludes this
     registry:
       discover_siblings: true         # default -- scan AgentCardComponent instances in this defs folder
       manifest_path: /path/to/agents.json   # optional -- also merge in an external agent-card manifest
@@ -823,22 +826,64 @@ steps:
       model: gpt-4o-mini
       api_key_env_var: OPENAI_API_KEY
     fallback: general_support_agent   # optional -- agent_id to use if the picker fails to pick validly
+    validate_mcp_schema: true         # default -- validate tool_args against the picked MCP agent's real inputSchema
 ```
 
 | Field | Required | Default | Description |
 |---|---|---|---|
 | `task` | ✅ | — | Free-text description of what this step needs done; also passed to the invoked agent as its instruction. |
 | `picker.model` | ✅ | — | Model making the pick. Same sub-config shape as every other op's LLM config. |
-| `required_tags` |  | — | Pre-filter candidates by skill tag before the picker LLM ever sees them. |
+| `required_tags` |  | — | Pre-filter candidates by skill tag (topic/domain) before the picker LLM ever sees them. |
+| `required_capabilities` |  | — | Pre-filter candidates by `capabilities` (our own verb taxonomy — critique, supervise, triage, translate, ... — see [`agent_card` README](../agent_card/README.md)) before the picker LLM ever sees them. The lever that keeps `delegate` usable with hundreds of registered agents. |
+| `input_mode` |  | `text/plain` | MIME type of what this step is sending. Candidates that DO declare `default_input_modes` (a real A2A AgentCard field) but don't list this mode are dropped; cards that don't declare modes at all are never excluded on this basis. |
 | `registry.discover_siblings` |  | `true` | Scan sibling `AgentCardComponent` instances in the same defs folder. |
 | `registry.manifest_url` / `manifest_path` |  | — | Also merge in an external flat JSON array of agent cards (same dual-source loader `catalog_agent` uses for its component manifest). `manifest_path` takes precedence when both are set. |
 | `registry.max_candidates` |  | `20` | Cap on candidates sent to the picker LLM. |
 | `fallback` |  | — | `agent_id` to use if the picker fails to pick validly; without it, an invalid pick fails the step (same as `route`). |
+| `validate_mcp_schema` |  | `true` | For an MCP-backed pick: lists the server's tools and validates the rendered `tool_args` against that tool's real, server-declared `inputSchema` before calling — catches a `tool_args_template` that doesn't actually match the real tool, with a clear error, instead of a confusing live MCP failure. Set `false` only if a server's schema introspection is unreliable. |
 | `source` / `inputs` |  | — | Optional extra context for the picker + invoked agent; `task:` stands alone without it. |
 
 Metadata: `picked_agent_id`, `picker_reasoning`, `picking_source` (`picker_tool_call` or `fallback`), `invocation_mode` (`mcp` or `http`), `invocation_detail`, `candidates_considered`, `latency_ms`.
 
 Invocation reuses this component's own `_call_mcp_tool_async` (the same helper `mcp_call`/`tool_use_loop` use) and `_call_remote_agent` (the same helper `agent_call`'s `remote_agent` kind uses) verbatim — no new network-call code. The `http` path is a pragmatic bridge, not full A2A-protocol compliance (no task polling/streaming, no OAuth negotiation) — just enough synchronous request/response to dynamically reach a hosted agent.
+
+**Ceiling, stated plainly:** `required_tags`/`required_capabilities`/`input_mode` and `validate_mcp_schema` are the real enforcement surfaces available — A2A's MIME-type modes, MCP's `inputSchema`, and our own capability-tag convention. There's no standard for deeper semantic matching than "does the declared MIME type match" / "does the JSON Schema validate" — an agent can still be the wrong *semantic* fit for a task even after passing every check here. That's still the picker LLM's job.
+
+### `op: invoke_component`
+
+Reuse a deterministic transform already in this repo's component catalog — `FilterComponent`, `SortComponent`, `UniqueDedupComponent`, `RankComponent`, or any of the ~112 `assets/transforms/*` components — mid-pipeline, between two agent steps, without reimplementing its logic and without it appearing as a new node in your asset lineage.
+
+**How it works:** resolves `component_type`, instantiates it with `attributes` (the exact same shape you'd write under that component's own YAML `attributes:` block), calls its *real* `build_defs()`, then calls the resulting `AssetsDefinition` **directly as a function** — Dagster assets are directly callable, the same mechanism Dagster's own testing docs use — passing `dagster.build_asset_context()` (a real, public Dagster testing utility built for invoking an asset's body outside of a real run) and this step's current data as a DataFrame. No materialization event, no run, no new asset/lineage node — the target component's real, already-tested logic runs in-process and hands back a result.
+
+```yaml
+steps:
+  - id: filter_severe
+    op: invoke_component
+    source: categorized_tickets                     # a prior step whose text is a JSON list
+    component_type: dagster_community_components.FilterComponent
+    attributes:
+      asset_name: placeholder                       # required by FilterComponent's own schema; unused here
+      upstream_asset_key: placeholder/upstream       # ditto -- no real asset graph gets built
+      condition: 'category == "severe"'
+  - id: triaged
+    op: delegate
+    source: filter_severe
+    task: "Triage this batch of severe support tickets."
+    required_capabilities: [triage]
+    picker: {model: gpt-4o-mini, api_key_env_var: OPENAI_API_KEY}
+```
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `component_type` | ✅ | — | Dotted path, e.g. `dagster_community_components.FilterComponent`. |
+| `attributes` | ✅ | — | Dict passed to the target component's constructor — same shape as its own YAML `attributes:` block. **Important:** most components' own Pydantic model requires asset-graph-specific fields (an `asset_name`, an `upstream_asset_key` or `source`) even though this op bypasses the graph entirely. Their *values* don't matter here (no real asset gets registered) — only that they satisfy that component's own validation. Pass placeholders for those. |
+| `input_kwarg` |  | auto-detected | Which of the target asset's input names receives this step's data. Auto-detected when the target declares exactly one input (the common case for a single-upstream transform); required if it declares more than one. |
+| `asset_name` |  | — | If the target's `build_defs()` returns more than one asset, which one (by Dagster asset name) to invoke. |
+| `resources` |  | — | Forwarded to `build_asset_context(resources=...)`, for a target that needs a real Dagster resource (e.g. a warehouse client) to run. |
+| `partition_key` |  | — | Forwarded to `build_asset_context(partition_key=...)`. |
+| `source` / `inputs` |  | — | Its text is parsed as a JSON list (same parser `map`/`reduce` use) and converted to a DataFrame for the target's input. |
+
+Metadata: `component_type`, `asset_name`, `input_kwarg`, `n_input_rows`, `latency_ms`. Output `items`/`text` are in the same shape `map`/`classify` produce, so `invoke_component` composes freely with any other op before or after it — including `delegate`, for exactly the "deterministic filter/rank/dedupe mid-stream between two agent steps" pattern.
 
 ## State model
 

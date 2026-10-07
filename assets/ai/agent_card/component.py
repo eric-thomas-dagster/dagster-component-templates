@@ -84,8 +84,28 @@ class AgentCardComponent(dg.Component, dg.Model, dg.Resolvable):
         min_length=1,
     )
     version: str = Field(default="1.0.0", description="Agent version, A2A field name kept as-is.")
-    default_input_modes: Optional[List[str]] = Field(default=None, description="Default input MIME types.")
-    default_output_modes: Optional[List[str]] = Field(default=None, description="Default output MIME types.")
+    default_input_modes: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Default input MIME types (real A2A AgentCard field -- required there, "
+            "optional here). delegate drops this card for a step whose input_mode "
+            "isn't in this list; leave unset to never be excluded on this basis."
+        ),
+    )
+    default_output_modes: Optional[List[str]] = Field(default=None, description="Default output MIME types (real A2A AgentCard field).")
+    capabilities: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Our OWN verb taxonomy -- NOT part of the A2A or MCP standard. Freeform "
+            "strings describing WHAT KIND of action this agent can perform (e.g. "
+            "critique, supervise, triage, translate, summarize, classify, lookup, "
+            "extract, generate, code_review), as opposed to `skills.tags` which "
+            "describe topic/domain. A delegate step's `required_capabilities` "
+            "pre-filters on this, cheaply, before any LLM sees the candidate -- the "
+            "lever that keeps delegate usable when hundreds of agents are "
+            "registered. See README.md for a recommended starter vocabulary."
+        ),
+    )
 
     invocation: Dict[str, Any] = Field(
         description=(
@@ -127,6 +147,7 @@ class AgentCardComponent(dg.Component, dg.Model, dg.Resolvable):
             "version": self.version,
             "default_input_modes": self.default_input_modes,
             "default_output_modes": self.default_output_modes,
+            "capabilities": self.capabilities,
             "invocation": self.invocation,
         }
 

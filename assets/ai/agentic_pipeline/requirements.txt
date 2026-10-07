@@ -6,6 +6,9 @@ pandas>=1.5.0
 # Only required if you use the `mcp_call` op (direct MCP step in the pipeline).
 # Slim install; kept as a hard dep so the op works out of the box.
 mcp>=1.0.0
+# Used by `delegate` to validate MCP tool_args against the picked agent's
+# real, server-declared inputSchema before calling.
+jsonschema>=4.0.0
 # Provider client SDKs (installed on demand by litellm; add explicitly if you want pin control):
 #   openai
 #   anthropic

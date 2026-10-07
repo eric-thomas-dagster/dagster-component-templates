@@ -44,6 +44,16 @@
       "required": false,
       "default": null
     },
+    "include_capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Include Capabilities",
+      "description": "If set, only cards with at least one capability (our own verb taxonomy -- see AgentCardComponent.capabilities) in this list are emitted.",
+      "required": false,
+      "default": null
+    },
     "max_agents": {
       "type": "integer",
       "label": "Max Agents",

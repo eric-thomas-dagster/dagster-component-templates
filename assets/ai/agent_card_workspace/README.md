@@ -26,6 +26,7 @@ This component only brings in an external registry. It does not also scan for si
 | `manifest_path` | `str` | — | Local file with the same shape as manifest_url. Takes precedence over manifest_url if both are set. |
 | `include_ids` | `List[str]` | — | If set, only agent_ids in this list are emitted. |
 | `include_tags` | `List[str]` | — | If set, only cards with at least one skill tag in this list are emitted. |
+| `include_capabilities` | `List[str]` | — | If set, only cards with at least one capability (our own verb taxonomy -- see AgentCardComponent.capabilities) in this list are emitted. |
 | `max_agents` | `int` | `100` | Defensive cap on how many cards from the manifest are emitted as assets. |
 | `asset_key_prefix` | `List[str]` | — | Prefix for every emitted asset key. |
 

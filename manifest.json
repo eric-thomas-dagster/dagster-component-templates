@@ -1581,6 +1581,21 @@
                   },
                   "description": "Pre-filter candidate agent cards by skill tag before the picker LLM sees them."
                 },
+                "required_capabilities": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Pre-filter candidate agent cards by capabilities (our own verb taxonomy -- critique/supervise/triage/translate/... -- NOT part of A2A or MCP) before the picker LLM sees them."
+                },
+                "input_mode": {
+                  "type": "string",
+                  "description": "MIME type of what this step is sending (default text/plain). Candidates that declare default_input_modes but don't list this are dropped; cards without declared modes are never excluded on this basis."
+                },
+                "validate_mcp_schema": {
+                  "type": "boolean",
+                  "description": "Default true. For an MCP-backed pick, validates the rendered tool_args against the picked agent's real, server-declared inputSchema before calling."
+                },
                 "registry": {
                   "type": "object",
                   "properties": {
@@ -1625,6 +1640,56 @@
                 "fallback": {
                   "type": "string",
                   "description": "agent_id to use if the picker fails to pick validly."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "invoke_component",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "component_type",
+                "attributes"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "invoke_component"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Optional prior step id; defaults to most recent. Its text is parsed as a JSON list and converted to a DataFrame for the target component's input."
+                },
+                "inputs": {
+                  "type": "object"
+                },
+                "component_type": {
+                  "type": "string",
+                  "description": "Dotted path, e.g. 'dagster_community_components.FilterComponent'. Any existing component with a real compute function."
+                },
+                "attributes": {
+                  "type": "object",
+                  "description": "Dict passed to the target component's constructor -- same shape as its own YAML attributes: block. Asset-graph-specific fields the target's own schema requires (asset_name, upstream_asset_key/source) still need SOME value to satisfy that component's validation, even though this op bypasses the graph entirely."
+                },
+                "input_kwarg": {
+                  "type": "string",
+                  "description": "Which of the target asset's input names receives this step's data. Auto-detected when the target declares exactly one input; required if it declares more than one."
+                },
+                "asset_name": {
+                  "type": "string",
+                  "description": "If the target's build_defs() returns more than one asset, which one (by Dagster asset name) to invoke."
+                },
+                "resources": {
+                  "type": "object",
+                  "description": "Forwarded to dagster.build_asset_context(resources=...), for a target that needs a real Dagster resource to run."
+                },
+                "partition_key": {
+                  "type": "string",
+                  "description": "Forwarded to build_asset_context(partition_key=...)."
                 }
               },
               "additionalProperties": false

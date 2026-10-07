@@ -10,6 +10,7 @@ Standardize what an agentic pipeline looks like across your org. `source` + `ste
 - [`examples/document_summarization/`](examples/document_summarization/README.md) — one `delegate` step, structured output (`summary` + `action_items`), extracted verbatim from a real sample document.
 - [`examples/route_to_specialist/`](examples/route_to_specialist/README.md) — three registered specialist agents, **no** `required_capabilities` set — proves the picker LLM does genuine semantic matching (billing/technical/general question → correct specialist, verified with three different real questions).
 - [`examples/debate_best_answer/`](examples/debate_best_answer/README.md) — two debater agents (shared capability tag, distinguished by semantics) + one arbitrator (distinct tag), joined with typed `inputs:` ports into a final verdict that genuinely weighs both arguments.
+- [`examples/pipeline_incident_triage/`](examples/pipeline_incident_triage/README.md) — the first `tool_use_loop` showcase: one agent, three REAL tools (a live vendor status-page check, a real `git log`, a real runbook search), iterating freely until it has enough evidence to decide "wait, don't debug" vs. actually troubleshoot. Caught Snowflake's status page actually degraded, live, mid-build.
 
 ## Why Dagster (not just a job runner)
 

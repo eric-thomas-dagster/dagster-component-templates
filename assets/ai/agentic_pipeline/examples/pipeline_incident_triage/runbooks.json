@@ -1,0 +1,26 @@
+[
+  {
+    "id": "vendor-degradation-wait",
+    "title": "Vendor status shows degraded/outage",
+    "keywords": ["degraded", "outage", "down", "partial", "incident", "vendor", "snowflake", "fivetran", "dbt", "github"],
+    "guidance": "If the vendor's own status page shows anything other than fully operational, WAIT rather than debug. Do not spend engineering time root-causing what is almost certainly a vendor-side issue. Re-check status every 15 minutes; escalate internally only if the vendor incident exceeds 2 hours or there's no vendor-acknowledged incident despite clear symptoms."
+  },
+  {
+    "id": "dbt-compilation-error",
+    "title": "dbt compilation error: missing or renamed column",
+    "keywords": ["compilation", "column", "not found", "dbt", "model", "schema"],
+    "guidance": "Usually caused by an upstream schema change that hasn't been reflected in the model yet. Check recent commits/PRs for migrations or source-table changes touching the model in question before assuming a vendor issue."
+  },
+  {
+    "id": "fivetran-sync-failure",
+    "title": "Fivetran sync failure",
+    "keywords": ["fivetran", "sync", "connector", "extract"],
+    "guidance": "Check Fivetran's own status page first. Syncs auto-retry on most vendor-side issues within 15 minutes; manual intervention is rarely needed unless the connector itself shows a broken/reauth-required state in the Fivetran dashboard."
+  },
+  {
+    "id": "ci-deploy-failure",
+    "title": "CI/CD deploy failure blocking pipeline updates",
+    "keywords": ["github actions", "ci", "deploy", "workflow", "build failed"],
+    "guidance": "Check GitHub's status page first. If GitHub is fully operational, the failure is almost certainly in the workflow itself -- inspect the specific job's logs rather than assuming infrastructure."
+  }
+]

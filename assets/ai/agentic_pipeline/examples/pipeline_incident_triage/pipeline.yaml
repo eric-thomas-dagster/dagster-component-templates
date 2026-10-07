@@ -1,0 +1,57 @@
+type: dagster_community_components.AgenticPipelineComponent
+attributes:
+  asset_name_prefix: incident_triage
+  source:
+    kind: literal
+    text: >
+      Asset `stg_orders` failed to materialize: the dbt model's query against
+      Snowflake timed out / connection reset. This started about 20 minutes
+      ago and is affecting multiple downstream assets. No recent code changes
+      are suspected, but please confirm.
+
+  steps:
+    # The first real showcase of tool_use_loop in this example library: ONE
+    # agent, THREE real tools (live vendor status, runbook search, git log),
+    # iterating until it has enough evidence -- the actual architecture a
+    # real cross-stack incident-triage tool uses (gather signals across
+    # every tool in the stack, not just the one that fired the alert).
+    - id: investigate
+      op: tool_use_loop
+      system_prompt: >
+        You are a pipeline incident triage agent. Given an incident report,
+        gather evidence using your tools before concluding -- always check
+        the relevant vendor's live status page if the incident could
+        plausibly be vendor-side, search runbooks for institutional
+        guidance, and check recent commits if a code/schema change could be
+        the real cause. When you have enough evidence, call finalize with
+        your diagnosis in exactly this format:
+
+        ROOT_CAUSE: <one sentence>
+        ACTION: wait or debug
+        REASONING: <why, citing the specific evidence you gathered>
+      model: gpt-4o-mini
+      api_key_env_var: OPENAI_API_KEY
+      mcp_servers:
+        - name: dispatch
+          type: stdio
+          command: [python3, "./dispatch_mcp_server.py"]
+      max_iterations: 8
+
+    # Turns the agent's labeled free text into clean, structured fields --
+    # same tool_choice-forced mechanism `extract` always uses, applied to
+    # tool_use_loop's output instead of raw source text.
+    - id: diagnosis
+      op: extract
+      source: investigate
+      model: gpt-4o-mini
+      api_key_env_var: OPENAI_API_KEY
+      output_schema:
+        type: object
+        properties:
+          root_cause: {type: string}
+          action: {type: string, enum: [wait, debug]}
+          reasoning: {type: string}
+        required: [root_cause, action, reasoning]
+
+  outputs:
+    assets: [investigate, diagnosis]

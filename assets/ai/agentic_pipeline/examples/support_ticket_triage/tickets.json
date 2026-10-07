@@ -1,0 +1,110 @@
+[
+  {
+    "ticket_id": "T00001",
+    "customer_id": "CUST6527",
+    "channel": "email",
+    "priority": "medium",
+    "created_at": "2026-09-24 14:09:03.905587",
+    "ticket_text": "Can I get an enterprise quote? Contact: alice.johnson@enterprise.org or 555-4300.",
+    "expected_language": "en"
+  },
+  {
+    "ticket_id": "T00002",
+    "customer_id": "CUST8282",
+    "channel": "web",
+    "priority": "low",
+    "created_at": "2026-09-24 10:49:03.905675",
+    "ticket_text": "Site is down for me \u2014 getting 502 errors since 9am EST.",
+    "expected_language": "en"
+  },
+  {
+    "ticket_id": "T00003",
+    "customer_id": "CUST6829",
+    "channel": "email",
+    "priority": "high",
+    "created_at": "2026-09-25 16:55:03.905693",
+    "ticket_text": "Site is down for me \u2014 getting 502 errors since 9am EST.",
+    "expected_language": "en"
+  },
+  {
+    "ticket_id": "T00004",
+    "customer_id": "CUST7885",
+    "channel": "email",
+    "priority": "high",
+    "created_at": "2026-09-24 20:49:03.905706",
+    "ticket_text": "Bug report: search results show duplicates when filtering by date range.",
+    "expected_language": "en"
+  },
+  {
+    "ticket_id": "T00005",
+    "customer_id": "CUST9328",
+    "channel": "web",
+    "priority": "medium",
+    "created_at": "2026-09-09 14:32:03.905720",
+    "ticket_text": "Hi, my name is Klaus M\u00fcller and my email is klaus.muller@bigcorp.com. My order #11451 hasn't arrived. Can you check status?",
+    "expected_language": "en"
+  },
+  {
+    "ticket_id": "T00006",
+    "customer_id": "CUST2310",
+    "channel": "email",
+    "priority": "urgent",
+    "created_at": "2026-10-07 01:11:03.905733",
+    "ticket_text": "Account security alert \u2014 got an email about login from Russia, was that real?",
+    "expected_language": "en"
+  },
+  {
+    "ticket_id": "T00007",
+    "customer_id": "CUST7470",
+    "channel": "chat",
+    "priority": "urgent",
+    "created_at": "2026-09-26 09:49:03.905745",
+    "ticket_text": "Refund request for order 73232 \u2014 product arrived damaged.",
+    "expected_language": "en"
+  },
+  {
+    "ticket_id": "T00008",
+    "customer_id": "CUST3926",
+    "channel": "email",
+    "priority": "low",
+    "created_at": "2026-09-11 17:22:03.905757",
+    "ticket_text": "Account security alert \u2014 got an email about login from Russia, was that real?",
+    "expected_language": "en"
+  },
+  {
+    "ticket_id": "T00009",
+    "customer_id": "CUST3067",
+    "channel": "chat",
+    "priority": "high",
+    "created_at": "2026-09-27 14:11:03.905768",
+    "ticket_text": "I want to cancel my subscription. Account email: carlos.hern\u00e1ndez@enterprise.org. Phone: 555-6709.",
+    "expected_language": "en"
+  },
+  {
+    "ticket_id": "T00010",
+    "customer_id": "CUST5539",
+    "channel": "web",
+    "priority": "low",
+    "created_at": "2026-09-12 21:10:03.905780",
+    "ticket_text": "How do I export my data? Compliance team needs everything by Friday.",
+    "expected_language": "en"
+  },
+  {
+    "ticket_id": "T00011",
+    "customer_id": "CUST5252",
+    "channel": "email",
+    "priority": "urgent",
+    "created_at": "2026-10-01 15:56:03.905792",
+    "ticket_text": "I want to cancel my subscription. Account email: carlos.hern\u00e1ndez@bigcorp.com. Phone: 555-2740.",
+    "expected_language": "en"
+  },
+  {
+    "ticket_id": "T00012",
+    "customer_id": "CUST8831",
+    "channel": "chat",
+    "priority": "low",
+    "created_at": "2026-09-14 20:41:03.905803",
+    "ticket_text": "Feature request: add dark mode to the mobile app please.",
+    "expected_language": "en"
+  }
+]

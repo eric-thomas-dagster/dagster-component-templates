@@ -2389,8 +2389,23 @@ def _do_map(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
       prompt_template   — supports `{item}` (current item) + `{index}` (0-based)
                           + `{n}` (total count) + `{text}` + `{port_name}`
       max_concurrent    — 1 (sequential; default) OR N (thread-pooled)
-      output_join       — 'newlines' (default) | 'jsonl' | 'none'
-                          (`none` returns empty text — downstream reads items[])
+      output_schema     — optional JSON Schema (object). When set, each
+                          per-item call is FORCED tool-calling (same
+                          tool_choice="required" mechanism `extract` uses),
+                          not a free-text completion — reliable structured
+                          per-item output instead of hoping the model's
+                          free text happens to be parseable. Each item's
+                          `extracted` dict is validated the same way
+                          `extract`'s `strict` does (missing required
+                          fields raise).
+      output_join       — 'newlines' (default) | 'jsonl' | 'none' | 'records'
+                          ('none' returns empty text — downstream reads
+                          items[]; 'records' REQUIRES output_schema — joins
+                          `{**item, **extracted}` per item into one JSON
+                          array, directly consumable downstream by
+                          `invoke_component`/`map`/`reduce`'s own
+                          _parse_items, for an agent-categorize →
+                          deterministic-filter → agent-triage pipeline)
     """
     materialized_at = _now_iso()
     source_id = step.get("source", _last_step_id(state))
@@ -2415,6 +2430,24 @@ def _do_map(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         system_prompt = _substitute_ports(system_prompt, inputs)
     max_concurrent = int(step.get("max_concurrent", 1))
     output_join = step.get("output_join", "newlines")
+    output_schema = step.get("output_schema")
+    strict = bool(step.get("strict", True))
+
+    if output_join == "records" and not output_schema:
+        raise ValueError("map: output_join='records' requires `output_schema` to be set.")
+
+    tool = None
+    if output_schema:
+        if not isinstance(output_schema, dict):
+            raise ValueError("map: output_schema must be a JSON Schema object (dict).")
+        tool = {
+            "type": "function",
+            "function": {
+                "name": "extract_data",
+                "description": "Return extracted data matching the schema.",
+                "parameters": output_schema,
+            },
+        }
 
     def _run_one(index_and_item):
         i, item = index_and_item
@@ -2433,25 +2466,55 @@ def _do_map(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
             temperature=temperature, max_tokens=max_tokens,
             reasoning_effort=reasoning_effort, thinking_budget=thinking_budget,
             prompt_caching=prompt_caching,
+            tools=[tool] if tool else None,
+            tool_choice="required" if tool else None,
         )
+
+    def _to_result_entry(item, result):
+        if not tool:
+            return {"item": item, "text": result["content"]}
+        if not result["tool_calls"]:
+            raise RuntimeError(
+                f"map: LLM did not emit a tool call for item {item!r}. This "
+                f"usually means the model doesn't support forced tool calls "
+                f"— try a different model."
+            )
+        raw_args = result["tool_calls"][0].get("arguments") or "{}"
+        try:
+            extracted = json.loads(raw_args)
+        except json.JSONDecodeError as e:
+            raise RuntimeError(
+                f"map: LLM returned invalid JSON for item {item!r}: {e}. "
+                f"Raw: {raw_args[:300]}"
+            ) from e
+        if strict:
+            required = output_schema.get("required") or []
+            missing = [k for k in required if k not in extracted]
+            if missing:
+                raise RuntimeError(
+                    f"map (strict): missing required fields {missing} in "
+                    f"extracted data for item {item!r}."
+                )
+        return {"item": item, "text": json.dumps(extracted), "extracted": extracted}
 
     results: List[Any] = [None] * len(items)  # per-item output blobs
     all_llm_results = []
 
     context.log.info(
         f"[map:{step.get('id', '?')}] {len(items)} item(s) × max_concurrent={max_concurrent}"
+        + (" (structured)" if tool else "")
     )
 
     if max_concurrent > 1 and len(items) > 1:
         from concurrent.futures import ThreadPoolExecutor
         with ThreadPoolExecutor(max_workers=max_concurrent) as pool:
             for i, item, result in pool.map(_run_one, enumerate(items)):
-                results[i] = {"item": item, "text": result["content"]}
+                results[i] = _to_result_entry(item, result)
                 all_llm_results.append(result)
     else:
         for pair in enumerate(items):
             i, item, result = _run_one(pair)
-            results[i] = {"item": item, "text": result["content"]}
+            results[i] = _to_result_entry(item, result)
             all_llm_results.append(result)
 
     # Join per-item texts into the top-level `text` field.
@@ -2462,9 +2525,17 @@ def _do_map(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         joined_text = "\n".join(json.dumps(r) for r in results if r)
     elif output_join == "none":
         joined_text = ""
+    elif output_join == "records":
+        merged = []
+        for r in results:
+            if not r:
+                continue
+            base = r["item"] if isinstance(r["item"], dict) else {"item": r["item"]}
+            merged.append({**base, **r["extracted"]})
+        joined_text = json.dumps(merged, default=str)
     else:
         raise ValueError(
-            f"map: output_join must be 'newlines' | 'jsonl' | 'none'; got {output_join!r}"
+            f"map: output_join must be 'newlines' | 'jsonl' | 'none' | 'records'; got {output_join!r}"
         )
 
     return {

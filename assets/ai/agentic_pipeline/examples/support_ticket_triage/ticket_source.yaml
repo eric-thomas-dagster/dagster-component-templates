@@ -1,0 +1,10 @@
+# How tickets.json was produced -- NOT live-wired into pipeline.yaml (see
+# README.md's "Why tickets.json is a frozen fixture" note). Drop this into
+# a real project's defs folder and materialize it, then copy its output
+# into tickets.json to regenerate the fixture with a different row_count/seed.
+type: dagster_community_components.SyntheticDataGeneratorComponent
+attributes:
+  asset_name: support_tickets
+  schema_type: support_tickets
+  row_count: 12
+  random_state: 42

@@ -1,0 +1,19 @@
+# A SECOND registered agent, deliberately NOT tagged `triage` -- present to
+# prove required_capabilities actually narrows the candidate pool before the
+# picker LLM runs. It's never invoked in this example (delegate's
+# required_capabilities: [triage] excludes it at the filtering stage), so its
+# invocation.http is an unused placeholder.
+type: dagster_community_components.AgentCardComponent
+attributes:
+  agent_id: billing_lookup_agent
+  name: "Billing Lookup Agent"
+  description: "Looks up a customer's billing history and invoices."
+  skills:
+    - id: lookup_invoice
+      name: "Lookup invoice"
+      description: "Given a customer id, returns invoice history."
+      tags: [billing]
+  capabilities: [lookup]
+  invocation:
+    http:
+      url: https://internal.example.com/agents/billing

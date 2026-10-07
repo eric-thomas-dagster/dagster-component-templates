@@ -2,6 +2,8 @@
 
 Declares one hosted agent — reached over MCP or plain HTTP, never an in-process Python class — and advertises what it's good for, so `AgenticPipelineComponent`'s `delegate` op can discover it and dynamically route work to it instead of requiring a hardcoded, inline-YAML agent list.
 
+**Full worked example:** [`agentic_pipeline/examples/support_ticket_triage/`](../agentic_pipeline/examples/support_ticket_triage/README.md) — two registered agent cards, one correctly picked by capability, one correctly excluded. The agent itself is just an MCP tool wrapping an LLM call with a persona — no external service required.
+
 ## What this does
 
 Field names track the real [A2A protocol's `AgentCard` schema](https://docs.cloud.google.com/gemini/data-agents/reference/rest/Shared.Types/AgentCard) where there's a direct analog (`name`, `description`, `skills`, `version`, `default_input_modes`/`default_output_modes`), so wiring this to a literal `.well-known/agent.json` later is a rename, not a redesign. `invocation` is this component's own extension — real A2A agents all speak one wire protocol and don't need a transport choice; this bridges two (MCP and plain HTTP).

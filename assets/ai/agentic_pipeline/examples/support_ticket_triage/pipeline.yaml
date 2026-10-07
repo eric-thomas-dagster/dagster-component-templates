@@ -1,0 +1,53 @@
+type: dagster_community_components.AgenticPipelineComponent
+attributes:
+  asset_name_prefix: ticket_triage
+  source:
+    kind: file
+    path: tickets.json
+
+  steps:
+    # 1. AGENT step -- categorize every ticket's severity. Forced structured
+    #    output (output_schema + output_join: records) means a real
+    #    `category` field downstream steps can trust, not hopeful free text.
+    - id: categorize
+      op: map
+      source: source
+      model: gpt-4o-mini
+      api_key_env_var: OPENAI_API_KEY
+      prompt_template: "Classify this support ticket's severity.\n\n{item}"
+      output_schema:
+        type: object
+        properties:
+          category: {type: string, enum: [severe, moderate, minor]}
+          reason: {type: string}
+        required: [category, reason]
+      output_join: records
+      max_concurrent: 4
+
+    # 2. DETERMINISTIC step -- reuse the real FilterComponent (no LLM, no
+    #    reimplementation, no new lineage node) to keep only severe tickets.
+    - id: filter_severe
+      op: invoke_component
+      source: categorize
+      component_type: dagster_community_components.FilterComponent
+      attributes:
+        asset_name: placeholder               # required by FilterComponent's own schema; unused here
+        upstream_asset_key: placeholder/upstream   # ditto -- no real asset graph gets built
+        condition: 'category == "severe"'
+
+    # 3. AGENT step -- dynamically pick the right registered agent by
+    #    CAPABILITY (not a hardcoded agent_id). `billing_agent.yaml` (sibling,
+    #    capabilities: [lookup]) is correctly excluded before the picker LLM
+    #    even runs -- only `triage_agent.yaml` (capabilities: [triage])
+    #    survives the filter.
+    - id: triaged
+      op: delegate
+      source: filter_severe
+      task: "Triage this batch of severe support tickets: assign owning team + urgency."
+      required_capabilities: [triage]
+      picker:
+        model: gpt-4o-mini
+        api_key_env_var: OPENAI_API_KEY
+
+  outputs:
+    assets: [categorize, filter_severe, triaged]

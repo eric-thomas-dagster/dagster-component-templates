@@ -1,0 +1,18 @@
+type: dagster_community_components.AgentCardComponent
+attributes:
+  agent_id: triage_agent
+  name: "Ticket Triage Agent"
+  description: "Assigns an owning team and urgency to severe support tickets."
+  skills:
+    - id: triage_ticket
+      name: "Triage ticket"
+      description: "Given ticket context, returns owning team + urgency."
+      tags: [support]
+  capabilities: [triage]
+  invocation:
+    mcp_server:
+      name: triage-mcp
+      type: stdio
+      command: [python3, "./triage_mcp_server.py"]
+    tool_name: triage_ticket
+    tool_args_template: {ticket_context: "{prompt}"}

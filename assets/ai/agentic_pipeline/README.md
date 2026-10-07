@@ -4,6 +4,8 @@
 
 Standardize what an agentic pipeline looks like across your org. `source` + `steps` + `outputs`. Reviewers scan a fixed schema, CI validates against one shape, new hires learn one file and can build any agentic workflow.
 
+**Full worked example:** [`examples/support_ticket_triage/`](examples/support_ticket_triage/README.md) — agent categorizes tickets by severity, a real existing `FilterComponent` deterministically keeps only the severe ones (via `invoke_component`, no reimplementation, no new lineage node), then `delegate` dynamically routes to whichever registered agent is actually tagged `capabilities: [triage]` — with a second, deliberately-wrong-capability agent registered alongside it to prove the filtering really works. Every step was run for real; the README shows the genuine output.
+
 ## Why Dagster (not just a job runner)
 
 Any workflow tool can *run* a chain of LLM calls. What Dagster does that a job-based orchestrator or a plain script doesn't:

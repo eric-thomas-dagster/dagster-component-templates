@@ -3591,7 +3591,7 @@ def _do_delegate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
 
     Note on ceiling: required_tags/required_capabilities/input_mode and
     validate_mcp_schema are the real enforcement surfaces available (A2A
-    modes + MCP inputSchema, plus our own capability-tag convention) --
+    modes + MCP inputSchema, plus this project's own capability-tag convention) --
     there's no standard for deeper semantic/structural matching than "does
     the declared MIME type match" / "does the JSON Schema validate." An
     agent can still be the wrong SEMANTIC fit for a task even if it passes

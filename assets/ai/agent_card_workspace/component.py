@@ -82,7 +82,7 @@ class AgentCardWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
     include_capabilities: Optional[List[str]] = Field(
         default=None,
         description=(
-            "If set, only cards with at least one capability (our own verb taxonomy -- "
+            "If set, only cards with at least one capability (a verb taxonomy specific to this project -- "
             "see AgentCardComponent.capabilities) in this list are emitted."
         ),
     )

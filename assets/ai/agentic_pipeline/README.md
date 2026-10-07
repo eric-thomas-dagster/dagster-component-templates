@@ -824,7 +824,7 @@ steps:
     source: customer_message          # optional -- extra context for the picker
     task: "Look up the refund status for this customer's order."
     required_tags: [refunds]          # optional -- pre-filter candidates by skill tag before the LLM sees them
-    required_capabilities: [lookup]   # optional -- pre-filter by our own verb taxonomy (see agent_card/README.md)
+    required_capabilities: [lookup]   # optional -- pre-filter by a verb taxonomy specific to this project (see agent_card/README.md)
     input_mode: text/plain            # default -- drops candidates whose declared default_input_modes excludes this
     registry:
       discover_siblings: true         # default -- scan AgentCardComponent instances in this defs folder
@@ -842,7 +842,7 @@ steps:
 | `task` | ✅ | — | Free-text description of what this step needs done; also passed to the invoked agent as its instruction. |
 | `picker.model` | ✅ | — | Model making the pick. Same sub-config shape as every other op's LLM config. |
 | `required_tags` |  | — | Pre-filter candidates by skill tag (topic/domain) before the picker LLM ever sees them. |
-| `required_capabilities` |  | — | Pre-filter candidates by `capabilities` (our own verb taxonomy — critique, supervise, triage, translate, ... — see [`agent_card` README](../agent_card/README.md)) before the picker LLM ever sees them. The lever that keeps `delegate` usable with hundreds of registered agents. |
+| `required_capabilities` |  | — | Pre-filter candidates by `capabilities` (a verb taxonomy specific to this project — critique, supervise, triage, translate, ... — see [`agent_card` README](../agent_card/README.md)) before the picker LLM ever sees them. The lever that keeps `delegate` usable with hundreds of registered agents. |
 | `input_mode` |  | `text/plain` | MIME type of what this step is sending. Candidates that DO declare `default_input_modes` (a real A2A AgentCard field) but don't list this mode are dropped; cards that don't declare modes at all are never excluded on this basis. |
 | `registry.discover_siblings` |  | `true` | Scan sibling `AgentCardComponent` instances in the same defs folder. |
 | `registry.manifest_url` / `manifest_path` |  | — | Also merge in an external flat JSON array of agent cards (same dual-source loader `catalog_agent` uses for its component manifest). `manifest_path` takes precedence when both are set. |
@@ -858,7 +858,7 @@ Invocation reuses this component's own `_call_mcp_tool_async` (the same helper `
 
 **A real trap, worth stating plainly:** an MCP agent card's `tool_args_template` substitutes `{prompt}` with this step's `task:` text — an *instruction*, not your upstream data. If this `delegate` step also has data flowing in via `source:`/a prior step, that data is a SEPARATE placeholder, `{extra.src_text}` — template something like `{ticket_context: "{extra.src_text}"}`, or combine both: `"Task: {prompt}\n\nData:\n{extra.src_text}"`. Forgetting `{extra.src_text}` doesn't fail loudly — the agent just never receives the real data, and an LLM-backed agent will still confidently answer, fabricated from nothing. See [`examples/support_ticket_triage/README.md`](examples/support_ticket_triage/README.md) for exactly this mistake caught via real end-to-end verification.
 
-**Ceiling, stated plainly:** `required_tags`/`required_capabilities`/`input_mode` and `validate_mcp_schema` are the real enforcement surfaces available — A2A's MIME-type modes, MCP's `inputSchema`, and our own capability-tag convention. There's no standard for deeper semantic matching than "does the declared MIME type match" / "does the JSON Schema validate" — an agent can still be the wrong *semantic* fit for a task even after passing every check here. That's still the picker LLM's job.
+**Ceiling, stated plainly:** `required_tags`/`required_capabilities`/`input_mode` and `validate_mcp_schema` are the real enforcement surfaces available — A2A's MIME-type modes, MCP's `inputSchema`, and this project's own capability-tag convention. There's no standard for deeper semantic matching than "does the declared MIME type match" / "does the JSON Schema validate" — an agent can still be the wrong *semantic* fit for a task even after passing every check here. That's still the picker LLM's job.
 
 **A real layout trap, confirmed via an actual `dg launch` run (not just inspection):** Dagster's component scanner only loads a component from a file literally named `defs.yaml`, one per directory. If you declare an `AgentCardComponent` as, say, `triage_agent.yaml` sitting next to your pipeline's own `defs.yaml` in the same folder, it is **never loaded at all** — `delegate`'s sibling-discovery finds zero candidates, silently (the bare `try/except: pass` in `_discover_sibling_agent_cards` swallows the mismatch rather than erroring). Each `AgentCardComponent` needs its own sibling directory, e.g.:
 

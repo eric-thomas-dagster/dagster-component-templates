@@ -50,7 +50,7 @@
         "type": "string"
       },
       "label": "Include Capabilities",
-      "description": "If set, only cards with at least one capability (our own verb taxonomy -- see AgentCardComponent.capabilities) in this list are emitted.",
+      "description": "If set, only cards with at least one capability (a verb taxonomy specific to this project -- see AgentCardComponent.capabilities) in this list are emitted.",
       "required": false,
       "default": null
     },

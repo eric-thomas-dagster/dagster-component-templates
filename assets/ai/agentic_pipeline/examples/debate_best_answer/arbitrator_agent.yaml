@@ -1,0 +1,23 @@
+type: dagster_community_components.AgentCardComponent
+attributes:
+  agent_id: arbitrator
+  name: "Arbitrator"
+  description: "Given a proposal and two opposing arguments, weighs them and renders a final verdict."
+  skills:
+    - id: render_verdict
+      name: "Render verdict"
+      description: "Given a FOR argument and an AGAINST argument, decides the winner with reasoning."
+      tags: [debate, arbitration]
+  capabilities: [arbitrate]
+  invocation:
+    mcp_server:
+      name: debate-arbitrator-mcp
+      type: stdio
+      command: [python3, "./debate_agent_server.py", arbitrator]
+    tool_name: respond
+    # This step is driven entirely by `inputs:` ports (for_arg/against_arg)
+    # substituted directly into `task` by delegate BEFORE this template is
+    # rendered -- {prompt} already carries the joined for/against content,
+    # no separate {extra.src_text} needed here (see pipeline.yaml's
+    # `verdict` step).
+    tool_args_template: {context: "{prompt}"}

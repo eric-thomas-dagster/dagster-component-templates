@@ -4,7 +4,12 @@
 
 Standardize what an agentic pipeline looks like across your org. `source` + `steps` + `outputs`. Reviewers scan a fixed schema, CI validates against one shape, new hires learn one file and can build any agentic workflow.
 
-**Full worked example:** [`examples/support_ticket_triage/`](examples/support_ticket_triage/README.md) — agent categorizes tickets by severity, a real existing `FilterComponent` deterministically keeps only the severe ones (via `invoke_component`, no reimplementation, no new lineage node), then `delegate` dynamically routes to whichever registered agent is actually tagged `capabilities: [triage]` — with a second, deliberately-wrong-capability agent registered alongside it to prove the filtering really works. Every step was run for real; the README shows the genuine output.
+**Full worked examples** (every one run for real, output genuine, not illustrative):
+
+- [`examples/support_ticket_triage/`](examples/support_ticket_triage/README.md) — agent categorizes tickets by severity, a real existing `FilterComponent` deterministically keeps only the severe ones (via `invoke_component`, no reimplementation, no new lineage node), then `delegate` dynamically routes to whichever registered agent is actually tagged `capabilities: [triage]` — with a second, deliberately-wrong-capability agent registered alongside it to prove the filtering really works.
+- [`examples/document_summarization/`](examples/document_summarization/README.md) — one `delegate` step, structured output (`summary` + `action_items`), extracted verbatim from a real sample document.
+- [`examples/route_to_specialist/`](examples/route_to_specialist/README.md) — three registered specialist agents, **no** `required_capabilities` set — proves the picker LLM does genuine semantic matching (billing/technical/general question → correct specialist, verified with three different real questions).
+- [`examples/debate_best_answer/`](examples/debate_best_answer/README.md) — two debater agents (shared capability tag, distinguished by semantics) + one arbitrator (distinct tag), joined with typed `inputs:` ports into a final verdict that genuinely weighs both arguments.
 
 ## Why Dagster (not just a job runner)
 
@@ -843,11 +848,14 @@ steps:
 | `registry.max_candidates` |  | `20` | Cap on candidates sent to the picker LLM. |
 | `fallback` |  | — | `agent_id` to use if the picker fails to pick validly; without it, an invalid pick fails the step (same as `route`). |
 | `validate_mcp_schema` |  | `true` | For an MCP-backed pick: lists the server's tools and validates the rendered `tool_args` against that tool's real, server-declared `inputSchema` before calling — catches a `tool_args_template` that doesn't actually match the real tool, with a clear error, instead of a confusing live MCP failure. Set `false` only if a server's schema introspection is unreliable. |
-| `source` / `inputs` |  | — | Optional extra context for the picker + invoked agent; `task:` stands alone without it. |
+| `source` |  | — | Optional upstream ref. Its text becomes `{extra.src_text}` for a card's `tool_args_template`/HTTP payload — NOT automatically part of `task`; see the gotcha note below. `task:` stands alone without it. |
+| `inputs` |  | — | Typed named ports (`{port: {from: step_id}}`, same primitive every other op uses) — substituted as `{port_name}` directly into `task` BEFORE anything else happens, so a step like an arbitrator can reference two prior steps by name in one `task:` string. |
 
 Metadata: `picked_agent_id`, `picker_reasoning`, `picking_source` (`picker_tool_call` or `fallback`), `invocation_mode` (`mcp` or `http`), `invocation_detail`, `candidates_considered`, `latency_ms`.
 
 Invocation reuses this component's own `_call_mcp_tool_async` (the same helper `mcp_call`/`tool_use_loop` use) and `_call_remote_agent` (the same helper `agent_call`'s `remote_agent` kind uses) verbatim — no new network-call code. The `http` path is a pragmatic bridge, not full A2A-protocol compliance (no task polling/streaming, no OAuth negotiation) — just enough synchronous request/response to dynamically reach a hosted agent.
+
+**A real trap, worth stating plainly:** an MCP agent card's `tool_args_template` substitutes `{prompt}` with this step's `task:` text — an *instruction*, not your upstream data. If this `delegate` step also has data flowing in via `source:`/a prior step, that data is a SEPARATE placeholder, `{extra.src_text}` — template something like `{ticket_context: "{extra.src_text}"}`, or combine both: `"Task: {prompt}\n\nData:\n{extra.src_text}"`. Forgetting `{extra.src_text}` doesn't fail loudly — the agent just never receives the real data, and an LLM-backed agent will still confidently answer, fabricated from nothing. See [`examples/support_ticket_triage/README.md`](examples/support_ticket_triage/README.md) for exactly this mistake caught via real end-to-end verification.
 
 **Ceiling, stated plainly:** `required_tags`/`required_capabilities`/`input_mode` and `validate_mcp_schema` are the real enforcement surfaces available — A2A's MIME-type modes, MCP's `inputSchema`, and our own capability-tag convention. There's no standard for deeper semantic matching than "does the declared MIME type match" / "does the JSON Schema validate" — an agent can still be the wrong *semantic* fit for a task even after passing every check here. That's still the picker LLM's job.
 

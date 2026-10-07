@@ -1,0 +1,25 @@
+type: dagster_community_components.AgenticPipelineComponent
+attributes:
+  asset_name_prefix: specialist_routing
+  source:
+    kind: literal
+    text: "I was charged twice for my subscription this month, can you help me get a refund for the extra charge?"
+
+  steps:
+    # Matches the real Designer example task verbatim: "Route incoming
+    # questions to the right specialist (billing, technical, or general),
+    # then have that specialist draft a response." Deliberately NO
+    # required_capabilities here -- unlike the other examples, the point is
+    # to prove delegate's picker LLM does real semantic matching (reads
+    # each candidate's skills/description and judges fit), not just tag
+    # filtering. Swap `source.text` for a technical or general question and
+    # the pick changes accordingly -- see README.md for real runs of both.
+    - id: routed
+      op: delegate
+      task: "Route this customer question to the right specialist and have them draft a response."
+      picker:
+        model: gpt-4o-mini
+        api_key_env_var: OPENAI_API_KEY
+
+  outputs:
+    assets: [routed]

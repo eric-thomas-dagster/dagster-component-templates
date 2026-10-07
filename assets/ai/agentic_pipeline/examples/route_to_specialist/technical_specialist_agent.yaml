@@ -1,0 +1,17 @@
+type: dagster_community_components.AgentCardComponent
+attributes:
+  agent_id: technical_specialist
+  name: "Technical Specialist"
+  description: "Handles questions about bugs, integrations, APIs, and technical errors."
+  skills:
+    - id: draft_technical_response
+      name: "Draft technical response"
+      description: "Given a customer question about a bug/integration/API/technical error, drafts a helpful response."
+      tags: [technical]
+  invocation:
+    mcp_server:
+      name: specialist-technical-mcp
+      type: stdio
+      command: [python3, "./specialist_agent_server.py", technical]
+    tool_name: draft_response
+    tool_args_template: {question: "{extra.src_text}"}

@@ -1,0 +1,21 @@
+type: dagster_community_components.AgentCardComponent
+attributes:
+  agent_id: debater_advocate
+  name: "Debater (Advocate)"
+  description: "Argues IN FAVOR of proposals -- constructs the strongest persuasive case for a given idea."
+  skills:
+    - id: argue_for
+      name: "Argue for"
+      description: "Given a proposal, builds the strongest case in favor of it."
+      tags: [debate]
+  capabilities: [debate]
+  invocation:
+    mcp_server:
+      name: debate-advocate-mcp
+      type: stdio
+      command: [python3, "./debate_agent_server.py", advocate]
+    tool_name: respond
+    # {prompt} = this step's task instruction ("Argue FOR..."); the actual
+    # proposal text lives in {extra.src_text} (the pipeline's source). See
+    # ../support_ticket_triage/README.md's "A real gotcha" section.
+    tool_args_template: {context: "Task: {prompt}\n\nProposal:\n{extra.src_text}"}

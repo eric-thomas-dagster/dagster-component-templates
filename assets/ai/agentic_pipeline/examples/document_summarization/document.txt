@@ -1,0 +1,38 @@
+Incident Postmortem: Checkout Latency Regression (2026-10-02)
+
+Summary of events: Starting at approximately 14:20 UTC, p99 latency on the
+checkout service rose from a baseline of ~180ms to over 4 seconds for
+roughly 50 minutes. Customer-facing impact was a visible spinner during
+payment confirmation; no payments were lost, but an estimated 3% of
+checkout sessions were abandoned during the window.
+
+Root cause: A configuration change deployed at 14:15 UTC increased the
+connection pool size for the inventory-reservation service without a
+corresponding increase in the downstream database's max_connections
+setting. Once pool saturation hit, new requests queued instead of
+failing fast, which compounded under load rather than shedding it.
+
+Contributing factors:
+- The change went through code review but not through the performance
+  review checklist, because it was tagged as a "config-only" change.
+- Our alerting on checkout latency has a 10-minute rolling window, which
+  delayed the first page by about 6 minutes past the actual onset.
+- The on-call engineer initially suspected a deploy from a different
+  team (the fraud-scoring service redeployed 2 minutes prior), which
+  cost roughly 8 minutes of investigation time before the real change
+  was identified.
+
+Resolution: The connection pool change was rolled back at 15:04 UTC;
+latency returned to baseline within 90 seconds of rollback completing.
+
+Action items:
+1. Require performance review sign-off for any change that touches
+   connection pool sizing, not just schema or code changes.
+2. Reduce the checkout-latency alerting window from 10 minutes to 3
+   minutes, with a secondary fast-trip alert on p99 > 1s for 60 seconds.
+3. Add a runbook step that cross-references ALL deploys in the preceding
+   15 minutes across every team, not just the on-call engineer's own team.
+4. Add a circuit breaker to the inventory-reservation client so pool
+   saturation fails fast instead of queuing indefinitely.
+5. Schedule a load test of the new pool size against the downstream
+   database's actual max_connections before the next capacity change.

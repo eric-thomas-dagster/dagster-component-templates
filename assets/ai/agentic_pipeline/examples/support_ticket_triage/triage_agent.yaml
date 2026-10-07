@@ -15,4 +15,9 @@ attributes:
       type: stdio
       command: [python3, "./triage_mcp_server.py"]
     tool_name: triage_ticket
-    tool_args_template: {ticket_context: "{prompt}"}
+    # {prompt} is the delegate step's `task:` text (an instruction, not the
+    # ticket data) -- {extra.src_text} is the real upstream data (the
+    # filtered severe tickets). Forgetting extra.src_text here means the
+    # agent only ever sees the instruction and the LLM fabricates
+    # plausible-sounding but ungrounded output.
+    tool_args_template: {ticket_context: "{extra.src_text}"}

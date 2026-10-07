@@ -1,0 +1,51 @@
+type: dagster_community_components.AgenticPipelineComponent
+attributes:
+  asset_name_prefix: debate
+  source:
+    kind: literal
+    text: "Proposal: our team should switch from a 2-week sprint cadence to continuous/weekly releases."
+
+  steps:
+    # Matches the real Designer example task verbatim: "Have two proposers
+    # debate the best answer to an incoming question, then have an
+    # arbitrator pick the winning response." Built with delegate + a
+    # registered persona-agent trio instead of the native `debate` op's
+    # inline proposers -- see README.md for why you'd pick one over the
+    # other. required_capabilities: [debate] excludes the arbitrator from
+    # steps 1-2 before the picker even runs; which DEBATER gets picked
+    # (advocate vs skeptic) is then genuine semantic matching against each
+    # step's FOR/AGAINST phrasing.
+    - id: for_argument
+      op: delegate
+      source: source
+      task: "Argue FOR this proposal as persuasively as possible."
+      required_capabilities: [debate]
+      picker:
+        model: gpt-4o-mini
+        api_key_env_var: OPENAI_API_KEY
+
+    - id: against_argument
+      op: delegate
+      source: source
+      task: "Argue AGAINST this proposal, highlighting risks and weaknesses."
+      required_capabilities: [debate]
+      picker:
+        model: gpt-4o-mini
+        api_key_env_var: OPENAI_API_KEY
+
+    # Driven entirely by inputs: ports, not source: -- required_capabilities:
+    # [arbitrate] narrows the pool to exactly one agent (the arbitrator),
+    # so there's zero ambiguity for the picker to resolve here.
+    - id: verdict
+      op: delegate
+      task: "Given the proposal and these two arguments, weigh them and render a final verdict.\n\nFOR:\n{for_arg}\n\nAGAINST:\n{against_arg}"
+      inputs:
+        for_arg: {from: for_argument}
+        against_arg: {from: against_argument}
+      required_capabilities: [arbitrate]
+      picker:
+        model: gpt-4o-mini
+        api_key_env_var: OPENAI_API_KEY
+
+  outputs:
+    assets: [for_argument, against_argument, verdict]

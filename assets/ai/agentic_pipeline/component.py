@@ -3559,10 +3559,18 @@ def _do_delegate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     materialized_at = _now_iso()
     source_id = step.get("source") or _last_step_id(state)
     src_text = _get_source_text(state, source_id) if source_id else ""
+    inputs = _resolve_inputs(step, state)
 
     task = step.get("task")
     if not task:
         raise ValueError("delegate requires `task: <free text>`")
+    # `{port_name}` substitution from `inputs:` (same primitive every other
+    # op uses) -- the docstring above has always claimed this works; it
+    # didn't, until now (found while building a 3-step debate example that
+    # needed an arbitrator step's task to reference BOTH prior arguments by
+    # name). Substituting here means {prompt} downstream (tool_args_template/
+    # HTTP payload) already carries the joined content too, for free.
+    task = _substitute_ports(task, inputs)
 
     registry = step.get("registry") or {}
     sibling_cards = state.get("__sibling_agent_cards__") or []

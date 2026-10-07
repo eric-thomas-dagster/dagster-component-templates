@@ -1,0 +1,17 @@
+type: dagster_community_components.AgentCardComponent
+attributes:
+  agent_id: general_specialist
+  name: "General Specialist"
+  description: "Handles general questions that aren't specifically about billing or technical issues -- account basics, how-to questions, general product info."
+  skills:
+    - id: draft_general_response
+      name: "Draft general response"
+      description: "Given a general customer question, drafts a helpful response."
+      tags: [general]
+  invocation:
+    mcp_server:
+      name: specialist-general-mcp
+      type: stdio
+      command: [python3, "./specialist_agent_server.py", general]
+    tool_name: draft_response
+    tool_args_template: {question: "{extra.src_text}"}

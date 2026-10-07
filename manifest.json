@@ -1568,7 +1568,12 @@
                   "const": "delegate"
                 },
                 "source": {
-                  "type": "string"
+                  "type": "string",
+                  "description": "Optional upstream ref. Its text becomes {extra.src_text} for a card's tool_args_template/HTTP payload -- NOT automatically part of task."
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named ports ({port: {from: step_id}}) substituted as {port_name} directly into task before anything else happens."
                 },
                 "task": {
                   "type": "string",

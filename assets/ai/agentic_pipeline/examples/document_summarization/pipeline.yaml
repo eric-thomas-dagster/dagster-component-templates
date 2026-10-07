@@ -1,0 +1,22 @@
+type: dagster_community_components.AgenticPipelineComponent
+attributes:
+  asset_name_prefix: doc_summary
+  source:
+    kind: file
+    path: document.txt
+
+  steps:
+    # Matches the real Designer example task verbatim: "Summarize incoming
+    # documents into a short executive summary and extract key action
+    # items." One delegate call, dynamically picking summarizer_agent.yaml
+    # (capabilities: [summarize]) out of whatever's registered.
+    - id: summarized
+      op: delegate
+      task: "Summarize this document into a short executive summary and extract key action items."
+      required_capabilities: [summarize]
+      picker:
+        model: gpt-4o-mini
+        api_key_env_var: OPENAI_API_KEY
+
+  outputs:
+    assets: [summarized]

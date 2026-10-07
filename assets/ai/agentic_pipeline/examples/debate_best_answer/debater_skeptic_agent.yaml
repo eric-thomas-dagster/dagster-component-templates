@@ -1,0 +1,21 @@
+type: dagster_community_components.AgentCardComponent
+attributes:
+  agent_id: debater_skeptic
+  name: "Debater (Skeptic)"
+  description: "Argues AGAINST proposals -- constructs the strongest critical case highlighting risks and flaws."
+  skills:
+    - id: argue_against
+      name: "Argue against"
+      description: "Given a proposal, builds the strongest case against it, surfacing risks and weaknesses."
+      tags: [debate]
+  capabilities: [debate]
+  invocation:
+    mcp_server:
+      name: debate-skeptic-mcp
+      type: stdio
+      command: [python3, "./debate_agent_server.py", skeptic]
+    tool_name: respond
+    # {prompt} = this step's task instruction ("Argue AGAINST..."); the
+    # actual proposal text lives in {extra.src_text} (the pipeline's
+    # source). See ../support_ticket_triage/README.md's "A real gotcha".
+    tool_args_template: {context: "Task: {prompt}\n\nProposal:\n{extra.src_text}"}

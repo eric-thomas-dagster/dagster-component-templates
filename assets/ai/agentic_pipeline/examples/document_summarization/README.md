@@ -50,4 +50,16 @@ This example's document is short enough to fit in one call. For a document (or s
 
 ## Running it for real
 
-Drop `pipeline.yaml`, `summarizer_agent.yaml`, `summarizer_agent_server.py`, and `document.txt` into the same defs folder of a real `dg` project, set `OPENAI_API_KEY`, and materialize `doc_summary_summarized`.
+**Each component needs its own directory.** Dagster's component scanner only loads a component from a file literally named `defs.yaml`, one per directory — `summarizer_agent.yaml` as an extra file sitting next to `pipeline.yaml` is never actually loaded as a component. In your project's `defs/` folder, lay these out as two sibling directories, each containing one file renamed to `defs.yaml`:
+
+```
+defs/
+  doc_summary/
+    defs.yaml            # pipeline.yaml, renamed
+    document.txt
+  summarizer_agent/
+    defs.yaml             # summarizer_agent.yaml, renamed
+    summarizer_agent_server.py
+```
+
+Set `OPENAI_API_KEY`, then materialize `doc_summary_summarized`. `delegate`'s sibling-discovery scans the shared *parent* directory (`defs/` above), so `summarizer_agent` needs to be a true sibling of `doc_summary`, not nested inside it.

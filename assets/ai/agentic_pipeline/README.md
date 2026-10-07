@@ -860,6 +860,18 @@ Invocation reuses this component's own `_call_mcp_tool_async` (the same helper `
 
 **Ceiling, stated plainly:** `required_tags`/`required_capabilities`/`input_mode` and `validate_mcp_schema` are the real enforcement surfaces available — A2A's MIME-type modes, MCP's `inputSchema`, and our own capability-tag convention. There's no standard for deeper semantic matching than "does the declared MIME type match" / "does the JSON Schema validate" — an agent can still be the wrong *semantic* fit for a task even after passing every check here. That's still the picker LLM's job.
 
+**A real layout trap, confirmed via an actual `dg launch` run (not just inspection):** Dagster's component scanner only loads a component from a file literally named `defs.yaml`, one per directory. If you declare an `AgentCardComponent` as, say, `triage_agent.yaml` sitting next to your pipeline's own `defs.yaml` in the same folder, it is **never loaded at all** — `delegate`'s sibling-discovery finds zero candidates, silently (the bare `try/except: pass` in `_discover_sibling_agent_cards` swallows the mismatch rather than erroring). Each `AgentCardComponent` needs its own sibling directory, e.g.:
+
+```
+defs/
+  my_pipeline/
+    defs.yaml        # the AgenticPipelineComponent
+  my_agent/
+    defs.yaml         # one AgentCardComponent
+```
+
+`delegate`'s sibling scan reads the shared *parent* directory (`defs/` above) — so siblings need to be, structurally, siblings of the pipeline, not files alongside it in the same directory.
+
 ### `op: invoke_component`
 
 Reuse a deterministic transform already in this repo's component catalog — `FilterComponent`, `SortComponent`, `UniqueDedupComponent`, `RankComponent`, or any of the ~112 `assets/transforms/*` components — mid-pipeline, between two agent steps, without reimplementing its logic and without it appearing as a new node in your asset lineage.

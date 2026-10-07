@@ -69,4 +69,21 @@ The native `debate` op does this in **one step**: `proposers: [{system_prompt: "
 
 ## Running it for real
 
-Drop all 4 YAMLs + `debate_agent_server.py` into the same defs folder of a real `dg` project, set `OPENAI_API_KEY`, and materialize `debate_verdict` (pulls in `debate_for_argument` and `debate_against_argument` automatically).
+**Each component needs its own directory.** Dagster's component scanner only loads a component from a file literally named `defs.yaml`, one per directory — the three agent YAMLs as extra files sitting next to `pipeline.yaml` are never actually loaded as components. In your project's `defs/` folder, lay these out as four sibling directories, each containing one file renamed to `defs.yaml`:
+
+```
+defs/
+  debate/
+    defs.yaml                  # pipeline.yaml, renamed
+  debater_advocate/
+    defs.yaml                   # debater_advocate_agent.yaml, renamed
+    debate_agent_server.py
+  debater_skeptic/
+    defs.yaml                   # debater_skeptic_agent.yaml, renamed
+    debate_agent_server.py      # (a copy, or point command: at a shared location)
+  arbitrator/
+    defs.yaml                   # arbitrator_agent.yaml, renamed
+    debate_agent_server.py
+```
+
+Set `OPENAI_API_KEY`, then materialize `debate_verdict` (pulls in `debate_for_argument` and `debate_against_argument` automatically). `delegate`'s sibling-discovery scans the shared *parent* directory (`defs/` above), so all three agents need to be true siblings of `debate`, not nested inside it.

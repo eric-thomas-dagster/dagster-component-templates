@@ -86,4 +86,18 @@ Note this is one aggregate decision for the whole severe batch, not a separate d
 
 ## Running it for real
 
-Drop `pipeline.yaml`, `triage_agent.yaml`, `billing_agent.yaml`, `triage_mcp_server.py`, and `tickets.json` into the same defs folder of a real `dg` project, set `OPENAI_API_KEY`, and materialize `ticket_triage_triaged` (pulls in `ticket_triage_categorize` and `ticket_triage_filter_severe` as dependencies automatically).
+**Each component needs its own directory.** Dagster's component scanner only loads a component from a file literally named `defs.yaml`, one per directory — `triage_agent.yaml` and `billing_agent.yaml` as extra files sitting next to `pipeline.yaml` are never actually loaded as components (a real, previously-undetected bug caught while building a live `dg`-scaffoldable version of this exact demo). In your project's `defs/` folder, lay these out as THREE sibling directories, each containing one file renamed to `defs.yaml`:
+
+```
+defs/
+  ticket_triage/
+    defs.yaml            # pipeline.yaml, renamed
+    tickets.json
+    triage_mcp_server.py
+  triage_agent/
+    defs.yaml             # triage_agent.yaml, renamed
+  billing_agent/
+    defs.yaml             # billing_agent.yaml, renamed
+```
+
+`triage_agent/defs.yaml`'s `command:` path to `triage_mcp_server.py` needs to point at wherever you placed that script (e.g. `../ticket_triage/triage_mcp_server.py` for the layout above). Set `OPENAI_API_KEY`, then materialize `ticket_triage_triaged` (pulls in `ticket_triage_categorize` and `ticket_triage_filter_severe` automatically). `delegate`'s sibling-discovery scans the shared *parent* directory (`defs/` above), so `triage_agent`/`billing_agent` need to be true siblings of `ticket_triage`, not nested inside it.

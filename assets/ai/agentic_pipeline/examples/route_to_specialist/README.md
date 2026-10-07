@@ -46,4 +46,21 @@ The native `route` op does this exact pattern too — a router LLM picks from an
 
 ## Running it for real
 
-Drop all 4 YAMLs + `specialist_agent_server.py` into the same defs folder of a real `dg` project, set `OPENAI_API_KEY`, and materialize `specialist_routing_routed`. Edit `pipeline.yaml`'s `source.text` to try a different question.
+**Each component needs its own directory.** Dagster's component scanner only loads a component from a file literally named `defs.yaml`, one per directory — the three specialist YAMLs as extra files sitting next to `pipeline.yaml` are never actually loaded as components. In your project's `defs/` folder, lay these out as four sibling directories, each containing one file renamed to `defs.yaml`:
+
+```
+defs/
+  specialist_routing/
+    defs.yaml                  # pipeline.yaml, renamed
+  billing_specialist/
+    defs.yaml                   # billing_specialist_agent.yaml, renamed
+    specialist_agent_server.py
+  technical_specialist/
+    defs.yaml                   # technical_specialist_agent.yaml, renamed
+    specialist_agent_server.py  # (a copy, or point command: at a shared location)
+  general_specialist/
+    defs.yaml                   # general_specialist_agent.yaml, renamed
+    specialist_agent_server.py
+```
+
+Set `OPENAI_API_KEY`, then materialize `specialist_routing_routed`. Edit `defs.yaml`'s `source.text` to try a different question. `delegate`'s sibling-discovery scans the shared *parent* directory (`defs/` above), so all three specialists need to be true siblings of `specialist_routing`, not nested inside it.

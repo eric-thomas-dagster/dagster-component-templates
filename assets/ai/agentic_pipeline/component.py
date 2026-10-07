@@ -346,8 +346,25 @@ def _completion(
             messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": user_prompt})
 
+    # `is_anthropic` above already detects a bare "claude-..." string, but
+    # that detection was only ever used to gate OTHER params (prompt
+    # caching, thinking_budget) -- the model string itself was passed to
+    # litellm completely unprefixed. LiteLLM can't infer the provider from
+    # "claude-3-5-sonnet-20241022" alone (unlike "gpt-4o", which its own
+    # pattern matching recognizes) and raises `BadRequestError: LLM
+    # Provider NOT provided` instead of calling Anthropic. Confirmed live:
+    # every config this component's own schema/docstrings document uses
+    # OpenAI models (gpt-4o/gpt-4o-mini) -- Claude was never actually
+    # exercised through this path before. "anthropic/" is litellm's
+    # documented provider prefix for the Anthropic API (as opposed to
+    # "bedrock/anthropic." for the AWS Bedrock route, already left alone
+    # since it's already explicit).
+    effective_model = model
+    if is_anthropic and not m_lower.startswith(("anthropic/", "bedrock/anthropic.")):
+        effective_model = f"anthropic/{model}"
+
     kwargs: Dict[str, Any] = {
-        "model": model,
+        "model": effective_model,
         "messages": messages,
         "temperature": temperature,
         "max_tokens": max_tokens,

@@ -591,7 +591,14 @@ def _generate_customers(n: int, target_date: Optional[datetime] = None) -> pd.Da
 
     data = []
     for i in range(n):
-        customer_id = f"CUST{i+1:06d}"
+        # Same fix as _generate_orders' order_id -- incorporate target_date
+        # when present so IDs stay globally unique across repeated
+        # partitioned calls instead of resetting to CUST000001... every
+        # time (confirmed live as a real bug for orders; applying the
+        # same fix here preemptively since this function accepts
+        # target_date too, even though this quickstart's own raw_customers
+        # usage happens to be unpartitioned and so never triggered it).
+        customer_id = f"CUST{target_date:%Y%m%d}{i+1:03d}" if target_date else f"CUST{i+1:06d}"
         first_name = random.choice(first_names)
         last_name = random.choice(last_names)
         email = f"{first_name.lower()}.{last_name.lower()}{random.randint(1, 999)}@example.com"
@@ -756,7 +763,8 @@ def _generate_transactions(n: int, target_date: Optional[datetime] = None) -> pd
 
     data = []
     for i in range(n):
-        transaction_id = f"TXN{i+1:010d}"
+        # Same fix as _generate_orders' order_id -- see its comment.
+        transaction_id = f"TXN{target_date:%Y%m%d}{i+1:06d}" if target_date else f"TXN{i+1:010d}"
 
         # Use target_date if partitioned, otherwise random date in last 90 days
         if target_date:
@@ -801,7 +809,8 @@ def _generate_events(n: int, target_date: Optional[datetime] = None) -> pd.DataF
 
     data = []
     for i in range(n):
-        event_id = f"EVT{i+1:010d}"
+        # Same fix as _generate_orders' order_id -- see its comment.
+        event_id = f"EVT{target_date:%Y%m%d}{i+1:06d}" if target_date else f"EVT{i+1:010d}"
 
         # Use target_date if partitioned, otherwise random date in last 30 days
         if target_date:
@@ -900,8 +909,15 @@ def _generate_users(n: int, target_date: Optional[datetime] = None) -> pd.DataFr
 
     data = []
     for i in range(n):
-        user_id = f"USER{i+1:06d}"
-        username = f"user{i+1}"
+        # Same fix as _generate_orders' order_id -- see its comment.
+        # username gets the same treatment since it's just as reset-prone
+        # (and would otherwise collide the same way across partitions).
+        if target_date:
+            user_id = f"USER{target_date:%Y%m%d}{i+1:03d}"
+            username = f"user{target_date:%Y%m%d}{i+1}"
+        else:
+            user_id = f"USER{i+1:06d}"
+            username = f"user{i+1}"
 
         # Use target_date if partitioned, otherwise random date
         if target_date:
@@ -2105,8 +2121,14 @@ def _generate_moderation_content(n: int, target_date: Optional[datetime] = None)
     now = target_date or datetime.now()
     rows = []
     for i in range(n):
+        # Same fix as _generate_orders' order_id -- see its comment.
+        # content_id is a plain int here (not string-prefixed like the
+        # others), so the date goes into the high digits instead of a
+        # string prefix, keeping the column's type unchanged for any
+        # existing downstream consumer that expects an int.
+        content_id = int(f"{target_date:%Y%m%d}{i+1:05d}") if target_date else i + 1
         rows.append({
-            "content_id": i + 1,
+            "content_id": content_id,
             "user_id": f"user_{random.randint(1, 20)}",
             "content_type": random.choice(content_types),
             "content_text": random.choice(sample_texts),

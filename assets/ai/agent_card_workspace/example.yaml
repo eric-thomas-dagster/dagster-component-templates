@@ -1,0 +1,6 @@
+type: dagster_community_components.AgentCardWorkspaceComponent
+attributes:
+  manifest_url: https://internal.example.com/agents/manifest.json
+  include_tags: [customer-support]
+  max_agents: 50
+  group_name: agent_registry

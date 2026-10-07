@@ -3323,13 +3323,16 @@ def _discover_sibling_agent_cards(context: dg.ComponentLoadContext) -> List[Dict
         if not parent_path:
             return cards
         sibling_defs = context.build_defs(parent_path)
-        if sibling_defs and sibling_defs.assets:
-            for assets_def in sibling_defs.assets:
-                for key in assets_def.keys:
-                    spec = assets_def.get_asset_spec(key)
-                    card = (spec.metadata or {}).get("agent_card") if spec else None
-                    if card and card.get("agent_id"):
-                        cards.append(card)
+        if sibling_defs:
+            # AgentCardComponent/AgentCardWorkspaceComponent emit bare
+            # dg.AssetSpec entries (declare-only, no compute) -- those don't
+            # have .keys/.get_asset_spec like an AssetsDefinition does, so
+            # resolve_all_asset_specs() is needed here to normalize both
+            # shapes instead of iterating sibling_defs.assets directly.
+            for spec in sibling_defs.resolve_all_asset_specs():
+                card = (spec.metadata or {}).get("agent_card") if spec else None
+                if card and card.get("agent_id"):
+                    cards.append(card)
     except Exception:
         pass
     return cards

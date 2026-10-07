@@ -1,0 +1,66 @@
+[
+  {
+    "agent_id": "refund_lookup_agent",
+    "name": "Refund Lookup Agent",
+    "description": "Looks up refund status and policy exceptions for e-commerce orders.",
+    "skills": [
+      {
+        "id": "lookup_refund_status",
+        "name": "Lookup refund status",
+        "description": "Given an order id or order context, returns refund status and any policy exceptions.",
+        "tags": ["refunds", "orders", "customer-support"]
+      }
+    ],
+    "version": "1.0.0",
+    "invocation": {
+      "mcp_server": {
+        "name": "fake-refunds-mcp",
+        "type": "stdio",
+        "command": ["python3", "REPLACE_WITH_FAKE_MCP_SERVER_PATH"]
+      },
+      "tool_name": "lookup_refund",
+      "tool_args_template": {"order_context": "{prompt}"}
+    }
+  },
+  {
+    "agent_id": "sentiment_agent",
+    "name": "Sentiment Agent",
+    "description": "Scores the sentiment of free-text customer feedback.",
+    "skills": [
+      {
+        "id": "score_sentiment",
+        "name": "Score sentiment",
+        "description": "Returns a sentiment label and confidence for input text.",
+        "tags": ["sentiment", "nlp", "customer-feedback"]
+      }
+    ],
+    "version": "1.0.0",
+    "invocation": {
+      "http": {
+        "url": "http://127.0.0.1:9998/agent",
+        "response_text_path": "$.result.label"
+      }
+    }
+  },
+  {
+    "agent_id": "ticket_triage_agent",
+    "name": "Support Ticket Triage Agent",
+    "description": "Classifies an incoming support ticket's urgency and routes it to the right team.",
+    "skills": [
+      {
+        "id": "triage_ticket",
+        "name": "Triage ticket",
+        "description": "Given raw ticket text, returns an urgency tier and target team.",
+        "tags": ["support", "triage", "customer-support"]
+      }
+    ],
+    "version": "1.0.0",
+    "invocation": {
+      "http": {
+        "url": "https://internal.example.com/agents/ticket-triage",
+        "auth_bearer_env_var": "TICKET_TRIAGE_AGENT_TOKEN",
+        "response_text_path": "$.result.team"
+      }
+    }
+  }
+]

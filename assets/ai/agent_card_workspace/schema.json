@@ -1,0 +1,98 @@
+{
+  "component_type": "dagster_community_components.AgentCardWorkspaceComponent",
+  "description": "Load a manifest of agent cards (URL or local file) and emit one declare-only AssetSpec per entry -- the multi-asset 'workspace' sibling of AgentCardComponent.",
+  "category": "ai",
+  "icon": "IdCard",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetSpec",
+      "description": "One declare-only agent card per manifest entry (lineage + metadata, no compute)"
+    }
+  },
+  "attributes": {
+    "manifest_url": {
+      "type": "string",
+      "label": "Manifest Url",
+      "description": "URL serving a JSON array (or {\"agents\": [...]}/{\"cards\": [...]}) of agent-card objects.",
+      "required": false,
+      "default": null
+    },
+    "manifest_path": {
+      "type": "string",
+      "label": "Manifest Path",
+      "description": "Local file with the same shape as manifest_url. Takes precedence over manifest_url if both are set.",
+      "required": false,
+      "default": null
+    },
+    "include_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Include Ids",
+      "description": "If set, only agent_ids in this list are emitted.",
+      "required": false,
+      "default": null
+    },
+    "include_tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Include Tags",
+      "description": "If set, only cards with at least one skill tag in this list are emitted.",
+      "required": false,
+      "default": null
+    },
+    "max_agents": {
+      "type": "integer",
+      "label": "Max Agents",
+      "description": "Defensive cap on how many cards from the manifest are emitted as assets.",
+      "required": false,
+      "default": 100
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name applied to every emitted asset.",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners applied to every emitted asset.",
+      "required": false,
+      "default": null
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Extra asset tags applied to every emitted asset.",
+      "required": false,
+      "default": null
+    },
+    "asset_key_prefix": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Asset Key Prefix",
+      "description": "Prefix for every emitted asset key.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ai",
+    "agent",
+    "a2a",
+    "mcp",
+    "registry",
+    "workspace"
+  ],
+  "name": "Agent Card Workspace"
+}

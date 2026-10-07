@@ -773,6 +773,54 @@
       ]
     },
     {
+      "id": "agent_card_workspace",
+      "name": "Agent Card Workspace",
+      "category": "ai",
+      "description": "Load a manifest of agent cards (URL or local file) and emit one declare-only AssetSpec per entry -- the multi-asset 'workspace' sibling of AgentCardComponent, so a whole fleet of hosted agents can be registered from one external manifest instead of one YAML per agent.",
+      "path": "assets/ai/agent_card_workspace",
+      "tags": [
+        "ai",
+        "agent",
+        "a2a",
+        "mcp",
+        "registry",
+        "workspace"
+      ],
+      "icon": "IdCard",
+      "type": "dagster_community_components.AgentCardWorkspaceComponent",
+      "component_type": "dagster_community_components.AgentCardWorkspaceComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_card_workspace/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_card_workspace/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_card_workspace/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_card_workspace/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_card_workspace/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "dagster>=1.10.0"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "inputs": "None (root, declare-only) -- reads an external manifest (manifest_url/manifest_path), emits bare AssetSpecs with no compute function.",
+        "outputs": "No data output. Emits one AssetSpec per manifest entry, each tagged kind=agent, metadata[\"agent_card\"] holding {agent_id, name, description, skills, version, invocation}.",
+        "side_effects": "None. Siblings of a delegate-equipped AgenticPipelineComponent in the same defs folder are picked up automatically via sibling discovery -- no manifest_url/manifest_path needed on the delegate step itself for those.",
+        "input_type": null,
+        "output_type": null
+      },
+      "keywords": [
+        "agent card",
+        "a2a protocol",
+        "agent registry",
+        "agent fleet",
+        "llm",
+        "genai"
+      ]
+    },
+    {
       "id": "agentic_pipeline",
       "name": "AgenticPipeline",
       "path": "assets/ai/agentic_pipeline",

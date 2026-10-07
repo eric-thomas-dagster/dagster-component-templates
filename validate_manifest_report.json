@@ -1,6 +1,6 @@
 {
   "summary": {
-    "PASS": 1144,
+    "PASS": 1145,
     "WARN": 17,
     "SKIP_OPTIONAL_DEP": 65,
     "SKIP_PROJECT_REQUIRED": 24,
@@ -181,6 +181,14 @@
     {
       "id": "agent_card",
       "path": "assets/ai/agent_card",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "agent_card_workspace",
+      "path": "assets/ai/agent_card_workspace",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -713,7 +721,7 @@
       "path": "integrations/aws_dms",
       "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'SFjx2UuIgQY5OOlyPwemy4ybwkDVegtGKRsaQsRkCPI='.",
+      "error": "An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'JWO7d2Toa8SISN099twmdNvvavb6yCKRauOM7MoKth0='.",
       "error_class": null
     },
     {
@@ -753,7 +761,7 @@
       "path": "integrations/aws_sagemaker",
       "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'mfWDADOxR1QT/x/27yaNDKcEX7xW7CZd60cOCrn3qSM='.",
+      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'jC8EOPqMz7kL3B6LRK4uK+2wSr27mIP9dzD1lEwDR+4='.",
       "error_class": null
     },
     {

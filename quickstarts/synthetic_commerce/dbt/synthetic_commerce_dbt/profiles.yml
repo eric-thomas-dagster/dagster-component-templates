@@ -3,6 +3,6 @@ synthetic_commerce_dbt:
   outputs:
     dev:
       type: duckdb
-      path: "../../data/synthetic_commerce.duckdb"
+      path: "{{ env_var('DESIGNER_PROJECT_DATA_DIR', '../../data') }}/synthetic_commerce.duckdb"
       schema: main
       threads: 1

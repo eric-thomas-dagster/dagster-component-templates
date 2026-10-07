@@ -627,7 +627,12 @@ def _generate_orders(n: int, target_date: Optional[datetime] = None, opts: Optio
     upper-cases on write, so this is compatible with::
 
         CREATE TABLE RAW.ORDERS (
-            ORDER_ID     VARCHAR,        -- 'ORD' + 10-digit zero-padded
+            ORDER_ID     VARCHAR,        -- 'ORD' + 10-digit zero-padded when
+                                          -- unpartitioned, or 'ORD' + the
+                                          -- partition date (YYYYMMDD) + a
+                                          -- 6-digit zero-padded sequence when
+                                          -- target_date is set -- see below
+                                          -- for why.
             CUSTOMER_ID  VARCHAR,        -- 'CUST' + 6-digit zero-padded
             ORDER_DATE   TIMESTAMP_NTZ,
             CATEGORY     VARCHAR,        -- lowercase
@@ -649,6 +654,15 @@ def _generate_orders(n: int, target_date: Optional[datetime] = None, opts: Optio
     ``order_date`` is emitted as a ``datetime`` object (not a formatted
     string) so Snowflake's ``write_pandas`` maps it to TIMESTAMP_NTZ
     cleanly without any string-parsing fallback.
+
+    ``order_id`` incorporates ``target_date`` when present so IDs stay
+    globally unique across repeated partitioned calls -- confirmed live
+    (via a dbt `unique` test on a downstream staging model) that the
+    previous ``ORD{i+1:010d}`` scheme reset to the same ORD0000000001...
+    sequence on EVERY call, so a daily-partitioned asset backfilled over
+    N days produced N sets of colliding IDs, same as a real system would
+    never do (order numbers aren't reused day to day). Unpartitioned
+    callers (no target_date) keep the original scheme unchanged.
     """
     categories = ["electronics", "clothing", "books", "home", "sports", "toys", "beauty", "food"]
     statuses = ["pending", "paid", "shipped", "delivered", "cancelled"]
@@ -656,7 +670,7 @@ def _generate_orders(n: int, target_date: Optional[datetime] = None, opts: Optio
 
     data = []
     for i in range(n):
-        order_id = f"ORD{i+1:010d}"
+        order_id = f"ORD{target_date:%Y%m%d}{i+1:06d}" if target_date else f"ORD{i+1:010d}"
         customer_id = f"CUST{random.randint(1, 1000):06d}"
 
         if target_date:

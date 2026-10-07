@@ -1,0 +1,50 @@
+version: 2
+
+models:
+  - name: stg_customers
+    description: "Cleaned customer profiles, straight from raw_customers with signup_date cast to a real date."
+    columns:
+      - name: customer_id
+        description: "Primary key, e.g. CUST000001."
+        data_tests:
+          - not_null
+          - unique
+      - name: email
+        data_tests:
+          - not_null
+      - name: is_active
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]
+
+  - name: stg_orders
+    description: "Cleaned orders, straight from raw_orders with order_date cast to a real timestamp."
+    columns:
+      - name: order_id
+        description: "Primary key, e.g. ORD0000000001."
+        data_tests:
+          - not_null
+          - unique
+      - name: customer_id
+        description: "Foreign key to stg_customers.customer_id -- always in the CUST000001-CUST001000 range the generator emits."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_customers')
+              field: customer_id
+      - name: num_items
+        data_tests:
+          - not_null
+      - name: category
+        data_tests:
+          - accepted_values:
+              values: ["electronics", "clothing", "books", "home", "sports", "toys", "beauty", "food"]
+      - name: status
+        data_tests:
+          - accepted_values:
+              values: ["pending", "paid", "shipped", "delivered", "cancelled"]
+      - name: region
+        data_tests:
+          - accepted_values:
+              values: ["NA", "EU", "APAC", "LATAM"]

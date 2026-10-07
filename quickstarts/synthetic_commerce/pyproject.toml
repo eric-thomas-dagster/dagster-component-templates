@@ -18,8 +18,8 @@ dependencies = [
     "duckdb",
 ]
 
-[project.optional-dependencies]
-dev = ["dagster-webserver"]
+[dependency-groups]
+dev = ["dagster-webserver", "dagster-dg-cli"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

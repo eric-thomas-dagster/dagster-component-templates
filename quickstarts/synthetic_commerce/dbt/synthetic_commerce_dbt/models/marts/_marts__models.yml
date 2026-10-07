@@ -1,0 +1,55 @@
+version: 2
+
+models:
+  - name: customers
+    description: "One row per customer, with lifetime order aggregates joined on from orders."
+    columns:
+      - name: customer_id
+        description: "Primary key, e.g. CUST000001."
+        data_tests:
+          - not_null
+          - unique
+      - name: email
+        data_tests:
+          - not_null
+      - name: number_of_orders
+        description: "0 for a customer with no orders yet -- coalesced, never null."
+        data_tests:
+          - not_null
+      - name: lifetime_order_value
+        description: "0 for a customer with no orders yet -- coalesced, never null."
+        data_tests:
+          - not_null
+
+  - name: orders
+    description: "One row per order, with a per-customer order sequence number and a first-order flag."
+    columns:
+      - name: order_id
+        description: "Primary key, e.g. ORD0000000001."
+        data_tests:
+          - not_null
+          - unique
+      - name: customer_id
+        description: "Foreign key to customers.customer_id."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('customers')
+              field: customer_id
+      - name: category
+        data_tests:
+          - accepted_values:
+              values: ["electronics", "clothing", "books", "home", "sports", "toys", "beauty", "food"]
+      - name: status
+        data_tests:
+          - accepted_values:
+              values: ["pending", "paid", "shipped", "delivered", "cancelled"]
+      - name: region
+        data_tests:
+          - accepted_values:
+              values: ["NA", "EU", "APAC", "LATAM"]
+      - name: is_first_order
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: [true, false]

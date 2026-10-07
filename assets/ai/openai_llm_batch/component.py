@@ -30,6 +30,16 @@ metadata and read back on every run. A retry/redundant re-run with
 unchanged prompts reattaches to the existing batch instead of submitting
 (and paying for) a duplicate. A changed hash best-effort cancels the stale
 batch before submitting fresh.
+
+Crash recovery: if a prior run's process died between batches.create()
+succeeding (a paid call) and this asset's materialization recording that
+batch's id, the next run scans OpenAI's own recent-batches list for one
+already tagged with the current prompts_hash before assuming none exists --
+see `_find_orphaned_batch`. This is the same recovery path Apache Airflow's
+`LLMBatchOperator` documents for OpenAI specifically (its PR notes Anthropic
+offers no equivalent lookup; same is true here -- see
+AnthropicLlmBatchComponent's `on_orphaned_intent` field for how that gap is
+handled there instead).
 """
 import hashlib
 import io
@@ -177,6 +187,22 @@ def _build_jsonl_bytes(
         }
         lines.append(json.dumps(body))
     return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+def _find_orphaned_batch(client: Any, prompts_hash: str, lookback: int = 20) -> Optional[Any]:
+    """Scan the N most recent batches for one whose own OpenAI-side metadata
+    already carries this exact prompts_hash -- recovers a batch that was
+    submitted (and paid for) on a prior run whose process then crashed before
+    this asset's materialization recorded its batch_id. Best-effort: any
+    failure here just means we fall through to a normal fresh submit."""
+    try:
+        resp = client.batches.list(limit=lookback)
+        for b in resp.data:
+            if (getattr(b, "metadata", None) or {}).get("prompts_hash") == prompts_hash:
+                return b
+    except Exception:
+        return None
+    return None
 
 
 def _rows_from_output_file(client: Any, output_file_id: Optional[str]) -> List[Dict[str, Any]]:
@@ -484,15 +510,37 @@ class OpenaiLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
                     except Exception as e:
                         context.log.warning(f"Best-effort cancel of stale batch {prior_batch_id} failed (likely already terminal): {e}")
 
-                jsonl_bytes = _build_jsonl_bytes(pairs, model, system_prompt, max_tokens, temperature)
-                file_obj = client.files.create(file=io.BytesIO(jsonl_bytes), purpose="batch")
-                batch = client.batches.create(
-                    input_file_id=file_obj.id,
-                    endpoint="/v1/chat/completions",
-                    completion_window=completion_window,
-                    metadata={"prompts_hash": prompts_hash},
-                )
-                context.log.info(f"Submitted new batch {batch.id} ({len(pairs)} requests).")
+                # Crash-recovery: a process crash between batches.create()
+                # succeeding (a paid call) and this asset's compute function
+                # returning (which is when Dagster actually records
+                # add_output_metadata's batch_id) would otherwise be invisible
+                # to prior_batch_id above -- the next run would submit a
+                # second, duplicate, paid batch. OpenAI's own batch metadata
+                # is the recovery path: scan recent batches for one already
+                # tagged with this exact prompts_hash before creating a new
+                # one. (Anthropic's batch API has no metadata param on create
+                # and no equivalent lookup -- see AnthropicLlmBatchComponent's
+                # on_orphaned_intent field for how that's handled instead.)
+                orphaned = _find_orphaned_batch(client, prompts_hash)
+                if orphaned is not None:
+                    context.log.info(
+                        f"Found existing batch {orphaned.id} already tagged with this "
+                        f"prompts_hash but never recorded in this asset's own metadata "
+                        f"-- likely a crash between a prior run's submit and its "
+                        f"materialization recording. Reattaching instead of submitting "
+                        f"a duplicate."
+                    )
+                    batch = orphaned
+                else:
+                    jsonl_bytes = _build_jsonl_bytes(pairs, model, system_prompt, max_tokens, temperature)
+                    file_obj = client.files.create(file=io.BytesIO(jsonl_bytes), purpose="batch")
+                    batch = client.batches.create(
+                        input_file_id=file_obj.id,
+                        endpoint="/v1/chat/completions",
+                        completion_window=completion_window,
+                        metadata={"prompts_hash": prompts_hash},
+                    )
+                    context.log.info(f"Submitted new batch {batch.id} ({len(pairs)} requests).")
 
             return client, batch, pairs, prompts_hash
 

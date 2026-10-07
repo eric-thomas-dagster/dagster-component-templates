@@ -347,6 +347,19 @@ class AnthropicLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
     sensor_default_status: str = Field(default="running", description="'running' or 'stopped' -- initial status of the auto-created sensor. Only used when wait_for_completion=False.")
 
     api_key_env_var: str = Field(default="ANTHROPIC_API_KEY", description="Env var holding the Anthropic API key.")
+    on_orphaned_intent: str = Field(
+        default="raise",
+        description=(
+            "'raise' (default) | 'resubmit'. Anthropic's batch API has no metadata field, so "
+            "unlike OpenaiLlmBatchComponent there's no way to look up whether a batch already "
+            "exists for a given prompts_hash. If a prior run's process crashed between the paid "
+            "messages.batches.create() call and recording its batch_id, this asset would "
+            "otherwise silently submit (and pay for) a duplicate. 'raise' detects that situation "
+            "(via an AssetObservation intent marker recorded just before the paid call) and stops "
+            "with instructions to check the Anthropic console before resubmitting. 'resubmit' "
+            "proceeds anyway, accepting the small risk of a duplicate paid batch."
+        ),
+    )
 
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     owners: Optional[List[str]] = Field(
@@ -392,6 +405,7 @@ class AnthropicLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
         poll_interval_seconds = self.poll_interval_seconds
         timeout_seconds = self.timeout_seconds
         api_key_env_var = self.api_key_env_var
+        on_orphaned_intent = self.on_orphaned_intent
 
         _kinds = set(self.kinds or ["anthropic", "llm"])
         retry_policy = None
@@ -428,6 +442,48 @@ class AnthropicLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
                 prior_batch_id = md.get("batch_id").text if md.get("batch_id") else None
                 prior_hash = md.get("prompts_hash").text if md.get("prompts_hash") else None
 
+            # Orphaned-intent check: Anthropic's batch create has no metadata
+            # field (see module docstring), so unlike OpenaiLlmBatchComponent
+            # there's no server-side way to recover a batch whose id never
+            # made it into this asset's own materialization metadata (e.g. a
+            # crash between a prior run's paid create() call and that run's
+            # compute function returning). The best available signal is our
+            # OWN intent marker from that prior run -- an AssetObservation
+            # emitted just before the paid call, below. If one exists for the
+            # hash we're about to (re)submit, and no later materialization
+            # ever confirmed a batch_id for it, this might be an in-flight or
+            # orphaned submission rather than a safe fresh start.
+            if not (prior_batch_id and prior_hash == prompts_hash):
+                obs_result = context.instance.fetch_observations(context.asset_key, limit=1)
+                if obs_result.records:
+                    last_record = obs_result.records[0]
+                    last_obs = last_record.asset_observation
+                    pending_mv = (last_obs.metadata or {}).get("pending_submission_hash")
+                    pending_hash = pending_mv.text if pending_mv else None
+                    if pending_hash == prompts_hash and prior_hash != prompts_hash:
+                        if on_orphaned_intent == "raise":
+                            import datetime
+                            obs_time = datetime.datetime.fromtimestamp(
+                                last_record.timestamp, tz=datetime.timezone.utc
+                            ).isoformat()
+                            raise RuntimeError(
+                                f"AnthropicLlmBatchComponent: a prior run recorded intent to submit "
+                                f"a batch for this exact prompts_hash ({prompts_hash}) but no later "
+                                f"materialization confirmed its batch_id -- that run's process likely "
+                                f"crashed between the paid messages.batches.create() call and "
+                                f"recording the result. Anthropic's batch API has no metadata field, "
+                                f"so there's no way to look up whether that batch actually exists "
+                                f"(unlike OpenAI -- see OpenaiLlmBatchComponent). Check "
+                                f"https://console.anthropic.com for a batch submitted around "
+                                f"{obs_time} before resubmitting. If you've confirmed it's "
+                                f"safe (or accept the risk of a duplicate paid batch), set "
+                                f"on_orphaned_intent: resubmit and re-run."
+                            )
+                        context.log.warning(
+                            f"Possible orphaned submission intent for prompts_hash {prompts_hash} "
+                            f"from a prior run (on_orphaned_intent=resubmit, proceeding anyway)."
+                        )
+
             api_key = os.environ.get(api_key_env_var)
             if not api_key:
                 raise ValueError(f"{api_key_env_var} not set. Get a key at https://console.anthropic.com/settings/keys")
@@ -447,6 +503,12 @@ class AnthropicLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
                     except Exception as e:
                         context.log.warning(f"Best-effort cancel of stale batch {prior_batch_id} failed (likely already terminal): {e}")
 
+                # Record intent BEFORE the paid call -- this is what the
+                # orphaned-intent check above looks for on a subsequent run.
+                context.log_event(dg.AssetObservation(
+                    asset_key=context.asset_key,
+                    metadata={"pending_submission_hash": prompts_hash},
+                ))
                 requests = _build_batch_requests(pairs, model, max_tokens, temperature, system_prompt)
                 batch = client.messages.batches.create(requests=requests)
                 context.log.info(f"Submitted new batch {batch.id} ({len(pairs)} requests).")

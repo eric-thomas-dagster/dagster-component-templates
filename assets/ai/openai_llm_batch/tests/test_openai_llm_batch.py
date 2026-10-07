@@ -22,11 +22,12 @@ def mod():
 
 
 class FakeBatch:
-    def __init__(self, id, status, output_file_id=None, error_file_id=None):
+    def __init__(self, id, status, output_file_id=None, error_file_id=None, metadata=None):
         self.id = id
         self.status = status
         self.output_file_id = output_file_id
         self.error_file_id = error_file_id
+        self.metadata = metadata or {}
 
 
 class FakeFilesAPI:
@@ -44,16 +45,17 @@ class FakeFilesAPI:
 
 
 class FakeBatchesAPI:
-    def __init__(self):
+    def __init__(self, preexisting=None):
         self.create_calls = []
         self.cancel_calls = []
         self.retrieve_calls = []
-        self._batches = {}
+        self.list_calls = 0
+        self._batches = dict(preexisting or {})
 
     def create(self, **kwargs):
         self.create_calls.append(kwargs)
         bid = f"batch_{len(self.create_calls)}"
-        b = FakeBatch(bid, "validating")
+        b = FakeBatch(bid, "validating", metadata=kwargs.get("metadata"))
         self._batches[bid] = b
         return b
 
@@ -65,6 +67,12 @@ class FakeBatchesAPI:
         self.cancel_calls.append(batch_id)
         if batch_id in self._batches:
             self._batches[batch_id].status = "cancelled"
+
+    def list(self, limit=20):
+        self.list_calls += 1
+        # Most-recent-first, matching the real API's ordering.
+        data = list(reversed(list(self._batches.values())))[:limit]
+        return types.SimpleNamespace(data=data)
 
 
 class FakeClient:
@@ -157,6 +165,72 @@ def test_prompts_changed_cancels_stale_and_submits_fresh(mod):
     assert r2.success
     assert len(client.batches.create_calls) == 2
     assert client.batches.cancel_calls == ["batch_1"]
+
+
+def test_orphaned_batch_recovered_via_metadata_lookup(mod):
+    """A prior run's process crashing between batches.create() succeeding
+    (a paid call) and this asset's materialization recording batch_id would,
+    without this recovery path, cause a duplicate paid resubmit on the next
+    run. Simulates that: no prior materialization exists (as if one never
+    completed), but a batch already exists on the "server" tagged with the
+    current prompts_hash -- the fix must find and reattach to it rather than
+    calling create() again."""
+    client = FakeClient()
+    pairs = mod._build_prompt_pairs(_upstream_df(), "body", None, "ticket_id")
+    prompts_hash = mod._compute_prompts_hash(pairs)
+    client.batches = FakeBatchesAPI(preexisting={
+        "batch_orphan": FakeBatch("batch_orphan", "completed", metadata={"prompts_hash": prompts_hash}),
+    })
+    _install_fake_client(mod, client)
+
+    comp = mod.OpenaiLlmBatchComponent(
+        asset_name="support_results",
+        upstream_asset_key="support_tickets",
+        prompt_column="body",
+        id_column="ticket_id",
+    )
+    defs = comp.build_defs(context=None)
+    upstream = make_upstream_asset("support_tickets", _upstream_df())
+    instance = dg.DagsterInstance.ephemeral()
+
+    result = dg.materialize(
+        [upstream, *defs.assets],
+        selection=["support_tickets", "support_results__submit"],
+        instance=instance,
+    )
+    assert result.success
+    assert len(client.batches.create_calls) == 0  # no duplicate paid submit
+    assert client.batches.list_calls == 1
+
+    md = result.asset_materializations_for_node("support_results__submit")[0].metadata
+    assert md["batch_id"].text == "batch_orphan"
+
+
+def test_no_orphan_lookup_needed_when_reattaching_normally(mod):
+    """The orphan-recovery scan runs before ANY fresh submit (including a
+    true first-ever run -- cheap, defensive, correct to always check) but
+    is skipped entirely on the reattach fast path, since reattaching
+    doesn't submit anything new to possibly double up on."""
+    client = FakeClient()
+    _install_fake_client(mod, client)
+    comp = mod.OpenaiLlmBatchComponent(
+        asset_name="support_results",
+        upstream_asset_key="support_tickets",
+        prompt_column="body",
+        id_column="ticket_id",
+    )
+    defs = comp.build_defs(context=None)
+    upstream = make_upstream_asset("support_tickets", _upstream_df())
+    instance = dg.DagsterInstance.ephemeral()
+
+    r1 = dg.materialize([upstream, *defs.assets], selection=["support_tickets", "support_results__submit"], instance=instance)
+    assert r1.success
+    assert client.batches.list_calls == 1  # fresh submit always checks first
+
+    r2 = dg.materialize([upstream, *defs.assets], selection=["support_tickets", "support_results__submit"], instance=instance)
+    assert r2.success
+    assert len(client.batches.create_calls) == 1  # reattached, not resubmitted
+    assert client.batches.list_calls == 1  # unchanged -- reattach path never scans
 
 
 def test_wait_for_completion_inline_parses_and_returns_full_dataframe(mod):

@@ -143,6 +143,13 @@
       "default": "ANTHROPIC_API_KEY",
       "ui:widget": "env_var"
     },
+    "on_orphaned_intent": {
+      "type": "string",
+      "label": "On Orphaned Intent",
+      "description": "'raise' (default) | 'resubmit'. Anthropic's batch API has no metadata field, so unlike OpenaiLlmBatchComponent there's no way to look up whether a batch already exists for a given prompts_hash. If a prior run's process crashed between the paid messages.batches.create() call and recording its batch_id, this asset would otherwise silently submit (and pay for) a duplicate. 'raise' detects that situation (via an AssetObservation intent marker recorded just before the paid call) and stops with instructions to check the Anthropic console before resubmitting. 'resubmit' proceeds anyway, accepting the small risk of a duplicate paid batch.",
+      "required": false,
+      "default": "raise"
+    },
     "group_name": {
       "type": "string",
       "label": "Group Name",

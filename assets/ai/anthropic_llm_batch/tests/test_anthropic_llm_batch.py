@@ -163,6 +163,94 @@ def test_prompts_changed_cancels_stale_and_submits_fresh(mod):
     assert client.messages.batches.cancel_calls == ["msgbatch_1"]
 
 
+def test_orphaned_intent_raises_by_default(mod):
+    """Anthropic's batch API has no metadata field, so unlike
+    OpenaiLlmBatchComponent there's no server-side way to recover a batch
+    whose id never made it into this asset's own materialization metadata.
+    Simulates: run 1's process crashes right after the paid create() call
+    succeeds (an AssetObservation intent marker was already recorded, but
+    no materialization ever confirms a batch_id). Run 2, same instance,
+    same prompts -- should detect the unresolved intent and raise rather
+    than silently submitting (and paying for) a second batch."""
+    client = FakeClient()
+
+    class CrashingBatchesAPI(FakeBatchesAPI):
+        def create(self, requests):
+            self.create_calls.append(requests)
+            raise RuntimeError("simulated crash right after the paid call succeeded")
+
+    client.messages.batches = CrashingBatchesAPI()
+    _install_fake_client(mod, client)
+
+    comp = mod.AnthropicLlmBatchComponent(
+        asset_name="support_results",
+        upstream_asset_key="support_tickets",
+        prompt_column="body",
+        id_column="ticket_id",
+    )
+    defs = comp.build_defs(context=None)
+    upstream = make_upstream_asset("support_tickets", _upstream_df())
+    instance = dg.DagsterInstance.ephemeral()
+
+    r1 = dg.materialize(
+        [upstream, *defs.assets], selection=["support_tickets", "support_results__submit"],
+        instance=instance, raise_on_error=False,
+    )
+    assert not r1.success
+    assert len(client.messages.batches.create_calls) == 1
+
+    r2 = dg.materialize(
+        [upstream, *defs.assets], selection=["support_tickets", "support_results__submit"],
+        instance=instance, raise_on_error=False,
+    )
+    assert not r2.success
+    assert len(client.messages.batches.create_calls) == 1  # no duplicate paid create() call
+    failure_text = str(r2.all_events)
+    assert "recorded intent to submit" in failure_text
+    assert "on_orphaned_intent: resubmit" in failure_text
+
+
+def test_orphaned_intent_resubmit_override_proceeds(mod):
+    """Same crash scenario as above, but on_orphaned_intent='resubmit'
+    accepts the small risk and proceeds instead of blocking."""
+    client = FakeClient()
+
+    class CrashingBatchesAPI(FakeBatchesAPI):
+        def create(self, requests):
+            self.create_calls.append(requests)
+            raise RuntimeError("simulated crash right after the paid call succeeded")
+
+    client.messages.batches = CrashingBatchesAPI()
+    _install_fake_client(mod, client)
+
+    comp = mod.AnthropicLlmBatchComponent(
+        asset_name="support_results",
+        upstream_asset_key="support_tickets",
+        prompt_column="body",
+        id_column="ticket_id",
+        on_orphaned_intent="resubmit",
+    )
+    defs = comp.build_defs(context=None)
+    upstream = make_upstream_asset("support_tickets", _upstream_df())
+    instance = dg.DagsterInstance.ephemeral()
+
+    r1 = dg.materialize(
+        [upstream, *defs.assets], selection=["support_tickets", "support_results__submit"],
+        instance=instance, raise_on_error=False,
+    )
+    assert not r1.success
+    assert len(client.messages.batches.create_calls) == 1
+
+    # Swap in a non-crashing batches API for the retry, same instance.
+    client.messages.batches = FakeBatchesAPI()
+    r2 = dg.materialize(
+        [upstream, *defs.assets], selection=["support_tickets", "support_results__submit"],
+        instance=instance,
+    )
+    assert r2.success
+    assert len(client.messages.batches.create_calls) == 1  # proceeded despite the unresolved prior intent
+
+
 def test_custom_id_validation_rejects_bad_characters(mod):
     client = FakeClient()
     _install_fake_client(mod, client)

@@ -158,5 +158,6 @@ environment.
 | `temperature` | `float` | `0.0` | Sampling temperature. |
 | `sensor_minimum_interval_seconds` | `int` | `60` | Minimum seconds between the auto-created status sensor's evaluations. Only used when wait_for_completion=False. |
 | `sensor_default_status` | `str` | `"running"` | 'running' or 'stopped' -- initial status of the auto-created sensor. Only used when wait_for_completion=False. |
+| `on_orphaned_intent` | `str` | `"raise"` | 'raise' (default) \| 'resubmit'. Anthropic's batch API has no metadata field, so unlike OpenaiLlmBatchComponent there's no way to look up whether a batch already exists for a given prompts_hash. If a prior run's process… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

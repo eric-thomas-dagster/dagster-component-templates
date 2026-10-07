@@ -319,9 +319,15 @@ def _completion(
 
     # Provider detection is used for reasoning-param routing AND for the
     # Anthropic-only prompt_caching wrapping (compute once, reuse below).
+    # Widened to also catch the BARE (unprefixed) form of each model
+    # family, not just already-prefixed ones -- confirmed live this
+    # component only ever received bare names in practice (every config
+    # its own docstrings/examples use is a bare "gpt-4o"/"gpt-4o-mini"),
+    # and `is_gemini` previously could never be true for the form a user
+    # would actually type.
     m_lower = model.lower()
     is_openai_ish = m_lower.startswith(("gpt-", "o1", "o3", "o4", "openai/", "azure/", "groq/"))
-    is_gemini = m_lower.startswith(("gemini/", "google/", "vertex_ai/gemini"))
+    is_gemini = m_lower.startswith(("gemini/", "google/", "vertex_ai/gemini", "gemini-"))
     is_anthropic = (
         "claude" in m_lower
         or m_lower.startswith(("anthropic/", "bedrock/anthropic."))
@@ -346,22 +352,40 @@ def _completion(
             messages.append({"role": "system", "content": system_prompt})
     messages.append({"role": "user", "content": user_prompt})
 
-    # `is_anthropic` above already detects a bare "claude-..." string, but
-    # that detection was only ever used to gate OTHER params (prompt
-    # caching, thinking_budget) -- the model string itself was passed to
-    # litellm completely unprefixed. LiteLLM can't infer the provider from
-    # "claude-3-5-sonnet-20241022" alone (unlike "gpt-4o", which its own
-    # pattern matching recognizes) and raises `BadRequestError: LLM
-    # Provider NOT provided` instead of calling Anthropic. Confirmed live:
-    # every config this component's own schema/docstrings document uses
-    # OpenAI models (gpt-4o/gpt-4o-mini) -- Claude was never actually
-    # exercised through this path before. "anthropic/" is litellm's
-    # documented provider prefix for the Anthropic API (as opposed to
-    # "bedrock/anthropic." for the AWS Bedrock route, already left alone
-    # since it's already explicit).
+    # NOT an Anthropic-specific quirk -- confirmed live against the real
+    # litellm package: `gpt-4o` resolves bare because OpenAI is the one
+    # family litellm's own provider-detection treats as an implicit
+    # default; bare `claude-3-5-sonnet-20241022`, `gemini-2.0-flash`,
+    # `command-r-plus`, and `mistral-large-latest` ALL raise the same
+    # "LLM Provider NOT provided" error without an explicit prefix. Worse
+    # for Gemini specifically: `gemini-2.5-pro` bare doesn't error at all
+    # -- it silently resolves to the `vertex_ai` route (GCP project/
+    # location auth) instead of the direct Google AI Studio API an
+    # `api_key_env_var` is actually meant for, so relying on litellm's
+    # implicit fallback there is actively unsafe, not just inconsistent.
+    # is_anthropic/is_gemini above already detect the bare forms (for
+    # prompt-caching/reasoning-param gating) -- reusing that detection to
+    # also fix the provider routing itself, rather than just the two
+    # families this was first caught on, covers every model choice
+    # Designer's own planner actually offers (Claude, Gemini; GPT-4o
+    # already works unprefixed) plus the other common bare-name
+    # families below. An unrecognized family (someone's own
+    # OpenAI-compatible endpoint, a brand new provider) passes through
+    # unprefixed exactly as before -- this only ever ADDS a prefix it's
+    # confident about, never guesses.
+    _BARE_PREFIX_BY_FAMILY: List[tuple] = [
+        ("anthropic/", is_anthropic, ("anthropic/", "bedrock/anthropic.")),
+        ("gemini/", is_gemini, ("gemini/", "google/", "vertex_ai/")),
+        ("cohere/", m_lower.startswith("command"), ("cohere/",)),
+        ("mistral/", m_lower.startswith(("mistral-", "open-mixtral", "open-mistral", "codestral")), ("mistral/",)),
+        ("deepseek/", m_lower.startswith("deepseek"), ("deepseek/",)),
+        ("xai/", m_lower.startswith("grok"), ("xai/",)),
+    ]
     effective_model = model
-    if is_anthropic and not m_lower.startswith(("anthropic/", "bedrock/anthropic.")):
-        effective_model = f"anthropic/{model}"
+    for prefix, detected, already_prefixed in _BARE_PREFIX_BY_FAMILY:
+        if detected and not m_lower.startswith(already_prefixed):
+            effective_model = f"{prefix}{model}"
+            break
 
     kwargs: Dict[str, Any] = {
         "model": effective_model,

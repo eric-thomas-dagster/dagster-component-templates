@@ -1,0 +1,184 @@
+{
+  "component_type": "dagster_component_templates.MistralOcrComponent",
+  "description": "Native Mistral AI Document OCR via client.ocr.process -- a dedicated OCR model, not a chat-completions call. Trained on documents: multi-column layouts, tables, and multi-page PDFs come back as structured markdown, unlike local Tesseract OCR. Sibling of ocr_extractor (local-only, images only).",
+  "category": "ai",
+  "icon": "si:mistralai",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "DataFrame",
+      "description": "Upstream DataFrame with the OCR markdown column added (and optional pages/_error columns)."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "description": "Output asset name.",
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "description": "Upstream DataFrame asset key.",
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true
+    },
+    "input_column": {
+      "description": "Column holding either a public http(s) URL or a local file path to the document/image to OCR.",
+      "type": "string",
+      "label": "Input Column",
+      "required": true,
+      "x-dagster-widget": "column"
+    },
+    "input_kind": {
+      "description": "'auto' infers document-vs-image from the file extension (.pdf/.doc/.docx/.ppt/.pptx -> document; else image). Set 'document' or 'image' to force it.",
+      "type": "string",
+      "label": "Input Kind",
+      "required": false,
+      "default": "auto",
+      "enum": ["auto", "document", "image"],
+      "ui:widget": "select"
+    },
+    "api_key_env_var": {
+      "description": "Env var holding the Mistral API key.",
+      "type": "string",
+      "label": "API Key Env Var",
+      "required": false,
+      "default": "MISTRAL_API_KEY"
+    },
+    "model": {
+      "description": "Mistral OCR model id. '-latest' resolves to Mistral's current OCR release.",
+      "type": "string",
+      "label": "Model",
+      "required": false,
+      "default": "mistral-ocr-latest"
+    },
+    "output_column": {
+      "description": "Column for the concatenated per-document markdown.",
+      "type": "string",
+      "label": "Output Column",
+      "required": false,
+      "default": "mistral_ocr_markdown",
+      "x-dagster-widget": "column"
+    },
+    "output_pages_column": {
+      "description": "If set, write a JSON array of {index, markdown} per page to this column (structure beyond flat markdown).",
+      "type": "string",
+      "label": "Output Pages Column",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "include_image_base64": {
+      "description": "Ask Mistral to also return base64 image data for embedded figures.",
+      "type": "boolean",
+      "label": "Include Image Base64",
+      "required": false,
+      "default": false
+    },
+    "pages": {
+      "description": "Zero-indexed page subset to process. Omit to process the whole document.",
+      "type": "array",
+      "label": "Pages",
+      "required": false,
+      "items": {
+        "type": "integer"
+      }
+    },
+    "rate_limit_delay": {
+      "description": "Seconds to sleep between rows.",
+      "type": "number",
+      "label": "Rate Limit Delay",
+      "required": false,
+      "default": 0.0
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 3
+    },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "group_name": {
+      "description": "Dagster asset group name.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "description": "Catalog tags.",
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "default": null,
+      "enum": ["daily", "hourly", "weekly", "monthly", "static", "multi", "dynamic"],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+      "type": "string",
+      "label": "Partition Start",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "type": "array",
+      "label": "Partition Dimensions",
+      "required": false
+    }
+  },
+  "tags": [
+    "ai",
+    "ocr",
+    "mistral",
+    "document-ai",
+    "pdf"
+  ],
+  "name": "Mistral OCR"
+}

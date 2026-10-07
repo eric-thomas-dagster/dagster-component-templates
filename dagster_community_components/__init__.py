@@ -828,6 +828,7 @@ _CLASS_PATHS: dict[str, str] = {
     "MinIOResource": "resources/minio_resource/component.py",
     "MinIOResourceComponent": "resources/minio_resource/component.py",
     "MistralLLMComponent": "assets/ai/mistral_llm/component.py",
+    "MistralOcrComponent": "assets/ai/mistral_ocr/component.py",
     "MixpanelEventTrackComponent": "assets/reverse_etl/mixpanel_event_track/component.py",
     "MixpanelResource": "resources/mixpanel_resource/component.py",
     "MixpanelResourceComponent": "resources/mixpanel_resource/component.py",

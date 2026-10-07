@@ -1,0 +1,7 @@
+type: dagster_component_templates.MistralOcrComponent
+attributes:
+  asset_name: invoice_text
+  upstream_asset_key: incoming_invoices
+  input_column: file_path
+  output_column: markdown
+  model: mistral-ocr-latest

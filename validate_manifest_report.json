@@ -1,7 +1,7 @@
 {
   "summary": {
     "PASS": 1145,
-    "WARN": 17,
+    "WARN": 18,
     "SKIP_OPTIONAL_DEP": 65,
     "SKIP_PROJECT_REQUIRED": 24,
     "SKIP_CREDENTIALS": 40,
@@ -721,7 +721,7 @@
       "path": "integrations/aws_dms",
       "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'Rxf5s/FN4tsAewH+bVVih82PJR9Fw++7Ao/27INRXLA='.",
+      "error": "An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): '8IPQZyYEibBtlWqIWvoUBzeGNe8AYL8K5ALA9YtAAf4='.",
       "error_class": null
     },
     {
@@ -761,7 +761,7 @@
       "path": "integrations/aws_sagemaker",
       "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'SDPkR/YjKBY2JEzkwYtm1RtE6hrLLVWkwJM1qdTBUDc='.",
+      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'Luu5mGiCJlajd0ucXHOMTBt+61R4H+pIs6HiJPf21B4='.",
       "error_class": null
     },
     {
@@ -6175,6 +6175,17 @@
       "path": "assets/ai/mistral_llm",
       "status": "PASS",
       "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "mistral_ocr",
+      "path": "assets/ai/mistral_ocr",
+      "status": "WARN",
+      "warnings": [
+        "UserWarning: Field name \"model\" in \"MistralOcrComponent\" shadows an attribute in parent \"Resolvable\"",
+        "UserWarning: Field name \"model\" in \"MistralOcrComponent\" shadows an attribute in parent \"Resolvable\""
+      ],
       "error": null,
       "error_class": null
     },

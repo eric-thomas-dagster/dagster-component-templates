@@ -64,6 +64,7 @@ _CLASS_PATHS: dict[str, str] = {
     "AdlsObservationSensorComponent": "observations/adls_observation_sensor/component.py",
     "AdpWorkforceNowIngestionComponent": "assets/ingestion/adp_workforce_now_ingestion/component.py",
     "AdyenIngestionComponent": "assets/ingestion/adyen_ingestion/component.py",
+    "AgentCardComponent": "assets/ai/agent_card/component.py",
     "AgenticPipelineComponent": "assets/ai/agentic_pipeline/component.py",
     "AirbyteAssetsComponent": "integrations/airbyte_assets/component.py",
     "AirbyteSyncSensorComponent": "sensors/airbyte_sync_sensor/component.py",

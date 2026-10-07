@@ -248,6 +248,7 @@ See [`SyntheticPromptGeneratorComponent`](../../source/synthetic_prompt_generato
 | `self_reflect` | ONE LLM call producing draft + self-critique + revised | Cost-sensitive alternative to `critique_loop` (which is 2N+1 calls). Structured `DRAFT / CRITIQUE / REVISED` sections parsed automatically. |
 | `sub_pipeline` | Invoke an inline sub-pipeline as one step | Compose / reuse common step blocks without duplicating YAML. `steps:` is a full inline sub-pipeline; `output_step_id` picks which sub-step's text flows back to this asset. Sub-state isolated from outer state. |
 | `agent_call` | Invoke a pre-declared agent by name | Dispatch to an agent declared in the top-level `agents:` block. Kinds: `openai_assistant` (thread + run against OpenAI Assistants API), `remote_agent` (authenticated HTTP call to your own deployed agent — sync or async polling), `handoff` (Python callable for LangGraph/AutoGen/CrewAI). One asset materializes with the agent's reply + latency + cost. |
+| `delegate` | 1 picker LLM → 1 DISCOVERED agent (MCP or HTTP) | Dynamic sibling of `route`/`agent_call`: instead of a fixed inline list, the candidate pool is discovered at build time from `AgentCardComponent` instances in the same defs folder and/or an external agent-card manifest. A picker LLM matches your `task:` against each candidate's declared `skills`/`tags` (same forced-function-call mechanism as `route`), then the pick is actually invoked — over MCP (reusing this file's own `_call_mcp_tool_async`) or plain HTTP (reusing `_call_remote_agent`, the same helper `agent_call`'s `remote_agent` kind uses). Use this when the set of agents isn't known at pipeline-write time, or changes without a YAML edit. |
 
 ## Typed named inputs (v2 — join any op from any prior op by port name)
 
@@ -803,6 +804,42 @@ Dispatch to a pre-built agent declared in the top-level `agents:` block. See the
 
 Metadata: `agent`, `agent_kind`, `n_llm_calls`, `cost_usd` (when the agent reports it), `latency_ms`. The `remote_agent` kind additionally surfaces `url`, `method`, `status_code`, and `polled` (bool — whether the async-poll path was taken).
 
+### `op: delegate`
+
+Dynamic sibling of `route`/`agent_call`: instead of a fixed, inline-YAML agent list, the candidate pool is *discovered* — from `AgentCardComponent` instances declared in the same defs folder, and/or an external agent-card manifest — and a picker LLM matches your `task:` against each candidate's declared `skills`/`tags` before invoking the pick over MCP or plain HTTP. See the [`agent_card` component](../agent_card/README.md) for how to declare an agent.
+
+```yaml
+steps:
+  - id: handled
+    op: delegate
+    source: customer_message          # optional -- extra context for the picker
+    task: "Look up the refund status for this customer's order."
+    required_tags: [refunds]          # optional -- pre-filter candidates before the LLM sees them
+    registry:
+      discover_siblings: true         # default -- scan AgentCardComponent instances in this defs folder
+      manifest_path: /path/to/agents.json   # optional -- also merge in an external agent-card manifest
+      max_candidates: 20
+    picker:
+      model: gpt-4o-mini
+      api_key_env_var: OPENAI_API_KEY
+    fallback: general_support_agent   # optional -- agent_id to use if the picker fails to pick validly
+```
+
+| Field | Required | Default | Description |
+|---|---|---|---|
+| `task` | ✅ | — | Free-text description of what this step needs done; also passed to the invoked agent as its instruction. |
+| `picker.model` | ✅ | — | Model making the pick. Same sub-config shape as every other op's LLM config. |
+| `required_tags` |  | — | Pre-filter candidates by skill tag before the picker LLM ever sees them. |
+| `registry.discover_siblings` |  | `true` | Scan sibling `AgentCardComponent` instances in the same defs folder. |
+| `registry.manifest_url` / `manifest_path` |  | — | Also merge in an external flat JSON array of agent cards (same dual-source loader `catalog_agent` uses for its component manifest). `manifest_path` takes precedence when both are set. |
+| `registry.max_candidates` |  | `20` | Cap on candidates sent to the picker LLM. |
+| `fallback` |  | — | `agent_id` to use if the picker fails to pick validly; without it, an invalid pick fails the step (same as `route`). |
+| `source` / `inputs` |  | — | Optional extra context for the picker + invoked agent; `task:` stands alone without it. |
+
+Metadata: `picked_agent_id`, `picker_reasoning`, `picking_source` (`picker_tool_call` or `fallback`), `invocation_mode` (`mcp` or `http`), `invocation_detail`, `candidates_considered`, `latency_ms`.
+
+Invocation reuses this component's own `_call_mcp_tool_async` (the same helper `mcp_call`/`tool_use_loop` use) and `_call_remote_agent` (the same helper `agent_call`'s `remote_agent` kind uses) verbatim — no new network-call code. The `http` path is a pragmatic bridge, not full A2A-protocol compliance (no task polling/streaming, no OAuth negotiation) — just enough synchronous request/response to dynamically reach a hosted agent.
+
 ## State model
 
 Every step's output is a dict `{text: str, ...op-specific fields}`. Steps read text from a prior step by `source:` id; omit `source:` and it defaults to the most recent step. This is the same "chain by id" pattern as `ml_pipeline`.
@@ -934,7 +971,7 @@ This is the "compose it all yourself in one YAML" alternative — the AI-side ma
 | Field | Type | Description |
 |---|---|---|
 | `asset_name_prefix` | `str` | Prefix for emitted asset names. Each step in outputs.assets becomes '{prefix}_{step_id}'. |
-| `source` | `Dict[str, Any]` | Data source. Shapes: {kind: literal, text: '...'} \| {kind: file, path: '...'} \| {kind: url, url: '...'} \| {kind: upstream_asset, upstream_asset_key: '...'}. All string fields are {partition_key}-templated. |
+| `source` | `Dict[str, Any]` | Data source. Shapes: {kind: literal, text: '...'} \| {kind: file, path: '...'} \| {kind: url, url: '...'} \| {kind: database, query: 'SELECT ...', database_url: '...' or database_url_env_var: '...', row_limit: 500} (quer… _(full docs in schema.json + component README)_ |
 | `steps` | `List[Dict[str, Any]]` | Ordered pipeline steps. Each step: {id, op, ...op-specific args}. Two wiring modes (choose per step, they compose): 1. **Legacy single-source**: `source: <step_id>` reads that step's text into `{text}` in the prompt (def… _(full docs in schema.json + component README)_ |
 | `outputs` | `Dict[str, Any]` | Output declaration. Shape: {assets: [<step_ids>], text_sinks: [{from, path}], json_sinks: [{from, path}]}. `assets:` step outputs become first-class Dagster assets; `text_sinks:` writes step text to disk; `json_sinks:` w… _(full docs in schema.json + component README)_ |
 

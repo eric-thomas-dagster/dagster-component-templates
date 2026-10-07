@@ -1,6 +1,6 @@
 {
   "summary": {
-    "PASS": 1143,
+    "PASS": 1144,
     "WARN": 17,
     "SKIP_OPTIONAL_DEP": 65,
     "SKIP_PROJECT_REQUIRED": 24,
@@ -173,6 +173,14 @@
     {
       "id": "adyen_ingestion",
       "path": "assets/ingestion/adyen_ingestion",
+      "status": "PASS",
+      "warnings": [],
+      "error": null,
+      "error_class": null
+    },
+    {
+      "id": "agent_card",
+      "path": "assets/ai/agent_card",
       "status": "PASS",
       "warnings": [],
       "error": null,
@@ -705,7 +713,7 @@
       "path": "integrations/aws_dms",
       "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'V1OvTn+gY9iAv7xnD5VryCqtlU+aNigmH6qEf9dLnAY='.",
+      "error": "An error occurred (IncompleteSignatureException) when calling the DescribeReplicationTasks operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'SFjx2UuIgQY5OOlyPwemy4ybwkDVegtGKRsaQsRkCPI='.",
       "error_class": null
     },
     {
@@ -745,7 +753,7 @@
       "path": "integrations/aws_sagemaker",
       "status": "SKIP_CREDENTIALS",
       "warnings": [],
-      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'zWq4AUUo4f5GIWZtBygsrcR+VZWmfFPry9chM8jJDrU='.",
+      "error": "Failed to list training jobs: An error occurred (IncompleteSignatureException) when calling the ListTrainingJobs operation: Invalid key=value pair (missing equal-sign) in Authorization header (hashed with SHA-256 and encoded with Base64): 'mfWDADOxR1QT/x/27yaNDKcEX7xW7CZd60cOCrn3qSM='.",
       "error_class": null
     },
     {

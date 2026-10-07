@@ -1,0 +1,21 @@
+type: dagster_community_components.AgentCardComponent
+attributes:
+  agent_id: refund_lookup_agent
+  name: "Refund Lookup Agent"
+  description: "Looks up refund status and policy exceptions for e-commerce orders."
+  skills:
+    - id: lookup_refund_status
+      name: "Lookup refund status"
+      description: "Given an order id, returns refund status and any policy exceptions."
+      tags: [refunds, orders, customer-support]
+  invocation:
+    mcp_server:
+      name: refunds-mcp
+      type: http
+      url: https://internal.example.com/mcp
+      headers_env:
+        Authorization: REFUNDS_MCP_TOKEN
+    tool_name: lookup_refund
+    tool_args_template:
+      order_context: "{prompt}"
+  group_name: agent_registry

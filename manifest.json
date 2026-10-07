@@ -727,6 +727,52 @@
       "vertical": "cloud-storage"
     },
     {
+      "id": "agent_card",
+      "name": "Agent Card",
+      "category": "ai",
+      "description": "Declare one hosted agent (reached over MCP or plain HTTP) and its skills -- a declare-only AssetSpec, no compute, no sensor -- so AgenticPipelineComponent's `delegate` op can discover it (sibling scan or an external manifest) and dynamically pick it instead of a hardcoded, inline-YAML agent list.",
+      "path": "assets/ai/agent_card",
+      "tags": [
+        "ai",
+        "agent",
+        "a2a",
+        "mcp",
+        "registry"
+      ],
+      "icon": "IdCard",
+      "type": "dagster_community_components.AgentCardComponent",
+      "component_type": "dagster_community_components.AgentCardComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_card/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_card/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_card/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_card/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_card/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "dagster>=1.10.0"
+        ]
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "inputs": "None (root, declare-only) -- emits a bare AssetSpec with no compute function.",
+        "outputs": "No data output. Emits one AssetSpec tagged kind=agent, metadata[\"agent_card\"] holding {agent_id, name, description, skills, version, invocation}.",
+        "side_effects": "None. Pair with AgenticPipelineComponent's `delegate` op in the same defs folder (sibling discovery, automatic) or aggregate many of these specs' agent_card metadata into a flat JSON array for a delegate step's registry.manifest_url/manifest_path (cross-project discovery).",
+        "input_type": null,
+        "output_type": null
+      },
+      "keywords": [
+        "agent card",
+        "a2a protocol",
+        "agent registry",
+        "llm",
+        "genai"
+      ]
+    },
+    {
       "id": "agentic_pipeline",
       "name": "AgenticPipeline",
       "path": "assets/ai/agentic_pipeline",
@@ -1453,6 +1499,84 @@
                 "framework": {
                   "type": "string",
                   "description": "Metadata-only label (langgraph|autogen|crewai|dspy|...); surfaces in asset metadata."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "delegate",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "task",
+                "picker"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "delegate"
+                },
+                "source": {
+                  "type": "string"
+                },
+                "task": {
+                  "type": "string",
+                  "description": "Free-text description of what this step needs done; also passed to the invoked agent as its instruction."
+                },
+                "required_tags": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Pre-filter candidate agent cards by skill tag before the picker LLM sees them."
+                },
+                "registry": {
+                  "type": "object",
+                  "properties": {
+                    "manifest_url": {
+                      "type": "string"
+                    },
+                    "manifest_path": {
+                      "type": "string"
+                    },
+                    "discover_siblings": {
+                      "type": "boolean"
+                    },
+                    "max_candidates": {
+                      "type": "integer"
+                    }
+                  },
+                  "description": "Discovery config: sibling AgentCardComponent instances (discover_siblings, default true) + an optional external agent-card manifest (manifest_url/manifest_path, same dual-source loader as CatalogAgentComponent)."
+                },
+                "picker": {
+                  "type": "object",
+                  "required": [
+                    "model"
+                  ],
+                  "properties": {
+                    "model": {
+                      "type": "string"
+                    },
+                    "api_key_env_var": {
+                      "type": "string"
+                    },
+                    "api_base_env_var": {
+                      "type": "string"
+                    },
+                    "temperature": {
+                      "type": "number"
+                    },
+                    "max_tokens": {
+                      "type": "integer"
+                    }
+                  }
+                },
+                "fallback": {
+                  "type": "string",
+                  "description": "agent_id to use if the picker fails to pick validly."
                 }
               },
               "additionalProperties": false

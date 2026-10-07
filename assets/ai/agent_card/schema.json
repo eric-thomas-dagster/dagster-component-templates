@@ -1,0 +1,118 @@
+{
+  "component_type": "dagster_community_components.AgentCardComponent",
+  "description": "Declare one hosted agent (reached over MCP or plain HTTP) and its skills, so AgenticPipelineComponent's `delegate` op can discover and dynamically pick it.",
+  "category": "ai",
+  "icon": "IdCard",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetSpec",
+      "description": "Declare-only agent card (lineage + metadata, no compute)"
+    }
+  },
+  "attributes": {
+    "agent_id": {
+      "type": "string",
+      "label": "Agent Id",
+      "description": "Stable id -- used by delegate steps' picks and as this asset's key.",
+      "required": true
+    },
+    "name": {
+      "type": "string",
+      "label": "Name",
+      "description": "Human-readable agent name.",
+      "required": true
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "What this agent does, overall.",
+      "required": true,
+      "ui:widget": "code"
+    },
+    "skills": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Skills",
+      "description": "List of {id, name, description, tags: [...], examples: [...]}. This is what a delegate step's picker LLM matches a task against.",
+      "required": true
+    },
+    "version": {
+      "type": "string",
+      "label": "Version",
+      "description": "Agent version, A2A field name kept as-is.",
+      "required": false,
+      "default": "1.0.0"
+    },
+    "default_input_modes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Default Input Modes",
+      "description": "Default input MIME types.",
+      "required": false,
+      "default": null
+    },
+    "default_output_modes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Default Output Modes",
+      "description": "Default output MIME types.",
+      "required": false,
+      "default": null
+    },
+    "invocation": {
+      "type": "object",
+      "label": "Invocation",
+      "description": "Exactly one of mcp_server (+ tool_name, tool_args_template) or http. See component.py docstring for the full field shapes -- mcp_server mirrors agentic_pipeline's mcp_call.server, http mirrors agentic_pipeline's agent_call remote_agent kind, passed through unchanged.",
+      "required": true,
+      "ui:widget": "code"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners.",
+      "required": false,
+      "default": null
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Extra asset tags.",
+      "required": false,
+      "default": null
+    },
+    "asset_key_prefix": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Asset Key Prefix",
+      "description": "Prefix for the emitted asset key.",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ai",
+    "agent",
+    "a2a",
+    "mcp",
+    "registry"
+  ],
+  "name": "Agent Card"
+}

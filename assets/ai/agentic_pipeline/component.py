@@ -58,6 +58,11 @@ Op coverage (v2 = 6):
                    turns "fetch grounding data" into a first-class asset with
                    lineage + metadata; string `tool_args` support `{text}`
                    substitution against source
+- delegate       — dynamic sibling of `route`/`agent_call`: an LLM picks the
+                   best-matching agent from a DISCOVERED pool (sibling
+                   AgentCardComponent instances in this project, and/or an
+                   external agent-card manifest) instead of a fixed inline
+                   list, then invokes the pick over MCP or plain HTTP
 
 State model:
 
@@ -3284,6 +3289,294 @@ def _do_agent_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]
     }
 
 
+# ── delegate op ──────────────────────────────────────────────────────
+#
+# Dynamic sibling of `route`/`agent_call`: instead of picking from a fixed,
+# inline-YAML specialist/agent list, the candidate pool is DISCOVERED --
+# from AgentCardComponent instances declared in the same project (sibling
+# scan, same mechanism EnhancedDataQualityChecks uses to auto-inherit a
+# checked asset's partitions_def) and/or an external agent-card manifest
+# (same manifest_url/manifest_path dual-source loader as
+# CatalogAgentComponent). The picker LLM reuses `route`'s exact
+# forced-function-call mechanism, just over a dynamic list instead of a
+# static one. Invocation reuses this file's own _call_mcp_tool_async /
+# _call_remote_agent verbatim -- no new network-call code.
+
+
+def _discover_sibling_agent_cards(context: dg.ComponentLoadContext) -> List[Dict[str, Any]]:
+    """Scan sibling components in the same defs folder for AgentCardComponent
+    instances and pull each one's `agent_card` metadata off its AssetSpec.
+
+    Mirrors EnhancedDataQualityChecks._discover_sibling_assets
+    (asset_checks/enhanced_data_quality_checks/component.py) almost exactly:
+    same context.build_defs(parent_path) mechanism, same bare
+    try/except: pass fallback so a broken sibling can't break this
+    pipeline's own load. Must run at BUILD time (this needs a real
+    ComponentLoadContext) -- build_defs() calls this once and threads the
+    result into runtime state via __sibling_agent_cards__, since the
+    runtime AssetExecutionContext _do_delegate actually runs with has no
+    .build_defs()/.path of its own.
+    """
+    cards: List[Dict[str, Any]] = []
+    try:
+        parent_path = context.path.parent if hasattr(context.path, "parent") else None
+        if not parent_path:
+            return cards
+        sibling_defs = context.build_defs(parent_path)
+        if sibling_defs and sibling_defs.assets:
+            for assets_def in sibling_defs.assets:
+                for key in assets_def.keys:
+                    spec = assets_def.get_asset_spec(key)
+                    card = (spec.metadata or {}).get("agent_card") if spec else None
+                    if card and card.get("agent_id"):
+                        cards.append(card)
+    except Exception:
+        pass
+    return cards
+
+
+def _load_external_agent_manifest(
+    manifest_path: Optional[str], manifest_url: Optional[str], log
+) -> List[Dict[str, Any]]:
+    """Load a flat JSON array of agent-card dicts -- same manifest_path
+    (local-file precedence) / manifest_url (urlopen) dual-source loader as
+    CatalogAgentComponent (assets/ai/catalog_agent/component.py), reading
+    agent cards instead of component-schema entries."""
+    if not manifest_path and not manifest_url:
+        return []
+    try:
+        if manifest_path:
+            with open(manifest_path) as f:
+                data = json.load(f)
+        else:
+            from urllib.request import urlopen
+            with urlopen(manifest_url, timeout=30) as resp:
+                data = json.load(resp)
+        if isinstance(data, dict):
+            data = data.get("agents") or data.get("cards") or []
+        return [c for c in data if isinstance(c, dict) and c.get("agent_id")]
+    except Exception as e:
+        log.warning(f"[delegate] failed to load agent registry manifest: {e}")
+        return []
+
+
+def _do_delegate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
+    """Dynamic sibling of `route`: an LLM picks the best-matching agent card
+    from a DISCOVERED pool (sibling AgentCardComponent instances + an
+    optional external manifest) instead of a fixed, inline-YAML list, then
+    invokes the pick over MCP or plain HTTP.
+
+    Config:
+      task            — free-text description of what this step needs done
+                        (also passed to the invoked agent as its instruction).
+      required_tags   — optional list; pre-filters candidates by skill tag
+                        before the picker LLM ever sees them.
+      registry        — {manifest_url, manifest_path, discover_siblings=True,
+                        max_candidates=20}. Sibling cards are discovered ONCE
+                        at build time (see build_defs) and passed in via
+                        state["__sibling_agent_cards__"] -- this op only
+                        reads them, it does not call context.build_defs()
+                        itself (that method only exists on the build-time
+                        ComponentLoadContext, not the runtime
+                        AssetExecutionContext this op actually runs with).
+      picker          — {model, api_key_env_var, [api_base_env_var,
+                        temperature, max_tokens, reasoning_effort,
+                        thinking_budget]}
+      fallback        — agent_id to use if the picker fails to pick validly.
+      source / inputs — usual upstream ref; optional (task: stands alone).
+    """
+    materialized_at = _now_iso()
+    source_id = step.get("source") or _last_step_id(state)
+    src_text = _get_source_text(state, source_id) if source_id else ""
+
+    task = step.get("task")
+    if not task:
+        raise ValueError("delegate requires `task: <free text>`")
+
+    registry = step.get("registry") or {}
+    sibling_cards = state.get("__sibling_agent_cards__") or []
+    if not registry.get("discover_siblings", True):
+        sibling_cards = []
+    external_cards = _load_external_agent_manifest(
+        registry.get("manifest_path"), registry.get("manifest_url"), context.log
+    )
+
+    pool: Dict[str, Dict[str, Any]] = {}
+    for card in external_cards:  # external first, siblings win on agent_id conflict
+        pool[card["agent_id"]] = card
+    for card in sibling_cards:
+        pool[card["agent_id"]] = card
+
+    required_tags = set(step.get("required_tags") or [])
+    candidates = list(pool.values())
+    if required_tags:
+        candidates = [
+            c for c in candidates
+            if required_tags & {t for s in (c.get("skills") or []) for t in (s.get("tags") or [])}
+        ]
+    max_candidates = registry.get("max_candidates", 20)
+    candidates = candidates[:max_candidates]
+
+    if not candidates:
+        raise RuntimeError(
+            "delegate: no agent cards available (checked sibling AgentCardComponent "
+            "instances + registry.manifest_url/manifest_path, after required_tags filtering)."
+        )
+
+    ids = [c["agent_id"] for c in candidates]
+    if len(set(ids)) != len(ids):
+        raise ValueError(f"delegate: duplicate agent_id in discovered pool: {ids}")
+
+    # One tool per candidate card -- same forced-function-call mechanism as
+    # `route`, just over a dynamic list instead of a static `specialists:`.
+    tools = []
+    for c in candidates:
+        skills_desc = "; ".join(
+            f"{s.get('name', s.get('id', ''))}: {s.get('description', '')}"
+            for s in (c.get("skills") or [])
+        )
+        description = f"{c.get('description', '')} Skills: {skills_desc}"[:1000]
+        tools.append({
+            "type": "function",
+            "function": {
+                "name": c["agent_id"],
+                "description": description,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "reasoning": {
+                            "type": "string",
+                            "description": "One-sentence reason this agent fits the task.",
+                        },
+                    },
+                    "required": ["reasoning"],
+                },
+            },
+        })
+
+    picker = step.get("picker") or {}
+    picker_model = picker.get("model")
+    if not picker_model:
+        raise ValueError("delegate requires `picker: {model: ...}`")
+
+    picker_system = (
+        "You are an agent router. Given a task, pick the ONE registered "
+        "agent best suited to perform it, from the function list provided. "
+        "You must call exactly one function."
+    )
+    context.log.info(
+        f"[delegate:{step.get('id', '?')}] picking among {len(candidates)} "
+        f"registered agents via {picker_model}"
+    )
+
+    picker_result = _completion(
+        model=picker_model,
+        system_prompt=picker_system,
+        user_prompt=task if not src_text else f"{task}\n\nContext:\n{src_text}",
+        api_key_env_var=picker.get("api_key_env_var"),
+        api_base_env_var=picker.get("api_base_env_var"),
+        temperature=picker.get("temperature", 0.0),
+        max_tokens=picker.get("max_tokens", 300),
+        tools=tools,
+        tool_choice="required",
+        reasoning_effort=picker.get("reasoning_effort"),
+        thinking_budget=picker.get("thinking_budget"),
+    )
+
+    selected = None
+    reasoning = None
+    picking_source = "picker_tool_call"
+    if picker_result["tool_calls"]:
+        pick = picker_result["tool_calls"][0]["name"]
+        if pick in ids:
+            selected = pick
+            try:
+                args = json.loads(picker_result["tool_calls"][0]["arguments"] or "{}")
+                reasoning = args.get("reasoning")
+            except json.JSONDecodeError:
+                reasoning = None
+        else:
+            context.log.warning(f"[delegate] picker chose unknown agent_id {pick!r}")
+
+    fallback = step.get("fallback")
+    if selected is None:
+        if fallback is None or fallback not in ids:
+            raise RuntimeError(
+                f"delegate: picker failed to choose a valid agent and no valid "
+                f"fallback set (candidates: {ids})"
+            )
+        context.log.warning(f"[delegate] falling back to {fallback!r}")
+        selected = fallback
+        picking_source = "fallback"
+
+    card = next(c for c in candidates if c["agent_id"] == selected)
+    invocation = card.get("invocation") or {}
+    context.log.info(f"[delegate] selected agent_id={selected}")
+
+    t0 = time.time()
+    if invocation.get("mcp_server"):
+        import asyncio
+        server_cfg = invocation["mcp_server"]
+        tool_name = invocation.get("tool_name")
+        if not tool_name:
+            raise ValueError(
+                f"delegate: agent {selected!r} invocation.mcp_server set but "
+                f"no invocation.tool_name"
+            )
+        args_template = invocation.get("tool_args_template") or {"task": "{prompt}"}
+        tool_args = _sub_agent_placeholders(args_template, task, {"src_text": src_text})
+        try:
+            mcp_result = asyncio.run(
+                _call_mcp_tool_async(
+                    log=context.log, server_cfg=server_cfg, tool_name=tool_name,
+                    tool_args=tool_args, parse_as="auto",
+                )
+            )
+        except BaseExceptionGroup as eg:  # noqa: F821 (py311+)
+            # Recursively unwrap nested anyio ExceptionGroups (mcp lib nests
+            # session-level and stdio_client-level task groups) -- same
+            # unwrapping as _do_mcp_call, for the same reason.
+            def _first_leaf(exc):
+                while isinstance(exc, BaseExceptionGroup) and exc.exceptions:
+                    exc = exc.exceptions[0]
+                return exc
+
+            inner = _first_leaf(eg)
+            context.log.error(f"[delegate] mcp call failed: {type(inner).__name__}: {inner}")
+            raise inner from eg
+        text = (
+            json.dumps(mcp_result["value"], indent=2, default=str)
+            if mcp_result["kind"] == "json" else mcp_result["raw"]
+        )
+        invocation_mode = "mcp"
+        invocation_detail = {"tool_name": tool_name, "transport": server_cfg.get("type", "stdio")}
+    elif invocation.get("http"):
+        extra_context = {"src_text": src_text}
+        remote_result = _call_remote_agent(invocation["http"], task, extra_context, context)
+        text = remote_result["text"]
+        invocation_mode = "http"
+        invocation_detail = {"url": remote_result["url"], "status_code": remote_result["status_code"]}
+    else:
+        raise ValueError(
+            f"delegate: agent {selected!r} card has no invocation.mcp_server "
+            f"or invocation.http"
+        )
+    latency_ms = int((time.time() - t0) * 1000)
+
+    return {
+        "text": text,
+        "picked_agent_id": selected,
+        "picker_reasoning": reasoning,
+        "picking_source": picking_source,
+        "invocation_mode": invocation_mode,
+        "invocation_detail": invocation_detail,
+        "candidates_considered": ids,
+        "materialized_at": materialized_at,
+        "latency_ms": latency_ms,
+        "op": "delegate",
+    }
+
+
 _OPS = {
     "llm_call": _do_llm_call,
     "route": _do_route,
@@ -3301,6 +3594,7 @@ _OPS = {
     "self_reflect": _do_self_reflect,
     "sub_pipeline": _do_sub_pipeline,
     "agent_call": _do_agent_call,
+    "delegate": _do_delegate,
 }
 
 
@@ -3497,6 +3791,15 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                            max_iterations, one asset with full trajectory
       - handoff:           hand off to user-provided callable (LangGraph /
                            AutoGen / CrewAI / DSPy)
+      - delegate:          dynamic sibling of route/agent_call -- an LLM
+                           picks the best-matching agent from a DISCOVERED
+                           pool (sibling AgentCardComponent instances +
+                           optional external manifest) instead of a fixed
+                           inline list, then invokes it over MCP or HTTP
+
+    (Also implemented, not yet listed above: map, extract, classify, reduce,
+    self_reflect, sub_pipeline, agent_call -- see the `_OPS` dispatch table
+    for the authoritative, current op list.)
 
     Ops share YAML idioms with the other pipeline components:
       - `id:` names the step output for downstream reference
@@ -3718,6 +4021,20 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         json_sinks: List[Dict[str, Any]] = list(outputs.get("json_sinks", []) or [])
         partition_key_parser = self.partition_key_parser
 
+        # `delegate` steps need AgentCardComponent siblings discovered once,
+        # here, at build time -- context.build_defs() only exists on this
+        # ComponentLoadContext, not on the runtime AssetExecutionContext the
+        # pipeline actually executes with. Only pay for the scan if a
+        # delegate step actually wants it (same laziness as
+        # EnhancedDataQualityChecks, which only scans siblings when its own
+        # `selections` config is set).
+        discovered_sibling_cards: List[Dict[str, Any]] = []
+        if any(
+            s.get("op") == "delegate" and (s.get("registry") or {}).get("discover_siblings", True)
+            for s in steps
+        ):
+            discovered_sibling_cards = _discover_sibling_agent_cards(context)
+
         if not asset_ids:
             raise ValueError("outputs.assets must list at least one step id.")
 
@@ -3872,6 +4189,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 outs=outs, ins=ins, internal_asset_deps=internal_asset_deps,
                 partitions_def=_partitions_def,
                 partition_key_parser=partition_key_parser,
+                discovered_sibling_cards=discovered_sibling_cards,
             )
 
         # ── Step-dep DAG for can_subset resume ──
@@ -3982,6 +4300,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 },
                 "__personas__": self.personas or {},
                 "__agents__": self.agents or {},
+                "__sibling_agent_cards__": discovered_sibling_cards,
             }
 
             steps_to_run_set = set(steps_to_run_ids)
@@ -4123,8 +4442,10 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         internal_asset_deps: Dict[str, set],
         partitions_def,
         partition_key_parser: Optional[str],
+        discovered_sibling_cards: Optional[List[Dict[str, Any]]] = None,
     ) -> dg.Definitions:
         _self = self  # captured for closure use in ops
+        discovered_sibling_cards = discovered_sibling_cards or []
 
         # --- ingest op ---
         # Same behavior as the multi_asset's inline ingest: read source
@@ -4160,6 +4481,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     },
                     "__personas__": _self.personas or {},
                     "__agents__": _self.agents or {},
+                    "__sibling_agent_cards__": discovered_sibling_cards,
                 }
         else:
             @dg.op(name=f"{prefix}_ingest")
@@ -4182,6 +4504,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     },
                     "__personas__": _self.personas or {},
                     "__agents__": _self.agents or {},
+                    "__sibling_agent_cards__": discovered_sibling_cards,
                 }
 
         # --- step ops (one per step) ---

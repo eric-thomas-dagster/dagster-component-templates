@@ -27,6 +27,7 @@
         "orders",
         "products",
         "transactions",
+        "ab_experiment",
         "events",
         "sensors",
         "users",
@@ -35,7 +36,18 @@
         "customer_churn_metrics",
         "stripe_charges",
         "stripe_subscriptions",
-        "ab_experiment"
+        "support_tickets",
+        "product_reviews",
+        "audio_samples",
+        "image_prompts",
+        "employees",
+        "fhir_patients",
+        "hl7_messages",
+        "iso20022_payments",
+        "x12_messages",
+        "fix_messages",
+        "acord_messages",
+        "moderation_content"
       ],
       "ui:widget": "select"
     },

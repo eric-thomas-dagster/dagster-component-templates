@@ -1,0 +1,7 @@
+type: dagster_community_components.StitchSyncTriggerJobComponent
+attributes:
+  job_name: stitch_sync_trigger_job_example
+  schedule: "0 3 * * *"
+  client_id: "116078"
+  source_id: "48291"
+  wait_for_completion: true

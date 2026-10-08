@@ -1,0 +1,88 @@
+{
+  "component_type": "dagster_community_components.MeltanoSyncTriggerJobComponent",
+  "description": "Trigger a Meltano Cloud pipeline run via REST API — fire-and-forget or wait for completion.",
+  "category": "jobs",
+  "icon": "Cog",
+  "tags": ["meltano", "elt", "orchestration"],
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false,
+      "x-dagster-widget": "cron"
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "One of: STOPPED / RUNNING.",
+      "required": false,
+      "default": "stopped",
+      "enum": [
+        "stopped",
+        "running"
+      ],
+      "ui:widget": "select"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "meltano_cloud_api_url": {
+      "type": "string",
+      "label": "Meltano Cloud API URL",
+      "description": "Meltano Cloud API base URL",
+      "required": false,
+      "default": "https://app.meltano.com/api"
+    },
+    "pipeline_id": {
+      "type": "string",
+      "label": "Pipeline ID",
+      "description": "Meltano Cloud pipeline UUID to run (see `meltano cloud pipeline list` or the Cloud UI)",
+      "required": true
+    },
+    "api_token_env": {
+      "type": "string",
+      "label": "API Token Env Var",
+      "description": "Env var holding the Meltano Cloud API bearer token (create one via the Cloud UI's API Keys page or POST /api/apikeys)",
+      "required": false,
+      "default": "MELTANO_CLOUD_API_TOKEN"
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "label": "Wait For Completion",
+      "description": "Poll the triggered job until COMPLETE/ERROR/STOPPED",
+      "required": false,
+      "default": false
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between polls when wait_for_completion is true",
+      "required": false,
+      "default": 15
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Max seconds to wait before giving up",
+      "required": false,
+      "default": 3600
+    },
+    "cancel_on_timeout": {
+      "type": "boolean",
+      "label": "Cancel On Timeout",
+      "description": "If the timeout is reached, PUT /jobs/{job-id}/stopped to cancel the still-running Meltano Cloud job before raising",
+      "required": false,
+      "default": false
+    }
+  }
+}

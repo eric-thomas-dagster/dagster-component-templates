@@ -11828,6 +11828,50 @@
       ]
     },
     {
+      "id": "culture_amp_ingestion",
+      "name": "Culture Amp Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Culture Amp employee-experience, performance-review, and demographic data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/culture_amp_ingestion",
+      "tags": [
+        "ingestion",
+        "cultureamp",
+        "culture-amp",
+        "hr",
+        "people-ops",
+        "engagement",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/culture_amp_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/culture_amp_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/culture_amp_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/culture_amp_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/culture_amp_ingestion/requirements.txt",
+      "vertical": "hr",
+      "icon": "Smile",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest Culture Amp employee-experience, performance-review, and demographic data using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
+    },
+    {
       "id": "customer_360",
       "name": "Customer 360",
       "category": "analytics",
@@ -33139,6 +33183,49 @@
       ]
     },
     {
+      "id": "lattice_ingestion",
+      "name": "Lattice Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Lattice performance-management, OKR/goal, and engagement data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/lattice_ingestion",
+      "tags": [
+        "ingestion",
+        "lattice",
+        "hr",
+        "people-ops",
+        "engagement",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/lattice_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/lattice_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/lattice_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/lattice_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/lattice_ingestion/requirements.txt",
+      "vertical": "hr",
+      "icon": "Target",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest Lattice performance-management, OKR/goal, and engagement data using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
+    },
+    {
       "id": "launchdarkly_ingestion",
       "name": "LaunchDarkly Ingestion",
       "category": "ingestion",
@@ -36655,6 +36742,51 @@
       "keywords": [
         "llm",
         "genai"
+      ]
+    },
+    {
+      "id": "meltano_sync_trigger_job",
+      "name": "meltano_sync_trigger_job",
+      "category": "jobs",
+      "description": "Trigger a Meltano Cloud pipeline run via REST API \u2014 fire-and-forget or wait for completion.",
+      "path": "jobs/meltano_sync_trigger_job",
+      "tags": [
+        "meltano",
+        "elt",
+        "orchestration"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/meltano_sync_trigger_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/meltano_sync_trigger_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/meltano_sync_trigger_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/meltano_sync_trigger_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/meltano_sync_trigger_job/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "icon": "favicon:meltano.com",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-08",
+        "notes": "Meltano itself is open-source/self-hosted (CLI-first, no global remote API); this wraps Meltano Cloud's real, documented REST API instead (confirmed 2026-10 against docs.meltano.com/reference/cloud/api): POST /pipelines/{id}/jobs to trigger, GET /jobs/{id} to poll (QUEUED/RUNNING/COMPLETE/ERROR/STOPPED), PUT /jobs/{id}/stopped to cancel. Fully mocked HTTP test suite (13 tests); live validation against a real Meltano Cloud project pending."
+      },
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Trigger a Meltano Cloud pipeline run via REST API \u2014 fire-and-forget or wait for completion.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "keywords": [
+        "meltano cloud",
+        "pipeline trigger",
+        "elt orchestration"
       ]
     },
     {
@@ -57156,6 +57288,52 @@
       "icon": "BarChart2"
     },
     {
+      "id": "stitch_sync_trigger_job",
+      "name": "stitch_sync_trigger_job",
+      "category": "jobs",
+      "description": "Trigger a Stitch (Talend/Qlik) replication job via the Stitch Connect API \u2014 fire-and-forget or wait for completion.",
+      "path": "jobs/stitch_sync_trigger_job",
+      "tags": [
+        "stitch",
+        "talend",
+        "elt",
+        "orchestration"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/stitch_sync_trigger_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/stitch_sync_trigger_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/stitch_sync_trigger_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/stitch_sync_trigger_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/stitch_sync_trigger_job/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "icon": "favicon:stitchdata.com",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-08",
+        "notes": "Distinct from talend_cloud_workspace (Talend Cloud Data Fabric, a different product). Stitch Connect API confirmed still live 2026-10 (stitchdata.com/docs/developers/stitch-connect/api), not sunset despite two ownership changes (Talend->Qlik 2023): POST /v4/sources/{id}/sync to trigger, GET /v4/{client_id}/extractions to list history. Stitch's public docs don't fully document the extraction-job schema or give a single run-id to poll, so wait_for_completion matches the most recent extraction record for source_id defensively across several plausible field names and defaults to False -- see README. Fully mocked HTTP test suite (22 tests); live validation against a real Stitch account pending."
+      },
+      "produces": [
+        "job",
+        "schedule"
+      ],
+      "agent_hints": {
+        "outputs": "Trigger a Stitch (Talend/Qlik) replication job via the Stitch Connect API \u2014 fire-and-forget or wait for completion.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "keywords": [
+        "stitch connect api",
+        "replication job trigger",
+        "elt orchestration"
+      ]
+    },
+    {
       "id": "stonebranch_uac_integration",
       "name": "StonebranchUACIntegration",
       "component_type": "dagster_community_components.StonebranchUACIntegrationComponent",
@@ -66082,5 +66260,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1313
+  "total": 1316
 }

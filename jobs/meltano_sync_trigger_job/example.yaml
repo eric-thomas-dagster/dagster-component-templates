@@ -1,0 +1,6 @@
+type: dagster_community_components.MeltanoSyncTriggerJobComponent
+attributes:
+  job_name: meltano_sync_trigger_job_example
+  schedule: "0 3 * * *"
+  pipeline_id: f2003fc1-49d5-451c-b8ad-8c2134c7b31d
+  wait_for_completion: true

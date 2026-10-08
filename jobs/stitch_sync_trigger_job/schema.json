@@ -1,0 +1,87 @@
+{
+  "component_type": "dagster_community_components.StitchSyncTriggerJobComponent",
+  "description": "Trigger a Stitch (Talend/Qlik) replication job via the Stitch Connect API — fire-and-forget or wait for completion.",
+  "category": "jobs",
+  "icon": "Cog",
+  "tags": ["stitch", "talend", "elt", "orchestration"],
+  "attributes": {
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Dagster job name",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "Cron schedule (None = no schedule)",
+      "required": false,
+      "x-dagster-widget": "cron"
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "One of: STOPPED / RUNNING.",
+      "required": false,
+      "default": "stopped",
+      "enum": [
+        "stopped",
+        "running"
+      ],
+      "ui:widget": "select"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Dagster job tags",
+      "required": false
+    },
+    "stitch_api_url": {
+      "type": "string",
+      "label": "Stitch API URL",
+      "description": "Stitch Connect API base URL",
+      "required": false,
+      "default": "https://api.stitchdata.com"
+    },
+    "client_id": {
+      "type": "string",
+      "label": "Client ID",
+      "description": "Stitch client ID (stitch_client_id), used to list extraction history for polling",
+      "required": true
+    },
+    "source_id": {
+      "type": "string",
+      "label": "Source ID",
+      "description": "Stitch source/integration ID to sync",
+      "required": true
+    },
+    "api_token_env": {
+      "type": "string",
+      "label": "API Token Env Var",
+      "description": "Env var holding the Stitch Connect API access token (Bearer; generated in Stitch account settings, does not expire)",
+      "required": false,
+      "default": "STITCH_API_TOKEN"
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "label": "Wait For Completion",
+      "description": "Poll Stitch's extraction history until this source's sync finishes. Best-effort (see README) — Stitch's API gives no single run-id to poll directly.",
+      "required": false,
+      "default": false
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between polls. Stitch rate-limits extraction endpoints to 30 requests/10 minutes — keep this >= 20",
+      "required": false,
+      "default": 30
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Max seconds to wait before giving up",
+      "required": false,
+      "default": 3600
+    }
+  }
+}

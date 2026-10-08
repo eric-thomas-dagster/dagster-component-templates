@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_component_templates.ZohoCrmResourceComponent",
   "description": "Self-contained Zoho CRM REST API workhorse. Real OAuth2 refresh-token grant (POST {accounts_host}/oauth/v2/token) -- Zoho refresh tokens never rotate and never expire on their own. Retry on 401 (token refresh) / 429 / 5xx. .get()/.post()/.patch() convenience methods plus .upsert() wrapping Zoho's native Upsert Records API (POST /{module}/upsert, duplicate_check_fields, 100 records/request).",
-  "category": "resources",
+  "category": "resource",
   "icon": "si:zoho",
   "x-dagster-io": {
     "outputs": {

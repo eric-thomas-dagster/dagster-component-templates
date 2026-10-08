@@ -1,6 +1,6 @@
 # Dagster Component Templates
 
-A community library of **949 reusable [Dagster component](https://docs.dagster.io/guides/components) templates** covering data ingestion, transformations, ML / analytics, AI / LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, asset checks, and enterprise tool integrations — all configurable via YAML with no Python required.
+A community library of **1,334 reusable [Dagster component](https://docs.dagster.io/guides/components) templates** covering data ingestion, transformations, ML / analytics, AI / LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, asset checks, and enterprise tool integrations — all configurable via YAML with no Python required.
 
 Field naming conventions across the registry are documented in [`FIELD_CONVENTIONS.md`](./FIELD_CONVENTIONS.md).
 
@@ -23,25 +23,27 @@ attributes:
 
 | Category | Count | What's in it |
 |---|---:|---|
-| transformation | 125 | Pandas-style transforms (filter, join, union, datetime, regex, etc.) |
-| ai | 115 | LLMs, vision, embeddings, vector stores, document extraction |
-| ingestion | 107 | Source-to-destination data movement |
-| resource | 95 | Connection-handle resources for SaaS / data platforms |
-| analytics | 92 | ML models, scoring, segmentation, forecasting, geo, A/B testing |
-| sink | 69 | DataFrame writers (CSV, Parquet, warehouses, NoSQL) |
-| sensor | 66 | Polling sensors that emit `RunRequest`s |
-| source | 51 | Read-only data sources |
-| integration | 47 | Multi-asset wrappers for cloud platforms |
-| infrastructure | 38 | IaC / provisioning + lineage anchors |
+| ingestion | 175 | Source-to-destination data movement |
+| resource | 166 | Connection-handle resources for SaaS / data platforms |
+| ai | 142 | LLMs, vision, embeddings, vector stores, document extraction |
+| transformation | 128 | Pandas-style transforms (filter, join, union, datetime, regex, etc.) |
+| analytics | 95 | ML models, scoring, segmentation, forecasting, geo, A/B testing |
+| source | 95 | Read-only data sources |
+| reverse_etl | 78 | Push a DataFrame/record into a SaaS tool (upsert, custom-audience sync, workflow trigger) |
+| sensor | 71 | Polling sensors that emit `RunRequest`s |
+| integration | 69 | Multi-asset wrappers for cloud platforms |
+| sink | 64 | DataFrame writers (CSV, Parquet, warehouses, NoSQL) |
+| jobs | 63 | Op-job components (cleanup, triggers, exports, heartbeats) |
+| infrastructure | 43 | IaC / provisioning + lineage anchors |
 | io_manager | 33 | IO managers for the major warehouses + lakes |
-| jobs | 32 | Op-job components (cleanup, triggers, exports, heartbeats) |
 | external | 32 | Declare-only external assets (warehouse tables, S3 objects) |
 | observation | 21 | Health-check sensors emitting `AssetObservation`s |
+| security | 20 | SIEM/audit-log export and normalization (Splunk, Sentinel, Chronicle, QRadar, etc.) |
+| decorator | 18 | Asset-wrapping behaviors (caching, dry-run, lifecycle, hooks, data contracts) |
 | check | 17 | Asset-check components (Great Expectations, Soda, etc.) |
-| job | 5 | Additional job-level wrappers |
-| data_warehouse | 3 | Warehouse-native asset primitives |
-| dbt | 1 | dbt-project wrapper |
-| **total** | **949** | |
+| core | 2 | Cross-cutting primitives (dependency graph, asset references) |
+| dbt | 2 | dbt-project wrappers |
+| **total** | **1,334** | |
 
 ### By Dagster primitive (`produces` field)
 
@@ -49,13 +51,13 @@ Every manifest entry declares which Dagster primitive(s) it emits when loaded �
 
 | `produces` | Count | Meaning |
 |---|---:|---|
-| `asset` | 634 | Single `@asset` (or one asset key per instance) |
-| `asset_check` | 218 | `@asset_check` — many components ship free schema-drift checks via `build_column_schema_change_checks` |
-| `resource` | 138 | Connection / auth handle passed to downstream assets |
-| `sensor` | 101 | `@sensor` / polling `RunRequest` emitter |
-| `multi_asset` | 43 | `@multi_asset` OR workspace-shape (many assets per config, e.g. `snowflake_workspace`, `stripe_workspace`) |
-| `job` | 41 | `@job` / `define_asset_job(...)` |
-| `schedule` | 40 | `@schedule` / `ScheduleDefinition` |
+| `asset` | 774 | Single `@asset` (or one asset key per instance) |
+| `asset_check` | 235 | `@asset_check` — many components ship free schema-drift checks via `build_column_schema_change_checks` |
+| `resource` | 205 | Connection / auth handle passed to downstream assets |
+| `sensor` | 117 | `@sensor` / polling `RunRequest` emitter |
+| `job` | 67 | `@job` / `define_asset_job(...)` |
+| `schedule` | 66 | `@schedule` / `ScheduleDefinition` |
+| `multi_asset` | 46 | `@multi_asset` OR workspace-shape (many assets per config, e.g. `snowflake_workspace`, `coalesce_workspace`) |
 | `io_manager` | — | Component wraps an `IOManagerDefinition` (`0` today — most io_managers live under `resource` or `asset`) |
 
 Filter with `dagster-component search "" --produces schedule` to list every scheduling component. See [CONTRIBUTING.md#manifest-fields](CONTRIBUTING.md) for the full enum and semantics.

@@ -332,6 +332,19 @@ class HvrHubWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         default=3600,
         description="Give up waiting after this many seconds (asset materialization fails).",
     )
+    concurrency_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Tags each `action: refresh` asset with `dagster/concurrency_key` set to "
+            "this value, so overlapping scheduled refreshes of the SAME channel can "
+            "be prevented. Tagging alone only makes the key available -- the actual "
+            "limit (e.g. 1 concurrent run) still has to be set separately, either in "
+            "Dagster+'s Concurrency settings or via `run_coordinator.tag_concurrency_limits` "
+            "in your instance config. No default, since a component can't set a "
+            "deployment-level limit on your behalf -- set this explicitly if "
+            "concurrent refreshes of the same channel would be unsafe."
+        ),
+    )
 
     # ── Observation sensor ────────────────────────────────────────────
     polling_sensor: bool = Field(
@@ -493,11 +506,17 @@ class HvrHubWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         channel = row["channel"]
         action = self.action
 
+        # `dagster/concurrency_key` has to be an OP tag, not an asset tag --
+        # confirmed directly that @dg.asset's `tags=` only sets catalog
+        # metadata; Dagster's run/op concurrency enforcement reads `op_tags`.
+        op_tags = {"dagster/concurrency_key": self.concurrency_key} if self.concurrency_key else None
+
         @dg.asset(
             key=spec.key,
             description=spec.description,
             group_name=spec.group_name,
             tags=dict(spec.tags or {}),
+            op_tags=op_tags,
             kinds=set(spec.kinds or []),
             metadata=dict(spec.metadata or {}),
             owners=list(spec.owners or []),

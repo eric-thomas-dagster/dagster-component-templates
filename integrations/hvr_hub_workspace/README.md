@@ -89,6 +89,7 @@ See `example.yaml`.
 | `wait_for_completion` | `bool` | `true` | If `action: refresh` and this is true, poll until the refresh completes. |
 | `poll_interval_seconds` | `int` | `30` | Poll interval while waiting for refresh completion. |
 | `timeout_seconds` | `int` | `3600` | Give up waiting after this many seconds (asset materialization fails). |
+| `concurrency_key` | `str \| None` | `None` | Tags each `action: refresh` asset's op with `dagster/concurrency_key`, so overlapping scheduled refreshes of the same channel can be prevented. Tagging alone only makes the key available — the actual limit (e.g. 1) still has to be set in Dagster+'s Concurrency settings or `run_coordinator.tag_concurrency_limits`. No default, since a component can't set a deployment-level limit on your behalf. |
 
 ### Catalog metadata
 

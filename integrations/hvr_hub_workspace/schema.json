@@ -31,6 +31,8 @@
     "poll_interval_seconds":            {"description": "Poll interval while waiting for refresh completion.", "type": "integer", "label": "Poll Interval Seconds", "default": 30},
     "timeout_seconds":                  {"type": "integer", "label": "Timeout Seconds", "default": 3600,
                                          "description": "Give up waiting after this many seconds (asset materialization fails)."},
+    "concurrency_key":                  {"type": "string", "label": "Concurrency Key", "required": false,
+                                         "description": "Tags each action=refresh asset's op with dagster/concurrency_key set to this value, so overlapping scheduled refreshes of the SAME channel can be prevented. Tagging alone only makes the key available -- the actual limit (e.g. 1 concurrent run) still has to be set separately, in Dagster+'s Concurrency settings or via run_coordinator.tag_concurrency_limits in your instance config. No default -- set explicitly if concurrent refreshes of the same channel would be unsafe."},
 
     "polling_sensor":                   {"type": "boolean", "label": "Polling Sensor", "default": false,
                                          "description": "Emit a sensor `{hub_name}_hvr_observer` polling `GET /jobs?fetch=latency` and emitting AssetMaterialization events (or AssetObservation — see emit_materialization) with integrate-lag metadata per asset. Per-job cursor dedup — only emits when lag or state actually changes."},

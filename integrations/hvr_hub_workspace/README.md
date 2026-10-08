@@ -135,18 +135,60 @@ POST  /api/{ver}/hubs/{hub}/channels/{c}/refresh              — only when acti
 ## Testing locally without a real Hub
 
 Fivetran ships a Docker eval image at `fivetraninc/hvrpov` (HVR Hub +
-pre-configured Postgres repo). Explicitly labeled evaluation-only —
-great for API validation:
+pre-configured Postgres repo, real HVR 6.2.5). Explicitly labeled
+evaluation-only — great for API validation. Confirmed working directly
+(2026-10-08):
 
 ```bash
 docker pull fivetraninc/hvrpov
 docker run -d --name hvr-eval --platform linux/amd64 -p 4340:4340 fivetraninc/hvrpov
 sleep 5
-docker exec -u hvr -d hvr-eval hvrhubserver
-# HVR Hub REST API is now live at http://localhost:4340
+
+# hvrhubserver needs these env vars -- confirmed it fails with
+# "F_JW0511: Error with environment variable 'HVR_HOME': not defined"
+# without them, despite the one-liner above having worked at some point.
+docker exec -u hvr -d hvr-eval sh -c \
+  'export HVR_HOME=/opt/hvr/hvr_home HVR_CONFIG=/opt/hvr/hvr_config HVR_TMP=/opt/hvr/hvr_tmp PATH=$PATH:/opt/hvr/hvr_home/bin && hvrhubserver'
+sleep 5
+# HVR Hub REST API is now live at http://localhost:4340, in Setup Mode
+# (log line: "F_JR02A1: No repository tables present" -- expected, next step)
+
+docker exec -u hvr hvr-eval sh -c \
+  'export HVR_HOME=/opt/hvr/hvr_home HVR_CONFIG=/opt/hvr/hvr_config HVR_TMP=/opt/hvr/hvr_tmp PATH=$PATH:/opt/hvr/hvr_home/bin && hvrreposconfig -c'
+
+# Bootstrap auth: NOT documented in Fivetran's own REST API reference --
+# found by reading the Angular web UI's own JS bundle. While Setup Mode is
+# active, POST /auth/v1/setup with an EMPTY body issues a special
+# <setup>-scoped bearer token, no user/password needed. Use this token
+# (not a locally-created user -- see note below) for hub/user/channel
+# bootstrap calls:
+curl -s http://localhost:4340/auth/v1/setup -X POST \
+  -H "Content-Type: application/json" -d '{}'
+# -> {"token_type": "bearer", "access_token": "...", "expires_in": 900}
 ```
 
-Full setup + real-channel bootstrap: see [Fivetran's Quick Start Guide](https://fivetran.com/docs/hvr6/getting-started/quick-start-guide).
+**Real wall hit here, not a solvable puzzle:** `POST /api/{ver}/hubs` with
+the setup token gets past the 403 permissions error, but then returns
+`F_JR0E1F: No license found... hub fingerprint for machine '<id>' is
+<fingerprint>` -- creating a hub needs an actual Fivetran/HVR license key
+tied to the container's machine fingerprint. This is the genuine stopping
+point for this particular eval image; there's no public trial key or
+license-free path found. If you have a real license key, `hvrlicense` is
+the tool to apply it, then hub/channel/refresh testing can proceed from
+here -- confirming the real job `state` enum values (see the known gap
+above) would be the next real step.
+
+Dead end, noted so nobody re-walks it: creating a LOCAL user via
+`hvruserconfig -c -A local <user>` (password has to be piped via stdin
+twice, e.g. `printf "pass\npass\n" | hvruserconfig -c -A local admin` --
+there's no CLI flag for it, `name=value` positional args all route into
+generic hub-scoped user props and get rejected) produces a user with
+`current_user_access: {}` -- no system-level access at all. No prop name
+tried (`SysAdmin`, `HubCreation`, `Access_Level`, `Role`, `Permission`,
+several variants) grants it. The setup-token path above is what actually
+works for bootstrap.
+
+Full setup + real-channel bootstrap (once licensed): see [Fivetran's Quick Start Guide](https://fivetran.com/docs/hvr6/getting-started/quick-start-guide) -- thinner than it sounds; doesn't cover any of the above.
 
 ## Custom translation example
 

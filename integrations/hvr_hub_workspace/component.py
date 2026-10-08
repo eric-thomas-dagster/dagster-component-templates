@@ -534,6 +534,26 @@ class HvrHubWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                     # Simple completion signal: the refresh job clears from `jobs`
                     # once it finishes. Better signals exist in stats/metrics; keep
                     # this coarse for v1.
+                    #
+                    # KNOWN GAP, confirmed against the real HVR 6.3.5 REST API
+                    # docs (GET .../jobs?fetch=latency job object fields:
+                    # `state`, `num_retries`, `log_job_err_tstamp`,
+                    # `latency`, `next_run`): this treats "no longer running"
+                    # as unconditional success. A refresh that HVR accepted
+                    # but that itself errored (F2.1: "Replication API call
+                    # succeeds but the refresh itself fails") clears from this
+                    # list the same way a genuinely successful one does, and
+                    # is reported as success here. The real per-job `state`
+                    # value and `log_job_err_tstamp` (set when an error was
+                    # logged for that job) are the right signals to check
+                    # instead, but the exact `state` enum values aren't
+                    # documented publicly and weren't verified against a live
+                    # hub before shipping this -- deliberately not guessed.
+                    # TODO: verify the real `state` values against a live HVR
+                    # hub, then check the completed job's own dict (not just
+                    # its absence from the running list) for a failure state
+                    # or a `log_job_err_tstamp` newer than this refresh's
+                    # start time before returning success.
                     jobs = client.list_jobs_with_latency()
                     refresh_running = any(
                         (j.get("name") or "").startswith(f"{channel}-refr") for j in jobs

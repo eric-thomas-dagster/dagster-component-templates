@@ -170,6 +170,16 @@ translation: "{{ load_python_module_attr('my_project.hvr_translation.tag_by_chan
 
 ## What this doesn't do (yet)
 
+- **Distinguish a failed refresh from a successful one.** `action: refresh`'s
+  completion check only asks "is the job still running" — once it clears the
+  running-jobs list, it's reported as success unconditionally, even if the
+  refresh itself errored. Confirmed against the real HVR 6.3.5 REST API docs
+  that the job object returned by `GET .../jobs?fetch=latency` does carry a
+  `state` field and a `log_job_err_tstamp` (set when an error was logged for
+  that job) — the right signals to check instead — but the exact `state`
+  enum values aren't documented publicly and haven't been verified against a
+  live hub. Not guessed at rather than shipped wrong; see the `TODO` at the
+  completion-check in `component.py`.
 - **Snapshot channel config for drift detection.** Roadmap: `hvr_definition_snapshot`
   materializes the full channel-definition JSON as a versioned asset for
   diffing config changes over time.

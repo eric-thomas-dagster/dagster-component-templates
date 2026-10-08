@@ -67663,9 +67663,50 @@
           "tabulate>=0.9.0"
         ]
       }
+    },
+    {
+      "id": "reclaim_ingestion",
+      "name": "Reclaim.ai Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Reclaim.ai AI-scheduling task, calendar event, and Smart Habit data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/reclaim_ingestion",
+      "tags": [
+        "ingestion",
+        "reclaim",
+        "scheduling",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/reclaim_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/reclaim_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/reclaim_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/reclaim_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/reclaim_ingestion/requirements.txt",
+      "vertical": "productivity",
+      "icon": "Calendar",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest Reclaim.ai AI-scheduling task, calendar event, and Smart Habit data using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1307
+  "total": 1308
 }

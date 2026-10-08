@@ -1,0 +1,5 @@
+type: dagster_component_templates.ReclaimIngestionComponent
+attributes:
+  asset_name: reclaim_ingestion
+  api_token: "${RECLAIM_API_TOKEN}"
+  resources: "tasks,events,habits"

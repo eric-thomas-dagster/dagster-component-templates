@@ -1,0 +1,7 @@
+type: dagster_component_templates.RampResourceComponent
+attributes:
+  resource_key: ramp_resource
+  client_id_env_var: RAMP_CLIENT_ID
+  client_secret_env_var: RAMP_CLIENT_SECRET
+  base_url: "https://api.ramp.com"
+  scope: "reimbursements:write cards:write"

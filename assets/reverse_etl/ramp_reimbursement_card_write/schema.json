@@ -1,0 +1,241 @@
+{
+  "component_type": "dagster_component_templates.RampReimbursementCardWriteComponent",
+  "description": "Reverse-ETL sink: write upstream DataFrame rows into Ramp -- create a mileage reimbursement, upload a receipt (optionally OCR'd into a draft reimbursement), issue a virtual card via Ramp's Vault API (production requires Ramp's approval review; works in Sandbox for all customers), or update a physical card's display_name/fund_id/automatic_routing_enabled (Ramp's API has no spend-limit-update endpoint for any card type).",
+  "category": "reverse_etl",
+  "icon": "si:ramp",
+  "x-dagster-io": {},
+  "x-dagster-consumes": [
+    "ramp_resource"
+  ],
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Output Dagster asset name.",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`.",
+      "required": false
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "description": "Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}.",
+      "required": false
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Resource key registered by RampResourceComponent.",
+      "required": false,
+      "default": "ramp_resource"
+    },
+    "mode": {
+      "type": "string",
+      "label": "Mode",
+      "description": "One of 'mileage_reimbursement', 'receipt_reimbursement', 'virtual_card_create', 'card_update'.",
+      "required": true,
+      "enum": ["mileage_reimbursement", "receipt_reimbursement", "virtual_card_create", "card_update"]
+    },
+    "reimbursee_id_column": {
+      "type": "string",
+      "label": "Reimbursee Id Column",
+      "description": "Upstream column holding the Ramp user ID of the reimbursement recipient. Required for mileage_reimbursement and receipt_reimbursement.",
+      "required": false
+    },
+    "trip_date_column": {
+      "type": "string",
+      "label": "Trip Date Column",
+      "description": "Upstream column holding the trip date (ISO date string). Required for mileage_reimbursement.",
+      "required": false
+    },
+    "distance_column": {
+      "type": "string",
+      "label": "Distance Column",
+      "description": "Upstream column holding the mileage distance. Required for mileage_reimbursement.",
+      "required": false
+    },
+    "distance_units": {
+      "type": "string",
+      "label": "Distance Units",
+      "description": "'MILES' or 'KILOMETERS' -- applies to every row in mileage_reimbursement mode.",
+      "required": false,
+      "default": "MILES",
+      "enum": ["MILES", "KILOMETERS"]
+    },
+    "start_location_column": {
+      "type": "string",
+      "label": "Start Location Column",
+      "description": "Upstream column holding the trip start location (mileage_reimbursement).",
+      "required": false
+    },
+    "end_location_column": {
+      "type": "string",
+      "label": "End Location Column",
+      "description": "Upstream column holding the trip end location (mileage_reimbursement).",
+      "required": false
+    },
+    "memo_column": {
+      "type": "string",
+      "label": "Memo Column",
+      "description": "Upstream column holding a free-text memo (mileage_reimbursement).",
+      "required": false
+    },
+    "spend_allocation_id_column": {
+      "type": "string",
+      "label": "Spend Allocation Id Column",
+      "description": "Upstream column holding a Ramp spend_allocation_id (mileage_reimbursement).",
+      "required": false
+    },
+    "waypoints_column": {
+      "type": "string",
+      "label": "Waypoints Column",
+      "description": "Upstream column holding a comma-separated list of waypoint addresses (mileage_reimbursement).",
+      "required": false
+    },
+    "receipt_file_path_column": {
+      "type": "string",
+      "label": "Receipt File Path Column",
+      "description": "Upstream column holding a local filesystem path to the receipt image/PDF. Required for receipt_reimbursement.",
+      "required": false
+    },
+    "reimbursement_id_column": {
+      "type": "string",
+      "label": "Reimbursement Id Column",
+      "description": "Upstream column holding an existing Ramp reimbursement_id to attach the receipt to. If omitted/blank for a row, Ramp attempts to auto-create a draft reimbursement via OCR on the receipt image (receipt_reimbursement).",
+      "required": false
+    },
+    "idempotency_key_column": {
+      "type": "string",
+      "label": "Idempotency Key Column",
+      "description": "Upstream column holding an idempotency key for the receipt upload. If unset, a deterministic key is derived per row from (reimbursee_id, receipt_file_path, reimbursement_id) so re-running the same row is idempotent (receipt_reimbursement).",
+      "required": false
+    },
+    "user_id_column": {
+      "type": "string",
+      "label": "User Id Column",
+      "description": "Upstream column holding the Ramp user_id (cardholder). Required for virtual_card_create.",
+      "required": false
+    },
+    "limit_amount_column": {
+      "type": "string",
+      "label": "Limit Amount Column",
+      "description": "Upstream column holding the spend limit amount. Required for virtual_card_create.",
+      "required": false
+    },
+    "interval": {
+      "type": "string",
+      "label": "Interval",
+      "description": "Spend limit interval, one of ANNUAL/DAILY/MONTHLY/QUARTERLY/TERTIARY/TOTAL/WEEKLY/YEARLY. Applies to every row. Required for virtual_card_create.",
+      "required": false,
+      "enum": ["ANNUAL", "DAILY", "MONTHLY", "QUARTERLY", "TERTIARY", "TOTAL", "WEEKLY", "YEARLY"]
+    },
+    "currency_code": {
+      "type": "string",
+      "label": "Currency Code",
+      "description": "Currency code for the spend limit (virtual_card_create).",
+      "required": false,
+      "default": "USD"
+    },
+    "display_name_column": {
+      "type": "string",
+      "label": "Display Name Column",
+      "description": "Upstream column holding a display name. Used by both virtual_card_create (new card) and card_update (rename existing card).",
+      "required": false
+    },
+    "spend_program_id_column": {
+      "type": "string",
+      "label": "Spend Program Id Column",
+      "description": "Upstream column holding a Ramp spend_program_id (virtual_card_create).",
+      "required": false
+    },
+    "transaction_amount_limit_column": {
+      "type": "string",
+      "label": "Transaction Amount Limit Column",
+      "description": "Upstream column holding a per-transaction amount limit (virtual_card_create).",
+      "required": false
+    },
+    "lock_date_column": {
+      "type": "string",
+      "label": "Lock Date Column",
+      "description": "Upstream column holding an ISO lock_date for the spend limit (virtual_card_create).",
+      "required": false
+    },
+    "spending_restrictions_extra": {
+      "type": "object",
+      "label": "Spending Restrictions Extra",
+      "description": "Static (same for every row) extra spending_restrictions fields to merge in, e.g. {'allowed_categories': [...], 'blocked_vendors': [...]} (virtual_card_create).",
+      "required": false
+    },
+    "card_id_column": {
+      "type": "string",
+      "label": "Card Id Column",
+      "description": "Upstream column holding the Ramp card_id to update. Required for card_update.",
+      "required": false
+    },
+    "fund_id_column": {
+      "type": "string",
+      "label": "Fund Id Column",
+      "description": "Upstream column holding a new fund_id to attach to the card (card_update).",
+      "required": false
+    },
+    "automatic_routing_enabled_column": {
+      "type": "string",
+      "label": "Automatic Routing Enabled Column",
+      "description": "Upstream column holding a boolean for automatic_routing_enabled (card_update).",
+      "required": false
+    },
+    "max_rows": {
+      "type": "integer",
+      "label": "Max Rows",
+      "description": "Overall safety cap on rows per run.",
+      "required": false,
+      "default": 10000
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": "ramp"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Asset owners.",
+      "required": false
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Catalog tags.",
+      "required": false
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Asset kinds (auto-includes 'ramp').",
+      "required": false
+    }
+  },
+  "tags": [
+    "ramp",
+    "sink",
+    "reverse-etl",
+    "finance",
+    "spend-management",
+    "create",
+    "update"
+  ],
+  "name": "Ramp Reimbursement Card Write",
+  "vertical": "finance"
+}

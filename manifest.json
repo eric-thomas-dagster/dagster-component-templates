@@ -67776,9 +67776,154 @@
           "tabulate>=0.9.0"
         ]
       }
+    },
+    {
+      "id": "ramp_resource",
+      "name": "Ramp Resource",
+      "category": "resource",
+      "description": "Register a RampResource (OAuth2 client_credentials grant against a Ramp Developer App) wrapping Ramp's Developer API for use by other components. Exposes mileage/receipt reimbursement creation, Vault-API virtual card creation, and physical-card display_name/fund_id/automatic_routing_enabled updates -- there is no spend-limit update endpoint, by design (Ramp's API has none).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/ramp_resource",
+      "tags": [
+        "resource",
+        "ramp",
+        "finance",
+        "spend-management",
+        "oauth2"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/ramp_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/ramp_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/ramp_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/ramp_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/ramp_resource/requirements.txt",
+      "icon": "si:ramp",
+      "x-dagster-provides": [
+        "ramp_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-08",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Base URLs, the OAuth2 client_credentials flow, and all four endpoint shapes (mileage reimbursement, receipt upload, Vault API virtual card creation, physical card update) confirmed directly against Ramp's real Developer API reference (docs.ramp.com/llms-api.txt + llms-guides.txt), including the Vault API's production-approval-review gate. Live validation against a real Ramp account pending."
+      },
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "User needs a Ramp (ramp.com) client usable by other Dagster components (sinks, custom asset code) to WRITE into Ramp -- reimbursements, virtual cards, card updates.",
+        "outputs": "Register a RampResource (OAuth2 client_credentials grant against a Ramp Developer App) wrapping Ramp's Developer API for use by other components.",
+        "requires_pip": [
+          "dagster",
+          "requests"
+        ],
+        "requires_env_vars": [
+          "RAMP_CLIENT_ID",
+          "RAMP_CLIENT_SECRET"
+        ]
+      },
+      "keywords": [
+        "ramp",
+        "ramp.com",
+        "finance",
+        "spend management",
+        "corporate card",
+        "expense",
+        "oauth2",
+        "client credentials",
+        "vault api",
+        "resource"
+      ],
+      "vertical": "finance"
+    },
+    {
+      "id": "ramp_reimbursement_card_write",
+      "name": "Ramp Reimbursement Card Write",
+      "component_type": "dagster_component_templates.RampReimbursementCardWriteComponent",
+      "path": "assets/reverse_etl/ramp_reimbursement_card_write",
+      "category": "reverse_etl",
+      "icon": "si:ramp",
+      "description": "Reverse-ETL sink: write upstream DataFrame rows into Ramp (ramp.com) -- create a mileage reimbursement, upload a receipt (optionally OCR'd into a draft reimbursement), issue a virtual card via Ramp's Vault API (production requires Ramp's approval review; Sandbox works for all customers), or update a physical card's display_name/fund_id/automatic_routing_enabled. Ramp's API has no spend-limit-update endpoint for any card type -- card_update reflects that real constraint rather than the originally-assumed PATCH.",
+      "tags": [
+        "ramp",
+        "sink",
+        "reverse-etl",
+        "finance",
+        "spend-management",
+        "create",
+        "update"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/ramp_reimbursement_card_write/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/ramp_reimbursement_card_write/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/ramp_reimbursement_card_write/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/ramp_reimbursement_card_write/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/ramp_reimbursement_card_write/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-08",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite covering all 4 modes + the pan/cvv-redaction guarantee). Endpoint shapes confirmed directly against Ramp's real Developer API reference, including the Vault API's production-approval gate. Live validation against a real Ramp account pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:ramp_resource"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to write INTO Ramp (ramp.com) -- create mileage/receipt reimbursements, issue virtual cards, or update a physical card's display name/fund/auto-routing -- from a warehouse-computed DataFrame. Reverse ETL / activation, not ingestion.",
+        "typical_upstream": "A Dagster asset or dbt mart producing approved reimbursement claims, card-issuance requests, or card-update requests as a pandas DataFrame.",
+        "typical_downstream": "Ramp itself -- reimbursements appear in Ramp's reimbursement queue; virtual cards are issued with a retrievable PAN/CVV; physical card updates apply immediately.",
+        "example_prompts": [
+          "Create a Ramp mileage reimbursement for every approved mileage claim",
+          "Upload matched receipt images as Ramp reimbursements",
+          "Issue a Ramp virtual card per new vendor contract",
+          "Rename a batch of Ramp physical cards from a spreadsheet"
+        ],
+        "anti_uses": "Not for reading Ramp data back out -- see ramp_ingestion for that. Cannot update an existing card's spend_limit/restrictions -- Ramp's API has no endpoint for that; issue a new card via virtual_card_create instead.",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "requests"
+        ],
+        "requires_env_vars": [
+          "RAMP_CLIENT_ID",
+          "RAMP_CLIENT_SECRET"
+        ]
+      },
+      "keywords": [
+        "ramp",
+        "ramp.com",
+        "reimbursement",
+        "mileage reimbursement",
+        "receipt",
+        "virtual card",
+        "vault api",
+        "card issuance",
+        "spend management",
+        "corporate card",
+        "finance",
+        "reverse etl",
+        "sink",
+        "write to ramp",
+        "activation"
+      ],
+      "vertical": "finance"
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1309
+  "total": 1311
 }

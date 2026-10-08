@@ -1061,6 +1061,8 @@ _CLASS_PATHS: dict[str, str] = {
     "RagEvalComponent": "assets/ai/rag_eval/component.py",
     "RagGroundingCheckComponent": "assets/ai/rag_grounding_check/component.py",
     "RampIngestionComponent": "assets/ingestion/ramp_ingestion/component.py",
+    "RampReimbursementCardWriteComponent": "assets/reverse_etl/ramp_reimbursement_card_write/component.py",
+    "RampResourceComponent": "resources/ramp_resource/component.py",
     "RandomForestModelComponent": "assets/analytics/random_forest_model/component.py",
     "RankComponent": "assets/transforms/rank/component.py",
     "ReceiptExtractorComponent": "assets/ai/receipt_extractor/component.py",

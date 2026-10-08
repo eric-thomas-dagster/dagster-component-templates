@@ -1,0 +1,71 @@
+{
+  "component_type": "dagster_component_templates.RampResourceComponent",
+  "description": "Register a RampResource (OAuth2 client_credentials grant against a Ramp Developer App) wrapping Ramp's Developer API for use by other components. Exposes mileage/receipt reimbursement creation, Vault-API virtual card creation, and physical-card display_name/fund_id/automatic_routing_enabled updates -- there is no spend-limit update endpoint, by design (Ramp's API has none).",
+  "category": "resource",
+  "icon": "si:ramp",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "ramp_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "ramp_resource"
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client ID Env Var",
+      "description": "Env var holding your Ramp Developer App's Client ID.",
+      "required": false,
+      "default": "RAMP_CLIENT_ID",
+      "ui:widget": "env_var"
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "description": "Env var holding your Ramp Developer App's Client Secret.",
+      "required": false,
+      "default": "RAMP_CLIENT_SECRET",
+      "ui:widget": "env_var"
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base Url",
+      "description": "Ramp Developer API base URL ('https://demo-api.ramp.com' for Sandbox).",
+      "required": false,
+      "default": "https://api.ramp.com"
+    },
+    "vault_base_url": {
+      "type": "string",
+      "label": "Vault Base Url",
+      "description": "Optional dedicated Vault API host for create_virtual_card. Leave unset unless Ramp tells you otherwise.",
+      "required": false
+    },
+    "scope": {
+      "type": "string",
+      "label": "Scope",
+      "description": "Space-separated OAuth scope(s) requested at token time. Add 'cards:read_vault limits:write funds:write' for create_virtual_card (requires Ramp's production access review -- works in Sandbox for all customers).",
+      "required": false,
+      "default": "reimbursements:write cards:write"
+    },
+    "token_path": {
+      "type": "string",
+      "label": "Token Path",
+      "description": "Token endpoint path, relative to base_url.",
+      "required": false,
+      "default": "/developer/v1/token"
+    }
+  },
+  "tags": [
+    "resource",
+    "ramp",
+    "finance",
+    "spend-management",
+    "oauth2"
+  ],
+  "name": "Ramp Resource",
+  "vertical": "finance"
+}

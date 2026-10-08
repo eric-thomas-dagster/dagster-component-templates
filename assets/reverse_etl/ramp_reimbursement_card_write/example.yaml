@@ -1,0 +1,12 @@
+type: dagster_component_templates.RampReimbursementCardWriteComponent
+attributes:
+  asset_name: ramp_mileage_reimbursements
+  upstream_asset_key: approved_mileage_claims
+  resource_key: ramp_resource
+  mode: mileage_reimbursement
+  reimbursee_id_column: ramp_user_id
+  trip_date_column: trip_date
+  distance_column: miles_driven
+  distance_units: MILES
+  memo_column: trip_memo
+  group_name: reverse_etl

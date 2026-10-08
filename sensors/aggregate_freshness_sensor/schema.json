@@ -1,12 +1,12 @@
 {
   "component_type": "dagster_component_templates.AggregateFreshnessSensorComponent",
-  "description": "Alert when an entire selection of assets has gone silent, as one check result instead of hundreds of per-asset alerts. Polls the most recent materialization (or observation) across a whole selection and reports a single AssetCheckEvaluation against a declared rollup asset -- distinct from post_processing's per-asset attributes.freshness_policy, which answers 'is this one asset stale' rather than 'did the whole feed stop'.",
+  "description": "Alert when an entire selection of assets has gone silent, as one signal instead of hundreds of per-asset alerts. Polls the most recent materialization (or observation) across a whole selection. alert_mode picks how that gets reported: 'check' (default) emits an AssetCheckEvaluation against a declared rollup asset, alertable via Dagster+'s Asset alert type; 'fail_tick' raises on the sensor itself (no asset created), alertable via Dagster+'s Automation alert type targeting this exact sensor by name. Distinct from post_processing's per-asset attributes.freshness_policy, which answers 'is this one asset stale' rather than 'did the whole feed stop'.",
   "category": "sensor",
   "icon": "Sensors",
   "x-dagster-io": {
     "outputs": {
-      "type": "AssetCheckEvaluation",
-      "description": "One passed/failed check per tick against the declared rollup asset -- wire a Dagster+ 'asset check failed' alert policy to it."
+      "type": "AssetCheckEvaluation | SensorTickFailure",
+      "description": "alert_mode='check': one passed/failed check per tick against the declared rollup asset -- wire a Dagster+ 'Asset' alert policy to it. alert_mode='fail_tick': the sensor's own tick fails when stale -- wire a Dagster+ 'Automation' alert policy to this sensor by name."
     }
   },
   "attributes": {
@@ -28,11 +28,20 @@
       "description": "Override which folder monitored_selection resolves against, as a path relative to this component's own folder (e.g. '../other_scenario'). Defaults to this component's immediate parent folder. Do NOT set to '.' to search this component's own folder when co-locating it as a second --- separated YAML document inside the same defs.yaml as a dagster.DefsFolderComponent -- that causes a real RecursionError, not something this field can fix.",
       "required": false
     },
+    "alert_mode": {
+      "type": "string",
+      "label": "Alert Mode",
+      "description": "'check' (default): declare rollup_asset_key as a visible asset and report pass/fail as an AssetCheckEvaluation -- the sensor tick always succeeds. Alert via Dagster+'s Asset alert type, scoped to rollup_asset_key (no per-check-name targeting exists, but this asset only ever carries one check). 'fail_tick': no asset is created -- the sensor raises when the selection is stale, failing its own tick. Alert via Dagster+'s Automation alert type, which CAN target this exact sensor by name. Tradeoff: in fail_tick mode, a real bug in this sensor and 'the selection is just stale' both look identical as a failed tick.",
+      "required": false,
+      "default": "check",
+      "enum": ["check", "fail_tick"],
+      "ui:widget": "select"
+    },
     "rollup_asset_key": {
       "type": "string",
       "label": "Rollup Asset Key",
-      "description": "Asset key for the single declared 'rollup' asset the aggregate check is reported against (e.g. 'sap_ecc/hourly_feed_health'). Declare-only -- this component never materializes it, it only exists to carry the check.",
-      "required": true
+      "description": "Required when alert_mode='check': asset key for the single declared 'rollup' asset the aggregate check is reported against (e.g. 'sap_ecc/hourly_feed_health'). Declare-only -- this component never materializes it, it only exists to carry the check. Ignored (no asset is created) when alert_mode='fail_tick'.",
+      "required": false
     },
     "max_silence_seconds": {
       "type": "integer",

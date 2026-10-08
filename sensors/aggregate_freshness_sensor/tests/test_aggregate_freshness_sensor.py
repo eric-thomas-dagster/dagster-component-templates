@@ -59,6 +59,68 @@ def test_selection_dsl_resolves_against_real_sibling_assets():
     assert matched == ["bseg"]
 
 
+def test_check_mode_requires_rollup_asset_key():
+    with pytest.raises(ValueError, match="rollup_asset_key is required"):
+        _component(alert_mode="check", rollup_asset_key=None)
+
+
+def test_fail_tick_mode_does_not_require_rollup_asset_key():
+    comp = _component(alert_mode="fail_tick", rollup_asset_key=None)
+    defs = comp.build_defs(context=None)
+    assert list(defs.assets or []) == []
+    (sensor,) = defs.sensors
+    assert sensor.name == "test_aggregate_sensor"
+
+
+def test_fail_tick_mode_raises_when_selection_never_materialized():
+    @dg.asset(key=dg.AssetKey(["sap", "bseg"]))
+    def bseg():
+        ...
+
+    @dg.asset(key=dg.AssetKey(["sap", "konv"]))
+    def konv():
+        ...
+
+    comp = _component(
+        alert_mode="fail_tick",
+        rollup_asset_key=None,
+        monitored_selection=["sap/bseg", "sap/konv"],
+        default_status="running",
+    )
+    defs = comp.build_defs(context=None)
+    (sensor,) = defs.sensors
+
+    full_defs = dg.Definitions(assets=[bseg, konv], sensors=[sensor])
+    instance = dg.DagsterInstance.ephemeral()
+    context = dg.build_sensor_context(instance=instance, definitions=full_defs)
+
+    with pytest.raises(Exception, match="appears silent"):
+        sensor(context)
+
+
+def test_fail_tick_mode_skips_without_raising_when_fresh():
+    @dg.asset(key=dg.AssetKey(["sap", "bseg"]))
+    def bseg():
+        ...
+
+    comp = _component(
+        alert_mode="fail_tick",
+        rollup_asset_key=None,
+        monitored_selection=["sap/bseg"],
+        default_status="running",
+    )
+    defs = comp.build_defs(context=None)
+    (sensor,) = defs.sensors
+
+    full_defs = dg.Definitions(assets=[bseg], sensors=[sensor])
+    instance = dg.DagsterInstance.ephemeral()
+    dg.materialize([bseg], instance=instance)
+
+    context = dg.build_sensor_context(instance=instance, definitions=full_defs)
+    result = sensor(context)
+    assert isinstance(result, dg.SkipReason)
+
+
 def test_monitored_folder_override_resolves_relative_to_own_path():
     """monitored_folder, when set, is resolved relative to this component's
     OWN folder -- not its parent -- so build_defs() must be called with the

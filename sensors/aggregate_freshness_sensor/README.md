@@ -16,9 +16,15 @@ attributes:
 
 ## Mechanism
 
-A plain `@dg.sensor` polls `instance.get_latest_materialization_events(...)` for every resolved asset key in **one batched call**, takes the single most recent event across the whole selection, and compares its age against `max_silence_seconds`. It reports the result as **one** `AssetCheckEvaluation` against a single declared "rollup" asset (`rollup_asset_key`) — confirmed directly that `SensorResult(asset_events=[...])` accepts `AssetCheckEvaluation` objects and persists them queryably with no pre-declared `AssetCheckSpec` required.
+A plain `@dg.sensor` polls `instance.get_latest_materialization_events(...)` for every resolved asset key in **one batched call**, takes the single most recent event across the whole selection, and compares its age against `max_silence_seconds`. `alert_mode` picks what happens with that result — two genuinely different Dagster+ alert types, with different scoping, not just a style preference:
 
-The sensor itself never raises or fails when the selection is stale — it succeeds every tick and reports a passed/failed check. That's deliberate: a sensor *tick* failing should mean "this monitoring broke" (a real bug), not "the thing it's monitoring is stale" (a business condition). Wire a Dagster+ **"asset check failed"** alert policy to `rollup_asset_key`'s `check_name` — that's the actual alerting mechanism, no bespoke code needed.
+| | `alert_mode: check` (default) | `alert_mode: fail_tick` |
+|---|---|---|
+| What happens | Reports **one** `AssetCheckEvaluation` per tick against a declared "rollup" asset (`rollup_asset_key`). The sensor tick itself always succeeds. | No asset is created at all. The sensor **raises** when the selection is stale, failing its own tick. |
+| Alert via | Dagster+'s **Asset** alert type, scoped to `rollup_asset_key`. Confirmed that alert type's targeting is by asset key/selection/group, *not* by a specific check name — this only isolates cleanly because the rollup asset carries exactly one check. | Dagster+'s **Automation** alert type, which *can* target one specific named sensor directly (confirmed: `schedules_or_sensors: [{location_name, repo_name, name}]`). |
+| Real cost | A synthetic asset shows up in the catalog that was never "really" materialized. | A genuine bug in this sensor's own code and "the selection is just stale" look **identical** as a failed tick — `check` mode keeps those two meanings separate on purpose; this trades that away for sensor-level alert targeting and zero synthetic assets. |
+
+Confirmed directly that `SensorResult(asset_events=[...])` accepts `AssetCheckEvaluation` objects and persists them queryably with no pre-declared `AssetCheckSpec` required (`check` mode), and that raising inside a `@dg.sensor` function gets caught and recorded as a tick failure by Dagster's sensor daemon, the same way any other sensor bug would be (`fail_tick` mode).
 
 ## `monitored_selection` syntax
 
@@ -47,13 +53,14 @@ One thing this can't do: point it at `"."` to search its own folder when this co
 - `sensor_name` (required) — unique sensor name.
 - `monitored_selection` (required) — see table above.
 - `monitored_folder` (optional) — see section above.
-- `rollup_asset_key` (required) — the single declared asset the check is reported against. Declare-only: this component never materializes it, it only exists to carry the check so it's visible in the asset catalog and alertable in Dagster+.
+- `alert_mode` (default `"check"`) — `"check"` or `"fail_tick"`, see Mechanism above.
+- `rollup_asset_key` (required when `alert_mode: check`, ignored when `alert_mode: fail_tick`) — the single declared asset the check is reported against. Declare-only: this component never materializes it, it only exists to carry the check so it's visible in the asset catalog and alertable in Dagster+.
 - `max_silence_seconds` (required) — fail the check if the freshest event across the *whole* selection is older than this, or if nothing in the selection has ever produced an event at all.
 - `check_name` (default `"total_stoppage"`).
 - `include_observations` (default `false`) — also consider `AssetObservation` events, not just materializations, when finding each asset's most recent event. Costs one extra query per monitored asset per tick (observations aren't batchable the way materializations are), so it's opt-in — leave off unless some monitored assets are observation-only.
 - `minimum_interval_seconds` (default `60`).
 - `default_status` (default `"stopped"`).
-- `group_name` / `description` — optional metadata for the declared rollup asset.
+- `group_name` / `description` — optional metadata for the declared rollup asset (`alert_mode: check` only, no effect in `fail_tick` mode).
 
 ## Why not just set a tight `post_processing.attributes.freshness_policy` on the whole group?
 

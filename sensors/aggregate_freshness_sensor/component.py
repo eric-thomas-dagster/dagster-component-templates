@@ -21,16 +21,32 @@ Mechanism: a plain `@dg.sensor` polls `instance.get_latest_materialization_event
 for every resolved asset key in one batched call (and, optionally,
 `fetch_observations` per key for assets that only ever get observed, not
 materialized), takes the single most recent event across the WHOLE group,
-and compares its age against `max_silence_seconds`. It reports the result as
-ONE `AssetCheckEvaluation` against a single declared "rollup" asset --
-confirmed directly that `SensorResult(asset_events=[...])` accepts
-`AssetCheckEvaluation` objects and persists them queryably with no
-pre-declared `AssetCheckSpec` required (`instance.report_runless_asset_event`).
-The sensor itself never raises/fails on a stale selection -- it succeeds
-every tick and reports a passed/failed check, so Dagster+'s native
-"asset check failed" alert policy is the alerting mechanism, not a
-sensor-tick failure (which should mean "this monitoring broke", not "the
-thing it's monitoring is stale").
+and compares its age against `max_silence_seconds`. How that result gets
+reported is `alert_mode`'s choice -- confirmed both paths directly against
+real Dagster+ alert-policy docs, since they target genuinely different
+alert types with different scoping:
+
+- `alert_mode: check` (default) -- reports ONE `AssetCheckEvaluation` per
+  tick against a single declared "rollup" asset (confirmed `SensorResult
+  (asset_events=[...])` accepts `AssetCheckEvaluation` and persists it
+  queryably with no pre-declared `AssetCheckSpec` required). The sensor
+  tick itself always succeeds. Alert via Dagster+'s "Asset" alert type,
+  scoped to `rollup_asset_key` -- confirmed that alert type's targeting is
+  by asset key/selection/group, NOT by a specific check name, so this only
+  isolates cleanly because the rollup asset carries exactly one check.
+- `alert_mode: fail_tick` -- declares NO asset at all (some teams don't
+  want a synthetic "fake" asset cluttering the catalog just to carry a
+  check). Instead the sensor itself raises when the selection is stale,
+  failing its own tick. Alert via Dagster+'s "Automation" alert type,
+  which CAN target one specific named sensor directly (confirmed: `
+  schedules_or_sensors: [{location_name, repo_name, name}]`) -- the thing
+  `check` mode can't do (no per-check targeting exists). Real cost:
+  Dagster+ only alerts on the tick's success-to-failure transition, same
+  as `check` mode's asset-check transition semantics, but a genuine bug in
+  this sensor's own code and "the selection is just stale" now look
+  IDENTICAL as a failed tick -- `check` mode keeps those two meanings
+  separate on purpose; `fail_tick` trades that away for sensor-level
+  alert targeting and zero synthetic assets.
 
 Selection resolution mirrors `asset_to_job_trigger_sensor`/
 `enhanced_data_quality_checks`/`automation_condition_applicator`: an explicit
@@ -45,10 +61,10 @@ YAML document -- confirmed that specific case is a real `RecursionError`,
 not a config gap).
 """
 import time
-from typing import Any, List, Optional, Union
+from typing import Any, List, Literal, Optional, Union
 
 import dagster as dg
-from pydantic import Field
+from pydantic import Field, model_validator
 
 
 def _discover_sibling_assets(
@@ -91,6 +107,44 @@ def _discover_sibling_assets(
     except Exception:
         pass
     return keys, sibling_defs
+
+
+def _compute_freshness(
+    instance: dg.DagsterInstance,
+    monitored_asset_keys: List[dg.AssetKey],
+    include_observations: bool,
+):
+    """Shared freshness computation, used by both alert_mode branches.
+
+    Returns (freshest_timestamp_or_None, freshest_key_or_None, never_seen_key_strings).
+    """
+    latest_by_key = instance.get_latest_materialization_events(monitored_asset_keys)
+
+    freshest_timestamp: Optional[float] = None
+    freshest_key: Optional[dg.AssetKey] = None
+    never_seen: List[str] = []
+
+    for key in monitored_asset_keys:
+        entry = latest_by_key.get(key)
+        candidate_timestamp = entry.timestamp if entry is not None else None
+
+        if include_observations:
+            try:
+                obs_result = instance.fetch_observations(key, limit=1, ascending=False)
+                if obs_result.records:
+                    obs_timestamp = obs_result.records[0].timestamp
+                    if candidate_timestamp is None or obs_timestamp > candidate_timestamp:
+                        candidate_timestamp = obs_timestamp
+            except Exception:
+                pass
+
+        if candidate_timestamp is None:
+            never_seen.append(key.to_user_string())
+        elif freshest_timestamp is None or candidate_timestamp > freshest_timestamp:
+            freshest_timestamp = candidate_timestamp
+            freshest_key = key
+
+    return freshest_timestamp, freshest_key, never_seen
 
 
 def _resolve_selection(
@@ -171,13 +225,40 @@ class AggregateFreshnessSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             "recurses back through that same file."
         ),
     )
-    rollup_asset_key: str = Field(
+    alert_mode: Literal["check", "fail_tick"] = Field(
+        default="check",
         description=(
-            "Asset key for the single declared 'rollup' asset the aggregate check is "
-            "reported against (e.g. 'sap_ecc/hourly_feed_health'). Declare-only -- this "
-            "component never materializes it, it only exists to carry the check."
-        )
+            "'check': declare rollup_asset_key as a visible, declare-only asset and "
+            "report pass/fail via AssetCheckEvaluation against it every tick -- the "
+            "sensor tick itself always succeeds. Alert via a Dagster+ 'Asset' alert "
+            "policy scoped to rollup_asset_key.\n"
+            "'fail_tick': no rollup asset is created at all -- the sensor raises when "
+            "the selection goes stale, failing its own tick, so a Dagster+ "
+            "'Automation' alert policy can target THIS sensor by name directly. "
+            "Tradeoff: a real bug in this sensor's own code and 'the monitored "
+            "selection is just stale' both look identical as a failed sensor tick."
+        ),
     )
+    rollup_asset_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Required when alert_mode='check': asset key for the single declared "
+            "'rollup' asset the aggregate check is reported against (e.g. "
+            "'sap_ecc/hourly_feed_health'). Declare-only -- this component never "
+            "materializes it, it only exists to carry the check. Ignored (no asset is "
+            "created) when alert_mode='fail_tick'."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def validate_alert_mode(self):
+        if self.alert_mode == "check" and not self.rollup_asset_key:
+            raise ValueError(
+                "AggregateFreshnessSensorComponent: rollup_asset_key is required when "
+                "alert_mode='check'."
+            )
+        return self
+
     max_silence_seconds: int = Field(
         description=(
             "Fail the aggregate check if the most recent materialization across the "
@@ -231,103 +312,105 @@ class AggregateFreshnessSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         monitored_asset_keys = [dg.AssetKey(k.split("/")) for k in resolved_keys]
-        rollup_key = dg.AssetKey(self.rollup_asset_key.split("/"))
-        rollup_spec = dg.AssetSpec(
-            key=rollup_key,
-            group_name=self.group_name,
-            description=self.description
-            or (
-                f"Aggregate freshness rollup for {len(monitored_asset_keys)} asset(s) matching "
-                f"{self.monitored_selection!r}. Declare-only -- carries the "
-                f"{self.check_name!r} check, never materialized directly."
-            ),
-            kinds={"monitor"},
-        )
-
         sensor_name = self.sensor_name
         check_name = self.check_name
         max_silence_seconds = self.max_silence_seconds
         include_observations = self.include_observations
+        alert_mode = self.alert_mode
         default_status = (
             dg.DefaultSensorStatus.RUNNING
             if self.default_status == "running"
             else dg.DefaultSensorStatus.STOPPED
         )
 
-        @dg.sensor(
-            name=sensor_name,
-            minimum_interval_seconds=self.minimum_interval_seconds,
-            default_status=default_status,
-        )
-        def _aggregate_freshness_sensor(context: dg.SensorEvaluationContext):
-            instance = context.instance
-            latest_by_key = instance.get_latest_materialization_events(monitored_asset_keys)
-
-            freshest_timestamp: Optional[float] = None
-            freshest_key: Optional[dg.AssetKey] = None
-            never_seen: List[str] = []
-
-            for key in monitored_asset_keys:
-                entry = latest_by_key.get(key)
-                candidate_timestamp = entry.timestamp if entry is not None else None
-
-                if include_observations:
-                    try:
-                        obs_result = instance.fetch_observations(key, limit=1, ascending=False)
-                        if obs_result.records:
-                            obs_timestamp = obs_result.records[0].timestamp
-                            if candidate_timestamp is None or obs_timestamp > candidate_timestamp:
-                                candidate_timestamp = obs_timestamp
-                    except Exception:
-                        pass
-
-                if candidate_timestamp is None:
-                    never_seen.append(key.to_user_string())
-                elif freshest_timestamp is None or candidate_timestamp > freshest_timestamp:
-                    freshest_timestamp = candidate_timestamp
-                    freshest_key = key
-
-            now = time.time()
-            age_seconds = (now - freshest_timestamp) if freshest_timestamp is not None else None
-            passed = age_seconds is not None and age_seconds <= max_silence_seconds
-
-            metadata: dict[str, Any] = {
-                "monitored_asset_count": dg.MetadataValue.int(len(monitored_asset_keys)),
-                "max_silence_seconds": dg.MetadataValue.int(max_silence_seconds),
-                "never_seen_count": dg.MetadataValue.int(len(never_seen)),
-            }
-            if freshest_key is not None:
-                metadata["freshest_asset_key"] = dg.MetadataValue.text(freshest_key.to_user_string())
-                metadata["freshest_event_age_seconds"] = dg.MetadataValue.float(age_seconds)
-            if never_seen:
-                metadata["never_seen_assets"] = dg.MetadataValue.json(never_seen[:50])
-
+        def _describe(passed: bool, age_seconds: Optional[float], freshest_key: Optional[dg.AssetKey]) -> str:
             if passed:
-                description = (
+                return (
                     f"Freshest event in selection was {age_seconds:.0f}s ago "
                     f"(threshold {max_silence_seconds}s) -- {freshest_key.to_user_string()}."
                 )
-            elif freshest_timestamp is None:
-                description = (
+            elif freshest_key is None:
+                return (
                     f"No materialization (or observation) ever recorded for any of the "
                     f"{len(monitored_asset_keys)} monitored asset(s) -- entire selection "
                     f"appears silent."
                 )
-            else:
-                description = (
-                    f"Nothing in the monitored selection has produced an event in "
-                    f"{age_seconds:.0f}s (threshold {max_silence_seconds}s) -- most recent "
-                    f"was {freshest_key.to_user_string()}."
-                )
-
-            evaluation = dg.AssetCheckEvaluation(
-                asset_key=rollup_key,
-                check_name=check_name,
-                passed=passed,
-                severity=dg.AssetCheckSeverity.ERROR,
-                description=description,
-                metadata=metadata,
+            return (
+                f"Nothing in the monitored selection has produced an event in "
+                f"{age_seconds:.0f}s (threshold {max_silence_seconds}s) -- most recent "
+                f"was {freshest_key.to_user_string()}."
             )
-            return dg.SensorResult(asset_events=[evaluation])
 
-        return dg.Definitions(assets=[rollup_spec], sensors=[_aggregate_freshness_sensor])
+        if alert_mode == "check":
+            rollup_key = dg.AssetKey(self.rollup_asset_key.split("/"))
+            rollup_spec = dg.AssetSpec(
+                key=rollup_key,
+                group_name=self.group_name,
+                description=self.description
+                or (
+                    f"Aggregate freshness rollup for {len(monitored_asset_keys)} asset(s) matching "
+                    f"{self.monitored_selection!r}. Declare-only -- carries the "
+                    f"{self.check_name!r} check, never materialized directly."
+                ),
+                kinds={"monitor"},
+            )
+
+            @dg.sensor(
+                name=sensor_name,
+                minimum_interval_seconds=self.minimum_interval_seconds,
+                default_status=default_status,
+            )
+            def _aggregate_freshness_sensor_check_mode(context: dg.SensorEvaluationContext):
+                freshest_timestamp, freshest_key, never_seen = _compute_freshness(
+                    context.instance, monitored_asset_keys, include_observations
+                )
+                now = time.time()
+                age_seconds = (now - freshest_timestamp) if freshest_timestamp is not None else None
+                passed = age_seconds is not None and age_seconds <= max_silence_seconds
+
+                metadata: dict[str, Any] = {
+                    "monitored_asset_count": dg.MetadataValue.int(len(monitored_asset_keys)),
+                    "max_silence_seconds": dg.MetadataValue.int(max_silence_seconds),
+                    "never_seen_count": dg.MetadataValue.int(len(never_seen)),
+                }
+                if freshest_key is not None:
+                    metadata["freshest_asset_key"] = dg.MetadataValue.text(freshest_key.to_user_string())
+                    metadata["freshest_event_age_seconds"] = dg.MetadataValue.float(age_seconds)
+                if never_seen:
+                    metadata["never_seen_assets"] = dg.MetadataValue.json(never_seen[:50])
+
+                evaluation = dg.AssetCheckEvaluation(
+                    asset_key=rollup_key,
+                    check_name=check_name,
+                    passed=passed,
+                    severity=dg.AssetCheckSeverity.ERROR,
+                    description=_describe(passed, age_seconds, freshest_key),
+                    metadata=metadata,
+                )
+                return dg.SensorResult(asset_events=[evaluation])
+
+            return dg.Definitions(assets=[rollup_spec], sensors=[_aggregate_freshness_sensor_check_mode])
+
+        else:  # alert_mode == "fail_tick"
+
+            @dg.sensor(
+                name=sensor_name,
+                minimum_interval_seconds=self.minimum_interval_seconds,
+                default_status=default_status,
+            )
+            def _aggregate_freshness_sensor_fail_tick_mode(context: dg.SensorEvaluationContext):
+                freshest_timestamp, freshest_key, never_seen = _compute_freshness(
+                    context.instance, monitored_asset_keys, include_observations
+                )
+                now = time.time()
+                age_seconds = (now - freshest_timestamp) if freshest_timestamp is not None else None
+                passed = age_seconds is not None and age_seconds <= max_silence_seconds
+                description = _describe(passed, age_seconds, freshest_key)
+
+                if not passed:
+                    raise Exception(
+                        f"AggregateFreshnessSensorComponent {sensor_name!r} ({check_name}): {description}"
+                    )
+                return dg.SkipReason(description)
+
+            return dg.Definitions(sensors=[_aggregate_freshness_sensor_fail_tick_mode])

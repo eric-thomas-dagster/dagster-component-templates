@@ -1,0 +1,113 @@
+{
+  "component_type": "dagster_community_components.CoalesceWorkspaceComponent",
+  "description": "Connects to a Coalesce environment, discovers its nodes (SQL transforms), and builds one Dagster asset per node with dependencies mirroring the Coalesce DAG. Materializing an asset triggers and polls a Coalesce run for that node, and surfaces Coalesce's Node-level/column-level test results as a Dagster asset check.",
+  "category": "integration",
+  "icon": "Server",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "One Dagster asset per Coalesce node, plus a coalesce_node_tests AssetCheckResult per node when emit_test_checks is enabled (default)."
+    }
+  },
+  "attributes": {
+    "environment_id": {
+      "description": "Coalesce environment ID",
+      "type": "string",
+      "label": "Environment ID",
+      "required": true
+    },
+    "api_token_env_var": {
+      "description": "Env var with Coalesce API token",
+      "type": "string",
+      "label": "API Token Env Var",
+      "required": true
+    },
+    "api_base_url": {
+      "type": "string",
+      "label": "API Base URL",
+      "required": false,
+      "default": "https://app.coalescesoftware.io"
+    },
+    "asset_name_prefix": {
+      "type": "string",
+      "label": "Asset Name Prefix",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null,
+      "description": "Dagster asset group name"
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 10
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "required": false,
+      "default": 1800
+    },
+    "assets_by_node_name": {
+      "type": "object",
+      "label": "Assets By Node Name",
+      "required": false,
+      "default": null,
+      "description": "Per-node AssetSpec overrides (key/description/group_name/owners/metadata/tags/deps/kinds); a node may map to a list of overrides to fan out into multiple assets."
+    },
+    "emit_test_checks": {
+      "type": "boolean",
+      "label": "Emit Test Checks",
+      "required": false,
+      "default": true,
+      "description": "Emit a coalesce_node_tests AssetCheckResult per node from Coalesce's per-run hasTestFailures flag (GET /api/v1/runs/{runID}/results)."
+    },
+    "fail_run_on_test_failure": {
+      "type": "boolean",
+      "label": "Fail Run On Test Failure",
+      "required": false,
+      "default": false,
+      "description": "Hard-fail the Dagster run if any node's tests failed, regardless of that test's own halt-on-failure setting in Coalesce. Coalesce's own per-test halt config already decides whether a failure stops the pipeline, so this is only for teams that want Dagster to enforce it unconditionally."
+    },
+    "include_catalog_metadata": {
+      "type": "boolean",
+      "label": "Include Catalog Metadata",
+      "required": false,
+      "default": false,
+      "description": "Enrich each asset's description/owners/tags/column lineage from Coalesce's separately-licensed Catalog (Castor) product. Best-effort: fails soft if Catalog isn't provisioned or the call errors."
+    },
+    "catalog_api_token_env_var": {
+      "type": "string",
+      "label": "Catalog API Token Env Var",
+      "required": false,
+      "default": null,
+      "description": "Env var with a Coalesce Catalog (Castor) API token. Required only when include_catalog_metadata is true."
+    },
+    "catalog_base_url": {
+      "type": "string",
+      "label": "Catalog Base URL",
+      "required": false,
+      "default": "https://api.castordoc.com/public/graphql",
+      "description": "Coalesce Catalog GraphQL API base URL. EU default; US-hosted Catalog tenants use api.us.castordoc.com/public/graphql."
+    },
+    "defs_state": {
+      "type": "string",
+      "label": "Defs State",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "integration",
+    "coalesce",
+    "workspace",
+    "dbt-alternative",
+    "data-quality"
+  ],
+  "name": "Coalesce Workspace"
+}

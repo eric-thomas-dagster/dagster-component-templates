@@ -78,7 +78,7 @@ Filter with `dagster-component search "" --produces schedule` to list every sche
 `dbt_docs_enriched_project` — extends `DbtProjectComponent` with exposures, metrics, semantic models, contracts, source freshness, and clickable dbt docs links on every asset
 
 **Enterprise orchestration**
-`coalesce_run_asset` · `abinitio_run_asset` · `matillion_run_asset` · `rivery_run_asset` · `precisely_run_asset` · `step_functions_asset` · `dataiku_asset` · `autosys_asset`
+`abinitio_run_asset` · `matillion_run_asset` · `rivery_run_asset` · `precisely_run_asset` · `step_functions_asset` · `dataiku_asset` · `autosys_asset`
 
 **Infrastructure as Code** *(provision resources before pipeline runs)*
 `terraform_asset` · `terraform_cloud_asset` · `cloudformation_asset` · `ansible_asset` · `pulumi_asset` · `helm_deploy` · `aws_cdk_asset`
@@ -198,7 +198,7 @@ component_name/
 
 Several components that discover resources from external APIs use Dagster's `StateBackedComponent` pattern. The API call happens **once at prepare time** and is cached to disk — code-server reloads are instant with zero network calls.
 
-Components using this pattern: `coalesce_run_asset`, `azure_data_factory`, `aws_glue`, `databricks_workspace`, `openapi_ingestion`, `warehouse_schema_assets`, `step_functions_asset`, `dataiku_asset`, `polytomic_asset`, `autosys_asset`, `terraform_cloud_asset`
+Components using this pattern: `coalesce_workspace`, `azure_data_factory`, `aws_glue`, `databricks_workspace`, `openapi_ingestion`, `warehouse_schema_assets`, `step_functions_asset`, `dataiku_asset`, `polytomic_asset`, `autosys_asset`, `terraform_cloud_asset`
 
 To refresh the cached state after adding pipelines/jobs in the external system:
 

@@ -9771,29 +9771,30 @@
       ]
     },
     {
-      "id": "coalesce_run_asset",
-      "name": "Coalesce Project",
-      "category": "infrastructure",
-      "description": "Shared Coalesce connection config.",
+      "id": "coalesce_workspace",
+      "name": "Coalesce Workspace",
+      "category": "integration",
+      "description": "Connects to a Coalesce environment, discovers its nodes (SQL transforms), and builds one Dagster asset per node with dependencies mirroring the Coalesce DAG. Materializing an asset triggers and polls a Coalesce run for that node, and surfaces Coalesce's Node-level/column-level test results as a Dagster asset check.",
       "version": "1.0.0",
       "author": "Dagster Community",
-      "path": "assets/infrastructure/coalesce_run_asset",
+      "path": "integrations/coalesce_workspace",
       "tags": [
-        "infrastructure",
+        "integration",
         "coalesce",
-        "run",
-        "asset"
+        "workspace",
+        "dbt-alternative",
+        "data-quality"
       ],
       "dependencies": {
         "pip": [
           "requests>=2.28.0"
         ]
       },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/coalesce_run_asset/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/coalesce_run_asset/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/coalesce_run_asset/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/coalesce_run_asset/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/coalesce_run_asset/requirements.txt",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/coalesce_workspace/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/coalesce_workspace/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/coalesce_workspace/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/coalesce_workspace/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/coalesce_workspace/requirements.txt",
       "validation": {
         "level": "code",
         "evidence": "",
@@ -9804,7 +9805,7 @@
       ],
       "stateful": true,
       "agent_hints": {
-        "outputs": "State-backed component that materializes Coalesce nodes as Dagster assets.",
+        "outputs": "State-backed component that materializes Coalesce nodes as Dagster assets and emits per-node test-result asset checks.",
         "requires_pip": [
           "requests>=2.28.0"
         ]
@@ -9816,7 +9817,8 @@
         "3rd party",
         "external system"
       ],
-      "icon": "Link"
+      "icon": "Link",
+      "component_type": "dagster_community_components.CoalesceWorkspaceComponent"
     },
     {
       "id": "cognos_report_data_ingestion",

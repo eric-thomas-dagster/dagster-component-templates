@@ -375,7 +375,7 @@ Setting `partitions_def` on these via `post_processing` will silently produce th
 | `?` | [assets/analytics/dataiku_asset](assets/analytics/dataiku_asset) |
 | `?` | [assets/analytics/warehouse_schema_assets](assets/analytics/warehouse_schema_assets) |
 | `?` | [assets/infrastructure/autosys_asset](assets/infrastructure/autosys_asset) |
-| `?` | [assets/infrastructure/coalesce_run_asset](assets/infrastructure/coalesce_run_asset) |
+| `?` | [integrations/coalesce_workspace](integrations/coalesce_workspace) |
 | `?` | [assets/infrastructure/community_component_installer](assets/infrastructure/community_component_installer) |
 | `?` | [assets/infrastructure/step_functions_asset](assets/infrastructure/step_functions_asset) |
 | `?` | [assets/infrastructure/terraform_cloud_asset](assets/infrastructure/terraform_cloud_asset) |

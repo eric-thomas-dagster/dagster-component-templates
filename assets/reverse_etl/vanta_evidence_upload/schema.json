@@ -1,0 +1,222 @@
+{
+  "component_type": "dagster_component_templates.VantaEvidenceUploadComponent",
+  "description": "Reverse-ETL sink: upload one evidence file into Vanta per row of an upstream DataFrame (POST /v1/documents -> POST /v1/documents/{id}/uploads -> POST /v1/documents/{id}/submit). Push-path write component -- pairs with vanta_controls_ingestion (read) and vanta_evidence_response_agent (LLM narrative drafting).",
+  "category": "reverse_etl",
+  "vertical": "security",
+  "icon": "Shield",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one document+upload(+submit) sequence in Vanta."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (documents_created / uploads_succeeded / documents_submitted / rows_errored). No downstream data -- write side effect lands in Vanta."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "description": "Output Dagster asset name.",
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Upstream Dagster asset providing the DataFrame. Mutually exclusive with source."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
+    },
+    "resource_key": {
+      "description": "Resource key registered by VantaResourceComponent. Must be configured with write/upload scopes.",
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "vanta_resource"
+    },
+    "document_id_column": {
+      "type": "string",
+      "label": "Document Id Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding an existing Vanta document id. When present, document creation is skipped and the file is uploaded straight to that document."
+    },
+    "document_name_column": {
+      "type": "string",
+      "label": "Document Name Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding the document title (used as title when creating a new document)."
+    },
+    "document_name": {
+      "type": "string",
+      "label": "Document Name",
+      "required": false,
+      "default": null,
+      "description": "Static fallback document title, used when document_name_column is unset or a row's value is empty."
+    },
+    "evidence_description_column": {
+      "type": "string",
+      "label": "Evidence Description Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding a human-readable description of the evidence (sent as both the document's description on create and the upload's description)."
+    },
+    "evidence_description": {
+      "type": "string",
+      "label": "Evidence Description",
+      "required": false,
+      "default": null,
+      "description": "Static fallback evidence description."
+    },
+    "file_path_column": {
+      "type": "string",
+      "label": "File Path Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding a local filesystem path to the evidence file. Mutually exclusive with file_content_column."
+    },
+    "file_content_column": {
+      "type": "string",
+      "label": "File Content Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding inline file content -- base64-encoded text by convention. Mutually exclusive with file_path_column."
+    },
+    "file_name_column": {
+      "type": "string",
+      "label": "File Name Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding the filename to upload as."
+    },
+    "mime_type_column": {
+      "type": "string",
+      "label": "Mime Type Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding an explicit MIME type override."
+    },
+    "mime_type": {
+      "type": "string",
+      "label": "Mime Type",
+      "required": false,
+      "default": null,
+      "description": "Static MIME type override, used when mime_type_column is unset or empty for a row."
+    },
+    "effective_at_date_column": {
+      "type": "string",
+      "label": "Effective At Date Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding an ISO-8601 date for the upload's effectiveAtDate."
+    },
+    "time_sensitivity": {
+      "type": "string",
+      "label": "Time Sensitivity",
+      "required": false,
+      "default": "MOST_RECENT",
+      "description": "Document timeSensitivity: 'MOST_RECENT' or 'DURING_AUDIT_WINDOW'.",
+      "enum": ["MOST_RECENT", "DURING_AUDIT_WINDOW"]
+    },
+    "cadence": {
+      "type": "string",
+      "label": "Cadence",
+      "required": false,
+      "default": "P1Y",
+      "description": "Document renewal cadence (ISO-8601 duration).",
+      "enum": ["P0D", "P1D", "P1W", "P1M", "P3M", "P6M", "P1Y", "P2Y"]
+    },
+    "reminder_window": {
+      "type": "string",
+      "label": "Reminder Window",
+      "required": false,
+      "default": "P1M",
+      "description": "Notification lead time before renewal (ISO-8601 duration).",
+      "enum": ["P0D", "P1D", "P1W", "P1M", "P3M"]
+    },
+    "is_sensitive": {
+      "type": "boolean",
+      "label": "Is Sensitive",
+      "required": false,
+      "default": false,
+      "description": "Whether the document holds sensitive data requiring restricted access."
+    },
+    "auto_submit": {
+      "type": "boolean",
+      "label": "Auto Submit",
+      "required": false,
+      "default": true,
+      "description": "Whether to call POST /v1/documents/{id}/submit after a successful upload."
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "required": false,
+      "default": 60,
+      "description": "HTTP timeout for each Vanta API call."
+    },
+    "max_rows": {
+      "type": "integer",
+      "label": "Max Rows",
+      "required": false,
+      "default": 10000,
+      "description": "Overall safety cap on rows per run."
+    },
+    "group_name": {
+      "description": "Dagster asset group name.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "vanta"
+    },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "description": "Catalog tags.",
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds (auto-includes 'vanta').",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "vanta",
+    "sink",
+    "reverse-etl",
+    "compliance",
+    "security",
+    "evidence"
+  ],
+  "name": "Vanta Evidence Upload"
+}

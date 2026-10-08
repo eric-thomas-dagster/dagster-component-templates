@@ -1,0 +1,10 @@
+type: dagster_component_templates.VantaEvidenceUploadComponent
+attributes:
+  asset_name: vanta_access_review_evidence
+  upstream_asset_key: quarterly_access_review_exports
+  resource_key: vanta_resource
+  document_name_column: control_title
+  evidence_description_column: evidence_summary
+  file_path_column: evidence_file_path
+  auto_submit: true
+  group_name: reverse_etl

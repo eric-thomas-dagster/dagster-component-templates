@@ -1349,6 +1349,7 @@ _CLASS_PATHS: dict[str, str] = {
     "UnpivotComponent": "transforms/unpivot/component.py",
     "VantaControlsIngestionComponent": "assets/ingestion/vanta_controls_ingestion/component.py",
     "VantaEvidenceResponseAgentComponent": "assets/ai/vanta_evidence_response_agent/component.py",
+    "VantaEvidenceUploadComponent": "assets/reverse_etl/vanta_evidence_upload/component.py",
     "VantaResource": "resources/vanta_resource/component.py",
     "VantaResourceComponent": "resources/vanta_resource/component.py",
     "VaultAssetComponent": "assets/infrastructure/hashicorp_vault/component.py",

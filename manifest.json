@@ -50305,6 +50305,78 @@
       ]
     },
     {
+      "id": "vanta_evidence_upload",
+      "name": "Vanta Evidence Upload",
+      "category": "reverse_etl",
+      "description": "Reverse-ETL sink: upload one evidence file into Vanta per upstream row (POST /v1/documents -> POST /v1/documents/{id}/uploads -> POST /v1/documents/{id}/submit). Write-path counterpart to vanta_controls_ingestion (read).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/reverse_etl/vanta_evidence_upload",
+      "tags": [
+        "sink",
+        "vanta",
+        "reverse-etl",
+        "compliance",
+        "security",
+        "evidence"
+      ],
+      "vendor": "Vanta",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/vanta_evidence_upload/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/vanta_evidence_upload/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/vanta_evidence_upload/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/vanta_evidence_upload/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/vanta_evidence_upload/requirements.txt",
+      "component_type": "dagster_component_templates.VantaEvidenceUploadComponent",
+      "icon": "favicon:vanta.com",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-08",
+        "notes": "Code-validated against monkeypatched Vanta API calls (create/upload/submit). Live validation against a real Vanta tenant pending."
+      },
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:vanta"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to push externally-produced compliance evidence (access review exports, pen-test reports, policy docs, log samples) INTO Vanta as a document, on a schedule.",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame with a document title/path (or inline file content) column -- often a dbt mart, a file-listing sensor output, or a compliance export job.",
+        "typical_downstream": "A new or existing Vanta document, with an uploaded file and (optionally) submitted for auditor review.",
+        "example_prompts": [
+          "Upload this quarter's access review export as Vanta evidence",
+          "Push pen-test reports into Vanta and submit them for review",
+          "Attach a policy PDF to an existing Vanta document"
+        ],
+        "anti_uses": "Not for reading Vanta controls -- use vanta_controls_ingestion. Not for drafting evidence narrative text -- use vanta_evidence_response_agent. Not for requesting evidence from an auditor later (custom evidence requests) -- different Vanta workflow, not implemented here.",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "VANTA_CLIENT_ID",
+          "VANTA_CLIENT_SECRET"
+        ]
+      },
+      "keywords": [
+        "vanta compliance",
+        "evidence upload",
+        "reverse etl",
+        "write to vanta",
+        "soc2",
+        "iso27001",
+        "grc",
+        "sink"
+      ],
+      "vertical": "security"
+    },
+    {
       "id": "vanta_resource",
       "name": "Vanta Resource",
       "category": "resource",
@@ -67708,5 +67780,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1308
+  "total": 1309
 }

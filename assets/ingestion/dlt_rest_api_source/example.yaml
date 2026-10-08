@@ -1,0 +1,81 @@
+# Example 1: simple single-resource GET, API-key auth (query-param style).
+# Shape mirrors chargify_ingestion's real `customers`/`subscriptions`
+# resources in this repo, generalized to the raw config shape.
+type: dagster_component_templates.DltRestApiSourceComponent
+attributes:
+  asset_name: my_vendor_ingestion
+  client:
+    base_url: "https://mysite.chargify.com"
+    auth:
+      type: http_basic
+      username: "{{ env.MY_VENDOR_API_KEY }}"
+      password: "x"
+  resources:
+    - name: customers
+      endpoint:
+        path: customers.json
+        data_selector: "$"
+    - name: subscriptions
+      endpoint:
+        path: subscriptions.json
+        data_selector: "$"
+  group_name: my_vendor_ingestion
+
+# Example 2: bearer-token auth + cursor pagination (uncomment / use as a
+# separate component instance). Mirrors the shape used by hotjar_ingestion's
+# `surveys` resource in this repo (cursor + next_cursor response field).
+# type: dagster_component_templates.DltRestApiSourceComponent
+# attributes:
+#   asset_name: my_other_vendor_ingestion
+#   client:
+#     base_url: "https://api.example.com/v1"
+#     auth:
+#       type: bearer
+#       token: "{{ env.MY_OTHER_VENDOR_TOKEN }}"
+#   resources:
+#     - name: items
+#       endpoint:
+#         path: items
+#         data_selector: "results"
+#         paginator:
+#           type: cursor
+#           cursor_param: cursor
+#           cursor_path: next_cursor
+#         params:
+#           limit: 100
+#   destination: snowflake
+#   destination_credentials_env_var: SNOWFLAKE_CONNECTION_STRING
+
+# Example 3: dependent ("resolve") child resource -- one request per row of
+# a parent resource. Mirrors hotjar_ingestion's real `survey_details` /
+# `survey_responses` resources, which N+1 off of `surveys` via dlt's
+# `resolve` mechanism (uncomment / use as a separate component instance).
+# type: dagster_component_templates.DltRestApiSourceComponent
+# attributes:
+#   asset_name: my_vendor_parent_child_ingestion
+#   client:
+#     base_url: "https://api.hotjar.io/v1"
+#     auth:
+#       type: bearer
+#       token: "{{ env.HOTJAR_ACCESS_TOKEN }}"
+#   resources:
+#     - name: surveys
+#       endpoint:
+#         path: "sites/{{ env.HOTJAR_SITE_ID }}/surveys"
+#         data_selector: results
+#         paginator:
+#           type: cursor
+#           cursor_param: cursor
+#           cursor_path: next_cursor
+#         params:
+#           limit: 100
+#     - name: survey_responses
+#       endpoint:
+#         path: "sites/{{ env.HOTJAR_SITE_ID }}/surveys/{survey_id}/responses"
+#         data_selector: results
+#         params:
+#           survey_id:
+#             type: resolve
+#             resource: surveys
+#             field: id
+#           limit: 100

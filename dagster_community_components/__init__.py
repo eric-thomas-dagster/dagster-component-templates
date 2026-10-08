@@ -397,6 +397,7 @@ _CLASS_PATHS: dict[str, str] = {
     "DetectChangesComponent": "transforms/detect_changes/component.py",
     "DistanceCalculatorComponent": "assets/analytics/distance_calculator/component.py",
     "DltPipelineAssetsComponent": "integrations/dlt_pipeline_assets/component.py",
+    "DltRestApiSourceComponent": "assets/ingestion/dlt_rest_api_source/component.py",
     "DoceboIngestionComponent": "assets/ingestion/docebo_ingestion/component.py",
     "DockerContainerAssetComponent": "assets/infrastructure/docker_container_asset/component.py",
     "DocuSignEnvelopeSendComponent": "assets/reverse_etl/docusign_envelope_send/component.py",

@@ -17733,6 +17733,51 @@
       "icon": "Link"
     },
     {
+      "id": "dlt_rest_api_source",
+      "name": "dlt REST API Source (Advanced)",
+      "category": "ingestion",
+      "description": "Bring-your-own REST API source config -- the generic escape hatch for any REST API, using dlt's rest_api_source engine directly. Advanced option: prefer a dedicated hand-built component for your vendor if one exists in this catalog.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/dlt_rest_api_source",
+      "tags": [
+        "ingestion",
+        "generic",
+        "rest_api",
+        "dlt",
+        "advanced",
+        "escape-hatch"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dlt_rest_api_source/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dlt_rest_api_source/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dlt_rest_api_source/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dlt_rest_api_source/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dlt_rest_api_source/requirements.txt",
+      "vertical": "internal",
+      "icon": "Wrench",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Bring-your-own REST API source config -- the generic escape hatch for any REST API, using dlt's rest_api_source engine directly.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "keywords": [
+        "advanced",
+        "escape-hatch",
+        "generic"
+      ]
+    },
+    {
       "id": "docebo_ingestion",
       "name": "Docebo Ingestion",
       "category": "ingestion",
@@ -66945,5 +66990,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1333
+  "total": 1334
 }

@@ -76,7 +76,7 @@ All 5 components accept the same connection shape — swap `api_url` / `api_key_
 
 - **Catalog placement + lineage.** Prefect flows become first-class Dagster assets. Downstream dbt models / SQL transforms / dashboards depend on them via `deps:`. Prefect's own UI shows flow runs; Dagster's shows the whole data graph the flow sits in.
 - **Data-side triggers.** Prefect has no notion of "wait for the S3 file to arrive" or "gate on Snowflake table freshness." Dagster's sensors + `AutomationCondition` do — Prefect flows fit into wider DAGs alongside Snowflake / Databricks / dbt / Fivetran / Airbyte / etc.
-- **Cross-tool orchestration.** A Prefect flow that lands data in Snowflake can trigger downstream dbt Cloud runs via `dbt_cloud_trigger_job`, refresh Power BI datasets via `dagster-powerbi`, and gate on freshness via `freshness_check`. None of that is Prefect's job; all of it is Dagster's.
+- **Cross-tool orchestration.** A Prefect flow that lands data in Snowflake can trigger downstream dbt Cloud runs via `enriched_dbt_cloud_workspace`, refresh Power BI datasets via `dagster-powerbi`, and gate on freshness via `post_processing`'s `attributes.freshness_policy`. None of that is Prefect's job; all of it is Dagster's.
 - **Partitioning.** Dagster's asset-partitioning model lets one `prefect_flow_run` component fan out to per-day / per-tenant runs of the same Prefect deployment — with Dagster tracking which partitions succeeded, retried, or need backfill. Prefect handles per-run state; Dagster handles the collection.
 
 ## Gotchas — most handled by the components

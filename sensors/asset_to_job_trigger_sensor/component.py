@@ -17,7 +17,7 @@ an explicit sensor; this is that sensor, built once and configured per
 case instead of hand-written each time.
 
 Selection resolution mirrors `enhanced_data_quality_checks` /
-`automation_condition_applicator` / `bulk_freshness_policies`: an explicit
+`automation_condition_applicator` / `aggregate_freshness_sensor`: an explicit
 asset-key list, the full Dagster selection DSL via
 `AssetSelection.from_string()` (tag:/group:/kind:/boolean composition),
 `"*"` for everything, or a bare fnmatch glob fallback -- resolved against
@@ -31,7 +31,7 @@ from pydantic import Field
 
 def _discover_sibling_assets(context: dg.ComponentLoadContext):
     """Returns (list_of_key_strings, sibling_defs). Same mechanism
-    `enhanced_data_quality_checks`/`bulk_freshness_policies` use: load
+    `enhanced_data_quality_checks`/`aggregate_freshness_sensor` use: load
     sibling components in the same defs folder so `sibling_defs.resolve_asset_graph()`
     can power the full Dagster selection language via `AssetSelection.from_string()`."""
     keys: List[str] = []

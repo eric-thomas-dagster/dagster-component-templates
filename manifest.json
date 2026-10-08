@@ -20728,108 +20728,6 @@
       ]
     },
     {
-      "id": "freshness_check",
-      "name": "Freshness Policy",
-      "category": "check",
-      "description": "Attach a Dagster FreshnessPolicy to an asset for continuous SLA monitoring.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "asset_checks/freshness_check",
-      "tags": [
-        "check",
-        "freshness"
-      ],
-      "dependencies": {
-        "pip": [
-          "dagster"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/freshness_check/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/freshness_check/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/freshness_check/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/freshness_check/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/freshness_check/requirements.txt",
-      "icon": "CheckCircle",
-      "validation": {
-        "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/data_quality.md",
-        "last_validated": "2026-05-08"
-      },
-      "produces": [
-        "asset_check"
-      ],
-      "agent_hints": {
-        "input_type": "pd.DataFrame",
-        "output_type": "AssetCheckResult",
-        "outputs": "Attach a Dagster FreshnessPolicy to an asset for continuous SLA monitoring.",
-        "requires_pip": [
-          "dagster"
-        ]
-      },
-      "keywords": [
-        "data quality",
-        "assertion"
-      ]
-    },
-    {
-      "id": "bulk_freshness_policies",
-      "name": "Bulk Freshness Policies",
-      "category": "check",
-      "description": "Bulk sibling of FreshnessPolicyComponent -- one config block declares freshness policies for many assets at once, grouped by cadence tier and selected by tag/group/kind/selection-DSL (not a hand-listed asset_keys array), instead of one component instance per asset.",
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "path": "asset_checks/bulk_freshness_policies",
-      "tags": [
-        "check",
-        "freshness",
-        "workspace",
-        "bulk",
-        "selection"
-      ],
-      "dependencies": {
-        "pip": [
-          "dagster"
-        ]
-      },
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/bulk_freshness_policies/README.md",
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/bulk_freshness_policies/component.py",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/bulk_freshness_policies/schema.json",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/bulk_freshness_policies/example.yaml",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/bulk_freshness_policies/requirements.txt",
-      "icon": "CheckCircle",
-      "validation": {
-        "level": "code",
-        "last_validated": "2026-10-08",
-        "notes": "Built and tested this session (9 passing tests, including real AssetSelection.from_string() resolution against genuine sibling dg.Definitions -- tag:/group: selectors, not just the explicit-list fast path). Built for an incoming customer POC scenario (per-table freshness/absence monitoring across ~250 tables) that found freshness_check was real but genuinely didn't cover the bulk, selection-based case."
-      },
-      "consumes": [],
-      "produces": [
-        "asset_check"
-      ],
-      "agent_hints": {
-        "when_to_use": "Bulk-declare freshness/absence monitoring across many assets (e.g. a large replication feed with hundreds of landing tables on different cadences), selected by tag/group/kind rather than one component instance per asset.",
-        "example_prompts": [
-          "Alert if any of our ~250 SAP landing tables stops receiving data, grouped by expected cadence tier and selected by tag instead of hand-listing every table."
-        ],
-        "requires_pip": [
-          "dagster"
-        ],
-        "requires_env_vars": []
-      },
-      "keywords": [
-        "freshness",
-        "sla",
-        "absence",
-        "staleness",
-        "bulk",
-        "workspace",
-        "check",
-        "selection",
-        "tag",
-        "group"
-      ]
-    },
-    {
       "id": "funnel_analysis",
       "name": "Funnel Analysis",
       "category": "analytics",
@@ -67461,6 +67359,64 @@
         "databricks sql",
         "connection",
         "connect"
+      ]
+    },
+    {
+      "id": "aggregate_freshness_sensor",
+      "name": "Aggregate Freshness Sensor",
+      "category": "sensor",
+      "description": "Alert when an entire selection of assets has gone silent, as one check result instead of hundreds of per-asset alerts. Polls the most recent materialization (or observation) across a whole selection and reports a single AssetCheckEvaluation against a declared rollup asset -- distinct from post_processing's per-asset attributes.freshness_policy, which answers 'is this one asset stale' rather than 'did the whole feed stop'.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/aggregate_freshness_sensor",
+      "tags": [
+        "sensor",
+        "freshness",
+        "check",
+        "aggregate",
+        "selection",
+        "alerting"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/aggregate_freshness_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/aggregate_freshness_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/aggregate_freshness_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/aggregate_freshness_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/aggregate_freshness_sensor/requirements.txt",
+      "icon": "Sensors",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-08",
+        "notes": "Built and tested (7 passing tests): explicit-list + real AssetSelection.from_string() group: resolution against a genuine dg.Definitions, empty-match error, invalid default_status, and real end-to-end sensor evaluation against a real DagsterInstance.ephemeral() -- confirms the check fails when nothing has ever materialized, passes once any one monitored asset materializes, and fails again once the freshest event exceeds max_silence_seconds. Built after confirming directly that SensorResult(asset_events=[...]) accepts AssetCheckEvaluation and persists it queryably with no pre-declared AssetCheckSpec required. Replaces bulk_freshness_policies and freshness_check (both removed, same session) -- those answered 'is this one asset stale', not 'did the whole feed stop'; per-asset freshness policies are now wired via post_processing's attributes.freshness_policy (dg.FreshnessPolicy.time_window()/.cron()) instead of a dedicated component, since a sibling component can't attach a FreshnessPolicy to another component's own AssetsDefinition without a duplicate-asset-key error."
+      },
+      "consumes": [],
+      "produces": [
+        "sensor",
+        "check"
+      ],
+      "agent_hints": {
+        "when_to_use": "Alert when an entire group of assets has gone silent (e.g. a replication feed with hundreds of tables on mixed cadences going fully dark) -- not when one asset individually misses its own SLA. Pair with a Dagster+ 'asset check failed' alert policy on the declared rollup_asset_key.",
+        "example_prompts": [
+          "Alert us if NOTHING in this whole SnowPipe feed has loaded in 10 minutes, without firing a separate alert for every individual table."
+        ],
+        "requires_pip": [
+          "dagster"
+        ],
+        "requires_env_vars": []
+      },
+      "keywords": [
+        "sensor",
+        "freshness",
+        "check",
+        "aggregate",
+        "rollup",
+        "selection",
+        "alerting",
+        "stoppage"
       ]
     }
   ],

@@ -1,0 +1,13 @@
+# Uses an explicit asset-key list here so this example is self-contained
+# (no sibling assets required to resolve against). In practice,
+# monitored_selection is usually a selection string instead -- e.g.
+# "group:sap_hourly" -- which resolves against whatever sibling assets
+# actually exist in the real project. See README.md.
+type: dagster_component_templates.AggregateFreshnessSensorComponent
+attributes:
+  sensor_name: sap_hourly_total_stoppage_sensor
+  monitored_selection: [sap_ecc/bseg, sap_ecc/konv]
+  rollup_asset_key: sap_ecc/hourly_feed_health
+  max_silence_seconds: 600
+  minimum_interval_seconds: 60
+  default_status: stopped

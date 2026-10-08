@@ -15,7 +15,7 @@ attributes:
 
 ## `monitored_selection` syntax
 
-Same selection language this repo's other bulk/selection-driven components already use (`enhanced_data_quality_checks`, `automation_condition_applicator`, `bulk_freshness_policies`), resolved against sibling assets in the same defs folder:
+Same selection language this repo's other bulk/selection-driven components already use (`enhanced_data_quality_checks`, `automation_condition_applicator`, `aggregate_freshness_sensor`), resolved against sibling assets in the same defs folder:
 
 | Form | Example | Notes |
 |---|---|---|
@@ -49,4 +49,4 @@ If the thing you're triggering is (or could reasonably be) an asset, prefer `pos
 
 ## Sister components
 
-- `enhanced_data_quality_checks` / `automation_condition_applicator` / `bulk_freshness_policies` — this repo's other selection-DSL-powered components; same resolution mechanism.
+- `enhanced_data_quality_checks` / `automation_condition_applicator` / `aggregate_freshness_sensor` — this repo's other selection-DSL-powered components; same resolution mechanism.

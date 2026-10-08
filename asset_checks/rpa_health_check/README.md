@@ -182,5 +182,5 @@ can be scheduled or evaluated on demand from the Dagster UI.
 - `power_automate_integration` — target: Power Automate flows
 - `controlm_integration` — target: Control-M jobs
 - `runmyjobs_integration` — target: Redwood RunMyJobs JobDefinitions
-- `freshness_check` — Dagster-native freshness policy (declarative,
+- `post_processing`'s `attributes.freshness_policy` (via `dg.FreshnessPolicy.time_window()`/`.cron()`) — Dagster-native freshness policy (declarative,
   freshness only — no status / output validation)

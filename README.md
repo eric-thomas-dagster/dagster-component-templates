@@ -155,9 +155,9 @@ Filter with `dagster-component search "" --produces schedule` to list every sche
 
 ---
 
-### Asset Checks (7)
+### Asset Checks (6)
 
-`dq_check` · `great_expectations_check` · `soda_check` · `monte_carlo_check` · `sifflet_check` · `acceldata_check` · `freshness_check`
+`dq_check` · `great_expectations_check` · `soda_check` · `monte_carlo_check` · `sifflet_check` · `acceldata_check`
 
 ---
 

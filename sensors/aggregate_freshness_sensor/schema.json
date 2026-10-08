@@ -1,0 +1,89 @@
+{
+  "component_type": "dagster_component_templates.AggregateFreshnessSensorComponent",
+  "description": "Alert when an entire selection of assets has gone silent, as one check result instead of hundreds of per-asset alerts. Polls the most recent materialization (or observation) across a whole selection and reports a single AssetCheckEvaluation against a declared rollup asset -- distinct from post_processing's per-asset attributes.freshness_policy, which answers 'is this one asset stale' rather than 'did the whole feed stop'.",
+  "category": "sensor",
+  "icon": "Sensors",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetCheckEvaluation",
+      "description": "One passed/failed check per tick against the declared rollup asset -- wire a Dagster+ 'asset check failed' alert policy to it."
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique sensor name.",
+      "required": true
+    },
+    "monitored_selection": {
+      "type": "string",
+      "label": "Monitored Selection",
+      "description": "Asset selection to monitor in aggregate: explicit key list, the Dagster selection DSL (tag:/group:/kind:/boolean composition), '*' for everything, or a bare fnmatch glob. Resolved against sibling assets in the same defs folder.",
+      "required": true
+    },
+    "rollup_asset_key": {
+      "type": "string",
+      "label": "Rollup Asset Key",
+      "description": "Asset key for the single declared 'rollup' asset the aggregate check is reported against (e.g. 'sap_ecc/hourly_feed_health'). Declare-only -- this component never materializes it, it only exists to carry the check.",
+      "required": true
+    },
+    "max_silence_seconds": {
+      "type": "integer",
+      "label": "Max Silence Seconds",
+      "description": "Fail the aggregate check if the most recent materialization across the WHOLE monitored selection is older than this many seconds -- or if nothing in the selection has ever materialized at all.",
+      "required": true
+    },
+    "check_name": {
+      "type": "string",
+      "label": "Check Name",
+      "description": "Name of the asset check reported against rollup_asset_key.",
+      "required": false,
+      "default": "total_stoppage"
+    },
+    "include_observations": {
+      "type": "boolean",
+      "label": "Include Observations",
+      "description": "Also consider AssetObservation events (not just materializations) when finding the most recent event per monitored asset. Costs one extra query per monitored asset per tick, so it's opt-in -- leave off for large selections unless some monitored assets are observation-only.",
+      "required": false,
+      "default": false
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum seconds between sensor evaluations.",
+      "required": false,
+      "default": 60
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "'running' or 'stopped' -- initial status of the sensor.",
+      "required": false,
+      "default": "stopped",
+      "enum": ["running", "stopped"],
+      "ui:widget": "select"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Group name for the declared rollup asset.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Description for the declared rollup asset.",
+      "required": false
+    }
+  },
+  "tags": [
+    "sensor",
+    "freshness",
+    "check",
+    "aggregate",
+    "selection",
+    "alerting"
+  ],
+  "name": "Aggregate Freshness Sensor"
+}

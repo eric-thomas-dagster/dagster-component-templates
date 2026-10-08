@@ -1550,6 +1550,16 @@ try:
                             node = nodes.get(unique_id)
                             if node is None:
                                 continue
+                            # run_results.json covers every node type the
+                            # invocation touched -- tests, seeds, snapshots,
+                            # not just models. Tests aren't assets (a dbt
+                            # test result belongs on the MODEL asset it
+                            # tests, as an AssetCheckResult, not a
+                            # materialization of its own) -- skip them here;
+                            # surfacing them as real asset checks is real,
+                            # valuable follow-on work, not done in this pass.
+                            if node.get("resource_type") not in ("model", "seed", "snapshot"):
+                                continue
                             try:
                                 asset_key = _translator.get_asset_key(node)
                             except Exception as e:

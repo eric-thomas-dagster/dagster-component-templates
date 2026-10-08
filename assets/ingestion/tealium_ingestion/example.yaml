@@ -1,0 +1,9 @@
+type: dagster_component_templates.TealiumIngestionComponent
+attributes:
+  asset_name: tealium_ingestion
+  account: "mycompany"
+  profile: "main"
+  username: "${TEALIUM_USERNAME}"
+  api_key: "${TEALIUM_API_KEY}"
+  lookup_attribute_id: "crm_id"
+  lookup_values: "cust_1001,cust_1002,cust_1003"

@@ -1,0 +1,6 @@
+type: dagster_component_templates.AmperityIngestionComponent
+attributes:
+  asset_name: amperity_ingestion
+  tenant: "mycompany"
+  access_token: "${AMPERITY_ACCESS_TOKEN}"
+  resources: "audit_events,segments"

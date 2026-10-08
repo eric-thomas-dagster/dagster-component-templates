@@ -1,0 +1,5 @@
+type: dagster_component_templates.RudderStackIngestionComponent
+attributes:
+  asset_name: rudderstack_ingestion
+  service_access_token: "${RUDDERSTACK_SERVICE_ACCESS_TOKEN}"
+  resources: "tracking_plans,audit_logs"

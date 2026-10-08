@@ -1,0 +1,7 @@
+type: dagster_component_templates.MParticleIngestionComponent
+attributes:
+  asset_name: mparticle_ingestion
+  account_id: "123456"
+  client_id: "${MPARTICLE_CLIENT_ID}"
+  client_secret: "${MPARTICLE_CLIENT_SECRET}"
+  resources: "audiences"

@@ -66431,9 +66431,264 @@
         "zuora",
         "zuora resource"
       ]
+    },
+    {
+      "id": "amperity_ingestion",
+      "name": "Amperity Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Amperity CDP audit-event, campaign, segment, and ingest-job data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/amperity_ingestion",
+      "tags": [
+        "ingestion",
+        "amperity",
+        "cdp",
+        "marketing-automation",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/amperity_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/amperity_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/amperity_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/amperity_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/amperity_ingestion/requirements.txt",
+      "vertical": "marketing",
+      "icon": "Fingerprint",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest Amperity CDP audit-event, campaign, segment, and ingest-job data using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
+    },
+    {
+      "id": "attentive_ingestion",
+      "name": "Attentive Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Attentive SMS/email marketing segment, webhook, and catalog-upload data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/attentive_ingestion",
+      "tags": [
+        "ingestion",
+        "attentive",
+        "sms-marketing",
+        "cdp",
+        "marketing-automation",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/attentive_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/attentive_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/attentive_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/attentive_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/attentive_ingestion/requirements.txt",
+      "vertical": "marketing",
+      "icon": "MessageSquare",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest Attentive SMS/email marketing segment, webhook, and catalog-upload data using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
+    },
+    {
+      "id": "mparticle_ingestion",
+      "name": "mParticle Ingestion",
+      "category": "ingestion",
+      "description": "Ingest mParticle CDP audience and calculated-attribute data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/mparticle_ingestion",
+      "tags": [
+        "ingestion",
+        "mparticle",
+        "cdp",
+        "marketing-automation",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/mparticle_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/mparticle_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/mparticle_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/mparticle_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/mparticle_ingestion/requirements.txt",
+      "vertical": "marketing",
+      "icon": "Users",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest mParticle CDP audience and calculated-attribute data using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
+    },
+    {
+      "id": "pardot_ingestion",
+      "name": "Pardot (Salesforce Account Engagement) Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Salesforce Account Engagement (Pardot) prospect, campaign, list, and visitor data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/pardot_ingestion",
+      "tags": [
+        "ingestion",
+        "pardot",
+        "salesforce",
+        "account-engagement",
+        "cdp",
+        "marketing-automation",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pardot_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pardot_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pardot_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pardot_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/pardot_ingestion/requirements.txt",
+      "vertical": "marketing",
+      "icon": "Megaphone",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest Salesforce Account Engagement (Pardot) prospect, campaign, list, and visitor data using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
+    },
+    {
+      "id": "rudderstack_ingestion",
+      "name": "RudderStack Ingestion",
+      "category": "ingestion",
+      "description": "Ingest RudderStack Data Catalog tracking-plan, audit-log, and usage data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/rudderstack_ingestion",
+      "tags": [
+        "ingestion",
+        "rudderstack",
+        "cdp",
+        "marketing-automation",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rudderstack_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rudderstack_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rudderstack_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rudderstack_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/rudderstack_ingestion/requirements.txt",
+      "vertical": "marketing",
+      "icon": "Route",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest RudderStack Data Catalog tracking-plan, audit-log, and usage data using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
+    },
+    {
+      "id": "tealium_ingestion",
+      "name": "Tealium Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Tealium AudienceStream visitor-profile data (for a known list of identifiers) using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/tealium_ingestion",
+      "tags": [
+        "ingestion",
+        "tealium",
+        "cdp",
+        "marketing-automation",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tealium_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tealium_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tealium_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tealium_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/tealium_ingestion/requirements.txt",
+      "vertical": "marketing",
+      "icon": "Tags",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest Tealium AudienceStream visitor-profile data (for a known list of identifiers) using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1320
+  "total": 1327
 }

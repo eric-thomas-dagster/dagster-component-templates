@@ -1,0 +1,5 @@
+type: dagster_component_templates.AttentiveIngestionComponent
+attributes:
+  asset_name: attentive_ingestion
+  api_key: "${ATTENTIVE_API_KEY}"
+  resources: "segments,webhooks"

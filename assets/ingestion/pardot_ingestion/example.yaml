@@ -1,0 +1,8 @@
+type: dagster_component_templates.PardotIngestionComponent
+attributes:
+  asset_name: pardot_ingestion
+  business_unit_id: "0Uv000000000001AAA"
+  client_id: "${PARDOT_CLIENT_ID}"
+  client_secret: "${PARDOT_CLIENT_SECRET}"
+  refresh_token: "${PARDOT_REFRESH_TOKEN}"
+  resources: "prospects,campaigns"

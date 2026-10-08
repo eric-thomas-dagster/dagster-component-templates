@@ -6,11 +6,8 @@ tests only call `_enrich_spec` / `_build_external_package_specs` /
 `get_asset_spec` directly against hand-built manifest dicts.
 
 Loaded via `importlib.import_module` on the real dotted package path (NOT
-the `spec_from_file_location` trick used by most other components' tests)
-because component.py itself does relative imports of sibling modules in
-this folder (`from ._job_selection import ...`, `from ._run_monitor import
-...`) -- those only resolve when the module is imported as part of its
-real parent package, not loaded standalone from an arbitrary file path.
+the `spec_from_file_location` trick used by most other components' tests),
+consistent with this repo's standard test-loader convention.
 """
 import importlib
 from types import ModuleType

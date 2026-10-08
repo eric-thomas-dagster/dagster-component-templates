@@ -14,6 +14,16 @@ Cloud sibling of ``EnrichedDbtProjectComponent`` — extends the official
   ``et/dbt-cloud-mirror-jobs-selection`` PR branch.
 - **Same enrichment fields** as ``EnrichedDbtProjectComponent`` for
   metadata surfacing (docs URL, exposures, contracts, freshness, …).
+- **Real dbt test results as per-model `AssetCheckEvaluation`s**, for
+  ``mirror_jobs``'s trigger op specifically — a dbt test node is mapped to
+  its parent model via the manifest's ``attached_node``/``depends_on``,
+  not surfaced as its own materialization. A failed test is reported as a
+  failed check (alertable via Dagster+'s native "Asset" alert policy) but
+  does not itself fail the op -- the overall dbt Cloud run's own status
+  (checked earlier) already reflects whatever dbt Cloud's job settings
+  consider run-blocking. (The separate enhanced polling sensor, for the
+  primary `select`/`exclude` asset path, does not yet do this -- see
+  Roadmap.)
 
 Companion component: ``EnrichedDbtProjectComponent`` for dbt Core projects.
 Both live in the same category (``dbt``) with the same enrichment
@@ -2023,12 +2033,76 @@ try:
                                 continue
                             # run_results.json covers every node type the
                             # invocation touched -- tests, seeds, snapshots,
-                            # not just models. Tests aren't assets (a dbt
-                            # test result belongs on the MODEL asset it
-                            # tests, as an AssetCheckResult, not a
-                            # materialization of its own) -- skip them here;
-                            # surfacing them as real asset checks is real,
-                            # valuable follow-on work, not done in this pass.
+                            # not just models. A dbt test result belongs on
+                            # the MODEL asset it tests, as a real
+                            # AssetCheckEvaluation, not a materialization of
+                            # its own -- handled in the branch below. The
+                            # overall run's status was already checked above
+                            # (dg.Failure raised if the whole dbt Cloud run
+                            # didn't report success), so a test result
+                            # reaching this point is one dbt Cloud's own job
+                            # settings already decided wasn't run-blocking --
+                            # surfaced here as a real, alertable check
+                            # (Dagster+'s "Asset" alert policy fires on check
+                            # failures), not escalated into failing this op
+                            # too.
+                            if node.get("resource_type") == "test":
+                                # Prefer `attached_node` (newer dbt manifests:
+                                # the single node this generic test is
+                                # attached to) over the first model/seed/
+                                # snapshot in depends_on.nodes (a relationship
+                                # test can depend on two models; attached_node
+                                # is dbt's own canonical "this test belongs to
+                                # X" answer when there is one).
+                                parent_unique_id = node.get("attached_node")
+                                if not parent_unique_id:
+                                    for dep_id in (node.get("depends_on") or {}).get("nodes") or []:
+                                        dep_node = nodes.get(dep_id)
+                                        if dep_node and dep_node.get("resource_type") in (
+                                            "model", "seed", "snapshot",
+                                        ):
+                                            parent_unique_id = dep_id
+                                            break
+                                parent_node = nodes.get(parent_unique_id) if parent_unique_id else None
+                                if parent_node is None:
+                                    context.log.warning(
+                                        f"dbt test {unique_id!r} has no resolvable parent "
+                                        f"model/seed/snapshot -- skipping check emission"
+                                    )
+                                    continue
+                                try:
+                                    parent_asset_key = _translator.get_asset_key(parent_node)
+                                except Exception as e:
+                                    context.log.warning(
+                                        f"could not derive an asset key for test {unique_id!r}'s "
+                                        f"parent {parent_unique_id!r}: {e}"
+                                    )
+                                    continue
+                                test_passed = result_status == "pass"
+                                context.log_event(
+                                    dg.AssetCheckEvaluation(
+                                        asset_key=parent_asset_key,
+                                        check_name=node.get("name") or unique_id,
+                                        passed=test_passed,
+                                        severity=(
+                                            dg.AssetCheckSeverity.WARN
+                                            if result_status == "warn"
+                                            else dg.AssetCheckSeverity.ERROR
+                                        ),
+                                        description=(
+                                            result.get("message")
+                                            or f"dbt test {node.get('name') or unique_id} "
+                                               f"finished with status {result_status!r}"
+                                        ),
+                                        metadata={
+                                            "dbt_cloud/job_id": _cloud_job_id,
+                                            "dbt_cloud/run_id": run_id,
+                                            "dbt/status": result_status,
+                                            "dbt/execution_time": result.get("execution_time"),
+                                        },
+                                    )
+                                )
+                                continue
                             if node.get("resource_type") not in ("model", "seed", "snapshot"):
                                 continue
                             try:

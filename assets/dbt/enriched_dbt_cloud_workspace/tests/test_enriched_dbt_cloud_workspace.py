@@ -410,3 +410,111 @@ def test_mirrored_job_fails_when_a_model_errors_even_though_the_run_status_is_su
 
     result = job.execute_in_process(raise_on_error=False)
     assert not result.success
+
+
+# --- mirror_jobs: real dbt test results as per-model AssetCheckEvaluations --
+#
+# Previously silently dropped (run_results.json covers tests too, but the
+# per-node loop only ever handled resource_type in model/seed/snapshot --
+# a dbt test's own pass/fail/warn result never reached Dagster at all, real
+# or synthetic). Now mapped to the parent model via attached_node (or a
+# depends_on.nodes fallback) and emitted as a real AssetCheckEvaluation --
+# confirmed directly that context.log_event accepts one inside a real op
+# with no declared check_spec required, and that it doesn't fail the op
+# itself (the overall dbt Cloud run's own status, checked earlier, already
+# reflects whatever dbt Cloud's job settings consider run-blocking).
+
+_FAKE_TEST_NODE = {
+    "resource_type": "test",
+    "name": "not_null_stg_site_details_id",
+    "unique_id": "test.fuel_and_trading.not_null_stg_site_details_id",
+    "attached_node": _FAKE_NODE["unique_id"],
+    "depends_on": {"nodes": [_FAKE_NODE["unique_id"]]},
+}
+
+_FAKE_TEST_NODE_NO_ATTACHED = {
+    "resource_type": "test",
+    "name": "relationships_stg_site_details",
+    "unique_id": "test.fuel_and_trading.relationships_stg_site_details",
+    # No attached_node (older manifest shape / multi-node relationship test)
+    # -- falls back to the first model/seed/snapshot in depends_on.nodes.
+    "depends_on": {"nodes": [_FAKE_NODE["unique_id"]]},
+}
+
+
+class _FakeTriggerClientWithTest(_FakeTriggerClient):
+    """Same as _FakeTriggerClient, but run_results.json/manifest.json also
+    include a real dbt test node alongside the model."""
+    def __init__(self, test_node, test_status="pass", **kwargs):
+        super().__init__(**kwargs)
+        self._test_node = test_node
+        self._test_status = test_status
+
+    def get_run_results_json(self, run_id):
+        base = super().get_run_results_json(run_id)
+        base["results"].append({
+            "unique_id": self._test_node["unique_id"],
+            "status": self._test_status,
+            "execution_time": 0.1,
+            "message": None,
+        })
+        return base
+
+    def get_run_manifest_json(self, run_id):
+        base = super().get_run_manifest_json(run_id)
+        base["nodes"][self._test_node["unique_id"]] = self._test_node
+        return base
+
+
+def test_passing_dbt_test_emits_a_passed_check_on_the_parent_model(mod, monkeypatch):
+    fake_client = _FakeTriggerClientWithTest(_FAKE_TEST_NODE, test_status="pass")
+    component = _mirrored_component(mod, fake_client)
+    job = _build_mirrored_job(mod, component, monkeypatch)
+
+    result = job.execute_in_process()
+    assert result.success
+
+    check_evals = [
+        e for e in result.all_events
+        if e.event_type_value == "ASSET_CHECK_EVALUATION"
+    ]
+    assert len(check_evals) == 1
+    check = check_evals[0].event_specific_data
+    assert check.asset_key == dg.AssetKey(["stg_site_details"])
+    assert check.check_name == "not_null_stg_site_details_id"
+    assert check.passed is True
+
+
+def test_failing_dbt_test_emits_a_failed_check_but_does_not_fail_the_op(mod, monkeypatch):
+    """A failed dbt TEST is a data-quality signal about an already-built
+    model, surfaced as a real (alertable) check -- not escalated into
+    failing the whole trigger op the way a failed MODEL build does."""
+    fake_client = _FakeTriggerClientWithTest(_FAKE_TEST_NODE, test_status="fail")
+    component = _mirrored_component(mod, fake_client)
+    job = _build_mirrored_job(mod, component, monkeypatch)
+
+    result = job.execute_in_process()
+    assert result.success  # the op itself still succeeds
+
+    check_evals = [
+        e for e in result.all_events
+        if e.event_type_value == "ASSET_CHECK_EVALUATION"
+    ]
+    assert len(check_evals) == 1
+    assert check_evals[0].event_specific_data.passed is False
+
+
+def test_dbt_test_without_attached_node_falls_back_to_depends_on(mod, monkeypatch):
+    fake_client = _FakeTriggerClientWithTest(_FAKE_TEST_NODE_NO_ATTACHED, test_status="pass")
+    component = _mirrored_component(mod, fake_client)
+    job = _build_mirrored_job(mod, component, monkeypatch)
+
+    result = job.execute_in_process()
+    assert result.success
+
+    check_evals = [
+        e for e in result.all_events
+        if e.event_type_value == "ASSET_CHECK_EVALUATION"
+    ]
+    assert len(check_evals) == 1
+    assert check_evals[0].event_specific_data.asset_key == dg.AssetKey(["stg_site_details"])

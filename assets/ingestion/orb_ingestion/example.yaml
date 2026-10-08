@@ -1,0 +1,5 @@
+type: dagster_component_templates.OrbIngestionComponent
+attributes:
+  asset_name: orb_ingestion
+  api_key: "${ORB_API_KEY}"
+  resources: "customers,subscriptions"

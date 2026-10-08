@@ -67481,9 +67481,191 @@
         "gateway",
         "model-routing"
       ]
+    },
+    {
+      "id": "default_resource",
+      "name": "Default Resource",
+      "component_type": "dagster_component_templates.DefaultResourceComponent",
+      "path": "resources/default_resource",
+      "category": "resource",
+      "icon": "Workflow",
+      "description": "Register a DefaultResource wrapping the Default (default.com) GTM/revenue-operations platform REST API -- workflow triggers and meeting scheduling -- for use by other components.",
+      "tags": [
+        "resource",
+        "default",
+        "gtm",
+        "workflow",
+        "revenue-operations",
+        "scheduling"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/default_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/default_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/default_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/default_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/default_resource/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "x-dagster-provides": [
+        "default_resource"
+      ],
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-08",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Auth scheme (plain API-key Bearer) and base URL/endpoint shapes confirmed against Default's real public API reference docs (docs.os.default.com). Live validation against a real Default account pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "User needs a Default (default.com) GTM/revenue-operations platform client usable by other Dagster components (reverse-ETL sinks, custom asset code) -- firing workflow triggers or booking/checking meeting slots.",
+        "outputs": "Register a DefaultResource wrapping the Default REST API for use by other components.",
+        "requires_pip": [
+          "dagster",
+          "requests"
+        ],
+        "requires_env_vars": [
+          "DEFAULT_API_KEY"
+        ]
+      },
+      "keywords": [
+        "default",
+        "default.com",
+        "gtm",
+        "revenue operations",
+        "revops",
+        "workflow automation",
+        "lead routing",
+        "scheduling",
+        "resource",
+        "connection",
+        "connect"
+      ],
+      "vertical": "marketing-automation"
+    },
+    {
+      "id": "default_workflow_trigger",
+      "name": "Default Workflow Trigger",
+      "component_type": "dagster_component_templates.DefaultWorkflowTriggerComponent",
+      "path": "assets/reverse_etl/default_workflow_trigger",
+      "category": "reverse_etl",
+      "icon": "Zap",
+      "description": "Reverse-ETL sink: fire one Default (default.com) API trigger per row of an upstream DataFrame, running whichever workflow is wired to that API trigger node (lead routing, scheduling, automations). Default has no upsert concept for trigger firings -- re-running on the same data re-fires the workflow.",
+      "tags": [
+        "default",
+        "gtm",
+        "workflow",
+        "sink",
+        "reverse-etl",
+        "trigger",
+        "lead-routing"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/default_workflow_trigger/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/default_workflow_trigger/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/default_workflow_trigger/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/default_workflow_trigger/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/default_workflow_trigger/requirements.txt",
+      "dependencies": {
+        "pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-08",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Request/response shapes confirmed against Default's real public API reference docs (docs.os.default.com/api-reference/triggers/fire-a-trigger.md) -- notably that `email` is a required top-level field separate from the `responses` form payload. Live validation against a real Default workflow pending."
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "resource:default_resource"
+      ],
+      "agent_hints": {
+        "when_to_use": "User wants to fire a Default (default.com) workflow trigger (lead routing, scheduling automation) INTO Default for each row of a warehouse-computed DataFrame -- reverse ETL / activation, not ingestion.",
+        "typical_upstream": "Dagster asset producing a pandas DataFrame with a lead/contact email column -- usually a dbt mart of scored or qualified leads.",
+        "typical_downstream": "A Default workflow wired to an API trigger node (created in the Default workflow builder).",
+        "example_prompts": [
+          "Fire a Default lead-routing workflow for every newly-scored lead",
+          "Kick off a Default scheduling automation per account row",
+          "Push qualified leads from the warehouse into a Default workflow trigger"
+        ],
+        "anti_uses": "Not for reading Default data back out -- Default has no bulk read/ingestion API documented here. Does not create or manage workflows/triggers -- the target trigger must already exist in Default.",
+        "requires_pip": [
+          "pandas>=2.0.0",
+          "requests>=2.28"
+        ],
+        "requires_env_vars": [
+          "DEFAULT_API_KEY"
+        ]
+      },
+      "keywords": [
+        "default",
+        "default.com",
+        "gtm",
+        "revenue operations",
+        "revops",
+        "workflow trigger",
+        "lead routing",
+        "reverse etl",
+        "sink",
+        "write to default",
+        "activation"
+      ],
+      "vertical": "marketing-automation"
+    },
+    {
+      "id": "orb_ingestion",
+      "name": "Orb Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Orb (withorb.com) customer, subscription, and invoice data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/orb_ingestion",
+      "tags": [
+        "ingestion",
+        "orb",
+        "billing",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/orb_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/orb_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/orb_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/orb_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/orb_ingestion/requirements.txt",
+      "vertical": "finance-hr",
+      "icon": "Receipt",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest Orb (withorb.com) customer, subscription, and invoice data using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1296
+  "total": 1307
 }

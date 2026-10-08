@@ -611,7 +611,6 @@ try:
     from ._job_selection import apply_selection
     from ._run_monitor import DbtCloudRunMonitor
 
-    @dataclass
     class EnrichedDbtCloudWorkspaceComponent(_DbtCloudComponent):
         """Enriched drop-in for ``DbtCloudComponent``. See module docstring."""
 

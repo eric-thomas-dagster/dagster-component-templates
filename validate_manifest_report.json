@@ -1,19 +1,31 @@
 {
   "summary": {
-    "PASS": 1
+    "FAIL": 1,
+    "SKIP_PROJECT_REQUIRED": 1
   },
   "results": [
     {
-      "id": "bulk_freshness_policies",
-      "path": "asset_checks/bulk_freshness_policies",
-      "status": "PASS",
-      "warnings": [
-        "SupersessionWarning: Function `build_last_update_freshness_checks` is superseded and its usage is discouraged. Attach `FreshnessPolicy` objects to your assets instead.",
-        "SupersessionWarning: Function `build_last_update_freshness_checks` is superseded and its usage is discouraged. Attach `FreshnessPolicy` objects to your assets instead.",
-        "SupersessionWarning: Function `build_last_update_freshness_checks` is superseded and its usage is discouraged. Attach `FreshnessPolicy` objects to your assets instead."
-      ],
-      "error": null,
-      "error_class": null
+      "id": "enriched_dbt_cloud_workspace",
+      "path": "assets/dbt/enriched_dbt_cloud_workspace",
+      "status": "FAIL",
+      "warnings": [],
+      "error": "2 validation errors for EnrichedDbtCloudWorkspaceComponent\nworkspace.project_id\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='{{ env.DBT_CLOUD_PROJECT_ID }}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing\nworkspace.environment_id\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='{{ env.DBT_CLOUD_ENVIRONMENT_ID }}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing",
+      "error_class": "ValidationError",
+      "traceback": [
+        "  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='{{ env.DBT_CLOUD_PROJECT_ID }}', input_type=str]",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing",
+        "workspace.environment_id",
+        "  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='{{ env.DBT_CLOUD_ENVIRONMENT_ID }}', input_type=str]",
+        "    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing"
+      ]
+    },
+    {
+      "id": "enriched_dbt_project",
+      "path": "assets/dbt/enriched_dbt_project",
+      "status": "SKIP_PROJECT_REQUIRED",
+      "warnings": [],
+      "error": "'str' object has no attribute 'defs_state_discriminator'",
+      "error_class": "AttributeError"
     }
   ]
 }

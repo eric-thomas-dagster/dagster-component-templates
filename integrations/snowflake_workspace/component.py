@@ -30,6 +30,8 @@ from dagster import (
     SkipReason,
     AssetMaterialization,
     AssetObservation,
+    AssetCheckEvaluation,
+    AssetCheckSeverity,
     DataVersion,
     MaterializeResult,
     ObserveResult,
@@ -2858,25 +2860,42 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                                     ))
                                 else:
                                     # LOAD_FAILED / PARTIALLY_LOADED / any
-                                    # non-success status — surface it as an
-                                    # observation (nothing was actually
-                                    # produced, so this isn't a materialization)
-                                    # carrying the real error message. This is
-                                    # the only place a malformed-file COPY
-                                    # error becomes visible to the orchestrator
-                                    # at all.
+                                    # non-success status. An AssetObservation
+                                    # alone makes this visible in the event log
+                                    # if someone goes looking, but carries no
+                                    # pass/fail signal -- the sensor tick still
+                                    # succeeds and nothing alerts by default.
+                                    # Also emitting a real failed
+                                    # AssetCheckEvaluation is what actually
+                                    # makes this alertable: Dagster+'s native
+                                    # "Asset" alert policy fires on asset check
+                                    # failures, confirmed working with no
+                                    # pre-declared AssetCheckSpec required.
+                                    error_message = load_dict.get('FIRST_ERROR_MESSAGE') or "(no error message returned)"
+                                    row_metadata = {
+                                        "pipe_name": pipe_name,
+                                        "file_name": load_dict.get('FILE_NAME'),
+                                        "status": load_dict.get('STATUS'),
+                                        "first_error_message": error_message,
+                                        "last_load_time": str(load_dict.get('LAST_LOAD_TIME')) if load_dict.get('LAST_LOAD_TIME') else None,
+                                        "source": "snowflake_observation_sensor",
+                                        "entity_type": "snowpipe",
+                                    }
                                     events.append(AssetObservation(
                                         asset_key=asset_key,
-                                        metadata={
-                                            "pipe_name": pipe_name,
-                                            "file_name": load_dict.get('FILE_NAME'),
-                                            "status": load_dict.get('STATUS'),
-                                            "first_error_message": load_dict.get('FIRST_ERROR_MESSAGE'),
-                                            "last_load_time": str(load_dict.get('LAST_LOAD_TIME')) if load_dict.get('LAST_LOAD_TIME') else None,
-                                            "source": "snowflake_observation_sensor",
-                                            "entity_type": "snowpipe",
-                                        },
+                                        metadata=row_metadata,
                                         tags={"dagster/data_version": _sig},
+                                    ))
+                                    events.append(AssetCheckEvaluation(
+                                        asset_key=asset_key,
+                                        check_name="snowpipe_copy_status",
+                                        passed=False,
+                                        severity=AssetCheckSeverity.ERROR,
+                                        description=(
+                                            f"COPY_HISTORY reported status={load_dict.get('STATUS')!r} "
+                                            f"for {load_dict.get('FILE_NAME')!r}: {error_message}"
+                                        ),
+                                        metadata=row_metadata,
                                     ))
                         except Exception as e:
                             _logger.error(f"Error checking loads for Snowpipe {pipe_name}: {e}")

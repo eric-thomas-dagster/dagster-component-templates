@@ -4,8 +4,8 @@
   },
   "results": [
     {
-      "id": "table_freshness_workspace",
-      "path": "asset_checks/table_freshness_workspace",
+      "id": "bulk_freshness_policies",
+      "path": "asset_checks/bulk_freshness_policies",
       "status": "PASS",
       "warnings": [
         "SupersessionWarning: Function `build_last_update_freshness_checks` is superseded and its usage is discouraged. Attach `FreshnessPolicy` objects to your assets instead.",

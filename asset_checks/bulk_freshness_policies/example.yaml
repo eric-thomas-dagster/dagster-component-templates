@@ -1,0 +1,21 @@
+# Uses an explicit asset-key list here so this example is self-contained
+# (no sibling assets required to resolve against). In practice, `selection`
+# is usually a selection string instead -- see README.md for
+# "tag:cadence=hourly" / "group:sap_rare" / etc. examples, which resolve
+# against whatever sibling assets actually exist in the real project.
+type: dagster_component_templates.BulkFreshnessPoliciesComponent
+attributes:
+  groups:
+    - name: hourly_tables
+      policy_type: time_window
+      fail_window_hours: 2
+      selection: [sap_ecc/bseg, sap_ecc/konv, sap_ecc/vbap]
+    - name: daily_tables
+      policy_type: time_window
+      fail_window_hours: 30
+      selection: [sap_ecc/material_master, sap_ecc/vendor_master]
+    - name: weekly_tables
+      policy_type: cron
+      deadline_cron: "0 6 * * 1"
+      lower_bound_delta_hours: 24
+      selection: [sap_ecc/company_codes]

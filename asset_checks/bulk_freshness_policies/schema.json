@@ -1,0 +1,31 @@
+{
+  "component_type": "dagster_component_templates.BulkFreshnessPoliciesComponent",
+  "description": "Bulk sibling of FreshnessPolicyComponent -- one config block declares freshness policies for many assets at once, grouped by cadence tier and selected by tag/group/kind/selection-DSL (not a hand-listed asset_keys array), instead of one component instance per asset.",
+  "category": "check",
+  "icon": "CheckCircle",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetCheckResult",
+      "description": "One freshness AssetCheckResult per selected asset across every declared group."
+    }
+  },
+  "attributes": {
+    "groups": {
+      "type": "array",
+      "label": "Groups",
+      "description": "List of {name, policy_type, selection, ...policy fields}. Same policy_type/field shape as FreshnessPolicyComponent (time_window: fail_window_hours; cron: deadline_cron + lower_bound_delta_hours + optional timezone). `selection` is an explicit asset-key list, the full Dagster selection DSL (tag:/group:/kind:/boolean composition), '*' for everything, or a bare fnmatch glob.",
+      "required": true,
+      "items": {
+        "type": "object"
+      }
+    }
+  },
+  "tags": [
+    "check",
+    "freshness",
+    "workspace",
+    "bulk",
+    "selection"
+  ],
+  "name": "Bulk Freshness Policies"
+}

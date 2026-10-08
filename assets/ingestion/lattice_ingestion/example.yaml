@@ -1,0 +1,5 @@
+type: dagster_component_templates.LatticeIngestionComponent
+attributes:
+  asset_name: lattice_ingestion
+  api_key: "${LATTICE_API_KEY}"
+  resources: "users,goals,updates,reviews"

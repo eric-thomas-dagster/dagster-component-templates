@@ -1,0 +1,6 @@
+type: dagster_component_templates.CultureAmpIngestionComponent
+attributes:
+  asset_name: culture_amp_ingestion
+  client_id: "${CULTURE_AMP_CLIENT_ID}"
+  client_secret: "${CULTURE_AMP_CLIENT_SECRET}"
+  resources: "employees,performance_cycles,manager_reviews"

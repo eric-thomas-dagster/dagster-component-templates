@@ -1,0 +1,7 @@
+type: dagster_component_templates.LogRocketIngestionComponent
+attributes:
+  asset_name: logrocket_ingestion
+  org_id: "${LOGROCKET_ORG_ID}"
+  app_id: "${LOGROCKET_APP_ID}"
+  api_key: "${LOGROCKET_API_KEY}"
+  resources: "audit_logs,session_exports"

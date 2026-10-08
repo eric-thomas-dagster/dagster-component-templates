@@ -1,0 +1,5 @@
+type: dagster_component_templates.NetlifyIngestionComponent
+attributes:
+  asset_name: netlify_ingestion
+  access_token: "${NETLIFY_ACCESS_TOKEN}"
+  resources: "sites"

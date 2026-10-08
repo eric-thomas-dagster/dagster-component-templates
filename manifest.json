@@ -66686,9 +66686,264 @@
           "tabulate>=0.9.0"
         ]
       }
+    },
+    {
+      "id": "logrocket_ingestion",
+      "name": "LogRocket Ingestion",
+      "category": "ingestion",
+      "description": "Ingest LogRocket audit log and session data-export records using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/logrocket_ingestion",
+      "tags": [
+        "ingestion",
+        "logrocket",
+        "analytics",
+        "session-replay",
+        "product-analytics",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/logrocket_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/logrocket_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/logrocket_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/logrocket_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/logrocket_ingestion/requirements.txt",
+      "vertical": "marketing",
+      "icon": "Video",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest LogRocket audit log and session data-export records using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
+    },
+    {
+      "id": "hotjar_ingestion",
+      "name": "Hotjar Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Hotjar on-site survey and survey-response data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/hotjar_ingestion",
+      "tags": [
+        "ingestion",
+        "hotjar",
+        "analytics",
+        "ux-analytics",
+        "surveys",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/hotjar_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/hotjar_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/hotjar_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/hotjar_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/hotjar_ingestion/requirements.txt",
+      "vertical": "marketing",
+      "icon": "MousePointerClick",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest Hotjar on-site survey and survey-response data using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
+    },
+    {
+      "id": "domino_data_lab_ingestion",
+      "name": "Domino Data Lab Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Domino Data Lab user, project, and environment metadata using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/domino_data_lab_ingestion",
+      "tags": [
+        "ingestion",
+        "domino",
+        "devtools",
+        "mlops",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/domino_data_lab_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/domino_data_lab_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/domino_data_lab_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/domino_data_lab_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/domino_data_lab_ingestion/requirements.txt",
+      "vertical": "devops-observability",
+      "icon": "FlaskConical",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest Domino Data Lab user, project, and environment metadata using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
+    },
+    {
+      "id": "netlify_ingestion",
+      "name": "Netlify Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Netlify site, deploy, form, and form-submission data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/netlify_ingestion",
+      "tags": [
+        "ingestion",
+        "netlify",
+        "devtools",
+        "web-hosting",
+        "jamstack",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/netlify_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/netlify_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/netlify_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/netlify_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/netlify_ingestion/requirements.txt",
+      "vertical": "devops-observability",
+      "icon": "Rocket",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest Netlify site, deploy, form, and form-submission data using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
+    },
+    {
+      "id": "postman_ingestion",
+      "name": "Postman Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Postman API-platform collection, workspace, environment, and monitor metadata using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/postman_ingestion",
+      "tags": [
+        "ingestion",
+        "postman",
+        "devtools",
+        "api-testing",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/postman_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/postman_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/postman_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/postman_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/postman_ingestion/requirements.txt",
+      "vertical": "devops-observability",
+      "icon": "si:postman",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest Postman API-platform collection, workspace, environment, and monitor metadata using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
+    },
+    {
+      "id": "scale_ai_ingestion",
+      "name": "Scale AI Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Scale AI data-labeling task, batch, and project data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/scale_ai_ingestion",
+      "tags": [
+        "ingestion",
+        "scale_ai",
+        "devtools",
+        "data-labeling",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/scale_ai_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/scale_ai_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/scale_ai_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/scale_ai_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/scale_ai_ingestion/requirements.txt",
+      "vertical": "devops-observability",
+      "icon": "Tag",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest Scale AI data-labeling task, batch, and project data using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1327
+  "total": 1333
 }

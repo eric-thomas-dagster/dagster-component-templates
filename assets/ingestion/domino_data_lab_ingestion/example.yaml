@@ -1,0 +1,6 @@
+type: dagster_component_templates.DominoDataLabIngestionComponent
+attributes:
+  asset_name: domino_data_lab_ingestion
+  deployment_url: "https://domino.mycompany.com"
+  api_key: "${DOMINO_API_KEY}"
+  resources: "users,projects,environments"

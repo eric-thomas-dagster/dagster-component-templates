@@ -1,0 +1,7 @@
+type: dagster_component_templates.HotjarIngestionComponent
+attributes:
+  asset_name: hotjar_ingestion
+  site_id: "${HOTJAR_SITE_ID}"
+  client_id: "${HOTJAR_CLIENT_ID}"
+  client_secret: "${HOTJAR_CLIENT_SECRET}"
+  resources: "surveys,survey_responses"

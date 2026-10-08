@@ -1,0 +1,5 @@
+type: dagster_component_templates.ScaleAIIngestionComponent
+attributes:
+  asset_name: scale_ai_ingestion
+  api_key: "${SCALE_AI_API_KEY}"
+  resources: "tasks,batches,projects"

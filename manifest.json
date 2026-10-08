@@ -3064,6 +3064,50 @@
       ]
     },
     {
+      "id": "apollo_ingestion",
+      "name": "Apollo.io Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Apollo.io people, organization, and contact search/prospecting data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/apollo_ingestion",
+      "tags": [
+        "ingestion",
+        "apollo",
+        "apollo.io",
+        "sales-intelligence",
+        "revenue",
+        "prospecting",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/apollo_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/apollo_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/apollo_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/apollo_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/apollo_ingestion/requirements.txt",
+      "vertical": "sales-intelligence",
+      "icon": "Target",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest Apollo.io people, organization, and contact search/prospecting data using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
+    },
+    {
       "id": "append_cluster",
       "name": "AppendCluster",
       "category": "analytics",
@@ -8351,6 +8395,50 @@
       "agent_hints": {
         "output_type": "pd.DataFrame",
         "outputs": "Ingest Chargify/Maxio Advanced Billing subscription, customer, and invoice data using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
+    },
+    {
+      "id": "chorus_by_zoominfo_ingestion",
+      "name": "Chorus by ZoomInfo Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Chorus by ZoomInfo call engagement and user data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/chorus_by_zoominfo_ingestion",
+      "tags": [
+        "ingestion",
+        "chorus",
+        "zoominfo",
+        "conversation-intelligence",
+        "sales-intelligence",
+        "revenue",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/chorus_by_zoominfo_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/chorus_by_zoominfo_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/chorus_by_zoominfo_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/chorus_by_zoominfo_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/chorus_by_zoominfo_ingestion/requirements.txt",
+      "vertical": "sales-intelligence",
+      "icon": "Mic",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest Chorus by ZoomInfo call engagement and user data using dlt's generic REST API source.",
         "requires_pip": [
           "dlt>=1.0.0",
           "pandas>=1.5.0",
@@ -24441,6 +24529,50 @@
         "connection",
         "connect"
       ]
+    },
+    {
+      "id": "freshsales_ingestion",
+      "name": "Freshsales (Freshworks CRM) Ingestion",
+      "category": "ingestion",
+      "description": "Ingest Freshworks CRM (Freshsales) contact, lead, deal, and account data using dlt's generic REST API source.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/freshsales_ingestion",
+      "tags": [
+        "ingestion",
+        "freshworks",
+        "freshsales",
+        "crm",
+        "sales-intelligence",
+        "revenue",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/freshsales_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/freshsales_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/freshsales_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/freshsales_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/freshsales_ingestion/requirements.txt",
+      "vertical": "crm-sales",
+      "icon": "si:freshworks",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest Freshworks CRM (Freshsales) contact, lead, deal, and account data using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
     },
     {
       "id": "freshservice_ingestion",
@@ -66088,6 +66220,49 @@
       }
     },
     {
+      "id": "zoominfo_ingestion",
+      "name": "ZoomInfo Ingestion",
+      "category": "ingestion",
+      "description": "Ingest ZoomInfo contact and company search data using dlt's generic REST API source. Note: ZoomInfo access is not self-serve -- requires an existing paid contract.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ingestion/zoominfo_ingestion",
+      "tags": [
+        "ingestion",
+        "zoominfo",
+        "sales-intelligence",
+        "revenue",
+        "enterprise",
+        "dlt",
+        "rest_api"
+      ],
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/zoominfo_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/zoominfo_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/zoominfo_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/zoominfo_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/zoominfo_ingestion/requirements.txt",
+      "vertical": "sales-intelligence",
+      "icon": "Building2",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Ingest ZoomInfo contact and company search data using dlt's generic REST API source.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "requests>=2.28.0",
+          "tabulate>=0.9.0"
+        ]
+      }
+    },
+    {
       "id": "zuora_account_upsert",
       "name": "Zuora Account Upsert",
       "category": "reverse_etl",
@@ -66260,5 +66435,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1316
+  "total": 1320
 }

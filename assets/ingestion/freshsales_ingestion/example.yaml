@@ -1,0 +1,6 @@
+type: dagster_component_templates.FreshsalesIngestionComponent
+attributes:
+  asset_name: freshsales_ingestion
+  domain: "widgetz"
+  api_key: "${FRESHSALES_API_KEY}"
+  resources: "contacts,leads,deals,sales_accounts"

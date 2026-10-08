@@ -1,0 +1,5 @@
+type: dagster_component_templates.ApolloIngestionComponent
+attributes:
+  asset_name: apollo_ingestion
+  api_key: "${APOLLO_API_KEY}"
+  resources: "people,organizations,contacts"

@@ -1,0 +1,6 @@
+type: dagster_component_templates.ZoomInfoIngestionComponent
+attributes:
+  asset_name: zoominfo_ingestion
+  client_id: "${ZOOMINFO_CLIENT_ID}"
+  client_secret: "${ZOOMINFO_CLIENT_SECRET}"
+  resources: "contacts_search,companies_search"

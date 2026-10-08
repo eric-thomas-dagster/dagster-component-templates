@@ -1,0 +1,5 @@
+type: dagster_component_templates.ChorusByZoomInfoIngestionComponent
+attributes:
+  asset_name: chorus_by_zoominfo_ingestion
+  api_token: "${CHORUS_API_TOKEN}"
+  resources: "engagements,users"

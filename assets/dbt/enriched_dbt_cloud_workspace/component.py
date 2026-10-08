@@ -1457,6 +1457,26 @@ try:
             workspace = self.workspace
             trigger_defaults = self.job_trigger_defaults or {}
 
+            class DbtCloudJobTriggerRunConfig(dg.Config):
+                """Per-run override for a mirrored dbt Cloud job trigger.
+
+                Every field defaults to None, meaning "use this job's
+                job_trigger_defaults" (or dbt Cloud's own job-level config,
+                if that's unset too). Set only what you want to override
+                for this one run via the Dagster UI launchpad or
+                `dg launch --config` — no YAML edit, no redeploy. This is
+                what satisfies "re-run with a different selector for this
+                run only, without editing the job definition" (the
+                previous version of this mirroring code had no config_schema
+                at all, so steps_override etc. could only be changed by
+                editing job_trigger_defaults in the component's own YAML).
+                """
+                cause: Optional[str] = None
+                steps_override: Optional[List[str]] = None
+                schema_override: Optional[str] = None
+                git_branch: Optional[str] = None
+                git_sha: Optional[str] = None
+
             for shim in shims:
                 cloud_job_id = shim.id
                 cloud_job_name = shim.name or f"job_{cloud_job_id}"
@@ -1481,12 +1501,24 @@ try:
                     @dg.op(name=f"trigger_dbt_cloud_{op_name}")
                     def _trigger_op(
                         context: dg.OpExecutionContext,
+                        config: DbtCloudJobTriggerRunConfig,
                         _workspace=workspace,
                         _cloud_job_id=cloud_job_id,
                         _cloud_job_name=cloud_job_name,
                         _trigger_defaults=trigger_defaults,
                     ):
                         client = getattr(_workspace, "client", None) or _workspace
+                        # Per-run config (launchpad / dg launch --config)
+                        # overrides this job's configured job_trigger_defaults
+                        # field by field. An unset config field falls back to
+                        # the default, not to dbt Cloud's own job config, so
+                        # a partial override still composes with
+                        # job_trigger_defaults for everything else.
+                        effective = dict(_trigger_defaults)
+                        for field in ("cause", "steps_override", "schema_override", "git_branch", "git_sha"):
+                            value = getattr(config, field)
+                            if value is not None:
+                                effective[field] = value
                         # Trigger + poll — API varies slightly by dagster-dbt
                         # version; try the most common shapes.
                         for trigger_attr in ("trigger_job_run", "trigger_job", "run_job"):
@@ -1494,10 +1526,10 @@ try:
                             if not callable(fn):
                                 continue
                             try:
-                                run = fn(job_id=_cloud_job_id, **_trigger_defaults)
+                                run = fn(job_id=_cloud_job_id, **effective)
                             except TypeError:
                                 try:
-                                    run = fn(_cloud_job_id, **_trigger_defaults)
+                                    run = fn(_cloud_job_id, **effective)
                                 except Exception as e:
                                     context.log.warning(f"{trigger_attr} failed: {e}")
                                     continue
@@ -1517,9 +1549,20 @@ try:
                             f"tried trigger_job_run / trigger_job / run_job"
                         )
 
+                    # NOTE: a job-composition function's parameters are all
+                    # treated as graph inputs by Dagster's composition DSL
+                    # (do_composition), discarding any Python default value
+                    # -- `def _mirrored_job(_op=_trigger_op): _op()` raises
+                    # "InputMappingNode object is not callable" the moment
+                    # this job is ever actually built, for every mirrored
+                    # job, unconditionally. Plain closure capture (no
+                    # parameter) is correct here because @dg.job composition
+                    # runs synchronously within this same loop iteration --
+                    # no late-binding risk despite _trigger_op being
+                    # reassigned each iteration.
                     @dg.job(name=op_name)
-                    def _mirrored_job(_op=_trigger_op):
-                        _op()
+                    def _mirrored_job():
+                        _trigger_op()
 
                     mirrored_jobs.append(_mirrored_job)
 

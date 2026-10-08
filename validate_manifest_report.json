@@ -1,7 +1,6 @@
 {
   "summary": {
-    "FAIL": 1,
-    "SKIP_PROJECT_REQUIRED": 1
+    "FAIL": 1
   },
   "results": [
     {
@@ -18,14 +17,6 @@
         "  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='{{ env.DBT_CLOUD_ENVIRONMENT_ID }}', input_type=str]",
         "    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing"
       ]
-    },
-    {
-      "id": "enriched_dbt_project",
-      "path": "assets/dbt/enriched_dbt_project",
-      "status": "SKIP_PROJECT_REQUIRED",
-      "warnings": [],
-      "error": "'str' object has no attribute 'defs_state_discriminator'",
-      "error_class": "AttributeError"
     }
   ]
 }

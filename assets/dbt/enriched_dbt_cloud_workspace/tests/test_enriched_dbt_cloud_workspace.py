@@ -276,3 +276,78 @@ def test_include_exposures_still_works_against_a_fusion_shaped_manifest(mod, com
     exposures = exposures_md.value if hasattr(exposures_md, "value") else exposures_md
     assert len(exposures) == 1
     assert exposures[0]["name"] == "my_dashboard"
+
+
+# --- mirror_jobs: per-run config override (new capability) -------------
+#
+# Previously the mirrored job's trigger op had no config_schema at all --
+# job_trigger_defaults (steps_override, schema_override, git_branch,
+# git_sha, cause) could only be changed by editing the component's own
+# YAML and redeploying. That's the opposite of "re-run with a different
+# selector for this run only, without editing the job definition."
+
+class _FakeTriggerClient:
+    """Records every trigger_job_run call; no real network access."""
+    def __init__(self):
+        self.calls = []
+
+    def trigger_job_run(self, job_id, **kwargs):
+        self.calls.append({"job_id": job_id, **kwargs})
+        return {"id": 999}
+
+
+def _build_mirrored_job(mod, component, monkeypatch):
+    monkeypatch.setattr(
+        mod, "_list_dbt_cloud_jobs_via_client",
+        lambda workspace: [{"id": 42, "name": "test_job", "job_type": "other"}],
+    )
+    defs = component._build_mirror_jobs_addendum()
+    (job,) = defs.jobs
+    return job
+
+
+def test_mirrored_job_uses_job_trigger_defaults_when_no_run_config_given(mod, monkeypatch):
+    import types
+    fake_client = _FakeTriggerClient()
+    component = make_component(
+        mod,
+        workspace=types.SimpleNamespace(client=fake_client),
+        mirror_jobs="job",
+        job_trigger_defaults={"cause": "default cause"},
+    )
+    job = _build_mirrored_job(mod, component, monkeypatch)
+
+    result = job.execute_in_process()
+    assert result.success
+    assert fake_client.calls == [{"job_id": 42, "cause": "default cause"}]
+
+
+def test_mirrored_job_run_config_overrides_steps_without_editing_yaml(mod, monkeypatch):
+    import types
+    fake_client = _FakeTriggerClient()
+    component = make_component(
+        mod,
+        workspace=types.SimpleNamespace(client=fake_client),
+        mirror_jobs="job",
+        job_trigger_defaults={"cause": "default cause"},
+    )
+    job = _build_mirrored_job(mod, component, monkeypatch)
+
+    result = job.execute_in_process(
+        run_config={
+            "ops": {
+                "trigger_dbt_cloud_test_job": {
+                    "config": {"steps_override": ["dbt build --select tag:hourly"]}
+                }
+            }
+        }
+    )
+    assert result.success
+    # cause still comes from job_trigger_defaults (not overridden this run);
+    # steps_override comes from the per-run config -- a partial override
+    # composes with the defaults instead of replacing them wholesale.
+    assert fake_client.calls == [{
+        "job_id": 42,
+        "cause": "default cause",
+        "steps_override": ["dbt build --select tag:hourly"],
+    }]

@@ -1,6 +1,6 @@
 # `TalendCloudWorkspaceComponent`
 
-Wrap **Talend Cloud** (Talend Management Console) behind a Dagster workspace-shape component. Discovers every executable / job / plan / route in the workspace and emits one Dagster asset per artifact. On materialize, POSTs `/executions` and polls `/executions/{id}` until termination.
+Wrap **Talend Cloud** (Talend Management Console) behind a Dagster workspace-shape component. Discovers every Task and Plan in the workspace and emits one Dagster asset per artifact. On materialize, only the artifacts Dagster actually selected to run are triggered and polled to completion.
 
 ## When to use this
 
@@ -8,20 +8,27 @@ Wrap **Talend Cloud** (Talend Management Console) behind a Dagster workspace-sha
 - You want Talend jobs to appear in the same Dagster asset graph as downstream Snowflake / Databricks / BigQuery marts.
 - You're mid-migration off Talend and need Dagster to run the legacy jobs during parallel-run periods.
 
-## Backing REST (Talend Cloud v2.7)
+## Backing REST (Talend Cloud public API, "Processing" + "Orchestration", v2021-03)
+
+Confirmed against `https://talend.qlik.dev/apis/processing/2021-03/` and `https://talend.qlik.dev/apis/orchestration/2021-03/`. There is no single `/executables` listing endpoint — Tasks and Plans are two separate, independently-paginated resources, each with its own execute/poll endpoint pair:
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /executables?workspaceId=...` | Enumerate artifacts. |
-| `POST /executions` (body: `{executable, workspaceId, environmentId?}`) | Trigger. |
-| `GET /executions/{id}` | Poll status. |
-| `GET /executions?executable=&status=TERMINATED&limit=1` | Freshness check. |
+| `GET /orchestration/executables/tasks?workspaceId=...` | Enumerate Tasks (paginated `{items, total}`). |
+| `GET /orchestration/executables/plans?workspaceId=...` | Enumerate Plans (paginated `{items, total}`). |
+| `POST /processing/executions` (body: `{executable, parameters?, logLevel?}`) | Trigger a Task. |
+| `POST /processing/executions/plans` (body: `{executable, logLevel?}`) | Trigger a Plan. |
+| `GET /processing/executions/{id}` | Poll a Task execution. |
+| `GET /processing/executions/plans/{id}` | Poll a Plan execution. |
+| `GET /processing/executables/{tasks,plans}/{id}/executions` | Recent executions for one artifact — used for the freshness check and the observation sensor. |
 
-Base URLs by region:
+Base URLs by region (host only — no `/tmc/v2.7` path prefix):
 
-- US: `https://api.us.cloud.talend.com/tmc/v2.7`
-- EU: `https://api.eu.cloud.talend.com/tmc/v2.7`
-- AP: `https://api.ap.cloud.talend.com/tmc/v2.7`
+- US: `https://api.us.cloud.talend.com`
+- EU: `https://api.eu.cloud.talend.com`
+- AP: `https://api.ap.cloud.talend.com`
+- AU: `https://api.au.cloud.talend.com`
+- US-WEST: `https://api.us-west.cloud.talend.com`
 - Custom: put a full URL in `region:` for private tenants.
 
 ## Auth
@@ -30,25 +37,30 @@ Set `auth_token_env_var:` to the env var holding a **Personal Access Token** (fr
 
 ## Talend execution status values
 
-Values from `GET /executions/{id}.status`:
+Values from `GET /processing/executions/{id}.status` (the real, confirmed simplified status enum on `JobExecutionStatusV21` — an earlier version of this component guessed `PENDING`/`TERMINATED`/`CANCELED`/`FAILED`, none of which are real):
 
 | Status | Terminal? | Success? |
 |---|---|---|
-| `PENDING` | no | — |
-| `READY` | no | — |
-| `DEPLOYING` | no | — |
-| `RUNNING` | no | — |
-| `HOLD` | no | — |
-| `TERMINATED` | **yes** | **yes** |
-| `CANCELED` | yes | no |
-| `FAILED` | yes | no |
+| `dispatching` | no | — |
+| `executing` | no | — |
+| `deploy_failed` | **yes** | no |
+| `execution_rejected` | **yes** | yes, with a quality flag (see below) |
+| `execution_successful` | **yes** | **yes** |
+| `execution_failed` | **yes** | no |
+| `terminated` | **yes** | no |
+| `terminated_timeout` | **yes** | no |
+| `terminated_shutdown` | **yes** | no |
 
-`TERMINATED` is the confusing one — in Talend Cloud vocabulary it means "the job finished, execution reached the end normally." Not a cancellation.
+`execution_rejected` means "the job itself completed, but exceeded its own configured reject-row threshold" — the Talend-side analogue of a node completing with a failed data-quality test. It doesn't fail the Dagster run by default; see `emit_quality_checks` / `fail_on_rejected_rows` below.
+
+## Data quality
+
+Talend's separate "Data Quality" / Data Stewardship rule-repository product has its own API with no generic per-job linkage, so it isn't wired up here. What IS real and generic, available on every execution's own poll response (no extra API call): `numberOfProcessedRows` / `numberOfRejectedRows`, surfaced as a `talend_execution_quality` asset check per artifact (see `emit_quality_checks`, `fail_on_rejected_rows`) — the same `AssetCheckSpec`/`AssetCheckResult` pattern `coalesce_workspace` uses for its `coalesce_node_tests` check.
 
 ## Actions
 
 - **`action: noop` (default)** — external asset shape. Every Talend artifact becomes a Dagster asset, but materialize does nothing. Use with `polling_sensor: true` + `freshness_lag_threshold_seconds:` for observe-only.
-- **`action: execute`** — materialize actually runs the artifact via `POST /executions`. With `wait_for_completion: true`, the op blocks until the execution reaches a terminal status. On non-`TERMINATED` completion, the op raises `dg.Failure` with the error message from the execution details.
+- **`action: execute`** — materialize triggers an execution for each artifact Dagster actually selected to run (`context.selected_asset_keys` — the underlying `multi_asset` sets `can_subset=True`, so materializing one asset out of a multi-artifact workspace only triggers that one artifact, not every discovered artifact). With `wait_for_completion: true`, the op blocks until the execution reaches a terminal status. On a failure status, the op raises `dg.Failure` with the error message from the execution details. Optional `execution_parameters:` / `log_level:` are sent as runtime parameters on every Task execution (per-artifact overrides via `translation:` metadata `talend/execution_parameters`).
 
 [//]: # (FIELDS:START - auto-generated by tools/regen_readme_fields.py)
 
@@ -65,7 +77,7 @@ Values from `GET /executions/{id}.status`:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `region` | `str` | `"us"` | Talend Cloud region key (`us` / `eu` / `ap`) OR a full base URL for private / other tenants (must start with `http`). |
+| `region` | `str` | `"us"` | Talend Cloud region key (`us` / `eu` / `ap` / `au` / `us-west`) OR a full base URL for private / other tenants (must start with `http`). |
 | `environment_id` | `str` | — | Optional Talend Cloud environment ID (UUID). |
 | `request_timeout_seconds` | `int` | `60` | — |
 | `verify_ssl` | `bool` | `true` | — |
@@ -74,10 +86,10 @@ Values from `GET /executions/{id}.status`:
 
 ## Follow-ups
 
-- **`StateBackedComponent`** — discovery cache to disk. Same follow-up as `ssis_workspace`.
-- **Translator** — `translation:` field for per-asset customization.
+- **Plan execution body fields** — `execution_parameters` is only confirmed-real on the Task execution schema; a real Plan execution body example shows `executable`/`executionPlanId`/`stepId`/`rerunOnlyFailedTasks` but doesn't confirm a `parameters` equivalent, so it's not sent for Plans. Revisit if Talend documents one.
+- **Bulk execution-history endpoints** — the observation sensor and freshness check call each artifact's own `.../{id}/executions` endpoint individually rather than a single bulk "all recent executions" call, because this file couldn't confirm the bulk endpoints' exact query-filter parameter names against real docs. Fine at typical artifact counts; revisit if a workspace has very many artifacts and sensor tick latency becomes a problem.
 - **Talend Studio (on-prem TAC) variant** — this component is Talend Cloud only. Talend Studio's on-prem TAC has a different API surface; if you need on-prem, `talend_studio_workspace` is a separate follow-up.
-- **End-to-end demo** — validated against a real Talend Cloud tenant with test artifacts.
+- **End-to-end demo** — validated against real Talend Cloud API documentation and a mocked test suite (`tests/`), not yet against a live Talend Cloud tenant.
 
 ## Companion components
 

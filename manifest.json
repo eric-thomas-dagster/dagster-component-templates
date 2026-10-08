@@ -58810,7 +58810,7 @@
       "id": "talend_cloud_workspace",
       "name": "Talend Cloud Workspace",
       "category": "integration",
-      "description": "Talend Cloud (TMC) artifacts as Dagster assets. Discovers /workspaces/{id}/executables + optionally POSTs /executions + polls to completion. Fivetran-shape workspace: block for auth + selector for filtering + polling_sensor + freshness_lag_threshold_seconds.",
+      "description": "Talend Cloud (TMC) Tasks + Plans as Dagster assets. Discovers /orchestration/executables/{tasks,plans} + optionally triggers an execution + polls to completion, honoring Dagster's own asset selection. Fivetran-shape workspace: block for auth + selector for filtering + polling_sensor + freshness_lag_threshold_seconds.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "integrations/talend_cloud_workspace",
@@ -58833,8 +58833,8 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/talend_cloud_workspace/requirements.txt",
       "validation": {
         "level": "code",
-        "last_validated": "2026-08-27",
-        "notes": "Live-validated at the shape level (Phase 2 upgrade: StateBackedComponent + translation callable + @record props + @public annotations) via mocked HTTP client (discovery filtering, action:execute code path, polling_sensor + freshness_check attachment). Full TMC live validation requires a real Talend Cloud tenant + PAT \u2014 pending. Roadmap: real-tenant validation for `live` promotion."
+        "last_validated": "2026-10-08",
+        "notes": "Re-validated against real Talend Cloud API docs (talend.qlik.dev, Processing + Orchestration APIs, v2021-03): the base URL/path shape (`{host}/tmc/v2.7/executables`), execution status enum (`TERMINATED`/`CANCELED`/`FAILED`), error field (`failureType`), and POST /executions body (`workspaceId`/`environmentId`) were all unverified guesses that didn't match the real API -- all fixed (see README). Also fixed a selective-materialization bug: the execute multi_asset always ran every discovered artifact regardless of Dagster's own asset selection; now uses `context.selected_asset_keys` + `can_subset=True`. Added `execution_parameters`/`log_level` (confirmed real on Task's ExecutableTask schema) and a `talend_execution_quality` asset check from the execution's own numberOfProcessedRows/numberOfRejectedRows (Talend's Data Quality/Data Stewardship product has no generic per-job API linkage, so that wasn't wired up). 28-test mocked HTTP suite added (tests/ directory, zero tests existed before). Full TMC live validation still requires a real Talend Cloud tenant + PAT -- pending. Roadmap: real-tenant validation for `live` promotion."
       },
       "produces": [
         "asset",
@@ -58845,7 +58845,7 @@
         "talend"
       ],
       "agent_hints": {
-        "when_to_use": "User runs jobs in Talend Cloud (post-2024 Qlik-acquired Talend Data Fabric) and wants Dagster to discover artifacts + orchestrate execution + observe completions. Covers job / plan / route artifact kinds.",
+        "when_to_use": "User runs jobs in Talend Cloud (post-2024 Qlik-acquired Talend Data Fabric) and wants Dagster to discover artifacts + orchestrate execution + observe completions. Covers Task (standard / big_data_streaming / big_data_batch / route / data_service / pipeline) and Plan artifact kinds.",
         "typical_upstream": "Talend Cloud tenant with existing artifacts. Prior scheduler = TMC built-in scheduler or webhook triggers.",
         "typical_downstream": "Snowflake / Databricks / BigQuery mart tables. dbt Cloud kicked off via dbt_cloud_trigger_job on completion.",
         "example_prompts": [
@@ -58861,7 +58861,7 @@
           "TALEND_WORKSPACE_ID",
           "TALEND_API_TOKEN"
         ],
-        "gaps_from_full_workspace_pattern": "Full workspace-pattern parity with hvr_hub_workspace / snowflake_workspace: StateBackedComponent caching, translation: callable, @public annotations, @record props all present. Live validation against a real backend (Windows SSIS / Talend Cloud / IDMC) still pending \u2014 roadmap: promote to level:live via real-tenant integration tests."
+        "gaps_from_full_workspace_pattern": "Full workspace-pattern parity with hvr_hub_workspace / snowflake_workspace: StateBackedComponent caching, translation: callable, @public annotations, @record props, can_subset selective materialization all present, plus a committed test suite (tests/, 28 tests). Live validation against a real backend (Talend Cloud tenant + PAT) still pending — roadmap: promote to level:live via real-tenant integration tests."
       },
       "keywords": [
         "talend",

@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.TalendCloudWorkspaceComponent",
-  "description": "Talend Cloud (TMC) artifacts as Dagster assets. Discovers /workspaces/{id}/executables + optionally POSTs /executions + polls to completion. Fivetran-shape workspace: block for auth + selector for filtering + polling_sensor + freshness_lag_threshold_seconds.",
+  "description": "Talend Cloud (TMC) Tasks + Plans as Dagster assets. Discovers /orchestration/executables/{tasks,plans} + optionally triggers an execution + polls to completion, honoring Dagster's own asset selection. Fivetran-shape workspace: block for auth + selector for filtering + polling_sensor + freshness_lag_threshold_seconds.",
   "category": "integration",
   "icon": "si:talend",
   "x-dagster-io": {
@@ -25,7 +25,7 @@
     "action": {
       "type": "string",
       "label": "Action",
-      "description": "noop = external asset; execute = POST /executions + poll.",
+      "description": "noop = external asset; execute = trigger a Talend execution + poll.",
       "required": false,
       "default": "noop",
       "enum": [
@@ -45,12 +45,25 @@
       "required": false,
       "default": 30
     },
-    "timeout_seconds": {"label": "Timeout Seconds", 
+    "timeout_seconds": {"label": "Timeout Seconds",
       "type": "integer",
       "required": false,
       "default": 3600
     },
-    "polling_sensor": {"label": "Polling Sensor", 
+    "execution_parameters": {"label": "Execution Parameters",
+      "description": "Optional runtime/context parameters sent on every Task execution (POST body `parameters` field). Per-artifact overrides via `translation:`.",
+      "type": "object",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "log_level": {"label": "Log Level",
+      "description": "Optional Talend execution log level override.",
+      "type": "string",
+      "required": false,
+      "enum": ["OFF", "ERROR", "WARN", "INFO"],
+      "ui:widget": "select"
+    },
+    "polling_sensor": {"label": "Polling Sensor",
       "type": "boolean",
       "required": false,
       "default": false,
@@ -66,6 +79,20 @@
       "label": "Freshness Lag Threshold (seconds)",
       "required": false,
       "default": null
+    },
+    "emit_quality_checks": {"label": "Emit Quality Checks",
+      "description": "Emit a talend_execution_quality asset check per artifact from each execution's own processed/rejected row counts.",
+      "type": "boolean",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "fail_on_rejected_rows": {"label": "Fail On Rejected Rows",
+      "description": "Raise a hard Dagster Failure (instead of only failing the quality check) when a Talend execution completes with rejected rows over its own configured threshold.",
+      "type": "boolean",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
     },
     "asset_key_prefix": {"label": "Asset Key Prefix", 
       "type": "array",

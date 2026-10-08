@@ -1,10 +1,11 @@
-# TalendCloudWorkspaceComponent — Talend Cloud jobs / plans / routes as
-# Dagster assets. Backing REST: Talend Management Console (TMC) v2.7.
+# TalendCloudWorkspaceComponent — Talend Cloud Tasks + Plans as Dagster
+# assets. Backing REST: Talend's public "Processing" + "Orchestration"
+# APIs (talend.qlik.dev, version 2021-03).
 
 type: dagster_community_components.TalendCloudWorkspaceComponent
 attributes:
   workspace:
-    region:             us              # us | eu | ap | <full-URL for private tenants>
+    region:             us              # us | eu | ap | au | us-west | <full-URL for private tenants>
     workspace_id:       "{{ env.TALEND_WORKSPACE_ID }}"
     auth_token_env_var: TALEND_API_TOKEN
     # environment_id:   "{{ env.TALEND_ENV_ID }}"   # optional
@@ -12,7 +13,7 @@ attributes:
     verify_ssl: true
 
   artifact_selector:
-    by_kind: [job]                       # job | plan | route — default: all
+    by_kind: [standard]                  # standard | big_data_streaming | big_data_batch | route | data_service | pipeline | plan — default: all
     include: ["etl_*"]
     exclude: ["*_test"]
 
@@ -20,11 +21,17 @@ attributes:
   wait_for_completion: true
   poll_interval_seconds: 30
   timeout_seconds: 3600
+  # execution_parameters:                # optional runtime/context params for every Task execution
+  #   run_date: "{{ run.tags['date'] }}"
+  # log_level: INFO                      # OFF | ERROR | WARN | INFO
 
   polling_sensor: true
   observation_interval_seconds: 300
 
   freshness_lag_threshold_seconds: 3600
+
+  emit_quality_checks: true              # talend_execution_quality check from numberOfRejectedRows
+  fail_on_rejected_rows: false
 
   group_name: talend_cloud
   kinds: [talend, etl]

@@ -535,6 +535,7 @@ _CLASS_PATHS: dict[str, str] = {
     "FreshdeskResource": "resources/freshdesk_resource/component.py",
     "FreshdeskResourceComponent": "resources/freshdesk_resource/component.py",
     "FreshnessPolicyComponent": "asset_checks/freshness_check/component.py",
+    "TableFreshnessWorkspaceComponent": "asset_checks/table_freshness_workspace/component.py",
     "FreshserviceIngestionComponent": "assets/ingestion/freshservice_ingestion/component.py",
     "FreshserviceResourceComponent": "resources/freshservice_resource/component.py",
     "FreshserviceTicketUpsertComponent": "assets/reverse_etl/freshservice_ticket_upsert/component.py",

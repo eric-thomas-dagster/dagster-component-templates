@@ -20717,6 +20717,60 @@
       ]
     },
     {
+      "id": "table_freshness_workspace",
+      "name": "Table Freshness Workspace",
+      "category": "check",
+      "description": "Bulk sibling of FreshnessPolicyComponent -- one config block declares freshness policies for many assets at once, grouped by cadence tier, instead of one component instance per asset.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "asset_checks/table_freshness_workspace",
+      "tags": [
+        "check",
+        "freshness",
+        "workspace",
+        "bulk"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/table_freshness_workspace/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/table_freshness_workspace/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/table_freshness_workspace/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/table_freshness_workspace/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/table_freshness_workspace/requirements.txt",
+      "icon": "CheckCircle",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-08",
+        "notes": "Built and tested this session (6 passing tests): group validation (duplicate asset keys across groups, missing required policy fields, empty groups/asset_keys) plus a real build_defs() check confirming one real Dagster freshness AssetChecksDefinition per asset across all groups."
+      },
+      "consumes": [],
+      "produces": [
+        "asset_check"
+      ],
+      "agent_hints": {
+        "when_to_use": "Bulk-declare freshness/absence monitoring across many assets (e.g. a large replication feed with hundreds of landing tables on different cadences) without one component instance per asset.",
+        "example_prompts": [
+          "Alert if any of our ~250 SAP landing tables stops receiving data, grouped by expected cadence tier instead of configuring each table individually."
+        ],
+        "requires_pip": [
+          "dagster"
+        ],
+        "requires_env_vars": []
+      },
+      "keywords": [
+        "freshness",
+        "sla",
+        "absence",
+        "staleness",
+        "bulk",
+        "workspace",
+        "check"
+      ]
+    },
+    {
       "id": "funnel_analysis",
       "name": "Funnel Analysis",
       "category": "analytics",

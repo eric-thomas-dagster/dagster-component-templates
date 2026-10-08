@@ -4,10 +4,14 @@
   },
   "results": [
     {
-      "id": "agentic_pipeline",
-      "path": "assets/ai/agentic_pipeline",
+      "id": "table_freshness_workspace",
+      "path": "asset_checks/table_freshness_workspace",
       "status": "PASS",
-      "warnings": [],
+      "warnings": [
+        "SupersessionWarning: Function `build_last_update_freshness_checks` is superseded and its usage is discouraged. Attach `FreshnessPolicy` objects to your assets instead.",
+        "SupersessionWarning: Function `build_last_update_freshness_checks` is superseded and its usage is discouraged. Attach `FreshnessPolicy` objects to your assets instead.",
+        "SupersessionWarning: Function `build_last_update_freshness_checks` is superseded and its usage is discouraged. Attach `FreshnessPolicy` objects to your assets instead."
+      ],
       "error": null,
       "error_class": null
     }

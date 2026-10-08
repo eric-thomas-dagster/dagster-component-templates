@@ -29,6 +29,7 @@ from dagster import (
     SensorResult,
     SkipReason,
     AssetMaterialization,
+    AssetObservation,
     DataVersion,
     MaterializeResult,
     ObserveResult,
@@ -1931,6 +1932,11 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                                             # so allowing the unqualified pipe
                                             # name can't cross-fire between
                                             # schemas.
+                                            # No `status` filter here either —
+                                            # same reason as the observation
+                                            # sensor's own query: a LOADED-only
+                                            # filter would silently hide COPY
+                                            # errors from this asset's metadata.
                                             history_query = f"""
                                             SELECT
                                                 file_name,
@@ -1939,14 +1945,14 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                                                 row_count,
                                                 row_parsed,
                                                 file_size,
+                                                status,
                                                 first_error_message,
                                                 pipe_name
                                             FROM TABLE(INFORMATION_SCHEMA.COPY_HISTORY(
                                                 TABLE_NAME => '{target_table_v}',
                                                 START_TIME => DATEADD('hour', -1, CURRENT_TIMESTAMP())
                                             ))
-                                            WHERE UPPER(status) = 'LOADED'
-                                              AND UPPER(pipe_name) IN (
+                                            WHERE UPPER(pipe_name) IN (
                                                 UPPER('{pipe_name_v}'),
                                                 UPPER('{qualified_pipe}')
                                               )
@@ -1954,10 +1960,20 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                                             LIMIT 5
                                             """
                                             cursor.execute(history_query)
-                                            recent_loads = cursor.fetchall()
+                                            history_columns = [col[0].lower() for col in cursor.description]
+                                            recent_rows = [dict(zip(history_columns, row)) for row in cursor.fetchall()]
+                                            errored_rows = [
+                                                r for r in recent_rows
+                                                if (r.get("status") or "").upper() != "LOADED"
+                                            ]
                                             metadata["snowflake/recent_loads"] = MetadataValue.int(
-                                                len(recent_loads) if recent_loads else 0
+                                                len(recent_rows) - len(errored_rows)
                                             )
+                                            metadata["snowflake/recent_errors"] = MetadataValue.int(len(errored_rows))
+                                            if errored_rows:
+                                                metadata["snowflake/last_error_message"] = MetadataValue.text(
+                                                    str(errored_rows[0].get("first_error_message") or "")
+                                                )
                                         except Exception as exc:
                                             context.log.warning(
                                                 f"Could not read COPY_HISTORY for {pipe_name_v}: {exc}. "
@@ -2781,6 +2797,13 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                         )
 
                         try:
+                            # No `status` filter here on purpose — querying only
+                            # LOADED rows would silently drop COPY errors
+                            # (malformed/schema-changed files), leaving a
+                            # SnowPipe-level failure completely invisible to the
+                            # orchestrator. Every recent copy attempt is
+                            # inspected below instead, branching on its own
+                            # per-row status.
                             history_query = f"""
                             SELECT
                                 file_name,
@@ -2798,8 +2821,7 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                                                       -{self.poll_interval_seconds / 60},
                                                       CURRENT_TIMESTAMP())
                             ))
-                            WHERE UPPER(status) = 'LOADED'
-                              AND UPPER(pipe_name) IN (
+                            WHERE UPPER(pipe_name) IN (
                                 UPPER('{pipe_name}'),
                                 UPPER('{qualified_pipe}')
                               )
@@ -2813,24 +2835,49 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                                 columns = [col[0] for col in cursor.description]
                                 load_dict = dict(zip(columns, load))
 
-                                # Stable signature — same loaded file + load time
-                                # means same materialization. Prevents double-emit
+                                # Stable signature — same copy attempt + load
+                                # time means the same event. Prevents double-emit
                                 # when the sensor's lookback window catches the
                                 # same COPY_HISTORY row twice across ticks.
                                 _sig = f"{load_dict.get('FILE_NAME')}:{load_dict.get('LAST_LOAD_TIME')}"
-                                events.append(AssetMaterialization(
-                                    asset_key=asset_key,
-                                    metadata={
-                                        "pipe_name": pipe_name,
-                                        "file_name": load_dict.get('FILE_NAME'),
-                                        "last_load_time": str(load_dict.get('LAST_LOAD_TIME')) if load_dict.get('LAST_LOAD_TIME') else None,
-                                        "row_count": load_dict.get('ROW_COUNT'),
-                                        "file_size": load_dict.get('FILE_SIZE'),
-                                        "source": "snowflake_observation_sensor",
-                                        "entity_type": "snowpipe",
-                                    },
-                                    tags={"dagster/data_version": _sig},
-                                ))
+                                row_status = (load_dict.get('STATUS') or "").upper()
+
+                                if row_status == "LOADED":
+                                    events.append(AssetMaterialization(
+                                        asset_key=asset_key,
+                                        metadata={
+                                            "pipe_name": pipe_name,
+                                            "file_name": load_dict.get('FILE_NAME'),
+                                            "last_load_time": str(load_dict.get('LAST_LOAD_TIME')) if load_dict.get('LAST_LOAD_TIME') else None,
+                                            "row_count": load_dict.get('ROW_COUNT'),
+                                            "file_size": load_dict.get('FILE_SIZE'),
+                                            "source": "snowflake_observation_sensor",
+                                            "entity_type": "snowpipe",
+                                        },
+                                        tags={"dagster/data_version": _sig},
+                                    ))
+                                else:
+                                    # LOAD_FAILED / PARTIALLY_LOADED / any
+                                    # non-success status — surface it as an
+                                    # observation (nothing was actually
+                                    # produced, so this isn't a materialization)
+                                    # carrying the real error message. This is
+                                    # the only place a malformed-file COPY
+                                    # error becomes visible to the orchestrator
+                                    # at all.
+                                    events.append(AssetObservation(
+                                        asset_key=asset_key,
+                                        metadata={
+                                            "pipe_name": pipe_name,
+                                            "file_name": load_dict.get('FILE_NAME'),
+                                            "status": load_dict.get('STATUS'),
+                                            "first_error_message": load_dict.get('FIRST_ERROR_MESSAGE'),
+                                            "last_load_time": str(load_dict.get('LAST_LOAD_TIME')) if load_dict.get('LAST_LOAD_TIME') else None,
+                                            "source": "snowflake_observation_sensor",
+                                            "entity_type": "snowpipe",
+                                        },
+                                        tags={"dagster/data_version": _sig},
+                                    ))
                         except Exception as e:
                             _logger.error(f"Error checking loads for Snowpipe {pipe_name}: {e}")
 

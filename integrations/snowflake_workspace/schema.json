@@ -151,6 +151,21 @@
       "required": false,
       "default": null
     },
+    "include_names": {
+      "type": "array",
+      "label": "Include Names",
+      "description": "Explicit, exact-match allow-list of entity names (case-insensitive) -- bypasses filter_by_name_pattern entirely when set, the same way an explicit key list works ahead of a selection DSL elsewhere in this catalog. Use this when you know the real list of names and don't want to guess at a naming convention a regex would have to match. exclude_name_pattern still applies on top, as a safety veto.",
+      "required": false,
+      "default": null,
+      "items": {"type": "string"}
+    },
+    "filter_by_comment_pattern": {
+      "type": "string",
+      "label": "Filter By Comment Pattern",
+      "description": "Regex pattern to filter pipes by their real Snowflake COMMENT field (already returned by SHOW PIPES, just not previously used as a filter). A deterministic alternative to filter_by_name_pattern for teams that annotate cadence/ownership/tier via comments rather than naming convention. Currently applied to pipe discovery only.",
+      "required": false,
+      "default": null
+    },
     "task_filter_by_state": {
       "type": "string",
       "label": "Task Filter By State",

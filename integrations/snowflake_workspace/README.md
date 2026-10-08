@@ -88,6 +88,7 @@ uv run dg dev                   # auto-loads .env + .env.secrets
 |---|---|---|---|
 | `table_modeling` | `str` | `"observable"` | How imported tables are emitted. One of: 'observable' (default) — @observable_source_asset polling row_count + last_altered via INFORMATION_SCHEMA. No click-to-materialize. 'asset' — @asset that runs CREATE OR REPLACE TA… _(full docs in schema.json + component README)_ |
 | `filter_by_name_pattern` | `str` | — | Regex pattern to filter entities by name |
+| `filter_by_comment_pattern` | `str` | — | Regex pattern to filter pipes by their real Snowflake COMMENT field (already returned by SHOW PIPES, just not previously used as a filter). A deterministic alternative to filter_by_name_pattern for teams that annotate ca… _(full docs in schema.json + component README)_ |
 
 ### Other
 
@@ -110,6 +111,7 @@ uv run dg dev                   # auto-loads .env + .env.secrets
 | `import_views` | `bool` | `false` | Import non-materialized views (TABLE_TYPE='VIEW') as Dagster assets. **NOT recommended for most cases** — same reasoning as `import_tables`. Views have no server-side event Dagster can key off; the best we can do is obse… _(full docs in schema.json + component README)_ |
 | `view_modeling` | `str` | `"virtual"` | How imported views are emitted. One of: 'virtual' (default) — AssetSpec(is_virtual=True). Views have no state of their own (Snowflake reads the underlying tables live on every query) and INFORMATION_SCHEMA.TABLES.ROW_COU… _(full docs in schema.json + component README)_ |
 | `exclude_name_pattern` | `str` | — | Regex pattern to exclude entities by name |
+| `include_names` | `List[str]` | — | Explicit, exact-match allow-list of entity names (case-insensitive) -- bypasses filter_by_name_pattern entirely when set, the same way an explicit key list works ahead of a selection DSL elsewhere in this catalog. Use th… _(full docs in schema.json + component README)_ |
 | `task_filter_by_state` | `str` | — | Filter tasks by state (STARTED, SUSPENDED). If not specified, imports all tasks. |
 | `generate_sensor` | `bool` | `true` | If true, create the observation sensor. It polls Snowflake and emits AssetMaterialization for: task runs (TASK_HISTORY), Snowpipe loads (COPY_HISTORY), stream CDC advances (SYSTEM$STREAM_HAS_DATA + QUERY_HISTORY), stage… _(full docs in schema.json + component README)_ |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |

@@ -469,6 +469,30 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         description="Regex pattern to exclude entities by name"
     )
 
+    include_names: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Explicit, exact-match allow-list of entity names (case-insensitive) -- "
+            "bypasses filter_by_name_pattern entirely when set, the same way an "
+            "explicit key list works ahead of a selection DSL elsewhere in this "
+            "catalog. Use this when you know the real list of names and don't want "
+            "to guess at (or wait on confirmation of) a naming convention a regex "
+            "would have to match. exclude_name_pattern still applies on top, as a "
+            "safety veto."
+        ),
+    )
+
+    filter_by_comment_pattern: Optional[str] = Field(
+        default=None,
+        description=(
+            "Regex pattern to filter pipes by their real Snowflake COMMENT field "
+            "(already returned by SHOW PIPES, just not previously used as a filter). "
+            "A deterministic alternative to filter_by_name_pattern for teams that "
+            "annotate cadence/ownership/tier via comments rather than naming "
+            "convention. Currently applied to pipe discovery only."
+        ),
+    )
+
     task_filter_by_state: Optional[str] = Field(
         default=None,
         description="Filter tasks by state (STARTED, SUSPENDED). If not specified, imports all tasks."
@@ -591,19 +615,42 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         conn.close = _patched_close  # type: ignore[method-assign]
         return conn
 
-    def _should_include_entity(self, name: str) -> bool:
-        """Check if an entity should be included based on filters."""
-        # Check name exclusion pattern
+    def _should_include_entity(self, name: str, comment: Optional[str] = None) -> bool:
+        """Check if an entity should be included based on filters.
+
+        Precedence: exclude_name_pattern always vetoes, regardless of any
+        other match. Then: include_names (explicit, exact allow-list -- no
+        guessing at a naming convention) OR filter_by_name_pattern OR
+        filter_by_comment_pattern (only meaningful when `comment` is passed,
+        today just pipe discovery) -- an entity is included if it satisfies
+        ANY configured inclusion criterion, same union/OR semantics as the
+        selection DSLs elsewhere in this catalog.
+        """
+        # Check name exclusion pattern -- always wins, even over an explicit
+        # include_names entry.
         if self.exclude_name_pattern:
             if re.search(self.exclude_name_pattern, name, re.IGNORECASE):
                 return False
 
-        # Check name inclusion pattern
-        if self.filter_by_name_pattern:
-            if not re.search(self.filter_by_name_pattern, name, re.IGNORECASE):
-                return False
+        has_inclusion_criteria = bool(
+            self.include_names or self.filter_by_name_pattern or self.filter_by_comment_pattern
+        )
+        if not has_inclusion_criteria:
+            return True
 
-        return True
+        if self.include_names:
+            if name.upper() in {n.upper() for n in self.include_names}:
+                return True
+
+        if self.filter_by_name_pattern:
+            if re.search(self.filter_by_name_pattern, name, re.IGNORECASE):
+                return True
+
+        if self.filter_by_comment_pattern and comment:
+            if re.search(self.filter_by_comment_pattern, comment, re.IGNORECASE):
+                return True
+
+        return False
 
     def _execute_query(self, conn: SnowflakeConnection, query: str) -> List[Dict[str, Any]]:
         """Execute a query and return results as list of dictionaries."""
@@ -806,7 +853,7 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                     )
                     state["snowpipes"] = [
                         p for p in pipes
-                        if self._should_include_entity(p.get("NAME", ""))
+                        if self._should_include_entity(p.get("NAME", ""), comment=p.get("COMMENT"))
                     ]
                 except Exception as e:
                     _logger.error(f"Error enumerating Snowflake pipes: {e}")
@@ -1787,7 +1834,7 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                     for pipe in pipes:
                         pipe_name = pipe['NAME']
 
-                        if not self._should_include_entity(pipe_name):
+                        if not self._should_include_entity(pipe_name, comment=pipe.get("COMMENT")):
                             continue
 
                         # Sanitize name for asset key

@@ -36,10 +36,17 @@ Same selection language this repo's other selection-driven components use (`asse
 
 An empty match raises a clear error naming the sensor and how many sibling assets were found, rather than silently creating a sensor that never fires.
 
+## `monitored_folder` — monitoring a different folder than your own
+
+By default, `monitored_selection` resolves against this component's own **parent** folder — the normal case, where this component lives in its own dedicated subfolder next to the assets it monitors. Set `monitored_folder` (a path relative to this component's own folder, e.g. `"../other_scenario"`) to point it at a different folder instead — confirmed safe as long as that folder doesn't contain the currently-resolving document itself.
+
+One thing this can't do: point it at `"."` to search its own folder when this component is co-located as a second `---`-separated YAML document inside the *same* `defs.yaml` as a `dagster.DefsFolderComponent` (yes, one `defs.yaml` can hold multiple documents — confirmed directly). That specific case is a real `RecursionError`, not a config gap: `context.build_defs()` on the exact node currently being resolved recurses into itself. Any folder at or above where a co-located component's own file lives recurses back through that same file, so there's no `monitored_folder` value that fixes it — this component has to stay in its own dedicated subfolder.
+
 ## Fields
 
 - `sensor_name` (required) — unique sensor name.
 - `monitored_selection` (required) — see table above.
+- `monitored_folder` (optional) — see section above.
 - `rollup_asset_key` (required) — the single declared asset the check is reported against. Declare-only: this component never materializes it, it only exists to carry the check so it's visible in the asset catalog and alertable in Dagster+.
 - `max_silence_seconds` (required) — fail the check if the freshest event across the *whole* selection is older than this, or if nothing in the selection has ever produced an event at all.
 - `check_name` (default `"total_stoppage"`).

@@ -59,6 +59,44 @@ def test_selection_dsl_resolves_against_real_sibling_assets():
     assert matched == ["bseg"]
 
 
+def test_monitored_folder_override_resolves_relative_to_own_path():
+    """monitored_folder, when set, is resolved relative to this component's
+    OWN folder -- not its parent -- so build_defs() must be called with the
+    right absolute path for an override like '../other_scenario'."""
+    import pathlib
+
+    calls = []
+
+    class _StubContext:
+        path = pathlib.Path("/project/defs/scenario_a/total_stoppage_sensor")
+
+        def build_defs(self, path):
+            calls.append(path)
+            return None
+
+    keys, sibling_defs = mod._discover_sibling_assets(
+        _StubContext(), monitored_folder="../../scenario_b"
+    )
+    assert calls == [pathlib.Path("/project/defs/scenario_b")]
+    assert keys == []
+
+
+def test_monitored_folder_unset_defaults_to_parent():
+    import pathlib
+
+    calls = []
+
+    class _StubContext:
+        path = pathlib.Path("/project/defs/scenario_a/total_stoppage_sensor")
+
+        def build_defs(self, path):
+            calls.append(path)
+            return None
+
+    mod._discover_sibling_assets(_StubContext(), monitored_folder=None)
+    assert calls == [pathlib.Path("/project/defs/scenario_a")]
+
+
 def test_empty_match_raises_clear_error():
     comp = _component(monitored_selection="tag:nope=nope")
     with pytest.raises(ValueError, match="matched no assets"):

@@ -36,8 +36,13 @@ Selection resolution mirrors `asset_to_job_trigger_sensor`/
 `enhanced_data_quality_checks`/`automation_condition_applicator`: an explicit
 asset-key list, the full Dagster selection DSL via `AssetSelection.from_string()`
 (tag:/group:/kind:/boolean composition), `"*"` for everything, or a bare
-fnmatch glob fallback -- resolved against sibling assets in the same defs
-folder.
+fnmatch glob fallback -- resolved by default against sibling assets in this
+component's own parent defs folder, or an explicit `monitored_folder` for
+any other folder in the project (see that field's docstring for why this
+can't be made to work by just pointing it at this component's OWN folder
+when co-located with a `dagster.DefsFolderComponent` via a `---`-separated
+YAML document -- confirmed that specific case is a real `RecursionError`,
+not a config gap).
 """
 import time
 from typing import Any, List, Optional, Union
@@ -46,17 +51,39 @@ import dagster as dg
 from pydantic import Field
 
 
-def _discover_sibling_assets(context: dg.ComponentLoadContext):
+def _discover_sibling_assets(
+    context: dg.ComponentLoadContext, monitored_folder: Optional[str] = None
+):
     """Returns (list_of_key_strings, sibling_defs). Same mechanism
     `asset_to_job_trigger_sensor`/`enhanced_data_quality_checks` use: load
-    sibling components in the same defs folder so `sibling_defs.resolve_asset_graph()`
-    can power the full Dagster selection language via `AssetSelection.from_string()`."""
+    the target folder's components so `sibling_defs.resolve_asset_graph()`
+    can power the full Dagster selection language via `AssetSelection.from_string()`.
+
+    By default, searches this component's own parent folder (the normal
+    case -- this component lives in its own dedicated subfolder next to the
+    assets it monitors). `monitored_folder`, when set, is resolved relative
+    to this component's own folder instead (e.g. `"../other_scenario"`) --
+    confirmed this is safe as long as the target folder doesn't contain the
+    currently-resolving document itself. Pointing it at `"."` to search this
+    component's own folder when co-located via a `---`-separated YAML
+    document inside the SAME file as a `dagster.DefsFolderComponent` is NOT
+    safe -- confirmed directly that `context.build_defs()` on the exact node
+    currently being resolved causes a real `RecursionError` (self-reference),
+    silently caught by this function's own `except Exception` and surfacing
+    only as "matched no assets" rather than the real error. There's no
+    `monitored_folder` value that fixes that specific case: any folder at or
+    above where a co-located component's own file lives recurses back
+    through that same file.
+    """
     keys: List[str] = []
     sibling_defs: Optional[dg.Definitions] = None
     try:
-        parent_path = context.path.parent if hasattr(context.path, "parent") else None
-        if parent_path:
-            sibling_defs = context.build_defs(parent_path)
+        if monitored_folder is not None:
+            search_path = (context.path / monitored_folder).resolve()
+        else:
+            search_path = context.path.parent if hasattr(context.path, "parent") else None
+        if search_path:
+            sibling_defs = context.build_defs(search_path)
             if sibling_defs and sibling_defs.assets:
                 for assets_def in sibling_defs.assets:
                     for key in assets_def.keys:
@@ -125,8 +152,24 @@ class AggregateFreshnessSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         description=(
             "Asset selection to monitor in aggregate: explicit key list, the Dagster "
             "selection DSL (tag:/group:/kind:/boolean composition), '*' for everything, "
-            "or a bare fnmatch glob. Resolved against sibling assets in the same defs folder."
+            "or a bare fnmatch glob. Resolved against discovered assets in monitored_folder "
+            "(default: this component's own parent defs folder)."
         )
+    )
+    monitored_folder: Optional[str] = Field(
+        default=None,
+        description=(
+            "Override which folder monitored_selection resolves against, as a path "
+            "relative to this component's own folder (e.g. '../other_scenario'). "
+            "Defaults to this component's immediate parent folder -- the normal case, "
+            "sibling discovery within the same scenario folder. Do NOT set this to '.' "
+            "to search this component's own folder when co-locating it as a second "
+            "--- separated YAML document inside the same defs.yaml as a "
+            "dagster.DefsFolderComponent -- that specific case causes a real "
+            "RecursionError (self-reference), not something this field can fix; any "
+            "folder at or above where a co-located component's own file lives "
+            "recurses back through that same file."
+        ),
     )
     rollup_asset_key: str = Field(
         description=(
@@ -176,7 +219,9 @@ class AggregateFreshnessSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 f"'stopped', got {self.default_status!r}."
             )
 
-        discovered_keys, sibling_defs = _discover_sibling_assets(context)
+        discovered_keys, sibling_defs = _discover_sibling_assets(
+            context, monitored_folder=self.monitored_folder
+        )
         resolved_keys = _resolve_selection(self.monitored_selection, discovered_keys, sibling_defs)
         if not resolved_keys:
             raise ValueError(

@@ -19,8 +19,14 @@
     "monitored_selection": {
       "type": "string",
       "label": "Monitored Selection",
-      "description": "Asset selection to monitor in aggregate: explicit key list, the Dagster selection DSL (tag:/group:/kind:/boolean composition), '*' for everything, or a bare fnmatch glob. Resolved against sibling assets in the same defs folder.",
+      "description": "Asset selection to monitor in aggregate: explicit key list, the Dagster selection DSL (tag:/group:/kind:/boolean composition), '*' for everything, or a bare fnmatch glob. Resolved against discovered assets in monitored_folder (default: this component's own parent defs folder).",
       "required": true
+    },
+    "monitored_folder": {
+      "type": "string",
+      "label": "Monitored Folder",
+      "description": "Override which folder monitored_selection resolves against, as a path relative to this component's own folder (e.g. '../other_scenario'). Defaults to this component's immediate parent folder. Do NOT set to '.' to search this component's own folder when co-locating it as a second --- separated YAML document inside the same defs.yaml as a dagster.DefsFolderComponent -- that causes a real RecursionError, not something this field can fix.",
+      "required": false
     },
     "rollup_asset_key": {
       "type": "string",

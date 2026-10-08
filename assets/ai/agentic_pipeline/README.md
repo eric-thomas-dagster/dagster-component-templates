@@ -910,7 +910,7 @@ Metadata: `component_type`, `asset_name`, `input_kwarg`, `n_input_rows`, `latenc
 
 ## State model
 
-Every step's output is a dict `{text: str, ...op-specific fields}`. Steps read text from a prior step by `source:` id; omit `source:` and it defaults to the most recent step. This is the same "chain by id" pattern as `ml_pipeline`.
+Every step's output is a dict `{text: str, ...op-specific fields}`. Steps read text from a prior step by `source:` id; omit `source:` and it defaults to the pipeline's original input — **not** "whatever step ran last." Dependency structure is always declared, never implied by position in the `steps:` list: two steps that don't reference each other are independent branches off the same input, regardless of the order they're written in or executed in. Use typed `inputs: {name: {from: <id>}}` ("ports") for multi-parent fan-in — see "Typed named inputs" below. The asset-graph lineage shown for `outputs.assets` is derived from these same declared refs, so it always reflects the real logical dependency structure, not execution order.
 
 The `assets:` list picks which step outputs become first-class Dagster assets — each emitted as the full step dict (with router reasoning, all proposals, critique history, usage counts, etc.).
 

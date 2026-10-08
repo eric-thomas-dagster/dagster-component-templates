@@ -67,7 +67,12 @@ Op coverage (v2 = 6):
 State model:
 
 Every step's output is a dict `{"text": str, ...op-specific fields}`. Steps
-read text from a prior step via `source: <id>` (default = most recent step).
+read text from a prior step via `source: <id>` (default = the pipeline's
+original input, NOT "whatever step ran last" — dependency structure is
+always declared, never implied by position in the list, so two steps that
+don't reference each other are independent branches off the same input
+regardless of the order they're written in or executed in). Use typed
+`inputs: {name: {from: <id>}}` for multi-parent fan-in.
 The `assets:` list picks which step outputs become first-class Dagster
 assets; each is emitted as a dict with the full op output preserved.
 """
@@ -492,6 +497,19 @@ def _completion(
     }
 
 
+_ROOT_SOURCE_ID = "source"
+"""The reserved state key holding the pipeline's initial ingested entry.
+
+A step that omits `source:` (and has no `sources:`/`inputs:`) defaults to
+this — the pipeline's original input — NOT "whatever step happened to run
+immediately before it." Dependency structure is declared, never implied by
+position in the `steps:` list: two steps that don't reference each other
+are independent regardless of execution order, and a step that wants a
+specific prior step's output must say so explicitly via `source: <id>` or
+typed `inputs: {name: {from: <id>}}`.
+"""
+
+
 def _get_source_text(state: Dict[str, Any], source_id: str) -> str:
     """Extract text from a prior step's output."""
     if source_id not in state:
@@ -505,7 +523,11 @@ def _get_source_text(state: Dict[str, Any], source_id: str) -> str:
 
 
 def _last_step_id(state: Dict[str, Any]) -> str:
-    """The most recent step id in state (used when a step omits `source:`).
+    """The most recent step id in state. Used only by `sub_pipeline`'s
+    `output_step_id` default (a nested sub-pipeline's natural return value
+    is its last step, the same way a function returns its last expression —
+    unrelated to cross-step dependency resolution, which never implies a
+    dependency from list position; see `_ROOT_SOURCE_ID`).
     Skips reserved keys prefixed with `__` (e.g. `__ctx__`)."""
     for k in reversed(list(state.keys())):
         if not (isinstance(k, str) and k.startswith("__")):
@@ -685,7 +707,7 @@ def _do_llm_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     for typed inputs.
     """
     materialized_at = _now_iso()
-    source_id = step.get("source", _last_step_id(state))
+    source_id = step.get("source", _ROOT_SOURCE_ID)
     src_text = _get_source_text(state, source_id)
 
     inputs = _resolve_inputs(step, state)
@@ -739,7 +761,7 @@ def _do_route(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     import json
 
     materialized_at = _now_iso()
-    source_id = step.get("source", _last_step_id(state))
+    source_id = step.get("source", _ROOT_SOURCE_ID)
     src_text = _get_source_text(state, source_id)
 
     router = step["router"]
@@ -937,7 +959,7 @@ def _do_conditional_route(step: dict, state: Dict[str, Any], context) -> Dict[st
     signal is soft ("does this issue read as a question?"), prefer `route`.
     """
     materialized_at = _now_iso()
-    source_id = step.get("source", _last_step_id(state))
+    source_id = step.get("source", _ROOT_SOURCE_ID)
     src_text = _get_source_text(state, source_id)
 
     conditions = step.get("conditions") or []
@@ -1034,7 +1056,7 @@ def _do_debate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     import json
 
     materialized_at = _now_iso()
-    source_id = step.get("source", _last_step_id(state))
+    source_id = step.get("source", _ROOT_SOURCE_ID)
     src_text = _get_source_text(state, source_id)
 
     proposers = step["proposers"]
@@ -1183,7 +1205,7 @@ def _do_critique_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
                     already good enough. Preserves `iterations` as an upper bound.
     """
     materialized_at = _now_iso()
-    source_id = step.get("source", _last_step_id(state))
+    source_id = step.get("source", _ROOT_SOURCE_ID)
     src_text = _get_source_text(state, source_id)
 
     drafter = step["drafter"]
@@ -1659,7 +1681,7 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     import os
 
     materialized_at = _now_iso()
-    source_id = step.get("source", _last_step_id(state))
+    source_id = step.get("source", _ROOT_SOURCE_ID)
     src_text = _get_source_text(state, source_id) if source_id else ""
 
     inputs = _resolve_inputs(step, state)
@@ -1921,7 +1943,7 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
     litellm.drop_params = True
 
     materialized_at = _now_iso()
-    source_id = step.get("source", _last_step_id(state))
+    source_id = step.get("source", _ROOT_SOURCE_ID)
     src_text = _get_source_text(state, source_id) if source_id else ""
     inputs = _resolve_inputs(step, state)
 
@@ -2301,7 +2323,7 @@ def _do_handoff(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     import time as _time
 
     materialized_at = _now_iso()
-    source_id = step.get("source", _last_step_id(state))
+    source_id = step.get("source", _ROOT_SOURCE_ID)
     src_text = _get_source_text(state, source_id) if source_id else ""
     inputs = _resolve_inputs(step, state)
 
@@ -2449,7 +2471,7 @@ def _do_map(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
                           deterministic-filter → agent-triage pipeline)
     """
     materialized_at = _now_iso()
-    source_id = step.get("source", _last_step_id(state))
+    source_id = step.get("source", _ROOT_SOURCE_ID)
     src_text = _get_source_text(state, source_id) if source_id else ""
     inputs = _resolve_inputs(step, state)
 
@@ -2615,7 +2637,7 @@ def _do_extract(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
                                false (missing → None)
     """
     materialized_at = _now_iso()
-    source_id = step.get("source", _last_step_id(state))
+    source_id = step.get("source", _ROOT_SOURCE_ID)
     src_text = _get_source_text(state, source_id) if source_id else ""
     inputs = _resolve_inputs(step, state)
 
@@ -2718,7 +2740,7 @@ def _do_classify(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
       prompt_template        — override default (`{text}`)
     """
     materialized_at = _now_iso()
-    source_id = step.get("source", _last_step_id(state))
+    source_id = step.get("source", _ROOT_SOURCE_ID)
     src_text = _get_source_text(state, source_id) if source_id else ""
     inputs = _resolve_inputs(step, state)
 
@@ -2821,7 +2843,7 @@ def _do_reduce(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
       system_prompt             — optional
     """
     materialized_at = _now_iso()
-    source_id = step.get("source", _last_step_id(state))
+    source_id = step.get("source", _ROOT_SOURCE_ID)
     src_text = _get_source_text(state, source_id) if source_id else ""
     inputs = _resolve_inputs(step, state)
 
@@ -2944,7 +2966,7 @@ def _do_self_reflect(step: dict, state: Dict[str, Any], context) -> Dict[str, An
     content is returned as `text` and the metadata sections are None.
     """
     materialized_at = _now_iso()
-    source_id = step.get("source", _last_step_id(state))
+    source_id = step.get("source", _ROOT_SOURCE_ID)
     src_text = _get_source_text(state, source_id) if source_id else ""
     inputs = _resolve_inputs(step, state)
 
@@ -3022,7 +3044,7 @@ def _do_sub_pipeline(step: dict, state: Dict[str, Any], context) -> Dict[str, An
                           If unset, source.text = the upstream text from `source:` / `inputs:`.
     """
     materialized_at = _now_iso()
-    source_id = step.get("source", _last_step_id(state))
+    source_id = step.get("source", _ROOT_SOURCE_ID)
     src_text = _get_source_text(state, source_id) if source_id else ""
     inputs = _resolve_inputs(step, state)
 
@@ -3414,7 +3436,7 @@ def _do_agent_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]
                         (available as `{extra.<key>}` in payload_template).
     """
     materialized_at = _now_iso()
-    source_id = step.get("source", _last_step_id(state))
+    source_id = step.get("source", _ROOT_SOURCE_ID)
     src_text = _get_source_text(state, source_id) if source_id else ""
     inputs = _resolve_inputs(step, state)
 
@@ -3598,7 +3620,7 @@ def _do_delegate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     every check here; that's still the picker LLM's job.
     """
     materialized_at = _now_iso()
-    source_id = step.get("source") or _last_step_id(state)
+    source_id = step.get("source", _ROOT_SOURCE_ID)
     src_text = _get_source_text(state, source_id) if source_id else ""
     inputs = _resolve_inputs(step, state)
 
@@ -3936,7 +3958,7 @@ def _do_invoke_component(step: dict, state: Dict[str, Any], context) -> Dict[str
     import pandas as pd
 
     materialized_at = _now_iso()
-    source_id = step.get("source", _last_step_id(state))
+    source_id = step.get("source", _ROOT_SOURCE_ID)
     src_text = _get_source_text(state, source_id) if source_id else ""
 
     component_type = step.get("component_type")
@@ -4296,7 +4318,8 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Ops share YAML idioms with the other pipeline components:
       - `id:` names the step output for downstream reference
-      - `source: <step_id>` picks upstream text (default = most recent step)
+      - `source: <step_id>` picks upstream text (default = the pipeline's
+        original input, not "whatever step ran last" -- see `_ROOT_SOURCE_ID`)
       - `outputs.assets: [step_ids]` picks which step outputs become assets
       - `outputs.text_sinks: [{from, path}]` writes text side files
       - `outputs.json_sinks: [{from, path}]` dumps full step output as JSON
@@ -4322,9 +4345,12 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "Ordered pipeline steps. Each step: {id, op, ...op-specific args}. "
             "\n\nTwo wiring modes (choose per step, they compose):\n"
             "  1. **Legacy single-source**: `source: <step_id>` reads that step's "
-            "text into `{text}` in the prompt (default: most recent step). Reserved "
-            "id `source` = initial pipeline source (use `source: source` to fan "
-            "multiple steps off the same starting text).\n"
+            "text into `{text}` in the prompt (default, when omitted: the pipeline's "
+            "original input -- NOT whatever step ran last. Dependency structure is "
+            "always declared, never implied by list position, so omitting `source:` "
+            "on several steps makes them independent siblings off the same root, not "
+            "an implicit chain). Reserved id `source` = initial pipeline source, "
+            "explicit or implicit.\n"
             "  2. **Typed named inputs** (recommended for joins): "
             "`inputs: {<port_name>: {from: <step_id>} | {literal: <value>}}`. "
             "Each port becomes a `{<port_name>}` placeholder in `prompt_template` "
@@ -4591,16 +4617,6 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             if source_config.get("kind") == "upstream_asset"
             else None
         )
-        # A step that OMITS `source:` reads from the last preceding step
-        # in the `steps:` list. Precompute that fallback per step id.
-        _prev_step_id: Dict[str, Optional[str]] = {}
-        _prev: Optional[str] = None
-        for s in steps:
-            sid = s.get("id")
-            if sid:
-                _prev_step_id[sid] = _prev
-                _prev = sid
-
         def _upstream_refs_for_step(step: dict) -> List[str]:
             """Return list of upstream refs (step ids OR the reserved 'source').
 
@@ -4635,17 +4651,15 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             parents: set = set()
             refs = _upstream_refs_for_step(step)
             # If the step has typed `inputs:` OR `sources:` OR an explicit
-            # `source:`, those are authoritative. Otherwise fall back to the
-            # last preceding step (the AgenticPipeline default).
+            # `source:`, those are authoritative. Otherwise it defaults to
+            # the pipeline's root input (_ROOT_SOURCE_ID) — dependency
+            # structure is never implied by list position, so a step with
+            # no explicit ref is an independent branch off the root, not an
+            # implicit continuation of whatever step precedes it.
             if not refs:
-                # No explicit source. Runtime default: read from the
-                # last-inserted state entry — which for step 1 is the
-                # reserved id "source", and for step N>1 is the
-                # previous step in the `steps:` list.
-                _prev_id = _prev_step_id.get(step_id)
-                refs = [_prev_id] if _prev_id else ["source"]
+                refs = [_ROOT_SOURCE_ID]
             for ref in refs:
-                if ref == "source":
+                if ref == _ROOT_SOURCE_ID:
                     if _source_upstream_key:
                         parents.add(dg.AssetKey.from_user_string(_source_upstream_key))
                 elif ref in emitted_set:
@@ -4691,12 +4705,11 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         # subset-materializes a subset of outputs — we run only the needed
         # steps, not the whole pipeline.
         def _direct_step_deps(step: dict) -> List[str]:
-            """Step ids this step needs before it can run (excluding 'source')."""
+            """Step ids this step needs before it can run (excluding 'source').
+            A step with no explicit source/sources/inputs has no step-level
+            dependency — it reads the root input, same as `_resolve_step_parents`."""
             refs = _upstream_refs_for_step(step)
-            if not refs:
-                p = _prev_step_id.get(step.get("id"))
-                refs = [p] if p else []
-            return [r for r in refs if r != "source" and r in step_by_id]
+            return [r for r in refs if r != _ROOT_SOURCE_ID and r in step_by_id]
 
         _step_direct_deps: Dict[str, List[str]] = {
             s["id"]: _direct_step_deps(s) for s in steps if s.get("id")

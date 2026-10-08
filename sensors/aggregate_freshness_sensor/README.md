@@ -18,6 +18,8 @@ attributes:
 
 A plain `@dg.sensor` polls `instance.get_latest_materialization_events(...)` for every resolved asset key in **one batched call**, takes the single most recent event across the whole selection, and compares its age against `max_silence_seconds`. `alert_mode` picks what happens with that result — two genuinely different Dagster+ alert types, with different scoping, not just a style preference:
 
+**The failure condition is all-or-nothing, not a percentage.** Taking the *freshest* event across the group means the check only fails when every single monitored asset is stale — if even one is still updating, the whole group reads as healthy. There's no "X% of assets are silent" threshold. This is why `monitored_selection` should be scoped to one cadence-homogeneous tier (e.g. `group:sap_hourly`, not every table regardless of cadence) rather than a large mixed-cadence group — within one real tier, "all stale" is a fast, meaningful signal for "the upstream system that feeds this tier went down," not something that takes forever to trip. Partial failure *within* a tier (a handful of tables going silent while others keep flowing) is a different failure mode, already covered by per-asset `post_processing.attributes.freshness_policy` instead — see "Why not just set a tight `post_processing.attributes.freshness_policy`..." below for how the two mechanisms split by failure mode.
+
 | | `alert_mode: check` (default) | `alert_mode: fail_tick` |
 |---|---|---|
 | What happens | Reports **one** `AssetCheckEvaluation` per tick against a declared "rollup" asset (`rollup_asset_key`). The sensor tick itself always succeeds. | No asset is created at all. The sensor **raises** when the selection is stale, failing its own tick. |
@@ -64,7 +66,14 @@ One thing this can't do: point it at `"."` to search its own folder when this co
 
 ## Why not just set a tight `post_processing.attributes.freshness_policy` on the whole group?
 
-Because that attaches the *same* window to *every* asset in the selection individually — each one must independently satisfy it. For a mixed-cadence group (some hourly, some daily, some rare) that's wrong twice over: too tight for the slow tiers (constant false alarms) and not actually answering "did the feed stop" (one table updating on schedule while 249 others go silent would still show every individual check passing or failing on its own terms, never surfacing the aggregate picture). This component is the complement, not a replacement — use per-asset `freshness_policy` for each table's own SLA, and this for the feed-level heartbeat.
+Because that attaches the *same* window to *every* asset in the selection individually — each one must independently satisfy it. For a mixed-cadence group (some hourly, some daily, some rare) that's wrong twice over: too tight for the slow tiers (constant false alarms) and not actually answering "did the feed stop" (one table updating on schedule while 249 others go silent would still show every individual check passing or failing on its own terms, never surfacing the aggregate picture). This component is the complement, not a replacement — the two mechanisms split by failure mode, not by preference:
+
+| Failure mode | Caught by |
+|---|---|
+| One or a few assets individually miss their own cadence | Per-asset `post_processing.attributes.freshness_policy` — fires per asset |
+| The *entire* selection goes dark at once (upstream system down) | This component — fires once, not once per asset |
+
+Use per-asset `freshness_policy` for each table's own SLA, and this for the feed-level heartbeat, scoped to one cadence-homogeneous tier at a time (see "The failure condition is all-or-nothing" above for why scoping matters here).
 
 ## Sister components
 

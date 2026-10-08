@@ -606,6 +606,7 @@ def _iter_mirrorable_cloud_jobs(jobs: list[dict]):
 
 try:
     from dagster_dbt import DbtCloudComponent as _DbtCloudComponent
+    from dagster_dbt.cloud_v2.client import DbtCloudJobRunStatusType
 
     # Local vendored modules (kept per-folder — DCC rule)
     from ._job_selection import apply_selection
@@ -647,12 +648,14 @@ try:
         """
 
         job_trigger_defaults: Optional[Dict[str, Any]] = None
-        """Trigger overrides sent by every mirrored @job (applies with
-        ``mirror_jobs`` = ``job`` or ``both``). Any unset field is not sent
-        to dbt Cloud — the Cloud job's configured value is used. Common
-        fields: ``cause`` (str), ``steps_override`` (list[str]), ``git_sha``
-        (str), ``git_branch`` (str), ``schema_override`` (str),
-        ``threads_override`` (int)."""
+        """Default trigger overrides sent by every mirrored @job (applies
+        with ``mirror_jobs`` = ``job`` or ``both``). The real dbt Cloud
+        Cloud v2 client's ``trigger_job_run(job_id, steps_override=None)``
+        only accepts ``steps_override`` -- confirmed against the installed
+        client directly -- so ``{"steps_override": [...]}`` is the only key
+        this actually affects. A per-run ``steps_override`` set via the
+        Dagster UI launchpad or `dg launch --config` overrides this default
+        for that run only, with no YAML edit."""
 
         job_selection_include: Optional[str] = None
         """Selection string; jobs matching any selector are mirrored. Default
@@ -1460,22 +1463,21 @@ try:
             class DbtCloudJobTriggerRunConfig(dg.Config):
                 """Per-run override for a mirrored dbt Cloud job trigger.
 
-                Every field defaults to None, meaning "use this job's
-                job_trigger_defaults" (or dbt Cloud's own job-level config,
-                if that's unset too). Set only what you want to override
-                for this one run via the Dagster UI launchpad or
-                `dg launch --config` — no YAML edit, no redeploy. This is
-                what satisfies "re-run with a different selector for this
-                run only, without editing the job definition" (the
-                previous version of this mirroring code had no config_schema
-                at all, so steps_override etc. could only be changed by
-                editing job_trigger_defaults in the component's own YAML).
+                `steps_override` is the one field the real dbt Cloud Cloud v2
+                client's `trigger_job_run(job_id, steps_override=None)`
+                actually accepts — confirmed against the installed
+                dagster-dbt client directly; earlier revisions of this config
+                also exposed `cause`/`schema_override`/`git_branch`/`git_sha`,
+                which that method has no parameters for at all, so setting
+                any of them would have broken the trigger call outright.
+
+                Defaults to None, meaning "use this job's own
+                job_trigger_defaults (or dbt Cloud's own job-level command,
+                if that's unset too)". Set it via the Dagster UI launchpad or
+                `dg launch --config` to override for this one run only — no
+                YAML edit, no redeploy.
                 """
-                cause: Optional[str] = None
                 steps_override: Optional[List[str]] = None
-                schema_override: Optional[str] = None
-                git_branch: Optional[str] = None
-                git_sha: Optional[str] = None
 
             for shim in shims:
                 cloud_job_id = shim.id
@@ -1497,6 +1499,8 @@ try:
 
                 if emit_job:
                     op_name = _sanitize_job_name(cloud_job_name)
+                    default_steps_override = trigger_defaults.get("steps_override")
+                    translator = self.translator
 
                     @dg.op(name=f"trigger_dbt_cloud_{op_name}")
                     def _trigger_op(
@@ -1505,49 +1509,82 @@ try:
                         _workspace=workspace,
                         _cloud_job_id=cloud_job_id,
                         _cloud_job_name=cloud_job_name,
-                        _trigger_defaults=trigger_defaults,
+                        _default_steps_override=default_steps_override,
+                        _translator=translator,
                     ):
                         client = getattr(_workspace, "client", None) or _workspace
-                        # Per-run config (launchpad / dg launch --config)
-                        # overrides this job's configured job_trigger_defaults
-                        # field by field. An unset config field falls back to
-                        # the default, not to dbt Cloud's own job config, so
-                        # a partial override still composes with
-                        # job_trigger_defaults for everything else.
-                        effective = dict(_trigger_defaults)
-                        for field in ("cause", "steps_override", "schema_override", "git_branch", "git_sha"):
-                            value = getattr(config, field)
-                            if value is not None:
-                                effective[field] = value
-                        # Trigger + poll — API varies slightly by dagster-dbt
-                        # version; try the most common shapes.
-                        for trigger_attr in ("trigger_job_run", "trigger_job", "run_job"):
-                            fn = getattr(client, trigger_attr, None)
-                            if not callable(fn):
+                        steps_override = (
+                            config.steps_override
+                            if config.steps_override is not None
+                            else _default_steps_override
+                        )
+
+                        run = client.trigger_job_run(
+                            job_id=_cloud_job_id, steps_override=steps_override
+                        )
+                        run_id = getattr(run, "id", None) or (run or {}).get("id")
+                        context.log.info(f"Triggered dbt Cloud job {_cloud_job_id} → run {run_id}")
+
+                        run_details = client.poll_run(run_id)
+                        status = (run_details or {}).get("status")
+                        if status != DbtCloudJobRunStatusType.SUCCESS.value:
+                            raise dg.Failure(
+                                f"dbt Cloud job {_cloud_job_id} run {run_id} finished with "
+                                f"status {status!r}, not success"
+                            )
+
+                        # Real per-model results (run_results.json) + the real
+                        # manifest for THIS run, not a hand-maintained asset-key
+                        # list -- so materializations always reflect what the
+                        # job actually built, and keys match however the
+                        # project's own translator would key the same model
+                        # elsewhere, instead of a parallel guessed scheme.
+                        run_results = client.get_run_results_json(run_id)
+                        manifest = client.get_run_manifest_json(run_id)
+                        nodes = {**(manifest.get("nodes") or {}), **(manifest.get("sources") or {})}
+
+                        any_failed = False
+                        for result in run_results.get("results") or []:
+                            unique_id = result.get("unique_id")
+                            result_status = result.get("status")
+                            node = nodes.get(unique_id)
+                            if node is None:
                                 continue
                             try:
-                                run = fn(job_id=_cloud_job_id, **effective)
-                            except TypeError:
-                                try:
-                                    run = fn(_cloud_job_id, **effective)
-                                except Exception as e:
-                                    context.log.warning(f"{trigger_attr} failed: {e}")
-                                    continue
-                            run_id = getattr(run, "id", None) or (run or {}).get("id")
-                            context.log.info(
-                                f"Triggered dbt Cloud job {_cloud_job_id} → run {run_id}"
+                                asset_key = _translator.get_asset_key(node)
+                            except Exception as e:
+                                context.log.warning(
+                                    f"could not derive an asset key for {unique_id!r}: {e}"
+                                )
+                                continue
+                            if result_status in ("success", "pass"):
+                                context.log_event(
+                                    dg.AssetMaterialization(
+                                        asset_key=asset_key,
+                                        description=(
+                                            f"Materialized via dbt Cloud job "
+                                            f"{_cloud_job_id} (run {run_id})"
+                                        ),
+                                        metadata={
+                                            "dbt_cloud/job_id": _cloud_job_id,
+                                            "dbt_cloud/run_id": run_id,
+                                            "dbt/status": result_status,
+                                            "dbt/execution_time": result.get("execution_time"),
+                                        },
+                                    )
+                                )
+                            else:
+                                any_failed = True
+                                context.log.error(
+                                    f"dbt node {unique_id} ({asset_key.to_user_string()}) "
+                                    f"finished with status {result_status!r}: {result.get('message')}"
+                                )
+                        if any_failed:
+                            raise dg.Failure(
+                                f"dbt Cloud job {_cloud_job_id} run {run_id} succeeded overall "
+                                f"but one or more models finished with a non-success status "
+                                f"(see per-model errors above)"
                             )
-                            if run_id:
-                                for poll_attr in ("poll_run", "wait_for_run", "poll_job_run"):
-                                    poll_fn = getattr(client, poll_attr, None)
-                                    if callable(poll_fn):
-                                        poll_fn(run_id)
-                                        break
-                            return
-                        raise dg.Failure(
-                            f"dbt Cloud workspace client has no known trigger method — "
-                            f"tried trigger_job_run / trigger_job / run_job"
-                        )
 
                     # NOTE: a job-composition function's parameters are all
                     # treated as graph inputs by Dagster's composition DSL

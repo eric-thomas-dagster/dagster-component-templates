@@ -278,22 +278,51 @@ def test_include_exposures_still_works_against_a_fusion_shaped_manifest(mod, com
     assert exposures[0]["name"] == "my_dashboard"
 
 
-# --- mirror_jobs: per-run config override (new capability) -------------
+# --- mirror_jobs: per-run config override + real materializations ------
 #
-# Previously the mirrored job's trigger op had no config_schema at all --
-# job_trigger_defaults (steps_override, schema_override, git_branch,
-# git_sha, cause) could only be changed by editing the component's own
-# YAML and redeploying. That's the opposite of "re-run with a different
-# selector for this run only, without editing the job definition."
+# Previously the mirrored job's trigger op had no config_schema at all
+# (steps_override could only be changed by editing job_trigger_defaults in
+# the component's own YAML and redeploying -- the opposite of "re-run with
+# a different selector for this run only, without editing the job
+# definition"), AND emitted no AssetMaterializations for the dbt models it
+# actually builds -- a job could genuinely succeed with zero asset tiles
+# turning green. Both fixed: steps_override is a real per-run config
+# (confirmed against the installed dagster-dbt client -- trigger_job_run
+# only accepts job_id + steps_override, nothing else), and a successful run
+# now materializes real asset keys derived from that run's own
+# run_results.json + manifest.json via this component's own translator --
+# not a hand-maintained, driftable asset-key list.
+
+_FAKE_NODE = {
+    "resource_type": "model",
+    "name": "stg_site_details",
+    "package_name": "fuel_and_trading",
+    "fqn": ["fuel_and_trading", "staging", "stg_site_details"],
+    "unique_id": "model.fuel_and_trading.stg_site_details",
+    "config": {"schema": None},
+}
+
 
 class _FakeTriggerClient:
-    """Records every trigger_job_run call; no real network access."""
-    def __init__(self):
+    """Records every trigger_job_run call; no real network access. Mirrors
+    the real dagster-dbt cloud_v2 client's actual method signatures."""
+    def __init__(self, run_status=10, result_status="success"):
         self.calls = []
+        self._run_status = run_status  # DbtCloudJobRunStatusType.SUCCESS == 10
+        self._result_status = result_status
 
-    def trigger_job_run(self, job_id, **kwargs):
-        self.calls.append({"job_id": job_id, **kwargs})
+    def trigger_job_run(self, job_id, steps_override=None):
+        self.calls.append({"job_id": job_id, "steps_override": steps_override})
         return {"id": 999}
+
+    def poll_run(self, run_id, poll_interval=None, poll_timeout=None):
+        return {"id": run_id, "status": self._run_status}
+
+    def get_run_results_json(self, run_id):
+        return {"results": [{"unique_id": _FAKE_NODE["unique_id"], "status": self._result_status, "execution_time": 1.23}]}
+
+    def get_run_manifest_json(self, run_id):
+        return {"nodes": {_FAKE_NODE["unique_id"]: _FAKE_NODE}}
 
 
 def _build_mirrored_job(mod, component, monkeypatch):
@@ -306,31 +335,35 @@ def _build_mirrored_job(mod, component, monkeypatch):
     return job
 
 
-def test_mirrored_job_uses_job_trigger_defaults_when_no_run_config_given(mod, monkeypatch):
+def _mirrored_component(mod, fake_client, **overrides):
     import types
-    fake_client = _FakeTriggerClient()
-    component = make_component(
+    from dagster_dbt import DagsterDbtTranslator
+    return make_component(
         mod,
         workspace=types.SimpleNamespace(client=fake_client),
         mirror_jobs="job",
-        job_trigger_defaults={"cause": "default cause"},
+        translator=DagsterDbtTranslator(),
+        **overrides,
     )
+
+
+def test_mirrored_job_materializes_real_models_from_run_results(mod, monkeypatch):
+    fake_client = _FakeTriggerClient()
+    component = _mirrored_component(mod, fake_client)
     job = _build_mirrored_job(mod, component, monkeypatch)
 
     result = job.execute_in_process()
     assert result.success
-    assert fake_client.calls == [{"job_id": 42, "cause": "default cause"}]
+    assert fake_client.calls == [{"job_id": 42, "steps_override": None}]
+
+    materializations = result.asset_materializations_for_node("trigger_dbt_cloud_test_job")
+    assert len(materializations) == 1
+    assert materializations[0].asset_key == dg.AssetKey(["stg_site_details"])
 
 
 def test_mirrored_job_run_config_overrides_steps_without_editing_yaml(mod, monkeypatch):
-    import types
     fake_client = _FakeTriggerClient()
-    component = make_component(
-        mod,
-        workspace=types.SimpleNamespace(client=fake_client),
-        mirror_jobs="job",
-        job_trigger_defaults={"cause": "default cause"},
-    )
+    component = _mirrored_component(mod, fake_client, job_trigger_defaults={"steps_override": ["dbt build"]})
     job = _build_mirrored_job(mod, component, monkeypatch)
 
     result = job.execute_in_process(
@@ -343,11 +376,37 @@ def test_mirrored_job_run_config_overrides_steps_without_editing_yaml(mod, monke
         }
     )
     assert result.success
-    # cause still comes from job_trigger_defaults (not overridden this run);
-    # steps_override comes from the per-run config -- a partial override
-    # composes with the defaults instead of replacing them wholesale.
-    assert fake_client.calls == [{
-        "job_id": 42,
-        "cause": "default cause",
-        "steps_override": ["dbt build --select tag:hourly"],
-    }]
+    # The per-run override replaces job_trigger_defaults' steps_override for
+    # this run only -- no YAML edit, no redeploy.
+    assert fake_client.calls == [{"job_id": 42, "steps_override": ["dbt build --select tag:hourly"]}]
+
+
+def test_mirrored_job_uses_job_trigger_defaults_when_no_run_config_given(mod, monkeypatch):
+    fake_client = _FakeTriggerClient()
+    component = _mirrored_component(mod, fake_client, job_trigger_defaults={"steps_override": ["dbt build"]})
+    job = _build_mirrored_job(mod, component, monkeypatch)
+
+    result = job.execute_in_process()
+    assert result.success
+    assert fake_client.calls == [{"job_id": 42, "steps_override": ["dbt build"]}]
+
+
+def test_mirrored_job_fails_when_dbt_cloud_run_status_is_not_success(mod, monkeypatch):
+    fake_client = _FakeTriggerClient(run_status=20)  # DbtCloudJobRunStatusType.ERROR
+    component = _mirrored_component(mod, fake_client)
+    job = _build_mirrored_job(mod, component, monkeypatch)
+
+    result = job.execute_in_process(raise_on_error=False)
+    assert not result.success
+
+
+def test_mirrored_job_fails_when_a_model_errors_even_though_the_run_status_is_success(mod, monkeypatch):
+    """A dbt Cloud run can report overall success while individual models
+    fail (e.g. with --select flags that don't fail the whole invocation) --
+    per-model status from run_results.json is the real source of truth."""
+    fake_client = _FakeTriggerClient(result_status="error")
+    component = _mirrored_component(mod, fake_client)
+    job = _build_mirrored_job(mod, component, monkeypatch)
+
+    result = job.execute_in_process(raise_on_error=False)
+    assert not result.success

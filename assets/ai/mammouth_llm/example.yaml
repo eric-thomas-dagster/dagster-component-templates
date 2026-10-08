@@ -1,0 +1,15 @@
+type: dagster_component_templates.MammouthLLMComponent
+attributes:
+  asset_name: support_ticket_summaries
+  upstream_asset_key: support_tickets
+
+  api_key_env_var: MAMMOUTH_API_KEY
+  text_model: mammouth-recommended
+
+  system_prompt: "Summarize the customer's issue in one sentence."
+  input_column: ticket_body
+  output_column: ticket_summary
+
+  max_tokens: 200
+  temperature: 0.2
+  group_name: ai

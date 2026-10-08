@@ -805,6 +805,7 @@ _CLASS_PATHS: dict[str, str] = {
     "MakeColumnsComponent": "assets/transforms/make_columns/component.py",
     "MakeGridComponent": "assets/analytics/make_grid/component.py",
     "MakeGroupComponent": "assets/transforms/make_group/component.py",
+    "MammouthLLMComponent": "assets/ai/mammouth_llm/component.py",
     "MapValuesComponent": "transforms/map_values/component.py",
     "MarkdownStripperComponent": "assets/transforms/markdown_stripper/component.py",
     "MarketBasketRulesComponent": "assets/analytics/market_basket_rules/component.py",

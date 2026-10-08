@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-09-03",
+  "last_updated": "2026-10-08",
   "components": [
     {
       "id": "ab_controls",
@@ -67417,6 +67417,69 @@
         "selection",
         "alerting",
         "stoppage"
+      ]
+    },
+    {
+      "id": "mammouth_llm",
+      "name": "Mammouth LLM",
+      "category": "ai",
+      "description": "Per-row LLM inference via Mammouth AI's OpenAI-compatible multi-model-routing API. One API key, one endpoint; pass any underlying model name directly (gpt-5.4, claude-opus-5-5, gemini-3.8-flash, mistral-medium-3-5) or the 'mammouth-recommended' alias. Drop-in peer of openai_llm / anthropic_llm / gemini_llm / groq_llm / openrouter_llm.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/mammouth_llm",
+      "tags": [
+        "ai",
+        "llm",
+        "mammouth",
+        "router",
+        "multi-provider",
+        "openai-compatible"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "openai>=1.0.0"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mammouth_llm/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mammouth_llm/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mammouth_llm/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mammouth_llm/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/mammouth_llm/requirements.txt",
+      "component_type": "dagster_component_templates.MammouthLLMComponent",
+      "icon": "lu:route",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-08",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised); request/response shapes verified against https://info.mammouth.ai/docs/api-quick-start/. Live validation against a real Mammouth account/tenant pending."
+      },
+      "consumes": [],
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "pd.DataFrame",
+        "output_type": "pd.DataFrame",
+        "when_to_use": "Multi-model LLM routing via Mammouth AI's single OpenAI-compatible endpoint -- pass any underlying model name directly (gpt-5.4, claude-opus-5-5, gemini-3.8-flash, mistral-medium-3-5) or the 'mammouth-recommended' auto-pick alias.",
+        "requires_pip": [
+          "dagster>=1.8.0",
+          "pandas>=1.5.0",
+          "openai>=1.0.0"
+        ],
+        "requires_env_vars": [
+          "MAMMOUTH_API_KEY"
+        ]
+      },
+      "keywords": [
+        "ai",
+        "llm",
+        "mammouth",
+        "router",
+        "multi-provider",
+        "openai-compatible",
+        "gateway",
+        "model-routing"
       ]
     }
   ],

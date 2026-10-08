@@ -3096,6 +3096,61 @@
       "icon": "Server"
     },
     {
+      "id": "asset_to_job_trigger_sensor",
+      "name": "Asset To Job Trigger Sensor",
+      "category": "sensor",
+      "description": "Monitor an asset selection; fire a RunRequest at a named job when any matched asset gets a new materialization. Bridges an upstream asset event to a job-shaped target, for cases where post_processing's deps:/automation_condition: can't apply (a bare @dg.job isn't an asset).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "sensors/asset_to_job_trigger_sensor",
+      "tags": [
+        "sensor",
+        "trigger",
+        "job",
+        "selection"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/asset_to_job_trigger_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/asset_to_job_trigger_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/asset_to_job_trigger_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/asset_to_job_trigger_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/asset_to_job_trigger_sensor/requirements.txt",
+      "icon": "Sensors",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-08",
+        "notes": "Built and tested (5 passing tests): explicit-list + real AssetSelection.from_string() group: resolution against a genuine dg.Definitions, empty-match error, invalid default_status, and a real end-to-end sensor evaluation (build_multi_asset_sensor_context) confirming it fires a RunRequest only after the monitored asset actually materializes."
+      },
+      "consumes": [],
+      "produces": [
+        "sensor"
+      ],
+      "agent_hints": {
+        "when_to_use": "Trigger a job (not an asset) reactively when an upstream asset updates -- e.g. a component that mirrors an external system's own pre-existing job by name/ID, which can't carry deps:/automation_condition since it isn't asset-backed.",
+        "example_prompts": [
+          "When this SnowPipe-discovered asset gets new data, trigger the dbt Cloud job that's mirrored as a plain Dagster job, not an asset."
+        ],
+        "requires_pip": [
+          "dagster"
+        ],
+        "requires_env_vars": []
+      },
+      "keywords": [
+        "sensor",
+        "trigger",
+        "job",
+        "run_request",
+        "selection",
+        "tag",
+        "group",
+        "reactive"
+      ]
+    },
+    {
       "id": "asset_reference",
       "name": "Asset Reference",
       "category": "core",

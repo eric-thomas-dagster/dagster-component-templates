@@ -107,6 +107,7 @@ _CLASS_PATHS: dict[str, str] = {
     "AsanaTaskCreateComponent": "assets/reverse_etl/asana_task_create/component.py",
     "AssetJobComponent": "schedules/asset_job/component.py",
     "AssetReferenceComponent": "core/asset_reference/component.py",
+    "AssetToJobTriggerSensorComponent": "sensors/asset_to_job_trigger_sensor/component.py",
     "AthenaIOManagerComponent": "io_managers/athena_io_manager/component.py",
     "AudioDiarizedTranscriberComponent": "assets/ai/audio_diarized_transcriber/component.py",
     "AudioTranscriberComponent": "assets/ai/audio_transcriber/component.py",

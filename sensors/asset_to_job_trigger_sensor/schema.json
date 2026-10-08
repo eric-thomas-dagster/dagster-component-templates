@@ -1,0 +1,55 @@
+{
+  "component_type": "dagster_component_templates.AssetToJobTriggerSensorComponent",
+  "description": "Monitor an asset selection; fire a RunRequest at a named job when any matched asset gets a new materialization. Bridges an upstream asset event to a job-shaped target, for cases where post_processing's deps:/automation_condition: can't apply (a bare @dg.job isn't an asset).",
+  "category": "sensor",
+  "icon": "Sensors",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "Fires a run of the configured job when a monitored asset materializes."
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique sensor name.",
+      "required": true
+    },
+    "monitored_selection": {
+      "type": "string",
+      "label": "Monitored Selection",
+      "description": "Asset selection to monitor: explicit key list, the Dagster selection DSL (tag:/group:/kind:/boolean composition), '*' for everything, or a bare fnmatch glob. Resolved against sibling assets in the same defs folder.",
+      "required": true
+    },
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "Name of the job to run via RunRequest when a monitored asset updates.",
+      "required": true
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum seconds between sensor evaluations.",
+      "required": false,
+      "default": 30
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "'running' or 'stopped' -- initial status of the sensor.",
+      "required": false,
+      "default": "stopped",
+      "enum": ["running", "stopped"],
+      "ui:widget": "select"
+    }
+  },
+  "tags": [
+    "sensor",
+    "trigger",
+    "job",
+    "selection"
+  ],
+  "name": "Asset To Job Trigger Sensor"
+}

@@ -1,22 +1,17 @@
 {
   "summary": {
-    "FAIL": 1
+    "PASS": 1
   },
   "results": [
     {
-      "id": "enriched_dbt_cloud_workspace",
-      "path": "assets/dbt/enriched_dbt_cloud_workspace",
-      "status": "FAIL",
-      "warnings": [],
-      "error": "2 validation errors for EnrichedDbtCloudWorkspaceComponent\nworkspace.project_id\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='{{ env.DBT_CLOUD_PROJECT_ID }}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing\nworkspace.environment_id\n  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='{{ env.DBT_CLOUD_ENVIRONMENT_ID }}', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing",
-      "error_class": "ValidationError",
-      "traceback": [
-        "  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='{{ env.DBT_CLOUD_PROJECT_ID }}', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing",
-        "workspace.environment_id",
-        "  Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='{{ env.DBT_CLOUD_ENVIRONMENT_ID }}', input_type=str]",
-        "    For further information visit https://errors.pydantic.dev/2.13/v/int_parsing"
-      ]
+      "id": "asset_to_job_trigger_sensor",
+      "path": "sensors/asset_to_job_trigger_sensor",
+      "status": "PASS",
+      "warnings": [
+        "SupersessionWarning: Class `MultiAssetSensorDefinition` is superseded and its usage is discouraged. For most use cases, Declarative Automation should be used instead of multi_asset_sensors to monitor the status of upstream assets and launch runs in response. In cases where side effects are required, or a specific job must be targeted for execution, multi_asset_sensors may be used."
+      ],
+      "error": null,
+      "error_class": null
     }
   ]
 }

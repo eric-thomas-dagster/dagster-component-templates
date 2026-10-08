@@ -1,0 +1,12 @@
+# Uses an explicit asset-key list here so this example is self-contained
+# (no sibling assets required to resolve against). In practice,
+# monitored_selection is usually a selection string instead -- e.g.
+# "group:electricera_snowpipes" -- which resolves against whatever sibling
+# assets actually exist in the real project. See README.md.
+type: dagster_component_templates.AssetToJobTriggerSensorComponent
+attributes:
+  sensor_name: electricera_pipe_to_dbt_trigger_sensor
+  monitored_selection: [electricera/site_details_pipe]
+  job_name: fuel_and_trading_electricera_prod_job
+  minimum_interval_seconds: 30
+  default_status: stopped

@@ -1,0 +1,121 @@
+{
+  "component_type": "dagster_component_templates.DefaultWorkflowTriggerComponent",
+  "description": "Reverse-ETL sink: fire one Default (default.com) API trigger per row of an upstream DataFrame, running whichever workflow is wired to that API trigger node (lead routing, scheduling, automations). Default has no upsert concept for trigger firings -- re-running on the same data re-fires the workflow.",
+  "category": "reverse_etl",
+  "icon": "Zap",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame from an upstream asset. Each row -> one Default API trigger fire."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata (rows_fired / rows_errored / rows_skipped_no_email). No downstream data -- the write side effect lands in Default (workflow execution)."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "description": "Output Dagster asset name.",
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "description": "Asset providing the DataFrame. Mutually exclusive with source."
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "required": false,
+      "description": "Inline source config (sql/csv/inline). Mutually exclusive with upstream_asset_key."
+    },
+    "resource_key": {
+      "description": "Resource key registered by DefaultResourceComponent.",
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "default_resource"
+    },
+    "trigger_id": {
+      "type": "string",
+      "label": "Trigger ID",
+      "required": true,
+      "description": "Default API trigger id (UUID) to fire -- from Default's list-triggers endpoint or the API trigger node in the Default workflow builder."
+    },
+    "email_column": {
+      "type": "string",
+      "label": "Email Column",
+      "required": true,
+      "description": "Upstream column holding the lead's email. Default's fire-a-trigger endpoint requires email as a separate, required top-level field, distinct from the responses form payload."
+    },
+    "field_mapping": {
+      "type": "object",
+      "label": "Field Mapping",
+      "required": false,
+      "default": {},
+      "description": "Upstream column -> Default form-field name. Populates the trigger's responses payload.",
+      "ui:widget": "key-value"
+    },
+    "max_rows": {
+      "type": "integer",
+      "label": "Max Rows",
+      "required": false,
+      "default": 10000,
+      "description": "Safety cap on total rows per run."
+    },
+    "group_name": {
+      "description": "Dagster asset group name.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "default"
+    },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "description": "Catalog tags.",
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds (auto-includes 'default').",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "default",
+    "sink",
+    "reverse-etl",
+    "gtm",
+    "workflow",
+    "trigger",
+    "lead-routing"
+  ],
+  "name": "Default Workflow Trigger",
+  "vertical": "marketing-automation"
+}

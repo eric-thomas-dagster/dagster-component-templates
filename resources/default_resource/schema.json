@@ -1,0 +1,43 @@
+{
+  "component_type": "dagster_component_templates.DefaultResourceComponent",
+  "description": "Register a DefaultResource wrapping the Default (default.com) GTM/revenue-operations platform REST API -- workflow triggers and meeting scheduling -- for use by other components.",
+  "category": "resource",
+  "icon": "Workflow",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "default_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "default_resource"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "API Key Env Var",
+      "description": "Env var holding the Default API key.",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base URL",
+      "description": "Default API base URL.",
+      "required": false,
+      "default": "https://api.default.com"
+    }
+  },
+  "tags": [
+    "resource",
+    "default",
+    "gtm",
+    "workflow",
+    "revenue-operations",
+    "scheduling"
+  ],
+  "name": "Default Resource",
+  "vertical": "marketing-automation"
+}

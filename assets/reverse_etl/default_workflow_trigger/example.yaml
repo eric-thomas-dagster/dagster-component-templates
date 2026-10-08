@@ -1,0 +1,11 @@
+type: dagster_component_templates.DefaultWorkflowTriggerComponent
+attributes:
+  asset_name: default_lead_routing_triggers
+  upstream_asset_key: scored_leads
+  resource_key: default_resource
+  trigger_id: "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+  email_column: lead_email
+  field_mapping:
+    company_name: Company
+    deal_size_usd: Deal Size
+  group_name: default

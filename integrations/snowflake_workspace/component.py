@@ -2870,7 +2870,33 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                                     # makes this alertable: Dagster+'s native
                                     # "Asset" alert policy fires on asset check
                                     # failures, confirmed working with no
-                                    # pre-declared AssetCheckSpec required.
+                                    # pre-declared AssetCheckSpec required --
+                                    # including against this asset_key directly
+                                    # even though it's a pure external/observed
+                                    # asset with no compute function (confirmed
+                                    # directly: report_runless_asset_event
+                                    # doesn't care).
+                                    #
+                                    # Real scoping limitation, confirmed
+                                    # against Dagster+'s actual alert-policy
+                                    # docs: the "Asset" alert type targets by
+                                    # asset key/selection/group, NOT by a
+                                    # specific check name. Today this asset
+                                    # carries only this one check, so scoping
+                                    # an alert to it is unambiguous -- but if
+                                    # this same asset ever picks up a second
+                                    # check (a dbt test, a different quality
+                                    # rule), an alert policy on this asset key
+                                    # fires for either one failing, with no way
+                                    # to isolate just this check. The only
+                                    # workaround is giving a check its own
+                                    # dedicated synthetic asset so nothing else
+                                    # ever shares it (the same tradeoff
+                                    # aggregate_freshness_sensor makes on
+                                    # purpose) -- not done here by default,
+                                    # since it trades away exactly the "no
+                                    # extra assets cluttering the catalog"
+                                    # property this fix is otherwise free of.
                                     error_message = load_dict.get('FIRST_ERROR_MESSAGE') or "(no error message returned)"
                                     row_metadata = {
                                         "pipe_name": pipe_name,

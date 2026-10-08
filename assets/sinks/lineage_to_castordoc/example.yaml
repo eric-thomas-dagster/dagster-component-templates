@@ -1,0 +1,10 @@
+type: dagster_component_templates.LineageToCastordocComponent
+attributes:
+  asset_name: lineage_to_castordoc
+  upstream_asset_key: lineage_graph
+  catalog_url: https://api.castordoc.com/public/graphql
+  api_token_env: CASTORDOC_API_TOKEN
+  only_push_on_change: true
+  push_tags: true
+  push_data_quality: false
+  push_lineage_edges: true

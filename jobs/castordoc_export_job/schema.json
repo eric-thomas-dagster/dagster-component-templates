@@ -1,0 +1,20 @@
+{
+  "component_type": "dagster_component_templates.CastordocExportJobComponent",
+  "description": "Op-shaped job that walks the live Dagster asset graph and enriches existing Castor (CastorDoc / Coalesce Catalog) tables with Dagster-sourced descriptions, tags, data-quality signal, and lineage edges.",
+  "category": "jobs",
+  "icon": "Activity",
+  "tags": ["castordoc", "castor", "lineage", "catalog"],
+  "attributes": {
+    "job_name": {"type": "string", "label": "Job Name", "description": "Dagster job name", "required": true},
+    "schedule": {"type": "string", "label": "Schedule", "description": "Cron schedule. None = manual / sensor-triggered.", "required": false, "default": null, "x-dagster-widget": "cron"},
+    "default_status": {"type": "string", "label": "Default Status", "description": "One of: STOPPED / RUNNING.", "required": false, "default": "stopped", "enum": ["stopped", "running"], "ui:widget": "select"},
+    "tags": {"type": "object", "label": "Job Tags", "description": "Dagster job tags as key-value pairs.", "required": false, "default": null},
+    "catalog_url": {"type": "string", "label": "Castor Catalog URL", "description": "Castor/Coalesce Catalog GraphQL endpoint. EU tenants use api.castordoc.com (default); US tenants use https://api.us.castordoc.com/public/graphql.", "required": false, "default": "https://api.castordoc.com/public/graphql"},
+    "api_token_env": {"type": "string", "label": "API Token Env Var", "description": "Env var holding the Castor API token (sent as Token header, not Bearer).", "required": false, "default": "CASTORDOC_API_TOKEN"},
+    "push_tags": {"type": "boolean", "label": "Push Tags", "description": "Attach dagster / dagster:group:<group> / dagster:kind:<kind> tags onto matched Castor tables via attachTags.", "required": false, "default": true},
+    "push_data_quality": {"type": "boolean", "label": "Push Data Quality", "description": "Push a best-effort 'tracked by Dagster' presence record via upsertDataQualities on each matched table. Not a real test result.", "required": false, "default": false},
+    "push_lineage_edges": {"type": "boolean", "label": "Push Lineage Edges", "description": "Push lineage edges via upsertLineages for asset-graph edges where both endpoints already resolve to an existing Castor table.", "required": false, "default": true},
+    "only_export_on_change": {"type": "boolean", "label": "Only Export on Change", "description": "Hash the structural payload and skip push when unchanged from the previous successful run.", "required": false, "default": true},
+    "fail_on_catalog_error": {"type": "boolean", "label": "Fail on Catalog Error", "description": "If true, fail the run when the catalog is unreachable or mutations error. Default true.", "required": false, "default": true}
+  }
+}

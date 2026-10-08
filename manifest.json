@@ -8022,6 +8022,49 @@
       ]
     },
     {
+      "id": "castordoc_export_job",
+      "name": "castordoc_export_job",
+      "category": "jobs",
+      "description": "Op-shaped job that walks the live Dagster asset graph and enriches existing Castor (CastorDoc / Coalesce Catalog) tables with Dagster-sourced descriptions, tags, data-quality signal, and lineage edges.",
+      "path": "jobs/castordoc_export_job",
+      "tags": [
+        "castordoc",
+        "castor",
+        "lineage",
+        "catalog"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/castordoc_export_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/castordoc_export_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/castordoc_export_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/castordoc_export_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/castordoc_export_job/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "icon": "favicon:castordoc.com",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-08",
+        "notes": "Built and code-validated this session with a fully-mocked GraphQL boundary (29 tests across both companion components). Request/response shapes confirmed against Castor's real public API docs, not assumed. Live validation against a real Castor tenant pending."
+      },
+      "agent_hints": {
+        "outputs": "Op-shaped job that walks the live Dagster asset graph and enriches existing Castor (CastorDoc / Coalesce Catalog) tables with Dagster-sourced descriptions, tags, data-quality signal, and lineage edges.",
+        "side_effects": "Enrichment-only, not node creation -- see lineage_to_castordoc's agent_hints/README Architecture notes for the full writeup of why Castor can't represent Dagster as a lineage-graph node the way Alation can.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "produces": [
+        "job",
+        "schedule"
+      ]
+    },
+    {
       "id": "catalog_agent",
       "name": "catalog_agent",
       "category": "ai",
@@ -33673,6 +33716,61 @@
         "alation catalog",
         "write to",
         "output"
+      ]
+    },
+    {
+      "id": "lineage_to_castordoc",
+      "name": "lineage_to_castordoc",
+      "category": "sink",
+      "description": "Sink that enriches existing Castor (CastorDoc / Coalesce Catalog) tables with Dagster-sourced descriptions, tags, data-quality signal, and lineage edges from the upstream lineage_graph.",
+      "path": "assets/sinks/lineage_to_castordoc",
+      "tags": [
+        "castordoc",
+        "castor",
+        "lineage",
+        "catalog"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_castordoc/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_castordoc/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_castordoc/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_castordoc/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/lineage_to_castordoc/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "type": "dagster_component_templates.LineageToCastordocComponent",
+      "component_type": "dagster_component_templates.LineageToCastordocComponent",
+      "icon": "favicon:castordoc.com",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-08",
+        "notes": "Built and code-validated this session with a fully-mocked GraphQL boundary (29 tests across both companion components). Request/response shapes (getTables/updateTableDescriptions/attachTags/upsertDataQualities/upsertLineages) confirmed against Castor's real public API docs, not assumed. Live validation against a real Castor tenant pending."
+      },
+      "agent_hints": {
+        "inputs": "Canonical lineage payload (dict) from lineage_graph_extractor.",
+        "outputs": "MaterializeResult with match/push counts (sink -- enriches Castor, no downstream data).",
+        "side_effects": "Enrichment-only, not node creation: resolves each Dagster asset to an EXISTING Castor table by exact name match, then updates its description/tags/quality/lineage. Castor's API cannot register Dagster itself as a lineage-graph node (confirmed: upsertLineages and the Manual Lineage Importer both require existing table/dashboard IDs on both ends).",
+        "anti_uses": "Not for registering Dagster as a first-class lineage source the way lineage_to_alation does -- Castor's API has no external/custom node concept. Use lineage_to_alation (or another catalog with real dataflow-object support) if that's the requirement.",
+        "requires_resources": []
+      },
+      "produces": [
+        "asset"
+      ],
+      "consumes": [
+        "asset:lineage_graph"
+      ],
+      "keywords": [
+        "castordoc catalog",
+        "castor catalog",
+        "coalesce catalog",
+        "write to",
+        "output",
+        "lineage"
       ]
     },
     {
@@ -65984,5 +66082,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1311
+  "total": 1313
 }

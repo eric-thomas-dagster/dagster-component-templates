@@ -29,6 +29,9 @@ _TICK_RAISES = "assets.infrastructure.warm_scheduled_job.tests._fixtures:run_tic
 _TICK_RAISES_ONCE = "assets.infrastructure.warm_scheduled_job.tests._fixtures:run_tick_raises_once_then_ok"
 _TICK_JOB_A = "assets.infrastructure.warm_scheduled_job.tests._fixtures:run_tick_job_a"
 _TICK_JOB_B = "assets.infrastructure.warm_scheduled_job.tests._fixtures:run_tick_job_b"
+_WARMUP_DEMO_RESOURCE = "assets.infrastructure.warm_scheduled_job.tests._fixtures:warmup_with_demo_resource"
+_WARMJOB_TICK = "assets.infrastructure.warm_scheduled_job.tests._fixtures:warmjob_test_job"
+_WARMJOB_FAILING_TICK = "assets.infrastructure.warm_scheduled_job.tests._fixtures:warmjob_failing_test_job"
 
 
 @pytest.fixture()
@@ -359,6 +362,109 @@ def test_informational_schedule_marker_asset_is_a_real_harmless_noop(mod):
     result = dg.materialize([info_asset])
     assert result.success
     assert _fixtures.CALLS["tick_count"] == 0, "the informational marker must never invoke the real tick_fn"
+
+
+def test_warmjob_rejects_a_non_job_def(mod):
+    with pytest.raises(TypeError, match="expected a JobDefinition"):
+        mod.warmjob(lambda: None)
+
+
+def test_warmjob_exposes_the_underlying_job_def(mod):
+    # Duck-typed, not isinstance(dispatcher, mod.WarmJobDispatcher): _fixtures.py
+    # imports `warmjob` via a normal cached import, while `mod` here is a
+    # SEPARATE spec-loaded copy of component.py (see load_component_module()) --
+    # two distinct class objects for the same source, real only in test
+    # isolation, not in a real single-import installation. Checking `.job`'s
+    # shape is what actually matters.
+    dispatcher = _fixtures.warmjob_test_job
+    assert type(dispatcher).__name__ == "WarmJobDispatcher"
+    assert isinstance(dispatcher.job, dg.JobDefinition)
+    assert dispatcher.job.name == "warmjob_test_job"
+
+
+def test_warmjob_dispatched_job_executes_real_op_and_bridges_warm_state_as_resources(mod):
+    """The whole point of @warmjob: warmup_fn's shared warm_state (a dict)
+    bridges directly into the dispatched job's normal resource system --
+    the wrapped job's op just does context.resources.demo_resource, with no
+    idea it's being dispatched from inside a warm process."""
+    component = mod.WarmScheduledJobComponent(
+        asset_name="warm_job_out",
+        schedule="*/1 * * * * *",
+        second_precision=True,
+        warmup_fn=_WARMUP_DEMO_RESOURCE,
+        tick_fn=_WARMJOB_TICK,
+        max_ticks=1,
+        max_seconds=15,
+    )
+    result = _materialize(component)
+    assert result.success
+    assert _fixtures.CALLS["warmjob_op_calls"] == 1, "the real op must actually execute, not be skipped/mocked"
+    assert _fixtures.CALLS["warmjob_seen_resource"] == "resource_value_from_warmup"
+
+
+def test_warmjob_dispatched_run_is_really_persisted_in_the_instance(mod):
+    """Confirms the central claim of @warmjob: passing instance=context.instance
+    (not the ephemeral ExecuteInProcessResult default) makes the dispatched
+    execution a REAL, separately-persisted run in the SAME instance -- not
+    an invisible in-memory-only execution. Uses an explicit, real
+    DagsterInstance.ephemeral() (genuinely instance-backed, just not
+    file-persisted to disk) so we can inspect get_runs() after the fact."""
+    instance = dg.DagsterInstance.ephemeral()
+    component = mod.WarmScheduledJobComponent(
+        asset_name="warm_job_out",
+        schedule="*/1 * * * * *",
+        second_precision=True,
+        warmup_fn=_WARMUP_DEMO_RESOURCE,
+        tick_fn=_WARMJOB_TICK,
+        max_ticks=2,
+        max_seconds=15,
+    )
+    defs = component.build_defs(context=None)
+    asset_def = list(defs.assets)[0]
+    result = dg.materialize([asset_def], instance=instance)
+    assert result.success
+
+    all_runs = instance.get_runs()
+    # The outer materialize's own run, PLUS one real persisted run per
+    # dispatched tick (max_ticks=2 here) -- proves each dispatch is a
+    # genuinely separate, real run, not an invisible in-memory execution.
+    assert len(all_runs) == 3, f"expected 1 outer run + 2 dispatched runs, got {len(all_runs)}"
+    dispatched_run_ids = {r.run_id for r in all_runs if r.job_name == "warmjob_test_job"}
+    assert len(dispatched_run_ids) == 2
+    for run_id in dispatched_run_ids:
+        assert instance.get_run_by_id(run_id).is_success
+
+
+def test_warmjob_dispatch_failure_flows_into_existing_tick_error_handling_continue(mod):
+    component = mod.WarmScheduledJobComponent(
+        asset_name="warm_job_out",
+        schedule="*/1 * * * * *",
+        second_precision=True,
+        tick_fn=_WARMJOB_FAILING_TICK,
+        tick_error_handling="continue",
+        max_ticks=2,
+        max_seconds=15,
+    )
+    result = _materialize(component)
+    assert result.success
+    out = _metadata_for(result, "warm_job_out")
+    assert out["total_ticks"] == 2
+    assert out["failed_ticks"] == 2
+
+
+def test_warmjob_dispatch_failure_with_raise_fails_the_whole_run(mod):
+    component = mod.WarmScheduledJobComponent(
+        asset_name="warm_job_out",
+        schedule="*/1 * * * * *",
+        second_precision=True,
+        tick_fn=_WARMJOB_FAILING_TICK,
+        tick_error_handling="raise",
+        max_seconds=15,
+    )
+    defs = component.build_defs(context=None)
+    asset_def = list(defs.assets)[0]
+    result = dg.materialize([asset_def], raise_on_error=False)
+    assert not result.success
 
 
 def test_no_isolation_tag_is_set(mod):

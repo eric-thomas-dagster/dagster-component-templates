@@ -87,6 +87,40 @@ A job with `max_ticks` set stops firing (and is dropped from the active
 rotation) once it hits that cap, while OTHER jobs on the same instance keep
 running normally until `max_seconds` or their own caps.
 
+## Writing a `tick_fn` as a completely normal Dagster job (`@warmjob`)
+
+A bare `tick_fn` is a plain Python function call — instant, but with none of
+Dagster's own per-execution observability (no Runs-page entry, no per-step
+structured events, no `RetryPolicy`). `@warmjob` closes that gap: decorate a
+normal `@dg.job` (real `@op`s, real resources, real retries) and reference it
+directly as a `tick_fn` — it dispatches via
+`job.execute_in_process(instance=context.instance, ...)` instead of through
+Dagster's run-launching path. Because it's handed the REAL instance (not the
+ephemeral one `execute_in_process` defaults to), the dispatched execution is
+a genuine, separately-persisted run: visible on the Runs page, with real
+per-step events and retries — just without the new-container launch latency,
+since it's a synchronous call inside the already-warm process.
+
+    ```python
+    @warmjob
+    @dg.job
+    def paid_invoice_sync():
+        check_quickbooks_invoices()
+    ```
+    ```yaml
+    tick_fn: "myproject.automations.invoices:paid_invoice_sync"
+    ```
+
+`warmup_fn`'s shared `warm_state`, when it's a dict, bridges straight into
+the dispatched job's normal resource system (`execute_in_process(resources=
+warm_state)`) — e.g. `warmup_fn` returns
+`{"hubspot": client, "quickbooks": client}`, and the wrapped job's ops just
+read `context.resources.hubspot` like any other Dagster job, with no idea
+they're being dispatched from inside a warm process. See the `warmjob`
+function's own docstring for the full real caveats (in-process executor
+only, io_manager falls back to in-memory unless given real resources, more
+per-call overhead than a bare `tick_fn`).
+
 ## Pairing for auto-restart
 
 Reuse `StreamingRunHealthSensorComponent` UNCHANGED — it only cares about
@@ -205,6 +239,141 @@ def _validate_cron(schedule_str: str, second_precision: bool, who: str) -> None:
             f"warm_scheduled_job: {who}: schedule={schedule_str!r} is not a valid "
             f"{'6-field second-precision' if second_precision else '5-field'} cron string."
         )
+
+
+class WarmJobDispatcher:
+    """What `@warmjob` turns a normal `JobDefinition` into. Callable with the
+    exact `tick_fn(context, warm_state, scheduled_time)` signature
+    `WarmScheduledJobComponent` expects, so a `@warmjob`-wrapped job can be
+    referenced directly as a `tick_fn`/`jobs[].tick_fn` target. The original
+    `JobDefinition` stays reachable via `.job` (e.g. to also include it in
+    your own `Definitions` separately, or to call `.execute_in_process()`
+    yourself in a test)."""
+
+    def __init__(
+        self,
+        job_def: "dg.JobDefinition",
+        run_config: Optional[Dict[str, Any]] = None,
+        run_config_fn=None,
+        tags: Optional[Dict[str, str]] = None,
+        tags_fn=None,
+        op_selection: Optional[List[str]] = None,
+        asset_selection: Optional[List[AssetKey]] = None,
+    ):
+        self._job_def = job_def
+        self._run_config = run_config
+        self._run_config_fn = run_config_fn
+        self._tags = tags
+        self._tags_fn = tags_fn
+        self._op_selection = op_selection
+        self._asset_selection = asset_selection
+        try:
+            import functools
+            functools.update_wrapper(self, job_def, updated=())
+        except Exception:  # noqa: BLE001 - cosmetic only (repr/name), never fatal
+            pass
+
+    @property
+    def job(self) -> "dg.JobDefinition":
+        return self._job_def
+
+    def __call__(self, context, warm_state, scheduled_time) -> Dict[str, Any]:
+        run_config = self._run_config
+        if self._run_config_fn is not None:
+            run_config = self._run_config_fn(warm_state, scheduled_time)
+        tags = dict(self._tags or {})
+        if self._tags_fn is not None:
+            tags.update(self._tags_fn(warm_state, scheduled_time) or {})
+
+        # Bridges warmup_fn's shared warm_state straight into the real job's
+        # normal resource system -- e.g. warmup_fn returns
+        # {"hubspot": client, "quickbooks": client}, and the wrapped job's
+        # ops just do context.resources.hubspot like any other Dagster job,
+        # with no idea they're being dispatched from inside a warm process.
+        # A non-dict warm_state (or None) bridges no resources -- pass data
+        # to the job some other way (run_config) in that case.
+        resources = warm_state if isinstance(warm_state, dict) else None
+
+        result = self._job_def.execute_in_process(
+            instance=context.instance,
+            run_config=run_config,
+            tags=tags or None,
+            resources=resources,
+            op_selection=self._op_selection,
+            asset_selection=self._asset_selection,
+            # raise_on_error defaults to True (Dagster's own default) --
+            # deliberately NOT overridden, so a failed dispatched job raises
+            # here and flows into WarmScheduledJobComponent's EXISTING
+            # tick_error_handling (continue/raise) instead of inventing a
+            # second, parallel error-handling scheme.
+        )
+        return {
+            "dispatched_job_name": self._job_def.name,
+            "dispatched_run_id": result.run_id,
+            "dispatched_success": result.success,
+        }
+
+
+def warmjob(_job_def=None, *, run_config=None, run_config_fn=None, tags=None, tags_fn=None,
+            op_selection=None, asset_selection=None):
+    """Decorator: turns a completely normal Dagster `@job` (real `@op`s, real
+    resources, real `RetryPolicy`) into something directly usable as a
+    `WarmScheduledJobComponent` `tick_fn` — dispatched via
+    `job.execute_in_process(instance=context.instance, ...)` from inside the
+    already-warm process instead of through Dagster's normal run-launching
+    path. No new container/process per execution (it's a synchronous call in
+    the current process), but the dispatched execution is still a REAL,
+    persisted run: visible on the Runs page, with real per-step structured
+    events and real `RetryPolicy` behavior — because `instance=context.instance`
+    (not the ephemeral instance `execute_in_process` defaults to) is what you
+    get automatically here.
+
+    Apply it AFTER `@dg.job` (so it wraps the resulting `JobDefinition`, not
+    the bare function):
+
+        ```python
+        @warmjob
+        @dg.job
+        def paid_invoice_sync():
+            check_quickbooks_invoices()
+
+        # Then reference it directly as a tick_fn:
+        #   tick_fn: "myproject.automations.invoices:paid_invoice_sync"
+        ```
+
+    Real caveats, not hidden:
+      - `execute_in_process` forces the in-process executor (no multiprocess/
+        k8s executor) and the default io_manager falls back to in-memory
+        unless you pass real resources — fine for most integration-glue jobs,
+        worth knowing for anything disk/warehouse-IO-manager-dependent.
+      - Each call has real overhead (building/validating an execution plan)
+        — more than a bare `tick_fn` function call, less than a new run
+        launch. Use this when you want per-execution observability/retries;
+        use a bare `tick_fn` for truly hyper-frequent sub-second ticks.
+      - Shares `WarmScheduledJobComponent`'s shared-failure-domain tradeoff:
+        this is still dispatched from inside one shared warm process.
+
+    Optional config (as kwargs, e.g. `@warmjob(tags={"team": "finance"})`):
+      run_config / run_config_fn(warm_state, scheduled_time) -> dict
+      tags / tags_fn(warm_state, scheduled_time) -> dict
+      op_selection / asset_selection: passed straight through to
+        `execute_in_process` for partial-job dispatch.
+    """
+    def _decorate(job_def):
+        if not isinstance(job_def, dg.JobDefinition):
+            raise TypeError(
+                f"warmjob: expected a JobDefinition -- apply @warmjob AFTER "
+                f"@dg.job (e.g. `@warmjob` then `@dg.job` then `def ...`), "
+                f"got {type(job_def)!r}."
+            )
+        return WarmJobDispatcher(
+            job_def, run_config=run_config, run_config_fn=run_config_fn,
+            tags=tags, tags_fn=tags_fn, op_selection=op_selection, asset_selection=asset_selection,
+        )
+
+    if _job_def is not None:
+        return _decorate(_job_def)
+    return _decorate
 
 
 class WarmScheduledJobComponent(Component, Model, Resolvable):

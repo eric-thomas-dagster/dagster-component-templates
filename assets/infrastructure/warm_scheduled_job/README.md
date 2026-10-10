@@ -88,6 +88,67 @@ If the process is slow to start, or a previous `tick_fn` call overran into the n
 
 Every tick's `AssetMaterialization` includes `drift_seconds` (actual fire time minus scheduled instant) and `tick_duration_seconds`. The run's final output metadata includes `max_drift_seconds` across the whole bounded run — so the precision this component buys you shows up directly in the Dagster+ catalog, not just in this README's claims.
 
+## Multiple automations sharing ONE warm process — `jobs`
+
+A single instance used to mean one schedule + one `tick_fn`. If you have several small, unrelated automations — each cheap per tick, but each paying its own full isolated-run allocation if given its own instance — set `jobs` instead of the flat `asset_name`/`schedule`/`tick_fn` fields:
+
+```yaml
+type: dagster_community_components.WarmScheduledJobComponent
+attributes:
+  warmup_fn: "myproject.automations.shared:warmup"  # ONE shared warmup --
+    # e.g. returns {"hubspot": client, "quickbooks": client, "openai": client}
+  max_seconds: 3600
+  jobs:
+    - asset_name: paid_invoice_sync
+      schedule: "*/5 * * * *"
+      tick_fn: "myproject.automations.invoices:check_and_sync"
+    - asset_name: lead_followup_drafts
+      schedule: "*/2 * * * *"
+      tick_fn: "myproject.automations.leads:draft_followups"
+```
+
+`warmup_fn` stays a single, shared, top-level field — that's the actual compute saved: one warmup pass (e.g. opening the HubSpot/QuickBooks/OpenAI clients once) produces one `warm_state` that every job's `tick_fn` pulls from, instead of each automation separately re-opening its own connections. Internally this becomes a tiny merged scheduler: track each job's own next cron-tick instant, always fire whichever is soonest across all active jobs, recompute, repeat. Each job still gets its own `AssetKey`/materialization history (one `@multi_asset` spec per job), so unrelated automations stay independently visible in the catalog even though they share one process. Any per-job field omitted (`second_precision`/`timezone`/`catchup`/`max_catchup_ticks`/`tick_error_handling`/`description`/`group_name`/`asset_tags`/`kinds`/`owners`/`deps`) falls back to this component's matching top-level value.
+
+**The real cost of sharing**: all jobs on one instance share ONE failure domain. If the shared process crashes, or a job's `tick_error_handling: raise` tick kills the run, EVERY job on that instance pauses together until the paired health sensor relaunches — not just the one that failed. Put automations that can tolerate correlated downtime together; keep anything truly independent-critical on its own instance. A job with `max_ticks` set stops firing (and drops out of the active rotation) once it hits that cap, while other jobs on the same instance keep running normally.
+
+## Documenting the real cadence in the Schedules tab — `expose_informational_schedules`
+
+By default (`true`), each job whose `schedule` is standard 5-field cron (not `second_precision`, which a real `ScheduleDefinition` cannot express at all) gets a real Dagster `ScheduleDefinition`, `default_status: STOPPED`, showing that job's actual cadence as living documentation. It is deliberately **not** wired to the real warm asset — it targets a trivial, separate no-op marker asset that does nothing but log a message. So even if someone flips it to RUNNING by mistake, or manually launches it, nothing of consequence happens: no duplicate automation run, no interference with the real warm process's own timing. Set `expose_informational_schedules: false` to suppress these entirely (e.g. to avoid Schedules-tab clutter). A `second_precision` job never gets one — showing a misleading minute-level approximation of a sub-minute cadence would be worse than showing nothing.
+
+## Writing a `tick_fn` as a completely normal Dagster job — `@warmjob`
+
+A bare `tick_fn` is a plain Python function call — instant, but with none of Dagster's own per-execution observability (no Runs-page entry, no per-step structured events, no `RetryPolicy`). `@warmjob` closes that gap:
+
+```python
+import dagster as dg
+from dagster_community_components.assets.infrastructure.warm_scheduled_job.component import warmjob
+
+@dg.op(required_resource_keys={"hubspot"})
+def sync_paid_invoice(context):
+    context.resources.hubspot.update_deal(...)
+
+@warmjob          # apply AFTER @dg.job, so it wraps the resulting JobDefinition
+@dg.job
+def paid_invoice_sync():
+    sync_paid_invoice()
+```
+
+```yaml
+tick_fn: "myproject.automations.invoices:paid_invoice_sync"
+```
+
+Decorate a completely normal `@dg.job` (real `@op`s, real resources, real `RetryPolicy`) and reference it directly as a `tick_fn`. It dispatches via `job.execute_in_process(instance=context.instance, ...)` instead of through Dagster's run-launching path — because it's handed the REAL instance (not the ephemeral one `execute_in_process` defaults to), the dispatched execution is a genuine, separately-persisted run: visible on the Runs page, with real per-step events and retries, just without new-container launch latency (it's a synchronous call inside the already-warm process).
+
+`warmup_fn`'s shared `warm_state`, when it's a dict, bridges straight into the dispatched job's normal resource system (`execute_in_process(resources=warm_state)`) — e.g. `warmup_fn` returns `{"hubspot": client, "quickbooks": client}`, and the wrapped job's ops just read `context.resources.hubspot` like any other Dagster job, with no idea they're being dispatched from inside a warm process.
+
+Real caveats:
+- `execute_in_process` forces the in-process executor (no multiprocess/k8s executor), and the default io_manager falls back to in-memory unless you pass real resources — fine for most integration-glue jobs, worth knowing for anything disk/warehouse-IO-manager-dependent.
+- More per-call overhead than a bare `tick_fn` function call (it builds/validates a real execution plan each time) — use `@warmjob` when you want per-execution observability/retries; use a bare `tick_fn` for truly hyper-frequent sub-second ticks.
+- A failed dispatched job raises, which flows into this component's existing `tick_error_handling` (`continue`/`raise`) — no separate error-handling scheme to learn.
+- Same shared-failure-domain tradeoff as `jobs` above: still dispatched from inside one shared warm process.
+
+Optional config as decorator kwargs: `@warmjob(tags={"team": "finance"})`, plus `run_config`/`run_config_fn(warm_state, scheduled_time)`, `tags_fn(warm_state, scheduled_time)`, `op_selection`, `asset_selection` — all passed straight through to `execute_in_process`.
+
 [//]: # (FIELDS:START - auto-generated by tools/regen_readme_fields.py)
 
 ## Fields

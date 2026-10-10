@@ -26,3 +26,31 @@ attributes:
   #   asset_selection: [pricing_refresh_warm]
   #   minimum_interval_seconds: 30
   #   default_status: running
+
+# Multi-job mode (separate component instance -- uncomment to use instead of
+# the single-job example above): several small, unrelated automations
+# sharing ONE warm process and ONE warmup pass (e.g. "watch QuickBooks for
+# paid invoices, update HubSpot, draft a reply with OpenAI" style
+# integration glue) -- each still gets its own AssetKey/materialization
+# history, so they stay independently visible in the catalog even though
+# they share one instance.
+#
+# type: dagster_community_components.WarmScheduledJobComponent
+# attributes:
+#   warmup_fn: "myproject.automations.shared:warmup"  # ONE shared warmup --
+#     # e.g. returns {"hubspot": client, "quickbooks": client, "openai": client}
+#   max_seconds: 3600
+#   # expose_informational_schedules defaults to true: each job below gets a
+#   # real, default-STOPPED ScheduleDefinition in the Schedules tab showing
+#   # its real cadence -- it targets a harmless no-op marker asset, never the
+#   # real automation, so it's safe even if someone flips it to RUNNING.
+#   jobs:
+#     - asset_name: paid_invoice_sync
+#       schedule: "*/5 * * * *"
+#       tick_fn: "myproject.automations.invoices:check_and_sync"
+#       group_name: finance_automations
+#     - asset_name: lead_followup_drafts
+#       schedule: "*/2 * * * *"
+#       tick_fn: "myproject.automations.leads:draft_followups"
+#       group_name: sales_automations
+#       tick_error_handling: continue  # a bad draft doesn't take down invoice_sync too

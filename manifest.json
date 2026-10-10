@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-10-08",
+  "last_updated": "2026-10-10",
   "components": [
     {
       "id": "ab_controls",
@@ -64890,7 +64890,7 @@
       "id": "warm_scheduled_job",
       "name": "Warm Scheduled Job",
       "category": "infrastructure",
-      "description": "Isolated, always-warm job that manages its own cron schedule in-process, bypassing Dagster's SchedulerDaemon entirely (its minute-granular tick evaluation is architectural, not a load artifact -- confirmed against the Dagster OSS scheduler source, which Dagster+'s control plane subclasses unchanged). Warms up once per bounded run (load a model, open connections), then fires tick_fn as a direct in-process function call at each precise scheduled instant -- never through Dagster's run-launching APIs, which is what makes each tick instant and keeps the process genuinely isolated (dedicated resources, not the shared code-location server). Pair with StreamingRunHealthSensorComponent, unmodified, for auto-restart.",
+      "description": "Isolated, always-warm job that manages one or more cron schedules in-process, bypassing Dagster's SchedulerDaemon entirely (its minute-granular tick evaluation is architectural, not a load artifact -- confirmed against the Dagster OSS scheduler source, which Dagster+'s control plane subclasses unchanged). Warms up once per bounded run (load a model, open connections), then fires each job's tick_fn as a direct in-process function call at each precise scheduled instant -- never through Dagster's run-launching APIs, which is what makes each tick instant and keeps the process genuinely isolated (dedicated resources, not the shared code-location server). Supports a single job (flat asset_name/schedule/tick_fn fields) or several independently-scheduled jobs sharing ONE warm process and ONE warmup pass (the `jobs` list) -- each job still gets its own AssetKey/materialization history. By default, each job's real cadence is also documented as a default-STOPPED, non-firing Dagster ScheduleDefinition (targeting a harmless no-op marker asset, never the real automation) so it's visible in the Schedules tab. Pair with StreamingRunHealthSensorComponent, unmodified, for auto-restart.",
       "path": "assets/infrastructure/warm_scheduled_job",
       "tags": [
         "infrastructure",
@@ -64900,7 +64900,8 @@
         "warm-compute",
         "isolated",
         "long-running",
-        "precision-timing"
+        "precision-timing",
+        "multi-job"
       ],
       "dependencies": {
         "pip": [

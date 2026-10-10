@@ -3,13 +3,18 @@
 real, importable module-level functions (not closures/lambdas)."""
 from typing import Any, Dict
 
-CALLS: Dict[str, Any] = {"warmup_count": 0, "tick_count": 0, "tick_states": []}
+CALLS: Dict[str, Any] = {
+    "warmup_count": 0, "tick_count": 0, "tick_states": [],
+    "job_a_ticks": 0, "job_b_ticks": 0,
+}
 
 
 def reset():
     CALLS["warmup_count"] = 0
     CALLS["tick_count"] = 0
     CALLS["tick_states"] = []
+    CALLS["job_a_ticks"] = 0
+    CALLS["job_b_ticks"] = 0
 
 
 def warmup(context):
@@ -33,3 +38,13 @@ def run_tick_raises_once_then_ok(context, warm_state, scheduled_time):
     if CALLS["tick_count"] == 1:
         raise RuntimeError("intentional first-tick failure")
     return {}
+
+
+def run_tick_job_a(context, warm_state, scheduled_time):
+    CALLS["job_a_ticks"] += 1
+    return {"job": "a", "warm_state": warm_state}
+
+
+def run_tick_job_b(context, warm_state, scheduled_time):
+    CALLS["job_b_ticks"] += 1
+    return {"job": "b", "warm_state": warm_state}

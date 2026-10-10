@@ -27,6 +27,8 @@ _WARMUP = "assets.infrastructure.warm_scheduled_job.tests._fixtures:warmup"
 _TICK = "assets.infrastructure.warm_scheduled_job.tests._fixtures:run_tick"
 _TICK_RAISES = "assets.infrastructure.warm_scheduled_job.tests._fixtures:run_tick_raises"
 _TICK_RAISES_ONCE = "assets.infrastructure.warm_scheduled_job.tests._fixtures:run_tick_raises_once_then_ok"
+_TICK_JOB_A = "assets.infrastructure.warm_scheduled_job.tests._fixtures:run_tick_job_a"
+_TICK_JOB_B = "assets.infrastructure.warm_scheduled_job.tests._fixtures:run_tick_job_b"
 
 
 @pytest.fixture()
@@ -45,6 +47,36 @@ def _materialize(component):
     defs = component.build_defs(context=None)
     asset_def = list(defs.assets)[0]
     return dg.materialize([asset_def])
+
+
+def _metadata_for(result, asset_name: str, node_name: str = None) -> dict:
+    """MaterializeResult metadata is only retrievable this way (not as a
+    plain return value) -- AssetSpec-based multi_asset outputs default to
+    Dagster's `Nothing` type, so a returned/yielded Python value isn't an
+    option here. Matches the convention already used by this session's other
+    multi_asset-based components' tests (e.g. hotjar_ingestion).
+
+    `asset_materializations_for_node` filters by the underlying OP's node
+    name, NOT the asset key -- confirmed directly against dagster's source.
+    In single-job (legacy) mode the op's name equals asset_name (unchanged
+    from the original component), so node_name defaults to asset_name; in
+    multi-job mode, several jobs share ONE op/node, so the caller must pass
+    that shared node_name and this filters the node's full event list down
+    to the one asset key being asked about.
+    """
+    node_name = node_name or asset_name
+    events = result.asset_materializations_for_node(node_name)
+    matching = [e for e in events if e.asset_key == dg.AssetKey.from_user_string(asset_name)]
+    # [-1], not [0]: this component emits many per-tick AssetMaterialization
+    # events via context.log_event() (one per tick) PLUS one final summary
+    # MaterializeResult per asset at the very end -- the summary (with
+    # stop_reason/total_ticks/etc.) is always the LAST materialization event
+    # for a given asset key, not the first.
+    raw = matching[-1].metadata
+    out = {}
+    for k, v in raw.items():
+        out[k] = v.value if hasattr(v, "value") else v
+    return out
 
 
 def test_warmup_runs_once_and_ticks_reuse_same_warm_state(mod):
@@ -68,7 +100,7 @@ def test_warmup_runs_once_and_ticks_reuse_same_warm_state(mod):
     assert all(s == seen_states[0] for s in seen_states)
     assert seen_states[0] == {"warmed_at_call": 1}
 
-    out = result.output_for_node("warm_job_out")
+    out = _metadata_for(result, "warm_job_out")
     assert out["total_ticks"] == 3
     assert out["stop_reason"] == "max_ticks"
 
@@ -87,7 +119,7 @@ def test_drift_is_small(mod):
     )
     result = _materialize(component)
     assert result.success
-    out = result.output_for_node("warm_job_out")
+    out = _metadata_for(result, "warm_job_out")
     assert out["max_drift_seconds"] < 0.5, (
         f"expected sub-500ms drift against the scheduled instant, got {out['max_drift_seconds']}"
     )
@@ -105,7 +137,7 @@ def test_tick_error_handling_continue_survives_a_failed_tick(mod):
     )
     result = _materialize(component)
     assert result.success
-    out = result.output_for_node("warm_job_out")
+    out = _metadata_for(result, "warm_job_out")
     assert out["total_ticks"] == 2
     assert out["failed_ticks"] == 1
 
@@ -137,7 +169,7 @@ def test_max_seconds_stops_the_loop(mod):
     result = _materialize(component)
     elapsed = time.time() - start
     assert result.success
-    out = result.output_for_node("warm_job_out")
+    out = _metadata_for(result, "warm_job_out")
     assert out["stop_reason"] == "max_seconds"
     assert elapsed < 5, "should stop at max_seconds=2, not run away"
 
@@ -188,6 +220,145 @@ def test_invalid_tick_error_handling_raises(mod):
         mod.WarmScheduledJobComponent(
             asset_name="x", schedule="*/15 * * * *", tick_fn=_TICK, tick_error_handling="explode",
         ).build_defs(context=None)
+
+
+def test_mode_mutual_exclusivity_both_set_raises(mod):
+    with pytest.raises(ValueError, match="exactly one of"):
+        mod.WarmScheduledJobComponent(
+            asset_name="x", schedule="*/15 * * * *", tick_fn=_TICK,
+            jobs=[{"asset_name": "y", "schedule": "*/15 * * * *", "tick_fn": _TICK}],
+        ).build_defs(context=None)
+
+
+def test_mode_mutual_exclusivity_neither_set_raises(mod):
+    with pytest.raises(ValueError, match="must set either"):
+        mod.WarmScheduledJobComponent().build_defs(context=None)
+
+
+def test_duplicate_asset_name_in_jobs_raises(mod):
+    with pytest.raises(ValueError, match="duplicate asset_name"):
+        mod.WarmScheduledJobComponent(
+            jobs=[
+                {"asset_name": "dup", "schedule": "*/15 * * * *", "tick_fn": _TICK},
+                {"asset_name": "dup", "schedule": "*/20 * * * *", "tick_fn": _TICK},
+            ],
+        ).build_defs(context=None)
+
+
+def test_multi_job_shares_one_warmup_and_both_jobs_tick_independently(mod):
+    """Two independently-scheduled jobs on ONE instance: warmup_fn must run
+    exactly once (shared), and each job's tick_fn must fire on its own
+    cadence with its own tick count -- the whole point of the multi-job
+    extension (share one warm process/warmup across unrelated automations)."""
+    component = mod.WarmScheduledJobComponent(
+        warmup_fn=_WARMUP,
+        max_seconds=30,
+        jobs=[
+            {"asset_name": "job_a", "schedule": "*/1 * * * * *", "second_precision": True,
+             "tick_fn": _TICK_JOB_A, "max_ticks": 2},
+            {"asset_name": "job_b", "schedule": "*/1 * * * * *", "second_precision": True,
+             "tick_fn": _TICK_JOB_B, "max_ticks": 2},
+        ],
+    )
+    defs = component.build_defs(context=None)
+    asset_defs = list(defs.assets)
+    # Real warm multi_asset is first -- second_precision means no
+    # informational-schedule assets are added, so this must be the only asset.
+    assert len(asset_defs) == 1
+    result = dg.materialize(asset_defs)
+    assert result.success
+
+    assert _fixtures.CALLS["warmup_count"] == 1, "warmup must be shared across both jobs, not re-run per job"
+    assert _fixtures.CALLS["job_a_ticks"] == 2
+    assert _fixtures.CALLS["job_b_ticks"] == 2
+
+    out_a = _metadata_for(result, "job_a", node_name="warm_scheduled_jobs_multi")
+    out_b = _metadata_for(result, "job_b", node_name="warm_scheduled_jobs_multi")
+    assert out_a["total_ticks"] == 2
+    assert out_b["total_ticks"] == 2
+    assert out_a["stop_reason"] == "max_ticks"
+    assert out_b["stop_reason"] == "max_ticks"
+
+
+def test_per_job_max_ticks_drops_out_while_other_job_keeps_running(mod):
+    """job_a has a tight max_ticks cap; job_b has none (bounded only by
+    max_seconds). job_a must stop firing once it hits its cap while job_b
+    keeps ticking on its own cadence -- confirms per-job drop-out, not a
+    global one-job-done-means-all-done behavior."""
+    component = mod.WarmScheduledJobComponent(
+        max_seconds=3,
+        jobs=[
+            {"asset_name": "job_a", "schedule": "*/1 * * * * *", "second_precision": True,
+             "tick_fn": _TICK_JOB_A, "max_ticks": 1},
+            {"asset_name": "job_b", "schedule": "*/1 * * * * *", "second_precision": True,
+             "tick_fn": _TICK_JOB_B},
+        ],
+    )
+    defs = component.build_defs(context=None)
+    result = dg.materialize(list(defs.assets))
+    assert result.success
+    assert _fixtures.CALLS["job_a_ticks"] == 1
+    assert _fixtures.CALLS["job_b_ticks"] >= 2, "job_b should keep ticking after job_a drops out"
+
+    out_a = _metadata_for(result, "job_a", node_name="warm_scheduled_jobs_multi")
+    out_b = _metadata_for(result, "job_b", node_name="warm_scheduled_jobs_multi")
+    assert out_a["total_ticks"] == 1
+    assert out_b["total_ticks"] == _fixtures.CALLS["job_b_ticks"]
+    # Both report the same GLOBAL stop_reason (why the shared process exited)
+    assert out_a["stop_reason"] == out_b["stop_reason"] == "max_seconds"
+
+
+def test_informational_schedule_created_for_standard_cron_default_stopped(mod):
+    component = mod.WarmScheduledJobComponent(
+        asset_name="warm_job_out", schedule="*/15 * * * *", tick_fn=_TICK,
+    )
+    defs = component.build_defs(context=None)
+    schedules = list(defs.schedules)
+    assert len(schedules) == 1
+    sched = schedules[0]
+    assert sched.name == "warm_job_out_informational_schedule"
+    assert sched.cron_schedule == "*/15 * * * *"
+    assert sched.default_status == dg.DefaultScheduleStatus.STOPPED
+
+    # Must target a SEPARATE, trivial no-op asset -- never the real warm
+    # asset -- so flipping it on or manually launching it can't trigger a
+    # second real automation run.
+    all_asset_defs = list(defs.assets)
+    assert len(all_asset_defs) == 2  # real warm multi_asset + the info marker asset
+
+
+def test_no_informational_schedule_for_second_precision_job(mod):
+    component = mod.WarmScheduledJobComponent(
+        asset_name="warm_job_out", schedule="*/1 * * * * *", second_precision=True, tick_fn=_TICK,
+    )
+    defs = component.build_defs(context=None)
+    assert list(defs.schedules) == []
+    assert len(list(defs.assets)) == 1  # no info marker asset either
+
+
+def test_expose_informational_schedules_false_suppresses_entirely(mod):
+    component = mod.WarmScheduledJobComponent(
+        asset_name="warm_job_out", schedule="*/15 * * * *", tick_fn=_TICK,
+        expose_informational_schedules=False,
+    )
+    defs = component.build_defs(context=None)
+    assert list(defs.schedules) == []
+    assert len(list(defs.assets)) == 1
+
+
+def test_informational_schedule_marker_asset_is_a_real_harmless_noop(mod):
+    """Materializing the informational marker asset directly (simulating
+    someone flipping the decorative schedule RUNNING, or manually launching
+    it) must NOT invoke the real tick_fn or touch any real automation
+    state -- the whole safety property this feature depends on."""
+    component = mod.WarmScheduledJobComponent(
+        asset_name="warm_job_out", schedule="*/15 * * * *", tick_fn=_TICK,
+    )
+    defs = component.build_defs(context=None)
+    info_asset = next(a for a in defs.assets if "schedule_info" in str(a.key))
+    result = dg.materialize([info_asset])
+    assert result.success
+    assert _fixtures.CALLS["tick_count"] == 0, "the informational marker must never invoke the real tick_fn"
 
 
 def test_no_isolation_tag_is_set(mod):

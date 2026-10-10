@@ -92,37 +92,35 @@ Every tick's `AssetMaterialization` includes `drift_seconds` (actual fire time m
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `asset_name` | `str` | Output asset name (also used by the paired health sensor's asset_selection). |
-| `schedule` | `str` | A cron string. Standard 5-field (e.g. '*/15 * * * *' for every 15 minutes, '0 9 * * *' for daily at 9am) by default. Evaluated by this component's own internal loop via `croniter` — this is NOT a Dagster ScheduleDefiniti… _(full docs in schema.json + component README)_ |
-| `tick_fn` | `str` | 'module.path:function_name', called once per precise scheduled tick as `tick_fn(context, warm_state, scheduled_time) -> Optional[dict]`, as a direct in-process function call — never through Dagster's run-launching APIs… _(full docs in schema.json + component README)_ |
-
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `group_name` | `str` | — | — |
-| `description` | `str` | — | — |
-| `asset_tags` | `Dict[str, str]` | — | — |
-| `kinds` | `List[str]` | — | — |
-| `owners` | `List[str]` | — | — |
-| `deps` | `List[str]` | — | — |
+| `asset_name` | `str` | — | Single-job mode only: output asset name (also used by the paired health sensor's asset_selection). Required when `jobs` is not set. |
+| `group_name` | `str` | — | Component-level default group_name; a `jobs` entry may override with its own `group_name`. |
+| `description` | `str` | — | Single-job mode only (per-job override available in `jobs` entries). |
+| `asset_tags` | `Dict[str, str]` | — | Component-level default asset_tags; a `jobs` entry may override with its own `asset_tags`. |
+| `kinds` | `List[str]` | — | Component-level default kinds; a `jobs` entry may override with its own `kinds`. |
+| `owners` | `List[str]` | — | Component-level default owners; a `jobs` entry may override with its own `owners`. |
+| `deps` | `List[str]` | — | Component-level default deps; a `jobs` entry may override with its own `deps`. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `second_precision` | `bool` | `false` | Parse `schedule` as 6-field cron (seconds-leading) instead of standard 5-field. |
-| `timezone` | `str` | `"UTC"` | IANA timezone name (e.g. 'America/New_York') the cron string is evaluated in. |
-| `warmup_fn` | `str` | — | 'module.path:function_name', called ONCE per bounded run lifetime (not per tick) as `warmup_fn(context) -> Any`. Do the expensive setup here (load a model, open connections) — the return value is passed as `warm_state` t… _(full docs in schema.json + component README)_ |
-| `max_seconds` | `int` | `3600` | Bounded run duration in seconds, same pattern as StreamingConsumerComponent. Set LESS than your Dagster+ Serverless per-run timeout. `null` for a truly unbounded loop (runs until the platform kills the process) — bounded… _(full docs in schema.json + component README)_ |
-| `max_ticks` | `int` | — | Optional cap on total ticks executed before exit (in addition to max_seconds). |
-| `catchup` | `bool` | `false` | If a tick's scheduled instant has already passed by the time the loop checks again (e.g. slow process start, or the previous tick's tick_fn overran into this one), default (false) skips straight to the next FUTURE tick… _(full docs in schema.json + component README)_ |
-| `max_catchup_ticks` | `int` | `10` | Safety cap on consecutive missed ticks executed back-to-back when catchup=true. |
-| `tick_error_handling` | `str` | `"continue"` | 'continue' (default): a tick_fn exception is logged + reported as a failed-tick materialization, and the loop continues to the next scheduled tick — a single tick's transient failure doesn't force a full restart (and re-… _(full docs in schema.json + component README)_ |
+| `schedule` | `str` | — | Single-job mode only: a cron string. Standard 5-field (e.g. '*/15 * * * *' for every 15 minutes) by default. Evaluated by this component's own internal loop via `croniter` — this is NOT a Dagster ScheduleDefinition and i… _(full docs in schema.json + component README)_ |
+| `second_precision` | `bool` | `false` | Single-job mode only: parse `schedule` as 6-field cron (seconds-leading) instead of standard 5-field. |
+| `tick_fn` | `str` | — | Single-job mode only: 'module.path:function_name', called once per precise scheduled tick as `tick_fn(context, warm_state, scheduled_time) -> Optional[dict]`. Required when `jobs` is not set. |
+| `max_ticks` | `int` | — | Single-job mode only: optional cap on total ticks executed before exit (in addition to max_seconds). |
+| `catchup` | `bool` | `false` | Single-job mode only (per-job override available in `jobs` entries). If a tick's scheduled instant has already passed by the time the loop checks again, default (false) skips straight to the next FUTURE tick. Set true to… _(full docs in schema.json + component README)_ |
+| `max_catchup_ticks` | `int` | `10` | Single-job mode only (per-job override available in `jobs` entries): safety cap on consecutive missed ticks executed back-to-back when catchup=true. |
+| `tick_error_handling` | `str` | `"continue"` | Single-job mode only (per-job override available in `jobs` entries). 'continue' (default): a tick_fn exception is logged + reported as a failed-tick materialization, and the loop continues — a single tick's transient fai… _(full docs in schema.json + component README)_ |
+| `jobs` | `List[Dict[str, Any]]` | — | Multi-job mode: a list of independently-scheduled automations sharing this ONE warm process and ONE `warmup_fn` pass. Each entry: {asset_name, schedule, tick_fn} required; optional per-entry overrides for second_precisio… _(full docs in schema.json + component README)_ |
+| `expose_informational_schedules` | `bool` | `true` | Emit a real, default-STOPPED Dagster ScheduleDefinition per job whose schedule is standard 5-field cron (not second_precision), purely so the real cadence is visible in the Schedules tab. It targets a trivial no-op asset… _(full docs in schema.json + component README)_ |
+| `warmup_fn` | `str` | — | 'module.path:function_name', called ONCE per bounded run lifetime (not per tick, and shared across every job in `jobs` if set) as `warmup_fn(context) -> Any`. Do the expensive setup here (load a model, open connections)… _(full docs in schema.json + component README)_ |
+| `timezone` | `str` | `"UTC"` | IANA timezone name the cron string(s) are evaluated in. Component-level default; a `jobs` entry may override with its own `timezone`. |
+| `max_seconds` | `int` | `3600` | Bounded run duration in seconds for the WHOLE process (shared across every job in `jobs`), same pattern as StreamingConsumerComponent. Set LESS than your Dagster+ Serverless per-run timeout. `null` for a truly unbounded… _(full docs in schema.json + component README)_ |
+| `op_name` | `str` | — | Multi-job mode only: the underlying op's name (defaults to 'warm_scheduled_jobs_multi'). Set this if you have more than one multi-job WarmScheduledJobComponent instance in the same code location, to avoid an op-name collision. |
 
 [//]: # (FIELDS:END)
 

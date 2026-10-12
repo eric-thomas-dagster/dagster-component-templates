@@ -1,4 +1,3 @@
-from .io_manager import FabricLakehouseIOManager
-from .component import FabricLakehouseIOManagerComponent
+from .component import FabricLakehouseIOManagerComponent, FabricLakehouseIOManager
 
 __all__ = ["FabricLakehouseIOManager", "FabricLakehouseIOManagerComponent"]

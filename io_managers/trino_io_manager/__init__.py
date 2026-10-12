@@ -1,4 +1,3 @@
-from .component import TrinoIOManagerComponent
-from .io_manager import TrinoIOManager
+from .component import TrinoIOManagerComponent, TrinoIOManager
 
 __all__ = ["TrinoIOManagerComponent", "TrinoIOManager"]

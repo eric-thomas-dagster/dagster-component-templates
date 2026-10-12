@@ -1,4 +1,3 @@
-from .component import LanceIOManagerComponent
-from .io_manager import LanceIOManager
+from .component import LanceIOManagerComponent, LanceIOManager
 
 __all__ = ["LanceIOManagerComponent", "LanceIOManager"]

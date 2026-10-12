@@ -1,2 +1,1 @@
-from .component import LocalParquetIOManagerComponent
-from .io_manager import LocalParquetIOManager
+from .component import LocalParquetIOManagerComponent, LocalParquetIOManager

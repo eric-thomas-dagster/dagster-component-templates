@@ -1,4 +1,3 @@
-from .component import GCSParquetIOManagerComponent
-from .io_manager import GCSParquetIOManager
+from .component import GCSParquetIOManagerComponent, GCSParquetIOManager
 
 __all__ = ["GCSParquetIOManagerComponent", "GCSParquetIOManager"]

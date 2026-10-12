@@ -1,4 +1,3 @@
-from .component import PostgresIOManagerComponent
-from .io_manager import PostgresIOManager
+from .component import PostgresIOManagerComponent, PostgresIOManager
 
 __all__ = ["PostgresIOManagerComponent", "PostgresIOManager"]

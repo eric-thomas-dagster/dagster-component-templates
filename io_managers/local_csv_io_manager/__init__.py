@@ -1,2 +1,1 @@
-from .component import LocalCsvIOManagerComponent
-from .io_manager import LocalCsvIOManager
+from .component import LocalCsvIOManagerComponent, LocalCsvIOManager

@@ -1,4 +1,3 @@
-from .component import DatabricksIOManagerComponent
-from .io_manager import DatabricksIOManager
+from .component import DatabricksIOManagerComponent, DatabricksIOManager
 
 __all__ = ["DatabricksIOManagerComponent", "DatabricksIOManager"]

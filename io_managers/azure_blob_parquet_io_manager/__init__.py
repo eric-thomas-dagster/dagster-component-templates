@@ -1,2 +1,1 @@
-from .component import AzureBlobParquetIOManagerComponent
-from .io_manager import AzureBlobParquetIOManager
+from .component import AzureBlobParquetIOManagerComponent, AzureBlobParquetIOManager

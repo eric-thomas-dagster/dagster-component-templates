@@ -1,4 +1,3 @@
-from .component import LakeFSIOManagerComponent
-from .io_manager import LakeFSIOManager
+from .component import LakeFSIOManagerComponent, LakeFSIOManager
 
 __all__ = ["LakeFSIOManagerComponent", "LakeFSIOManager"]

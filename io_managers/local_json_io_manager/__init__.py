@@ -1,2 +1,1 @@
-from .component import LocalJsonIOManagerComponent
-from .io_manager import LocalJsonIOManager
+from .component import LocalJsonIOManagerComponent, LocalJsonIOManager

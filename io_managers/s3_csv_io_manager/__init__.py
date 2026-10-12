@@ -1,2 +1,1 @@
-from .component import S3CsvIOManagerComponent
-from .io_manager import S3CsvIOManager
+from .component import S3CsvIOManagerComponent, S3CsvIOManager

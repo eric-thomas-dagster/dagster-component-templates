@@ -1,4 +1,3 @@
-from .component import AthenaIOManagerComponent
-from .io_manager import AthenaIOManager
+from .component import AthenaIOManagerComponent, AthenaIOManager
 
 __all__ = ["AthenaIOManagerComponent", "AthenaIOManager"]

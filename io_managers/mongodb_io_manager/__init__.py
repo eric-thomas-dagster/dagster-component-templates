@@ -1,2 +1,1 @@
-from .component import MongoDBIOManagerComponent
-from .io_manager import MongoDBIOManager
+from .component import MongoDBIOManagerComponent, MongoDBIOManager

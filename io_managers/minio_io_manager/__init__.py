@@ -1,4 +1,3 @@
-from .component import MinIOIOManagerComponent
-from .io_manager import MinIODeltaIOManager
+from .component import MinIOIOManagerComponent, MinIODeltaIOManager
 
 __all__ = ["MinIOIOManagerComponent", "MinIODeltaIOManager"]

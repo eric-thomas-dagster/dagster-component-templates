@@ -29,9 +29,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 INIT_PATH = REPO_ROOT / "dagster_community_components" / "__init__.py"
 
 # Directories that are never component source (registry itself, tests, tooling, docs).
+# Includes common virtualenv dir names -- a stray local .venv in the repo
+# root (confirmed to happen in practice) otherwise gets walked and its
+# installed package copies get reported as "missing" registry entries,
+# since their path doesn't match the real source path already registered.
 EXCLUDE_TOP = {
     ".git", "node_modules", "dagster_community_components", ".claude",
     "docs", "tests", "tools", "cli", ".pytest_cache", "__pycache__",
+    ".venv", "venv", "env", ".env",
 }
 
 CLASS_DEF_RE = re.compile(r"^class\s+(\w+Component)\(", re.MULTILINE)

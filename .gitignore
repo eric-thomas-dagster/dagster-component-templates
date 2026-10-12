@@ -32,3 +32,4 @@ create_*.sh
 # Tool report artifacts (regenerated on demand)
 infer_produces_report.json
 validate_manifest_report.json
+.venv

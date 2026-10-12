@@ -84,74 +84,225 @@
         "options": {
           "snowflake": {
             "fields": [
-              { "name": "account", "label": "Account", "required": true, "description": "e.g. xy12345.us-east-1" },
-              { "name": "username", "label": "Username", "required": true },
-              { "name": "password", "label": "Password", "required": true, "widget": "password" },
-              { "name": "database", "label": "Database", "required": true },
-              { "name": "warehouse", "label": "Warehouse", "required": false },
-              { "name": "role", "label": "Role", "required": false }
+              {
+                "name": "account",
+                "label": "Account",
+                "required": true,
+                "description": "e.g. xy12345.us-east-1"
+              },
+              {
+                "name": "username",
+                "label": "Username",
+                "required": true
+              },
+              {
+                "name": "password",
+                "label": "Password",
+                "required": true,
+                "widget": "password"
+              },
+              {
+                "name": "database",
+                "label": "Database",
+                "required": true
+              },
+              {
+                "name": "warehouse",
+                "label": "Warehouse",
+                "required": false
+              },
+              {
+                "name": "role",
+                "label": "Role",
+                "required": false
+              }
             ],
             "template": {
               "base": "snowflake://{username}:{password}@{account}/{database}",
-              "query_params": { "warehouse": "warehouse", "role": "role" }
+              "query_params": {
+                "warehouse": "warehouse",
+                "role": "role"
+              }
             }
           },
           "postgres": {
             "fields": [
-              { "name": "host", "label": "Host", "required": true },
-              { "name": "port", "label": "Port", "required": false, "default": "5432" },
-              { "name": "username", "label": "Username", "required": true },
-              { "name": "password", "label": "Password", "required": true, "widget": "password" },
-              { "name": "database", "label": "Database", "required": true }
+              {
+                "name": "host",
+                "label": "Host",
+                "required": true
+              },
+              {
+                "name": "port",
+                "label": "Port",
+                "required": false,
+                "default": "5432"
+              },
+              {
+                "name": "username",
+                "label": "Username",
+                "required": true
+              },
+              {
+                "name": "password",
+                "label": "Password",
+                "required": true,
+                "widget": "password"
+              },
+              {
+                "name": "database",
+                "label": "Database",
+                "required": true
+              }
             ],
-            "template": { "base": "postgresql://{username}:{password}@{host}:{port}/{database}" }
+            "template": {
+              "base": "postgresql://{username}:{password}@{host}:{port}/{database}"
+            }
           },
           "redshift": {
             "fields": [
-              { "name": "host", "label": "Host", "required": true },
-              { "name": "port", "label": "Port", "required": false, "default": "5439" },
-              { "name": "username", "label": "Username", "required": true },
-              { "name": "password", "label": "Password", "required": true, "widget": "password" },
-              { "name": "database", "label": "Database", "required": true }
+              {
+                "name": "host",
+                "label": "Host",
+                "required": true
+              },
+              {
+                "name": "port",
+                "label": "Port",
+                "required": false,
+                "default": "5439"
+              },
+              {
+                "name": "username",
+                "label": "Username",
+                "required": true
+              },
+              {
+                "name": "password",
+                "label": "Password",
+                "required": true,
+                "widget": "password"
+              },
+              {
+                "name": "database",
+                "label": "Database",
+                "required": true
+              }
             ],
-            "template": { "base": "redshift://{username}:{password}@{host}:{port}/{database}" }
+            "template": {
+              "base": "redshift://{username}:{password}@{host}:{port}/{database}"
+            }
           },
           "clickhouse": {
             "fields": [
-              { "name": "host", "label": "Host", "required": true },
-              { "name": "port", "label": "Port", "required": false, "default": "9000", "description": "Native TCP port (not the HTTP interface port)" },
-              { "name": "username", "label": "Username", "required": false, "default": "default" },
-              { "name": "password", "label": "Password", "required": true, "widget": "password" },
-              { "name": "database", "label": "Database", "required": true },
-              { "name": "secure", "label": "Secure (TLS)", "required": false, "default": "0", "description": "1 for HTTPS/TLS, 0 otherwise" }
+              {
+                "name": "host",
+                "label": "Host",
+                "required": true
+              },
+              {
+                "name": "port",
+                "label": "Port",
+                "required": false,
+                "default": "9000",
+                "description": "Native TCP port (not the HTTP interface port)"
+              },
+              {
+                "name": "username",
+                "label": "Username",
+                "required": false,
+                "default": "default"
+              },
+              {
+                "name": "password",
+                "label": "Password",
+                "required": true,
+                "widget": "password"
+              },
+              {
+                "name": "database",
+                "label": "Database",
+                "required": true
+              },
+              {
+                "name": "secure",
+                "label": "Secure (TLS)",
+                "required": false,
+                "default": "0",
+                "description": "1 for HTTPS/TLS, 0 otherwise"
+              }
             ],
             "template": {
               "base": "clickhouse://{username}:{password}@{host}:{port}/{database}",
-              "query_params": { "secure": "secure" }
+              "query_params": {
+                "secure": "secure"
+              }
             }
           },
           "mssql": {
             "fields": [
-              { "name": "host", "label": "Host", "required": true },
-              { "name": "port", "label": "Port", "required": false, "default": "1433" },
-              { "name": "username", "label": "Username", "required": true },
-              { "name": "password", "label": "Password", "required": true, "widget": "password" },
-              { "name": "database", "label": "Database", "required": true },
-              { "name": "encrypt", "label": "Encrypt", "required": false, "default": "no", "description": "'yes' to require SSL (e.g. Azure SQL); 'no' for a local unencrypted instance" }
+              {
+                "name": "host",
+                "label": "Host",
+                "required": true
+              },
+              {
+                "name": "port",
+                "label": "Port",
+                "required": false,
+                "default": "1433"
+              },
+              {
+                "name": "username",
+                "label": "Username",
+                "required": true
+              },
+              {
+                "name": "password",
+                "label": "Password",
+                "required": true,
+                "widget": "password"
+              },
+              {
+                "name": "database",
+                "label": "Database",
+                "required": true
+              },
+              {
+                "name": "encrypt",
+                "label": "Encrypt",
+                "required": false,
+                "default": "no",
+                "description": "'yes' to require SSL (e.g. Azure SQL); 'no' for a local unencrypted instance"
+              }
             ],
             "template": {
               "base": "mssql://{username}:{password}@{host}:{port}/{database}",
-              "query_params": { "encrypt": "encrypt" }
+              "query_params": {
+                "encrypt": "encrypt"
+              }
             }
           },
           "motherduck": {
             "fields": [
-              { "name": "database", "label": "Database", "required": false, "description": "Defaults to 'my_db' on MotherDuck's side if left blank" },
-              { "name": "token", "label": "Service Token", "required": true, "widget": "password" }
+              {
+                "name": "database",
+                "label": "Database",
+                "required": false,
+                "description": "Defaults to 'my_db' on MotherDuck's side if left blank"
+              },
+              {
+                "name": "token",
+                "label": "Service Token",
+                "required": true,
+                "widget": "password"
+              }
             ],
             "template": {
               "base": "md:{database}",
-              "query_params": { "token": "motherduck_token" }
+              "query_params": {
+                "token": "motherduck_token"
+              }
             }
           },
           "bigquery": {
@@ -175,14 +326,36 @@
       "label": "Bucket Url",
       "required": false,
       "default": null,
-      "description": "Bucket/path URL for filesystem-shaped storage (e.g. 's3://my-bucket/path', 'gs://my-bucket/path', 'az://my-container/path', or 'file:///local/path'). Required when destination='filesystem' (the final write target). Also used as the staging area when destination='databricks' or 'athena', both of which require an intermediate filesystem stage before the warehouse-side load -- dlt resolves the bucket's credentials from the destination-appropriate standard environment variables (e.g. AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY) unless destination_credentials_url/destination_credentials_env_var is set."
+      "description": "Bucket/path URL for filesystem-shaped storage (e.g. 's3://my-bucket/path', 'gs://my-bucket/path', 'az://my-container/path', or 'file:///local/path'). Required when destination='filesystem' (the final write target). Also used as the staging area when destination='databricks' or 'athena', both of which require an intermediate filesystem stage before the warehouse-side load -- dlt resolves the bucket's credentials from the destination-appropriate standard environment variables (e.g. AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY) unless destination_credentials_url/destination_credentials_env_var is set.",
+      "x-dagster-visible-when": {
+        "field": "destination",
+        "values": [
+          "filesystem",
+          "databricks",
+          "athena"
+        ]
+      },
+      "x-dagster-label-by": {
+        "field": "destination",
+        "labels": {
+          "filesystem": "Storage location",
+          "databricks": "Staging bucket",
+          "athena": "Staging bucket"
+        }
+      }
     },
     "athena_query_result_bucket": {
       "type": "string",
       "label": "Athena Query Result Bucket",
       "required": false,
       "default": null,
-      "description": "Optional S3 path where Athena writes query results (e.g. 's3://my-bucket/results/'). Only used when destination='athena'. May be omitted to use Athena-managed query results instead."
+      "description": "Optional S3 path where Athena writes query results (e.g. 's3://my-bucket/results/'). Only used when destination='athena'. May be omitted to use Athena-managed query results instead.",
+      "x-dagster-visible-when": {
+        "field": "destination",
+        "values": [
+          "athena"
+        ]
+      }
     },
     "description": {
       "type": "string",
@@ -200,7 +373,9 @@
     },
     "owners": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Owners",
       "description": "Asset owners",
       "required": false,
@@ -215,7 +390,9 @@
     },
     "kinds": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Kinds",
       "description": "Asset kinds for the catalog",
       "required": false,
@@ -252,7 +429,9 @@
     },
     "deps": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Deps",
       "description": "Upstream asset keys this asset depends on",
       "required": false,
@@ -264,7 +443,15 @@
       "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None. Note: this connector's compute function does not currently use the partition key to filter the underlying API request -- every partition run re-fetches the same full resource set. Declaring a partition type here controls the materialization/backfill schedule in Dagster, not what data is fetched.",
       "required": false,
       "default": null,
-      "enum": ["daily", "weekly", "monthly", "hourly", "static", "multi", "dynamic"],
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
       "ui:widget": "select"
     },
     "partition_start": {
@@ -290,7 +477,9 @@
     },
     "partition_dimensions": {
       "type": "array",
-      "items": { "type": "object" },
+      "items": {
+        "type": "object"
+      },
       "label": "Partition Dimensions",
       "description": "Multi-axis partition spec.",
       "required": false,
@@ -316,7 +505,10 @@
       "description": "Backoff strategy.",
       "required": false,
       "default": "exponential",
-      "enum": ["exponential", "linear"],
+      "enum": [
+        "exponential",
+        "linear"
+      ],
       "ui:widget": "select"
     },
     "column_lineage": {

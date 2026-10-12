@@ -54,6 +54,7 @@ BASE_URL = "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-compon
 EXCLUDE_TOP = {
     ".git", "node_modules", "dagster_community_components", ".claude",
     "docs", "tests", "tools", "cli", ".pytest_cache", "__pycache__",
+    ".venv", "venv", "env", ".env",
 }
 
 DERIVABLE_KEYS = {

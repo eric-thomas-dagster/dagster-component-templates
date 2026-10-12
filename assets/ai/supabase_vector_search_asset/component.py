@@ -64,7 +64,7 @@ class SupabaseVectorSearchAssetComponent(Component, Model, Resolvable):
     """Run a pgvector similarity search per row of an upstream DataFrame."""
 
     asset_name: str = Field(description="Output asset name.")
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="supabase_resource",
         description="Resource key of the SupabaseResource providing the client.",
     )
@@ -123,7 +123,7 @@ class SupabaseVectorSearchAssetComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         table_name = self.table_name
         embedding_column = self.embedding_column
         upstream_asset_key = self.upstream_asset_key
@@ -156,11 +156,11 @@ class SupabaseVectorSearchAssetComponent(Component, Model, Resolvable):
             tags=self.tags or None,
             owners=self.owners or None,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])] or None,
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
             **ins_kwargs,
         )
         def _asset(context: AssetExecutionContext, **kwargs):
-            supabase_resource = getattr(context.resources, resource_name)
+            supabase_resource = getattr(context.resources, resource_key)
             client = supabase_resource.get_client()
 
             # Build the list of queries.

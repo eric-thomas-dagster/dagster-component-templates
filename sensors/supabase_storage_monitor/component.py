@@ -42,7 +42,7 @@ class SupabaseStorageMonitorComponent(Component, Model, Resolvable):
         default="",
         description="Object prefix (folder) to scope monitoring, e.g. 'incoming/' or 'raw/2026/'.",
     )
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="supabase_resource",
         description="Resource key of the SupabaseResource providing the client.",
     )
@@ -75,7 +75,7 @@ class SupabaseStorageMonitorComponent(Component, Model, Resolvable):
         sensor_name = self.sensor_name
         bucket_name = self.bucket_name
         prefix = (self.prefix or "").rstrip("/")
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         minimum_interval_seconds = self.minimum_interval_seconds
         dyn_part_name = self.dynamic_partition_name
         job_name = self.job_name
@@ -92,10 +92,10 @@ class SupabaseStorageMonitorComponent(Component, Model, Resolvable):
             minimum_interval_seconds=minimum_interval_seconds,
             default_status=default_status,
             job_name=job_name,
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
         )
         def _supabase_storage_sensor(context: SensorEvaluationContext, **_resources):
-            supabase_resource = getattr(context.resources, resource_name)
+            supabase_resource = getattr(context.resources, resource_key)
             client = supabase_resource.get_client()
 
             cursor = context.cursor or "1970-01-01T00:00:00+00:00"

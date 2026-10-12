@@ -17,13 +17,6 @@
       "description": "Name of the asset to create",
       "required": true
     },
-    "resource_name": {
-      "type": "string",
-      "label": "Resource Name",
-      "description": "Key of the SigmaResource this asset depends on for authentication",
-      "required": false,
-      "default": "sigma_resource"
-    },
     "workbook_limit": {
       "type": "integer",
       "label": "Workbook Limit",
@@ -71,9 +64,11 @@
     },
     "owners": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Owners",
-      "description": "Asset owners — team names (team:analytics-eng) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics-eng) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -86,7 +81,9 @@
     },
     "kinds": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Kinds",
       "description": "Asset kinds shown in the Dagster catalog. Defaults to ['sigma', 'python'].",
       "required": false,
@@ -109,7 +106,9 @@
     },
     "deps": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Deps",
       "description": "Lineage-only upstream asset keys (no data passed at runtime)",
       "required": false,
@@ -121,7 +120,15 @@
       "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned. Sigma's List Workbooks API has no time-range filter, so a time-based type only controls run cadence.",
       "required": false,
       "default": null,
-      "enum": ["daily", "weekly", "monthly", "hourly", "static", "multi", "dynamic"],
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
       "ui:widget": "select"
     },
     "partition_start": {
@@ -147,11 +154,21 @@
     },
     "partition_dimensions": {
       "type": "array",
-      "items": { "type": "object" },
+      "items": {
+        "type": "object"
+      },
       "label": "Partition Dimensions",
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of the SigmaResource this asset depends on for authentication",
+      "required": false,
+      "default": "sigma_resource",
+      "ui:widget": "resource-picker"
     }
   },
   "tags": [

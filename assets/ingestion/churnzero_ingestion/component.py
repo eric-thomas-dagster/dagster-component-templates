@@ -138,7 +138,7 @@ class ChurnZeroAccountsIngestionComponent(Component, Model, Resolvable):
         type: dagster_component_templates.ChurnZeroAccountsIngestionComponent
         attributes:
           asset_name: churnzero_accounts
-          resource_name: churnzero_resource
+          resource_key: churnzero_resource
           top: 100
           limit: 2000
         ```
@@ -146,7 +146,7 @@ class ChurnZeroAccountsIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="churnzero_resource",
         description="Key of the ChurnZeroResource this asset depends on for authentication",
     )
@@ -241,7 +241,7 @@ class ChurnZeroAccountsIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         date_field = self.date_field
         base_filter = self.filter_expr
         order_by = self.order_by
@@ -273,7 +273,7 @@ class ChurnZeroAccountsIngestionComponent(Component, Model, Resolvable):
             owners=owners,
             tags=_all_tags,
             group_name=group_name,
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             partitions_def=partitions_def,
         )
@@ -291,7 +291,7 @@ class ChurnZeroAccountsIngestionComponent(Component, Model, Resolvable):
             filter_parts = [p for p in (base_filter, date_filter) if p]
             combined_filter = " and ".join(filter_parts) if filter_parts else None
 
-            client = getattr(context.resources, resource_name)
+            client = getattr(context.resources, resource_key)
             context.log.info(f"Fetching ChurnZero accounts: filter={combined_filter!r}, limit={limit}")
 
             accounts: List[Dict[str, Any]] = []

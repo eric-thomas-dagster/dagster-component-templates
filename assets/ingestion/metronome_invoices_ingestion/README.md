@@ -51,7 +51,7 @@ Also requires a `MetronomeResourceComponent` on the same code location for authe
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"metronome_resource"` | Key of the MetronomeResource this asset depends on for authentication |
+| `resource_key` | `str` | `"metronome_resource"` | Key of the MetronomeResource this asset depends on for authentication |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
 
@@ -63,7 +63,7 @@ Also requires a `MetronomeResourceComponent` on the same code location for authe
 type: dagster_component_templates.MetronomeInvoicesIngestionComponent
 attributes:
   asset_name: metronome_invoices
-  resource_name: metronome_resource
+  resource_key: metronome_resource
   invoice_status: FINALIZED
   starting_on: "2026-01-01T00:00:00.000Z"
   ending_before: "2026-07-01T00:00:00.000Z"

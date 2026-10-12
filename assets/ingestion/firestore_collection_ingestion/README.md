@@ -45,7 +45,7 @@ Pair with a `firebase_resource` component in the same Dagster project.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"firebase_resource"` | Name of the FirebaseResource this asset uses. |
+| `resource_key` | `str` | `"firebase_resource"` | Name of the FirebaseResource this asset uses. |
 | `include_preview_metadata` | `bool` | `true` | Include a sample preview in the run metadata. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview. |
 
@@ -57,7 +57,7 @@ Pair with a `firebase_resource` component in the same Dagster project.
 type: dagster_component_templates.FirestoreCollectionIngestionComponent
 attributes:
   asset_name: active_users
-  resource_name: firebase_resource
+  resource_key: firebase_resource
   collection_path: users
   where_clauses:
     - field: status
@@ -107,7 +107,7 @@ per pandas' default behavior for `DataFrame(list_of_dicts)`.
 ## Authentication
 
 Configured on the paired `firebase_resource` component — this asset reads
-`context.resources.<resource_name>` at runtime and never touches credentials
+`context.resources.<resource_key>` at runtime and never touches credentials
 directly.
 
 ## Required IAM Roles

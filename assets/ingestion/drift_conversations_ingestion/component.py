@@ -143,7 +143,7 @@ class DriftConversationsIngestionComponent(Component, Model, Resolvable):
         type: dagster_component_templates.DriftConversationsIngestionComponent
         attributes:
           asset_name: drift_conversations
-          resource_name: drift_resource
+          resource_key: drift_resource
           from_date_time: "2026-06-01T00:00:00Z"
           to_date_time: "2026-07-01T00:00:00Z"
           include_messages: true
@@ -153,7 +153,7 @@ class DriftConversationsIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="drift_resource",
         description="Key of the DriftResource this asset depends on for authentication",
     )
@@ -259,7 +259,7 @@ class DriftConversationsIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         from_dt = self.from_date_time
         to_dt = self.to_date_time
         status_id = self.status_id
@@ -295,7 +295,7 @@ class DriftConversationsIngestionComponent(Component, Model, Resolvable):
             owners=owners,
             tags=_all_tags,
             group_name=group_name,
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             partitions_def=partitions_def,
         )
@@ -311,7 +311,7 @@ class DriftConversationsIngestionComponent(Component, Model, Resolvable):
                 except Exception:
                     pass  # static/dynamic/multi partition -- no natural time window
 
-            resource = getattr(context.resources, resource_name)
+            resource = getattr(context.resources, resource_key)
             context.log.info(
                 f"Fetching Drift conversations: limit={limit}"
                 + (f", status_id={status_id}" if status_id is not None else "")

@@ -221,8 +221,8 @@ def test_default_kinds_tag_sigma_and_python(mod):
     assert "dagster/kind/python" in spec.tags
 
 
-def test_required_resource_keys_includes_configured_resource_name(mod):
-    component = mod.SigmaWorkbookIngestionComponent(asset_name="x", resource_name="my_sigma")
+def test_required_resource_keys_includes_configured_resource_key(mod):
+    component = mod.SigmaWorkbookIngestionComponent(asset_name="x", resource_key="my_sigma")
     defs = component.build_defs(context=None)
     asset_def = list(defs.assets)[0]
     assert "my_sigma" in asset_def.required_resource_keys

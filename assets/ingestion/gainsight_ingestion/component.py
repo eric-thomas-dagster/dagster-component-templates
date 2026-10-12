@@ -145,7 +145,7 @@ class GainsightCompanyIngestionComponent(Component, Model, Resolvable):
         type: dagster_component_templates.GainsightCompanyIngestionComponent
         attributes:
           asset_name: gainsight_companies
-          resource_name: gainsight_resource
+          resource_key: gainsight_resource
           select_fields: ["Gsid", "Name", "Csm", "Status", "Stage", "Health_Score"]
           limit: 2000
         ```
@@ -153,7 +153,7 @@ class GainsightCompanyIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="gainsight_resource",
         description="Key of the GainsightResource this asset depends on for authentication",
     )
@@ -264,7 +264,7 @@ class GainsightCompanyIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         object_name = self.object_name
         select_fields = list(self.select_fields)
         base_where = dict(self.where_filter) if self.where_filter else None
@@ -299,7 +299,7 @@ class GainsightCompanyIngestionComponent(Component, Model, Resolvable):
             owners=owners,
             tags=_all_tags,
             group_name=group_name,
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             partitions_def=partitions_def,
         )
@@ -325,7 +325,7 @@ class GainsightCompanyIngestionComponent(Component, Model, Resolvable):
                 if where_expression:
                     where_clause["expression"] = where_expression
 
-            client = getattr(context.resources, resource_name)
+            client = getattr(context.resources, resource_key)
             context.log.info(
                 f"Fetching Gainsight {object_name} records (fields={select_fields}), limit={limit}"
             )

@@ -17,16 +17,11 @@
       "description": "Name of the asset to create",
       "required": true
     },
-    "resource_name": {
-      "type": "string",
-      "label": "Resource Name",
-      "description": "Key of the TotangoResource this asset depends on for authentication",
-      "required": false,
-      "default": "totango_resource"
-    },
     "terms": {
       "type": "array",
-      "items": {"type": "object"},
+      "items": {
+        "type": "object"
+      },
       "label": "Terms",
       "description": "Raw Totango Search API 'terms' filter conditions",
       "required": false,
@@ -34,7 +29,9 @@
     },
     "fields": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Fields",
       "description": "Account fields to return. Custom attribute names (e.g. health scores) are configured per Totango org.",
       "required": false,
@@ -74,7 +71,10 @@
       "description": "'asc' or 'desc'",
       "required": false,
       "default": null,
-      "enum": ["asc", "desc"],
+      "enum": [
+        "asc",
+        "desc"
+      ],
       "ui:widget": "select"
     },
     "scope": {
@@ -115,9 +115,11 @@
     },
     "owners": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Owners",
-      "description": "Asset owners — team names (team:customer-success) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:customer-success) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -130,7 +132,9 @@
     },
     "kinds": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Kinds",
       "description": "Asset kinds shown in the Dagster catalog. Defaults to ['totango', 'python'].",
       "required": false,
@@ -153,7 +157,9 @@
     },
     "deps": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Deps",
       "description": "Lineage-only upstream asset keys (no data passed at runtime)",
       "required": false,
@@ -165,7 +171,15 @@
       "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned.",
       "required": false,
       "default": null,
-      "enum": ["daily", "weekly", "monthly", "hourly", "static", "multi", "dynamic"],
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
       "ui:widget": "select"
     },
     "partition_start": {
@@ -191,11 +205,21 @@
     },
     "partition_dimensions": {
       "type": "array",
-      "items": {"type": "object"},
+      "items": {
+        "type": "object"
+      },
       "label": "Partition Dimensions",
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of the TotangoResource this asset depends on for authentication",
+      "required": false,
+      "default": "totango_resource",
+      "ui:widget": "resource-picker"
     }
   },
   "tags": [

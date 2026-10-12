@@ -147,7 +147,7 @@ class VitallyAccountsIngestionComponent(Component, Model, Resolvable):
         type: dagster_component_templates.VitallyAccountsIngestionComponent
         attributes:
           asset_name: vitally_accounts
-          resource_name: vitally_resource
+          resource_key: vitally_resource
           status: active
           limit: 2000
         ```
@@ -155,7 +155,7 @@ class VitallyAccountsIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="vitally_resource",
         description="Key of the VitallyResource this asset depends on for authentication",
     )
@@ -244,7 +244,7 @@ class VitallyAccountsIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         status = self.status
         sort_by = self.sort_by
         limit = self.limit
@@ -275,7 +275,7 @@ class VitallyAccountsIngestionComponent(Component, Model, Resolvable):
             owners=owners,
             tags=_all_tags,
             group_name=group_name,
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             partitions_def=partitions_def,
         )
@@ -291,7 +291,7 @@ class VitallyAccountsIngestionComponent(Component, Model, Resolvable):
                 except Exception:
                     pass  # static/dynamic/multi partition -- no natural time window
 
-            client = getattr(context.resources, resource_name)
+            client = getattr(context.resources, resource_key)
             context.log.info(f"Fetching Vitally accounts: status={status}, limit={limit}")
 
             accounts: List[Dict[str, Any]] = []

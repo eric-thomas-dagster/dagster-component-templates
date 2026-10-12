@@ -144,7 +144,7 @@ def test_build_partitions_def_static():
 # --- 5. Full asset execution (fake client, no real HTTP) ---------------------
 
 class _FakeMondayClient:
-    """Stands in for the resource at `context.resources.<resource_name>` --
+    """Stands in for the resource at `context.resources.<resource_key>` --
     the asset calls `client.execute(query, variables)` directly, so this
     fake just needs that one method, dispatching on which query shape it
     receives (an initial `boards(...)` query vs. a `next_items_page` query)."""

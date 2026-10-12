@@ -20,14 +20,6 @@
       "description": "Output asset name.",
       "required": true
     },
-    "resource_name": {
-      "type": "string",
-      "label": "Resource Name",
-      "description": "Resource key of the SupabaseResource providing the client.",
-      "required": false,
-      "default": "supabase_resource",
-      "ui:widget": "resource-picker"
-    },
     "table_name": {
       "type": "string",
       "label": "Table Name",
@@ -139,6 +131,14 @@
       "label": "Owners",
       "required": false,
       "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Resource key of the SupabaseResource providing the client.",
+      "required": false,
+      "default": "supabase_resource",
+      "ui:widget": "resource-picker"
     }
   },
   "tags": [

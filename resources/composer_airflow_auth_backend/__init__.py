@@ -1,3 +1,3 @@
-from .component import ComposerAirflowAuthBackendComponent
+from .component import ComposerAirflowAuthBackendResourceComponent
 
-__all__ = ["ComposerAirflowAuthBackendComponent"]
+__all__ = ["ComposerAirflowAuthBackendResourceComponent"]

@@ -295,7 +295,7 @@ def test_build_partitions_def_daily_without_start_raises():
 # --- 4. Full asset execution (fake resource client, no real HTTP) -----------
 
 class _FakeSageIntacctClient:
-    """Stands in for the resource at `context.resources.<resource_name>` --
+    """Stands in for the resource at `context.resources.<resource_key>` --
     the asset calls `client.read_by_query` / `client.read_more` directly, so
     this fake just needs those two methods."""
 

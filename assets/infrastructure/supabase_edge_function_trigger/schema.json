@@ -22,14 +22,6 @@
       "description": "Edge Function name (slug deployed to /functions/v1/<function-name>).",
       "required": true
     },
-    "resource_name": {
-      "type": "string",
-      "label": "Resource Name",
-      "description": "Resource key of the SupabaseResource providing the client.",
-      "required": false,
-      "default": "supabase_resource",
-      "ui:widget": "resource-picker"
-    },
     "payload": {
       "type": "object",
       "label": "Payload",
@@ -92,6 +84,14 @@
       "label": "Kinds",
       "required": false,
       "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Resource key of the SupabaseResource providing the client.",
+      "required": false,
+      "default": "supabase_resource",
+      "ui:widget": "resource-picker"
     }
   },
   "tags": [

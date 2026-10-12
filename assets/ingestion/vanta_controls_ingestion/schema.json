@@ -20,13 +20,6 @@
       "description": "Name of the Dagster asset to create",
       "required": true
     },
-    "resource_name": {
-      "type": "string",
-      "label": "Vanta Resource",
-      "description": "Resource key of a registered vanta_resource",
-      "required": false,
-      "default": "vanta_resource"
-    },
     "framework": {
       "type": "string",
       "label": "Framework",
@@ -80,6 +73,14 @@
       "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
       "required": false,
       "default": 25
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Vanta Resource",
+      "description": "Resource key of a registered vanta_resource",
+      "required": false,
+      "default": "vanta_resource",
+      "ui:widget": "resource-picker"
     }
   },
   "tags": [

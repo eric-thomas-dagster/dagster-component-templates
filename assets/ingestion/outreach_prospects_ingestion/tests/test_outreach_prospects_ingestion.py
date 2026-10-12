@@ -210,8 +210,8 @@ def test_default_kinds_tag_outreach_and_python(mod):
     assert "dagster/kind/python" in spec.tags
 
 
-def test_required_resource_keys_includes_configured_resource_name(mod):
-    component = mod.OutreachProspectsIngestionComponent(asset_name="x", resource_name="my_outreach")
+def test_required_resource_keys_includes_configured_resource_key(mod):
+    component = mod.OutreachProspectsIngestionComponent(asset_name="x", resource_key="my_outreach")
     defs = component.build_defs(context=None)
     asset_def = list(defs.assets)[0]
     assert "my_outreach" in asset_def.required_resource_keys

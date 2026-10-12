@@ -46,7 +46,7 @@ Also requires a `SageIntacctResourceComponent` on the same code location for aut
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"sage_intacct_resource"` | Key of the SageIntacctResource this asset depends on for authentication |
+| `resource_key` | `str` | `"sage_intacct_resource"` | Key of the SageIntacctResource this asset depends on for authentication |
 | `object_name` | `str` | `"ARINVOICE"` | Intacct object to query. Defaults to ARINVOICE (AR Invoices). |
 | `fields` | `List[str]` | — | Fields to select from the object. Defaults to a standard ARINVOICE field set if unset. |
 | `date_field` | `str` | `"WHENCREATED"` | Intacct date field used for from_date/to_date range filtering (e.g. 'WHENCREATED', 'WHENPOSTED', 'WHENDUE'). |
@@ -64,7 +64,7 @@ Also requires a `SageIntacctResourceComponent` on the same code location for aut
 type: dagster_component_templates.SageIntacctArInvoicesIngestionComponent
 attributes:
   asset_name: sage_intacct_ar_invoices
-  resource_name: sage_intacct_resource
+  resource_key: sage_intacct_resource
   from_date: "2026-06-01"
   to_date: "2026-07-01"
   limit: 5000

@@ -44,7 +44,7 @@ Also requires an `OutreachResourceComponent` on the same code location for authe
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"outreach_resource"` | Key of the OutreachResource this asset depends on for authentication |
+| `resource_key` | `str` | `"outreach_resource"` | Key of the OutreachResource this asset depends on for authentication |
 | `updated_after` | `str` | — | Only fetch prospects updated at/after this ISO-8601 timestamp |
 | `updated_before` | `str` | — | Only fetch prospects updated before this ISO-8601 timestamp |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
@@ -58,7 +58,7 @@ Also requires an `OutreachResourceComponent` on the same code location for authe
 type: dagster_component_templates.OutreachProspectsIngestionComponent
 attributes:
   asset_name: outreach_prospects
-  resource_name: outreach_resource
+  resource_key: outreach_resource
   updated_after: "2026-06-01T00:00:00Z"
   updated_before: "2026-07-01T00:00:00Z"
   limit: 10000

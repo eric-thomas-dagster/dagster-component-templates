@@ -48,7 +48,7 @@ Also requires a `DriftResourceComponent` on the same code location for authentic
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"drift_resource"` | Key of the DriftResource this asset depends on for authentication |
+| `resource_key` | `str` | `"drift_resource"` | Key of the DriftResource this asset depends on for authentication |
 | `from_date_time` | `str` | — | Start of the conversation window (ISO-8601). Client-side filter only (see below). |
 | `to_date_time` | `str` | — | End of the conversation window (ISO-8601). Client-side filter only. |
 | `status_id` | `int` | — | Filter by status: 1=OPEN, 2=CLOSED, 3=PENDING |
@@ -64,7 +64,7 @@ Also requires a `DriftResourceComponent` on the same code location for authentic
 type: dagster_component_templates.DriftConversationsIngestionComponent
 attributes:
   asset_name: drift_conversations
-  resource_name: drift_resource
+  resource_key: drift_resource
   from_date_time: "2026-06-01T00:00:00Z"
   to_date_time: "2026-07-01T00:00:00Z"
   include_messages: true

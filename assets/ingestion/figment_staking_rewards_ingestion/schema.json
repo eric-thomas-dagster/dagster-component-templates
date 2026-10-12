@@ -17,13 +17,6 @@
       "description": "Name of the asset to create",
       "required": true
     },
-    "resource_name": {
-      "type": "string",
-      "label": "Resource Name",
-      "description": "Key of the FigmentResource this asset depends on for authentication",
-      "required": false,
-      "default": "figment_resource"
-    },
     "network": {
       "type": "string",
       "label": "Network",
@@ -36,7 +29,11 @@
       "description": "Granularity for network='ethereum': 'epoch' / 'daily' / 'all_time'. Not used for network='solana'.",
       "required": false,
       "default": "epoch",
-      "enum": ["epoch", "daily", "all_time"],
+      "enum": [
+        "epoch",
+        "daily",
+        "all_time"
+      ],
       "ui:widget": "select"
     },
     "start": {
@@ -107,7 +104,9 @@
     "owners": {
       "description": "Asset owners -- list of team names or email addresses, e.g. ['team:finance', 'user@company.com']",
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Owners",
       "required": false,
       "ui:widget": "list"
@@ -121,7 +120,9 @@
     },
     "kinds": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Kinds",
       "description": "Asset kinds. Defaults to ['figment', 'python'].",
       "required": false,
@@ -144,11 +145,21 @@
     },
     "deps": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Deps",
       "description": "Lineage-only upstream asset keys (no data passed at runtime)",
       "required": false,
       "ui:widget": "list"
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of the FigmentResource this asset depends on for authentication",
+      "required": false,
+      "default": "figment_resource",
+      "ui:widget": "resource-picker"
     }
   },
   "tags": [

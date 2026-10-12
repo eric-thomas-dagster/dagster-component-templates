@@ -17,13 +17,6 @@
       "description": "Name of the asset to create",
       "required": true
     },
-    "resource_name": {
-      "type": "string",
-      "label": "Resource Name",
-      "description": "Key of the GainsightResource this asset depends on for authentication",
-      "required": false,
-      "default": "gainsight_resource"
-    },
     "object_name": {
       "type": "string",
       "label": "Object Name",
@@ -33,7 +26,9 @@
     },
     "select_fields": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Select Fields",
       "description": "Fields to select from the object. Health score field names are org-specific custom fields in most Gainsight tenants.",
       "required": false,
@@ -98,9 +93,11 @@
     },
     "owners": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Owners",
-      "description": "Asset owners — team names (team:customer-success) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:customer-success) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -113,7 +110,9 @@
     },
     "kinds": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Kinds",
       "description": "Asset kinds shown in the Dagster catalog. Defaults to ['gainsight', 'python'].",
       "required": false,
@@ -136,7 +135,9 @@
     },
     "deps": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Deps",
       "description": "Lineage-only upstream asset keys (no data passed at runtime)",
       "required": false,
@@ -148,7 +149,15 @@
       "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned.",
       "required": false,
       "default": null,
-      "enum": ["daily", "weekly", "monthly", "hourly", "static", "multi", "dynamic"],
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
       "ui:widget": "select"
     },
     "partition_start": {
@@ -174,11 +183,21 @@
     },
     "partition_dimensions": {
       "type": "array",
-      "items": {"type": "object"},
+      "items": {
+        "type": "object"
+      },
       "label": "Partition Dimensions",
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of the GainsightResource this asset depends on for authentication",
+      "required": false,
+      "default": "gainsight_resource",
+      "ui:widget": "resource-picker"
     }
   },
   "tags": [

@@ -1,7 +1,7 @@
 type: dagster_component_templates.OutreachProspectsIngestionComponent
 attributes:
   asset_name: outreach_prospects
-  resource_name: outreach_resource
+  resource_key: outreach_resource
   updated_after: "2026-06-01T00:00:00Z"
   updated_before: "2026-07-01T00:00:00Z"
   limit: 10000

@@ -1,4 +1,4 @@
-type: dagster_component_templates.ComposerAirflowAuthBackendComponent
+type: dagster_component_templates.ComposerAirflowAuthBackendResourceComponent
 attributes:
   resource_key: composer_airflow_auth
   airflow_url: https://abc123-dot-us-central1.composer.googleusercontent.com

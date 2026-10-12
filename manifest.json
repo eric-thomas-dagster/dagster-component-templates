@@ -10423,7 +10423,7 @@
       "id": "composer_airflow_auth_backend",
       "name": "Composer Airflow Auth Backend",
       "category": "resource",
-      "description": "ComposerAirflowAuthBackendComponent \u2014 dagster-airlift auth backend for Cloud Composer.",
+      "description": "ComposerAirflowAuthBackendResourceComponent \u2014 dagster-airlift auth backend for Cloud Composer.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "resources/composer_airflow_auth_backend",

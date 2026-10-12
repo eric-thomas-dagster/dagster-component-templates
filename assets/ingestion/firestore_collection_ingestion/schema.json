@@ -2,7 +2,6 @@
   "component_type": "dagster_component_templates.FirestoreCollectionIngestionComponent",
   "description": "Read a Firestore collection (or subcollection) into a pandas DataFrame.",
   "category": "source",
-
   "vertical": "database",
   "icon": "si:firebase",
   "x-dagster-io": {
@@ -18,18 +17,10 @@
       "description": "Name of the asset to create.",
       "required": true
     },
-    "resource_name": {
-      "type": "string",
-      "label": "Resource Name",
-      "description": "Name of the FirebaseResource this asset uses.",
-      "required": false,
-      "default": "firebase_resource",
-      "ui:widget": "resource-picker"
-    },
     "collection_path": {
       "type": "string",
       "label": "Collection Path",
-      "description": "Firestore path — e.g. 'users' or 'orders/{order_id}/items'.",
+      "description": "Firestore path \u2014 e.g. 'users' or 'orders/{order_id}/items'.",
       "required": true
     },
     "where_clauses": {
@@ -102,6 +93,14 @@
       "description": "Rows to include in the preview.",
       "required": false,
       "default": 25
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Name of the FirebaseResource this asset uses.",
+      "required": false,
+      "default": "firebase_resource",
+      "ui:widget": "resource-picker"
     }
   },
   "tags": [

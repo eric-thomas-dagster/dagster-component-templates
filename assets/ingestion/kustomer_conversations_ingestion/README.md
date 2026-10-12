@@ -48,7 +48,7 @@ Also requires a `KustomerResourceComponent` on the same code location for authen
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"kustomer_resource"` | Key of the KustomerResource this asset depends on for authentication |
+| `resource_key` | `str` | `"kustomer_resource"` | Key of the KustomerResource this asset depends on for authentication |
 | `from_date_time` | `str` | — | Start of the conversation window (ISO-8601). Server-side filter. |
 | `to_date_time` | `str` | — | End of the conversation window (ISO-8601). Server-side filter. |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
@@ -62,7 +62,7 @@ Also requires a `KustomerResourceComponent` on the same code location for authen
 type: dagster_component_templates.KustomerConversationsIngestionComponent
 attributes:
   asset_name: kustomer_conversations
-  resource_name: kustomer_resource
+  resource_key: kustomer_resource
   from_date_time: "2026-06-01T00:00:00.000Z"
   to_date_time: "2026-07-01T00:00:00.000Z"
   limit: 500

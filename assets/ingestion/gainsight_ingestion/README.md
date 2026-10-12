@@ -45,7 +45,7 @@ Also requires a `GainsightResourceComponent` on the same code location for authe
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"gainsight_resource"` | Key of the GainsightResource this asset depends on for authentication |
+| `resource_key` | `str` | `"gainsight_resource"` | Key of the GainsightResource this asset depends on for authentication |
 | `object_name` | `str` | `"Company"` | Gainsight object to query |
 | `select_fields` | `List[str]` | `["Gsid", "Name", "Csm", "Status", "Stage", "Renewal_Date", "Health_Score"]` | Fields to select |
 | `where_filter` | `dict` | — | Raw Gainsight 'where' clause merged with any date-window filter |
@@ -62,7 +62,7 @@ Also requires a `GainsightResourceComponent` on the same code location for authe
 type: dagster_component_templates.GainsightCompanyIngestionComponent
 attributes:
   asset_name: gainsight_companies
-  resource_name: gainsight_resource
+  resource_key: gainsight_resource
   object_name: Company
   select_fields: ["Gsid", "Name", "Csm", "Status", "Stage", "Renewal_Date", "Health_Score"]
   limit: 2000

@@ -38,7 +38,7 @@ Requires a `SupabaseResource` (see `resources/supabase_resource`).
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"supabase_resource"` | Resource key of the SupabaseResource providing the client. |
+| `resource_key` | `str` | `"supabase_resource"` | Resource key of the SupabaseResource providing the client. |
 | `payload` | `Dict[str, Any]` | — | JSON body to POST to the edge function. If omitted, an empty body is sent. |
 | `wait_for_result` | `bool` | `true` | Whether to wait for the function to complete and capture its response. Set false for fire-and-forget style invocations (still HTTP-synchronous — Supabase Edge Functions don't expose async invoke — but response body is ignored). |
 | `headers` | `Dict[str, str]` | — | Extra HTTP headers to forward to the edge function. |
@@ -52,7 +52,7 @@ type: dagster_component_templates.SupabaseEdgeFunctionTriggerComponent
 attributes:
   asset_key: supabase/send_welcome_email
   function_name: send-welcome-email
-  resource_name: supabase_resource
+  resource_key: supabase_resource
   payload:
     user_id: "abc-123"
     template: "welcome_v2"

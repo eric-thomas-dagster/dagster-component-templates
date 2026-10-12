@@ -21,7 +21,7 @@ def mod():
 def _materialize(component, resource, **kwargs):
     defs = component.build_defs(context=None)
     asset_def = list(defs.assets)[0]
-    return dg.materialize([asset_def], resources={component.resource_name: resource}, **kwargs)
+    return dg.materialize([asset_def], resources={component.resource_key: resource}, **kwargs)
 
 
 def test_single_page_materializes_dataframe_with_flattened_attributes(mod):
@@ -155,10 +155,10 @@ def test_default_kinds_and_group_name(mod):
     assert "dagster/kind/python" in spec.tags
 
 
-def test_custom_resource_name_is_required(mod):
+def test_custom_resource_key_is_required(mod):
     resource = FakeKustomerResource([{"data": [make_conversation_object("c1", "2026-06-01T00:00:00.000Z")]}])
     component = mod.KustomerConversationsIngestionComponent(
-        asset_name="kustomer_conversations", resource_name="custom_kustomer"
+        asset_name="kustomer_conversations", resource_key="custom_kustomer"
     )
     defs = component.build_defs(context=None)
     asset_def = list(defs.assets)[0]

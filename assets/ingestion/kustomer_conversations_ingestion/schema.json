@@ -17,13 +17,6 @@
       "description": "Name of the asset to create",
       "required": true
     },
-    "resource_name": {
-      "type": "string",
-      "label": "Resource Name",
-      "description": "Key of the KustomerResource this asset depends on for authentication",
-      "required": false,
-      "default": "kustomer_resource"
-    },
     "from_date_time": {
       "type": "string",
       "label": "From Date/Time",
@@ -80,7 +73,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners — team names (team:support) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:support) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },
@@ -173,6 +166,14 @@
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of the KustomerResource this asset depends on for authentication",
+      "required": false,
+      "default": "kustomer_resource",
+      "ui:widget": "resource-picker"
     }
   },
   "tags": [

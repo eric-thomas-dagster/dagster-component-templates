@@ -31,7 +31,7 @@ class SupabaseEdgeFunctionTriggerComponent(Component, Model, Resolvable):
     function_name: str = Field(
         description="Edge Function name (the slug deployed to /functions/v1/<function-name>).",
     )
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="supabase_resource",
         description="Resource key of the SupabaseResource providing the client.",
     )
@@ -61,7 +61,7 @@ class SupabaseEdgeFunctionTriggerComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_key_str = self.asset_key
         function_name = self.function_name
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         payload = self.payload
         wait_for_result = self.wait_for_result
         extra_headers = dict(self.headers or {})
@@ -76,10 +76,10 @@ class SupabaseEdgeFunctionTriggerComponent(Component, Model, Resolvable):
             tags=self.tags or None,
             owners=self.owners or None,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])] or None,
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
         )
         def _asset(context: AssetExecutionContext):
-            supabase_resource = getattr(context.resources, resource_name)
+            supabase_resource = getattr(context.resources, resource_key)
             client = supabase_resource.get_client()
 
             body = payload if payload is not None else {}

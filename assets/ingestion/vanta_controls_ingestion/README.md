@@ -48,7 +48,7 @@ Pairs with `vanta_resource` for OAuth2 client-credentials auth (cached tokens).
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"vanta_resource"` | Resource key of a registered `vanta_resource` (VantaResource instance) |
+| `resource_key` | `str` | `"vanta_resource"` | Resource key of a registered `vanta_resource` (VantaResource instance) |
 | `framework` | `str` | — | Filter controls by compliance framework, e.g. 'soc2', 'iso27001', 'hipaa', 'pci'. Omit for all. |
 | `status` | `str` | — | Filter controls by status, e.g. 'OK', 'NEEDS_ATTENTION', 'DEACTIVATED'. Omit for all. |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
@@ -62,7 +62,7 @@ Pairs with `vanta_resource` for OAuth2 client-credentials auth (cached tokens).
 type: dagster_community_components.VantaControlsIngestionComponent
 attributes:
   asset_name: vanta_soc2_controls
-  resource_name: vanta_resource
+  resource_key: vanta_resource
   framework: soc2
   limit: 1000
 ```

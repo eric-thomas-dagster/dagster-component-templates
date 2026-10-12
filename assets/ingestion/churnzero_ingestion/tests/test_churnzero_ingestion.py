@@ -49,7 +49,7 @@ class FakeChurnZeroResource:
 
 
 def _make_component(mod, **overrides):
-    kwargs = dict(asset_name="churnzero_accounts", resource_name="churnzero_resource")
+    kwargs = dict(asset_name="churnzero_accounts", resource_key="churnzero_resource")
     kwargs.update(overrides)
     return mod.ChurnZeroAccountsIngestionComponent(**kwargs)
 
@@ -59,7 +59,7 @@ def _materialize(component, fake_resource, partition_key=None):
     asset_def = list(defs.assets)[0]
     return dg.materialize(
         [asset_def],
-        resources={component.resource_name: fake_resource},
+        resources={component.resource_key: fake_resource},
         partition_key=partition_key,
     )
 
@@ -181,8 +181,8 @@ def test_preview_metadata_excluded_when_disabled(mod):
     assert "preview" not in meta
 
 
-def test_custom_resource_name(mod):
+def test_custom_resource_key(mod):
     fake = FakeChurnZeroResource(pages=[([{"Id": "1"}], None)])
-    component = _make_component(mod, resource_name="my_churnzero")
+    component = _make_component(mod, resource_key="my_churnzero")
     result = _materialize(component, fake)
     assert result.success

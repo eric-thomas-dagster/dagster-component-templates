@@ -33,7 +33,7 @@ class FakeGainsightResource:
 
 
 def _make_component(mod, **overrides):
-    kwargs = dict(asset_name="gainsight_companies", resource_name="gainsight_resource")
+    kwargs = dict(asset_name="gainsight_companies", resource_key="gainsight_resource")
     kwargs.update(overrides)
     return mod.GainsightCompanyIngestionComponent(**kwargs)
 
@@ -43,7 +43,7 @@ def _materialize(component, fake_resource, partition_key=None):
     asset_def = list(defs.assets)[0]
     return dg.materialize(
         [asset_def],
-        resources={component.resource_name: fake_resource},
+        resources={component.resource_key: fake_resource},
         partition_key=partition_key,
     )
 
@@ -162,9 +162,9 @@ def test_preview_metadata_excluded_when_disabled(mod):
     assert "preview" not in meta
 
 
-def test_custom_resource_name(mod):
+def test_custom_resource_key(mod):
     fake = FakeGainsightResource(pages=[[{"Gsid": "1"}]])
-    component = _make_component(mod, resource_name="my_gainsight")
+    component = _make_component(mod, resource_key="my_gainsight")
     result = _materialize(component, fake)
     assert result.success
 

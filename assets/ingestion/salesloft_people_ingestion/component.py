@@ -139,7 +139,7 @@ class SalesloftPeopleIngestionComponent(Component, Model, Resolvable):
         type: dagster_component_templates.SalesloftPeopleIngestionComponent
         attributes:
           asset_name: salesloft_people
-          resource_name: salesloft_resource
+          resource_key: salesloft_resource
           updated_after: "2026-06-01T00:00:00Z"
           updated_before: "2026-07-01T00:00:00Z"
           limit: 5000
@@ -148,7 +148,7 @@ class SalesloftPeopleIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="salesloft_resource",
         description="Key of the SalesloftResource this asset depends on for authentication",
     )
@@ -237,7 +237,7 @@ class SalesloftPeopleIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         updated_after = self.updated_after
         updated_before = self.updated_before
         per_page = self.per_page
@@ -268,7 +268,7 @@ class SalesloftPeopleIngestionComponent(Component, Model, Resolvable):
             owners=owners,
             tags=_all_tags,
             group_name=group_name,
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             partitions_def=partitions_def,
         )
@@ -284,7 +284,7 @@ class SalesloftPeopleIngestionComponent(Component, Model, Resolvable):
                 except Exception:
                     pass  # static/dynamic/multi partition -- no natural time window
 
-            resource = getattr(context.resources, resource_name)
+            resource = getattr(context.resources, resource_key)
             context.log.info(
                 f"Fetching Salesloft people: updated {_updated_after or '-inf'} → {_updated_before or '+inf'}, limit={limit}"
             )

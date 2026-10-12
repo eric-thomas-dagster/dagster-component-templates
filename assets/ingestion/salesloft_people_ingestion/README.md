@@ -44,7 +44,7 @@ Also requires a `SalesloftResourceComponent` on the same code location for authe
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"salesloft_resource"` | Key of the SalesloftResource this asset depends on for authentication |
+| `resource_key` | `str` | `"salesloft_resource"` | Key of the SalesloftResource this asset depends on for authentication |
 | `updated_after` | `str` | — | Only fetch people updated at/after this ISO-8601 timestamp |
 | `updated_before` | `str` | — | Only fetch people updated before this ISO-8601 timestamp |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
@@ -58,7 +58,7 @@ Also requires a `SalesloftResourceComponent` on the same code location for authe
 type: dagster_component_templates.SalesloftPeopleIngestionComponent
 attributes:
   asset_name: salesloft_people
-  resource_name: salesloft_resource
+  resource_key: salesloft_resource
   updated_after: "2026-06-01T00:00:00Z"
   updated_before: "2026-07-01T00:00:00Z"
   limit: 5000

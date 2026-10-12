@@ -22,14 +22,6 @@
       "description": "Firebase Storage bucket name (e.g. '<project>.appspot.com'). Empty falls back to the FirebaseResource default.",
       "required": true
     },
-    "resource_name": {
-      "type": "string",
-      "label": "Resource Name",
-      "description": "Name of the FirebaseResource this sensor uses.",
-      "required": false,
-      "default": "firebase_resource",
-      "ui:widget": "resource-picker"
-    },
     "prefix": {
       "type": "string",
       "label": "Prefix",
@@ -71,7 +63,18 @@
       "description": "Initial sensor status.",
       "required": false,
       "default": "stopped",
-      "enum": ["running", "stopped"]
+      "enum": [
+        "running",
+        "stopped"
+      ]
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Name of the FirebaseResource this sensor uses.",
+      "required": false,
+      "default": "firebase_resource",
+      "ui:widget": "resource-picker"
     }
   },
   "tags": [

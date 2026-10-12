@@ -211,7 +211,7 @@ class MondayBoardItemsIngestionComponent(Component, Model, Resolvable):
         type: dagster_component_templates.MondayBoardItemsIngestionComponent
         attributes:
           asset_name: monday_board_items
-          resource_name: monday_resource
+          resource_key: monday_resource
           board_id: "1234567890"
           limit: 2000
         ```
@@ -219,7 +219,7 @@ class MondayBoardItemsIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="monday_resource",
         description="Key of the MondayResource this asset depends on for authentication",
     )
@@ -305,7 +305,7 @@ class MondayBoardItemsIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         board_id = self.board_id
         column_ids = list(self.column_ids) if self.column_ids else None
         page_size = self.page_size
@@ -339,12 +339,12 @@ class MondayBoardItemsIngestionComponent(Component, Model, Resolvable):
             owners=owners,
             tags=_all_tags,
             group_name=group_name,
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             partitions_def=partitions_def,
         )
         def monday_board_items_ingestion_asset(context: AssetExecutionContext):
-            client = getattr(context.resources, resource_name)
+            client = getattr(context.resources, resource_key)
             context.log.info(f"Fetching monday.com items for board {board_id}, limit={limit}")
 
             # --- Walk items_page -> next_items_page until cursor is exhausted ---

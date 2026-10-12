@@ -39,7 +39,7 @@ class FakeTotangoResource:
 
 
 def _make_component(mod, **overrides):
-    kwargs = dict(asset_name="totango_accounts", resource_name="totango_resource")
+    kwargs = dict(asset_name="totango_accounts", resource_key="totango_resource")
     kwargs.update(overrides)
     return mod.TotangoAccountsIngestionComponent(**kwargs)
 
@@ -49,7 +49,7 @@ def _materialize(component, fake_resource, partition_key=None):
     asset_def = list(defs.assets)[0]
     return dg.materialize(
         [asset_def],
-        resources={component.resource_name: fake_resource},
+        resources={component.resource_key: fake_resource},
         partition_key=partition_key,
     )
 
@@ -200,8 +200,8 @@ def test_preview_metadata_excluded_when_disabled(mod):
     assert "preview" not in meta
 
 
-def test_custom_resource_name(mod):
+def test_custom_resource_key(mod):
     fake = FakeTotangoResource(pages=[[{"name": "a1"}]])
-    component = _make_component(mod, resource_name="my_totango")
+    component = _make_component(mod, resource_key="my_totango")
     result = _materialize(component, fake)
     assert result.success

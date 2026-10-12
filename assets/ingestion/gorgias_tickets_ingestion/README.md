@@ -47,7 +47,7 @@ Also requires a `GorgiasResourceComponent` on the same code location for authent
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"gorgias_resource"` | Key of the GorgiasResource this asset depends on for authentication |
+| `resource_key` | `str` | `"gorgias_resource"` | Key of the GorgiasResource this asset depends on for authentication |
 | `from_date_time` | `str` | — | Start of the ticket window (ISO-8601). Client-side filter only (see below). |
 | `to_date_time` | `str` | — | End of the ticket window (ISO-8601). Client-side filter only. |
 | `order_by` | `str` | `"created_datetime:desc"` | Gorgias order_by param |
@@ -62,7 +62,7 @@ Also requires a `GorgiasResourceComponent` on the same code location for authent
 type: dagster_component_templates.GorgiasTicketsIngestionComponent
 attributes:
   asset_name: gorgias_tickets
-  resource_name: gorgias_resource
+  resource_key: gorgias_resource
   from_date_time: "2026-06-01T00:00:00Z"
   to_date_time: "2026-07-01T00:00:00Z"
   order_by: "created_datetime:desc"

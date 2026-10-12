@@ -17,13 +17,6 @@
       "description": "Name of the asset to create",
       "required": true
     },
-    "resource_name": {
-      "type": "string",
-      "label": "Resource Name",
-      "description": "Key of the GongResource this asset depends on for authentication",
-      "required": false,
-      "default": "gong_resource"
-    },
     "from_date_time": {
       "type": "string",
       "label": "From Date/Time",
@@ -167,6 +160,14 @@
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of the GongResource this asset depends on for authentication",
+      "required": false,
+      "default": "gong_resource",
+      "ui:widget": "resource-picker"
     }
   },
   "tags": [

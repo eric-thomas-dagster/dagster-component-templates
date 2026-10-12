@@ -41,7 +41,7 @@ class VantaControlsIngestionComponent(Component, Model, Resolvable):
         type: dagster_community_components.VantaControlsIngestionComponent
         attributes:
           asset_name: vanta_soc2_controls
-          resource_name: vanta_resource
+          resource_key: vanta_resource
           framework: soc2
           limit: 1000
         ```
@@ -49,7 +49,7 @@ class VantaControlsIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the Dagster asset to create")
 
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="vanta_resource",
         description="Resource key of a registered `vanta_resource` (VantaResource instance)",
     )
@@ -131,7 +131,7 @@ class VantaControlsIngestionComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         component = self
         asset_name = self.asset_name
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         description = self.description or (
             f"Vanta compliance controls"
             + (f" ({self.framework})" if self.framework else "")
@@ -158,10 +158,10 @@ class VantaControlsIngestionComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             group_name=self.group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
         )
         def vanta_controls_ingestion_asset(context: AssetExecutionContext):
-            vanta = getattr(context.resources, resource_name)
+            vanta = getattr(context.resources, resource_key)
             session = vanta.get_client()
             base_url = vanta.api_base_url.rstrip("/")
             url = f"{base_url}{component.api_path}"

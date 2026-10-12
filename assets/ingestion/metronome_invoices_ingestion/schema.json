@@ -17,13 +17,6 @@
       "description": "Name of the asset to create",
       "required": true
     },
-    "resource_name": {
-      "type": "string",
-      "label": "Resource Name",
-      "description": "Key of the MetronomeResource this asset depends on for authentication",
-      "required": false,
-      "default": "metronome_resource"
-    },
     "customer_ids": {
       "type": "array",
       "label": "Customer IDs",
@@ -84,7 +77,9 @@
     },
     "owners": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Owners",
       "description": "Asset owners -- team names (team:finance) or email addresses.",
       "required": false,
@@ -99,7 +94,9 @@
     },
     "kinds": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Kinds",
       "description": "Asset kinds shown in the Dagster catalog. Defaults to ['metronome', 'python'].",
       "required": false,
@@ -122,11 +119,21 @@
     },
     "deps": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Deps",
       "description": "Lineage-only upstream asset keys (no data passed at runtime)",
       "required": false,
       "ui:widget": "list"
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key of the MetronomeResource this asset depends on for authentication",
+      "required": false,
+      "default": "metronome_resource",
+      "ui:widget": "resource-picker"
     }
   },
   "tags": [

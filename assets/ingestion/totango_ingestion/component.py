@@ -140,7 +140,7 @@ class TotangoAccountsIngestionComponent(Component, Model, Resolvable):
         type: dagster_component_templates.TotangoAccountsIngestionComponent
         attributes:
           asset_name: totango_accounts
-          resource_name: totango_resource
+          resource_key: totango_resource
           fields: ["name", "display_name", "health", "last_activity_time"]
           limit: 2000
         ```
@@ -148,7 +148,7 @@ class TotangoAccountsIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="totango_resource",
         description="Key of the TotangoResource this asset depends on for authentication",
     )
@@ -259,7 +259,7 @@ class TotangoAccountsIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         base_terms = list(self.terms) if self.terms else []
         fields = list(self.fields)
         date_term_name = self.date_term_name
@@ -296,7 +296,7 @@ class TotangoAccountsIngestionComponent(Component, Model, Resolvable):
             owners=owners,
             tags=_all_tags,
             group_name=group_name,
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             partitions_def=partitions_def,
         )
@@ -319,7 +319,7 @@ class TotangoAccountsIngestionComponent(Component, Model, Resolvable):
                     range_params["lte"] = _before
                 terms.append({"type": "range", "term": date_term_name, "params": range_params})
 
-            client = getattr(context.resources, resource_name)
+            client = getattr(context.resources, resource_key)
             context.log.info(f"Fetching Totango accounts: terms={terms}, limit={limit}")
 
             accounts: List[Dict[str, Any]] = []

@@ -144,7 +144,7 @@ class KustomerConversationsIngestionComponent(Component, Model, Resolvable):
         type: dagster_component_templates.KustomerConversationsIngestionComponent
         attributes:
           asset_name: kustomer_conversations
-          resource_name: kustomer_resource
+          resource_key: kustomer_resource
           from_date_time: "2026-06-01T00:00:00.000Z"
           to_date_time: "2026-07-01T00:00:00.000Z"
           limit: 500
@@ -153,7 +153,7 @@ class KustomerConversationsIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="kustomer_resource",
         description="Key of the KustomerResource this asset depends on for authentication",
     )
@@ -254,7 +254,7 @@ class KustomerConversationsIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         from_dt = self.from_date_time
         to_dt = self.to_date_time
         limit = self.limit
@@ -289,7 +289,7 @@ class KustomerConversationsIngestionComponent(Component, Model, Resolvable):
             owners=owners,
             tags=_all_tags,
             group_name=group_name,
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             partitions_def=partitions_def,
         )
@@ -305,7 +305,7 @@ class KustomerConversationsIngestionComponent(Component, Model, Resolvable):
                 except Exception:
                     pass  # static/dynamic/multi partition -- no natural time window
 
-            resource = getattr(context.resources, resource_name)
+            resource = getattr(context.resources, resource_key)
             context.log.info(
                 f"Fetching Kustomer conversations: limit={limit}"
                 + (f", window={_from_dt} -> {_to_dt}" if _from_dt or _to_dt else "")

@@ -199,7 +199,7 @@ class SigmaWorkbookIngestionComponent(Component, Model, Resolvable):
         type: dagster_component_templates.SigmaWorkbookIngestionComponent
         attributes:
           asset_name: sigma_workbook_catalog
-          resource_name: sigma_resource
+          resource_key: sigma_resource
           workbook_limit: 500
           include_elements: true
           input_tables_only: false
@@ -208,7 +208,7 @@ class SigmaWorkbookIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="sigma_resource",
         description="Key of the SigmaResource this asset depends on for authentication",
     )
@@ -310,7 +310,7 @@ class SigmaWorkbookIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         workbook_limit = self.workbook_limit
         page_limit = self.page_limit
         include_elements = self.include_elements
@@ -341,7 +341,7 @@ class SigmaWorkbookIngestionComponent(Component, Model, Resolvable):
             owners=owners,
             tags=_all_tags,
             group_name=group_name,
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             partitions_def=partitions_def,
         )
@@ -354,7 +354,7 @@ class SigmaWorkbookIngestionComponent(Component, Model, Resolvable):
                     f"scheduling cadence)."
                 )
 
-            resource = getattr(context.resources, resource_name)
+            resource = getattr(context.resources, resource_key)
             context.log.info(f"Fetching Sigma workbook catalog (limit={workbook_limit})")
 
             workbooks = _paginate(resource, "v2/workbooks", page_limit, workbook_limit)

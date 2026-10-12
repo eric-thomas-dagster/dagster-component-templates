@@ -37,7 +37,7 @@ class FakeVitallyResource:
 
 
 def _make_component(mod, **overrides):
-    kwargs = dict(asset_name="vitally_accounts", resource_name="vitally_resource")
+    kwargs = dict(asset_name="vitally_accounts", resource_key="vitally_resource")
     kwargs.update(overrides)
     return mod.VitallyAccountsIngestionComponent(**kwargs)
 
@@ -47,7 +47,7 @@ def _materialize(component, fake_resource, partition_key=None):
     asset_def = list(defs.assets)[0]
     return dg.materialize(
         [asset_def],
-        resources={component.resource_name: fake_resource},
+        resources={component.resource_key: fake_resource},
         partition_key=partition_key,
     )
 
@@ -165,8 +165,8 @@ def test_preview_metadata_excluded_when_disabled(mod):
     assert "preview" not in meta
 
 
-def test_custom_resource_name(mod):
+def test_custom_resource_key(mod):
     fake = FakeVitallyResource(pages=[([{"id": "a1"}], None)])
-    component = _make_component(mod, resource_name="my_vitally")
+    component = _make_component(mod, resource_key="my_vitally")
     result = _materialize(component, fake)
     assert result.success

@@ -20,7 +20,7 @@ def mod():
 def _materialize(component, resource):
     defs = component.build_defs(context=None)
     asset_def = list(defs.assets)[0]
-    return dg.materialize([asset_def], resources={component.resource_name: resource})
+    return dg.materialize([asset_def], resources={component.resource_key: resource})
 
 
 def test_single_page_materializes_dataframe(mod):
@@ -143,10 +143,10 @@ def test_default_kinds_and_group_name(mod):
     assert "dagster/kind/python" in spec.tags
 
 
-def test_custom_resource_name_is_required(mod):
+def test_custom_resource_key_is_required(mod):
     resource = FakeGorgiasResource([{"data": [make_ticket(1, "2026-06-01T00:00:00Z")], "meta": {}}])
     component = mod.GorgiasTicketsIngestionComponent(
-        asset_name="gorgias_tickets", resource_name="custom_gorgias"
+        asset_name="gorgias_tickets", resource_key="custom_gorgias"
     )
     defs = component.build_defs(context=None)
     asset_def = list(defs.assets)[0]

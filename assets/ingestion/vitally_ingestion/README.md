@@ -47,7 +47,7 @@ Also requires a `VitallyResourceComponent` on the same code location for authent
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"vitally_resource"` | Key of the VitallyResource this asset depends on for authentication |
+| `resource_key` | `str` | `"vitally_resource"` | Key of the VitallyResource this asset depends on for authentication |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
 
@@ -59,7 +59,7 @@ Also requires a `VitallyResourceComponent` on the same code location for authent
 type: dagster_component_templates.VitallyAccountsIngestionComponent
 attributes:
   asset_name: vitally_accounts
-  resource_name: vitally_resource
+  resource_key: vitally_resource
   status: active
   limit: 2000
 ```

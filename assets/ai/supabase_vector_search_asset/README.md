@@ -35,7 +35,7 @@ Requires a `SupabaseResource` (see `resources/supabase_resource`).
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"supabase_resource"` | Resource key of the SupabaseResource providing the client. |
+| `resource_key` | `str` | `"supabase_resource"` | Resource key of the SupabaseResource providing the client. |
 | `embedding_column` | `str` | `"embedding"` | Vector column on the target table (pgvector type). |
 | `upstream_asset_key` | `str` | — | Upstream DataFrame asset providing query vectors (one search per row). |
 | `query_embedding_column` | `str` | — | Column on the upstream DataFrame holding the query vector (list[float] or ndarray). |
@@ -54,7 +54,7 @@ Requires a `SupabaseResource` (see `resources/supabase_resource`).
 type: dagster_component_templates.SupabaseVectorSearchAssetComponent
 attributes:
   asset_name: doc_matches
-  resource_name: supabase_resource
+  resource_key: supabase_resource
   table_name: documents
   embedding_column: embedding
   upstream_asset_key: query_embeddings

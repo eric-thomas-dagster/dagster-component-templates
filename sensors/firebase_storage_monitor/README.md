@@ -41,7 +41,7 @@ Pair with a `firebase_resource` component in the same Dagster project.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"firebase_resource"` | Name of the FirebaseResource this sensor uses. |
+| `resource_key` | `str` | `"firebase_resource"` | Name of the FirebaseResource this sensor uses. |
 | `blob_pattern` | `str` | `".*"` | Regex matched against the blob name relative to the prefix. |
 | `dynamic_partition_name` | `str` | — | If set, register detected blob names as dynamic partitions under this name and yield RunRequest(partition_key=<name>). |
 
@@ -54,7 +54,7 @@ type: dagster_component_templates.FirebaseStorageMonitorComponent
 attributes:
   sensor_name: firebase_uploads_sensor
   bucket_name: my-project.appspot.com
-  resource_name: firebase_resource
+  resource_key: firebase_resource
   prefix: uploads/
   blob_pattern: ".*\\.(png|jpg|jpeg|webp)$"
   job_name: process_uploaded_images

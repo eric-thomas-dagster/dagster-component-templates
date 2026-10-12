@@ -19,7 +19,7 @@ def mod():
 def _materialize(component, resource):
     defs = component.build_defs(context=None)
     asset_def = list(defs.assets)[0]
-    return dg.materialize([asset_def], resources={component.resource_name: resource})
+    return dg.materialize([asset_def], resources={component.resource_key: resource})
 
 
 def test_explicit_customer_ids_skips_customer_listing(mod, monkeypatch):

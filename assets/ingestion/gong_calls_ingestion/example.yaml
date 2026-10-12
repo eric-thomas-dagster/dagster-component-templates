@@ -1,7 +1,7 @@
 type: dagster_component_templates.GongCallsIngestionComponent
 attributes:
   asset_name: gong_calls
-  resource_name: gong_resource
+  resource_key: gong_resource
   from_date_time: "2026-06-01T00:00:00Z"
   to_date_time: "2026-07-01T00:00:00Z"
   include_transcript: true

@@ -49,7 +49,7 @@ Also requires a `MondayResourceComponent` on the same code location for authenti
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"monday_resource"` | Key of the MondayResource this asset depends on for authentication |
+| `resource_key` | `str` | `"monday_resource"` | Key of the MondayResource this asset depends on for authentication |
 | `column_ids` | `List[str]` | — | Specific column IDs to fetch via column_values(ids: [...]). Fetches all columns if unset. |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
@@ -62,7 +62,7 @@ Also requires a `MondayResourceComponent` on the same code location for authenti
 type: dagster_component_templates.MondayBoardItemsIngestionComponent
 attributes:
   asset_name: monday_board_items
-  resource_name: monday_resource
+  resource_key: monday_resource
   board_id: "1234567890"
   limit: 2000
   group_name: productivity

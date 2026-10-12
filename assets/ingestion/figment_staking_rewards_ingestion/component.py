@@ -145,7 +145,7 @@ class FigmentStakingRewardsIngestionComponent(Component, Model, Resolvable):
         type: dagster_component_templates.FigmentStakingRewardsIngestionComponent
         attributes:
           asset_name: figment_eth_staking_rewards
-          resource_name: figment_resource
+          resource_key: figment_resource
           network: ethereum
           time_rollup: daily
           start: "2026-06-01T00:00:00Z"
@@ -156,7 +156,7 @@ class FigmentStakingRewardsIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="figment_resource",
         description="Key of the FigmentResource this asset depends on for authentication",
     )
@@ -257,7 +257,7 @@ class FigmentStakingRewardsIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         network = self.network
         time_rollup = self.time_rollup
         start = self.start
@@ -296,11 +296,11 @@ class FigmentStakingRewardsIngestionComponent(Component, Model, Resolvable):
             owners=owners,
             tags=_all_tags,
             group_name=group_name,
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def figment_staking_rewards_ingestion_asset(context: AssetExecutionContext):
-            resource = getattr(context.resources, resource_name)
+            resource = getattr(context.resources, resource_key)
             client = resource.get_client()
             base_url = getattr(resource, "base_url", None) or "https://api.figment.io"
 

@@ -88,7 +88,7 @@ class MetronomeInvoicesIngestionComponent(Component, Model, Resolvable):
         type: dagster_component_templates.MetronomeInvoicesIngestionComponent
         attributes:
           asset_name: metronome_invoices
-          resource_name: metronome_resource
+          resource_key: metronome_resource
           invoice_status: FINALIZED
           starting_on: "2026-01-01T00:00:00.000Z"
           ending_before: "2026-07-01T00:00:00.000Z"
@@ -97,7 +97,7 @@ class MetronomeInvoicesIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="metronome_resource",
         description="Key of the MetronomeResource this asset depends on for authentication",
     )
@@ -182,7 +182,7 @@ class MetronomeInvoicesIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         customer_ids = self.customer_ids
         invoice_status = self.invoice_status
         starting_on = self.starting_on
@@ -208,11 +208,11 @@ class MetronomeInvoicesIngestionComponent(Component, Model, Resolvable):
             owners=owners,
             tags=_all_tags,
             group_name=group_name,
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def metronome_invoices_ingestion_asset(context: AssetExecutionContext):
-            resource = getattr(context.resources, resource_name)
+            resource = getattr(context.resources, resource_key)
             client = resource.get_client()
             base_url = getattr(resource, "base_url", None) or "https://api.metronome.com/v1"
 

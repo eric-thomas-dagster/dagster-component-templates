@@ -1,4 +1,4 @@
-"""ComposerAirflowAuthBackendComponent — dagster-airlift auth backend for Cloud Composer.
+"""ComposerAirflowAuthBackendResourceComponent — dagster-airlift auth backend for Cloud Composer.
 
 Cloud Composer's Airflow REST API requires an OIDC ID token with the
 environment's airflow URL as the `target_audience`. dagster-airlift ships
@@ -38,7 +38,7 @@ from dagster import (
 from pydantic import Field
 
 
-class ComposerAirflowAuthBackendComponent(Component, Model, Resolvable):
+class ComposerAirflowAuthBackendResourceComponent(Component, Model, Resolvable):
     """Provide a dagster-airlift AirflowAuthBackend backed by GCP OIDC for Cloud Composer."""
 
     resource_key: str = Field(

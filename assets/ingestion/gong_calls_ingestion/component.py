@@ -136,7 +136,7 @@ class GongCallsIngestionComponent(Component, Model, Resolvable):
         type: dagster_component_templates.GongCallsIngestionComponent
         attributes:
           asset_name: gong_calls
-          resource_name: gong_resource
+          resource_key: gong_resource
           from_date_time: "2026-06-01T00:00:00Z"
           to_date_time: "2026-07-01T00:00:00Z"
           include_transcript: true
@@ -146,7 +146,7 @@ class GongCallsIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="gong_resource",
         description="Key of the GongResource this asset depends on for authentication",
     )
@@ -233,7 +233,7 @@ class GongCallsIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         from_dt = self.from_date_time
         to_dt = self.to_date_time
         include_transcript = self.include_transcript
@@ -267,7 +267,7 @@ class GongCallsIngestionComponent(Component, Model, Resolvable):
             owners=owners,
             tags=_all_tags,
             group_name=group_name,
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             partitions_def=partitions_def,
         )
@@ -287,7 +287,7 @@ class GongCallsIngestionComponent(Component, Model, Resolvable):
                     "Set from_date_time/to_date_time, or a time-based partition_type, to define the call window."
                 )
 
-            client = getattr(context.resources, resource_name).get_client()
+            client = getattr(context.resources, resource_key).get_client()
             context.log.info(f"Fetching Gong calls: {_from_dt} → {_to_dt}, limit={limit}")
 
             # --- 1. List calls (paginated) --------------------------------------

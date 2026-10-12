@@ -45,7 +45,7 @@ Requires a `SupabaseResource` (see `resources/supabase_resource`) providing the 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"supabase_resource"` | Resource key of the SupabaseResource providing the client. |
+| `resource_key` | `str` | `"supabase_resource"` | Resource key of the SupabaseResource providing the client. |
 | `dynamic_partition_name` | `str` | — | Optional name of a DynamicPartitionsDefinition. When set, each new object path is registered as a dynamic partition and RunRequests are keyed on the object path. |
 
 [//]: # (FIELDS:END)
@@ -58,7 +58,7 @@ attributes:
   sensor_name: supabase_incoming_files_sensor
   bucket_name: incoming
   prefix: raw/
-  resource_name: supabase_resource
+  resource_key: supabase_resource
   minimum_interval_seconds: 60
   default_status: stopped
 ```

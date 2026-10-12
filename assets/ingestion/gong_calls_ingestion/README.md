@@ -47,7 +47,7 @@ Also requires a `GongResourceComponent` on the same code location for authentica
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"gong_resource"` | Key of the GongResource this asset depends on for authentication |
+| `resource_key` | `str` | `"gong_resource"` | Key of the GongResource this asset depends on for authentication |
 | `include_transcript` | `bool` | `true` | If true, fetch transcripts via POST /v2/calls/transcript and merge into the DataFrame |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
@@ -60,7 +60,7 @@ Also requires a `GongResourceComponent` on the same code location for authentica
 type: dagster_component_templates.GongCallsIngestionComponent
 attributes:
   asset_name: gong_calls
-  resource_name: gong_resource
+  resource_key: gong_resource
   from_date_time: "2026-06-01T00:00:00Z"
   to_date_time: "2026-07-01T00:00:00Z"
   include_transcript: true

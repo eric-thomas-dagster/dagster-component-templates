@@ -52,7 +52,7 @@ Also requires a `FigmentResourceComponent` on the same code location for authent
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"figment_resource"` | Key of the FigmentResource this asset depends on |
+| `resource_key` | `str` | `"figment_resource"` | Key of the FigmentResource this asset depends on |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
 
@@ -64,7 +64,7 @@ Also requires a `FigmentResourceComponent` on the same code location for authent
 type: dagster_component_templates.FigmentStakingRewardsIngestionComponent
 attributes:
   asset_name: figment_eth_staking_rewards
-  resource_name: figment_resource
+  resource_key: figment_resource
   network: ethereum
   time_rollup: daily
   start: "2026-06-01T00:00:00Z"
@@ -76,7 +76,7 @@ attributes:
 type: dagster_component_templates.FigmentStakingRewardsIngestionComponent
 attributes:
   asset_name: figment_sol_staking_rewards
-  resource_name: figment_resource
+  resource_key: figment_resource
   network: solana
   accounts: ["<stake-or-system-account-address>"]  # max 50 per request
 ```

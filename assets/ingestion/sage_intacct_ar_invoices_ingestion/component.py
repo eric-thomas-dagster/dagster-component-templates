@@ -186,7 +186,7 @@ class SageIntacctArInvoicesIngestionComponent(Component, Model, Resolvable):
         type: dagster_component_templates.SageIntacctArInvoicesIngestionComponent
         attributes:
           asset_name: sage_intacct_ar_invoices
-          resource_name: sage_intacct_resource
+          resource_key: sage_intacct_resource
           from_date: "2026-06-01"
           to_date: "2026-07-01"
           limit: 5000
@@ -195,7 +195,7 @@ class SageIntacctArInvoicesIngestionComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset to create")
 
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="sage_intacct_resource",
         description="Key of the SageIntacctResource this asset depends on for authentication",
     )
@@ -304,7 +304,7 @@ class SageIntacctArInvoicesIngestionComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         object_name = self.object_name
         select_fields = list(self.fields or DEFAULT_ARINVOICE_FIELDS)
         date_field = self.date_field
@@ -343,7 +343,7 @@ class SageIntacctArInvoicesIngestionComponent(Component, Model, Resolvable):
             owners=owners,
             tags=_all_tags,
             group_name=group_name,
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             partitions_def=partitions_def,
         )
@@ -363,7 +363,7 @@ class SageIntacctArInvoicesIngestionComponent(Component, Model, Resolvable):
                     "Set from_date/to_date (or extra_query), or a time-based partition_type, to define the query window."
                 )
 
-            client = getattr(context.resources, resource_name)
+            client = getattr(context.resources, resource_key)
             query_clause = _build_query_clause(date_field, _from_date, _to_date, extra_query)
             context.log.info(
                 f"Fetching Sage Intacct {object_name}: query={query_clause!r}, limit={limit}"

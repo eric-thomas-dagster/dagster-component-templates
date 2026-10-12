@@ -45,7 +45,7 @@ Also requires a `TotangoResourceComponent` on the same code location for authent
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"totango_resource"` | Key of the TotangoResource this asset depends on for authentication |
+| `resource_key` | `str` | `"totango_resource"` | Key of the TotangoResource this asset depends on for authentication |
 | `terms` | `List[dict]` | — | Raw Totango Search API 'terms' filter conditions |
 | `fields` | `List[str]` | `["name", "display_name", "health", "last_activity_time", "status"]` | Account fields to return |
 | `date_term_name` | `str` | `"last_updated"` | Attribute name used to build the optional modified-date range term |
@@ -61,7 +61,7 @@ Also requires a `TotangoResourceComponent` on the same code location for authent
 type: dagster_component_templates.TotangoAccountsIngestionComponent
 attributes:
   asset_name: totango_accounts
-  resource_name: totango_resource
+  resource_key: totango_resource
   fields: ["name", "display_name", "health", "last_activity_time", "status"]
   count: 1000
   limit: 5000

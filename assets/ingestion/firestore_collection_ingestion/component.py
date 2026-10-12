@@ -28,7 +28,7 @@ class FirestoreCollectionIngestionComponent(dg.Component, dg.Model, dg.Resolvabl
     """
 
     asset_name: str = Field(description="Name of the asset to create.")
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="firebase_resource",
         description="Name of the FirebaseResource this asset uses.",
     )
@@ -72,7 +72,7 @@ class FirestoreCollectionIngestionComponent(dg.Component, dg.Model, dg.Resolvabl
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         asset_name = self.asset_name
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         collection_path = self.collection_path
         where_clauses = self.where_clauses or []
         limit = self.limit
@@ -110,12 +110,12 @@ class FirestoreCollectionIngestionComponent(dg.Component, dg.Model, dg.Resolvabl
             group_name=group_name,
             owners=self.owners or [],
             tags=tags,
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
         )
         def firestore_collection_asset(context: dg.AssetExecutionContext) -> dg.Output:
             from google.cloud.firestore_v1.base_query import FieldFilter  # type: ignore
 
-            fb = getattr(context.resources, resource_name)
+            fb = getattr(context.resources, resource_key)
             client = fb.get_firestore()
 
             context.log.info(f"Reading Firestore collection: {collection_path}")

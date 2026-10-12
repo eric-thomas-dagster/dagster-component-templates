@@ -29,14 +29,6 @@
       "required": false,
       "default": ""
     },
-    "resource_name": {
-      "type": "string",
-      "label": "Resource Name",
-      "description": "Resource key of the SupabaseResource providing the client.",
-      "required": false,
-      "default": "supabase_resource",
-      "ui:widget": "resource-picker"
-    },
     "minimum_interval_seconds": {
       "type": "integer",
       "label": "Minimum Interval Seconds",
@@ -64,7 +56,10 @@
       "description": "Default sensor status: 'running' or 'stopped'.",
       "required": false,
       "default": "stopped",
-      "enum": ["running", "stopped"]
+      "enum": [
+        "running",
+        "stopped"
+      ]
     },
     "page_size": {
       "type": "integer",
@@ -72,6 +67,14 @@
       "description": "Page size for storage.list() calls. Supabase caps at 1000.",
       "required": false,
       "default": 1000
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Resource key of the SupabaseResource providing the client.",
+      "required": false,
+      "default": "supabase_resource",
+      "ui:widget": "resource-picker"
     }
   },
   "tags": [

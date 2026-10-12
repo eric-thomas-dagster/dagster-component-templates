@@ -30,7 +30,7 @@ class FirebaseStorageMonitorComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Firebase Storage bucket name (e.g. '<project>.appspot.com'). "
                     "Falls back to the FirebaseResource's default bucket when empty.",
     )
-    resource_name: str = Field(
+    resource_key: str = Field(
         default="firebase_resource",
         description="Name of the FirebaseResource this sensor uses.",
     )
@@ -63,7 +63,7 @@ class FirebaseStorageMonitorComponent(dg.Component, dg.Model, dg.Resolvable):
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         sensor_name = self.sensor_name
         bucket_name = self.bucket_name
-        resource_name = self.resource_name
+        resource_key = self.resource_key
         prefix = self.prefix
         blob_pattern = self.blob_pattern
         job_name = self.job_name
@@ -91,10 +91,10 @@ class FirebaseStorageMonitorComponent(dg.Component, dg.Model, dg.Resolvable):
             minimum_interval_seconds=minimum_interval_seconds,
             default_status=default_status,
             job_name=job_name,
-            required_resource_keys={resource_name},
+            required_resource_keys={resource_key},
         )
         def firebase_storage_sensor(context: dg.SensorEvaluationContext):
-            fb = getattr(context.resources, resource_name)
+            fb = getattr(context.resources, resource_key)
             try:
                 bucket = fb.get_storage(bucket_name or None)
             except Exception as e:

@@ -45,7 +45,7 @@ Also requires a `ChurnZeroResourceComponent` on the same code location for authe
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_name` | `str` | `"churnzero_resource"` | Key of the ChurnZeroResource this asset depends on for authentication |
+| `resource_key` | `str` | `"churnzero_resource"` | Key of the ChurnZeroResource this asset depends on for authentication |
 | `date_field` | `str` | `"ObjectLastModifiedDate"` | Field used to build the optional modified-date $filter |
 | `filter_expr` | `str` | — | Raw OData $filter expression |
 | `order_by` | `str` | `"ObjectLastModifiedDate"` | OData $orderby expression |
@@ -60,7 +60,7 @@ Also requires a `ChurnZeroResourceComponent` on the same code location for authe
 type: dagster_component_templates.ChurnZeroAccountsIngestionComponent
 attributes:
   asset_name: churnzero_accounts
-  resource_name: churnzero_resource
+  resource_key: churnzero_resource
   top: 100
   limit: 2000
 ```

@@ -188,6 +188,13 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
         default=None,
         description=(
             "Per-schema knobs. Keys recognized by specific schemas:\n"
+            "  orders:\n"
+            "    customer_count: int (default 1000) -- upper bound for the generated\n"
+            "      customer_id range (CUST000001-CUST<customer_count:06d>). Set this to\n"
+            "      match the sibling 'customers' asset's row_count so every order\n"
+            "      references a customer that actually exists.\n"
+            "    date_range_days: int (default 365) -- when unpartitioned, how far back\n"
+            "      order_date is sampled from\n"
             "  subscriptions:\n"
             "    tiers: list of {name, weight, daily_churn_rate, max_days}\n"
             "      defaults: free (55%, 2%/day, 180d), pro (35%, 0.5%/day, 365d), enterprise (10%, 0.1%/day, 730d)\n"
@@ -668,6 +675,12 @@ def _generate_orders(n: int, target_date: Optional[datetime] = None, opts: Optio
         target_date: If provided, every order's ``order_date`` falls within that
             day (uniform random hours/minutes/seconds). Without it, dates are
             sampled uniformly over the last 30 days.
+        opts: ``schema_options`` dict. Recognized keys:
+            ``customer_count`` (int, default 1000) -- upper bound for the
+            ``CUST{1..customer_count:06d}`` customer_id draw. Set this to the
+            same value as the sibling "customers" asset's ``row_count`` so
+            every order references a customer that actually exists.
+            ``date_range_days`` (int, default 365) -- see below.
 
     ``order_date`` is emitted as a ``datetime`` object (not a formatted
     string) so Snowflake's ``write_pandas`` maps it to TIMESTAMP_NTZ
@@ -686,10 +699,25 @@ def _generate_orders(n: int, target_date: Optional[datetime] = None, opts: Optio
     statuses = ["pending", "paid", "shipped", "delivered", "cancelled"]
     regions = ["NA", "EU", "APAC", "LATAM"]
 
+    # Was hardcoded to 1 - 1000: a silent assumption that whatever sibling
+    # "customers" asset this references always has exactly 1000 rows, with
+    # no config visibly tying the two together. Confirmed live this breaks
+    # as soon as the two configs drift (e.g. a customers asset re-sized to
+    # row_count=500 while this stayed at the old default) -- every
+    # out-of-range customer_id permanently fails a downstream dbt
+    # relationships test with no warning beforehand. Sharing a random seed
+    # between the two assets does NOT fix this: customers' own customer_id
+    # is assigned by loop index, not drawn from its RNG at all, so the seed
+    # match is coincidental, not a real linkage. Making the upper bound an
+    # explicit, named config value (set to the same number as the
+    # customers asset's row_count) at least makes the dependency visible
+    # instead of a buried magic literal.
+    customer_count = int((opts or {}).get("customer_count", 1000))
+
     data = []
     for i in range(n):
         order_id = f"ORD{target_date:%Y%m%d}{i+1:06d}" if target_date else f"ORD{i+1:010d}"
-        customer_id = f"CUST{random.randint(1, 1000):06d}"
+        customer_id = f"CUST{random.randint(1, customer_count):06d}"
 
         if target_date:
             order_date = target_date + timedelta(

@@ -2,6 +2,11 @@ type: dagster_community_components.SyntheticDataGeneratorComponent
 attributes:
   asset_name: raw_customers
   schema_type: customers
+  # If you change this, also update raw_orders.yaml's
+  # schema_options.customer_count to match -- raw_orders draws customer_id
+  # from a [1, customer_count] range independently of this asset, so a
+  # mismatch silently produces orders referencing customers that don't
+  # exist (only caught, if at all, by a downstream dbt relationships test).
   row_count: 1000
   random_state: 42
   description: "Synthetic customer profiles -- an unpartitioned master snapshot (not daily/hourly like raw_orders: the generator always emits CUST000001-CUST00000{row_count} starting from 1, so partitioning this the same way would regenerate the SAME customer_ids every partition instead of growing the customer base over time)."

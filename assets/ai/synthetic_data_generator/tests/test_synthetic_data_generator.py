@@ -10,6 +10,12 @@ silently switched from the canonical CUST000001-CUST00NNNN scheme to the
 date-suffixed scheme meant only for a genuinely partitioned caller), which in
 turn broke a downstream dbt `relationships` test against 100% of that
 partition's rows.
+
+Also covers a related follow-up: `_generate_orders`' customer_id range was
+hardcoded to [1, 1000] with no config exposing the assumption that some
+sibling "customers" asset has exactly that many rows -- a silent convention,
+not an enforced link. Promoted to an explicit `schema_options.customer_count`
+knob instead.
 """
 import re
 
@@ -75,3 +81,37 @@ def test_partitioned_asset_still_uses_its_own_partition_key(mod):
 
     orders_df = result.output_for_node("raw_orders")
     assert (orders_df["order_date"].dt.date.astype(str) == "2026-10-03").all()
+
+
+def test_orders_customer_id_defaults_to_the_historical_1000_range(mod):
+    """No schema_options set -- preserves the pre-existing hardcoded range
+    exactly, so this isn't a breaking change for any existing project."""
+    orders = mod.SyntheticDataGeneratorComponent(
+        asset_name="raw_orders", schema_type="orders", row_count=50, random_state=42,
+    )
+    result = dg.materialize(assets=orders.build_defs(context=None).assets)
+    assert result.success
+
+    orders_df = result.output_for_node("raw_orders")
+    ids = sorted(int(c[4:]) for c in orders_df["customer_id"])
+    assert 1 <= ids[0] and ids[-1] <= 1000
+
+
+def test_orders_customer_id_respects_schema_options_customer_count(mod):
+    """The real fix: customer_count is now an explicit, visible config knob
+    instead of a magic literal buried in the generator -- set it narrow and
+    confirm every drawn customer_id actually honors the configured bound."""
+    orders = mod.SyntheticDataGeneratorComponent(
+        asset_name="raw_orders",
+        schema_type="orders",
+        row_count=50,
+        random_state=42,
+        schema_options={"customer_count": 7},
+    )
+    result = dg.materialize(assets=orders.build_defs(context=None).assets)
+    assert result.success
+
+    orders_df = result.output_for_node("raw_orders")
+    ids = {int(c[4:]) for c in orders_df["customer_id"]}
+    assert ids, "expected at least one order"
+    assert ids <= set(range(1, 8))

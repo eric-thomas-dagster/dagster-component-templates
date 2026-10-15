@@ -5,6 +5,14 @@ attributes:
   row_count: 200
   random_state: 42
   description: "Synthetic e-commerce orders, one partition per day. customer_id always references raw_customers' CUST000001-CUST001000 range (orders don't need customers re-partitioned to stay consistent)."
+  # Must match raw_customers.yaml's row_count -- this is the explicit,
+  # visible link between the two assets' ID ranges. Previously hardcoded
+  # to 1000 inside the generator itself with no config exposing it; a
+  # customers resize with no matching change here would silently produce
+  # orders referencing customers that don't exist, only caught (if at
+  # all) by a downstream dbt relationships test failing after the fact.
+  schema_options:
+    customer_count: 1000
   group_name: synthetic_commerce
   include_preview_metadata: true
   partition_type: daily

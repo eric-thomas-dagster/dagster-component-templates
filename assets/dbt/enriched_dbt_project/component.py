@@ -917,12 +917,53 @@ def _patch_sqlglot_column_lineage_compat() -> None:
     )
 
 
+def _patch_dbt_selector_for_missing_config() -> None:
+    """Real customer bug: setting `select`/`exclude` on a project whose
+    manifest.json contains on-run-start/on-run-end hook ("operation") nodes
+    crashes with `AttributeError: 'NoneType' object has no attribute
+    'enabled'`.
+
+    Root cause, confirmed by direct reproduction against the installed
+    dagster-dbt/dbt-core: `dagster_dbt.utils._select_unique_ids_from_manifest`
+    (the function dagster-dbt calls internally whenever select/exclude is
+    set) hydrates manifest.json nodes through a fast dict-shim instead of
+    dbt-core's real dataclasses. dbt-core's own proper parse always gives
+    every node type -- including HookNode/operation nodes -- a real
+    `config: NodeConfig` field that defaults to `NodeConfig(enabled=True)`
+    when the manifest JSON omits `config` entirely (which it legitimately
+    does for hook nodes). The dict-shim has no such default: a missing key
+    returns bare `None`, so `dbt.graph.selector.NodeSelector._is_graph_member`'s
+    `node.config.enabled` blows up the moment the selector walks a hook
+    node. This is a dagster-dbt library gap, not anything this component
+    does -- patch dbt-core's selector to fall back to dbt-core's own
+    enabled=True default on the exact AttributeError this shim produces.
+
+    Idempotent -- safe to call multiple times (e.g. multiple component
+    instances in one process).
+    """
+    import dbt.graph.selector as _dbt_selector
+
+    if getattr(_dbt_selector.NodeSelector._is_graph_member, "_dcc_patched", False):
+        return
+    _original_is_graph_member = _dbt_selector.NodeSelector._is_graph_member
+
+    def _patched_is_graph_member(self, unique_id):
+        try:
+            return _original_is_graph_member(self, unique_id)
+        except AttributeError:
+            return True
+
+    _patched_is_graph_member._dcc_patched = True
+    _dbt_selector.NodeSelector._is_graph_member = _patched_is_graph_member
+
+
 try:
     from dagster_dbt.components.dbt_project.component import (
         DbtProjectComponent as _DbtProjectComponent,
     )
 
     _patch_sqlglot_column_lineage_compat()
+    _patch_dbt_selector_for_missing_config()
 
     @dataclass
     class EnrichedDbtProjectComponent(_DbtProjectComponent):

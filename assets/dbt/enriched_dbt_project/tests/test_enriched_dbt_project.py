@@ -15,6 +15,12 @@
    (unmerged as of writing; also submitted as dagster-io/internal#27143).
    Applies once, is idempotent on repeat calls/module reloads, and no-ops
    once the installed dagster-dbt already has the real fix.
+6. `_patch_dbt_selector_for_missing_config`: a real customer bug (hooks
+   with no `config` block crashed `select`/`exclude` resolution with
+   `AttributeError: 'NoneType' object has no attribute 'enabled'` --
+   dagster_dbt's manifest-selection shim doesn't default `config` the way
+   dbt-core's own node parsing does). Applies once, idempotent, fixes the
+   exact crash end-to-end via `dagster_dbt.utils._select_unique_ids_from_manifest`.
 """
 import dagster as dg
 import pytest
@@ -325,3 +331,78 @@ def test_sqlglot_lineage_patch_no_ops_once_upstream_is_fixed(mod, monkeypatch):
     # source) and left it alone rather than wrapping it again.
     assert cli_event_mod._build_column_lineage_metadata is _already_fixed_upstream
     assert iterator_mod._build_column_lineage_metadata is _already_fixed_upstream
+
+
+# --- _patch_dbt_selector_for_missing_config -----------------------------
+
+def test_dbt_selector_patch_applies_and_is_idempotent(mod):
+    import dbt.graph.selector as dbt_selector_mod
+
+    # The module fixture already imported this component once (patching at
+    # module-load time), so the patch should already be in place.
+    assert getattr(
+        dbt_selector_mod.NodeSelector._is_graph_member, "_dcc_patched", False
+    )
+    patched_fn = dbt_selector_mod.NodeSelector._is_graph_member
+
+    # Calling it again (simulating a second component instance loading in
+    # the same process) must be a safe no-op, not a second wrap.
+    mod._patch_dbt_selector_for_missing_config()
+    assert dbt_selector_mod.NodeSelector._is_graph_member is patched_fn
+
+
+def test_dbt_selector_patch_fixes_select_exclude_against_manifest_with_hook_nodes(mod):
+    """Reproduces the real customer crash (KDP, 2026-10-14): a manifest
+    with an on-run-end hook ("operation") node -- which dbt-core itself
+    never gives a `config` block in manifest.json, relying on its own
+    dataclass default of `NodeConfig(enabled=True)` -- crashed
+    dagster_dbt's `select`/`exclude` resolution the moment ANY selector
+    was configured, because dagster_dbt's manifest shim returns bare
+    `None` instead of a default-enabled config for a node with no `config`
+    key. Confirmed via direct reproduction against the installed
+    dagster-dbt/dbt-core before this patch existed.
+    """
+    from dagster_dbt.utils import _select_unique_ids_from_manifest
+
+    manifest_json = {
+        "nodes": {
+            "model.pkg.my_model": {
+                "resource_type": "model",
+                "unique_id": "model.pkg.my_model",
+                "config": {"enabled": True},
+                "fqn": ["pkg", "my_model"],
+                "name": "my_model",
+                "package_name": "pkg",
+                "path": "my_model.sql",
+                "original_file_path": "models/my_model.sql",
+                "tags": [],
+            },
+            "operation.pkg.pkg-on-run-end-0": {
+                # No "config" key at all -- matches a real manifest.json's
+                # hook/operation nodes.
+                "resource_type": "operation",
+                "unique_id": "operation.pkg.pkg-on-run-end-0",
+                "fqn": ["pkg", "pkg-on-run-end-0"],
+                "name": "pkg-on-run-end-0",
+                "package_name": "pkg",
+                "path": "hooks.sql",
+                "original_file_path": "hooks.sql",
+                "tags": [],
+            },
+        },
+        "sources": {}, "metrics": {}, "exposures": {}, "semantic_models": {},
+        "saved_queries": {}, "selectors": {}, "unit_tests": {}, "functions": {},
+        "child_map": {"model.pkg.my_model": [], "operation.pkg.pkg-on-run-end-0": []},
+        "parent_map": {"model.pkg.my_model": [], "operation.pkg.pkg-on-run-end-0": []},
+    }
+
+    selected = _select_unique_ids_from_manifest(
+        select="fqn:*",
+        exclude="package:some_other_pkg",
+        selector=None,
+        manifest_json=manifest_json,
+    )
+
+    # Both the real model and the hook node are selected (neither matches
+    # the exclude), same as dbt-core's own real parse would produce.
+    assert selected == {"model.pkg.my_model", "operation.pkg.pkg-on-run-end-0"}

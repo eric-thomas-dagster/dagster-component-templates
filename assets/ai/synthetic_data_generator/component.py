@@ -438,9 +438,20 @@ group_name=group_name,
             if random_seed is not None:
                 random.seed(random_seed)
 
-            # Check if running in partitioned mode
+            # Check if running in partitioned mode. `context.has_partition_key`
+            # reflects whether the current RUN targets a single partition, not
+            # whether THIS asset itself is partitioned (confirmed against
+            # Dagster's own OpExecutionContext.has_partition_key docstring).
+            # An unpartitioned asset (partitions_def=None here) co-materialized
+            # in the same run/job as a partitioned sibling -- e.g. via a
+            # `deps:`-declared upstream relationship and a `+asset_name`
+            # selection launch -- would otherwise still see has_partition_key
+            # as True and incorrectly treat the sibling's partition key as its
+            # own target_date, corrupting its output (e.g. customer_id format
+            # for an unpartitioned "customers" snapshot silently switching to
+            # the date-suffixed scheme meant only for a partitioned caller).
             target_date = None
-            if context.has_partition_key:
+            if partitions_def is not None and context.has_partition_key:
                 # Parse partition key as date (format: YYYY-MM-DD)
                 try:
                     target_date = datetime.strptime(context.partition_key, "%Y-%m-%d")

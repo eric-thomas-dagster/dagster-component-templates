@@ -47,7 +47,13 @@ def find_component_files() -> list[Path]:
     files = []
     for p in REPO_ROOT.rglob("component.py"):
         rel = p.relative_to(REPO_ROOT)
-        if rel.parts[0] in EXCLUDE_TOP:
+        # Any path segment, not just the first -- a stray .venv nested inside
+        # a quickstart (e.g. quickstarts/synthetic_commerce/.venv/...) is just
+        # as real as one at the repo root, and rel.parts[0]-only checking
+        # missed it (confirmed live: it walked an installed package copy
+        # under quickstarts/synthetic_commerce/.venv and reported it as a
+        # "missing" registry entry).
+        if set(rel.parts) & EXCLUDE_TOP:
             continue
         if "tests" in rel.parts or "__pycache__" in rel.parts:
             continue

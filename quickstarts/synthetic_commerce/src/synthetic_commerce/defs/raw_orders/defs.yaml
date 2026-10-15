@@ -9,5 +9,18 @@ attributes:
   include_preview_metadata: true
   partition_type: daily
   partition_start: "2026-09-01"
+  # Declared Dagster dep (not just a dbt source FK) on the unpartitioned
+  # raw_customers -- without this, nothing in Dagster's own asset graph
+  # surfaces or enforces that raw_customers must exist first. A user who
+  # materializes any raw_orders partition on a fresh load before ever
+  # running raw_customers gets a dbt build that "succeeds" (dbt doesn't
+  # know about this dependency either) but every row fails
+  # relationships_stg_orders_customer_id, since raw.raw_customers is
+  # empty. Confirmed directly: emptying raw_customers and re-checking a
+  # materialized raw_orders partition reproduces 200/200 failures,
+  # matching a real customer report exactly. This is a static
+  # (non-partitioned) dep -- raw_customers won't re-run on every new
+  # raw_orders partition, only when it hasn't been materialized yet.
+  deps: ["raw_customers"]
   metadata:
     partition_expr: order_date

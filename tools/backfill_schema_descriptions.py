@@ -45,6 +45,7 @@ from regen_readme_fields import parse_fields  # noqa: E402
 EXCLUDE_TOP = {
     ".git", "node_modules", "dagster_community_components", ".claude",
     "docs", "tests", "tools", "cli", ".pytest_cache", "__pycache__",
+    ".venv", "venv", "env", ".env",
 }
 
 # Tier-2 fallback: canonical wording for genuinely generic boilerplate fields,
@@ -105,7 +106,10 @@ def find_schema_dirs() -> list[Path]:
     dirs = []
     for p in REPO_ROOT.rglob("schema.json"):
         rel = p.relative_to(REPO_ROOT)
-        if rel.parts[0] in EXCLUDE_TOP:
+        # Any path segment, not just the first -- see check_component_registry.py's
+        # identical fix for why (a nested quickstart .venv is just as real a
+        # false-positive source as one at the repo root).
+        if set(rel.parts) & EXCLUDE_TOP:
             continue
         if "tests" in rel.parts or "__pycache__" in rel.parts:
             continue

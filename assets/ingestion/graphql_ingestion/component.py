@@ -10,7 +10,7 @@ Features
 - Bearer-token (or custom-header) authentication.
 - Configurable ``data_path`` to navigate nested responses, e.g. ``data.users``.
 """
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import dagster as dg
 from pydantic import Field
@@ -26,6 +26,40 @@ def _get_nested(obj: Any, path: str) -> Any:
         if obj is None:
             return None
     return obj
+
+
+def _filter_df_to_partition(df, context, partition_date_column, partition_static_column):
+    """Filter a fully-fetched DataFrame down to the current partition's rows.
+
+    This is the ONE piece of the partitioning puzzle this component was
+    missing: partition_type/partition_date_column/partition_static_column
+    were declared and documented ("Column used to filter the upstream
+    DataFrame to the current date/static partition value") but nothing
+    ever actually filtered anything -- every partition silently wrote the
+    identical full result set. Time-based partitions use
+    context.partition_time_window, which dagster itself already keeps
+    correctly range-aware for a single tick AND a single_run/multi_run
+    backfill range alike -- no per-key looping needed. Static/dynamic/multi
+    partitions have no natural time window, so rows are matched against the
+    set of context.partition_keys instead (1 key normally, the whole range
+    for a backfill).
+    """
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return df
+    if partition_date_column and partition_date_column in df.columns:
+        import pandas as pd
+        try:
+            window = context.partition_time_window
+        except Exception:
+            return df  # static/dynamic/multi partition -- no time window
+        dates = pd.to_datetime(df[partition_date_column], errors="coerce", utc=True)
+        start = pd.Timestamp(window.start)
+        end = pd.Timestamp(window.end)
+        return df[(dates >= start) & (dates < end)]
+    if partition_static_column and partition_static_column in df.columns:
+        keys = {str(k) for k in context.partition_keys}
+        return df[df[partition_static_column].astype(str).isin(keys)]
+    return df
 
 
 def _build_partitions_def(
@@ -380,6 +414,28 @@ class GraphQLIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run: each query's "
+            "full result set is fetched once (as always) and then filtered "
+            "down to the whole range via partition_date_column/"
+            "partition_static_column before being written (same mechanism as "
+            "a normal tick, just spanning more rows). 'multi_run' launches "
+            "one run per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for "
+            "Dagster's default (one run per partition, uncapped). Ignored "
+            "when partition_type is not set. Unlike dlt-based ingestion "
+            "connectors, this asset writes directly to SQL and returns no "
+            "IO-managed value, so 'single_run' works with any IO manager."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         # Standard catalog fields — phase 2 wiring
         _retry_policy = None
@@ -401,6 +457,8 @@ class GraphQLIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
         for _k in (self.kinds or []):
             _all_tags[f"dagster/kind/{_k}"] = ""
         dep_keys = [dg.AssetKey.from_user_string(k) for k in (self.deps or [])]
+        include_preview = self.include_preview_metadata
+        preview_rows = self.preview_rows
 
         # Build partition definition (auto-generated; supports daily, weekly,
 
@@ -442,7 +500,18 @@ class GraphQLIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
 
 
 
-        @dg.asset(retry_policy=_retry_policy, partitions_def=partitions_def, 
+        partition_date_column = self.partition_date_column
+        partition_static_column = self.partition_static_column
+
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            _backfill_policy_obj = dg.BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            _backfill_policy_obj = dg.BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        @dg.asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
             key=dg.AssetKey.from_user_string(self.asset_name),
             group_name=self.group_name or "graphql",
             kinds={"graphql", "api", "sql"},
@@ -487,6 +556,7 @@ class GraphQLIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             total_rows = 0
             queries_executed = 0
             per_query_counts: dict[str, int] = {}
+            last_df = None  # for the optional preview below -- may stay None if no query returned any records
 
             for q_cfg in self.queries:
                 q_name: str = q_cfg["name"]
@@ -577,11 +647,17 @@ class GraphQLIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
                         else:
                             records.append(items)
 
-                row_count = len(records)
-                context.log.info(f"Query '{q_name}': {row_count} records -> {table_name}")
+                context.log.info(f"Query '{q_name}': {len(records)} records fetched")
 
+                row_count = 0
                 if records:
                     df = pd.json_normalize(records)
+                    df = _filter_df_to_partition(df, context, partition_date_column, partition_static_column)
+                    row_count = len(df)
+                    last_df = df
+
+                if row_count > 0:
+                    context.log.info(f"Query '{q_name}': writing {row_count} rows -> {table_name}")
                     df.to_sql(
                         table_name,
                         con=engine,
@@ -601,8 +677,20 @@ class GraphQLIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
                     "total_rows": dg.MetadataValue.int(total_rows),
                     "queries_executed": dg.MetadataValue.int(queries_executed),
                     "per_query_rows": dg.MetadataValue.json(per_query_counts),
-                **({"preview": MetadataValue.md((df.sample(preview_rows) if len(df) > preview_rows * 10 else df.head(preview_rows)).to_markdown(index=False))} if include_preview and len(df) > 0 else {}),
-            }
+                    **(
+                        {
+                            "preview": dg.MetadataValue.md(
+                                (
+                                    last_df.sample(preview_rows)
+                                    if len(last_df) > preview_rows * 10
+                                    else last_df.head(preview_rows)
+                                ).to_markdown(index=False)
+                            )
+                        }
+                        if include_preview and last_df is not None and len(last_df) > 0
+                        else {}
+                    ),
+                }
             )
 
         return dg.Definitions(assets=[_graphql_ingestion])

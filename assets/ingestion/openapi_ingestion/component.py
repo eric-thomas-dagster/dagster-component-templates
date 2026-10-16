@@ -117,6 +117,14 @@ def _build_openapi_defs(
     group_name: Optional[str],
     page_size: int,
     max_pages: int,
+    partition_type: Optional[str] = None,
+    partition_start: Optional[str] = None,
+    partition_date_column: Optional[str] = None,
+    backfill_policy: Optional[str] = None,
+    backfill_policy_max_partitions_per_run: Optional[int] = None,
+    retry_policy_max_retries: Optional[int] = None,
+    retry_policy_delay_seconds: Optional[int] = None,
+    retry_policy_backoff: str = "exponential",
 ) -> dg.Definitions:
     from dagster import AssetExecutionContext
 
@@ -139,148 +147,163 @@ def _build_openapi_defs(
         _safe_tag = safe_tag
 
         # Build partition definition (auto-generated; supports daily, weekly,
-
         # monthly, hourly partitions out of the box).
-
         partitions_def = None
-
-        if self.partition_type:
-
+        if partition_type:
             from dagster import (
-
                 DailyPartitionsDefinition, WeeklyPartitionsDefinition,
-
                 MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
-
             )
-
-            _pstart = self.partition_start or "2024-01-01"
-
-            if self.partition_type == "daily":
-
+            _pstart = partition_start or "2024-01-01"
+            if partition_type == "daily":
                 partitions_def = DailyPartitionsDefinition(start_date=_pstart)
-
-            elif self.partition_type == "weekly":
-
+            elif partition_type == "weekly":
                 partitions_def = WeeklyPartitionsDefinition(start_date=_pstart)
-
-            elif self.partition_type == "monthly":
-
+            elif partition_type == "monthly":
                 partitions_def = MonthlyPartitionsDefinition(start_date=_pstart)
-
-            elif self.partition_type == "hourly":
-
+            elif partition_type == "hourly":
                 partitions_def = HourlyPartitionsDefinition(start_date=_pstart)
 
-
         # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).
-
-
         _retry_policy = None
-
-
-        if self.retry_policy_max_retries is not None:
-
-
+        if retry_policy_max_retries is not None:
             from dagster import Backoff, RetryPolicy
-
-
             _retry_policy = RetryPolicy(
-
-
-                max_retries=self.retry_policy_max_retries,
-
-
-                delay=self.retry_policy_delay_seconds or 1,
-
-
-                backoff=Backoff[self.retry_policy_backoff.upper()],
-
-
+                max_retries=retry_policy_max_retries,
+                delay=retry_policy_delay_seconds or 1,
+                backoff=Backoff[retry_policy_backoff.upper()],
             )
 
+        _backfill_policy_obj = None
+        if partitions_def is not None and backfill_policy == "single_run":
+            from dagster import BackfillPolicy
+            _backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and backfill_policy == "multi_run":
+            from dagster import BackfillPolicy
+            _backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=backfill_policy_max_partitions_per_run or 1
+            )
 
+        def _make_asset_fn(_ep, _t, _st):
+            # Factory, NOT a default-arg trick on the asset function itself:
+            # @dg.asset interprets any non-`context` parameter on the
+            # decorated function as an upstream asset input to resolve by
+            # name, so `def _asset_fn(context, _ep=_endpoints, ...)` (the
+            # original pattern here) crashed at actual materialization time
+            # with "Input asset [...] is not produced by any of the
+            # provided asset ops" -- NOT caught by just building
+            # Definitions, only by really running it. A factory's own
+            # parameters are correctly bound per-call (one call per loop
+            # iteration, each with its own frame), which is what this needs
+            # to safely capture per-tag values without hitting either bug.
+            def _asset_fn(context: AssetExecutionContext):
+                import os
+                import requests
+                import pandas as pd
+                from sqlalchemy import create_engine
 
-        @dg.asset(retry_policy=_retry_policy, partitions_def=partitions_def, 
+                base_url = os.environ[api_base_url_env_var]
+                db_url = os.environ[database_url_env_var]
+                headers = {}
+                if api_key_env_var:
+                    key = os.environ[api_key_env_var]
+                    headers[auth_header] = f"{auth_prefix} {key}" if auth_prefix else key
+
+                all_records = []
+
+                for ep in _ep:
+                    path = ep["full_path"] if ep["full_path"].startswith("http") else f"{base_url}{ep['path']}"
+                    context.log.info(f"Fetching {path}")
+                    records = []
+
+                    if ep["has_page_param"]:
+                        for page in range(1, max_pages + 1):
+                            resp = requests.get(path, headers=headers, params={"page": page, "per_page": page_size}, timeout=30)
+                            resp.raise_for_status()
+                            data = resp.json()
+                            key = ep["response_array_key"]
+                            items = data[key] if key and isinstance(data, dict) else data
+                            if not items:
+                                break
+                            records.extend(items if isinstance(items, list) else [items])
+                            if len(items) < page_size:
+                                break
+                    elif ep["has_offset_param"]:
+                        offset = 0
+                        while offset < max_pages * page_size:
+                            resp = requests.get(path, headers=headers, params={"offset": offset, "limit": page_size}, timeout=30)
+                            resp.raise_for_status()
+                            data = resp.json()
+                            key = ep["response_array_key"]
+                            items = data[key] if key and isinstance(data, dict) else data
+                            if not items:
+                                break
+                            records.extend(items if isinstance(items, list) else [items])
+                            if len(items) < page_size:
+                                break
+                            offset += page_size
+                    else:
+                        resp = requests.get(path, headers=headers, timeout=30)
+                        resp.raise_for_status()
+                        data = resp.json()
+                        key = ep["response_array_key"]
+                        items = data[key] if key and isinstance(data, dict) else data
+                        records.extend(items if isinstance(items, list) else [items])
+
+                    for r in records:
+                        if isinstance(r, dict):
+                            r["_endpoint"] = ep["path"]
+                    all_records.extend(records)
+
+                if not all_records:
+                    context.log.info(f"No records for tag {_t}")
+                    return dg.MaterializeResult(metadata={"num_rows": 0, "tag": _t})
+
+                df = pd.json_normalize(all_records)
+                context.log.info(f"Fetched {len(df)} rows from {len(_ep)} endpoints")
+
+                # partition_date_column was declared and documented ("filter the
+                # upstream DataFrame to the current date partition key") but
+                # never actually applied -- every partition (and every backfill
+                # range) silently wrote the identical full result set.
+                # context.partition_time_window is already correctly range-aware
+                # in dagster itself for a single tick AND a single_run/multi_run
+                # backfill range alike (this component only supports time-based
+                # partition_type, so no static/dynamic axis to handle here).
+                if (
+                    partition_type
+                    and (context.has_partition_key or context.has_partition_key_range)
+                    and partition_date_column
+                    and partition_date_column in df.columns
+                ):
+                    window = context.partition_time_window
+                    dates = pd.to_datetime(df[partition_date_column], errors="coerce", utc=True)
+                    start = pd.Timestamp(window.start)
+                    end = pd.Timestamp(window.end)
+                    df = df[(dates >= start) & (dates < end)]
+                    context.log.info(f"Filtered to {len(df)} rows for the current partition")
+
+                engine = create_engine(db_url)
+                if len(df) > 0:
+                    df.to_sql(_st, con=engine, schema=schema_name, if_exists=if_exists, index=False, method="multi", chunksize=1000)
+                return dg.MaterializeResult(metadata={
+                    "num_rows": len(df),
+                    "num_columns": len(df.columns),
+                    "endpoints": len(_ep),
+                    "table": f"{schema_name + '.' if schema_name else ''}{_st}",
+                })
+
+            return _asset_fn
+
+        _asset_fn = dg.asset(
+            retry_policy=_retry_policy,
+            partitions_def=partitions_def,
+            backfill_policy=_backfill_policy_obj,
             name=_safe_tag,
             description=spec.description,
             group_name=group_name or "openapi",
             kinds={"api", "sql"},
-        )
-        def _asset_fn(context: AssetExecutionContext, _ep=_endpoints, _t=_tag, _st=_safe_tag):
-            import os
-            import requests
-            import pandas as pd
-            from sqlalchemy import create_engine
-
-            base_url = os.environ[api_base_url_env_var]
-            db_url = os.environ[database_url_env_var]
-            headers = {}
-            if api_key_env_var:
-                key = os.environ[api_key_env_var]
-                headers[auth_header] = f"{auth_prefix} {key}" if auth_prefix else key
-
-            all_records = []
-
-            for ep in _ep:
-                path = ep["full_path"] if ep["full_path"].startswith("http") else f"{base_url}{ep['path']}"
-                context.log.info(f"Fetching {path}")
-                records = []
-
-                if ep["has_page_param"]:
-                    for page in range(1, max_pages + 1):
-                        resp = requests.get(path, headers=headers, params={"page": page, "per_page": page_size}, timeout=30)
-                        resp.raise_for_status()
-                        data = resp.json()
-                        key = ep["response_array_key"]
-                        items = data[key] if key and isinstance(data, dict) else data
-                        if not items:
-                            break
-                        records.extend(items if isinstance(items, list) else [items])
-                        if len(items) < page_size:
-                            break
-                elif ep["has_offset_param"]:
-                    offset = 0
-                    while offset < max_pages * page_size:
-                        resp = requests.get(path, headers=headers, params={"offset": offset, "limit": page_size}, timeout=30)
-                        resp.raise_for_status()
-                        data = resp.json()
-                        key = ep["response_array_key"]
-                        items = data[key] if key and isinstance(data, dict) else data
-                        if not items:
-                            break
-                        records.extend(items if isinstance(items, list) else [items])
-                        if len(items) < page_size:
-                            break
-                        offset += page_size
-                else:
-                    resp = requests.get(path, headers=headers, timeout=30)
-                    resp.raise_for_status()
-                    data = resp.json()
-                    key = ep["response_array_key"]
-                    items = data[key] if key and isinstance(data, dict) else data
-                    records.extend(items if isinstance(items, list) else [items])
-
-                for r in records:
-                    if isinstance(r, dict):
-                        r["_endpoint"] = ep["path"]
-                all_records.extend(records)
-
-            if not all_records:
-                context.log.info(f"No records for tag {_t}")
-                return dg.MaterializeResult(metadata={"num_rows": 0, "tag": _t})
-
-            df = pd.json_normalize(all_records)
-            context.log.info(f"Fetched {len(df)} rows from {len(_ep)} endpoints")
-            engine = create_engine(db_url)
-            df.to_sql(_st, con=engine, schema=schema_name, if_exists=if_exists, index=False, method="multi", chunksize=1000)
-            return dg.MaterializeResult(metadata={
-                "num_rows": len(df),
-                "num_columns": len(df.columns),
-                "endpoints": len(_ep),
-                "table": f"{schema_name + '.' if schema_name else ''}{_st}",
-            })
-
+        )(_make_asset_fn(_endpoints, _tag, _safe_tag))
         assets.append(_asset_fn)
 
     return dg.Definitions(assets=assets)
@@ -321,6 +344,14 @@ if _HAS_STATE_BACKED:
         group_name: Optional[str] = "openapi"
         page_size: int = 100
         max_pages: int = 100
+        partition_type: Optional[str] = None
+        partition_start: Optional[str] = None
+        partition_date_column: Optional[str] = None
+        backfill_policy: Optional[str] = None
+        backfill_policy_max_partitions_per_run: Optional[int] = None
+        retry_policy_max_retries: Optional[int] = None
+        retry_policy_delay_seconds: Optional[int] = None
+        retry_policy_backoff: str = "exponential"
         defs_state: ResolvedDefsStateConfig = field(
             default_factory=DefsStateConfigArgs.local_filesystem
         )
@@ -365,6 +396,14 @@ if _HAS_STATE_BACKED:
                 group_name=self.group_name,
                 page_size=self.page_size,
                 max_pages=self.max_pages,
+                partition_type=self.partition_type,
+                partition_start=self.partition_start,
+                partition_date_column=self.partition_date_column,
+                backfill_policy=self.backfill_policy,
+                backfill_policy_max_partitions_per_run=self.backfill_policy_max_partitions_per_run,
+                retry_policy_max_retries=self.retry_policy_max_retries,
+                retry_policy_delay_seconds=self.retry_policy_delay_seconds,
+                retry_policy_backoff=self.retry_policy_backoff,
             )
 
 else:
@@ -385,59 +424,54 @@ else:
         page_size: int = dg.Field(default=100)
         max_pages: int = dg.Field(default=100)
 
-        partition_type: Optional[str] = Field(
-
+        partition_type: Optional[str] = dg.Field(
             default=None,
-
             description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key is exposed via context.partition_key for use in filtering / templating.",
-
         )
 
-        partition_start: Optional[str] = Field(
-
+        partition_start: Optional[str] = dg.Field(
             default=None,
-
             description="Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set.",
-
         )
 
-
-        retry_policy_max_retries: Optional[int] = Field(
-
-
+        partition_date_column: Optional[str] = dg.Field(
             default=None,
+            description="Column used to filter the upstream DataFrame to the current date partition key.",
+        )
 
+        backfill_policy: Optional[str] = dg.Field(
+            default=None,
+            description=(
+                "Backfill execution strategy for a partitioned asset. 'single_run' "
+                "materializes an entire backfill range in one run: each tag "
+                "asset's full result set is fetched once (as always) and then "
+                "filtered down to the whole range via partition_date_column "
+                "before being written. 'multi_run' launches one run per "
+                "partition (optionally capped via "
+                "backfill_policy_max_partitions_per_run). Leave unset for "
+                "Dagster's default (one run per partition, uncapped). Ignored "
+                "when partition_type is not set."
+            ),
+        )
+        backfill_policy_max_partitions_per_run: Optional[int] = dg.Field(
+            default=None,
+            description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+        )
 
+        retry_policy_max_retries: Optional[int] = dg.Field(
+            default=None,
             description="Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
-
-
         )
 
-
-        retry_policy_delay_seconds: Optional[int] = Field(
-
-
+        retry_policy_delay_seconds: Optional[int] = dg.Field(
             default=None,
-
-
             description="Seconds between retries (default 1).",
-
-
         )
 
-
-        retry_policy_backoff: str = Field(
-
-
+        retry_policy_backoff: str = dg.Field(
             default="exponential",
-
-
             description="Backoff strategy: 'linear' or 'exponential'.",
-
-
         )
-
-
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             spec = _fetch_spec(self.spec_url, self.spec_path)
@@ -454,4 +488,12 @@ else:
                 group_name=self.group_name,
                 page_size=self.page_size,
                 max_pages=self.max_pages,
+                partition_type=self.partition_type,
+                partition_start=self.partition_start,
+                partition_date_column=self.partition_date_column,
+                backfill_policy=self.backfill_policy,
+                backfill_policy_max_partitions_per_run=self.backfill_policy_max_partitions_per_run,
+                retry_policy_max_retries=self.retry_policy_max_retries,
+                retry_policy_delay_seconds=self.retry_policy_delay_seconds,
+                retry_policy_backoff=self.retry_policy_backoff,
             )

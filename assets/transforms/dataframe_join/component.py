@@ -2,13 +2,14 @@
 
 Join two DataFrame assets on common or specified columns.
 """
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Literal
 
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
     AssetIn,
     AssetKey,
+    BackfillPolicy,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -252,6 +253,26 @@ class DataframeJoin(Component, Model, Resolvable):
     partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
+    )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run (the upstream "
+            "DataFrame is filtered once per partition key in the range and the "
+            "matching rows are combined). 'multi_run' launches one run per "
+            "partition (optionally capped via backfill_policy_max_partitions_per_run). "
+            "Leave unset for Dagster's default (one run per partition, uncapped). "
+            "Ignored when partition_type/partition_dimensions is not set. "
+            "'single_run' requires a partition-range-aware IO manager -- a "
+            "generic filesystem/default IO manager cannot persist a single_run "
+            "output spanning multiple partitions and will raise a clear error at "
+            "materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
     )
     owners: Optional[List[str]] = Field(
         default=None,
@@ -515,25 +536,47 @@ class DataframeJoin(Component, Model, Resolvable):
                 if pl is not None and isinstance(extras.get(slot), pl.DataFrame):
                     extras[slot] = extras[slot].to_pandas()
             # Filter to current partition if partitioned
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in left.columns and _date_key:
-                    _col_dates = pd.to_datetime(left[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
-                    left = left[_col_dates == _date_key]
-                if partition_static_column and partition_static_column in left.columns and _static_key:
-                    left = left[left[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in left.columns and not _is_multi:
-                    left = left[left[partition_static_column].astype(str) == str(_pk)]
-                if partition_date_column and partition_date_column in right.columns and _date_key:
-                    _col_dates = pd.to_datetime(right[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
-                    right = right[_col_dates == _date_key]
-                if partition_static_column and partition_static_column in right.columns and _static_key:
-                    right = right[right[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in right.columns and not _is_multi:
-                    right = right[right[partition_static_column].astype(str) == str(_pk)]
+            if context.has_partition_key or context.has_partition_key_range:
+                # One filter pass per partition key: a normal tick gives exactly one,
+                # a single_run backfill gives the whole range. Rows are selected by
+                # position so keys that match overlapping rows never duplicate them.
+                _pk_base_left = left
+                _pk_pos_left = _pk_base_left.reset_index(drop=True) if hasattr(_pk_base_left, 'reset_index') else _pk_base_left
+                _pk_keep_left = set()
+                _pk_filtered_left = False
+                _pk_base_right = right
+                _pk_pos_right = _pk_base_right.reset_index(drop=True) if hasattr(_pk_base_right, 'reset_index') else _pk_base_right
+                _pk_keep_right = set()
+                _pk_filtered_right = False
+                for _pk_iter in context.partition_keys:
+                    left = _pk_pos_left
+                    right = _pk_pos_right
+                    _pk = _pk_iter
+                    _is_multi = hasattr(_pk, "keys_by_dimension")
+                    _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                    _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                    if partition_date_column and partition_date_column in left.columns and _date_key:
+                        _col_dates = pd.to_datetime(left[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
+                        left = left[_col_dates == _date_key]
+                    if partition_static_column and partition_static_column in left.columns and _static_key:
+                        left = left[left[partition_static_column].astype(str) == _static_key]
+                    elif partition_static_column and partition_static_column in left.columns and not _is_multi:
+                        left = left[left[partition_static_column].astype(str) == str(_pk)]
+                    if partition_date_column and partition_date_column in right.columns and _date_key:
+                        _col_dates = pd.to_datetime(right[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
+                        right = right[_col_dates == _date_key]
+                    if partition_static_column and partition_static_column in right.columns and _static_key:
+                        right = right[right[partition_static_column].astype(str) == _static_key]
+                    elif partition_static_column and partition_static_column in right.columns and not _is_multi:
+                        right = right[right[partition_static_column].astype(str) == str(_pk)]
+                    if left is not _pk_pos_left:
+                        _pk_filtered_left = True
+                        _pk_keep_left.update(left.index)
+                    if right is not _pk_pos_right:
+                        _pk_filtered_right = True
+                        _pk_keep_right.update(right.index)
+                left = _pk_base_left.iloc[sorted(_pk_keep_left)] if _pk_filtered_left else _pk_base_left
+                right = _pk_base_right.iloc[sorted(_pk_keep_right)] if _pk_filtered_right else _pk_base_right
             # Column schema/lineage metadata is built from the actual join
             # RESULT (below, right before each return) -- not from `left`
             # alone, since the joined output has right's columns too and a
@@ -586,7 +629,8 @@ class DataframeJoin(Component, Model, Resolvable):
                     except Exception:
                         pass
                 if _effective_lineage:
-                    _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
+                    # this component has no `upstream_asset_key`: attribute lineage to the left input
+                    _upstream_key = AssetKey.from_user_string(left_asset_key) if left_asset_key else None
                     if _upstream_key:
                         _lineage_deps = {}
                         for out_col, in_cols in _effective_lineage.items():
@@ -779,7 +823,8 @@ class DataframeJoin(Component, Model, Resolvable):
                     except Exception:
                         pass
                 if _effective_lineage:
-                    _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
+                    # this component has no `upstream_asset_key`: attribute lineage to the left input
+                    _upstream_key = AssetKey.from_user_string(left_asset_key) if left_asset_key else None
                     if _upstream_key:
                         _lineage_deps = {}
                         for out_col, in_cols in _effective_lineage.items():
@@ -792,6 +837,14 @@ class DataframeJoin(Component, Model, Resolvable):
                         )
                 context.add_output_metadata(_metadata)
                 return merged
+
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            _backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            _backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
 
         # Two-branch asset decoration so Dagster's `ins=` inference (driven
         # by the function signature) doesn't try to wire a phantom `right`
@@ -811,7 +864,7 @@ class DataframeJoin(Component, Model, Resolvable):
                 _self_right_on = right_on
 
             @asset(
-                partitions_def=partitions_def,
+                partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
                 key=AssetKey.from_user_string(asset_name),
                 ins=ins,
                 group_name=group_name,
@@ -826,7 +879,7 @@ class DataframeJoin(Component, Model, Resolvable):
                 return _do_join(context, left, _right, _override_right_on=_self_right_on)
         else:
             @asset(
-                partitions_def=partitions_def,
+                partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
                 key=AssetKey.from_user_string(asset_name),
                 ins=ins,
                 group_name=group_name,

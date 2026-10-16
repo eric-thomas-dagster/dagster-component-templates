@@ -2,13 +2,14 @@
 
 Look up values in one column against a reference DataFrame and replace with mapped values.
 """
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Literal
 
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
     AssetIn,
     AssetKey,
+    BackfillPolicy,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -315,6 +316,26 @@ class FindReplace(Component, Model, Resolvable):
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run (the upstream "
+            "DataFrame is filtered once per partition key in the range and the "
+            "matching rows are combined). 'multi_run' launches one run per "
+            "partition (optionally capped via backfill_policy_max_partitions_per_run). "
+            "Leave unset for Dagster's default (one run per partition, uncapped). "
+            "Ignored when partition_type/partition_dimensions is not set. "
+            "'single_run' requires a partition-range-aware IO manager -- a "
+            "generic filesystem/default IO manager cannot persist a single_run "
+            "output spanning multiple partitions and will raise a clear error at "
+            "materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
     owners: Optional[List[str]] = Field(
         default=None,
         description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
@@ -495,7 +516,15 @@ class FindReplace(Component, Model, Resolvable):
         if not column_lineage and hasattr(self, 'column') and self.column and hasattr(self, 'find') and hasattr(self, 'replace'):
             column_lineage = {self.column: [self.column]}
 
-        @asset(partitions_def=partitions_def, key=AssetKey.from_user_string(asset_name), ins=ins, required_resource_keys=_required_resource_keys, group_name=group_name, retry_policy=_retry_policy, freshness_policy=_freshness_policy, owners=self.owners or [], tags=_all_tags, deps=[AssetKey.from_user_string(k) for k in (self.deps or [])])
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            _backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            _backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        @asset(partitions_def=partitions_def, backfill_policy=_backfill_policy_obj, key=AssetKey.from_user_string(asset_name), ins=ins, required_resource_keys=_required_resource_keys, group_name=group_name, retry_policy=_retry_policy, freshness_policy=_freshness_policy, owners=self.owners or [], tags=_all_tags, deps=[AssetKey.from_user_string(k) for k in (self.deps or [])])
         def _asset(context: AssetExecutionContext, lookup: pd.DataFrame, **kwargs) -> pd.DataFrame:
             upstream = kwargs.get("upstream")
             if upstream is None:
@@ -508,18 +537,31 @@ class FindReplace(Component, Model, Resolvable):
                 _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
                 upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             # Filter to current partition if partitioned
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    _col_dates = pd.to_datetime(upstream[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
-                    upstream = upstream[_col_dates == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+            if context.has_partition_key or context.has_partition_key_range:
+                # One filter pass per partition key: a normal tick gives exactly one,
+                # a single_run backfill gives the whole range. Rows are selected by
+                # position so keys that match overlapping rows never duplicate them.
+                _pk_base = upstream
+                _pk_pos = _pk_base.reset_index(drop=True) if hasattr(_pk_base, 'reset_index') else _pk_base
+                _pk_keep = set()
+                _pk_filtered = False
+                for _pk_iter in context.partition_keys:
+                    upstream = _pk_pos
+                    _pk = _pk_iter
+                    _is_multi = hasattr(_pk, "keys_by_dimension")
+                    _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                    _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                    if partition_date_column and partition_date_column in upstream.columns and _date_key:
+                        _col_dates = pd.to_datetime(upstream[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
+                        upstream = upstream[_col_dates == _date_key]
+                    if partition_static_column and partition_static_column in upstream.columns and _static_key:
+                        upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
+                    elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
+                        upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+                    if upstream is not _pk_pos:
+                        _pk_filtered = True
+                        _pk_keep.update(upstream.index)
+                upstream = _pk_base.iloc[sorted(_pk_keep)] if _pk_filtered else _pk_base
             df = upstream.copy()
             out_col = output_column if output_column else target_column
 

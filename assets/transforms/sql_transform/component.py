@@ -280,6 +280,30 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run: the SQL template is "
+            "rendered ONCE with partition_key_range_start/partition_key_range_end "
+            "and partition_time_window_start/partition_time_window_end spanning the "
+            "whole range (write the SQL against the window, not {{ partition_key }}, "
+            "which is deliberately left undefined for a multi-partition run so a "
+            "template that depends on it fails loudly instead of silently using one "
+            "partition). 'multi_run' launches one run per partition (optionally "
+            "capped via backfill_policy_max_partitions_per_run). Leave unset for "
+            "Dagster's default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set. With return_dataframe=true, 'single_run' "
+            "requires a partition-range-aware IO manager -- the default filesystem "
+            "IO manager cannot persist one output spanning multiple partitions and "
+            "will raise a clear error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
@@ -333,7 +357,21 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
+        partitions_def = _build_partitions_def(
+            self.partition_type, self.partition_start, self.partition_values,
+            None, None,
+        )
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            _backfill_policy_obj = dg.BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            _backfill_policy_obj = dg.BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
         @dg.asset(
+            partitions_def=partitions_def,
+            backfill_policy=_backfill_policy_obj,
             key=dg.AssetKey.from_user_string(asset_name),
             group_name=self.group_name or "warehouse_transforms",
             description=self.description or f"SQL pushdown → {destination_table}",
@@ -369,7 +407,14 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
             if context.has_partition_key:
                 pk = context.partition_key
                 auto_vars["partition_key"] = pk
-                # Time-window partitions also expose start/end
+                auto_vars["partition_keys"] = [pk]
+            elif context.has_partition_key_range:
+                # single_run backfill: one run spans many partitions. Expose the
+                # whole list but NOT a single `partition_key` (ambiguous).
+                auto_vars["partition_keys"] = list(context.partition_keys)
+            if context.has_partition_key or context.has_partition_key_range:
+                # Time-window partitions also expose start/end (for a range:
+                # start of the first partition .. end of the last)
                 try:
                     pk_range = context.partition_key_range
                     auto_vars["partition_key_range_start"] = pk_range.start
@@ -464,3 +509,105 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
             return dg.MaterializeResult(metadata=metadata)
 
         return dg.Definitions(assets=[_sql_transform_asset])
+
+
+def _build_partitions_def(
+    partition_type,
+    partition_start,
+    partition_values,
+    dynamic_partition_name,
+    partition_dimensions,
+):
+    """Construct a Dagster partitions_def from the canonical partition fields.
+
+    Strict: raises ValueError on misconfigured combinations rather than
+    silently picking a default. Specifically:
+      - time-based partition_type without partition_start
+      - partition_type=multi without partition_values
+      - partition_type=dynamic without dynamic_partition_name
+      - both partition_dimensions AND flat fields set (ambiguous intent)
+    """
+    from dagster import (
+        DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+        MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+        StaticPartitionsDefinition, MultiPartitionsDefinition,
+        DynamicPartitionsDefinition,
+    )
+
+    # Both shapes set: ambiguous. Pick one.
+    if partition_dimensions and partition_type:
+        raise ValueError(
+            "Set either partition_type (flat-fields shape) or "
+            "partition_dimensions (multi-axis shape), not both."
+        )
+
+    def _build_axis(spec):
+        t = spec.get("type")
+        if t in ("daily", "weekly", "monthly", "hourly") and not spec.get("start"):
+            raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
+        if t == "daily":
+            return DailyPartitionsDefinition(start_date=spec["start"])
+        if t == "weekly":
+            return WeeklyPartitionsDefinition(start_date=spec["start"])
+        if t == "monthly":
+            return MonthlyPartitionsDefinition(start_date=spec["start"])
+        if t == "hourly":
+            return HourlyPartitionsDefinition(start_date=spec["start"])
+        if t == "static":
+            vals = spec.get("values") or []
+            if isinstance(vals, str):
+                vals = [v.strip() for v in vals.split(",") if v.strip()]
+            if not vals:
+                raise ValueError("partition dimension type='static' requires non-empty 'values'")
+            return StaticPartitionsDefinition(list(vals))
+        if t == "dynamic":
+            name = spec.get("dynamic_partition_name") or spec.get("name")
+            if not name:
+                raise ValueError("partition dimension type='dynamic' requires a name")
+            return DynamicPartitionsDefinition(name=name)
+        raise ValueError(f"unknown partition type: {t!r}")
+
+    if partition_dimensions:
+        if len(partition_dimensions) == 1:
+            return _build_axis(partition_dimensions[0])
+        axes = {d["name"]: _build_axis(d) for d in partition_dimensions}
+        return MultiPartitionsDefinition(axes)
+
+    if not partition_type:
+        return None
+    if isinstance(partition_values, (list, tuple)):
+        _values = [str(v).strip() for v in partition_values if str(v).strip()]
+    else:
+        _values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
+    if partition_type in ("daily", "weekly", "monthly", "hourly") and not partition_start:
+        raise ValueError(
+            f"partition_type={partition_type!r} requires partition_start (ISO date, e.g. '2024-01-01')."
+        )
+    if partition_type == "daily":
+        return DailyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "weekly":
+        return WeeklyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "monthly":
+        return MonthlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "hourly":
+        return HourlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "static":
+        if not _values:
+            raise ValueError("partition_type='static' requires partition_values (comma-separated).")
+        return StaticPartitionsDefinition(_values)
+    if partition_type == "dynamic":
+        if not dynamic_partition_name:
+            raise ValueError(
+                "partition_type='dynamic' requires dynamic_partition_name."
+            )
+        return DynamicPartitionsDefinition(name=dynamic_partition_name)
+    if partition_type == "multi":
+        if not _values:
+            raise ValueError("partition_type='multi' requires partition_values (comma-separated).")
+        if not partition_start:
+            raise ValueError("partition_type='multi' requires partition_start (the date axis start).")
+        return MultiPartitionsDefinition({
+            "date": DailyPartitionsDefinition(start_date=partition_start),
+            "static_dim": StaticPartitionsDefinition(_values),
+        })
+    raise ValueError(f"unknown partition_type: {partition_type!r}")

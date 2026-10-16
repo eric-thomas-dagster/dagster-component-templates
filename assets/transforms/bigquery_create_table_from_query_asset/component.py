@@ -19,6 +19,7 @@ import pandas as pd
 from dagster import (
     AssetExecutionContext,
     AssetKey,
+    BackfillPolicy,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -118,6 +119,14 @@ class BigQueryCreateTableFromQueryAssetComponent(Component, Model, Resolvable):
     partition_values: Optional[Union[str, List[str]]] = Field(default=None)
     dynamic_partition_name: Optional[str] = Field(default=None)
     partition_dimensions: Optional[List[Dict[str, Any]]] = Field(default=None)
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=("Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run: the query is formatted ONCE with partition_key_range_start/partition_key_range_end and partition_time_window_start/partition_time_window_end spanning the whole range (write the query against the window, not {partition_key}, which is deliberately left undefined for a multi-partition run so a query that depends on it fails loudly instead of silently using one partition). 'multi_run' launches one run per partition (optionally capped via backfill_policy_max_partitions_per_run). Leave unset for Dagster's default (one run per partition, uncapped). Ignored when partition_type/partition_dimensions is not set. The asset's returned value is persisted by the IO manager, so 'single_run' needs a partition-range-aware IO manager (the default filesystem IO manager cannot persist one output spanning multiple partitions and will raise a clear error at materialization time)."),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
 
     retry_policy_max_retries: Optional[int] = Field(
         default=None,
@@ -194,6 +203,14 @@ class BigQueryCreateTableFromQueryAssetComponent(Component, Model, Resolvable):
         partition_field = self.partition_field
         cluster_fields = self.cluster_fields
 
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            _backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            _backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
         @asset(
             key=AssetKey.from_user_string(asset_name),
             description=self.description or f"BigQuery {materialization}: {destination_table_id}",
@@ -203,6 +220,7 @@ class BigQueryCreateTableFromQueryAssetComponent(Component, Model, Resolvable):
             owners=self.owners or None,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])] or None,
             partitions_def=partitions_def,
+            backfill_policy=_backfill_policy_obj,
             retry_policy=retry_policy,
             freshness_policy=freshness_policy,
         )
@@ -219,6 +237,18 @@ class BigQueryCreateTableFromQueryAssetComponent(Component, Model, Resolvable):
             params = dict(query_params)
             if context.has_partition_key:
                 params.setdefault("partition_key", context.partition_key)
+            if context.has_partition_key or context.has_partition_key_range:
+                # Range placeholders (a single_run backfill spans many
+                # partitions, so `partition_key` itself is left undefined).
+                _pkr = context.partition_key_range
+                params.setdefault("partition_key_range_start", _pkr.start)
+                params.setdefault("partition_key_range_end", _pkr.end)
+                try:
+                    _tw = context.partition_time_window
+                    params.setdefault("partition_time_window_start", _tw.start.isoformat())
+                    params.setdefault("partition_time_window_end", _tw.end.isoformat())
+                except Exception:
+                    pass  # non-time-window partitions have no window
             try:
                 rendered_select = query_template.format(**params) if params else query_template
             except KeyError as e:

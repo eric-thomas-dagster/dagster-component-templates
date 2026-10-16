@@ -1781,7 +1781,24 @@ def __getattr__(name: str):
     )
 
 
+# Opt-in escape hatch for LOCAL tooling (Dagster Designer sets it for its own
+# `dg list defs` / `dg launch` subprocesses; nothing sets it in a deployed code
+# location). When set, `dir()` reports nothing, so Dagster's entry-point
+# discovery (`get_package_objects_in_module` walks `dir()`) finds no component
+# types and skips building the "library JSON" -- a JSON schema for every one of
+# the ~1,400 component types, imported and generated on EVERY definitions load
+# (measured ~5.6s of a ~10s `dg list defs` on a 9-component project).
+# `__getattr__` is untouched, so `type: dagster_community_components.X` in a
+# defs.yaml still resolves. Leave it UNSET anywhere the component library
+# should be advertised (Dagster+ code locations, `dg list components`).
+SKIP_LIBRARY_JSON_ENV = "DAGSTER_COMMUNITY_COMPONENTS_SKIP_LIBRARY_JSON"
+
+
 def __dir__() -> list[str]:
+    import os
+
+    if os.environ.get(SKIP_LIBRARY_JSON_ENV, "").strip().lower() in ("1", "true", "yes", "on"):
+        return []
     return sorted(set(_CLASS_PATHS) | set(_loaded))
 
 

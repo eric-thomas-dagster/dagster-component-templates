@@ -91,6 +91,8 @@ the ``_VENDORED_*`` sections below and switch to importing from
 ``dagster_dbt.asset_utils`` / ``dagster_dbt.asset_specs``.
 """
 import json
+import os
+import time
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
@@ -957,6 +959,12 @@ def _patch_dbt_selector_for_missing_config() -> None:
     _dbt_selector.NodeSelector._is_graph_member = _patched_is_graph_member
 
 
+def _staged_project_in_flux(exc: BaseException) -> bool:
+    """True for the error raised when the staged dbt project is mid-refresh (its dbt_project.yml is
+    momentarily missing). Matched by name so it works across dagster-dbt versions."""
+    return type(exc).__name__ == "DagsterDbtProjectYmlFileNotFoundError" or isinstance(exc, FileNotFoundError)
+
+
 try:
     from dagster_dbt.components.dbt_project.component import (
         DbtProjectComponent as _DbtProjectComponent,
@@ -1657,6 +1665,56 @@ try:
             return checks
 
         # ─────────────────────────────────────────────────────────────
+        # Refresh the staged dbt project WITHOUT a window where it is missing
+        # ─────────────────────────────────────────────────────────────
+
+        def write_state_to_path(self, state_path: Path) -> None:
+            """Refresh the staged copy of the dbt project atomically.
+
+            The stock refresh (``DbtProjectManager.prepare``) deletes ``<state>/project``, then runs
+            ``dbt parse`` and copies the project back -- ~2.5s during which ``project/`` is empty.
+            Every ``dg`` command runs in "dev mode" (it sets DAGSTER_IS_DEV_CLI), and dev mode refreshes
+            this copy on each load, so any ``dg list defs``/``dg check``/``dg launch`` (or a second dev
+            server) opens that window. A process that loads the project inside it -- every run worker and
+            step subprocess of a backfill does, constantly -- fails with
+            ``DagsterDbtProjectYmlFileNotFoundError`` ("Could not load job definition"): in one real
+            backfill most of ~50 runs died this way while Designer polled ``dg list defs`` once a minute.
+
+            Here the new copy is built next to the old one and swapped in with renames, so ``project/``
+            exists at every instant except a few microseconds between two renames."""
+            import shutil
+            import uuid
+
+            manager = self._project_manager
+            final = manager._local_project_dir(state_path)
+            args = getattr(manager, "args", None)
+            source = Path(args.project_dir).resolve() if args is not None else None
+            # A dbt project at (or above) the Dagster project root contains the staged copy; that layout
+            # keeps the stock behaviour (the stock copy already guards against copying into itself).
+            if source is not None and (source == final.resolve() or source in final.resolve().parents):
+                return super().write_state_to_path(state_path)
+
+            work = state_path.parent / f".refresh-{os.getpid()}-{uuid.uuid4().hex[:8]}"
+            old = state_path.parent / f".old-{uuid.uuid4().hex[:8]}"
+            work.mkdir(parents=True, exist_ok=True)
+            try:
+                work_state = work / "state"
+                manager.prepare(work_state)  # builds work/project (dbt parse + copy) and touches work/state
+                built = manager._local_project_dir(work_state)
+                try:
+                    if final.exists():
+                        os.rename(final, old)
+                    os.rename(built, final)
+                except OSError:
+                    # e.g. Windows refuses to rename a directory another process has files open in.
+                    shutil.rmtree(final, ignore_errors=True)
+                    os.rename(built, final)
+                state_path.touch()
+            finally:
+                shutil.rmtree(work, ignore_errors=True)
+                shutil.rmtree(old, ignore_errors=True)
+
+        # ─────────────────────────────────────────────────────────────
         # Override build_defs_from_state
         # ─────────────────────────────────────────────────────────────
 
@@ -1686,7 +1744,17 @@ try:
             # before the base runs.
             self._apply_defer_config_to_cli_args()
 
-            base_defs = super().build_defs_from_state(context, state_path)
+            # Defense in depth: if some OTHER (older, stock) refresher is rebuilding the staged project at
+            # this moment, wait for it rather than failing the whole definitions load -- and with it the run
+            # worker that is trying to start. Only this specific "missing" error is retried, briefly.
+            for _attempt in range(16):
+                try:
+                    base_defs = super().build_defs_from_state(context, state_path)
+                    break
+                except Exception as _exc:
+                    if _attempt == 15 or not _staged_project_in_flux(_exc):
+                        raise
+                    time.sleep(0.25)
 
             manifest = self._resolve_manifest(state_path)
             if manifest is None:

@@ -10,7 +10,12 @@
    mesh stub's own key to a specific value when the two projects'
    manifests resolve the same model's `config.schema` differently (a
    real customer-reported cross-manifest mismatch the translator fix
-   alone can't close).
+   alone can't close). `external_package_schemas` fills in a missing
+   schema for a WHOLE package at once (scales past one-override-per-
+   model). `external_package_manifest_paths` is the fully correct fix
+   when reachable: read the upstream package's REAL manifest.json and
+   compute the stub key by running the translator against it directly --
+   exact parity, zero guessing.
 4. `_build_child_map`: dbt v2 / Fusion manifests omit the top-level
    `child_map` key entirely (confirmed against dagster_dbt's own identical
    workaround) -- include_exposures/include_metrics/include_semantic_models
@@ -26,6 +31,9 @@
    dbt-core's own node parsing does). Applies once, idempotent, fixes the
    exact crash end-to-end via `dagster_dbt.utils._select_unique_ids_from_manifest`.
 """
+import json
+from pathlib import Path
+
 import dagster as dg
 import pytest
 
@@ -338,6 +346,230 @@ def test_resolve_override_asset_key_no_match_returns_none(mod):
     overrides = {"other/key": mod.AssetOverride(asset_key="x/y")}
     result = mod._resolve_override_asset_key(overrides, lookup_key="filtered_usage_events", unique_id=None)
     assert result is None
+
+
+# --- external_package_manifest_paths: the real-manifest fix ------------
+#
+# The most correct fix for the mesh key mismatch: when silver's own
+# manifest.json is reachable from gold's build/deploy environment (shared
+# artifact store, shared filesystem, etc.), read it directly and compute
+# the stub key by running the translator against that REAL manifest
+# instead of gold's own incomplete copy of the node -- exact parity by
+# construction, no per-model or per-package guessing.
+
+def test_external_package_manifest_path_uses_real_manifest_for_key(mod, component, tmp_path):
+    """The real manifest has config.schema set (silver's own compile
+    resolved it); gold's own copy of the node does NOT. Confirms the stub
+    key comes from the REAL manifest file, not gold's incomplete one."""
+    real_silver_manifest = {
+        "nodes": {
+            "model.shared_core.filtered_usage_events": {
+                "resource_type": "model",
+                "unique_id": "model.shared_core.filtered_usage_events",
+                "package_name": "shared_core",
+                "name": "filtered_usage_events",
+                "alias": "filtered_usage_events",
+                "meta": {},
+                "config": {"schema": "silver_cursorapi"},
+                "depends_on": {"nodes": []},
+                "fqn": ["shared_core", "filtered_usage_events"],
+                "original_file_path": "models/filtered_usage_events.sql",
+            }
+        }
+    }
+    manifest_path = tmp_path / "silver_manifest.json"
+    manifest_path.write_text(json.dumps(real_silver_manifest))
+
+    component.external_packages = ["shared_core"]
+    component.external_package_manifest_paths = {"shared_core": str(manifest_path)}
+    gold_manifest = {
+        "nodes": {
+            "model.shared_core.filtered_usage_events": {
+                "resource_type": "model",
+                "unique_id": "model.shared_core.filtered_usage_events",
+                "package_name": "shared_core",
+                "name": "filtered_usage_events",
+                "alias": "filtered_usage_events",
+                "meta": {},
+                "config": {},  # gold's own incomplete copy -- no schema
+                "depends_on": {"nodes": []},
+                "fqn": ["shared_core", "filtered_usage_events"],
+                "original_file_path": "models/filtered_usage_events.sql",
+            }
+        }
+    }
+    specs = component._build_external_package_specs(gold_manifest)
+    assert len(specs) == 1
+    assert specs[0].key == dg.AssetKey(["silver_cursorapi", "filtered_usage_events"])
+
+
+def test_external_package_manifest_path_missing_file_falls_back_gracefully(mod, component, tmp_path):
+    """A missing/unreadable manifest file must not crash spec building --
+    falls back to the existing schema-default/bare-translator path."""
+    component.external_packages = ["shared_core"]
+    component.external_package_manifest_paths = {"shared_core": str(tmp_path / "does_not_exist.json")}
+    component.external_package_schemas = {"shared_core": "silver_cursorapi"}
+    gold_manifest = {
+        "nodes": {
+            "model.shared_core.filtered_usage_events": {
+                "resource_type": "model",
+                "unique_id": "model.shared_core.filtered_usage_events",
+                "package_name": "shared_core",
+                "name": "filtered_usage_events",
+                "alias": "filtered_usage_events",
+                "meta": {},
+                "config": {},
+                "depends_on": {"nodes": []},
+                "fqn": ["shared_core", "filtered_usage_events"],
+                "original_file_path": "models/filtered_usage_events.sql",
+            }
+        }
+    }
+    specs = component._build_external_package_specs(gold_manifest)
+    assert len(specs) == 1
+    # Falls through to the schema-default mechanism, not a crash.
+    assert specs[0].key == dg.AssetKey(["silver_cursorapi", "filtered_usage_events"])
+
+
+def test_external_package_manifest_path_is_cached_per_package(mod, component, tmp_path):
+    """Reading + parsing the real manifest file happens at most once per
+    package per component instance, not once per model."""
+    manifest_path = tmp_path / "silver_manifest.json"
+    manifest_path.write_text(json.dumps({"nodes": {}}))
+
+    read_calls = []
+    real_read_text = Path.read_text
+
+    def _counting_read_text(self, *args, **kwargs):
+        if self == manifest_path:
+            read_calls.append(1)
+        return real_read_text(self, *args, **kwargs)
+
+    import unittest.mock as mock
+    with mock.patch.object(Path, "read_text", _counting_read_text):
+        component.external_packages = ["shared_core"]
+        component.external_package_manifest_paths = {"shared_core": str(manifest_path)}
+        gold_manifest = {
+            "nodes": {
+                f"model.shared_core.model_{i}": {
+                    "resource_type": "model",
+                    "unique_id": f"model.shared_core.model_{i}",
+                    "package_name": "shared_core",
+                    "name": f"model_{i}",
+                    "alias": f"model_{i}",
+                    "meta": {},
+                    "config": {},
+                    "depends_on": {"nodes": []},
+                    "fqn": ["shared_core", f"model_{i}"],
+                    "original_file_path": f"models/model_{i}.sql",
+                }
+                for i in range(3)
+            }
+        }
+        component._build_external_package_specs(gold_manifest)
+    assert len(read_calls) == 1
+
+
+def test_external_package_schema_default_fills_in_missing_schema(mod, component):
+    """Scales the single-model asset_key override to a whole package: when
+    EVERY model in the package is missing config.schema (the common mesh
+    case, not just one or two models), one package-level default fixes all
+    of them in one line instead of one asset_overrides entry per model."""
+    component.external_packages = ["shared_core"]
+    component.external_package_schemas = {"shared_core": "silver_cursorapi"}
+    manifest = {
+        "nodes": {
+            "model.shared_core.filtered_usage_events": {
+                "resource_type": "model",
+                "unique_id": "model.shared_core.filtered_usage_events",
+                "package_name": "shared_core",
+                "name": "filtered_usage_events",
+                "alias": "filtered_usage_events",
+                "meta": {},
+                "config": {},  # no schema at all
+                "depends_on": {"nodes": []},
+                "fqn": ["shared_core", "filtered_usage_events"],
+                "original_file_path": "models/filtered_usage_events.sql",
+            },
+            "model.shared_core.other_model": {
+                "resource_type": "model",
+                "unique_id": "model.shared_core.other_model",
+                "package_name": "shared_core",
+                "name": "other_model",
+                "alias": "other_model",
+                "meta": {},
+                "config": {},
+                "depends_on": {"nodes": []},
+                "fqn": ["shared_core", "other_model"],
+                "original_file_path": "models/other_model.sql",
+            },
+        }
+    }
+    specs = component._build_external_package_specs(manifest)
+    keys = {spec.key for spec in specs}
+    assert keys == {
+        dg.AssetKey(["silver_cursorapi", "filtered_usage_events"]),
+        dg.AssetKey(["silver_cursorapi", "other_model"]),
+    }
+
+
+def test_external_package_schema_default_does_not_override_existing_schema(mod, component):
+    """A model that DOES already carry its own config.schema keeps it --
+    the package default only fills in what's missing, it never clobbers
+    real data."""
+    component.external_packages = ["shared_core"]
+    component.external_package_schemas = {"shared_core": "silver_cursorapi"}
+    manifest = {
+        "nodes": {
+            "model.shared_core.customer_summary": {
+                "resource_type": "model",
+                "unique_id": "model.shared_core.customer_summary",
+                "package_name": "shared_core",
+                "name": "customer_summary",
+                "alias": "customer_summary",
+                "meta": {},
+                "config": {"schema": "already_set"},
+                "depends_on": {"nodes": []},
+                "fqn": ["shared_core", "customer_summary"],
+                "original_file_path": "models/customer_summary.sql",
+            }
+        }
+    }
+    specs = component._build_external_package_specs(manifest)
+    assert len(specs) == 1
+    assert specs[0].key == dg.AssetKey(["already_set", "customer_summary"])
+
+
+def test_asset_override_asset_key_wins_over_package_schema_default(mod, component):
+    """Precedence check: when both a package-level schema default AND a
+    specific asset_overrides.asset_key apply to the same model, the more
+    specific per-model override wins."""
+    component.external_packages = ["shared_core"]
+    component.external_package_schemas = {"shared_core": "silver_cursorapi"}
+    component.asset_overrides = {
+        "model.shared_core.filtered_usage_events": mod.AssetOverride(
+            asset_key="totally_different/key"
+        ),
+    }
+    manifest = {
+        "nodes": {
+            "model.shared_core.filtered_usage_events": {
+                "resource_type": "model",
+                "unique_id": "model.shared_core.filtered_usage_events",
+                "package_name": "shared_core",
+                "name": "filtered_usage_events",
+                "alias": "filtered_usage_events",
+                "meta": {},
+                "config": {},
+                "depends_on": {"nodes": []},
+                "fqn": ["shared_core", "filtered_usage_events"],
+                "original_file_path": "models/filtered_usage_events.sql",
+            }
+        }
+    }
+    specs = component._build_external_package_specs(manifest)
+    assert len(specs) == 1
+    assert specs[0].key == dg.AssetKey(["totally_different", "key"])
 
 
 def test_resolve_override_asset_key_ignores_depends_on_only_overrides(mod):

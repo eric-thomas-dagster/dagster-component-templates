@@ -107,6 +107,18 @@
       "description": "dbt package names to emit as observable stub AssetSpecs. Pair with exclude: 'package:X' so this project's dbt run skips them. The stub's key is computed via this project's own configured translator, not a bare model-name guess, so it matches the upstream project's real key when both sides share a translation scheme. Downstream lineage still renders even though the upstream is owned by another Dagster code location.",
       "required": false
     },
+    "external_package_schemas": {
+      "type": "object",
+      "label": "External Package Schemas",
+      "description": "Default config.schema to assume for every model in an External Packages package when this project's own compiled manifest doesn't carry that model's schema config at all (the common dbt-mesh case). Keyed by package name, e.g. {shared_core: silver_cursorapi}. Only fills in a MISSING schema; never overrides one the manifest already has. For the rare model that doesn't fit the package's default, use Asset Overrides' asset_key instead -- that always wins over both this and the translator.",
+      "required": false
+    },
+    "external_package_manifest_paths": {
+      "type": "object",
+      "label": "External Package Manifest Paths",
+      "description": "The fully correct fix, when available: for an External Packages package whose own manifest.json is reachable from this project's build/deploy environment (shared artifact store, shared filesystem, etc.), point at that real manifest file and this component computes each stub's key by running the translator against it directly -- exact parity, no guessing. Keyed by package name, e.g. {shared_core: /shared/artifacts/silver/manifest.json}. Falls back to External Package Schemas / the bare translator result if the file is missing or unreadable.",
+      "required": false
+    },
     "dbt_cloud_workspace": {
       "type": "object",
       "label": "dbt Cloud Workspace (NOT YET WIRED)",

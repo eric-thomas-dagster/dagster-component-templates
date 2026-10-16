@@ -84,6 +84,8 @@ job_selection_exclude: "type:ci"                         # everything except CI
 | `emit_semantic_layer_as_assets` | Emit dbt `semantic_models` + `metrics` as observable `AssetSpec`s (kinds `semantic_model` / `metric`). |
 | `emit_contract_checks` | For every model with `config.contract.enforced: true`, emit one `AssetCheckSpec` per column constraint. |
 | `external_packages` | dbt mesh: emit observable stub `AssetSpec`s for models whose `package_name` matches. Pair with `exclude: 'package:X'`. The stub's key is computed via this component's own configured translator, not a bare model-name guess, so it matches the upstream project's real key when both sides share a translation scheme. |
+| `external_package_workspaces` | When the two projects' manifests resolve the same mesh model's key differently (see below): the fully correct fix, when silver and gold share one dbt Cloud account/token. Keyed by package name, each entry `{project_id, environment_id}`. |
+| `external_package_schemas` | Same problem, package-level fallback: a default `config.schema` to assume for every model in a package when the real workspace isn't configured. Keyed by package name. |
 | `enable_materialization_kinds` | Add each model's `config.materialized` value (`table` / `view` / `incremental` / `materialized_view` / `ephemeral` / `seed` / `snapshot`) as a Dagster kind. |
 | `derive_freshness_policies` | Attach a real `FreshnessPolicy` to sources (from `sources.freshness.warn_after/error_after`) and to models (from dbt 1.9+ `config.freshness.build_after` and/or dbt State `config.state.lag_tolerance`). Honors explicit `meta.dagster.freshness_policy` overrides. |
 | `auto_trigger_on_freshness_failure` | With `derive_freshness_policies`: also attach `AutomationCondition.freshness_failed()` so Dagster triggers the rebuild when the derived policy fails. |
@@ -158,8 +160,8 @@ whole dependency list rather than appending to it.
 `post_processing` can't fix a **wrong** AssetKey at all — that's why
 `external_packages` above computes the mesh stub's key via the real
 configured translator rather than relying on an attribute override to paper
-over a mismatch. `asset_overrides.asset_key` *can*, though, for the one
-case the translator fix can't close on its own — see below.
+over a mismatch. The three mechanisms below *can*, for the one class of
+mismatch the translator fix can't close on its own.
 
 ### When a mesh stub's key still doesn't line up
 
@@ -180,9 +182,76 @@ assets instead of one, and lineage across the mesh boundary silently stops.
 Check this by comparing the stub's key (grep the downstream project's
 `manifest.json` for the model's `unique_id`, look at its `config.schema`)
 against the real asset's key (same `unique_id`, upstream project's own
-`manifest.json`). If they differ, force the stub to the correct value with
-`asset_overrides`, keyed by the model's dbt `unique_id` (stable across both
-manifests, unlike the computed key):
+`manifest.json`). Four fixes, cheapest/most-automatic first:
+
+**0. `translation` — dagster-dbt's own key-template field, if you're
+comfortable changing key computation project-wide.** This isn't something
+this component adds — it's the base `DbtCloudComponent`'s standard
+`translation` field, and this component passes it through unmodified. It
+takes a Jinja template per `AssetSpec` attribute, with the raw dbt manifest
+node available as `node`. The mismatch above exists because
+`config.schema` is only set when a model explicitly configures a custom
+schema, while dbt's fully-resolved physical schema (the one SQL actually
+compiles against) is always on the node as a top-level field. Falling back
+to it closes the gap at the source, for every model, with no per-package
+config:
+
+```yaml
+translation:
+  key: >-
+    {% if node.resource_type == 'source' %}{{ node.source_name }}/{{ node.name }}
+    {%- else %}{{ node.config.schema or node.schema }}/{{ node.name }}{% endif %}
+```
+
+Two things to weigh before reaching for this first: it changes the key of
+**every** asset in the workspace, not just mesh stubs — review the diff
+against your existing selectors/`asset_overrides`/downstream references
+before shipping it. And it only closes the mismatch automatically if the
+*upstream* project's own code location applies an equivalent template to
+its real assets (or already nests by schema today) — a stub computed this
+way still needs a real asset published at the same key to line up with.
+When both sides can agree on one `translation` template, this is the
+cleanest fix of the four: no package list to maintain, no new field to
+learn, nothing specific to mesh at all.
+
+**1. `external_package_workspaces` — the fully correct fix, when the two
+projects share one dbt Cloud account/token (the common setup).** Point at
+the upstream package's own `project_id`/`environment_id` — not a file path,
+no separate credentials, it reuses `workspace`'s own account/token:
+
+```yaml
+external_package_workspaces:
+  shared_core:
+    project_id: "{{ env.SILVER_DBT_CLOUD_PROJECT_ID }}"
+    environment_id: "{{ env.SILVER_DBT_CLOUD_ENVIRONMENT_ID }}"
+```
+
+This fetches silver's REAL manifest live (a second `DbtCloudWorkspace`
+triggers an ad hoc `dbt parse` job in silver's project, the same mechanism
+this component already uses for its own manifest) and runs the real
+translator against it directly — exact parity by construction, for every
+model in the package, no per-model or per-package guessing. Falls back to
+mechanism 2, then 3, if the fetch fails (different account, no Cloud
+access, a transient API error) — logged as a warning, never a hard failure.
+
+**2. `external_package_schemas` — a package-level default, when the real
+workspace isn't configured or reachable.** If the whole package shares one
+schema (the common case), set it once instead of one `asset_overrides`
+entry per model:
+
+```yaml
+external_package_schemas:
+  shared_core: silver_cursorapi
+```
+
+This only fills in a schema that's genuinely *missing* from the compiled
+node — it never clobbers a schema the manifest already has, and it doesn't
+help a model whose real key doesn't fit the package's default.
+
+**3. `asset_overrides.asset_key` — a manual, per-model override for the
+rare exception**, keyed by the model's dbt `unique_id` (stable across both
+manifests, unlike the computed key). Always wins over both mechanisms
+above:
 
 ```yaml
 asset_overrides:
@@ -190,12 +259,10 @@ asset_overrides:
     asset_key: "silver_cursorapi/filtered_usage_events"   # the upstream project's real published key
 ```
 
-This is a manual escape hatch for a real cross-manifest data
-inconsistency, not a bug in the translation logic — renaming assets in
-Dagster-side post-processing can't help here either, since
-`post_processing` operates on already-built specs by selector, after the
-mismatch has already prevented the two assets from being recognized as
-one.
+Renaming assets in Dagster-side post-processing can't help with any of
+this, since `post_processing` operates on already-built specs by selector,
+after the mismatch has already prevented the two assets from being
+recognized as one.
 
 ### Enhanced polling sensor
 
@@ -254,11 +321,21 @@ attributes:
   external_packages: [shared_core]
   exclude: "package:shared_core"
 
+  # Mesh stub key mismatch: cheapest/most-automatic fix first (see "When a
+  # mesh stub's key still doesn't line up" above) -- only set ONE of these
+  # for a given package, whichever fits your setup.
+  external_package_workspaces:                    # the fully correct fix, same dbt Cloud account
+    shared_core:
+      project_id: "{{ env.SILVER_DBT_CLOUD_PROJECT_ID }}"
+      environment_id: "{{ env.SILVER_DBT_CLOUD_ENVIRONMENT_ID }}"
+  external_package_schemas:                       # package-level fallback otherwise
+    shared_core: silver_cursorapi
+
   # External asset dep injection -- keyed by AssetKey string or unique_id
   asset_overrides:
     model.shared_core.customer_summary:
       depends_on: [fx_rates]
-    model.shared_core.filtered_usage_events:     # force a mismatched mesh stub key
+    model.shared_core.filtered_usage_events:     # manual override for the rare exception
       asset_key: "silver_cursorapi/filtered_usage_events"
 ```
 

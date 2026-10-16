@@ -328,6 +328,243 @@ def test_resolve_override_asset_key_no_match_returns_none(mod):
     assert result is None
 
 
+# --- external_package_workspaces: the real-manifest fix ----------------
+#
+# The most correct fix for the mesh key mismatch: when silver and gold
+# share one dbt Cloud account/token (the common setup), fetch silver's
+# REAL manifest via a second DbtCloudWorkspace (reusing gold's own
+# credentials, different project_id/environment_id) and compute the stub
+# key by running the translator against that real manifest directly --
+# exact parity by construction, no per-model or per-package guessing.
+
+def test_external_package_workspace_fetches_real_manifest_for_key(mod, component, monkeypatch):
+    """The real manifest has config.schema set (silver's own compile
+    resolved it); gold's own copy of the node does NOT. Confirms the stub
+    key comes from the REAL fetched manifest, not gold's incomplete one."""
+    from dagster_dbt.cloud_v2.resources import DbtCloudWorkspace
+
+    real_silver_manifest = {
+        "nodes": {
+            "model.shared_core.filtered_usage_events": {
+                "resource_type": "model",
+                "unique_id": "model.shared_core.filtered_usage_events",
+                "package_name": "shared_core",
+                "name": "filtered_usage_events",
+                "alias": "filtered_usage_events",
+                "meta": {},
+                "config": {"schema": "silver_cursorapi"},
+                "depends_on": {"nodes": []},
+                "fqn": ["shared_core", "filtered_usage_events"],
+            }
+        }
+    }
+
+    class _FakeWorkspaceData:
+        manifest = real_silver_manifest
+
+    monkeypatch.setattr(
+        DbtCloudWorkspace, "get_or_fetch_workspace_data", lambda self: _FakeWorkspaceData()
+    )
+
+    component.external_packages = ["shared_core"]
+    component.external_package_workspaces = {
+        "shared_core": {"project_id": 999, "environment_id": 888},
+    }
+    gold_manifest = {
+        "nodes": {
+            "model.shared_core.filtered_usage_events": {
+                "resource_type": "model",
+                "unique_id": "model.shared_core.filtered_usage_events",
+                "package_name": "shared_core",
+                "name": "filtered_usage_events",
+                "alias": "filtered_usage_events",
+                "meta": {},
+                "config": {},  # gold's own incomplete copy -- no schema
+                "depends_on": {"nodes": []},
+                "fqn": ["shared_core", "filtered_usage_events"],
+            }
+        }
+    }
+    specs = component._build_external_package_specs(gold_manifest)
+    assert len(specs) == 1
+    assert specs[0].key == dg.AssetKey(["silver_cursorapi", "filtered_usage_events"])
+
+
+def test_external_package_workspace_fetch_failure_falls_back_gracefully(mod, component, monkeypatch):
+    """A network error (or any fetch failure) must not crash spec building --
+    falls back to the existing schema-default/bare-translator path."""
+    from dagster_dbt.cloud_v2.resources import DbtCloudWorkspace
+
+    def _boom(self):
+        raise RuntimeError("simulated dbt Cloud API failure")
+
+    monkeypatch.setattr(DbtCloudWorkspace, "get_or_fetch_workspace_data", _boom)
+
+    component.external_packages = ["shared_core"]
+    component.external_package_workspaces = {
+        "shared_core": {"project_id": 999, "environment_id": 888},
+    }
+    component.external_package_schemas = {"shared_core": "silver_cursorapi"}
+    gold_manifest = {
+        "nodes": {
+            "model.shared_core.filtered_usage_events": {
+                "resource_type": "model",
+                "unique_id": "model.shared_core.filtered_usage_events",
+                "package_name": "shared_core",
+                "name": "filtered_usage_events",
+                "alias": "filtered_usage_events",
+                "meta": {},
+                "config": {},
+                "depends_on": {"nodes": []},
+                "fqn": ["shared_core", "filtered_usage_events"],
+            }
+        }
+    }
+    specs = component._build_external_package_specs(gold_manifest)
+    assert len(specs) == 1
+    # Falls through to the schema-default mechanism, not a crash.
+    assert specs[0].key == dg.AssetKey(["silver_cursorapi", "filtered_usage_events"])
+
+
+def test_external_package_workspace_result_is_cached_per_package(mod, component, monkeypatch):
+    """Fetching a real manifest is a dbt Cloud API call (triggers a parse
+    job) -- must happen at most once per package per component instance,
+    not once per model."""
+    from dagster_dbt.cloud_v2.resources import DbtCloudWorkspace
+
+    calls = []
+
+    class _FakeWorkspaceData:
+        manifest = {"nodes": {}}
+
+    def _fake_fetch(self):
+        calls.append(1)
+        return _FakeWorkspaceData()
+
+    monkeypatch.setattr(DbtCloudWorkspace, "get_or_fetch_workspace_data", _fake_fetch)
+
+    component.external_packages = ["shared_core"]
+    component.external_package_workspaces = {
+        "shared_core": {"project_id": 999, "environment_id": 888},
+    }
+    gold_manifest = {
+        "nodes": {
+            f"model.shared_core.model_{i}": {
+                "resource_type": "model",
+                "unique_id": f"model.shared_core.model_{i}",
+                "package_name": "shared_core",
+                "name": f"model_{i}",
+                "alias": f"model_{i}",
+                "meta": {},
+                "config": {},
+                "depends_on": {"nodes": []},
+                "fqn": ["shared_core", f"model_{i}"],
+            }
+            for i in range(3)
+        }
+    }
+    component._build_external_package_specs(gold_manifest)
+    assert len(calls) == 1
+
+
+def test_external_package_schema_default_fills_in_missing_schema(mod, component):
+    """Scales the single-model asset_key override to a whole package: when
+    EVERY model in the package is missing config.schema (the common mesh
+    case, not just one or two models), one package-level default fixes all
+    of them in one line instead of one asset_overrides entry per model."""
+    component.external_packages = ["shared_core"]
+    component.external_package_schemas = {"shared_core": "silver_cursorapi"}
+    manifest = {
+        "nodes": {
+            "model.shared_core.filtered_usage_events": {
+                "resource_type": "model",
+                "unique_id": "model.shared_core.filtered_usage_events",
+                "package_name": "shared_core",
+                "name": "filtered_usage_events",
+                "alias": "filtered_usage_events",
+                "meta": {},
+                "config": {},
+                "depends_on": {"nodes": []},
+                "fqn": ["shared_core", "filtered_usage_events"],
+            },
+            "model.shared_core.other_model": {
+                "resource_type": "model",
+                "unique_id": "model.shared_core.other_model",
+                "package_name": "shared_core",
+                "name": "other_model",
+                "alias": "other_model",
+                "meta": {},
+                "config": {},
+                "depends_on": {"nodes": []},
+                "fqn": ["shared_core", "other_model"],
+            },
+        }
+    }
+    specs = component._build_external_package_specs(manifest)
+    keys = {spec.key for spec in specs}
+    assert keys == {
+        dg.AssetKey(["silver_cursorapi", "filtered_usage_events"]),
+        dg.AssetKey(["silver_cursorapi", "other_model"]),
+    }
+
+
+def test_external_package_schema_default_does_not_override_existing_schema(mod, component):
+    """A model that DOES already carry its own config.schema keeps it --
+    the package default only fills in what's missing, it never clobbers
+    real data."""
+    component.external_packages = ["shared_core"]
+    component.external_package_schemas = {"shared_core": "silver_cursorapi"}
+    manifest = {
+        "nodes": {
+            "model.shared_core.customer_summary": {
+                "resource_type": "model",
+                "unique_id": "model.shared_core.customer_summary",
+                "package_name": "shared_core",
+                "name": "customer_summary",
+                "alias": "customer_summary",
+                "meta": {},
+                "config": {"schema": "already_set"},
+                "depends_on": {"nodes": []},
+                "fqn": ["shared_core", "customer_summary"],
+            }
+        }
+    }
+    specs = component._build_external_package_specs(manifest)
+    assert len(specs) == 1
+    assert specs[0].key == dg.AssetKey(["already_set", "customer_summary"])
+
+
+def test_asset_override_asset_key_wins_over_package_schema_default(mod, component):
+    """Precedence check: when both a package-level schema default AND a
+    specific asset_overrides.asset_key apply to the same model, the more
+    specific per-model override wins."""
+    component.external_packages = ["shared_core"]
+    component.external_package_schemas = {"shared_core": "silver_cursorapi"}
+    component.asset_overrides = {
+        "model.shared_core.filtered_usage_events": mod.AssetOverride(
+            asset_key="totally_different/key"
+        ),
+    }
+    manifest = {
+        "nodes": {
+            "model.shared_core.filtered_usage_events": {
+                "resource_type": "model",
+                "unique_id": "model.shared_core.filtered_usage_events",
+                "package_name": "shared_core",
+                "name": "filtered_usage_events",
+                "alias": "filtered_usage_events",
+                "meta": {},
+                "config": {},
+                "depends_on": {"nodes": []},
+                "fqn": ["shared_core", "filtered_usage_events"],
+            }
+        }
+    }
+    specs = component._build_external_package_specs(manifest)
+    assert len(specs) == 1
+    assert specs[0].key == dg.AssetKey(["totally_different", "key"])
+
+
 def test_resolve_override_asset_key_ignores_depends_on_only_overrides(mod):
     """An override entry with only `depends_on` (no `asset_key`) must not
     be mistaken for a key override -- these two features share the same

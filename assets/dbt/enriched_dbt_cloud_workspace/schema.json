@@ -157,6 +157,18 @@
       "label": "External Packages (dbt mesh)",
       "description": "dbt package names to emit as observable stub AssetSpecs. Pair with exclude: 'package:X'. The stub's key is computed via this component's own configured translator, not a bare model-name guess, so it matches the upstream project's real key when both sides share a translation scheme.",
       "required": false
+    },
+    "external_package_schemas": {
+      "type": "object",
+      "label": "External Package Schemas",
+      "description": "Default config.schema to assume for every model in an External Packages package when this project's own compiled manifest doesn't carry that model's schema config at all (the common dbt-mesh case). Keyed by package name, e.g. {shared_core: silver_cursorapi}. Only fills in a MISSING schema; never overrides one the manifest already has. For the rare model that doesn't fit the package's default, use Asset Overrides' asset_key instead -- that always wins over both this and the translator.",
+      "required": false
+    },
+    "external_package_workspaces": {
+      "type": "object",
+      "label": "External Package Workspaces",
+      "description": "The fully correct fix, when available: for an External Packages package that's a dbt Cloud project under the SAME dbt Cloud account/token as Workspace, point at its project_id/environment_id here and this component fetches its REAL manifest (a second DbtCloudWorkspace reusing Workspace's own credentials) and computes each stub's key by running the translator against it directly -- exact parity, no guessing. Keyed by package name, e.g. {shared_core: {project_id: 12345, environment_id: 67890}}. Falls back to External Package Schemas / the bare translator result if the fetch fails.",
+      "required": false
     }
   },
   "tags": [

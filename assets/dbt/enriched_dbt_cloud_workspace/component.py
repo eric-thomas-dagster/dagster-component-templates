@@ -1234,6 +1234,42 @@ try:
         derive_freshness_policies: bool = False
         emit_contract_checks: bool = False
         external_packages: Optional[List[str]] = None
+        external_package_schemas: Optional[Dict[str, str]] = None
+        """Default `config.schema` to assume for EVERY model in an
+        `external_packages` package when this project's own compiled manifest
+        doesn't carry that model's schema config at all (the common dbt-mesh
+        case -- cross-project nodes are often compiled without their source
+        project's schema override). Keyed by package name, e.g.
+        `{shared_core: silver_cursorapi}`. Applied by patching a model's
+        config.schema before computing its stub key through the real
+        translator, so it still produces exactly what that project's own
+        translation scheme would have -- not a key-construction shortcut.
+        Only fills in a MISSING schema; never overrides one the manifest
+        already has. For the rare model that doesn't fit the package's
+        default (a different schema, or genuinely no schema), use
+        `asset_overrides.asset_key` instead -- that always wins over both
+        this and the translator."""
+
+        external_package_workspaces: Optional[Dict[str, Dict[str, int]]] = None
+        """The REAL fix for dbt-mesh key mismatches, when available: for an
+        `external_packages` package that's a dbt Cloud project under the
+        SAME dbt Cloud account/token as `workspace` (the common case --
+        two dbt Cloud projects sharing one account naturally share one
+        token), point at that package's own `project_id`/`environment_id`
+        here and this component fetches ITS real manifest (via a second
+        `DbtCloudWorkspace` reusing `workspace`'s own credentials, same
+        mechanism this component already uses for its OWN manifest -- an
+        ad hoc `dbt parse` job, not a raw API scrape) and computes each
+        stub's key by running the real translator against that REAL
+        manifest instead of gold's own incomplete copy of the node. Exact
+        parity by construction, no per-model or per-package guessing
+        needed. Keyed by package name, e.g.
+        `{shared_core: {project_id: 12345, environment_id: 67890}}`. Falls
+        back to `external_package_schemas` / the bare translator result if
+        the fetch fails (network issue, different account, etc.) --
+        logged as a warning, never a hard failure. `asset_overrides.asset_key`
+        still wins over this for the rare model that needs a manual
+        exception."""
         emit_semantic_layer_as_assets: bool = False
         """Emit dbt semantic_models + metrics as observable AssetSpecs (kinds
         `semantic_model` / `metric`). Ports `et/dbt-semantic-layer-assets`."""
@@ -1717,6 +1753,45 @@ try:
                 )
             return specs
 
+        def _fetch_external_package_manifest(self, package_name: str) -> Optional[dict]:
+            """Fetch the REAL manifest for an external_packages package that's
+            configured in external_package_workspaces, via a second
+            DbtCloudWorkspace reusing this component's own workspace
+            credentials (same dbt Cloud account/token, different project_id/
+            environment_id) -- the same ad hoc `dbt parse` mechanism this
+            component already uses for its own manifest. Memoized per package
+            name for this component instance's lifetime; returns None (and
+            logs a warning) on any failure so callers fall back to the
+            schema-default/bare-translator path instead of hard-failing."""
+            if not hasattr(self, "_external_manifest_cache"):
+                self._external_manifest_cache: Dict[str, Optional[dict]] = {}  # type: ignore[attr-defined]
+            cache = self._external_manifest_cache  # type: ignore[attr-defined]
+            if package_name in cache:
+                return cache[package_name]
+
+            cache[package_name] = None
+            spec = (self.external_package_workspaces or {}).get(package_name)
+            if not spec:
+                return None
+            try:
+                from dagster_dbt.cloud_v2.resources import DbtCloudWorkspace
+
+                external_workspace = DbtCloudWorkspace(
+                    credentials=self.workspace.credentials,
+                    project_id=spec["project_id"],
+                    environment_id=spec["environment_id"],
+                )
+                workspace_data = external_workspace.get_or_fetch_workspace_data()
+                cache[package_name] = dict(workspace_data.manifest)
+            except Exception as e:
+                dg.get_dagster_logger().warning(
+                    f"external_package_workspaces: failed to fetch the real manifest for "
+                    f"package {package_name!r} (project_id={spec.get('project_id')}, "
+                    f"environment_id={spec.get('environment_id')}): {e}. Falling back to "
+                    f"external_package_schemas / the bare translator result for this package."
+                )
+            return cache[package_name]
+
         def _build_external_package_specs(self, manifest: dict) -> List[dg.AssetSpec]:
             """Emit stub AssetSpec per model whose ``package_name`` is in
             ``external_packages`` (dbt mesh — upstream project owns the asset).
@@ -1736,10 +1811,23 @@ try:
             resolve the SAME model's ``config.schema`` differently during
             their own separate ``dbt parse`` runs -- same translator logic,
             different compiled config data, so the keys can still diverge.
-            ``asset_overrides`` (keyed by unique_id) with an ``asset_key:``
-            entry forces this stub's key to a specific value for exactly
-            that case -- checked after the translator/fallback computation,
-            so it always wins when present."""
+            Three escape hatches for this, cheapest/most-automatic first:
+
+            - ``external_package_workspaces`` (keyed by package name) fetches
+              that package's REAL manifest from its own dbt Cloud project
+              (same account/token as ``workspace``, different project_id/
+              environment_id) and computes the key by running the translator
+              against it directly -- exact parity by construction, no
+              guessing, works for every model in the package automatically.
+            - ``external_package_schemas`` (keyed by package name) fills in a
+              MISSING ``config.schema`` for every model in that package
+              before handing the node to the translator -- a heuristic
+              fallback for when the real manifest isn't fetchable (different
+              account, no Cloud access, etc.).
+            - ``asset_overrides`` (keyed by unique_id) with an ``asset_key:``
+              entry forces one specific stub's key outright, for the rare
+              model that doesn't fit either package-level mechanism. Checked
+              last, so it always wins over all three."""
             if not self.external_packages:
                 return []
             package_set = set(self.external_packages)
@@ -1747,10 +1835,26 @@ try:
             for unique_id, props in (manifest.get("nodes") or {}).items():
                 if props.get("resource_type") != "model":
                     continue
-                if props.get("package_name") not in package_set:
+                package_name = props.get("package_name")
+                if package_name not in package_set:
                     continue
+
+                external_manifest = self._fetch_external_package_manifest(package_name)
+                if external_manifest and unique_id in (external_manifest.get("nodes") or {}):
+                    manifest_for_key = external_manifest
+                else:
+                    manifest_for_key = manifest
+                    default_schema = (self.external_package_schemas or {}).get(package_name)
+                    if default_schema and not (props.get("config") or {}).get("schema"):
+                        patched_node = dict(props)
+                        patched_node["config"] = {**(props.get("config") or {}), "schema": default_schema}
+                        manifest_for_key = {
+                            **manifest,
+                            "nodes": {**(manifest.get("nodes") or {}), unique_id: patched_node},
+                        }
+
                 try:
-                    key = self.get_asset_spec(manifest, unique_id, None).key
+                    key = self.get_asset_spec(manifest_for_key, unique_id, None).key
                 except Exception:
                     meta_asset_key = ((props.get("meta") or {}).get("dagster") or {}).get("asset_key")
                     if meta_asset_key:
@@ -2506,6 +2610,8 @@ except ImportError:
         derive_freshness_policies: bool = Field(default=False)
         emit_contract_checks: bool = Field(default=False)
         external_packages: Optional[List[str]] = Field(default=None)
+        external_package_schemas: Optional[Dict[str, str]] = Field(default=None)
+        external_package_workspaces: Optional[Dict[str, Dict[str, int]]] = Field(default=None)
         emit_semantic_layer_as_assets: bool = Field(default=False)
         enable_materialization_kinds: bool = Field(default=False)
         auto_trigger_on_freshness_failure: bool = Field(default=False)

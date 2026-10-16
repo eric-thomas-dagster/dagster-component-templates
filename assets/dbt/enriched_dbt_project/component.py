@@ -1149,6 +1149,39 @@ try:
         render even though the upstream is owned by a different Dagster code
         location."""
 
+        external_package_schemas: Optional[Dict[str, str]] = None
+        """Default `config.schema` to assume for EVERY model in an
+        `external_packages` package when this project's own compiled manifest
+        doesn't carry that model's schema config at all (the common dbt-mesh
+        case -- cross-project nodes are often compiled without their source
+        project's schema override). Keyed by package name, e.g.
+        `{shared_core: silver_cursorapi}`. Applied by patching a model's
+        config.schema before computing its stub key through the real
+        translator, so it still produces exactly what that project's own
+        translation scheme would have -- not a key-construction shortcut.
+        Only fills in a MISSING schema; never overrides one the manifest
+        already has. For the rare model that doesn't fit the package's
+        default (a different schema, or genuinely no schema), use
+        `asset_overrides.asset_key` instead -- that always wins over both
+        this and the translator."""
+
+        external_package_manifest_paths: Optional[Dict[str, str]] = None
+        """The REAL fix for dbt-mesh key mismatches, when available: for an
+        `external_packages` package whose OWN `manifest.json` is reachable
+        from this project's build/deploy environment (e.g. both projects'
+        CI publishes to the same artifact store, or a shared filesystem/
+        network path), point at that package's real manifest file here and
+        this component computes each stub's key by running the real
+        translator against THAT manifest directly, instead of this
+        project's own incomplete compiled copy of the node. Exact parity
+        by construction, no per-model or per-package guessing needed.
+        Keyed by package name, e.g.
+        `{shared_core: /shared/artifacts/silver/manifest.json}`. Falls
+        back to `external_package_schemas` / the bare translator result if
+        the file is missing or unreadable -- logged as a warning, never a
+        hard failure. `asset_overrides.asset_key` still wins over this for
+        the rare model that needs a manual exception."""
+
         # ── Phase 2 (Cloud) — scaffold only, wired in a follow-up commit ──
         dbt_cloud_workspace: Optional[Any] = None
         """Set to a dagster-dbt DbtCloudWorkspace to switch to Cloud mode.
@@ -1611,6 +1644,34 @@ try:
                 )
             return specs
 
+        def _fetch_external_package_manifest(self, package_name: str) -> Optional[dict]:
+            """Load the REAL manifest for an external_packages package that's
+            configured in external_package_manifest_paths -- that package's
+            own manifest.json file, if reachable from this project's build/
+            deploy environment. Memoized per package name for this component
+            instance's lifetime; returns None (and logs a warning) on any
+            failure so callers fall back to the schema-default/bare-translator
+            path instead of hard-failing."""
+            if not hasattr(self, "_external_manifest_cache"):
+                self._external_manifest_cache: Dict[str, Optional[dict]] = {}  # type: ignore[attr-defined]
+            cache = self._external_manifest_cache  # type: ignore[attr-defined]
+            if package_name in cache:
+                return cache[package_name]
+
+            cache[package_name] = None
+            path = (self.external_package_manifest_paths or {}).get(package_name)
+            if not path:
+                return None
+            try:
+                cache[package_name] = json.loads(Path(path).read_text())
+            except (FileNotFoundError, PermissionError, json.JSONDecodeError) as e:
+                dg.get_dagster_logger().warning(
+                    f"external_package_manifest_paths: failed to read the real manifest for "
+                    f"package {package_name!r} at {path!r}: {e}. Falling back to "
+                    f"external_package_schemas / the bare translator result for this package."
+                )
+            return cache[package_name]
+
         def _build_external_package_specs(self, manifest: dict) -> List[dg.AssetSpec]:
             """Emit stub AssetSpec per model whose ``package_name`` is in
             ``external_packages`` (dbt mesh — upstream project owns the asset).
@@ -1631,10 +1692,22 @@ try:
             resolve the SAME model's ``config.schema`` differently during
             their own separate ``dbt parse`` runs -- same translator logic,
             different compiled config data, so the keys can still diverge.
-            ``asset_overrides`` (keyed by unique_id) with an ``asset_key:``
-            entry forces this stub's key to a specific value for exactly
-            that case -- checked after the translator/fallback computation,
-            so it always wins when present."""
+            Three escape hatches for this, cheapest/most-automatic first:
+
+            - ``external_package_manifest_paths`` (keyed by package name)
+              loads that package's REAL manifest.json, if reachable from
+              this project's build/deploy environment, and computes the key
+              by running the translator against it directly -- exact parity
+              by construction, no guessing, works for every model in the
+              package automatically.
+            - ``external_package_schemas`` (keyed by package name) fills in a
+              MISSING ``config.schema`` for every model in that package
+              before handing the node to the translator -- a heuristic
+              fallback for when the real manifest file isn't reachable.
+            - ``asset_overrides`` (keyed by unique_id) with an ``asset_key:``
+              entry forces one specific stub's key outright, for the rare
+              model that doesn't fit either package-level mechanism. Checked
+              last, so it always wins over all three."""
             if not self.external_packages:
                 return []
             package_set = set(self.external_packages)
@@ -1643,10 +1716,31 @@ try:
             for unique_id, node in (manifest.get("nodes") or {}).items():
                 if node.get("resource_type") != "model":
                     continue
-                if node.get("package_name") not in package_set:
+                package_name = node.get("package_name")
+                if package_name not in package_set:
                     continue
+
+                external_manifest = self._fetch_external_package_manifest(package_name)
+                if external_manifest and unique_id in (external_manifest.get("nodes") or {}):
+                    manifest_for_key = external_manifest
+                else:
+                    manifest_for_key = manifest
+                    default_schema = (self.external_package_schemas or {}).get(package_name)
+                    if default_schema and not (node.get("config") or {}).get("schema"):
+                        # Patch a COPY of just this node (not the shared manifest
+                        # object) so the real translator computes the key as if
+                        # the upstream project's own schema config were present --
+                        # reuses its full logic (prefixing, translation_settings,
+                        # etc.), rather than reimplementing key construction.
+                        patched_node = dict(node)
+                        patched_node["config"] = {**(node.get("config") or {}), "schema": default_schema}
+                        manifest_for_key = {
+                            **manifest,
+                            "nodes": {**(manifest.get("nodes") or {}), unique_id: patched_node},
+                        }
+
                 try:
-                    asset_key = self.get_asset_spec(manifest, unique_id, self.project).key
+                    asset_key = self.get_asset_spec(manifest_for_key, unique_id, self.project).key
                 except Exception:
                     if fallback_map is None:
                         fallback_map = _build_external_package_deps_map(manifest, self.external_packages)
@@ -1919,6 +2013,8 @@ except ImportError:
         derive_freshness_policies: bool = Field(default=False)
         emit_contract_checks: bool = Field(default=False)
         external_packages: Optional[List[str]] = Field(default=None)
+        external_package_schemas: Optional[Dict[str, str]] = Field(default=None)
+        external_package_manifest_paths: Optional[Dict[str, str]] = Field(default=None)
 
         # Phase 2 (stub)
         dbt_cloud_workspace: Optional[Any] = Field(default=None)

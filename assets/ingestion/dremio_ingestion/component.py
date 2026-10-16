@@ -20,13 +20,14 @@ it; default is `rest`.
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import pandas as pd
 import requests
 from dagster import (
     AssetExecutionContext,
     AssetKey,
+    BackfillPolicy,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -178,6 +179,28 @@ class DremioIngestionComponent(Component, Model, Resolvable):
     partition_start: Optional[str] = Field(default=None)
     partition_values: Optional[str] = Field(default=None)
     dynamic_partition_name: Optional[str] = Field(default=None)
+
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run (one query per "
+            "partition in the range, each with its own {partition_key} "
+            "substitution, concatenated together). 'multi_run' launches one "
+            "run per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for "
+            "Dagster's default (one run per partition, uncapped). Ignored "
+            "when partition_type is not set. 'single_run' requires a "
+            "partition-range-aware IO manager (e.g. a DB-table IO manager "
+            "with partition_expr set) -- a generic filesystem/default IO "
+            "manager cannot persist a single_run output spanning multiple "
+            "partitions and will raise a clear error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
 
     retry_policy_max_retries: Optional[int] = Field(default=None)
     retry_policy_delay_seconds: Optional[int] = Field(default=None)
@@ -341,6 +364,14 @@ class DremioIngestionComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
+        backfill_policy_obj = None
+        if partitions_def is not None and component.backfill_policy == "single_run":
+            backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and component.backfill_policy == "multi_run":
+            backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=component.backfill_policy_max_partitions_per_run or 1
+            )
+
         @asset(
             key=AssetKey.from_user_string(asset_name),
             description=description,
@@ -350,29 +381,38 @@ class DremioIngestionComponent(Component, Model, Resolvable):
             group_name=self.group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             partitions_def=partitions_def,
+            backfill_policy=backfill_policy_obj,
             retry_policy=retry_policy,
         )
         def dremio_ingestion_asset(context: AssetExecutionContext):
-            partition_key = context.partition_key if context.has_partition_key else None
-            sql = component._resolve_query(partition_key)
-            context.log.info(f"Dremio SQL: {sql[:200]}{'...' if len(sql) > 200 else ''}")
+            # Partition key(s) this call must process: a normal tick gives
+            # exactly one; a single_run backfill gives the whole range.
+            partition_keys: List[Optional[str]] = [None]
+            if context.has_partition_key or context.has_partition_key_range:
+                partition_keys = list(context.partition_keys)
 
-            if component.transport == "flight":
-                df = component._run_flight(context, sql)
-            else:
-                df = component._run_rest(context, sql)
+            def _run_one(partition_key: Optional[str]) -> pd.DataFrame:
+                sql = component._resolve_query(partition_key)
+                context.log.info(f"Dremio SQL: {sql[:200]}{'...' if len(sql) > 200 else ''}")
+                if component.transport == "flight":
+                    return component._run_flight(context, sql)
+                return component._run_rest(context, sql)
+
+            dfs = [_run_one(pk) for pk in partition_keys]
+            df = pd.concat(dfs, ignore_index=True) if len(dfs) > 1 else dfs[0]
 
             context.log.info(f"Loaded {len(df)} rows, {len(df.columns)} columns")
 
+            last_sql = component._resolve_query(partition_keys[-1])
             metadata: Dict[str, Any] = {
                 "row_count": MetadataValue.int(len(df)),
                 "column_count": MetadataValue.int(len(df.columns)),
                 "columns": MetadataValue.json(list(df.columns)),
-                "query": MetadataValue.md(f"```sql\n{sql}\n```"),
+                "query": MetadataValue.md(f"```sql\n{last_sql}\n```"),
                 "transport": MetadataValue.text(component.transport),
             }
-            if partition_key:
-                metadata["partition_key"] = MetadataValue.text(partition_key)
+            if partition_keys != [None]:
+                metadata["partition_keys"] = MetadataValue.json(partition_keys)
             if component.include_preview_metadata and len(df) > 0:
                 try:
                     sample = (

@@ -23,11 +23,13 @@ Auth follows fsspec / object_store conventions: AWS env vars, AZURE_*, GCP ADC.
 """
 
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
+import pandas as pd
 from dagster import (
     AssetExecutionContext,
     AssetKey,
+    BackfillPolicy,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -189,6 +191,28 @@ class DeltaIngestionComponent(Component, Model, Resolvable):
     partition_values: Optional[str] = Field(default=None)
     dynamic_partition_name: Optional[str] = Field(default=None)
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run (one "
+            "to_pandas() read per partition in the range, each with its own "
+            "partition_filters substitution, concatenated together). "
+            "'multi_run' launches one run per partition (optionally capped "
+            "via backfill_policy_max_partitions_per_run). Leave unset for "
+            "Dagster's default (one run per partition, uncapped). Ignored "
+            "when partition_type is not set. 'single_run' requires a "
+            "partition-range-aware IO manager (e.g. a DB-table IO manager "
+            "with partition_expr set) -- a generic filesystem/default IO "
+            "manager cannot persist a single_run output spanning multiple "
+            "partitions and will raise a clear error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     retry_policy_max_retries: Optional[int] = Field(default=None)
     retry_policy_delay_seconds: Optional[int] = Field(default=None)
     retry_policy_backoff: str = Field(default="exponential")
@@ -226,6 +250,14 @@ class DeltaIngestionComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
+        backfill_policy_obj = None
+        if partitions_def is not None and component.backfill_policy == "single_run":
+            backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and component.backfill_policy == "multi_run":
+            backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=component.backfill_policy_max_partitions_per_run or 1
+            )
+
         @asset(
             key=AssetKey.from_user_string(asset_name),
             description=description,
@@ -235,12 +267,18 @@ class DeltaIngestionComponent(Component, Model, Resolvable):
             group_name=self.group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             partitions_def=partitions_def,
+            backfill_policy=backfill_policy_obj,
             retry_policy=retry_policy,
         )
         def delta_ingestion_asset(context: AssetExecutionContext):
             from deltalake import DeltaTable
 
-            partition_key = context.partition_key if context.has_partition_key else None
+            # Partition key(s) this call must process: a normal tick gives
+            # exactly one; a single_run backfill gives the whole range.
+            partition_keys: List[Optional[str]] = [None]
+            if context.has_partition_key or context.has_partition_key_range:
+                partition_keys = list(context.partition_keys)
+
             storage_opts = _resolve_env_vars(component.storage_options)
 
             dt_kwargs: Dict[str, Any] = {}
@@ -254,23 +292,28 @@ class DeltaIngestionComponent(Component, Model, Resolvable):
             if component.timestamp and component.version is None:
                 dt.load_as_version(component.timestamp)  # accepts ISO timestamp
 
-            # Substitute partition_key into filters
-            pfilters = None
-            if component.partition_filters:
-                pfilters = []
-                for f in component.partition_filters:
-                    col, op, val = f[0], f[1], f[2]
-                    if partition_key is not None and isinstance(val, str) and "{partition_key}" in val:
-                        val = val.replace("{partition_key}", partition_key)
-                    pfilters.append((col, op, val))
+            def _read_one(partition_key: Optional[str]):
+                # Substitute partition_key into filters
+                pfilters = None
+                if component.partition_filters:
+                    pfilters = []
+                    for f in component.partition_filters:
+                        col, op, val = f[0], f[1], f[2]
+                        if partition_key is not None and isinstance(val, str) and "{partition_key}" in val:
+                            val = val.replace("{partition_key}", partition_key)
+                        pfilters.append((col, op, val))
 
-            read_kwargs: Dict[str, Any] = {}
-            if component.select_columns:
-                read_kwargs["columns"] = list(component.select_columns)
-            if pfilters:
-                read_kwargs["partitions"] = pfilters
+                read_kwargs: Dict[str, Any] = {}
+                if component.select_columns:
+                    read_kwargs["columns"] = list(component.select_columns)
+                if pfilters:
+                    read_kwargs["partitions"] = pfilters
 
-            df = dt.to_pandas(**read_kwargs)
+                return dt.to_pandas(**read_kwargs)
+
+            dfs = [_read_one(pk) for pk in partition_keys]
+            df = pd.concat(dfs, ignore_index=True) if len(dfs) > 1 else dfs[0]
+
             context.log.info(
                 f"Delta ingestion: {len(df)} rows × {len(df.columns)} cols from {component.table_uri}"
             )
@@ -293,8 +336,8 @@ class DeltaIngestionComponent(Component, Model, Resolvable):
                     )
             except Exception:
                 pass
-            if partition_key:
-                metadata["partition_key"] = MetadataValue.text(partition_key)
+            if partition_keys != [None]:
+                metadata["partition_keys"] = MetadataValue.json(partition_keys)
             if component.include_preview_metadata and len(df) > 0:
                 try:
                     sample = (

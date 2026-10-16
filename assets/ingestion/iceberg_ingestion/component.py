@@ -23,11 +23,13 @@ underneath: standard fsspec storage credentials.
 """
 
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
+import pandas as pd
 from dagster import (
     AssetExecutionContext,
     AssetKey,
+    BackfillPolicy,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -207,6 +209,28 @@ class IcebergIngestionComponent(Component, Model, Resolvable):
     partition_values: Optional[str] = Field(default=None)
     dynamic_partition_name: Optional[str] = Field(default=None)
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run (one table "
+            "scan per partition in the range, each with its own row_filter "
+            "{partition_key} substitution, concatenated together). "
+            "'multi_run' launches one run per partition (optionally capped "
+            "via backfill_policy_max_partitions_per_run). Leave unset for "
+            "Dagster's default (one run per partition, uncapped). Ignored "
+            "when partition_type is not set. 'single_run' requires a "
+            "partition-range-aware IO manager (e.g. a DB-table IO manager "
+            "with partition_expr set) -- a generic filesystem/default IO "
+            "manager cannot persist a single_run output spanning multiple "
+            "partitions and will raise a clear error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     retry_policy_max_retries: Optional[int] = Field(default=None)
     retry_policy_delay_seconds: Optional[int] = Field(default=None)
     retry_policy_backoff: str = Field(default="exponential")
@@ -251,6 +275,14 @@ class IcebergIngestionComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
+        backfill_policy_obj = None
+        if partitions_def is not None and component.backfill_policy == "single_run":
+            backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and component.backfill_policy == "multi_run":
+            backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=component.backfill_policy_max_partitions_per_run or 1
+            )
+
         @asset(
             key=AssetKey.from_user_string(asset_name),
             description=description,
@@ -260,40 +292,48 @@ class IcebergIngestionComponent(Component, Model, Resolvable):
             group_name=self.group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             partitions_def=partitions_def,
+            backfill_policy=backfill_policy_obj,
             retry_policy=retry_policy,
         )
         def iceberg_ingestion_asset(context: AssetExecutionContext):
-            partition_key = context.partition_key if context.has_partition_key else None
-            catalog = component._load_catalog()
+            # Partition key(s) this call must process: a normal tick gives
+            # exactly one; a single_run backfill gives the whole range.
+            partition_keys: List[Optional[str]] = [None]
+            if context.has_partition_key or context.has_partition_key_range:
+                partition_keys = list(context.partition_keys)
 
+            catalog = component._load_catalog()
             table = catalog.load_table((component.namespace, component.table_name))
 
-            # Optional: select a specific snapshot / timestamp / branch
-            scan_kwargs: Dict[str, Any] = {}
-            if component.snapshot_id is not None:
-                scan_kwargs["snapshot_id"] = component.snapshot_id
-            if component.row_filter:
-                rf = component.row_filter
-                if partition_key is not None and "{partition_key}" in rf:
-                    rf = rf.replace("{partition_key}", partition_key)
-                scan_kwargs["row_filter"] = rf
-            if component.select_columns:
-                scan_kwargs["selected_fields"] = tuple(component.select_columns)
-            if component.limit is not None:
-                scan_kwargs["limit"] = component.limit
+            def _scan_one(partition_key: Optional[str]) -> pd.DataFrame:
+                scan_kwargs: Dict[str, Any] = {}
+                if component.snapshot_id is not None:
+                    scan_kwargs["snapshot_id"] = component.snapshot_id
+                if component.row_filter:
+                    rf = component.row_filter
+                    if partition_key is not None and "{partition_key}" in rf:
+                        rf = rf.replace("{partition_key}", partition_key)
+                    scan_kwargs["row_filter"] = rf
+                if component.select_columns:
+                    scan_kwargs["selected_fields"] = tuple(component.select_columns)
+                if component.limit is not None:
+                    scan_kwargs["limit"] = component.limit
 
-            scan = table.scan(**scan_kwargs)
+                scan = table.scan(**scan_kwargs)
 
-            # as_of_timestamp / branch are configured on the scan, not table
-            if component.as_of_timestamp_ms is not None and not component.snapshot_id:
-                scan = scan.use_ref(component.as_of_timestamp_ms)  # type: ignore[attr-defined]
-            if component.branch:
-                # Newer PyIceberg API
-                if hasattr(scan, "use_ref"):
-                    scan = scan.use_ref(component.branch)
+                # as_of_timestamp / branch are configured on the scan, not table
+                if component.as_of_timestamp_ms is not None and not component.snapshot_id:
+                    scan = scan.use_ref(component.as_of_timestamp_ms)  # type: ignore[attr-defined]
+                if component.branch:
+                    # Newer PyIceberg API
+                    if hasattr(scan, "use_ref"):
+                        scan = scan.use_ref(component.branch)
 
-            arrow_table = scan.to_arrow()
-            df = arrow_table.to_pandas()
+                return scan.to_arrow().to_pandas()
+
+            dfs = [_scan_one(pk) for pk in partition_keys]
+            df = pd.concat(dfs, ignore_index=True) if len(dfs) > 1 else dfs[0]
+
             context.log.info(
                 f"Iceberg ingestion: {len(df)} rows × {len(df.columns)} cols from "
                 f"{component.namespace}.{component.table_name}"
@@ -310,8 +350,8 @@ class IcebergIngestionComponent(Component, Model, Resolvable):
             if current_snap is not None:
                 metadata["snapshot_id"] = MetadataValue.int(current_snap.snapshot_id)
                 metadata["snapshot_timestamp_ms"] = MetadataValue.int(current_snap.timestamp_ms)
-            if partition_key:
-                metadata["partition_key"] = MetadataValue.text(partition_key)
+            if partition_keys != [None]:
+                metadata["partition_keys"] = MetadataValue.json(partition_keys)
             if component.include_preview_metadata and len(df) > 0:
                 try:
                     sample = (

@@ -9,13 +9,14 @@ Set `destination` to persist directly to any dlt-supported destination
 """
 
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
 import dlt
 from dagster import (
     AssetExecutionContext,
     AssetKey,
+    BackfillPolicy,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -27,6 +28,39 @@ from dagster import (
     asset,
 )
 from pydantic import Field
+
+
+def _filter_df_to_partition(df: pd.DataFrame, context, partition_date_column, partition_static_column) -> pd.DataFrame:
+    """Filter a fully-fetched DataFrame down to the current partition's rows.
+
+    This is the ONE piece of the partitioning puzzle these dlt-source-based
+    components were missing: partition_type/partition_date_column/
+    partition_static_column were declared and documented ("Column used to
+    filter the upstream DataFrame to the current date/static partition
+    value") but nothing ever actually filtered anything -- every partition
+    silently returned the identical full dataset. Time-based partitions use
+    context.partition_time_window, which dagster itself already keeps
+    correctly range-aware for a single tick AND a single_run/multi_run
+    backfill range alike -- no per-key looping needed. Static/dynamic/multi
+    partitions have no natural time window, so rows are matched against the
+    set of context.partition_keys instead (1 key normally, the whole range
+    for a backfill).
+    """
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return df
+    if partition_date_column and partition_date_column in df.columns:
+        try:
+            window = context.partition_time_window
+        except Exception:
+            return df  # static/dynamic/multi partition -- no time window
+        dates = pd.to_datetime(df[partition_date_column], errors="coerce", utc=True)
+        start = pd.Timestamp(window.start)
+        end = pd.Timestamp(window.end)
+        return df[(dates >= start) & (dates < end)]
+    if partition_static_column and partition_static_column in df.columns:
+        keys = {str(k) for k in context.partition_keys}
+        return df[df[partition_static_column].astype(str).isin(keys)]
+    return df
 
 
 def _build_partitions_def(
@@ -443,6 +477,29 @@ class NotionIngestionComponent(Component, Model, Resolvable):
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run: the full "
+            "dataset is fetched once (as always) and then filtered down to "
+            "the whole range via partition_date_column/partition_static_column "
+            "(same mechanism as a normal tick, just spanning more rows). "
+            "'multi_run' launches one run per partition (optionally capped "
+            "via backfill_policy_max_partitions_per_run). Leave unset for "
+            "Dagster's default (one run per partition, uncapped). Ignored "
+            "when partition_type is not set. Requires a partition-range-aware "
+            "IO manager (e.g. a DB-table IO manager with partition_expr set) "
+            "-- a generic filesystem/default IO manager cannot persist a "
+            "single_run output spanning multiple partitions and will raise a "
+            "clear error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         if not self.resource_key and not self.api_key:
@@ -536,7 +593,18 @@ class NotionIngestionComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, 
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            _backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            _backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        partition_date_column = self.partition_date_column
+        partition_static_column = self.partition_static_column
+
+        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj, 
             key=AssetKey.from_user_string(asset_name),
             description=description,
             owners=owners,
@@ -619,6 +687,9 @@ class NotionIngestionComponent(Component, Model, Resolvable):
                 return Output(value=pd.DataFrame(), metadata=base_metadata)
 
             combined_df = pd.concat(all_data, ignore_index=True)
+            combined_df = _filter_df_to_partition(
+                combined_df, context, partition_date_column, partition_static_column
+            )
             context.log.info(
                 f"Ingestion complete: {len(combined_df)} total rows from {len(all_data)} resources"
             )

@@ -25,18 +25,38 @@ def mod():
     return load_component_module()
 
 
-def _install_fake_google_cloud_storage_module():
+def _install_fake_google_cloud_storage_module(monkeypatch):
     """The real `google-cloud-storage` package isn't installed in this test
     environment -- inject a minimal fake `google.cloud.storage` module into
     sys.modules so the component's lazy `from google.cloud import storage`
-    resolves to our fake instead of failing on import."""
-    google_mod = sys.modules.setdefault("google", types.ModuleType("google"))
-    cloud_mod = sys.modules.setdefault("google.cloud", types.ModuleType("google.cloud"))
-    storage_mod = sys.modules.setdefault("google.cloud.storage", types.ModuleType("google.cloud.storage"))
-    google_mod.cloud = cloud_mod
-    cloud_mod.storage = storage_mod
-    if not hasattr(storage_mod, "Client"):
+    resolves to our fake instead of failing on import. Uses
+    monkeypatch.setitem/setattr (not a bare assignment/setdefault) so every
+    change is undone after this test -- `google` is a REAL namespace
+    package here (google-auth/google-api-python-client are both installed
+    elsewhere in this repo, e.g. for google_sheets_ingestion's own tests),
+    so a bare `sys.modules["google"] = types.ModuleType(...)` would
+    permanently shadow it with a path-less stub for the rest of the test
+    session, breaking any later `import google.oauth2`-style import."""
+    if "google" in sys.modules:
+        google_mod = sys.modules["google"]
+    else:
+        google_mod = types.ModuleType("google")
+        monkeypatch.setitem(sys.modules, "google", google_mod)
+
+    if "google.cloud" in sys.modules:
+        cloud_mod = sys.modules["google.cloud"]
+    else:
+        cloud_mod = types.ModuleType("google.cloud")
+        monkeypatch.setitem(sys.modules, "google.cloud", cloud_mod)
+        monkeypatch.setattr(google_mod, "cloud", cloud_mod, raising=False)
+
+    if "google.cloud.storage" in sys.modules and hasattr(sys.modules["google.cloud.storage"], "Client"):
+        storage_mod = sys.modules["google.cloud.storage"]
+    else:
+        storage_mod = types.ModuleType("google.cloud.storage")
         storage_mod.Client = MagicMock()
+        monkeypatch.setitem(sys.modules, "google.cloud.storage", storage_mod)
+        monkeypatch.setattr(cloud_mod, "storage", storage_mod, raising=False)
 
 
 class FakeGCSClient:
@@ -75,8 +95,8 @@ def _make_component(mod, db_path, **overrides):
     return mod.GCSToDatabaseAssetComponent(**kwargs)
 
 
-def _materialize(component, fake_client, bucket, object_name, partition_key=None, tags=None):
-    _install_fake_google_cloud_storage_module()
+def _materialize(component, fake_client, bucket, object_name, monkeypatch, partition_key=None, tags=None):
+    _install_fake_google_cloud_storage_module(monkeypatch)
     asset_def = component.build_defs(context=None).assets[0]
     with patch("google.cloud.storage.Client", return_value=fake_client):
         return dg.materialize(
@@ -87,13 +107,13 @@ def _materialize(component, fake_client, bucket, object_name, partition_key=None
         )
 
 
-def test_single_partition_reads_one_object_and_writes_it(mod, tmp_path):
+def test_single_partition_reads_one_object_and_writes_it(mod, tmp_path, monkeypatch):
     db_path = tmp_path / "test.db"
     fake = FakeGCSClient({"my-bucket/sales_store_a.csv": "id,total\n1,10.0\n2,20.0\n"})
     component = _make_component(
         mod, db_path, partition_type="static", partition_values="store_a,store_b,store_c",
     )
-    result = _materialize(component, fake, "my-bucket", "sales_{partition_key}.csv", partition_key="store_a")
+    result = _materialize(component, fake, "my-bucket", "sales_{partition_key}.csv", monkeypatch, partition_key="store_a")
     assert result.success
     assert len(fake.calls) == 1
 
@@ -122,7 +142,7 @@ def test_backfill_policy_unset_by_default(mod, tmp_path):
     assert asset_def.backfill_policy is None
 
 
-def test_single_run_backfill_writes_each_partitions_own_table(mod, tmp_path):
+def test_single_run_backfill_writes_each_partitions_own_table(mod, tmp_path, monkeypatch):
     """Real bug before the fix: the asset read exactly ONE GCS object
     (templated from a single context.partition_key) per call, which
     doesn't exist for a multi-partition single_run backfill. Confirmed
@@ -143,7 +163,7 @@ def test_single_run_backfill_writes_each_partitions_own_table(mod, tmp_path):
         backfill_policy="single_run",
     )
     result = _materialize(
-        component, fake, "my-bucket", "sales_{partition_key}.csv",
+        component, fake, "my-bucket", "sales_{partition_key}.csv", monkeypatch,
         tags={
             "dagster/asset_partition_range_start": "store_a",
             "dagster/asset_partition_range_end": "store_c",

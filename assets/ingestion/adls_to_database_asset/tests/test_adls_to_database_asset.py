@@ -26,21 +26,39 @@ from sqlalchemy import create_engine, text
 from .conftest import load_component_module
 
 
-def _install_fake_azure_module():
+def _install_fake_azure_module(monkeypatch):
     """The real `azure-storage-blob` package isn't installed in this test
     environment (and shouldn't need to be, just to test our own partition-
     range handling) -- inject a minimal fake `azure.storage.blob` module
     into sys.modules so the component's lazy `from azure.storage.blob
     import BlobServiceClient` resolves to our fake instead of failing on
-    import. Mirrors `conftest.py`'s own "don't require real deps" spirit.
-    """
-    azure_mod = sys.modules.setdefault("azure", types.ModuleType("azure"))
-    storage_mod = sys.modules.setdefault("azure.storage", types.ModuleType("azure.storage"))
-    blob_mod = sys.modules.setdefault("azure.storage.blob", types.ModuleType("azure.storage.blob"))
-    azure_mod.storage = storage_mod
-    storage_mod.blob = blob_mod
-    if not hasattr(blob_mod, "BlobServiceClient"):
+    import. Uses monkeypatch.setitem/setattr (not a bare assignment/
+    setdefault) so every change is undone after this test -- a bare
+    `sys.modules["azure"] = types.ModuleType(...)` would otherwise
+    permanently shadow a real `azure` package for the rest of the test
+    session if one is ever installed alongside this repo's other cloud
+    SDKs (confirmed as a real cross-test failure mode for the equivalent
+    `google` stub in gcs_to_database_asset's tests)."""
+    if "azure" in sys.modules:
+        azure_mod = sys.modules["azure"]
+    else:
+        azure_mod = types.ModuleType("azure")
+        monkeypatch.setitem(sys.modules, "azure", azure_mod)
+
+    if "azure.storage" in sys.modules:
+        storage_mod = sys.modules["azure.storage"]
+    else:
+        storage_mod = types.ModuleType("azure.storage")
+        monkeypatch.setitem(sys.modules, "azure.storage", storage_mod)
+        monkeypatch.setattr(azure_mod, "storage", storage_mod, raising=False)
+
+    if "azure.storage.blob" in sys.modules and hasattr(sys.modules["azure.storage.blob"], "BlobServiceClient"):
+        blob_mod = sys.modules["azure.storage.blob"]
+    else:
+        blob_mod = types.ModuleType("azure.storage.blob")
         blob_mod.BlobServiceClient = MagicMock()
+        monkeypatch.setitem(sys.modules, "azure.storage.blob", blob_mod)
+        monkeypatch.setattr(storage_mod, "blob", blob_mod, raising=False)
 
 
 @pytest.fixture()
@@ -79,8 +97,8 @@ def _make_component(mod, db_path, monkeypatch, **overrides):
     return mod.ADLSToDatabaseAssetComponent(**kwargs)
 
 
-def _materialize(component, fake_client, container, blob_name, partition_key=None, tags=None):
-    _install_fake_azure_module()
+def _materialize(component, fake_client, container, blob_name, monkeypatch, partition_key=None, tags=None):
+    _install_fake_azure_module(monkeypatch)
     asset_def = component.build_defs(context=None).assets[0]
     with patch("azure.storage.blob.BlobServiceClient.from_connection_string", return_value=fake_client):
         return dg.materialize(
@@ -98,7 +116,7 @@ def test_single_partition_reads_one_blob_and_writes_it(mod, tmp_path, monkeypatc
         mod, db_path, monkeypatch,
         partition_type="static", partition_values="store_a,store_b,store_c",
     )
-    result = _materialize(component, fake, "my-container", "sales_{partition_key}.csv", partition_key="store_a")
+    result = _materialize(component, fake, "my-container", "sales_{partition_key}.csv", monkeypatch, partition_key="store_a")
     assert result.success
     assert len(fake.calls) == 1
 
@@ -148,7 +166,7 @@ def test_single_run_backfill_writes_each_partitions_own_table(mod, tmp_path, mon
         backfill_policy="single_run",
     )
     result = _materialize(
-        component, fake, "my-container", "sales_{partition_key}.csv",
+        component, fake, "my-container", "sales_{partition_key}.csv", monkeypatch,
         tags={
             "dagster/asset_partition_range_start": "store_a",
             "dagster/asset_partition_range_end": "store_c",

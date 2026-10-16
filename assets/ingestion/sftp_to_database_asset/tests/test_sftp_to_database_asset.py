@@ -27,11 +27,13 @@ def mod():
     return load_component_module()
 
 
-def _install_fake_paramiko_module(fake_sftp):
+def _install_fake_paramiko_module(fake_sftp, monkeypatch):
     """The real `paramiko` package isn't installed in this test environment
     -- inject a minimal fake module into sys.modules so the component's
     lazy `import paramiko` resolves to our fake instead of failing on
-    import."""
+    import. Uses monkeypatch.setitem (not a bare assignment) so it's
+    undone after this test rather than permanently shadowing a real
+    `paramiko` for the rest of the test session if one is ever installed."""
     paramiko_mod = types.ModuleType("paramiko")
     paramiko_mod.AutoAddPolicy = MagicMock
 
@@ -49,7 +51,7 @@ def _install_fake_paramiko_module(fake_sftp):
             pass
 
     paramiko_mod.SSHClient = _FakeSSHClient
-    sys.modules["paramiko"] = paramiko_mod
+    monkeypatch.setitem(sys.modules, "paramiko", paramiko_mod)
 
 
 class FakeSFTP:
@@ -83,8 +85,8 @@ def _make_component(mod, db_path, monkeypatch, **overrides):
     return mod.SFTPToDatabaseAssetComponent(**kwargs)
 
 
-def _materialize(component, fake_sftp, remote_path, filename="data.csv", partition_key=None, tags=None):
-    _install_fake_paramiko_module(fake_sftp)
+def _materialize(component, fake_sftp, remote_path, monkeypatch, filename="data.csv", partition_key=None, tags=None):
+    _install_fake_paramiko_module(fake_sftp, monkeypatch)
     asset_def = component.build_defs(context=None).assets[0]
     return dg.materialize(
         [asset_def],
@@ -101,7 +103,7 @@ def test_single_partition_reads_one_file_and_writes_it(mod, tmp_path, monkeypatc
         mod, db_path, monkeypatch,
         partition_type="static", partition_values="store_a,store_b,store_c",
     )
-    result = _materialize(component, fake_sftp, "/data/sales_{partition_key}.csv", partition_key="store_a")
+    result = _materialize(component, fake_sftp, "/data/sales_{partition_key}.csv", monkeypatch, partition_key="store_a")
     assert result.success
     assert len(fake_sftp.getfo_calls) == 1
     assert fake_sftp.closed
@@ -152,7 +154,7 @@ def test_single_run_backfill_reuses_one_ssh_connection_and_writes_each_table(mod
         backfill_policy="single_run",
     )
     result = _materialize(
-        component, fake_sftp, "/data/sales_{partition_key}.csv",
+        component, fake_sftp, "/data/sales_{partition_key}.csv", monkeypatch,
         tags={
             "dagster/asset_partition_range_start": "store_a",
             "dagster/asset_partition_range_end": "store_c",

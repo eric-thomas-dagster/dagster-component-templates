@@ -73,7 +73,7 @@ import subprocess
 import threading
 import time
 from collections import deque
-from typing import Any, Callable, Deque, Dict, List, Optional, Tuple
+from typing import Any, Callable, Deque, Dict, List, Literal, Optional, Tuple
 
 import dagster as dg
 from pydantic import Field
@@ -497,20 +497,32 @@ def _run_compute(
         if not cmd:
             raise ValueError("compute.kind=shell requires `cmd:` (list or string).")
         args = cmd if isinstance(cmd, list) else ["bash", "-c", cmd]
-        env = dict(os.environ)
-        if context.has_partition_key:
-            env["DAGSTER_PARTITION_KEY"] = context.partition_key
-        result = subprocess.run(
-            args, env=env, capture_output=True, text=True,
-            timeout=int(compute.get("timeout_seconds") or 300),
-        )
-        if result.stdout:
-            context.log.info(result.stdout.strip())
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"shell compute exited {result.returncode}: {result.stderr[:400]!r}"
+        # A single_run backfill hands us a whole partition RANGE (has_partition_key
+        # is False there): run the command once per partition with its own
+        # DAGSTER_PARTITION_KEY, same as separate per-partition runs would.
+        if context.has_partition_key or context.has_partition_key_range:
+            shell_keys: List[Optional[str]] = [str(k) for k in context.partition_keys]
+        else:
+            shell_keys = [None]
+        outputs: List[str] = []
+        for shell_pk in shell_keys:
+            env = dict(os.environ)
+            if shell_pk is not None:
+                env["DAGSTER_PARTITION_KEY"] = shell_pk
+            result = subprocess.run(
+                args, env=env, capture_output=True, text=True,
+                timeout=int(compute.get("timeout_seconds") or 300),
             )
-        return result.stdout
+            if result.stdout:
+                context.log.info(result.stdout.strip())
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"shell compute exited {result.returncode}"
+                    + (f" for partition {shell_pk!r}" if shell_pk is not None else "")
+                    + f": {result.stderr[:400]!r}"
+                )
+            outputs.append(result.stdout)
+        return outputs[0] if len(outputs) == 1 else "".join(outputs)
 
     if kind == "http":
         import requests
@@ -736,6 +748,26 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run; for compute.kind="
+            "shell the command is run once per partition in the range with its "
+            "own DAGSTER_PARTITION_KEY (python-kind compute receives the context "
+            "and must handle context.partition_keys itself). 'multi_run' launches "
+            "one run per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for Dagster's "
+            "default (one run per partition, uncapped). Ignored when no "
+            "partitioning is configured. This asset returns a MaterializeResult "
+            "(no IO manager), so single_run needs no range-aware IO manager."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     # Catalog / governance
     group_name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
@@ -822,8 +854,17 @@ class SmartRetryComponent(dg.Component, dg.Model, dg.Resolvable):
         circuit_key = (circuit_cfg.get("key") if circuit_cfg else None) or asset_name
         rate_limit_key = (rate_limit_cfg.get("key") if rate_limit_cfg else None) or asset_name
 
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            _backfill_policy_obj = dg.BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            _backfill_policy_obj = dg.BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
         @dg.asset(
             key=dg.AssetKey.from_user_string(asset_name),
+            backfill_policy=_backfill_policy_obj,
             description=self.description or f"Smart-retry-wrapped compute for {asset_name}",
             group_name=self.group_name,
             owners=self.owners or [],

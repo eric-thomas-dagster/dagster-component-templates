@@ -59,7 +59,7 @@ The user's Modal function must:
 
 import os
 import shlex
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import dagster as dg
 from pydantic import Field
@@ -187,6 +187,24 @@ class ModalPipesAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     partition_values: Optional[Any] = Field(default=None)
     dynamic_partition_name: Optional[str] = Field(default=None)
     partition_dimensions: Optional[List[Dict[str, Any]]] = Field(default=None)
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one Dagster run, launching "
+            "the Modal function once per partition in the range (metadata the "
+            "function reports is folded into one result keyed '<partition>/<name>'). "
+            "'multi_run' launches one run per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for Dagster's "
+            "default (one run per partition, uncapped). Ignored when no "
+            "partitioning is configured. This asset returns a MaterializeResult "
+            "(no IO manager), so single_run needs no range-aware IO manager."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -219,8 +237,17 @@ class ModalPipesAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             self.dynamic_partition_name, self.partition_dimensions,
         )
 
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            _backfill_policy_obj = dg.BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            _backfill_policy_obj = dg.BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
         @dg.asset(
             key=dg.AssetKey.from_user_string(asset_name),
+            backfill_policy=_backfill_policy_obj,
             description=self.description or f"Modal function {function_name} via Dagster Pipes",
             group_name=self.group_name,
             owners=self.owners or [],
@@ -229,47 +256,72 @@ class ModalPipesAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             partitions_def=partitions_def,
         )
         def _modal_pipes_asset(context: dg.AssetExecutionContext, pipes_subprocess_client: dg.PipesSubprocessClient):
-            # Build the `modal run` command.
-            cmd: List[str] = ["modal", "run"]
-            if modal_env:
-                cmd.extend(["--env", modal_env])
-            cmd.extend(modal_extra_flags)
-            cmd.append(f"{app_file}::{function_name}")
+            # Partition key(s) this call must process: a normal tick gives
+            # exactly one; a single_run backfill gives the whole range, and the
+            # Modal function is launched once per partition in it.
+            is_range = (not context.has_partition_key) and context.has_partition_key_range
+            if context.has_partition_key or is_range:
+                partition_keys: List[Optional[str]] = [str(k) for k in context.partition_keys]
+            else:
+                partition_keys = [None]
 
-            # Partition-aware: expose partition_key as CLI arg + env so the
-            # user's Modal function can read it via os.environ or --partition_key.
-            partition_key = context.partition_key if context.has_partition_key else None
-            effective_args = dict(function_args)
-            if partition_key and "partition_key" not in effective_args:
-                effective_args["partition_key"] = partition_key
+            def _run_one(partition_key: Optional[str]):
+                # Build the `modal run` command.
+                cmd: List[str] = ["modal", "run"]
+                if modal_env:
+                    cmd.extend(["--env", modal_env])
+                cmd.extend(modal_extra_flags)
+                cmd.append(f"{app_file}::{function_name}")
 
-            for key, value in effective_args.items():
-                cmd.append(f"--{key}")
-                cmd.append(str(value))
+                # Partition-aware: expose partition_key as CLI arg + env so the
+                # user's Modal function can read it via os.environ or --partition_key.
+                effective_args = dict(function_args)
+                if partition_key and "partition_key" not in effective_args:
+                    effective_args["partition_key"] = partition_key
 
-            # Env overrides for token creds.
-            env_overrides = {}
-            if modal_token_id_env_var:
-                tok = os.environ.get(modal_token_id_env_var)
-                if tok:
-                    env_overrides["MODAL_TOKEN_ID"] = tok
-            if modal_token_secret_env_var:
-                sec = os.environ.get(modal_token_secret_env_var)
-                if sec:
-                    env_overrides["MODAL_TOKEN_SECRET"] = sec
-            if partition_key:
-                env_overrides["DAGSTER_PARTITION_KEY"] = partition_key
+                for key, value in effective_args.items():
+                    cmd.append(f"--{key}")
+                    cmd.append(str(value))
 
-            context.log.info(f"[modal_pipes] launching: {' '.join(shlex.quote(c) for c in cmd)}")
+                # Env overrides for token creds.
+                env_overrides = {}
+                if modal_token_id_env_var:
+                    tok = os.environ.get(modal_token_id_env_var)
+                    if tok:
+                        env_overrides["MODAL_TOKEN_ID"] = tok
+                if modal_token_secret_env_var:
+                    sec = os.environ.get(modal_token_secret_env_var)
+                    if sec:
+                        env_overrides["MODAL_TOKEN_SECRET"] = sec
+                if partition_key:
+                    env_overrides["DAGSTER_PARTITION_KEY"] = partition_key
 
-            # Launch via PipesSubprocessClient. Materializations reported by the
-            # Modal function via `ctx.report_asset_materialization()` land in the
-            # Dagster event log automatically.
-            return pipes_subprocess_client.run(
-                command=cmd,
-                context=context,
-                env=env_overrides or None,
-            ).get_materialize_result()
+                context.log.info(f"[modal_pipes] launching: {' '.join(shlex.quote(c) for c in cmd)}")
+
+                # Launch via PipesSubprocessClient. Materializations reported by the
+                # Modal function via `ctx.report_asset_materialization()` land in the
+                # Dagster event log automatically.
+                return pipes_subprocess_client.run(
+                    command=cmd,
+                    context=context,
+                    env=env_overrides or None,
+                )
+
+            if not is_range:
+                return _run_one(partition_keys[0]).get_materialize_result()
+
+            # Range: one Modal invocation per partition. The Modal function's own
+            # per-invocation materialization reports can't be attributed to a
+            # single partition inside one multi-partition step, so fold each
+            # invocation's reported metadata into one MaterializeResult keyed
+            # by partition.
+            merged_metadata: Dict[str, Any] = {"partition_keys": dg.MetadataValue.json(partition_keys)}
+            for pk in partition_keys:
+                invocation = _run_one(pk)
+                for res in invocation.get_results():
+                    for mk, mv in (getattr(res, "metadata", None) or {}).items():
+                        merged_metadata[f"{pk}/{mk}"] = mv
+            return dg.MaterializeResult(metadata=merged_metadata)
 
         # Wire the built-in PipesSubprocessClient resource by default. Users
         # can override at project level if they need custom message-reader /

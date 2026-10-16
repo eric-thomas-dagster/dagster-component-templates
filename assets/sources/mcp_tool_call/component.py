@@ -16,10 +16,11 @@ Output: parsed tool response (dict / list / str depending on `parse_as`),
 with materialization metadata for tool name, args, result size, and a
 markdown preview.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 import dagster as dg
 from dagster import (
     AssetExecutionContext,
+    BackfillPolicy,
     AssetKey,
     Component,
     ComponentLoadContext,
@@ -226,6 +227,27 @@ class MCPToolCallComponent(Component, Model, Resolvable):
         description="Multi-axis partition spec: list of {name, type, start, values} dicts.",
     )
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run (one tool call "
+            "per partition in the range, each with its own {partition_key} "
+            "substitution; the asset's value is a dict {partition_key: result}). "
+            "'multi_run' launches one run per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for Dagster's "
+            "default (one run per partition, uncapped). Ignored when no "
+            "partitioning is configured. 'single_run' requires a "
+            "partition-range-aware IO manager -- a generic filesystem/default "
+            "IO manager cannot persist a single_run output spanning multiple "
+            "partitions and will raise a clear error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     freshness_max_lag_minutes: Optional[int] = Field(default=None, description="FreshnessPolicy max lag in minutes.")
     freshness_cron: Optional[str] = Field(default=None, description="FreshnessPolicy cron schedule.")
 
@@ -294,9 +316,18 @@ class MCPToolCallComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            _backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            _backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
         @asset(
             key=AssetKey.from_user_string(asset_name),
             partitions_def=partitions_def,
+            backfill_policy=_backfill_policy_obj,
             group_name=group_name,
             description=description,
             owners=owners,
@@ -308,51 +339,72 @@ class MCPToolCallComponent(Component, Model, Resolvable):
         def _tool_call_asset(context: AssetExecutionContext) -> Any:
             import asyncio
 
-            # Resolve template substitutions.
-            substitutions = {"run_id": context.run_id}
-            if context.has_partition_key:
-                pk = context.partition_key
-                if hasattr(pk, "keys_by_dimension"):
-                    substitutions["partition_key"] = str(pk)
-                    substitutions["partition_keys"] = dict(pk.keys_by_dimension)
-                else:
-                    substitutions["partition_key"] = str(pk)
-                    substitutions["partition_keys"] = {}
+            # Partition key(s) this call must process: a normal tick gives
+            # exactly one; a single_run backfill gives the whole range, and
+            # each key gets its own tool call with its own substitutions.
+            is_range = (not context.has_partition_key) and context.has_partition_key_range
+            keys: List[Any] = [None]
+            if context.has_partition_key or is_range:
+                keys = list(context.partition_keys)
 
-            resolved_args = _substitute_args(tool_args, substitutions)
-
-            result = asyncio.run(
-                _call_tool(
-                    log=context.log,
-                    server_cfg=server.model_dump(),
-                    tool_name=tool_name,
-                    tool_args=resolved_args,
-                    parse_as=parse_as,
+            def _call_for(pk):
+                substitutions = {"run_id": context.run_id}
+                if pk is not None:
+                    if hasattr(pk, "keys_by_dimension"):
+                        substitutions["partition_key"] = str(pk)
+                        substitutions["partition_keys"] = dict(pk.keys_by_dimension)
+                    else:
+                        substitutions["partition_key"] = str(pk)
+                        substitutions["partition_keys"] = {}
+                resolved = _substitute_args(tool_args, substitutions)
+                res = asyncio.run(
+                    _call_tool(
+                        log=context.log,
+                        server_cfg=server.model_dump(),
+                        tool_name=tool_name,
+                        tool_args=resolved,
+                        parse_as=parse_as,
+                    )
                 )
-            )
+                if res["is_error"]:
+                    raise RuntimeError(
+                        f"MCP tool {tool_name!r} returned isError=true"
+                        + (f" for partition {pk!r}" if pk is not None else "")
+                        + f": {res['raw'][:500]}"
+                    )
+                return resolved, res
+
+            calls = [(pk,) + _call_for(pk) for pk in keys]
+            resolved_args = calls[0][1] if not is_range else {str(pk): r for pk, r, _ in calls}
+            result = calls[0][2]
 
             md = {
                 "mcp_server": MetadataValue.text(server.name),
                 "tool_name": MetadataValue.text(tool_name),
                 "tool_args": MetadataValue.json(resolved_args),
-                "is_error": MetadataValue.bool(result["is_error"]),
+                "is_error": MetadataValue.bool(False),
                 "result_kind": MetadataValue.text(result["kind"]),
-                "result_size_bytes": MetadataValue.int(result["raw_size"]),
+                "result_size_bytes": MetadataValue.int(sum(c[2]["raw_size"] for c in calls)),
             }
-            if result["kind"] == "json":
+            if is_range:
+                md["partition_keys"] = MetadataValue.json([str(pk) for pk in keys])
+            if not is_range and result["kind"] == "json":
                 if isinstance(result["value"], list):
                     md["result_item_count"] = MetadataValue.int(len(result["value"]))
                 elif isinstance(result["value"], dict):
                     md["result_key_count"] = MetadataValue.int(len(result["value"]))
             # Render a markdown preview of the response so the Dagster UI is useful.
+            _raw = result["raw"] if not is_range else "\n".join(f"[{pk}] {c[2]['raw'][:500]}" for pk, c in zip(keys, calls))
             md["preview"] = MetadataValue.md(
-                f"```\n{result['raw'][:2000]}\n```"
-                + ("" if len(result["raw"]) <= 2000 else f"\n\n_(truncated — full response is {result['raw_size']} bytes)_")
+                f"```\n{_raw[:2000]}\n```"
+                + ("" if len(_raw) <= 2000 else f"\n\n_(truncated — full response is {len(_raw)} bytes)_")
             )
             context.add_output_metadata(md)
 
-            if result["is_error"]:
-                raise RuntimeError(f"MCP tool {tool_name!r} returned isError=true: {result['raw'][:500]}")
+            if is_range:
+                # Multi-partition output: {partition_key: tool result}
+                # (Dagster's own UPathIOManager convention for ranges).
+                return {str(pk): c[2]["value"] for pk, c in zip(keys, calls)}
             return result["value"]
 
         return Definitions(assets=[_tool_call_asset])

@@ -628,7 +628,7 @@ group_name=group_name,
                     if col.name not in _derived_cols
                 }
             if _effective_lineage:
-                _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
+                _upstream_key = None  # source component: no upstream asset (undefined `upstream_asset_key` here was a NameError on every run)
                 if _upstream_key:
                     _lineage_deps = {}
                     for out_col, in_cols in _effective_lineage.items():

@@ -10,6 +10,25 @@
     }
   },
   "attributes": {
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run; for compute kind 'shell' the command is run once per partition in the range with its own DAGSTER_PARTITION_KEY (python-kind compute receives the context and must handle context.partition_keys itself). 'multi_run' launches one run per partition (optionally capped via Backfill Max Partitions Per Run). Leave empty for Dagster's default. Ignored when no partitioning is configured. This asset returns a MaterializeResult (no IO manager), so single_run needs no range-aware IO manager.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
+      "required": false,
+      "default": null
+    },
     "asset_name": {
       "description": "Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode).",
       "type": "string",

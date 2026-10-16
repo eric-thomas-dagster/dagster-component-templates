@@ -3,7 +3,7 @@
 Execute SQL queries against databases and materialize results as Dagster assets.
 """
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 from datetime import datetime
 
 import pandas as pd
@@ -14,6 +14,7 @@ from dagster import (
     Definitions,
     AssetExecutionContext,
     AssetKey,
+    BackfillPolicy,
     asset,
     Resolvable,
     Model,
@@ -218,6 +219,28 @@ class DatabaseQueryComponent(Component, Model, Resolvable):
     dynamic_partition_name: Optional[str] = Field(
         default=None,
         description="Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+    )
+
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run (one query per "
+            "partition in the range, each with its own :partition_date, "
+            "concatenated together). 'multi_run' launches one run per partition "
+            "(optionally capped via backfill_policy_max_partitions_per_run). "
+            "Leave unset for Dagster's default (one run per partition, "
+            "uncapped). Ignored when no partitioning is configured. "
+            "'single_run' requires a partition-range-aware IO manager (e.g. a "
+            "DB-table IO manager with partition_expr set) -- a generic "
+            "filesystem/default IO manager cannot persist a single_run output "
+            "spanning multiple partitions and will raise a clear error at "
+            "materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
     )
 
     partition_dimensions: Optional[List[Dict[str, Any]]] = Field(
@@ -426,7 +449,15 @@ class DatabaseQueryComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            _backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            _backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        @asset(retry_policy=_retry_policy, backfill_policy=_backfill_policy_obj,
             key=AssetKey.from_user_string(asset_name),
             description=description,
             partitions_def=partitions_def,
@@ -440,22 +471,24 @@ group_name=group_name,
         def database_query_asset(context: AssetExecutionContext):
             """Asset that executes SQL query and returns results."""
 
-            # Check if running in partitioned mode
-            query_params = {}
-            if context.has_partition_key:
-                # Parse partition key as date (format: YYYY-MM-DD)
-                try:
-                    partition_date = datetime.strptime(context.partition_key, "%Y-%m-%d")
-                    query_params["partition_date"] = partition_date
-                    context.log.info(
-                        f"Running partitioned query for date: {context.partition_key}"
-                    )
-                except ValueError:
-                    context.log.warning(
-                        f"Could not parse partition key '{context.partition_key}' as date"
-                    )
+            # Partition key(s) this call must process: a normal tick gives
+            # exactly one; a single_run backfill gives the whole range.
+            param_sets: List[Dict[str, Any]] = []
+            if context.has_partition_key or context.has_partition_key_range:
+                for _pk in context.partition_keys:
+                    _params: Dict[str, Any] = {}
+                    # Parse partition key as date (format: YYYY-MM-DD)
+                    try:
+                        _params["partition_date"] = datetime.strptime(str(_pk), "%Y-%m-%d")
+                        context.log.info(f"Running partitioned query for date: {_pk}")
+                    except ValueError:
+                        context.log.warning(
+                            f"Could not parse partition key '{_pk}' as date"
+                        )
+                    param_sets.append(_params)
             else:
                 context.log.info("Running non-partitioned query")
+                param_sets.append({})
 
             context.log.info(f"Connecting to database...")
             engine = create_engine(database_url)
@@ -465,7 +498,8 @@ group_name=group_name,
             try:
                 # Execute query and load results into DataFrame
                 # Query params are available as :partition_date in SQL
-                df = pd.read_sql(text(query), engine, params=query_params)
+                _frames = [pd.read_sql(text(query), engine, params=_p) for _p in param_sets]
+                df = pd.concat(_frames, ignore_index=True) if len(_frames) > 1 else _frames[0]
 
                 context.log.info(f"Query returned {len(df)} rows")
 
@@ -496,7 +530,7 @@ group_name=group_name,
                 if not _effective_lineage:
                     _effective_lineage = {col.name: [col.name] for col in _col_schema.columns}
                 if _effective_lineage:
-                    _upstream_key = AssetKey.from_user_string(upstream_asset_key) if upstream_asset_key else None
+                    _upstream_key = None  # source component: no upstream asset to map lineage to (was a NameError on undefined upstream_asset_key)
                     if _upstream_key:
                         _lineage_deps = {}
                         for out_col, in_cols in _effective_lineage.items():

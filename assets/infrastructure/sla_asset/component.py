@@ -53,6 +53,18 @@ from pydantic import Field
 # --------------------------------------------------------------------------
 
 
+def _range_partition_keys(context) -> list:
+    """Partition keys of a multi-partition (single_run backfill) run, else [].
+    `context.partition_key` raises for a range, so per-partition lookups would
+    silently fall back to the default for the whole range."""
+    try:
+        if getattr(context, "has_partition_key_range", False) and not getattr(context, "has_partition_key", False):
+            return [str(k) for k in context.partition_keys]
+    except Exception:  # noqa: BLE001
+        pass
+    return []
+
+
 def _lookup_per_partition(
     partition_key: Optional[str],
     per_partition_map: Optional[Dict[str, float]],
@@ -388,6 +400,10 @@ def sla(
             effective_expected = _lookup_per_partition(
                 partition_key, per_partition_expected, expected_duration_seconds, partition_matcher,
             )
+            _rk = _range_partition_keys(context)
+            if _rk and per_partition_expected:
+                # per-partition overrides apply to each partition in the range; work scales with their count
+                effective_expected = sum(_lookup_per_partition(_k, per_partition_expected, expected_duration_seconds, partition_matcher) for _k in _rk)
 
             # Auto-derive from history — overrides both the hardcoded and per-partition
             # values when configured. Runs BEFORE the timer starts.
@@ -713,6 +729,10 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             effective_expected = _lookup_per_partition(
                 partition_key, per_partition_map, expected_s, matcher,
             )
+            _rk = _range_partition_keys(context)
+            if _rk and per_partition_map:
+                # per-partition overrides apply to each partition in the range; work scales with their count
+                effective_expected = sum(_lookup_per_partition(_k, per_partition_map, expected_s, matcher) for _k in _rk)
 
             # Auto-derive from history — OVERRIDES both the hardcoded + per-partition
             # values when configured. Runs BEFORE the timer starts.
@@ -855,6 +875,7 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         @dg.asset(
             key=key,
             partitions_def=asset_def.partitions_def,
+            backfill_policy=asset_def.backfill_policy,
             deps=inner_deps,
             group_name=(spec.group_name if spec else None),
             kinds=merged_kinds,
@@ -872,6 +893,10 @@ class SlaAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             effective_expected = _lookup_per_partition(
                 partition_key, per_partition_map, expected_s, matcher,
             )
+            _rk = _range_partition_keys(context)
+            if _rk and per_partition_map:
+                # per-partition overrides apply to each partition in the range; work scales with their count
+                effective_expected = sum(_lookup_per_partition(_k, per_partition_map, expected_s, matcher) for _k in _rk)
 
             # Auto-derive from history — OVERRIDES hardcoded/per-partition values.
             if derive_cfg and getattr(context, "instance", None) is not None:

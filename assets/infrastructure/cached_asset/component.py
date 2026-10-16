@@ -73,6 +73,17 @@ def _hash_str(*parts: str) -> str:
     return h.hexdigest()[:24]  # 24 chars = 96 bits, plenty for cache keys
 
 
+def _partition_key_part(context: Any) -> str:
+    """Cache-key segment for the run's partition(s): the key itself for a single
+    partition (unchanged from before), a comma-joined list for a backfill range,
+    "" when unpartitioned."""
+    if getattr(context, "has_partition_key", False):
+        return str(context.partition_key)
+    if getattr(context, "has_partition_key_range", False):
+        return ",".join(str(k) for k in context.partition_keys)
+    return ""
+
+
 def _compute_cache_key(
     context: Any,
     code_version: str,
@@ -87,7 +98,10 @@ def _compute_cache_key(
     # Code version.
     parts.append(code_version or "")
     # Partition key.
-    parts.append(str(context.partition_key) if getattr(context, "has_partition_key", False) and context.has_partition_key else "")
+    # A single_run backfill hands the wrapper a whole RANGE (has_partition_key
+    # is False there), so the key must cover every partition in the range --
+    # otherwise every range would collide on the same "" key.
+    parts.append(_partition_key_part(context))
     # User custom key.
     if user_key_fn_ref:
         try:
@@ -150,7 +164,7 @@ def input_hash_cache_key_fn(context: Any, upstream: Any = None) -> str:
     parts = [
         "input_hash",
         str(getattr(context, "asset_key", "")),
-        str(getattr(context, "partition_key", "") if getattr(context, "has_partition_key", False) else ""),
+        _partition_key_part(context),
     ]
     return _hash_str(*parts)
 
@@ -835,6 +849,7 @@ class CachedAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         @dg.asset(
             key=key,
             partitions_def=asset_def.partitions_def,
+            backfill_policy=asset_def.backfill_policy,
             deps=inner_deps,
             group_name=(spec.group_name if spec else None),
             kinds=merged_kinds,

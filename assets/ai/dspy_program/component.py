@@ -4,6 +4,7 @@ Run a compiled DSPy program against a DataFrame column.
 DSPy optimizes prompts automatically using signature-based programming.
 """
 from typing import Any, Dict, List, Optional, Union
+from typing import Literal  # noqa: E402,F401
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
@@ -286,6 +287,16 @@ class DspyProgramComponent(Component, Model, Resolvable):
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' filters and processes an entire backfill range in ONE run (the upstream DataFrame is filtered to the union of every partition key in the range, then processed once -- the total rows sent to the model/API are identical to running one run per partition, so it does not multiply paid calls, but a single failure retries the whole range). 'multi_run' launches one run per partition (optionally capped via backfill_policy_max_partitions_per_run). Leave unset for Dagster's default (one run per partition, uncapped). Ignored when partition_type/partition_dimensions is not set. 'single_run' returns one DataFrame spanning multiple partitions, which requires a partition-range-aware IO manager (e.g. a DB-table IO manager with partition_expr set) -- the default filesystem IO manager cannot persist it and will raise a clear error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
     owners: Optional[List[str]] = Field(
         default=None,
         description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
@@ -402,6 +413,15 @@ class DspyProgramComponent(Component, Model, Resolvable):
         partition_date_column = self.partition_date_column
         partition_static_column = self.partition_static_column
         partition_static_dim = self.partition_static_dim
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            from dagster import BackfillPolicy
+            _backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            from dagster import BackfillPolicy
+            _backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
 
         # Infer kinds from component name if not explicitly set
         _comp_name = "dspy_program"  # component directory name
@@ -473,6 +493,7 @@ class DspyProgramComponent(Component, Model, Resolvable):
             key=AssetKey.from_user_string(asset_name),
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
             partitions_def=partitions_def,
+            backfill_policy=_backfill_policy_obj,
                         owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,
@@ -493,18 +514,27 @@ group_name=group_name,
                 _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
                 upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             # Filter to current partition if partitioned
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    _col_dates = pd.to_datetime(upstream[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
-                    upstream = upstream[_col_dates == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+            if context.has_partition_key or context.has_partition_key_range:
+                # Union of row filters over every partition key this call covers: a
+                # normal tick has exactly one key; a single_run backfill has the range.
+                import numpy as _np
+                _keep = _np.zeros(len(upstream), dtype=bool)
+                for _pk in context.partition_keys:
+                    if partitions_def is not None and not hasattr(_pk, "keys_by_dimension") and type(partitions_def).__name__ == "MultiPartitionsDefinition":
+                        _pk = partitions_def.get_partition_key_from_str(str(_pk))
+                    _is_multi = hasattr(_pk, "keys_by_dimension")
+                    _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                    _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                    _m = _np.ones(len(upstream), dtype=bool)
+                    if partition_date_column and partition_date_column in upstream.columns and _date_key:
+                        _col_dates = pd.to_datetime(upstream[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
+                        _m &= (_col_dates == _date_key).to_numpy()
+                    if partition_static_column and partition_static_column in upstream.columns and _static_key:
+                        _m &= (upstream[partition_static_column].astype(str) == _static_key).to_numpy()
+                    elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
+                        _m &= (upstream[partition_static_column].astype(str) == str(_pk)).to_numpy()
+                    _keep |= _m
+                upstream = upstream[_keep]
             try:
                 import dspy
             except ImportError:

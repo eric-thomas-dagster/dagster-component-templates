@@ -211,6 +211,25 @@
       "required": false,
       "default": 25
     },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in ONE run: the component processes each partition key in the range in turn (filtering upstream rows by partition_date_column / partition_static_column per key) and concatenates the results into one DataFrame. 'multi_run' launches one run per partition (optionally capped via backfill_policy_max_partitions_per_run). Leave unset for Dagster's default (one run per partition, uncapped). Ignored when no partitioning is configured. COST: total paid-API/LLM calls are the same as running the partitions separately, but note that when no partition_date_column/partition_static_column matches, every partition key processes ALL upstream rows, so a range multiplies calls by the number of partitions. 'single_run' requires a partition-range-aware IO manager (e.g. a DB-table IO manager with partition_expr set); the default filesystem IO manager cannot persist one output spanning multiple partitions and will raise a clear error at materialization time. Per-partition output metadata is overwritten by the last partition in the range.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+      "required": false,
+      "default": null
+    },
     "retry_policy_max_retries": {
       "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
       "type": "integer",

@@ -7,7 +7,7 @@ Supports multiple LLM providers, temperature control, and various response forma
 
 import json
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Literal
 import pandas as pd
 
 from dagster import (
@@ -387,6 +387,29 @@ class LLMPromptExecutorComponent(Component, Model, Resolvable):
         ),
     )
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill "
+            'range in ONE run: the component processes each partition key in the range in turn (filtering '
+            'upstream rows by partition_date_column / partition_static_column per key) and concatenates the '
+            "results into one DataFrame. 'multi_run' launches one run per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for Dagster's default (one run per partition, "
+            'uncapped). Ignored when no partitioning is configured. COST: total paid-API/LLM calls are the same '
+            'as running the partitions separately, but note that when no '
+            'partition_date_column/partition_static_column matches, every partition key processes ALL upstream '
+            "rows, so a range multiplies calls by the number of partitions. 'single_run' requires a "
+            'partition-range-aware IO manager (e.g. a DB-table IO manager with partition_expr set); the default '
+            'filesystem IO manager cannot persist one output spanning multiple partitions and will raise a clear '
+            'error at materialization time. Per-partition output metadata is overwritten by the last partition in '
+            'the range.'
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     retry_policy_max_retries: Optional[int] = Field(
 
         default=None,
@@ -526,10 +549,19 @@ class LLMPromptExecutorComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        from dagster import BackfillPolicy as _BackfillPolicy
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == 'single_run':
+            _backfill_policy_obj = _BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == 'multi_run':
+            _backfill_policy_obj = _BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        _asset_deco = asset(retry_policy=_retry_policy, 
             key=AssetKey.from_user_string(asset_name),
             description=description,
-            partitions_def=partitions_def,
+            partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
                         owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,
@@ -537,10 +569,9 @@ group_name=group_name,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def llm_prompt_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def _llm_prompt_asset_impl(context: AssetExecutionContext, upstream: pd.DataFrame, _pk=None) -> pd.DataFrame:
             # Filter to current partition if partitioned
-            if context.has_partition_key:
-                _pk = context.partition_key
+            if _pk is not None:
                 _is_multi = hasattr(_pk, "keys_by_dimension")
                 _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
                 _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
@@ -797,6 +828,14 @@ group_name=group_name,
             context.add_output_metadata(_metadata)
 
             return df
+
+        @_asset_deco
+        def llm_prompt_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+            _keys = list(context.partition_keys) if (context.has_partition_key or context.has_partition_key_range) else [None]
+            if len(_keys) == 1:
+                return _llm_prompt_asset_impl(context, upstream, _keys[0])
+            context.log.info(f'Processing {len(_keys)} partition keys in one run (backfill range)')
+            return pd.concat([_llm_prompt_asset_impl(context, upstream, _k) for _k in _keys], ignore_index=True)
 
         from dagster import build_column_schema_change_checks
 

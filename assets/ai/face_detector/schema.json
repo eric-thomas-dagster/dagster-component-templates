@@ -139,6 +139,24 @@
       "default": null,
       "x-dagster-widget": "column"
     },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' filters and processes an entire backfill range in ONE run (the upstream DataFrame is filtered to the union of every partition key in the range, then processed once -- the total rows sent to the model/API are identical to running one run per partition, so it does not multiply paid calls, but a single failure retries the whole range). 'multi_run' launches one run per partition (optionally capped via Backfill Max Partitions Per Run). Leave unset for Dagster's default (one run per partition, uncapped). Ignored when partition_type/partition_dimensions is not set. 'single_run' returns one DataFrame spanning multiple partitions, which requires a partition-range-aware IO manager (e.g. a DB-table IO manager with partition_expr set) -- the default filesystem IO manager cannot persist it and will raise a clear error at materialization time.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ]
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
+      "required": false,
+      "default": null
+    },
     "owners": {
       "type": "array",
       "items": {

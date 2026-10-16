@@ -1,12 +1,13 @@
 """S3 to Database Asset Component."""
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 import boto3
 import pandas as pd
 from io import BytesIO
 from datetime import datetime
 from sqlalchemy import create_engine
 from dagster import (
+    BackfillPolicy,
     Component,
     Resolvable,
     Model,
@@ -280,6 +281,25 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
 
     )
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run (reads and "
+            "concatenates one S3 file per day in the range, then writes once). "
+            "'multi_run' launches one run per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for Dagster's "
+            "default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set. Unlike dlt-based ingestion connectors, "
+            "this asset writes directly to SQL and returns no IO-managed value, "
+            "so 'single_run' works with any IO manager."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
 
     retry_policy_max_retries: Optional[int] = Field(
 
@@ -449,6 +469,14 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
             self.partition_dimensions,
         )
 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            backfill_policy = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            backfill_policy = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
 
 
         # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).
@@ -489,6 +517,7 @@ class S3ToDatabaseAssetComponent(Component, Model, Resolvable):
 
 
         @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
+            backfill_policy=backfill_policy,
             required_resource_keys={resource_key} if resource_key else set(),
             key=AssetKey.from_user_string(asset_name),
             description=description or f"S3 to Database: {table_name}",
@@ -509,20 +538,34 @@ group_name=group_name,
             bucket = config.s3_bucket
             key = config.s3_key
 
-            # Check if running in partitioned mode
-            partition_date = None
-            partitioned_key = key
-            if context.has_partition_key:
-                context.log.info(f"Processing S3 file for partition {context.partition_key}")
+            # Partition key(s) this call must process: a normal tick gives
+            # exactly one; a single_run backfill gives the whole range (via
+            # context.partition_keys, which returns a 1-element list for a
+            # normal tick too -- the single, uniform way to read "which
+            # partition(s) am I reading a file for"). This asset writes
+            # directly to SQL (df.to_sql below) and returns a bare
+            # MaterializeResult with no value, bypassing Dagster's IO
+            # manager entirely -- unlike the dlt-based connectors, a
+            # single_run backfill here has no multi-partition-output IO
+            # manager constraint to worry about.
+            partition_keys = [None]
+            if context.has_partition_key or context.has_partition_key_range:
+                partition_keys = list(context.partition_keys)
 
-                # Support partitioned S3 keys with a {partition_date} placeholder for
-                # time-based partitions (e.g. data/sales_{partition_date}.csv ->
-                # data/sales_2024-01-01.csv), independent of whether the key also
-                # uses {partition_key} -- static/dynamic partition keys aren't dates,
-                # so that substitution must not depend on the date parse succeeding.
+            def _resolve_key(partition_key):
+                """Support partitioned S3 keys with a {partition_date} placeholder for
+                time-based partitions (e.g. data/sales_{partition_date}.csv ->
+                data/sales_2024-01-01.csv), independent of whether the key also
+                uses {partition_key} -- static/dynamic partition keys aren't dates,
+                so that substitution must not depend on the date parse succeeding."""
+                if partition_key is None:
+                    context.log.info("Processing S3 file (non-partitioned)")
+                    return key
+                context.log.info(f"Processing S3 file for partition {partition_key}")
+                partitioned_key = key
                 if "{partition_date}" in key:
                     try:
-                        partition_date = datetime.strptime(context.partition_key, "%Y-%m-%d")
+                        partition_date = datetime.strptime(partition_key, "%Y-%m-%d")
                         partitioned_key = key.replace(
                             "{partition_date}",
                             partition_date.strftime("%Y-%m-%d")
@@ -530,19 +573,13 @@ group_name=group_name,
                         context.log.info(f"Using partitioned S3 key: {partitioned_key}")
                     except ValueError:
                         context.log.warning(
-                            f"Could not parse partition key '{context.partition_key}' as date, "
+                            f"Could not parse partition key '{partition_key}' as date, "
                             "using original S3 key"
                         )
                 if "{partition_key}" in partitioned_key:
-                    partitioned_key = partitioned_key.replace(
-                        "{partition_key}",
-                        context.partition_key
-                    )
+                    partitioned_key = partitioned_key.replace("{partition_key}", partition_key)
                     context.log.info(f"Using partitioned S3 key: {partitioned_key}")
-            else:
-                context.log.info(f"Processing S3 file (non-partitioned)")
-
-            context.log.info(f"Processing s3://{bucket}/{partitioned_key}")
+                return partitioned_key
 
             # Initialize S3 client
             s3_client_kwargs = {}
@@ -550,14 +587,14 @@ group_name=group_name,
                 s3_client_kwargs['region_name'] = aws_region
             s3_client = boto3.client('s3', **s3_client_kwargs)
 
-            try:
-                # Download file from S3
+            def _read_one(partition_key):
+                partitioned_key = _resolve_key(partition_key)
+                context.log.info(f"Processing s3://{bucket}/{partitioned_key}")
+
                 response = s3_client.get_object(Bucket=bucket, Key=partitioned_key)
                 file_content = response['Body'].read()
-
                 context.log.info(f"Downloaded {len(file_content)} bytes from S3")
 
-                # Determine file format
                 format_to_use = file_format
                 if format_to_use == "auto":
                     if partitioned_key.endswith('.csv'):
@@ -569,7 +606,6 @@ group_name=group_name,
                     else:
                         raise ValueError(f"Cannot auto-detect format for {partitioned_key}")
 
-                # Parse file into DataFrame
                 if format_to_use == "csv":
                     df = pd.read_csv(
                         BytesIO(file_content),
@@ -588,6 +624,11 @@ group_name=group_name,
                     raise ValueError(f"Unsupported file format: {format_to_use}")
 
                 context.log.info(f"Loaded {len(df)} rows, {len(df.columns)} columns")
+                return df
+
+            try:
+                dfs = [_read_one(pk) for pk in partition_keys]
+                df = pd.concat(dfs, ignore_index=True) if len(dfs) > 1 else dfs[0]
 
                 # Apply column mapping if provided
                 if column_mapping:
@@ -616,14 +657,14 @@ group_name=group_name,
                     metadata={
                         "row_count": MetadataValue.int(len(df)),
                         "table": MetadataValue.text(table_name),
-                    
+
                         "dagster/row_count": MetadataValue.int(len(df)),
                         **({"preview": MetadataValue.md((df.sample(preview_rows) if len(df) > preview_rows * 10 else df.head(preview_rows)).to_markdown(index=False))} if include_preview and len(df) > 0 else {}),
                     }
                 )
 
             except Exception as e:
-                context.log.error(f"Error processing s3://{bucket}/{partitioned_key}: {str(e)}")
+                context.log.error(f"Error processing s3://{bucket}/{key}: {str(e)}")
                 raise
 
         return Definitions(assets=[s3_to_database_asset])

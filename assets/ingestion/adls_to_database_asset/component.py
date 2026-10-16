@@ -5,7 +5,7 @@ database table via SQLAlchemy. Designed to be triggered by adls_monitor.
 
 Mirrors s3_to_database_asset — same format support, same destination config.
 """
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 import dagster as dg
 from dagster import AssetExecutionContext, Config
 from pydantic import Field
@@ -245,6 +245,26 @@ class ADLSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run (downloads and "
+            "writes each partition's own blob/table independently -- blob_name "
+            "and table_name can both vary per partition key). 'multi_run' "
+            "launches one run per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for Dagster's "
+            "default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set. Unlike dlt-based ingestion connectors, "
+            "this asset writes directly to SQL and returns no IO-managed value, "
+            "so 'single_run' works with any IO manager."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
         description="Column used to filter the upstream DataFrame to the current date partition key.",
@@ -296,6 +316,14 @@ class ADLSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             _self.partition_dimensions,
         )
 
+        backfill_policy = None
+        if partitions_def is not None and _self.backfill_policy == "single_run":
+            backfill_policy = dg.BackfillPolicy.single_run()
+        elif partitions_def is not None and _self.backfill_policy == "multi_run":
+            backfill_policy = dg.BackfillPolicy.multi_run(
+                max_partitions_per_run=_self.backfill_policy_max_partitions_per_run or 1
+            )
+
         class ADLSFileConfig(Config):
             container_name: str
             blob_name: str
@@ -327,6 +355,7 @@ class ADLSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             kinds={"adls", "sql"},
             deps=[dg.AssetKey.from_user_string(k) for k in (_self.deps or [])],
             partitions_def=partitions_def,
+            backfill_policy=backfill_policy,
             required_resource_keys={_self.resource_key} if _self.resource_key else set(),
         )
         def adls_to_database_asset(context: AssetExecutionContext, config: ADLSFileConfig):
@@ -339,43 +368,62 @@ class ADLSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             conn_str = os.environ[_self.connection_string_env_var]
             db_url = _resolve_db_url(context, _self.resource_key, _self.database_url, _self.database_url_env_var)
 
-            blob_name = config.blob_name
-            if context.has_partition_key:
-                blob_name = blob_name.replace("{partition_key}", context.partition_key)
+            # Partition key(s) this call must process: a normal tick gives
+            # exactly one; a single_run backfill gives the whole range.
+            # blob_name AND table_name can BOTH vary per partition key here
+            # (e.g. a per-customer static partition writing to its own
+            # table), so -- unlike s3_to_database_asset, which always
+            # writes one combined frame to one fixed table -- each key is
+            # processed and written independently; nothing is concatenated.
+            partition_keys = [None]
+            if context.has_partition_key or context.has_partition_key_range:
+                partition_keys = list(context.partition_keys)
 
-            context.log.info(f"Downloading {config.container_name}/{blob_name}")
             client = BlobServiceClient.from_connection_string(conn_str)
-            blob = client.get_blob_client(container=config.container_name, blob=blob_name)
-            content = blob.download_blob().readall()
-
-            fmt = _self.file_format
-            if fmt == "auto":
-                name = blob_name.lower()
-                fmt = "parquet" if name.endswith(".parquet") else "json" if name.endswith(".json") else "csv"
-
-            if fmt == "parquet":
-                df = pd.read_parquet(BytesIO(content))
-            elif fmt == "json":
-                df = pd.read_json(BytesIO(content), orient="records")
-            else:
-                df = pd.read_csv(BytesIO(content), delimiter=_self.csv_delimiter)
-
-            context.log.info(f"Loaded {len(df)} rows, {len(df.columns)} columns")
-
-            if _self.column_mapping:
-                df = df.rename(columns=_self.column_mapping)
-
-            table_name = _self.table_name
-            if context.has_partition_key:
-                table_name = table_name.replace("{partition_key}", context.partition_key)
-
             engine = create_engine(db_url)
-            df.to_sql(table_name, con=engine, schema=_self.schema_name,
-                      if_exists=_self.if_exists, index=False, method="multi", chunksize=1000)
+
+            def _process_one(partition_key):
+                blob_name = config.blob_name
+                if partition_key is not None:
+                    blob_name = blob_name.replace("{partition_key}", partition_key)
+
+                context.log.info(f"Downloading {config.container_name}/{blob_name}")
+                blob = client.get_blob_client(container=config.container_name, blob=blob_name)
+                content = blob.download_blob().readall()
+
+                fmt = _self.file_format
+                if fmt == "auto":
+                    name = blob_name.lower()
+                    fmt = "parquet" if name.endswith(".parquet") else "json" if name.endswith(".json") else "csv"
+
+                if fmt == "parquet":
+                    df = pd.read_parquet(BytesIO(content))
+                elif fmt == "json":
+                    df = pd.read_json(BytesIO(content), orient="records")
+                else:
+                    df = pd.read_csv(BytesIO(content), delimiter=_self.csv_delimiter)
+
+                context.log.info(f"Loaded {len(df)} rows, {len(df.columns)} columns")
+
+                if _self.column_mapping:
+                    df = df.rename(columns=_self.column_mapping)
+
+                table_name = _self.table_name
+                if partition_key is not None:
+                    table_name = table_name.replace("{partition_key}", partition_key)
+
+                df.to_sql(table_name, con=engine, schema=_self.schema_name,
+                          if_exists=_self.if_exists, index=False, method="multi", chunksize=1000)
+
+                context.log.info(f"Wrote {len(df)} rows to {_self.schema_name + '.' if _self.schema_name else ''}{table_name}")
+                return {"df": df, "blob_name": blob_name, "table_name": table_name, "fmt": fmt}
+
+            results = [_process_one(pk) for pk in partition_keys]
 
             _preview_metadata = {}
             if _self.include_preview_metadata:
-                _prev_df = df.sample(min(_self.preview_rows, len(df))) if len(df) > _self.preview_rows * 10 else df.head(_self.preview_rows)
+                _prev_source = results[-1]["df"]
+                _prev_df = _prev_source.sample(min(_self.preview_rows, len(_prev_source))) if len(_prev_source) > _self.preview_rows * 10 else _prev_source.head(_self.preview_rows)
                 _cols = list(_prev_df.columns)
                 _preview_metadata["preview"] = dg.MetadataValue.md(
                     "| " + " | ".join(_cols) + " |\n"
@@ -383,16 +431,16 @@ class ADLSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     "\n".join("| " + " | ".join(str(v) for v in row) + " |" for row in _prev_df.itertuples(index=False))
                 )
 
-
-            context.log.info(f"Wrote {len(df)} rows to {_self.schema_name + '.' if _self.schema_name else ''}{table_name}")
-            return dg.MaterializeResult(metadata={**_preview_metadata, 
-                "num_rows": len(df),
-                "num_columns": len(df.columns),
-                "columns": list(df.columns),
+            total_rows = sum(len(r["df"]) for r in results)
+            tables = sorted({f"{_self.schema_name + '.' if _self.schema_name else ''}{r['table_name']}" for r in results})
+            return dg.MaterializeResult(metadata={**_preview_metadata,
+                "num_rows": total_rows,
+                "num_columns": results[-1]["df"].shape[1],
+                "columns": list(results[-1]["df"].columns),
                 "container": config.container_name,
-                "blob": blob_name,
-                "table": f"{_self.schema_name + '.' if _self.schema_name else ''}{table_name}",
-                "file_format": fmt,
+                "blob": results[-1]["blob_name"] if len(results) == 1 else [r["blob_name"] for r in results],
+                "table": tables[0] if len(tables) == 1 else tables,
+                "file_format": results[-1]["fmt"],
             })
 
         return dg.Definitions(assets=[adls_to_database_asset])

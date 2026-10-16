@@ -6,13 +6,14 @@ Supports authentication, pagination, caching, and various output formats.
 
 import json
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 from io import BytesIO
 from datetime import datetime
 
 import requests
 import pandas as pd
 from dagster import (
+    BackfillPolicy,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -25,6 +26,29 @@ from dagster import (
     MetadataValue,
 )
 from pydantic import Field
+
+
+class _PartitionKeyOverrideContext:
+    """Proxies an AssetExecutionContext but overrides has_partition_key /
+    partition_key to look like a normal single-partition run for one key --
+    used to process a single_run/multi_run backfill range one key at a
+    time, reusing the exact same per-key request/parse logic a normal
+    (non-range) run already uses, unmodified."""
+
+    def __init__(self, inner, partition_key: str):
+        self._inner = inner
+        self._override_pk = partition_key
+
+    @property
+    def has_partition_key(self) -> bool:
+        return True
+
+    @property
+    def partition_key(self) -> str:
+        return self._override_pk
+
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
 
 
 class RestApiIngestionComponent(Component, Model, Resolvable):
@@ -178,6 +202,34 @@ class RestApiIngestionComponent(Component, Model, Resolvable):
     dynamic_partition_name: Optional[str] = Field(
         default=None,
         description="Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+    )
+
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run (one full "
+            "request+reshape per partition in the range, each with its own "
+            "{partition_key}/{partition_date} templating and endpoints: "
+            "dispatch, concatenated together). 'multi_run' launches one run "
+            "per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for "
+            "Dagster's default (one run per partition, uncapped). Ignored "
+            "when partition_type is not set. ONLY supported when "
+            "output_format='dataframe' and partition_type != 'multi' -- "
+            "build_defs() raises a clear error otherwise, since concatenating "
+            "a range of json/csv/parquet/text responses or dispatching a "
+            "multi-dimension range has no single well-defined behavior. "
+            "'single_run' requires a partition-range-aware IO manager (e.g. a "
+            "DB-table IO manager with partition_expr set) -- a generic "
+            "filesystem/default IO manager cannot persist a single_run output "
+            "spanning multiple partitions and will raise a clear error at "
+            "materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
     )
 
     deps: Optional[list[str]] = Field(default=None, description="Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset'])")
@@ -425,6 +477,26 @@ class RestApiIngestionComponent(Component, Model, Resolvable):
                     raise ValueError("partition_type='dynamic' requires dynamic_partition_name.")
                 partitions_def = DynamicPartitionsDefinition(name=self.dynamic_partition_name)
 
+        _backfill_policy_obj = None
+        if self.backfill_policy is not None:
+            if self.partition_type == "multi":
+                raise ValueError(
+                    "backfill_policy is not supported with partition_type='multi' -- "
+                    "a multi-dimension range backfill has no single well-defined "
+                    "endpoints: dispatch / concatenation behavior here."
+                )
+            if self.output_format != "dataframe":
+                raise ValueError(
+                    "backfill_policy requires output_format='dataframe' -- "
+                    "concatenating a range of json/csv/parquet/text responses "
+                    "has no single well-defined behavior."
+                )
+            if self.backfill_policy == "single_run":
+                _backfill_policy_obj = BackfillPolicy.single_run()
+            else:
+                _backfill_policy_obj = BackfillPolicy.multi_run(
+                    max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+                )
 
         # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).
 
@@ -464,309 +536,336 @@ class RestApiIngestionComponent(Component, Model, Resolvable):
 group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             required_resource_keys=required_resource_keys or None,
+            backfill_policy=_backfill_policy_obj,
         )
         def rest_api_asset(context: AssetExecutionContext):
             """Asset that fetches data from REST API."""
 
-            # These start bound to the top-level fields but may be overridden
-            # by per-partition endpoint dispatch below.
-            _api_url = api_url
-            _method = method
-            _headers_str = headers_str
-            _params_str = params_str
-            _body_str = body_str
-            _auth_type = auth_type
-            _auth_username = auth_username
-            _auth_password = auth_password
-            _auth_token = auth_token
-            _timeout = timeout
-            _response_path = response_path
-            _column_map = column_map
+            def _run_api_call(ctx):
+                # These start bound to the top-level fields but may be overridden
+                # by per-partition endpoint dispatch below.
+                _api_url = api_url
+                _method = method
+                _headers_str = headers_str
+                _params_str = params_str
+                _body_str = body_str
+                _auth_type = auth_type
+                _auth_username = auth_username
+                _auth_password = auth_password
+                _auth_token = auth_token
+                _timeout = timeout
+                _response_path = response_path
+                _column_map = column_map
 
-            # Check if running in partitioned mode
-            partition_date = None
-            partition_dim_values: Dict[str, str] = {}
-            if context.has_partition_key:
-                pk = context.partition_key
-                # MultiPartitionKey has .keys_by_dimension; single-dim is a str.
-                if hasattr(pk, "keys_by_dimension"):
-                    partition_dim_values = dict(pk.keys_by_dimension)
-                    _date_str = partition_dim_values.get("date")
-                    if _date_str:
-                        try:
-                            partition_date = datetime.strptime(_date_str, "%Y-%m-%d")
-                        except ValueError:
-                            pass
-                    context.log.info(
-                        f"Fetching API data for multi-partition {dict(partition_dim_values)}"
-                    )
-                else:
-                    # Single-dim: try to parse as date, else treat as opaque key.
-                    try:
-                        partition_date = datetime.strptime(pk, "%Y-%m-%d")
-                        context.log.info(f"Fetching API data for partition {pk}")
-                    except ValueError:
-                        context.log.info(
-                            f"Fetching API data for static partition {pk!r}"
+                # Check if running in partitioned mode
+                partition_date = None
+                partition_dim_values: Dict[str, str] = {}
+                if ctx.has_partition_key:
+                    pk = ctx.partition_key
+                    # MultiPartitionKey has .keys_by_dimension; single-dim is a str.
+                    if hasattr(pk, "keys_by_dimension"):
+                        partition_dim_values = dict(pk.keys_by_dimension)
+                        _date_str = partition_dim_values.get("date")
+                        if _date_str:
+                            try:
+                                partition_date = datetime.strptime(_date_str, "%Y-%m-%d")
+                            except ValueError:
+                                pass
+                        ctx.log.info(
+                            f"Fetching API data for multi-partition {dict(partition_dim_values)}"
                         )
-            else:
-                context.log.info("Fetching API data (non-partitioned)")
-
-            # ── Per-partition endpoint dispatch ──────────────────────────
-            # When `endpoints:` is set, look up the config keyed by the
-            # partition dim value and OVERRIDE api_url + auth + params +
-            # response_path + column_map for this run only.
-            if endpoints:
-                if partition_dim_values:
-                    dim_name = partition_static_dim or next(
-                        (d for d in partition_dim_values if d != "date"),
-                        None,
-                    )
-                    dim_value = partition_dim_values.get(dim_name) if dim_name else None
+                    else:
+                        # Single-dim: try to parse as date, else treat as opaque key.
+                        try:
+                            partition_date = datetime.strptime(pk, "%Y-%m-%d")
+                            ctx.log.info(f"Fetching API data for partition {pk}")
+                        except ValueError:
+                            ctx.log.info(
+                                f"Fetching API data for static partition {pk!r}"
+                            )
                 else:
-                    dim_value = context.partition_key if context.has_partition_key else None
-                if dim_value is None:
-                    raise ValueError(
-                        "endpoints: dispatch requires a partition_static_dim value "
-                        "(multi-partition mode) or a single-dim static partition key"
-                    )
-                ep = endpoints.get(str(dim_value))
-                if ep is None:
-                    raise ValueError(
-                        f"endpoints: no config for partition value {dim_value!r}. "
-                        f"Configured keys: {sorted(endpoints.keys())}"
-                    )
-                # Override top-level fields with endpoint config.
-                _api_url = ep.get("api_url", _api_url)
-                _method = (ep.get("method") or _method).upper()
-                _headers_str = ep.get("headers", _headers_str)
-                _params_str = ep.get("params", _params_str)
-                _body_str = ep.get("body", _body_str)
-                _auth_type = ep.get("auth_type", _auth_type)
-                _timeout = ep.get("timeout", _timeout)
-                _response_path = ep.get("response_path", _response_path)
-                _column_map = ep.get("column_map", _column_map)
-                # Auth via env vars only in endpoint config (safer than
-                # putting raw secrets in per-endpoint YAML).
-                if ep.get("auth_username_env_var"):
-                    _auth_username = os.environ.get(ep["auth_username_env_var"])
-                if ep.get("auth_password_env_var"):
-                    _auth_password = os.environ.get(ep["auth_password_env_var"])
-                if ep.get("auth_token_env_var"):
-                    _auth_token = os.environ.get(ep["auth_token_env_var"])
-                context.log.info(
-                    f"endpoints: dispatched to {dim_value!r} → {_api_url}"
-                )
+                    ctx.log.info("Fetching API data (non-partitioned)")
 
-            # Parse headers (accept dict or JSON string)
-            headers = {}
-            if _headers_str:
-                if isinstance(_headers_str, dict):
-                    headers = dict(_headers_str)
-                else:
-                    try:
-                        headers = json.loads(_headers_str)
-                    except json.JSONDecodeError as e:
-                        context.log.error(f"Invalid headers JSON: {e}")
-                        raise
+                # ── Per-partition endpoint dispatch ──────────────────────────
+                # When `endpoints:` is set, look up the config keyed by the
+                # partition dim value and OVERRIDE api_url + auth + params +
+                # response_path + column_map for this run only.
+                if endpoints:
+                    if partition_dim_values:
+                        dim_name = partition_static_dim or next(
+                            (d for d in partition_dim_values if d != "date"),
+                            None,
+                        )
+                        dim_value = partition_dim_values.get(dim_name) if dim_name else None
+                    else:
+                        dim_value = ctx.partition_key if ctx.has_partition_key else None
+                    if dim_value is None:
+                        raise ValueError(
+                            "endpoints: dispatch requires a partition_static_dim value "
+                            "(multi-partition mode) or a single-dim static partition key"
+                        )
+                    ep = endpoints.get(str(dim_value))
+                    if ep is None:
+                        raise ValueError(
+                            f"endpoints: no config for partition value {dim_value!r}. "
+                            f"Configured keys: {sorted(endpoints.keys())}"
+                        )
+                    # Override top-level fields with endpoint config.
+                    _api_url = ep.get("api_url", _api_url)
+                    _method = (ep.get("method") or _method).upper()
+                    _headers_str = ep.get("headers", _headers_str)
+                    _params_str = ep.get("params", _params_str)
+                    _body_str = ep.get("body", _body_str)
+                    _auth_type = ep.get("auth_type", _auth_type)
+                    _timeout = ep.get("timeout", _timeout)
+                    _response_path = ep.get("response_path", _response_path)
+                    _column_map = ep.get("column_map", _column_map)
+                    # Auth via env vars only in endpoint config (safer than
+                    # putting raw secrets in per-endpoint YAML).
+                    if ep.get("auth_username_env_var"):
+                        _auth_username = os.environ.get(ep["auth_username_env_var"])
+                    if ep.get("auth_password_env_var"):
+                        _auth_password = os.environ.get(ep["auth_password_env_var"])
+                    if ep.get("auth_token_env_var"):
+                        _auth_token = os.environ.get(ep["auth_token_env_var"])
+                    ctx.log.info(
+                        f"endpoints: dispatched to {dim_value!r} → {_api_url}"
+                    )
 
-            # Parse params (accept dict or JSON string)
-            params = {}
-            if _params_str:
+                # Parse headers (accept dict or JSON string)
+                headers = {}
+                if _headers_str:
+                    if isinstance(_headers_str, dict):
+                        headers = dict(_headers_str)
+                    else:
+                        try:
+                            headers = json.loads(_headers_str)
+                        except json.JSONDecodeError as e:
+                            ctx.log.error(f"Invalid headers JSON: {e}")
+                            raise
+
+                # Parse params (accept dict or JSON string)
+                params = {}
+                if _params_str:
+                    if isinstance(_params_str, dict):
+                        params = dict(_params_str)
+                    else:
+                        try:
+                            params = json.loads(_params_str)
+                        except json.JSONDecodeError as e:
+                            ctx.log.error(f"Invalid params JSON: {e}")
+                            raise
+
+                # Add partition date to params if available.
+                # This allows API queries to filter by date using the partition.
+                # Skip the auto-inject if the user has already opted into the more
+                # explicit {partition_date} / {partition_date_next} templating, since
+                # APIs that need explicit param names (USGS, etc.) reject the extras
+                # with 400 Unknown Parameter.
                 if isinstance(_params_str, dict):
-                    params = dict(_params_str)
+                    _params_text = " ".join(str(v) for v in _params_str.values())
                 else:
+                    _params_text = _params_str or ""
+                _user_uses_templating = (
+                    "{partition_date}" in _params_text
+                    or "{partition_date_next}" in _params_text
+                    or "{partition_key}" in _params_text
+                    or "{partition_date}" in (_api_url or "")
+                    or "{partition_key}" in (_api_url or "")
+                )
+                if partition_date and not _user_uses_templating:
+                    params["date"] = partition_date.strftime("%Y-%m-%d")
+                    params["partition_date"] = partition_date.strftime("%Y-%m-%d")
+
+                # Format-string templating in api_url and params values.
+                from datetime import timedelta
+                _template_vars = {
+                    "partition_key": (
+                        str(ctx.partition_key) if ctx.has_partition_key else ""
+                    ),
+                    "partition_date": (
+                        partition_date.strftime("%Y-%m-%d") if partition_date else ""
+                    ),
+                    "partition_date_next": (
+                        (partition_date + timedelta(days=1)).strftime("%Y-%m-%d")
+                        if partition_date
+                        else ""
+                    ),
+                    # Expose every dim of a multi-partition key too, so users can
+                    # write `?carrier={carrier}&region={region}` in a static-dim
+                    # partition setup.
+                    **{k: str(v) for k, v in partition_dim_values.items()},
+                }
+                try:
+                    _resolved_url = _api_url.format(**_template_vars)
+                except (KeyError, IndexError):
+                    _resolved_url = _api_url
+                for k, v in list(params.items()):
+                    if isinstance(v, str):
+                        try:
+                            params[k] = v.format(**_template_vars)
+                        except (KeyError, IndexError):
+                            pass
+
+                # Parse body
+                body = None
+                if _body_str:
                     try:
-                        params = json.loads(_params_str)
+                        body = json.loads(_body_str)
                     except json.JSONDecodeError as e:
-                        context.log.error(f"Invalid params JSON: {e}")
+                        ctx.log.error(f"Invalid body JSON: {e}")
                         raise
 
-            # Add partition date to params if available.
-            # This allows API queries to filter by date using the partition.
-            # Skip the auto-inject if the user has already opted into the more
-            # explicit {partition_date} / {partition_date_next} templating, since
-            # APIs that need explicit param names (USGS, etc.) reject the extras
-            # with 400 Unknown Parameter.
-            if isinstance(_params_str, dict):
-                _params_text = " ".join(str(v) for v in _params_str.values())
-            else:
-                _params_text = _params_str or ""
-            _user_uses_templating = (
-                "{partition_date}" in _params_text
-                or "{partition_date_next}" in _params_text
-                or "{partition_key}" in _params_text
-                or "{partition_date}" in (_api_url or "")
-                or "{partition_key}" in (_api_url or "")
-            )
-            if partition_date and not _user_uses_templating:
-                params["date"] = partition_date.strftime("%Y-%m-%d")
-                params["partition_date"] = partition_date.strftime("%Y-%m-%d")
+                # Setup authentication
+                auth = None
+                if _auth_type == "basic" and _auth_username and _auth_password:
+                    auth = (_auth_username, _auth_password)
+                elif _auth_type == "bearer" and _auth_token:
+                    headers["Authorization"] = f"Bearer {_auth_token}"
 
-            # Format-string templating in api_url and params values.
-            from datetime import timedelta
-            _template_vars = {
-                "partition_key": (
-                    str(context.partition_key) if context.has_partition_key else ""
-                ),
-                "partition_date": (
-                    partition_date.strftime("%Y-%m-%d") if partition_date else ""
-                ),
-                "partition_date_next": (
-                    (partition_date + timedelta(days=1)).strftime("%Y-%m-%d")
-                    if partition_date
-                    else ""
-                ),
-                # Expose every dim of a multi-partition key too, so users can
-                # write `?carrier={carrier}&region={region}` in a static-dim
-                # partition setup.
-                **{k: str(v) for k, v in partition_dim_values.items()},
-            }
-            try:
-                _resolved_url = _api_url.format(**_template_vars)
-            except (KeyError, IndexError):
-                _resolved_url = _api_url
-            for k, v in list(params.items()):
-                if isinstance(v, str):
-                    try:
-                        params[k] = v.format(**_template_vars)
-                    except (KeyError, IndexError):
-                        pass
+                # Make API request
+                ctx.log.info(f"Fetching data from {_resolved_url}")
+                ctx.log.info(f"Method: {_method}")
 
-            # Parse body
-            body = None
-            if _body_str:
                 try:
-                    body = json.loads(_body_str)
-                except json.JSONDecodeError as e:
-                    context.log.error(f"Invalid body JSON: {e}")
+                    response = requests.request(
+                        method=_method,
+                        url=_resolved_url,
+                        headers=headers if headers else None,
+                        params=params if params else None,
+                        json=body if body else None,
+                        auth=auth,
+                        timeout=_timeout,
+                        verify=verify_ssl,
+                    )
+                    response.raise_for_status()
+                except requests.exceptions.RequestException as e:
+                    ctx.log.error(f"API request failed: {e}")
                     raise
 
-            # Setup authentication
-            auth = None
-            if _auth_type == "basic" and _auth_username and _auth_password:
-                auth = (_auth_username, _auth_password)
-            elif _auth_type == "bearer" and _auth_token:
-                headers["Authorization"] = f"Bearer {_auth_token}"
-
-            # Make API request
-            context.log.info(f"Fetching data from {_resolved_url}")
-            context.log.info(f"Method: {_method}")
-
-            try:
-                response = requests.request(
-                    method=_method,
-                    url=_resolved_url,
-                    headers=headers if headers else None,
-                    params=params if params else None,
-                    json=body if body else None,
-                    auth=auth,
-                    timeout=_timeout,
-                    verify=verify_ssl,
-                )
-                response.raise_for_status()
-            except requests.exceptions.RequestException as e:
-                context.log.error(f"API request failed: {e}")
-                raise
-
-            # Parse response. For text/html output we always want raw text;
-            # otherwise try JSON first and fall back to text.
-            if output_format in ("text", "html"):
-                data = response.text
-            else:
-                try:
-                    data = response.json()
-                except json.JSONDecodeError:
-                    context.log.warning("Response is not JSON, returning raw text")
+                # Parse response. For text/html output we always want raw text;
+                # otherwise try JSON first and fall back to text.
+                if output_format in ("text", "html"):
                     data = response.text
-
-            context.log.info(f"Successfully fetched data (status: {response.status_code})")
-
-            # Extract data using JSON path if provided
-            if json_path and isinstance(data, dict):
-                parts = json_path.split('.')
-                for part in parts:
-                    if isinstance(data, dict) and part in data:
-                        data = data[part]
-                    else:
-                        context.log.warning(f"JSON path '{json_path}' not found in response")
-                        break
-
-            # JMESPath response reshaping — `response_path` selects the array,
-            # `column_map` extracts named columns per element. Together they
-            # normalize a nested / heterogeneous response into a tabular batch
-            # with a known schema. Lazy-import jmespath (optional dep).
-            if _response_path or _column_map:
-                try:
-                    import jmespath
-                except ImportError as e:
-                    raise ImportError(
-                        "response_path / column_map require jmespath. "
-                        "Install with: pip install jmespath"
-                    ) from e
-                _rp = (_response_path or "").lstrip("$.").lstrip(".")
-                array = jmespath.search(_rp, data) if _rp else data
-                if array is None:
-                    context.log.warning(
-                        f"response_path {_response_path!r} matched nothing; "
-                        f"emitting empty batch"
-                    )
-                    array = []
-                elif not isinstance(array, list):
-                    # Wrap a single object as a 1-element list so column_map
-                    # still applies uniformly.
-                    array = [array]
-                if _column_map:
-                    rows = [
-                        {col: jmespath.search(expr, item) for col, expr in _column_map.items()}
-                        for item in array
-                    ]
-                    data = rows
                 else:
-                    data = array
+                    try:
+                        data = response.json()
+                    except json.JSONDecodeError:
+                        ctx.log.warning("Response is not JSON, returning raw text")
+                        data = response.text
 
-            # Format output
-            # Two valid dict shapes coming from APIs:
-            #   1) columnar: {col: [v1, v2, ...]} — parallel lists of equal length
-            #   2) row:      {field: scalar}     — a single record
-            # Detect columnar so we don't produce a 1-row df with list-valued cells.
-            def _to_df(payload, dest_label: str) -> pd.DataFrame:
-                if isinstance(payload, list):
-                    return pd.DataFrame(payload)
-                if isinstance(payload, dict):
-                    _vals = list(payload.values())
-                    _is_columnar = (
-                        len(_vals) > 0
-                        and all(isinstance(v, list) for v in _vals)
-                        and len(set(len(v) for v in _vals)) == 1
-                    )
-                    return pd.DataFrame(payload) if _is_columnar else pd.DataFrame([payload])
-                context.log.error(f"Cannot convert {type(payload)} to {dest_label}")
-                raise ValueError(f"Cannot convert {type(payload)} to {dest_label}")
+                ctx.log.info(f"Successfully fetched data (status: {response.status_code})")
 
-            if output_format == "json":
-                result = data
+                # Extract data using JSON path if provided
+                if json_path and isinstance(data, dict):
+                    parts = json_path.split('.')
+                    for part in parts:
+                        if isinstance(data, dict) and part in data:
+                            data = data[part]
+                        else:
+                            ctx.log.warning(f"JSON path '{json_path}' not found in response")
+                            break
 
-            elif output_format == "dataframe":
-                result = _to_df(data, "DataFrame")
+                # JMESPath response reshaping — `response_path` selects the array,
+                # `column_map` extracts named columns per element. Together they
+                # normalize a nested / heterogeneous response into a tabular batch
+                # with a known schema. Lazy-import jmespath (optional dep).
+                if _response_path or _column_map:
+                    try:
+                        import jmespath
+                    except ImportError as e:
+                        raise ImportError(
+                            "response_path / column_map require jmespath. "
+                            "Install with: pip install jmespath"
+                        ) from e
+                    _rp = (_response_path or "").lstrip("$.").lstrip(".")
+                    array = jmespath.search(_rp, data) if _rp else data
+                    if array is None:
+                        ctx.log.warning(
+                            f"response_path {_response_path!r} matched nothing; "
+                            f"emitting empty batch"
+                        )
+                        array = []
+                    elif not isinstance(array, list):
+                        # Wrap a single object as a 1-element list so column_map
+                        # still applies uniformly.
+                        array = [array]
+                    if _column_map:
+                        rows = [
+                            {col: jmespath.search(expr, item) for col, expr in _column_map.items()}
+                            for item in array
+                        ]
+                        data = rows
+                    else:
+                        data = array
 
-            elif output_format == "csv":
-                result = _to_df(data, "CSV").to_csv(index=False)
+                # Format output
+                # Two valid dict shapes coming from APIs:
+                #   1) columnar: {col: [v1, v2, ...]} — parallel lists of equal length
+                #   2) row:      {field: scalar}     — a single record
+                # Detect columnar so we don't produce a 1-row df with list-valued cells.
+                def _to_df(payload, dest_label: str) -> pd.DataFrame:
+                    if isinstance(payload, list):
+                        return pd.DataFrame(payload)
+                    if isinstance(payload, dict):
+                        _vals = list(payload.values())
+                        _is_columnar = (
+                            len(_vals) > 0
+                            and all(isinstance(v, list) for v in _vals)
+                            and len(set(len(v) for v in _vals)) == 1
+                        )
+                        return pd.DataFrame(payload) if _is_columnar else pd.DataFrame([payload])
+                    ctx.log.error(f"Cannot convert {type(payload)} to {dest_label}")
+                    raise ValueError(f"Cannot convert {type(payload)} to {dest_label}")
 
-            elif output_format == "parquet":
-                buffer = BytesIO()
-                _to_df(data, "Parquet").to_parquet(buffer, index=False)
-                result = buffer.getvalue()
+                if output_format == "json":
+                    result = data
 
-            elif output_format in ("text", "html"):
-                # Wrap raw response body in a 1-row DataFrame so downstream
-                # transforms like html_parser, regex_parser, markdown_stripper
-                # have a column to operate on.
-                result = pd.DataFrame({"content": [str(data)]})
+                elif output_format == "dataframe":
+                    result = _to_df(data, "DataFrame")
 
+                elif output_format == "csv":
+                    result = _to_df(data, "CSV").to_csv(index=False)
+
+                elif output_format == "parquet":
+                    buffer = BytesIO()
+                    _to_df(data, "Parquet").to_parquet(buffer, index=False)
+                    result = buffer.getvalue()
+
+                elif output_format in ("text", "html"):
+                    # Wrap raw response body in a 1-row DataFrame so downstream
+                    # transforms like html_parser, regex_parser, markdown_stripper
+                    # have a column to operate on.
+                    result = pd.DataFrame({"content": [str(data)]})
+
+                else:
+                    ctx.log.error(f"Unknown output format: {output_format}")
+                    raise ValueError(f"Unknown output format: {output_format}")
+                return result, response, _api_url, _method, partition_dim_values, (ctx.partition_key if ctx.has_partition_key else None)
+
+            # Partition key(s) this call must process: a normal tick calls
+            # _run_api_call once with the real context (unchanged behavior
+            # from before this field existed); a single_run/multi_run
+            # backfill range calls it once per key via a lightweight context
+            # shim that overrides has_partition_key/partition_key for that
+            # one key, reusing the exact same per-key request/reshape logic
+            # unmodified, then concatenates the per-key DataFrames.
+            # build_defs() only ever wires backfill_policy when
+            # output_format='dataframe' and partition_type != 'multi', so
+            # `result` here is always a DataFrame in the range case.
+            _range_row_counts = None
+            if context.has_partition_key_range:
+                partition_keys_in_range = list(context.partition_keys)
+                _chunks = []
+                _range_row_counts = []
+                for _pk in partition_keys_in_range:
+                    _shim = _PartitionKeyOverrideContext(context, _pk)
+                    _result_one, response, _api_url, _method, partition_dim_values, _ = _run_api_call(_shim)
+                    _chunks.append(_result_one)
+                    _range_row_counts.append((_pk, len(_result_one)))
+                result = pd.concat(_chunks, ignore_index=True) if len(_chunks) > 1 else _chunks[0]
             else:
-                context.log.error(f"Unknown output format: {output_format}")
-                raise ValueError(f"Unknown output format: {output_format}")
+                result, response, _api_url, _method, partition_dim_values, _ = _run_api_call(context)
 
             # Cache results if requested
             if cache_results and cache_path:
@@ -840,6 +939,14 @@ group_name=group_name,
                             sink_df[col_name] = partition_dim_values[dim_name]
                         elif dim_name == "partition_key" and context.has_partition_key:
                             sink_df[col_name] = str(context.partition_key)
+                        elif dim_name == "partition_key" and _range_row_counts is not None:
+                            # single_run/multi_run backfill range: no single
+                            # context.partition_key exists (it covers a range)
+                            # -- assign each row the key of the chunk it came
+                            # from, in the same order chunks were concatenated.
+                            sink_df[col_name] = [
+                                str(pk) for pk, count in _range_row_counts for _ in range(count)
+                            ]
                         else:
                             context.log.warning(
                                 f"partition_dim_columns: dim {dim_name!r} not found "

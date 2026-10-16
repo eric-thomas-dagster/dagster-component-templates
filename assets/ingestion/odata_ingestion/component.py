@@ -46,13 +46,14 @@ See the SAP-product walkthroughs for product-specific auth + service URL pattern
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import pandas as pd
 import requests
 from dagster import (
     AssetExecutionContext,
     AssetKey,
+    BackfillPolicy,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -230,6 +231,28 @@ class ODataIngestionComponent(Component, Model, Resolvable):
     partition_values: Optional[str] = Field(default=None)
     dynamic_partition_name: Optional[str] = Field(default=None)
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run (one full "
+            "paginated fetch per partition in the range, each with its own "
+            "$filter {partition_key} substitution, concatenated together). "
+            "'multi_run' launches one run per partition (optionally capped "
+            "via backfill_policy_max_partitions_per_run). Leave unset for "
+            "Dagster's default (one run per partition, uncapped). Ignored "
+            "when partition_type is not set. 'single_run' requires a "
+            "partition-range-aware IO manager (e.g. a DB-table IO manager "
+            "with partition_expr set) -- a generic filesystem/default IO "
+            "manager cannot persist a single_run output spanning multiple "
+            "partitions and will raise a clear error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     retry_policy_max_retries: Optional[int] = Field(default=None)
     retry_policy_delay_seconds: Optional[int] = Field(default=None)
     retry_policy_backoff: str = Field(default="exponential")
@@ -337,6 +360,14 @@ class ODataIngestionComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
+        backfill_policy_obj = None
+        if partitions_def is not None and component.backfill_policy == "single_run":
+            backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and component.backfill_policy == "multi_run":
+            backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=component.backfill_policy_max_partitions_per_run or 1
+            )
+
         @asset(
             key=AssetKey.from_user_string(asset_name),
             description=description,
@@ -346,58 +377,67 @@ class ODataIngestionComponent(Component, Model, Resolvable):
             group_name=self.group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             partitions_def=partitions_def,
+            backfill_policy=backfill_policy_obj,
             retry_policy=retry_policy,
         )
         def odata_ingestion_asset(context: AssetExecutionContext):
-            partition_key = (
-                context.partition_key if context.has_partition_key else None
-            )
+            # Partition key(s) this call must process: a normal tick gives
+            # exactly one; a single_run backfill gives the whole range.
+            partition_keys: List[Optional[str]] = [None]
+            if context.has_partition_key or context.has_partition_key_range:
+                partition_keys = list(context.partition_keys)
+
             auth, extra = component._resolve_auth()
             headers = {"Accept": "application/json"}
             headers.update(extra)
             if component.extra_headers:
                 headers.update(component.extra_headers)
 
-            url: Optional[str] = component._build_initial_url(partition_key)
-            all_records: list = []
-            pages = 0
+            def _fetch_one(partition_key: Optional[str]):
+                url: Optional[str] = component._build_initial_url(partition_key)
+                records_acc: list = []
+                pages = 0
+                while url and pages < component.max_pages:
+                    context.log.info(f"OData GET page {pages + 1}: {url[:200]}")
+                    resp = requests.get(
+                        url,
+                        auth=auth,
+                        headers=headers,
+                        timeout=component.timeout_seconds,
+                        verify=component.verify_ssl,
+                    )
+                    resp.raise_for_status()
+                    body = resp.json()
+                    records, next_link = component._extract_records(body)
+                    records_acc.extend(records)
+                    url = next_link
+                    pages += 1
 
-            while url and pages < component.max_pages:
-                context.log.info(f"OData GET page {pages + 1}: {url[:200]}")
-                resp = requests.get(
-                    url,
-                    auth=auth,
-                    headers=headers,
-                    timeout=component.timeout_seconds,
-                    verify=component.verify_ssl,
-                )
-                resp.raise_for_status()
-                body = resp.json()
-                records, next_link = component._extract_records(body)
-                all_records.extend(records)
-                url = next_link
-                pages += 1
+                if pages >= component.max_pages and url:
+                    context.log.warning(
+                        f"Hit max_pages={component.max_pages} with more results available. "
+                        f"Increase max_pages or add a tighter $filter."
+                    )
+                return records_acc, pages
 
-            if pages >= component.max_pages and url:
-                context.log.warning(
-                    f"Hit max_pages={component.max_pages} with more results available. "
-                    f"Increase max_pages or add a tighter $filter."
-                )
+            fetched = [_fetch_one(pk) for pk in partition_keys]
+            all_records = [rec for records, _ in fetched for rec in records]
+            total_pages = sum(pages for _, pages in fetched)
 
             df = pd.json_normalize(all_records, sep="_") if all_records else pd.DataFrame()
-            context.log.info(f"OData ingestion: {len(df)} rows × {len(df.columns)} cols in {pages} pages")
+            context.log.info(f"OData ingestion: {len(df)} rows × {len(df.columns)} cols in {total_pages} pages")
 
             metadata: Dict[str, Any] = {
                 "row_count": MetadataValue.int(len(df)),
                 "column_count": MetadataValue.int(len(df.columns)),
                 "columns": MetadataValue.json(list(df.columns)),
-                "pages_fetched": MetadataValue.int(pages),
+                "pages_fetched": MetadataValue.int(total_pages),
                 "service_url": MetadataValue.text(component.service_url),
                 "entity_set": MetadataValue.text(component.entity_set),
                 "odata_version": MetadataValue.text(component.odata_version),
             }
-            if partition_key:
-                metadata["partition_key"] = MetadataValue.text(partition_key)
+            if partition_keys != [None]:
+                metadata["partition_keys"] = MetadataValue.json(partition_keys)
             if component.include_preview_metadata and len(df) > 0:
                 try:
                     sample = (

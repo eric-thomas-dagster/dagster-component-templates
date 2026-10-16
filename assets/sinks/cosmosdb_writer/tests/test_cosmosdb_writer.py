@@ -187,14 +187,13 @@ def test_multi_dimension_range_filters_on_date_and_static_axes(mod, fake_cosmos)
     assert _written_ids(client) == [21, 31]  # segment 'a' on 01-02 and 01-03 only
 
 
-def test_multi_dimension_default_static_dim_name_never_matches_the_built_axis(mod, fake_cosmos):
-    """PRE-EXISTING mismatch, documented rather than fixed here: with partition_type='multi'
-    the built partitions_def names its static axis 'static_dim', but the filter looks the
-    static key up under partition_static_dim or 'segment'. Without an explicit
-    partition_static_dim='static_dim' the static filter is silently skipped (all segments
-    written). Pin the current behavior so a future fix flips this test knowingly."""
+def test_multi_dimension_default_static_dim_name_matches_the_built_axis(mod, fake_cosmos):
+    """With partition_type='multi' the built partitions_def names its static axis 'static_dim'.
+    The filter used to look the static key up under `partition_static_dim or 'segment'`, which could
+    never match, so the static filter was silently skipped (every segment written). It now tries
+    partition_static_dim, then 'static_dim', then 'segment' -- so the default config filters."""
     sink = _multi_component(mod).build_defs(None).assets[0]
     r = dg.materialize([_all_rows_upstream(), sink], partition_key=dg.MultiPartitionKey({"date": "2024-01-02", "static_dim": "a"}))
     assert r.success
     (client,) = fake_cosmos.instances
-    assert _written_ids(client) == [21, 22]  # both segments on 01-02: static filter did NOT run
+    assert _written_ids(client) == [21]  # segment 'a' only on 01-02: the static filter ran

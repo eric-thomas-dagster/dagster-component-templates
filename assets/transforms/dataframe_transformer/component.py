@@ -850,7 +850,7 @@ group_name=group_name,
                     _pk = _pk_iter
                     _is_multi = hasattr(_pk, "keys_by_dimension")
                     _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                    _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                    _static_key = next((_pk.keys_by_dimension[_d] for _d in (partition_static_dim, "static_dim", "segment") if _d and _d in _pk.keys_by_dimension), "") if _is_multi else None
                     for _key, _frame in dataframes.items():
                         if partition_date_column and partition_date_column in _frame.columns and _date_key:
                             _col_dates = pd.to_datetime(_frame[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")

@@ -1,14 +1,15 @@
 import io
 import os
 import tempfile
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Literal, Optional, Union
 
 import dagster as dg
-import paramiko
 from pydantic import Field
 
+if TYPE_CHECKING:
+    import paramiko
 
-@dg.definitions
+
 def _build_partitions_def(
     partition_type,
     partition_start,
@@ -309,7 +310,13 @@ class SSHAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
-        description="Column used to filter the upstream DataFrame to the current date partition key.",
+        description=(
+            "Unused by this component -- there is no DataFrame to filter "
+            "here (it runs shell commands over SSH). `commands`/"
+            "`working_dir` support `{partition_key}` templating directly "
+            "instead -- see partition_type. Kept for schema consistency "
+            "with the rest of the ingestion components."
+        ),
     )
 
     dynamic_partition_name: Optional[str] = Field(
@@ -334,7 +341,29 @@ class SSHAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
-        description="Column used to filter the upstream DataFrame to the current static partition value.",
+        description=(
+            "Unused by this component -- there is no DataFrame to filter "
+            "here (it runs shell commands over SSH). Kept for schema "
+            "consistency with the rest of the ingestion components."
+        ),
+    )
+
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run: `commands`/"
+            "`working_dir` are templated with {partition_key} and run once "
+            "PER partition key in the range, over a single reused SSH "
+            "connection. 'multi_run' launches one run per partition "
+            "(optionally capped via backfill_policy_max_partitions_per_run). "
+            "Leave unset for Dagster's default (one run per partition, "
+            "uncapped). Ignored when partition_type is not set."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
     )
 
     def build_defs(self, load_context: dg.ComponentLoadContext) -> dg.Definitions:
@@ -382,13 +411,23 @@ class SSHAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
 
 
-        @dg.asset(retry_policy=_retry_policy, partitions_def=partitions_def, 
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            _backfill_policy_obj = dg.BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            _backfill_policy_obj = dg.BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        @dg.asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
             name=component.asset_name,
             group_name=component.group_name,
             description=component.description,
             deps=asset_deps,
         )
         def _ssh_asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+            import paramiko
+
             # -- Resolve required env vars ------------------------------------
             host = os.environ.get(component.host_env_var)
             if not host:
@@ -483,35 +522,55 @@ class SSHAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     context.log.info("SFTP upload complete.")
 
                 # -- Execute commands -----------------------------------------
-                exit_codes: list[int] = []
-                for cmd in component.commands:
-                    full_cmd = cmd
-                    if component.working_dir:
-                        full_cmd = f"cd {component.working_dir} && {cmd}"
+                # Partition key(s) this run must process: a normal tick gives
+                # exactly one (or none); a single_run/multi_run backfill gives
+                # the whole range. `{partition_key}` is substituted into
+                # commands/working_dir per key, all over this one reused SSH
+                # connection -- matching the component's own documented
+                # promise that the partition key is "exposed ... for use in
+                # filtering / templating" (templating is the applicable half
+                # here; there's no DataFrame to filter).
+                partition_keys: list = [None]
+                if context.has_partition_key or context.has_partition_key_range:
+                    partition_keys = list(context.partition_keys)
 
-                    context.log.info(f"[SSH] Running: {full_cmd}")
-                    stdin, stdout, stderr = client.exec_command(
-                        full_cmd, timeout=component.timeout_seconds
-                    )
-                    stdin.close()
+                def _substitute(s: str, pk) -> str:
+                    return s.replace("{partition_key}", pk) if pk is not None else s
 
-                    if component.capture_output:
-                        for line in iter(stdout.readline, ""):
-                            context.log.info(line.rstrip("\n"))
+                exit_codes_by_key: Dict[str, list] = {}
+                for pk in partition_keys:
+                    key_label = str(pk) if pk is not None else "_"
+                    working_dir = _substitute(component.working_dir, pk) if component.working_dir else None
+                    exit_codes: list[int] = []
+                    for cmd in component.commands:
+                        full_cmd = _substitute(cmd, pk)
+                        if working_dir:
+                            full_cmd = f"cd {working_dir} && {full_cmd}"
 
-                    stderr_output = stderr.read().decode("utf-8", errors="replace")
-                    if stderr_output.strip():
-                        for line in stderr_output.splitlines():
-                            context.log.warning(line)
-
-                    exit_code = stdout.channel.recv_exit_status()
-                    exit_codes.append(exit_code)
-                    context.log.info(f"[SSH] Exit code: {exit_code}")
-
-                    if component.fail_on_non_zero and exit_code != 0:
-                        raise RuntimeError(
-                            f"Command exited with non-zero status {exit_code}: {full_cmd}"
+                        context.log.info(f"[SSH] Running: {full_cmd}")
+                        stdin, stdout, stderr = client.exec_command(
+                            full_cmd, timeout=component.timeout_seconds
                         )
+                        stdin.close()
+
+                        if component.capture_output:
+                            for line in iter(stdout.readline, ""):
+                                context.log.info(line.rstrip("\n"))
+
+                        stderr_output = stderr.read().decode("utf-8", errors="replace")
+                        if stderr_output.strip():
+                            for line in stderr_output.splitlines():
+                                context.log.warning(line)
+
+                        exit_code = stdout.channel.recv_exit_status()
+                        exit_codes.append(exit_code)
+                        context.log.info(f"[SSH] Exit code: {exit_code}")
+
+                        if component.fail_on_non_zero and exit_code != 0:
+                            raise RuntimeError(
+                                f"Command exited with non-zero status {exit_code}: {full_cmd}"
+                            )
+                    exit_codes_by_key[key_label] = exit_codes
 
                 # -- SFTP download (after commands) ----------------------------
                 if component.sftp_download:
@@ -527,13 +586,20 @@ class SSHAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
                 client.close()
 
-                return dg.MaterializeResult(
-                    metadata={
-                        "host": host,
-                        "commands_run": len(component.commands),
-                        "exit_codes": str(exit_codes),
-                    }
-                )
+                metadata = {
+                    "host": host,
+                    "commands_run": len(component.commands) * len(partition_keys),
+                }
+                if len(partition_keys) == 1:
+                    # Unpartitioned, or a normal single-partition tick: keep
+                    # the exact pre-existing metadata shape.
+                    metadata["exit_codes"] = str(next(iter(exit_codes_by_key.values())))
+                else:
+                    # A single_run/multi_run backfill spanning multiple keys.
+                    metadata["partition_keys"] = dg.MetadataValue.json(partition_keys)
+                    metadata["exit_codes_by_partition"] = dg.MetadataValue.json(exit_codes_by_key)
+
+                return dg.MaterializeResult(metadata=metadata)
 
             finally:
                 if tmp_key_file:

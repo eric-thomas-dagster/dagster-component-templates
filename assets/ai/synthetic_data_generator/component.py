@@ -5,6 +5,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import random
 from dagster import (
+    BackfillPolicy,
     Component,
     Resolvable,
     Model,
@@ -251,6 +252,23 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run (the generator "
+            "produces row_count rows for EACH day in the range, concatenated "
+            "into one DataFrame -- each day still gets its own correctly-"
+            "varying random draws). 'multi_run' launches one run per partition "
+            "(optionally capped via backfill_policy_max_partitions_per_run). "
+            "Leave unset for Dagster's default (one run per partition, "
+            "uncapped). Ignored when partition_type is not set."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
     owners: Optional[List[str]] = Field(
         default=None,
         description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
@@ -361,6 +379,14 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
         partition_static_column = self.partition_static_column
         partition_static_dim = self.partition_static_dim
 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            backfill_policy = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            backfill_policy = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
         # Infer kinds from component name if not explicitly set
         _comp_name = "synthetic_data_generator"  # component directory name
         _kind_map = {
@@ -431,6 +457,7 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
             key=AssetKey.from_user_string(asset_name),
             description=description,
             partitions_def=partitions_def,
+            backfill_policy=backfill_policy,
                         owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,
@@ -453,84 +480,105 @@ group_name=group_name,
             # own target_date, corrupting its output (e.g. customer_id format
             # for an unpartitioned "customers" snapshot silently switching to
             # the date-suffixed scheme meant only for a partitioned caller).
-            target_date = None
-            if partitions_def is not None and context.has_partition_key:
-                # Parse partition key as date (format: YYYY-MM-DD)
+            # target_dates: one entry per day this call must produce. Normally
+            # a single date (or [None] unpartitioned/non-partitioned-run), but
+            # with backfill_policy='single_run' a backfill spanning N
+            # partitions arrives as ONE call covering all N days at once --
+            # `context.partition_keys` returns the full list either way
+            # (a 1-element list for a normal tick), so it's the single,
+            # uniform way to read "which day(s) am I generating for."
+            target_dates: list = [None]
+            if partitions_def is not None and (context.has_partition_key or context.has_partition_key_range):
                 try:
-                    target_date = datetime.strptime(context.partition_key, "%Y-%m-%d")
-                    context.log.info(f"Generating {row_count} rows of {schema_type} data for partition {context.partition_key}")
+                    keys = context.partition_keys
+                    target_dates = [datetime.strptime(k, "%Y-%m-%d") for k in keys]
+                    if len(target_dates) > 1:
+                        context.log.info(
+                            f"Generating {row_count} rows/day of {schema_type} data for a "
+                            f"{len(target_dates)}-partition single-run backfill ({keys[0]}..{keys[-1]})"
+                        )
+                    else:
+                        context.log.info(f"Generating {row_count} rows of {schema_type} data for partition {keys[0]}")
                 except ValueError:
-                    context.log.warning(f"Could not parse partition key '{context.partition_key}' as date, using current date")
-                    target_date = None
+                    context.log.warning(f"Could not parse partition key(s) as dates, using current date")
+                    target_dates = [None]
             else:
                 context.log.info(f"Generating {row_count} rows of {schema_type} data (non-partitioned)")
 
-            # Set random seed if provided. Offsetting by the partition date's
-            # ordinal (when partitioned) makes each partition's "random" draws
-            # genuinely different from every other partition's, while staying
-            # exactly reproducible -- rematerializing the SAME partition key
-            # always replays the SAME sequence. Without this, every partition
-            # reset to the identical seed and replayed the identical sequence
-            # of random draws, so e.g. daily revenue was byte-for-byte
-            # identical across every single day (confirmed live) -- any
-            # check/metric built on top of it was necessarily flat too.
-            if random_seed is not None:
-                effective_seed = random_seed + target_date.toordinal() if target_date else random_seed
-                random.seed(effective_seed)
+            def _generate_for_date(target_date):
+                # Generate data based on schema type
+                if schema_type == "customers":
+                    return _generate_customers(row_count, target_date)
+                elif schema_type == "orders":
+                    return _generate_orders(row_count, target_date, self.schema_options or {})
+                elif schema_type == "products":
+                    return _generate_products(row_count)
+                elif schema_type == "transactions":
+                    return _generate_transactions(row_count, target_date)
+                elif schema_type == "events":
+                    return _generate_events(row_count, target_date)
+                elif schema_type == "sensors":
+                    return _generate_sensors(row_count, target_date)
+                elif schema_type == "users":
+                    return _generate_users(row_count, target_date)
+                elif schema_type == "subscriptions":
+                    return _generate_subscriptions(row_count, self.schema_options or {})
+                elif schema_type == "sparse_sensors":
+                    return _generate_sparse_sensors(row_count, self.schema_options or {})
+                elif schema_type == "customer_churn_metrics":
+                    return _generate_customer_churn_metrics(row_count, self.schema_options or {})
+                elif schema_type == "stripe_charges":
+                    return _generate_stripe_charges(row_count, self.schema_options or {})
+                elif schema_type == "stripe_subscriptions":
+                    return _generate_stripe_subscriptions(row_count, self.schema_options or {})
+                elif schema_type == "ab_experiment":
+                    return _generate_ab_experiment(row_count, self.schema_options or {})
+                elif schema_type == "support_tickets":
+                    return _generate_support_tickets(row_count, self.schema_options or {})
+                elif schema_type == "product_reviews":
+                    return _generate_product_reviews(row_count, self.schema_options or {})
+                elif schema_type == "audio_samples":
+                    return _generate_audio_samples(row_count, self.schema_options or {})
+                elif schema_type == "image_prompts":
+                    return _generate_image_prompts(row_count, self.schema_options or {})
+                elif schema_type == "employees":
+                    return _generate_employees(row_count, self.schema_options or {})
+                elif schema_type == "fhir_patients":
+                    return _generate_fhir_patients(row_count, self.schema_options or {})
+                elif schema_type == "hl7_messages":
+                    return _generate_hl7_messages(row_count, self.schema_options or {})
+                elif schema_type == "iso20022_payments":
+                    return _generate_iso20022_payments(row_count, self.schema_options or {})
+                elif schema_type == "x12_messages":
+                    return _generate_x12_messages(row_count, self.schema_options or {})
+                elif schema_type == "fix_messages":
+                    return _generate_fix_messages(row_count, self.schema_options or {})
+                elif schema_type == "acord_messages":
+                    return _generate_acord_messages(row_count, self.schema_options or {})
+                elif schema_type == "moderation_content":
+                    return _generate_moderation_content(row_count, target_date)
+                else:
+                    raise ValueError(f"Unknown schema type: {schema_type}")
 
-            # Generate data based on schema type
-            if schema_type == "customers":
-                df = _generate_customers(row_count, target_date)
-            elif schema_type == "orders":
-                df = _generate_orders(row_count, target_date, self.schema_options or {})
-            elif schema_type == "products":
-                df = _generate_products(row_count)
-            elif schema_type == "transactions":
-                df = _generate_transactions(row_count, target_date)
-            elif schema_type == "events":
-                df = _generate_events(row_count, target_date)
-            elif schema_type == "sensors":
-                df = _generate_sensors(row_count, target_date)
-            elif schema_type == "users":
-                df = _generate_users(row_count, target_date)
-            elif schema_type == "subscriptions":
-                df = _generate_subscriptions(row_count, self.schema_options or {})
-            elif schema_type == "sparse_sensors":
-                df = _generate_sparse_sensors(row_count, self.schema_options or {})
-            elif schema_type == "customer_churn_metrics":
-                df = _generate_customer_churn_metrics(row_count, self.schema_options or {})
-            elif schema_type == "stripe_charges":
-                df = _generate_stripe_charges(row_count, self.schema_options or {})
-            elif schema_type == "stripe_subscriptions":
-                df = _generate_stripe_subscriptions(row_count, self.schema_options or {})
-            elif schema_type == "ab_experiment":
-                df = _generate_ab_experiment(row_count, self.schema_options or {})
-            elif schema_type == "support_tickets":
-                df = _generate_support_tickets(row_count, self.schema_options or {})
-            elif schema_type == "product_reviews":
-                df = _generate_product_reviews(row_count, self.schema_options or {})
-            elif schema_type == "audio_samples":
-                df = _generate_audio_samples(row_count, self.schema_options or {})
-            elif schema_type == "image_prompts":
-                df = _generate_image_prompts(row_count, self.schema_options or {})
-            elif schema_type == "employees":
-                df = _generate_employees(row_count, self.schema_options or {})
-            elif schema_type == "fhir_patients":
-                df = _generate_fhir_patients(row_count, self.schema_options or {})
-            elif schema_type == "hl7_messages":
-                df = _generate_hl7_messages(row_count, self.schema_options or {})
-            elif schema_type == "iso20022_payments":
-                df = _generate_iso20022_payments(row_count, self.schema_options or {})
-            elif schema_type == "x12_messages":
-                df = _generate_x12_messages(row_count, self.schema_options or {})
-            elif schema_type == "fix_messages":
-                df = _generate_fix_messages(row_count, self.schema_options or {})
-            elif schema_type == "acord_messages":
-                df = _generate_acord_messages(row_count, self.schema_options or {})
-            elif schema_type == "moderation_content":
-                df = _generate_moderation_content(row_count, target_date)
-            else:
-                raise ValueError(f"Unknown schema type: {schema_type}")
+            # Set random seed if provided, per date. Offsetting by the
+            # partition date's ordinal (when partitioned) makes each day's
+            # "random" draws genuinely different from every other day's,
+            # while staying exactly reproducible -- rematerializing the SAME
+            # partition key (or the same single_run backfill range) always
+            # replays the SAME sequence per day. Without this, every
+            # partition reset to the identical seed and replayed the
+            # identical sequence of random draws, so e.g. daily revenue was
+            # byte-for-byte identical across every single day (confirmed
+            # live) -- any check/metric built on top of it was necessarily
+            # flat too.
+            dfs = []
+            for _target_date in target_dates:
+                if random_seed is not None:
+                    effective_seed = random_seed + _target_date.toordinal() if _target_date else random_seed
+                    random.seed(effective_seed)
+                dfs.append(_generate_for_date(_target_date))
+
+            df = pd.concat(dfs, ignore_index=True) if len(dfs) > 1 else dfs[0]
 
             context.log.info(f"Generated DataFrame with shape {df.shape}")
 

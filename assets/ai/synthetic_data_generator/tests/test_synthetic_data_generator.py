@@ -148,3 +148,45 @@ def test_partitioned_output_varies_across_partitions_but_not_within_one(mod):
 
     assert revenue_day_1 == revenue_day_1_again, "same partition must reproduce identically"
     assert revenue_day_1 != revenue_day_2, "different partitions must not be byte-for-byte identical"
+
+
+def test_backfill_policy_single_run_covers_the_whole_range_in_one_call(mod):
+    """backfill_policy='single_run' means a backfill of N partitions arrives
+    as ONE call covering all N days at once (via context.partition_key_range,
+    not a single context.partition_key) -- confirm the asset handles that:
+    row_count rows per day, every day's date present, and each day still
+    gets its own correctly-varying random draws (same per-day revenue as if
+    that single day had been materialized on its own -- see the two tests
+    above)."""
+    import dagster as dg
+
+    orders = mod.SyntheticDataGeneratorComponent(
+        asset_name="raw_orders", schema_type="orders", row_count=50,
+        random_state=42, partition_type="daily", partition_start="2026-09-01",
+        backfill_policy="single_run",
+    )
+    asset_def = orders.build_defs(context=None).assets[0]
+
+    ctx = dg.build_asset_context(
+        partition_key_range=dg.PartitionKeyRange(start="2026-10-01", end="2026-10-03")
+    )
+    df = asset_def(ctx)
+
+    assert len(df) == 50 * 3
+    assert sorted(df["order_date"].dt.date.astype(str).unique()) == [
+        "2026-10-01", "2026-10-02", "2026-10-03",
+    ]
+    per_day_revenue = df.groupby(df["order_date"].dt.date)["total"].sum()
+    assert len(set(per_day_revenue.values)) == 3, "each backfilled day must still vary"
+
+
+def test_backfill_policy_unset_does_not_set_one(mod):
+    """Non-regression: the default (no backfill_policy configured) must not
+    silently acquire one -- Dagster's own per-partition default behavior for
+    every existing project stays exactly as it was."""
+    orders = mod.SyntheticDataGeneratorComponent(
+        asset_name="raw_orders", schema_type="orders", row_count=5,
+        random_state=42, partition_type="daily", partition_start="2026-09-01",
+    )
+    asset_def = orders.build_defs(context=None).assets[0]
+    assert asset_def.backfill_policy is None

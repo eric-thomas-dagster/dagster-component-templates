@@ -17,6 +17,12 @@ attributes:
   include_preview_metadata: true
   partition_type: daily
   partition_start: "2026-09-01"
+  # Backfill several days in one run instead of one run per day -- this
+  # generator has no real per-day external dependency (it's synthetic), so
+  # there's no reason a backfill needs one process per partition. The
+  # generator still produces each day's own correctly-varying rows within
+  # that single run (seeded per-day internally), not a repeated single day.
+  backfill_policy: single_run
   # Declared Dagster dep (not just a dbt source FK) on the unpartitioned
   # raw_customers -- without this, nothing in Dagster's own asset graph
   # surfaces or enforces that raw_customers must exist first. A user who

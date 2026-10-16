@@ -18,12 +18,13 @@ Connection comes from `sap_rfc_resource_key`. Install pyrfc + the SAP NW RFC
 SDK first — see `sap_rfc_resource` README.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
     AssetKey,
+    BackfillPolicy,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -194,6 +195,29 @@ class SapRFCIngestionComponent(Component, Model, Resolvable):
     partition_values: Optional[str] = Field(default=None)
     dynamic_partition_name: Optional[str] = Field(default=None)
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run (one RFC call "
+            "per partition in the range, each with its own "
+            "where_clause/import_params {partition_key} substitution, "
+            "concatenated together). 'multi_run' launches one run per "
+            "partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for "
+            "Dagster's default (one run per partition, uncapped). Ignored "
+            "when partition_type is not set. 'single_run' requires a "
+            "partition-range-aware IO manager (e.g. a DB-table IO manager "
+            "with partition_expr set) -- a generic filesystem/default IO "
+            "manager cannot persist a single_run output spanning multiple "
+            "partitions and will raise a clear error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     retry_policy_max_retries: Optional[int] = Field(default=None)
     retry_policy_delay_seconds: Optional[int] = Field(default=None)
     retry_policy_backoff: str = Field(default="exponential")
@@ -233,6 +257,14 @@ class SapRFCIngestionComponent(Component, Model, Resolvable):
 
         rk = self.sap_rfc_resource_key
 
+        backfill_policy_obj = None
+        if partitions_def is not None and component.backfill_policy == "single_run":
+            backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and component.backfill_policy == "multi_run":
+            backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=component.backfill_policy_max_partitions_per_run or 1
+            )
+
         @asset(
             key=AssetKey.from_user_string(asset_name),
             description=description,
@@ -242,15 +274,22 @@ class SapRFCIngestionComponent(Component, Model, Resolvable):
             group_name=self.group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             partitions_def=partitions_def,
+            backfill_policy=backfill_policy_obj,
             retry_policy=retry_policy,
             required_resource_keys={rk},
         )
         def sap_rfc_ingestion_asset(context: AssetExecutionContext):
             resource = getattr(context.resources, rk)
-            partition_key = context.partition_key if context.has_partition_key else None
+
+            # Partition key(s) this call must process: a normal tick gives
+            # exactly one; a single_run backfill gives the whole range.
+            partition_keys: List[Optional[str]] = [None]
+            if context.has_partition_key or context.has_partition_key_range:
+                partition_keys = list(context.partition_keys)
 
             mode = component.mode.lower()
-            with resource.connection() as conn:
+
+            def _call_one(conn, partition_key: Optional[str]) -> pd.DataFrame:
                 if mode == "read_table":
                     if not component.table_name:
                         raise ValueError("mode='read_table' requires table_name.")
@@ -281,7 +320,7 @@ class SapRFCIngestionComponent(Component, Model, Resolvable):
                         f"fields={component.fields or 'all'} where={component.where_clause or 'none'}"
                     )
                     result = conn.call("RFC_READ_TABLE", **kwargs)
-                    df = _parse_rfc_read_table(result)
+                    return _parse_rfc_read_table(result)
 
                 elif mode == "bapi":
                     if not component.rfc_name:
@@ -309,13 +348,17 @@ class SapRFCIngestionComponent(Component, Model, Resolvable):
                                 f"result_table={component.result_table!r} not in response. "
                                 f"Available: {available}"
                             )
-                        df = pd.DataFrame(table)
+                        return pd.DataFrame(table)
                     else:
                         # Whole result as a 1-row DataFrame of scalar values
-                        df = pd.DataFrame([{k: v for k, v in result.items() if not isinstance(v, (list, dict))}])
+                        return pd.DataFrame([{k: v for k, v in result.items() if not isinstance(v, (list, dict))}])
 
                 else:
                     raise ValueError(f"unknown mode: {mode!r} (expected 'read_table' or 'bapi')")
+
+            with resource.connection() as conn:
+                dfs = [_call_one(conn, pk) for pk in partition_keys]
+            df = pd.concat(dfs, ignore_index=True) if len(dfs) > 1 else dfs[0]
 
             context.log.info(f"SAP RFC: {len(df)} rows × {len(df.columns)} cols")
 
@@ -329,8 +372,8 @@ class SapRFCIngestionComponent(Component, Model, Resolvable):
                 metadata["table"] = MetadataValue.text(component.table_name or "")
             else:
                 metadata["rfc_name"] = MetadataValue.text(component.rfc_name or "")
-            if partition_key:
-                metadata["partition_key"] = MetadataValue.text(partition_key)
+            if partition_keys != [None]:
+                metadata["partition_keys"] = MetadataValue.json(partition_keys)
             if component.include_preview_metadata and len(df) > 0:
                 try:
                     sample = (

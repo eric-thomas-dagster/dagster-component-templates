@@ -297,6 +297,25 @@
       "required": false,
       "default": 25
     },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run. For time-based partition types (daily/weekly/monthly/hourly) with a Watermark Column set, this is ONE combined bounded-range query spanning the whole window (efficient -- not one query per day); Destination Table may not contain '{partition_key}' in this combination (ambiguous: one combined query can't be split across multiple destination tables). For static/dynamic/multi partition types (no natural time window), each partition key is read and written independently -- Destination Table MAY vary per key via '{partition_key}' templating. 'multi_run' launches one run per partition (optionally capped via Backfill Max Partitions Per Run). Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is 'none'. Unlike dlt-based ingestion connectors, this asset writes directly to SQL and returns no IO-managed value, so 'single_run' works with any IO manager.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
+      "required": false,
+      "default": null
+    },
     "source_resource_key": {
       "type": "string",
       "label": "Source Resource Key",

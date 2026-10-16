@@ -6,9 +6,9 @@ database table via SQLAlchemy. Designed to be triggered by sql_monitor or a sche
 Supports any SQLAlchemy-compatible source and destination (Postgres, MySQL, MSSQL,
 SQLite, Snowflake, BigQuery, Redshift, DuckDB, etc.).
 """
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 import dagster as dg
-from dagster import AssetExecutionContext, Config
+from dagster import AssetExecutionContext, BackfillPolicy, Config
 from pydantic import Field
 
 
@@ -262,6 +262,33 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Max rows to include in the preview when include_preview_metadata is True.",
     )
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run. For time-based "
+            "partition types (daily/weekly/monthly/hourly) with a "
+            "watermark_column set, this is ONE combined bounded-range query "
+            "spanning the whole window (efficient -- not one query per day); "
+            "destination_table may not contain '{partition_key}' in this "
+            "combination (ambiguous: one combined query can't be split across "
+            "multiple destination tables). For static/dynamic/multi partition "
+            "types (no natural time window), each partition key is read and "
+            "written independently -- destination_table MAY vary per key via "
+            "'{partition_key}' templating. 'multi_run' launches one run per "
+            "partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for "
+            "Dagster's default (one run per partition, uncapped). Ignored "
+            "when partition_type is 'none'. Unlike dlt-based ingestion "
+            "connectors, this asset writes directly to SQL and returns no "
+            "IO-managed value, so 'single_run' works with any IO manager."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
 
@@ -299,13 +326,22 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
 
-        @dg.asset(retry_policy=_retry_policy, 
+        _backfill_policy_obj = None
+        if partitions_def is not None and _self.backfill_policy == "single_run":
+            _backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and _self.backfill_policy == "multi_run":
+            _backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=_self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        @dg.asset(retry_policy=_retry_policy,
             key=dg.AssetKey.from_user_string(_self.asset_name),
             description=_self.description or f"SQL:{source_desc} → {_self.destination_table}",
             group_name=_self.group_name,
             kinds={"sql"},
             deps=[dg.AssetKey.from_user_string(k) for k in (_self.deps or [])],
             partitions_def=partitions_def,
+            backfill_policy=_backfill_policy_obj,
             required_resource_keys={
                 k for k in (_self.source_resource_key, _self.destination_resource_key) if k
             },
@@ -346,70 +382,162 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
             # Build source query
             if _self.source_query:
-                query = _self.source_query
+                base_query = _self.source_query
             else:
                 src_table = f"{_self.source_schema + '.' if _self.source_schema else ''}{_self.source_table}"
-                query = f"SELECT * FROM {src_table}"
+                base_query = f"SELECT * FROM {src_table}"
 
-            # Apply watermark filter for incremental loads
-            watermark = config.watermark_value
-            if not watermark and _self.watermark_env_var:
-                watermark = os.environ.get(_self.watermark_env_var)
+            def _process_one(pk: Optional[str]):
+                """Read + write one partition key's batch (or the whole table
+                when pk is None). Time-based partitions get a real bounded
+                [start, end) window instead of an open-ended watermark --
+                otherwise every partition after the first would re-pull an
+                ever-growing superset instead of just its own slice. Matches
+                the original (pre-range) single-tick behavior exactly."""
+                query = base_query
+                watermark = config.watermark_value
+                if not watermark and _self.watermark_env_var:
+                    watermark = os.environ.get(_self.watermark_env_var)
 
-            # Time-based partitions (daily/weekly/monthly/hourly) get a real
-            # bounded [start, end) window instead of an open-ended watermark --
-            # otherwise every partition after the first would re-pull an
-            # ever-growing superset instead of just its own slice.
-            range_start = None
-            range_end = None
-            if context.has_partition_key:
-                watermark = context.partition_key
+                range_start = None
+                range_end = None
+                if pk is not None:
+                    watermark = pk
+                    try:
+                        _window = context.partition_time_window
+                        range_start = _window.start.isoformat()
+                        range_end = _window.end.isoformat()
+                    except Exception:
+                        pass  # static/dynamic/multi partition -- no natural time window
+
+                use_bounded_range = range_start is not None and _self.watermark_column and not _self.source_query
+
+                if use_bounded_range:
+                    query += f" WHERE {_self.watermark_column} >= :range_start AND {_self.watermark_column} < :range_end"
+                elif watermark and _self.watermark_column and not _self.source_query:
+                    query += f" WHERE {_self.watermark_column} > :watermark"
+
+                context.log.info(f"Reading from source: {source_desc}")
+                if use_bounded_range:
+                    context.log.info(f"Partition window: {_self.watermark_column} in [{range_start}, {range_end})")
+                elif watermark and _self.watermark_column:
+                    context.log.info(f"Watermark: {_self.watermark_column} > {watermark}")
+
+                with src_engine.connect() as src_conn:
+                    if use_bounded_range:
+                        df = pd.read_sql(text(query), src_conn, params={"range_start": range_start, "range_end": range_end})
+                    elif watermark and _self.watermark_column and not _self.source_query:
+                        df = pd.read_sql(text(query), src_conn, params={"watermark": watermark})
+                    else:
+                        df = pd.read_sql(text(query), src_conn)
+
+                context.log.info(f"Read {len(df)} rows, {len(df.columns)} columns from source")
+
+                if _self.column_mapping:
+                    df = df.rename(columns=_self.column_mapping)
+
+                if pk is not None:
+                    df["_partition_key"] = pk
+
+                dest_table = _self.destination_table
+                if pk is not None and "{partition_key}" in dest_table:
+                    dest_table = dest_table.replace("{partition_key}", pk)
+
+                df.to_sql(dest_table, con=dst_engine, schema=_self.destination_schema,
+                          if_exists=_self.if_exists, index=False, method="multi", chunksize=_self.chunksize)
+
+                qualified = f"{_self.destination_schema + '.' if _self.destination_schema else ''}{dest_table}"
+                context.log.info(f"Wrote {len(df)} rows to {qualified}")
+                watermark_meta = (
+                    {"partition_window_start": range_start, "partition_window_end": range_end}
+                    if use_bounded_range
+                    else ({"watermark": watermark} if watermark else {})
+                )
+                return df, qualified, watermark_meta
+
+            # Partition key(s) this call must process: a normal tick gives
+            # exactly one (or none); a single_run/multi_run backfill gives
+            # the whole range.
+            partition_keys: List[Optional[str]] = [None]
+            is_range = False
+            if context.has_partition_key or context.has_partition_key_range:
+                partition_keys = list(context.partition_keys)
+                is_range = context.has_partition_key_range
+
+            if not is_range:
+                # Normal tick (0 or 1 partition key) -- identical to the
+                # original (pre-backfill_policy) behavior.
+                df, qualified, watermark_meta = _process_one(partition_keys[0])
+                extra_metadata = {"table": qualified, **watermark_meta}
+                preview_df = df
+            else:
+                # A single_run/multi_run backfill range. If the WHOLE range
+                # has one natural bounded time window (time-based partition
+                # types with watermark_column set), one combined query is
+                # both correct and far more efficient than looping per key.
                 try:
                     _window = context.partition_time_window
-                    range_start = _window.start.isoformat()
-                    range_end = _window.end.isoformat()
+                    _range_start = _window.start.isoformat()
+                    _range_end = _window.end.isoformat()
                 except Exception:
-                    pass  # static/dynamic/multi partition -- no natural time window
+                    _range_start = _range_end = None
 
-            use_bounded_range = range_start is not None and _self.watermark_column and not _self.source_query
-
-            if use_bounded_range:
-                query += f" WHERE {_self.watermark_column} >= :range_start AND {_self.watermark_column} < :range_end"
-            elif watermark and _self.watermark_column and not _self.source_query:
-                query += f" WHERE {_self.watermark_column} > :watermark"
-
-            context.log.info(f"Reading from source: {source_desc}")
-            if use_bounded_range:
-                context.log.info(f"Partition window: {_self.watermark_column} in [{range_start}, {range_end})")
-            elif watermark and _self.watermark_column:
-                context.log.info(f"Watermark: {_self.watermark_column} > {watermark}")
-
-            with src_engine.connect() as src_conn:
-                if use_bounded_range:
-                    df = pd.read_sql(text(query), src_conn, params={"range_start": range_start, "range_end": range_end})
-                elif watermark and _self.watermark_column and not _self.source_query:
-                    df = pd.read_sql(text(query), src_conn, params={"watermark": watermark})
+                use_combined_range = (
+                    _range_start is not None and _self.watermark_column and not _self.source_query
+                )
+                if use_combined_range:
+                    if "{partition_key}" in _self.destination_table:
+                        raise ValueError(
+                            "destination_table contains '{partition_key}' but this run "
+                            "covers a partition RANGE (single_run/multi_run backfill) over "
+                            "a bounded time window -- a single combined query can't be "
+                            "split across multiple destination tables in one run. Remove "
+                            "the {partition_key} templating, or use a static/dynamic "
+                            "partition_type if per-partition destination tables are needed."
+                        )
+                    query = base_query + f" WHERE {_self.watermark_column} >= :range_start AND {_self.watermark_column} < :range_end"
+                    context.log.info(f"Reading from source: {source_desc}")
+                    context.log.info(
+                        f"Partition window: {_self.watermark_column} in [{_range_start}, {_range_end})"
+                    )
+                    with src_engine.connect() as src_conn:
+                        df = pd.read_sql(
+                            text(query), src_conn,
+                            params={"range_start": _range_start, "range_end": _range_end},
+                        )
+                    context.log.info(f"Read {len(df)} rows, {len(df.columns)} columns from source")
+                    if _self.column_mapping:
+                        df = df.rename(columns=_self.column_mapping)
+                    dest_table = _self.destination_table
+                    df.to_sql(dest_table, con=dst_engine, schema=_self.destination_schema,
+                              if_exists=_self.if_exists, index=False, method="multi", chunksize=_self.chunksize)
+                    qualified = f"{_self.destination_schema + '.' if _self.destination_schema else ''}{dest_table}"
+                    context.log.info(f"Wrote {len(df)} rows to {qualified}")
+                    extra_metadata = {
+                        "table": qualified,
+                        "partition_window_start": _range_start,
+                        "partition_window_end": _range_end,
+                    }
+                    preview_df = df
                 else:
-                    df = pd.read_sql(text(query), src_conn)
-
-            context.log.info(f"Read {len(df)} rows, {len(df.columns)} columns from source")
-
-            if _self.column_mapping:
-                df = df.rename(columns=_self.column_mapping)
-
-            if context.has_partition_key:
-                df["_partition_key"] = context.partition_key
-
-            dest_table = _self.destination_table
-            if context.has_partition_key:
-                dest_table = dest_table.replace("{partition_key}", context.partition_key)
-
-            df.to_sql(dest_table, con=dst_engine, schema=_self.destination_schema,
-                      if_exists=_self.if_exists, index=False, method="multi", chunksize=_self.chunksize)
+                    # Static/dynamic/multi partitioning with no time window --
+                    # each key is read + written independently (destination
+                    # table may legitimately differ per key, e.g. one table
+                    # per customer, same as _to_database_asset components).
+                    dfs = []
+                    tables_written: List[str] = []
+                    for pk in partition_keys:
+                        df_pk, qualified_pk, _ = _process_one(pk)
+                        dfs.append(df_pk)
+                        if qualified_pk not in tables_written:
+                            tables_written.append(qualified_pk)
+                    df = pd.concat(dfs, ignore_index=True) if len(dfs) > 1 else dfs[0]
+                    extra_metadata = {"table": ", ".join(tables_written)}
+                    preview_df = df
 
             _preview_metadata = {}
             if _self.include_preview_metadata:
-                _prev_df = df.sample(min(_self.preview_rows, len(df))) if len(df) > _self.preview_rows * 10 else df.head(_self.preview_rows)
+                _prev_df = preview_df.sample(min(_self.preview_rows, len(preview_df))) if len(preview_df) > _self.preview_rows * 10 else preview_df.head(_self.preview_rows)
                 _cols = list(_prev_df.columns)
                 _preview_metadata["preview"] = dg.MetadataValue.md(
                     "| " + " | ".join(_cols) + " |\n"
@@ -417,16 +545,12 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                     "\n".join("| " + " | ".join(str(v) for v in row) + " |" for row in _prev_df.itertuples(index=False))
                 )
 
-
-            context.log.info(f"Wrote {len(df)} rows to {_self.destination_schema + '.' if _self.destination_schema else ''}{dest_table}")
-            return dg.MaterializeResult(metadata={**_preview_metadata, 
+            return dg.MaterializeResult(metadata={**_preview_metadata,
                 "num_rows": len(df),
                 "num_columns": len(df.columns),
                 "columns": list(df.columns),
                 "source": source_desc,
-                "table": f"{_self.destination_schema + '.' if _self.destination_schema else ''}{dest_table}",
-                **({"partition_window_start": range_start, "partition_window_end": range_end} if use_bounded_range else {}),
-                **({"watermark": watermark} if watermark and not use_bounded_range else {}),
+                **extra_metadata,
             })
 
         return dg.Definitions(assets=[sql_to_database_asset])

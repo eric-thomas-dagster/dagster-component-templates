@@ -1605,12 +1605,17 @@ class _LazyComponentMeta(type):
         return cls._resolve_real()(*args, **kwargs)
 
     def __instancecheck__(cls, instance):
-        return isinstance(instance, cls._resolve_real())
+        real = cls._resolve_real()
+        # A missing/broken registry entry resolves to a non-class placeholder; nothing is an
+        # instance of it. (Raising here would break every isinstance/issubclass against Component
+        # in the process, since ABCs consult every registered subclass.)
+        return isinstance(real, type) and isinstance(instance, real)
 
     def __subclasscheck__(cls, subclass):
         # `issubclass(SOMETHING, stub)` — answer True if SOMETHING is a
         # subclass of the real class this stub represents.
-        return issubclass(subclass, cls._resolve_real())
+        real = cls._resolve_real()
+        return isinstance(real, type) and issubclass(subclass, real)
 
     def __getattr__(cls, attr):
         # Fires for names NOT set on the stub class itself. This is where

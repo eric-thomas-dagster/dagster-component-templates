@@ -59,3 +59,21 @@ def test_group_by_with_aggregations_is_unchanged(mod):
 def test_group_by_unknown_column_is_ignored(mod):
     out = _materialize(mod, PEOPLE, group_by="nope")
     assert len(out) == len(PEOPLE)
+
+
+# --- aggregations WITHOUT group_by: one row over the whole table ---------------
+
+def test_aggregation_without_group_by_aggregates_the_whole_table(mod):
+    out = _materialize(mod, PEOPLE, agg_functions=json.dumps({"amount": "max"}))
+    assert len(out) == 1
+    assert out.iloc[0]["amount"] == 5
+
+
+def test_multiple_whole_table_aggregations(mod):
+    out = _materialize(mod, PEOPLE, agg_functions=json.dumps({"amount": "sum", "last_name": "count"}))
+    assert out.to_dict("records") == [{"amount": 15, "last_name": 5}]
+
+
+def test_whole_table_aggregation_ignores_unknown_columns(mod):
+    out = _materialize(mod, PEOPLE, agg_functions=json.dumps({"nope": "max"}))
+    assert len(out) == len(PEOPLE)

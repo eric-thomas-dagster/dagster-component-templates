@@ -818,9 +818,9 @@ group_name=group_name,
             # semantics, which is also what the Transform UI preview and the
             # SQL transformer produce) -- it used to be silently ignored
             # unless an aggregation was also set.
-            if group_by:
+            if group_by or agg_functions_str:
                 try:
-                    group_cols = [c.strip() for c in group_by.split(',')]
+                    group_cols = [c.strip() for c in group_by.split(',')] if group_by else []
                     agg_map = json.loads(agg_functions_str) if agg_functions_str else {}
 
                     # Filter to existing columns
@@ -835,6 +835,13 @@ group_name=group_name,
                         before = len(df)
                         df = df[group_cols].drop_duplicates().reset_index(drop=True)
                         context.log.info(f"Grouped by {group_cols} (no aggregations): {before} → {len(df)} distinct rows")
+                    elif agg_map:
+                        # Aggregations with no group_by: aggregate the whole
+                        # frame into a single row (SQL: SELECT MAX(x) FROM t).
+                        before = len(df)
+                        res = df.agg(agg_map)
+                        df = pd.DataFrame([res.to_dict()]) if isinstance(res, pd.Series) else res.reset_index(drop=True)
+                        context.log.info(f"Aggregated {len(agg_map)} columns over the whole table ({before} → {len(df)} row)")
                 except Exception as e:
                     context.log.error(f"Aggregation failed: {e}")
                     raise

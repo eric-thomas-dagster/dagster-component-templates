@@ -11,7 +11,7 @@ Loads a pickled scikit-learn estimator from disk and runs `predict` (and `predic
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `model_path` | `str` | Path to a pickled sklearn estimator (joblib or pickle). |
 | `feature_columns` | `List[Union[str, int]]` | Feature columns to feed the model. |
 

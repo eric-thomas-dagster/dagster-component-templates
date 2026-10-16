@@ -143,55 +143,29 @@ Not an Automation Anywhere killer. If you're doing a full migration off AA, head
 
 ## Fields
 
-### Connection
+### Required
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `endpoint` | `str` | `"https://control-room.internal"` | Automation Anywhere Control Room REST API base URL (used when demo_mode=false). |
-
-### Execution
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `poll_interval_seconds` | `int` | `10` | Seconds between AA execution status polls. |
-| `max_retries` | `int` | `2` | Dagster-side asset retries on failure. |
+| Field | Type | Description |
+|---|---|---|
+| `file_id` | `int` | Numeric file ID of the bot in the Control Room repository. |
+| `asset_name` | `str` | Dagster asset name that wraps this bot. |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `group_name` | `str` | `"automation_anywhere_integration"` | Dagster asset group for the bot assets. |
-
-### Partitions
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `partition_start_date` | `str` | `"2024-01-01"` | Start date for the daily partitioned assets. |
-
-### Retry policy
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `retry_delay_seconds` | `int` | `60` | Delay between Dagster asset retries. |
-
-### Source / target
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `source_tables` | `List[AutomationAnywhereSourceTableSpec]` | `list()` | Tables populated by AA bots that Dagster observes (adds to lineage). |
+| `description` | `str` | — | Prose description shown in the Dagster UI. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `demo_mode` | `bool` | `true` | Simulate the REST API on stdout (no external calls). |
-| `jobs` | `List[AutomationAnywhereBotSpec]` | `list()` | Automation Anywhere Bots (fileIds) to wrap as daily-partitioned Dagster assets. |
-| `upstream_deps` | `List[str]` | `list()` | Upstream asset keys (slash-separated for nested keys) that must complete before bots run. |
-| `automation_anywhere_user_env` | `str` | `"AUTOMATION_ANYWHERE_USER"` | Env var holding the Control Room REST username. |
-| `automation_anywhere_password_env` | `str` | `"AUTOMATION_ANYWHERE_PASSWORD"` | Env var holding the Control Room REST password (or apiKey). |
-| `poll_timeout_seconds` | `int` | `3600` | Total seconds to wait for terminal status before failing. |
-| `log_retrieval` | `bool` | `true` | Retrieve execution logs on completion. |
-| `reconciliation_cron` | `str` | `"0 * * * *"` | Cron for the Automation Anywhere vs Dagster state reconciliation job. |
+| `workspace` | `str` | — | Business tag for the bot's workspace. A360 has 'Public' and 'Private' workspaces. |
+| `application` | `str` | — | Business tag for the bot's application (e.g. FINANCE, HR). |
+| `device_pool_id` | `int` | `0` | Numeric device pool ID for target unattended bots. |
+| `run_as_user_ids` | `list` | `list()` | Numeric user IDs to run the bot as (Control Room user IDs). |
+| `bot_input` | `dict` | `dict()` | Bot input values. String values templated with {partition_key}. |
+| `run_as` | `str` | `"svc_dagster"` | OS / Control Room user the bot runs as. |
 
 [//]: # (FIELDS:END)
 

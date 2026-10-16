@@ -74,4 +74,11 @@ One recipient's send failing (invalid number, carrier rejection, etc.) is caught
 | `tags` | `Dict[str, str]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'twilio'). |
 
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
+
 [//]: # (FIELDS:END)

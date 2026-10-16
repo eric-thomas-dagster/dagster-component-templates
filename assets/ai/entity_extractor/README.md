@@ -17,7 +17,7 @@ The Entity Extractor Component identifies and extracts entities like person name
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset that will hold extracted entities |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with text to extract entities from |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with text to extract entities from |
 
 ### Connection
 

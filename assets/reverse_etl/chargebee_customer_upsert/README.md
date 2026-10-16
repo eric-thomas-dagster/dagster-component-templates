@@ -68,7 +68,7 @@ So a real "upsert" from this component's perspective requires, per row:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
 | `lookup_field` | `str` | `"email"` | Chargebee Customer field used to find an existing record via the list endpoint's '<field>[is]=' filter. MUST be present in fields_map values. Use 'id' to match on a merchant-supplied id. |
 

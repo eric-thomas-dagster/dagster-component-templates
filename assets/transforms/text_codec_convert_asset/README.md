@@ -44,7 +44,7 @@ Python's `codecs` module ships them all natively — no extra deps.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset key. |
 | `mode` | `Literal['string', 'file']` | `string`: convert a column of Python str values in place. `file`: read each file path's bytes, recode, write a new file. |
 | `from_codec` | `str` | Source codec name (Python stdlib codec). Common EBCDIC: cp037, cp1140, cp273, cp500, cp1047. |
 | `to_codec` | `str` | Target codec name. e.g. `utf-8`, `ascii`, `cp037`. |

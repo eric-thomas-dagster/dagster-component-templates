@@ -15,7 +15,7 @@ The `OptimizationComponent` takes a DataFrame where each row represents a decisi
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame defining the optimization problem |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame defining the optimization problem |
 | `objective_column` | `Union[str, int]` | Column with objective function coefficients |
 
 ### Catalog metadata

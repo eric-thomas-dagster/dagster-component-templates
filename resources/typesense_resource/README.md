@@ -16,7 +16,7 @@ pip install requests
 
 | Field | Type | Description |
 |---|---|---|
-| `host` | `str` | Typesense node URL, e.g. 'https://xxx.a1.typesense.net:443' (Typesense Cloud) or 'http://localhost:8108' (self-hosted). |
+| `host` | `str` | Typesense node URL, e.g. 'https://xxx.a1.typesense.net:443' or 'http://localhost:8108'. |
 | `api_key_env_var` | `str` | Env var holding the Typesense API key. |
 
 ### Connection

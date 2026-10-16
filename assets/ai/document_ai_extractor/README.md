@@ -40,7 +40,7 @@ Create / find processors at <https://console.cloud.google.com/ai/document-ai/pro
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset key. |
 | `processor_id` | `str` | Document AI processor id (UUID-style) from the console. Distinct from the processor TYPE — each processor is a deployed instance of a type. |
 | `document_column` | `Union[str, int]` | Column with document file paths or `gs://` URIs. |
 

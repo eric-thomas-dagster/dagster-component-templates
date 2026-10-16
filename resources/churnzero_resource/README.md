@@ -16,15 +16,15 @@ pip install requests
 
 | Field | Type | Description |
 |---|---|---|
-| `base_url` | `str` | Your ChurnZero tenant's API base URL (account-specific -- find on Admin -> API Keys page). e.g. 'https://yourtenant.churnzero.net' |
+| `base_url` | `str` | Your ChurnZero tenant's API base URL (account-specific -- see Admin -> API Keys) |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"churnzero_resource"` | Key used to register this resource. Other components reference it via resource_key. |
-| `username_env_var` | `str` | `"CHURNZERO_USERNAME"` | Env var holding your ChurnZero login email (Basic auth username) |
-| `api_key_env_var` | `str` | `"CHURNZERO_API_KEY"` | Env var holding the ChurnZero API key (Basic auth password) |
+| `username_env_var` | `str` | `"CHURNZERO_USERNAME"` | Env var holding your ChurnZero login email |
+| `api_key_env_var` | `str` | `"CHURNZERO_API_KEY"` | Env var holding the ChurnZero API key |
 
 [//]: # (FIELDS:END)
 

@@ -168,7 +168,7 @@ queries work end-to-end.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | — |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | — |
 | `compute` | `Dict[str, Any]` | — | `{kind: python, python: 'mod:fn'}`. Mutually exclusive with `wraps`. |
 | `wraps` | `Dict[str, Any]` | — | Wrap another DCC component's assets with cost tracking. Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. Mutually exclusive with `compute`. |
 | `cost_per_second` | `float` | — | Wall-clock USD/sec rate. Used when cost_fn is null. |

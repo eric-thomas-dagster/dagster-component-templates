@@ -265,7 +265,7 @@ threshold, so breach detection + observation history are all per-partition-aware
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | — |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | — |
 | `compute` | `Dict[str, Any]` | — | `{kind: python, python: 'mod:fn'}`. Any return type. Mutually exclusive with `wraps`. |
 | `wraps` | `Dict[str, Any]` | — | Wrap another DCC component's assets with SLA timing instead of defining new compute. Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. Mutually exclusive with `compute`. |
 | `on_breach` | `str` | `"warn"` | 'warn' materializes + emits AssetObservation. 'fail' raises dg.Failure. |

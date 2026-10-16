@@ -45,6 +45,8 @@ Pairs with `qlik_compose_resource`.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `workflows` | `List[str]` | — | Optional workflow whitelist across all listed projects. |
+| `include_preview_metadata` | `bool` | `false` | Include a markdown preview of the fetched rows in the materialization metadata. |
+| `preview_rows` | `int` | `25` | Max rows to include in the preview when include_preview_metadata is True. |
 
 [//]: # (FIELDS:END)
 

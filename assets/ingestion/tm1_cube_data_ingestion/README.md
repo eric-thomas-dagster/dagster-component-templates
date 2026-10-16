@@ -98,5 +98,7 @@ Common downstream patterns:
 | `mdx` | `str` | — | Explicit MDX statement. If set, row/column/filter fields are ignored. |
 | `row_dimensions` | `List[str]` | — | Simplified mode: dimensions to project on rows. |
 | `column_dimensions` | `List[str]` | — | Simplified mode: dimensions to project on columns. |
+| `include_preview_metadata` | `bool` | `false` | Include a markdown preview of the fetched rows in the materialization metadata. |
+| `preview_rows` | `int` | `25` | Max rows to include in the preview when include_preview_metadata is True. |
 
 [//]: # (FIELDS:END)

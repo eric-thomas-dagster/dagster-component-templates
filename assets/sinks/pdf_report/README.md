@@ -26,7 +26,7 @@ Render an upstream DataFrame to a PDF report file. Drop-in for Alteryx's
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `file_path` | `str` | Output PDF path (local or fsspec URL: s3://, gs://, abfs://, etc.) |
 
 ### Execution

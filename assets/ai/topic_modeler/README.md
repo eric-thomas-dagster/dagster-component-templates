@@ -13,7 +13,7 @@ Assign topic labels to rows using LDA (Latent Dirichlet Allocation) or NMF (Non-
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `text_column` | `Union[str, int]` | Column containing text to model topics from |
 
 ### Catalog metadata

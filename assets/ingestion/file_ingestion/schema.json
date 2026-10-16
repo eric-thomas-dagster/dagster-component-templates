@@ -264,6 +264,44 @@
         "fixed"
       ],
       "ui:widget": "select"
+    },
+    "fixed_width_names": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Fixed Width Names",
+      "description": "For `format: fixed_width` only — column names list. Required unless the file has a header row (then set `header_row: 0`).",
+      "required": false
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "description": "Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}.",
+      "required": false
+    },
+    "partition_dimensions": {
+      "default": null,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "required": false,
+      "type": "array"
+    },
+    "partition_values": {
+      "default": null,
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "label": "Partition Values",
+      "required": false,
+      "type": "string"
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Partition Static Dim",
+      "description": "Dimension name for the static axis in multi-partitioning, e.g. 'customer'.",
+      "required": false
     }
   }
 }

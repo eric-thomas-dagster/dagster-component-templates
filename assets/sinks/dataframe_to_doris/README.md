@@ -15,7 +15,7 @@ For tens of rows, `dataframe_to_table` against `doris_resource.connection_string
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
-| `upstream_asset_key` | `str` | Upstream asset providing the DataFrame. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset providing the DataFrame. |
 | `table` | `str` | Destination Doris table name. |
 | `database` | `str` | Destination Doris database (catalog). |
 

@@ -39,8 +39,8 @@ Together they cover both directions of Zoho CRM data movement.
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
 | `module_api_name` | `str` | Target Zoho CRM module API name (e.g. 'Leads', 'Contacts', 'Accounts', 'Deals', or a custom module). |
-| `duplicate_check_fields` | `List[str]` | Zoho field API names used to detect duplicates on upsert (e.g. ['Email'] for Leads/Contacts). Must be non-empty, and every entry MUST be present in fields_map values -- fields marked unique/mandatory on the module work best. Zoho does not publish a hard maximum count; keep it small (1-3 fields) in practice. |
-| `fields_map` | `Dict[str, str]` | Upstream column → Zoho field API name. |
+| `duplicate_check_fields` | `List[str]` | Zoho field API names used to detect duplicates on upsert (e.g. ['Email'] for Leads/Contacts). Must be non-empty, and every entry MUST be present in fields_map values -- fields marked unique/mandatory on the module work b… _(full docs in schema.json + component README)_ |
+| `fields_map` | `Dict[str, str]` | Upstream column -> Zoho field API name. |
 
 ### Connection
 
@@ -68,7 +68,7 @@ Together they cover both directions of Zoho CRM data movement.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
 
 [//]: # (FIELDS:END)

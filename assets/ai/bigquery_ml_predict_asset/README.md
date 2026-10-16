@@ -94,7 +94,7 @@ Required SA roles: `roles/bigquery.modelDataViewer` + `roles/bigquery.jobUser`.
 | `options` | `Dict[str, Any]` | — | Options struct passed to ML.PREDICT/ML.FORECAST/etc. Example for forecast: {horizon: 10, confidence_level: 0.95}. |
 | `threshold` | `float` | — | For LOGISTIC_REG / DNN_CLASSIFIER / boosted-tree classifiers — set the score threshold. |
 | `keep_input_columns` | `bool` | `true` | If True (default), prediction output preserves all input columns alongside the predicted ones. |
-| `upstream_asset_key` | `str` | — | Optional Dagster lineage hook. Doesn't affect input rows — set input_query or input_table_id for those. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Optional Dagster lineage hook. Doesn't affect input rows — set input_query or input_table_id for those. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)

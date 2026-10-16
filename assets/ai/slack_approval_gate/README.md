@@ -37,7 +37,7 @@ Right-click on a user in Slack → **View profile** → **⋮ More** → **Copy 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor. |
-| `upstream_asset_key` | `str` | Upstream asset whose text is posted to Slack for approval. String (not AssetKey object); multi-part keys use slash notation. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset whose text is posted to Slack for approval. String (not AssetKey object); multi-part keys use slash notation. |
 | `approval_dir` | `str` | Absolute path to the shared approval-token directory. When quorum is reached, writes `<safe_partition_key>.json` here — matches `HumanApprovalGateComponent`'s `approval_dir` so the existing gate + sensor pipeline just works. |
 | `slack_channel` | `str` | Channel to post to (either `C123ABC456` id or `#channel-name`). |
 | `approver_allowlist` | `List[str]` | Slack user IDs (`U123...`) allowed to vote. Reactions from anyone else are ignored. |

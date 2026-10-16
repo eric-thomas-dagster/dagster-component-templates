@@ -17,7 +17,7 @@ The Moderation Scorer component analyzes content from upstream sources and assig
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with content to score |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with content to score |
 
 ### Catalog metadata
 

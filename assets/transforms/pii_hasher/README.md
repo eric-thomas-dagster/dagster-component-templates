@@ -108,7 +108,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `email_strip_all_whitespace` | `bool` | `false` | Email normalization mode. Default (false): trim + lowercase -- the convention Google Ads, Meta, TikTok, X/Twitter, and Pinterest all document. Set true to additionally strip ALL whitespace (not just leading/trailing) bef… _(full docs in schema.json + component README)_ |
 | `phone_mode` | `str` | `"e164_with_plus"` | Phone normalization convention -- pick whichever your downstream destination expects; this repo's own ad-platform activation components proved this genuinely differs by platform. 'e164_with_plus': keep a leading '+' plus… _(full docs in schema.json + component README)_ |

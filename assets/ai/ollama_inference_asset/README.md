@@ -129,7 +129,7 @@ No provider SDK or API credentials are needed beyond a running Ollama server.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `prompt_template` | `str` | Python format string using column names: 'Classify: {text_column}' |
 
 ### Execution

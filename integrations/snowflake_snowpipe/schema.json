@@ -100,6 +100,49 @@
       "items": {
         "type": "string"
       }
+    },
+    "pipe_name": {
+      "type": "string",
+      "label": "Pipe Name",
+      "description": "Pipe name (unquoted identifier)",
+      "required": true
+    },
+    "auto_ingest": {
+      "type": "boolean",
+      "label": "Auto Ingest",
+      "description": "If True, pipe ingests via cloud-storage events (needs SNS/Event Grid wiring outside Dagster).",
+      "required": false
+    },
+    "copy_statement": {
+      "type": "string",
+      "label": "Copy Statement",
+      "description": "The COPY INTO statement that defines what the pipe ingests.",
+      "required": true
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
     }
   }
 }

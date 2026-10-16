@@ -15,7 +15,7 @@ This component receives a DataFrame from an upstream Dagster asset and writes it
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `key` | `str` | S3 object key / path within bucket, e.g. `data/output/results.parquet`. Supports opt-in placeholders substituted at materialization time: `{partition_key}` (stringified `context.partition_key`), `{run_id}` (`context.run… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata

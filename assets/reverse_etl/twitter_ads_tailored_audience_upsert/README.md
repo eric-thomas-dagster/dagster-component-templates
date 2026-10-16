@@ -60,7 +60,7 @@ Together they cover both directions of X Ads data movement.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
-| `custom_audience_id` | `str` | Target X Ads Tailored Audience ID. Must already exist -- create it once via Ads Manager (Tools -> Audiences -> Create Audience -> Create your own) or the Ads API's `custom_audience` endpoint; this component only uploads members, it does not create audiences. |
+| `custom_audience_id` | `str` | Target X Ads Tailored Audience ID. Must already exist -- create it once via Ads Manager (Tools -> Audiences -> Create Audience -> Create your own) or the Ads API's `custom_audience` endpoint; this component only uploads… _(full docs in schema.json + component README)_ |
 | `fields_map` | `Dict[str, str]` | Upstream column -> identifier type. Supported types: 'email', 'phone'. Values are hashed (SHA-256) before upload -- never sent to X in plaintext. |
 
 ### Connection
@@ -89,7 +89,7 @@ Together they cover both directions of X Ads data movement.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
 | `operation` | `str` | `"add"` | 'add' (default) adds matching users to the audience (X operation_type=Update) -- the normal activation case. 'remove' removes them (operation_type=Delete) -- useful for suppression. |
 

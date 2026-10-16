@@ -25,7 +25,7 @@ the output directly.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `longitude_column` | `Union[str, int]` | Column with longitude values (X / east-west). |
 | `latitude_column` | `Union[str, int]` | Column with latitude values (Y / north-south). |
 

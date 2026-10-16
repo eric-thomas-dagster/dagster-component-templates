@@ -56,6 +56,12 @@
       "type": "object",
       "label": "Defs State Config",
       "required": false
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "description": "Minimum seconds between MLflow polling-sensor evaluations. Only consulted when `polling_sensor: true`. Matches Snowflake's `poll_interval_seconds` convention.",
+      "required": false
     }
   }
 }

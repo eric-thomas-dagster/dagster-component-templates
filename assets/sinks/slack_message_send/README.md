@@ -52,7 +52,7 @@ into the other).
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name (summary row). |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset key. |
 | `channel_template` | `str` | Target channel/user template — `{column}` placeholders against upstream row. Example: '#customer-success' (literal) or '{slack_channel}' (per-row routing). Accepts a channel ID, a '#name', or a user ID for a DM. |
 
 ### Connection
@@ -104,7 +104,7 @@ into the other).
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `message_template` | `str` | `""` | Message text, with `{column}` placeholders. Supports Slack mrkdwn formatting. |
+| `message_template` | `str` | — | Message text, with `{column}` placeholders. Supports Slack mrkdwn formatting. |
 | `summary_template` | `str` | — | For mode='summary', a template rendered against the whole DataFrame's row summary (use `{row_count}` / `{table_md}`, a markdown table of up to 50 rows). |
 | `thread_ts_column` | `str` | — | Optional upstream column holding a thread_ts to reply in an existing thread, per row. |
 | `dry_run` | `bool` | `false` | If True, render and log every message but don't post to Slack. Use for staging. |

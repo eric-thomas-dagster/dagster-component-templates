@@ -144,11 +144,25 @@ That's it! The IO manager automatically passes the DataFrame.
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `string_operations` | `str` | — | JSON list of string operations: [{"column": "name", "operation": "upper"}, {"column": "email", "operation": "trim"}]. Operations: upper, lower, trim, strip, title |
 | `string_replace` | `str` | — | JSON mapping of string replacements: {"column_name": {"old": "new", "pattern": "replacement"}} |
+| `replace_ops` | `str` | — | JSON list of REPLACE ops: [{"column": "name", "find": "Mr.", "replace": ""}]. Multiple ops on the same column chain in order. |
+| `split_ops` | `str` | — | JSON list of split ops: [{"column": "full_name", "delimiter": " ", "into": "first_name,last_name"}]. |
+| `window_ops` | `str` | — | JSON list of window ops: [{"kind": "rank", "orderBy": "amount", "partitionBy": "customer_id", "orderAsc": false, "into": "amount_rank"}]. kind: rank, dense_rank, row_number. |
+| `count_match_ops` | `str` | — | JSON list of count-matching ops: [{"column": "status", "operator": "equals", "value": "completed", "into": "completed_count", "partitionBy": "customer_id"}]. |
+| `case_when_ops` | `str` | — | JSON list of case-when ops: [{"branches": [{"column": "amount", "operator": "greater_than", "value": "100", "then": "large"}], "else": "small", "into": "size_bucket"}]. |
+| `concat_ops` | `str` | — | JSON list of concat ops: [{"columns": "first_name,last_name", "separator": " ", "into": "full_name"}]. |
+| `date_extract_ops` | `str` | — | JSON list of date-extract ops: [{"column": "created_at", "part": "year", "into": "created_year"}]. part: year, month, day, dayofweek, hour. |
+| `substring_ops` | `str` | — | JSON list of substring ops: [{"column": "sku", "start": 1, "length": 3, "into": "sku_prefix"}]. start is 1-based; omit length to take the rest of the string. |
+| `numeric_ops` | `str` | — | JSON list of numeric ops: [{"column": "price", "op": "round", "digits": 2, "into": "price_rounded"}]. op: round, floor, ceil, abs. |
+| `sample_config` | `str` | — | JSON sample config: {"n": 1000, "random": true} or {"fraction": 0.1, "random": true}. n takes precedence when both are set. |
+| `bin_ops` | `str` | — | JSON list of binning ops: [{"column": "age", "boundaries": "18,35,50", "labels": "young,mid,senior,elder", "into": "age_bucket"}]. |
+| `dedupe_subset` | `str` | — | JSON dedupe config: {"subsetCols": "customer_id,order_date", "keep": "first"}. |
+| `cumsum_ops` | `str` | — | JSON list of cumulative-sum ops: [{"column": "amount", "partitionBy": "customer_id", "orderBy": "order_date", "into": "running_total"}]. |
+| `fill_direction_ops` | `str` | — | JSON list of fill-direction ops: [{"column": "price", "direction": "ffill", "partitionBy": "sku", "orderBy": "date"}]. direction: ffill (forward-fill) or bfill (backward-fill), applied in place. |
 | `calculated_columns` | `Union[str, int]` | — | JSON mapping of calculated columns: {"new_col": "price * quantity", "full_name": "first_name + ' ' + last_name"} |
 | `pivot_config` | `str` | — | JSON config for pivot: {"index": "date", "columns": "category", "values": "amount", "aggfunc": "sum"} |
 | `unpivot_config` | `str` | — | JSON config for unpivot/melt: {"id_vars": ["id", "name"], "value_vars": ["q1", "q2", "q3"], "var_name": "quarter", "value_name": "sales"} |
-| `upstream_asset_key` | `str` | — | Single upstream asset key. Convenience field for the common single-source case. |
-| `upstream_asset_keys` | `List[str]` | — | Multiple upstream asset keys for multi-source transforms. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Single upstream asset key. Convenience field for the common single-source case. |
+| `upstream_asset_keys` | `Union[str, List[str]]` | — | Multiple upstream asset keys for multi-source transforms. |
 | `asset_overrides` | `Dict[str, AssetOverride]` | — | Per-asset overrides keyed by the emitted asset's name (typically `asset_name`). Today supports `depends_on: [upstream_key, ...]` to add Dagster asset dependencies (merged with `upstream_asset_key(s)`). Matches the patter… _(full docs in schema.json + component README)_ |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |

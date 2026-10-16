@@ -61,6 +61,24 @@
         "running"
       ],
       "ui:widget": "select"
+    },
+    "partition_mode": {
+      "type": "string",
+      "label": "Partition Mode",
+      "description": "How the sensor surfaces detected files: 'run_config' (default — embed file metadata in run_config), 'static_partition' (yield RunRequest(partition_key=<from partition_key_template>) — use when the target asset has a static/dynamic partitions_def), or 'dynamic_partition' (also registers each key on the given DynamicPartitionsDefinition first).",
+      "required": false
+    },
+    "partition_key_template": {
+      "type": "string",
+      "label": "Partition Key Template",
+      "description": "Template for the partition key per detected file. Fields: {file_path}, {file_name}, {file_stem} (filename without extension). Default `{file_stem}` — e.g. `/tmp/approvals/t3.json` → `t3`.",
+      "required": false
+    },
+    "dynamic_partitions_name": {
+      "type": "string",
+      "label": "Dynamic Partitions Name",
+      "description": "Required when partition_mode='dynamic_partition'. Must match the downstream asset's `dynamic_partition_name:` field.",
+      "required": false
     }
   },
   "tags": [

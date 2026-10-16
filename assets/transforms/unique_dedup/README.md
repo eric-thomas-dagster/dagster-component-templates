@@ -80,7 +80,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `backend` | `str` | `"pandas"` | 'pandas' (default) or 'polars'. Polars runs `df.unique(...)`; pandas runs `df.drop_duplicates(...)`. Returns the same backend's DataFrame. |
 | `subset` | `List[Union[str, int]]` | — | Columns to consider for duplication (None = all columns) |

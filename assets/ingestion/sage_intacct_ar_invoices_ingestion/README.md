@@ -24,17 +24,23 @@ Also requires a `SageIntacctResourceComponent` on the same code location for aut
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `"sage_intacct_resource"` | Key of the SageIntacctResource this asset depends on for authentication |
+
 ### Execution
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `pagesize` | `int` | `100` | Records per readByQuery/readMore page (Intacct max is 2000) |
 | `limit` | `int` | `1000` | Maximum number of records to fetch across all pages |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the date-window filter below already handles a multi-partition range correctly). 'multi_run' launches on… _(full docs in schema.json + component README)_ |
 | `description` | `str` | — | Asset description |
 | `group_name` | `str` | `"finance"` | Asset group for organization |
 | `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:finance', 'user@company.com'] |
@@ -42,17 +48,28 @@ Also requires a `SageIntacctResourceComponent` on the same code location for aut
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['sage_intacct', 'python']. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime) |
 
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned. When time-based, from_date/to_date are derived from the partition window instead of the static config. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'us,eu,asia'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"sage_intacct_resource"` | Key of the SageIntacctResource this asset depends on for authentication |
 | `object_name` | `str` | `"ARINVOICE"` | Intacct object to query. Defaults to ARINVOICE (AR Invoices). |
 | `fields` | `List[str]` | — | Fields to select from the object. Defaults to a standard ARINVOICE field set if unset. |
 | `date_field` | `str` | `"WHENCREATED"` | Intacct date field used for from_date/to_date range filtering (e.g. 'WHENCREATED', 'WHENPOSTED', 'WHENDUE'). |
-| `from_date` | `str` | — | Start of the date window (ISO-8601 date, e.g. '2026-06-01'). Converted to Intacct's MM/DD/YYYY format. |
-| `to_date` | `str` | — | End of the date window (ISO-8601 date, e.g. '2026-07-01'). Converted to Intacct's MM/DD/YYYY format. |
+| `from_date` | `str` | — | Start of the date window (ISO-8601 date, e.g. '2026-06-01'). Converted to Intacct's MM/DD/YYYY format. Required unless a time-based partition_type is set. |
+| `to_date` | `str` | — | End of the date window (ISO-8601 date, e.g. '2026-07-01'). Converted to Intacct's MM/DD/YYYY format. Required unless a time-based partition_type is set. |
 | `extra_query` | `str` | — | Additional Intacct query where-clause fragment, ANDed with the date range (e.g. "STATE = 'Open'"). |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `pagesize` | `int` | `100` | Records per readByQuery/readMore page (Intacct max is 2000) |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
 

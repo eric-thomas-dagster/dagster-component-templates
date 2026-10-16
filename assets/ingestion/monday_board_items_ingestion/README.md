@@ -27,6 +27,12 @@ Also requires a `MondayResourceComponent` on the same code location for authenti
 | `asset_name` | `str` | Name of the asset to create |
 | `board_id` | `str` | monday.com board ID to pull items from |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `"monday_resource"` | Key of the MondayResource this asset depends on for authentication |
+
 ### Execution
 
 | Field | Type | Default | Description |
@@ -45,12 +51,21 @@ Also requires a `MondayResourceComponent` on the same code location for authenti
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['monday', 'python']. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime) |
 
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'us,eu,asia'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"monday_resource"` | Key of the MondayResource this asset depends on for authentication |
 | `column_ids` | `List[str]` | — | Specific column IDs to fetch via column_values(ids: [...]). Fetches all columns if unset. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
 

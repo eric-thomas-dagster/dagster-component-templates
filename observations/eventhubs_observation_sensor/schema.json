@@ -55,6 +55,13 @@
       "required": false,
       "default": null,
       "ui:widget": "resource-picker"
+    },
+    "emit_materialization": {
+      "default": true,
+      "description": "When True (default), the sensor emits AssetMaterialization. When False, emits AssetObservation instead. Only used when create_observation_sensor=True.",
+      "label": "Emit Materialization",
+      "required": false,
+      "type": "boolean"
     }
   },
   "tags": [

@@ -99,7 +99,7 @@ attributes:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Also required (with execution_mode='sql') to na… _(full docs in schema.json + component README)_ |
 | `execution_mode` | `str` | `"python"` | 'python' (default): fits a real scikit-learn GaussianNB locally. 'sql': predicts server-side via Databricks `ai_query()` against an already-served Model Serving endpoint -- Databricks-ONLY and predict-only (trains nothin… _(full docs in schema.json + component README)_ |
 | `sql_dialect` | `str` | — | `f"Required when execution_mode='sql'. Only {_SQL_MODEL_DIALECTS} is offered."` |

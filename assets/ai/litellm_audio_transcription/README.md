@@ -17,7 +17,7 @@ Transcribe audio files using Whisper via LiteLLM. Processes a column of audio fi
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `audio_path_column` | `Union[str, int]` | Column containing local audio file paths |
 
 ### Connection

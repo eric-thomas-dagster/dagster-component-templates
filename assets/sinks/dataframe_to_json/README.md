@@ -13,7 +13,7 @@ Writes a Pandas DataFrame to a JSON or JSON Lines file. This is a terminal sink 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `file_path` | `str` | Destination path or fsspec URI. Local (`/tmp/out.json`) and remote URIs (`s3://...`, `gs://...`, `az://...`) both work via pandas' `to_json()` + fsspec — install `s3fs` / `gcsfs` / `adlfs` for the scheme you need. Suppor… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata

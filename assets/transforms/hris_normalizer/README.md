@@ -79,7 +79,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream DataFrame asset — the raw HRIS data.. Mutually exclusive with `source` -- set exactly one. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream DataFrame asset — the raw HRIS data.. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `status_map` | `Dict[str, str]` | — | Ergonomic shorthand for value_maps['employment_status']. {vendor_value: canonical_value}. Defaults applied: active/inactive/terminated/on_leave/pending. |
 | `type_map` | `Dict[str, str]` | — | Ergonomic shorthand for value_maps['employment_type']. Defaults applied: full_time/part_time/contractor/intern/temporary. |

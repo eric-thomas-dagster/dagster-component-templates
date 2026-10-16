@@ -49,7 +49,7 @@ Must be a value present in `fields_map`, and must be one of the fields Close's A
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
-| `dedupe_field` | `str` | Close field used to search for an existing Lead before writing (there is no native upsert — this is emulated via search-then-write and is therefore NOT race-condition-safe under concurrent writers; see module docstring / README). MUST be present in fields_map values. One of 'email' (matches a contact's email — recommended), 'phone' (matches a contact's phone), 'name' (matches the Lead name — not guaranteed unique), or 'custom.cf_xxx' (matches a Lead custom field by id — the safest option for a warehouse-side external id). |
+| `dedupe_field` | `str` | Close field used to search for an existing Lead before writing (there is no native upsert -- this is emulated via search-then-write and is therefore NOT race-condition-safe under concurrent writers; see module docstring… _(full docs in schema.json + component README)_ |
 | `fields_map` | `Dict[str, str]` | Upstream column -> Close field. Values must be one of 'name', 'contact_name', 'email', 'phone', or 'custom.cf_xxx' (a Lead custom field id). |
 
 ### Connection
@@ -78,7 +78,7 @@ Must be a value present in `fields_map`, and must be one of the fields Close's A
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
 
 [//]: # (FIELDS:END)

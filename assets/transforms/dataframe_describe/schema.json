@@ -255,6 +255,12 @@
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "backend": {
+      "type": "string",
+      "label": "Backend",
+      "description": "Accept polars input via auto-conversion. The describe() computation itself runs in pandas — the profiling output shape (transposed table of stats per column) is pandas-shaped. Setting backend='polars' accepts polars input but does NOT change the output type.",
+      "required": false
     }
   },
   "tags": [

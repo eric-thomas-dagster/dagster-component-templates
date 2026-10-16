@@ -11,7 +11,7 @@ Two-sample t-test (independent or paired) using scipy.stats. Returns a single-ro
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `value_column` | `Union[str, int]` | Numeric column to compare across groups. |
 | `group_column` | `Union[str, int]` | Binary group column (control vs treatment, A vs B, etc). |
 

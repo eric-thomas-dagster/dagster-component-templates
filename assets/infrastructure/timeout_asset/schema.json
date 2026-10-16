@@ -90,6 +90,24 @@
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"
+    },
+    "per_partition_timeout": {
+      "type": "object",
+      "label": "Per Partition Timeout",
+      "description": "Per-partition-key override. e.g. {'hourly': 30, 'daily': 300}. Falls back to timeout_seconds if no key matches. Only meaningful on partitioned assets.",
+      "required": false
+    },
+    "partition_matcher": {
+      "type": "string",
+      "label": "Partition Matcher",
+      "description": "How partition_key is matched against per_partition_timeout keys: 'exact' \\| 'prefix' \\| 'regex'. Default exact match.",
+      "required": false
+    },
+    "derive_timeout_from_history": {
+      "type": "object",
+      "label": "Derive Timeout From History",
+      "description": "Auto-derive timeout_seconds from prior SUCCESSFUL materializations. Shape: {n_runs: 10, statistic: 'p99' \\| 'p95' \\| 'median' \\| 'mean', multiplier: 1.5}. If set, this OVERRIDES timeout_seconds. Default statistic is 'p99' (want to allow outlier-yet-successful runs; median would starve them). Reads `timeout_actual_seconds` from prior observations; ignores runs that hit the timeout. If fewer than 3 successful runs available, falls back to timeout_seconds.",
+      "required": false
     }
   },
   "tags": [

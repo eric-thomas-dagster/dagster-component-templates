@@ -90,7 +90,7 @@ Every profile must carry at least one of `email` / `phone_number` /
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with source:. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with source:. |
 | `source` | `Dict[str, Any]` | — | Inline source config. {kind: sql\|csv\|inline, ...}. |
 | `api_revision` | `str` | — | Inline auth: API revision date (Klaviyo pins behavior per date). |
 | `list_id` | `str` | — | Optional Klaviyo list id to add all profiles to. |

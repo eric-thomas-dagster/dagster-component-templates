@@ -149,54 +149,34 @@ Not a UiPath replacement. If you're migrating off UiPath, the destination is a d
 
 ## Fields
 
-### Connection
+### Required
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `endpoint` | `str` | `"https://cloud.uipath.com/organization/tenant/orchestrator_"` | UiPath Orchestrator base URL (used when demo_mode=false). Cloud: https://cloud.uipath.com/{org}/{tenant}/orchestrator_ — on-prem: https://<host> |
-
-### Execution
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `poll_interval_seconds` | `int` | `10` | Seconds between UiPath job status polls. |
-| `max_retries` | `int` | `2` | Dagster-side asset retries on failure. |
+| Field | Type | Description |
+|---|---|---|
+| `release_key` | `str` | UiPath ReleaseKey — the unique key of a specific Process Release in Orchestrator. |
+| `asset_name` | `str` | Dagster asset name that wraps this Release. |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `group_name` | `str` | `"uipath_orchestrator_integration"` | Dagster asset group for the job assets. |
-
-### Partitions
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `partition_start_date` | `str` | `"2024-01-01"` | Start date for the daily partitioned assets. |
-
-### Retry policy
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `retry_delay_seconds` | `int` | `60` | Delay between Dagster asset retries. |
+| `description` | `str` | — | Prose description shown in the Dagster UI. |
 
 ### Source / target
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `source_tables` | `List[UiPathSourceTableSpec]` | `list()` | Tables populated by UiPath processes that Dagster observes (adds to lineage). |
+| `input_arguments` | `dict` | `dict()` | JSON dict passed as startInfo.InputArguments. String values are templated with {partition_key}. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `demo_mode` | `bool` | `true` | Simulate the REST API on stdout (no external calls). |
-| `jobs` | `List[UiPathProcessSpec]` | `list()` | UiPath Releases to wrap as daily-partitioned Dagster assets. |
-| `upstream_deps` | `List[str]` | `list()` | Upstream asset keys (slash-separated for nested keys) that must complete before jobs run. |
-| `uipath_client_id_env` | `str` | `"UIPATH_CLIENT_ID"` | Env var holding the UiPath External Application client_id. |
-| `uipath_client_secret_env` | `str` | `"UIPATH_CLIENT_SECRET"` | Env var holding the UiPath External Application client_secret. |
-| `poll_timeout_seconds` | `int` | `3600` | Total seconds to wait for terminal status before failing. |
-| `reconciliation_cron` | `str` | `"0 * * * *"` | Cron for the UiPath vs Dagster state reconciliation job. |
+| `folder` | `str` | — | UiPath Folder name (display label; sets X-UIPATH-OrganizationUnitId when folder_id known). |
+| `folder_id` | `int` | `0` | Numeric UiPath Folder id (OrganizationUnitId) — required to scope the API call to a folder. |
+| `robot_ids` | `list` | `list()` | Target robot IDs. Empty list means 'any available robot' (Strategy=ModernJobsCount). |
+| `machine_group` | `str` | — | Optional UiPath Machine Template / Modern Folder machine group name. |
+| `run_as` | `str` | `"svc_dagster"` | OS user / Robot account label the process runs as (metadata only). |
 
 [//]: # (FIELDS:END)
 

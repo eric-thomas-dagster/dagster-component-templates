@@ -130,7 +130,7 @@ Returns a dictionary with status information:
 | `metadata_columns` | `List[str]` | — | Additional metadata columns |
 | `upsert` | `bool` | `true` | Upsert if exists |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
-| `upstream_asset_key` | `str` | — | Upstream asset key providing a DataFrame with embeddings to write. Mutually exclusive with `source` -- set exactly one. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset key providing a DataFrame with embeddings to write. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset -- e.g. embeddings already computed and stored in a warehouse table: {kind: warehouse_query, resource_key: <registered resource>, sql: <query>}. resource_key m… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

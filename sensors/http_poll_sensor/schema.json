@@ -110,6 +110,12 @@
         "stopped"
       ],
       "required": false
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Dagster resource key to use as the HTTP client. When set, context.resources.<resource_key> is used instead of creating a new requests client from the other fields. The resource must expose a `request(method, url, headers=..., timeout=...)` method returning an object with `.status_code`, `.text`, and `.json()`. Use for demo-mode seams (swap in a fixture-backed client) or shared auth (retry/backoff wrappers).",
+      "required": false
     }
   },
   "tags": [

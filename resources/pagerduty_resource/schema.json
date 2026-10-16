@@ -14,6 +14,30 @@
       "description": "Key used to register this resource. Other components reference it via resource_key.",
       "required": false,
       "default": "pagerduty_resource"
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "Api Token Env Var",
+      "description": "Env var holding a PagerDuty REST API token.",
+      "required": false
+    },
+    "from_email_env_var": {
+      "type": "string",
+      "label": "From Email Env Var",
+      "description": "Env var holding the email of a valid PagerDuty user (used as `From:` header on writes).",
+      "required": false
+    },
+    "events_routing_key_env_var": {
+      "type": "string",
+      "label": "Events Routing Key Env Var",
+      "description": "Optional env var holding a PagerDuty Events API v2 routing key (integration key). Needed only for `send_alert` / `resolve_alert`.",
+      "required": false
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify Ssl",
+      "description": "TLS cert verification.",
+      "required": false
     }
   },
   "tags": [

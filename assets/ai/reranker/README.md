@@ -17,7 +17,7 @@ The Reranker Component implements two-stage retrieval by reranking initial searc
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset that will hold reranked results |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with search results to rerank |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with search results to rerank |
 | `method` | `str` | Reranking method: cohere, cross_encoder, bm25 |
 
 ### Connection

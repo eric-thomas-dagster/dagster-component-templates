@@ -98,6 +98,8 @@ attributes:
 | `include_body_html` | `bool` | `false` | Emit the raw HTML body too (in addition to text). Off by default — adds bulk. |
 | `fallback_html_to_text` | `bool` | `true` | If a message has only HTML body, derive a text body by stripping tags. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
+| `include_preview_metadata` | `bool` | `true` | Include a markdown preview of the fetched messages in the materialization metadata. |
+| `preview_rows` | `int` | `5` | Max rows to include in the preview when include_preview_metadata is True. |
 
 [//]: # (FIELDS:END)
 

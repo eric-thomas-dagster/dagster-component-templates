@@ -24,9 +24,9 @@ pip install requests
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"opensearch_resource"` | Key used to register this resource. Other components reference it via resource_key. |
-| `username_env_var` | `str` | `""` | Env var holding the basic-auth username (primary auth case). |
-| `password_env_var` | `str` | `""` | Env var holding the basic-auth password. |
-| `api_key_env_var` | `str` | `""` | Env var holding an API key (alternative to basic auth). |
+| `username_env_var` | `str` | — | Env var holding the basic-auth username (primary auth case). |
+| `password_env_var` | `str` | — | Env var holding the basic-auth password. |
+| `api_key_env_var` | `str` | — | Env var holding an API key (alternative to basic auth). |
 
 ### Other
 

@@ -21,21 +21,13 @@ Also requires a `FigmentResourceComponent` on the same code location for authent
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `network` | `str` | Figment network slug, e.g. 'ethereum' or 'solana'. |
+| `network` | `str` | Figment network slug for the rewards endpoint, e.g. 'ethereum' or 'solana'. Verified field mapping is provided for both; other Figment-supported networks are passed through best-effort via extra_query_params. |
 
-### Execution
+### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `time_rollup` | `str` | `"epoch"` | Granularity for network='ethereum': 'epoch' / 'daily' / 'all_time'. Not used for network='solana'. |
-| `start` | `str` | — | Inclusive start of the reward window (ISO-8601). ethereum-only filter. |
-| `end` | `str` | — | Inclusive end of the reward window (ISO-8601). ethereum-only filter. |
-| `pubkeys` | `List[str]` | — | Filter to specific validator public keys. ethereum-only filter. |
-| `withdrawal_addresses` | `List[str]` | — | Filter to validators by withdrawal address. ethereum-only filter. |
-| `accounts` | `List[str]` | — | Stake/system-account addresses. REQUIRED for network='solana' (max 50/request). |
-| `extra_query_params` | `Dict[str, Any]` | — | Escape hatch for networks/params not modeled explicitly. |
-| `include_aggregate_summary` | `bool` | `false` | ethereum-only: also fetch a time_rollup=all_time summary into metadata. |
-| `max_pages` | `int` | `20` | Safety cap on pagination pages followed via a next_page cursor. |
+| `resource_key` | `str` | `"figment_resource"` | Key of the FigmentResource this asset depends on for authentication |
 
 ### Catalog metadata
 
@@ -43,16 +35,24 @@ Also requires a `FigmentResourceComponent` on the same code location for authent
 |---|---|---|---|
 | `description` | `str` | — | Asset description |
 | `group_name` | `str` | `"figment"` | Asset group for organization |
-| `owners` | `List[str]` | — | Asset owners |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags |
-| `kinds` | `List[str]` | — | Asset kinds. Defaults to ['figment', 'python']. |
-| `deps` | `List[str]` | — | Lineage-only upstream asset keys |
+| `owners` | `List[str]` | — | Asset owners -- list of team names or email addresses, e.g. ['team:finance', 'user@company.com'] |
+| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset |
+| `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['figment', 'python']. |
+| `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime) |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"figment_resource"` | Key of the FigmentResource this asset depends on |
+| `time_rollup` | `str` | `"epoch"` | Granularity for network='ethereum' (and passed through for others): 'epoch' (most granular), 'daily', or 'all_time' (aggregated). Not used for network='solana'. |
+| `start` | `str` | — | Inclusive start of the reward window (ISO-8601). ethereum-only filter. |
+| `end` | `str` | — | Inclusive end of the reward window (ISO-8601). ethereum-only filter. |
+| `pubkeys` | `List[str]` | — | Filter to specific validator public keys. ethereum-only filter. |
+| `withdrawal_addresses` | `List[str]` | — | Filter to validators by withdrawal address. ethereum-only filter. |
+| `accounts` | `List[str]` | — | Stake-account or system-account addresses. REQUIRED for network='solana' (max 50 per request). |
+| `extra_query_params` | `Dict[str, Any]` | — | Escape hatch: additional fields merged into the request body, for networks/params not modeled explicitly above. |
+| `include_aggregate_summary` | `bool` | `false` | When true (network='ethereum' only), issues a second request with time_rollup='all_time' and attaches the aggregate summary as asset metadata (not merged into the main granular DataFrame, to avoid a schema mismatch betwe… _(full docs in schema.json + component README)_ |
+| `max_pages` | `int` | `20` | Safety cap on pagination pages followed via a 'next_page' cursor, if the response includes one. |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
 

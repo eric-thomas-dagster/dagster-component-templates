@@ -62,7 +62,6 @@ One recipient's send failing (unregistered/expired token, etc.) is caught and co
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `title_template` | `str` | — | Push notification title template (same `{column_name}` substitution as message_template). Optional -- omit for a data-only/body-only notification. |
 | `batch_size` | `int` | `1000` | Max upstream rows per run (safety cap). Each row is one real push send -- this is NOT a throughput/rate-limit control, it's a blast-radius cap. Configure it deliberately; this component does not add its own rate-limiting beyond this cap. |
 
 ### Catalog metadata
@@ -74,5 +73,13 @@ One recipient's send failing (unregistered/expired token, etc.) is caught and co
 | `owners` | `List[str]` | — | Asset owners. |
 | `tags` | `Dict[str, str]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'firebase'). |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
+| `title_template` | `str` | — | Push notification title template (same `{column_name}` substitution as message_template). Optional -- omit for a data-only/body-only notification. |
 
 [//]: # (FIELDS:END)

@@ -35,7 +35,12 @@ pip install requests
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"xero"` | Dagster resource key |
-| `tenant_id` | `str` | — | Xero tenant (org) id. If unset, auto-discovered via GET /connections (first connected tenant). |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `tenant_id` | `str` | — | Xero tenant (org) id. If unset, auto-discovered via GET /connections. |
 
 [//]: # (FIELDS:END)
 

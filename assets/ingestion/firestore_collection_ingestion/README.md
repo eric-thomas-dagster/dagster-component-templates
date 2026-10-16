@@ -19,6 +19,12 @@ Pair with a `firebase_resource` component in the same Dagster project.
 | `asset_name` | `str` | Name of the asset to create. |
 | `collection_path` | `str` | Firestore collection path, e.g. 'users' or 'orders/{order_id}/items'. |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `"firebase_resource"` | Name of the FirebaseResource this asset uses. |
+
 ### Execution
 
 | Field | Type | Default | Description |
@@ -45,7 +51,6 @@ Pair with a `firebase_resource` component in the same Dagster project.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"firebase_resource"` | Name of the FirebaseResource this asset uses. |
 | `include_preview_metadata` | `bool` | `true` | Include a sample preview in the run metadata. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview. |
 

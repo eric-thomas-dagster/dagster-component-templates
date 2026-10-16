@@ -64,7 +64,7 @@
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Optional Dagster asset key to load and pass into the discover callable as `upstream=<value>`. When None, discover fetches its items from its own source (URL list, filesystem, queue, etc.). |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Optional Dagster asset key to load and pass into the discover callable as `upstream=<value>`. When None, discover fetches its items from its own source (URL list, filesystem, queue, etc.). |
 | `discover_kwargs` | `Dict[str, Any]` | — | Static kwargs passed to discover. |
 | `process_kwargs` | `Dict[str, Any]` | — | Static kwargs merged into each process call. |
 | `collect_callable_path` | `str` | — | Optional 'module:function' that takes the list of process results and returns the asset's final value. If omitted, the asset materializes as the raw list of process results. |

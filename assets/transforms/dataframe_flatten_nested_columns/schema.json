@@ -79,6 +79,113 @@
       "items": {
         "type": "string"
       }
+    },
+    "expand": {
+      "type": "boolean",
+      "label": "Expand",
+      "description": "If True (default), nested dict values are expanded into new columns via pandas.json_normalize — e.g. row with `properties: {mag: 3.4}` becomes new columns `properties.mag` (or `mag` if strip_prefix=True). If False, nested dicts/lists are just JSON-serialized in place (legacy behavior).",
+      "required": false
+    },
+    "separator": {
+      "type": "string",
+      "label": "Separator",
+      "description": "Separator used between parent/child keys when expand=True (e.g. '.', '_').",
+      "required": false
+    },
+    "strip_prefix": {
+      "type": "boolean",
+      "label": "Strip Prefix",
+      "description": "When expand=True, drop the parent column name from expanded columns. E.g. `properties.mag` becomes `mag`. Useful when you only care about the innermost fields.",
+      "required": false
+    },
+    "expand_arrays": {
+      "type": "boolean",
+      "label": "Expand Arrays",
+      "description": "When expand=True, ALSO split lists-of-primitives into indexed columns. E.g. `coordinates: [lon, lat, depth]` becomes columns `coordinates.0`, `coordinates.1`, `coordinates.2` (or without prefix if strip_prefix=True). Handy for GeoJSON coordinate arrays. Only splits when every non-null value in the column is a list AND the elements are primitives (not dicts).",
+      "required": false
+    },
+    "array_label_map": {
+      "type": "object",
+      "label": "Array Label Map",
+      "description": "Optional per-column labels for the indexed array columns. E.g. `{coordinates: [lon, lat, depth]}` names them `coordinates.lon`, `coordinates.lat`, `coordinates.depth` (or just `lon`/`lat`/`depth` with strip_prefix=True). If missing, positional integer indices are used.",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "freshness_max_lag_minutes": {
+      "default": null,
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "label": "Freshness Max Lag (minutes)",
+      "required": false,
+      "type": "integer"
+    },
+    "freshness_cron": {
+      "default": null,
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "label": "Freshness Cron Schedule",
+      "required": false,
+      "type": "string",
+      "x-dagster-widget": "cron"
+    },
+    "partition_type": {
+      "default": null,
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "label": "Partition Type",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "default": null,
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "label": "Partition Start Date",
+      "required": false,
+      "type": "string"
+    },
+    "partition_values": {
+      "default": null,
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "label": "Partition Values",
+      "required": false,
+      "type": "string"
+    },
+    "dynamic_partition_name": {
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "type": "string"
     }
   },
   "tags": [

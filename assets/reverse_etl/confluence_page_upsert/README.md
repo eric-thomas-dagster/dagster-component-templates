@@ -58,7 +58,7 @@ Confluence and Jira are both Atlassian Cloud products with the same auth mechani
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
 | `wrap_body_as_html` | `bool` | `true` | If true (default), `body_column` is treated as plain text and wrapped into simple escaped <p> paragraphs (storage format). If false, `body_column` is assumed to already be valid Confluence storage-format XHTML and is pas… _(full docs in schema.json + component README)_ |
 

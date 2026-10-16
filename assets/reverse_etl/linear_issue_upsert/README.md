@@ -67,7 +67,7 @@ This is more scalable than a text-search or label-marker approach: no per-row "s
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
 | `description_column` | `str` | — | Column holding the issue description (markdown). |
 | `priority_column` | `str` | — | Column holding issue priority. Accepts Linear's int encoding (0=No priority, 1=Urgent, 2=High, 3=Medium, 4=Low) or the name directly ('Urgent', 'High', 'Medium'/'Normal', 'Low', 'No priority'). |

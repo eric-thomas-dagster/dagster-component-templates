@@ -34,6 +34,18 @@
       "description": "BigCommerce Catalog API version path segment",
       "required": false,
       "default": "v3"
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "description": "Per-request timeout in seconds.",
+      "required": false
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "description": "Retry attempts on 429 (honors BigCommerce's X-Rate-Limit-Time-Reset-Ms header) / 5xx.",
+      "required": false
     }
   },
   "tags": [

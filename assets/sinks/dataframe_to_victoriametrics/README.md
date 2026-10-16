@@ -13,7 +13,7 @@ Bulk-ingest a Pandas DataFrame as VictoriaMetrics time-series via the Prometheus
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
-| `upstream_asset_key` | `str` | Upstream asset providing the DataFrame. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset providing the DataFrame. |
 | `metric_name` | `str` | Prometheus metric name (e.g. 'orders_throughput'). |
 
 ### Connection

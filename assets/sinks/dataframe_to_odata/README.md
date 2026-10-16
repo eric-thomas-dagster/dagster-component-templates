@@ -35,7 +35,7 @@ Non-SAP OData servers (Dynamics, MS Graph) usually don't need CSRF — leave it 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset producing the DataFrame to write |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset producing the DataFrame to write |
 | `service_url` | `str` | Base service URL |
 | `entity_set` | `str` | Entity set to write to |
 

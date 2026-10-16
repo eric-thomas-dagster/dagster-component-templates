@@ -66,9 +66,6 @@ One envelope creation failing (invalid template role, DocuSign API error, etc.) 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `email_subject_template` | `str` | `"Please sign this document"` | Envelope email subject template. Supports `{column_name}` substitution from other upstream row columns. |
-| `status` | `str` | `"sent"` | 'sent' emails the recipient immediately, 'created' leaves it as a draft in the sender's DocuSign account for manual review before sending. |
-| `tabs_map` | `Dict[str, str]` | — | Upstream column -> template text-tab tabLabel. Prefills the named text tabs on the assigned role with the row's column values. |
 | `batch_size` | `int` | `500` | Max upstream rows per run (safety cap). Each row creates one real envelope -- this is NOT a throughput/rate-limit control, it's a blast-radius cap. |
 
 ### Catalog metadata
@@ -80,5 +77,15 @@ One envelope creation failing (invalid template role, DocuSign API error, etc.) 
 | `owners` | `List[str]` | — | Asset owners. |
 | `tags` | `Dict[str, str]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'docusign'). |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
+| `email_subject_template` | `str` | `"Please sign this document"` | Envelope email subject template. Supports `{column_name}` substitution from other upstream row columns. |
+| `status` | `str` | `"sent"` | Envelope status to create with: 'sent' emails the recipient immediately, 'created' leaves it as a draft in the sender's DocuSign account for manual review before sending. |
+| `tabs_map` | `Dict[str, str]` | — | Upstream column -> template text-tab tabLabel. Prefills the named text tabs on the assigned role with the row's column values (e.g. {contract_value: ContractValue}). Optional -- omit to rely solely on the template's own default tab values. |
 
 [//]: # (FIELDS:END)

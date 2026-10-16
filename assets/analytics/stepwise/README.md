@@ -11,7 +11,7 @@ Performs sequential forward selection using sklearn's SequentialFeatureSelector.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `target_column` | `Union[str, int]` | Target column. |
 | `feature_columns` | `List[Union[str, int]]` | Candidate feature columns. |
 

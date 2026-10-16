@@ -31,7 +31,7 @@ pip install requests
 
 | Field | Type | Description |
 |---|---|---|
-| `base_url` | `str` | Zuora REST endpoint (region/environment-specific, e.g. rest.na.zuora.com, rest.eu.zuora.com, or a sandbox host). |
+| `base_url` | `str` | Zuora REST endpoint (e.g. rest.na.zuora.com). |
 | `client_id_env_var` | `str` | Env var with the Zuora OAuth2 Client ID. |
 | `client_secret_env_var` | `str` | Env var with the Zuora OAuth2 Client Secret. |
 

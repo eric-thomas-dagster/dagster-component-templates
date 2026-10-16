@@ -20,6 +20,11 @@ pip install requests
 | `client_id_env_var` | `str` | `"HELPSCOUT_CLIENT_ID"` | Env var holding the Help Scout OAuth2 Client ID. |
 | `client_secret_env_var` | `str` | `"HELPSCOUT_CLIENT_SECRET"` | Env var holding the Help Scout OAuth2 Client Secret. |
 | `base_url` | `str` | `"https://api.helpscout.net/v2"` | Help Scout API base URL. |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
 | `token_url` | `str` | `"https://api.helpscout.net/v2/oauth2/token"` | Help Scout OAuth2 token endpoint. |
 
 [//]: # (FIELDS:END)

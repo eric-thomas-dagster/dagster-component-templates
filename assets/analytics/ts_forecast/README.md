@@ -15,7 +15,7 @@ The Time Series Forecast Component fits statistical forecasting models to histor
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with date + value columns |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with date + value columns |
 | `date_column` | `Union[str, int]` | Column containing dates or timestamps |
 | `value_column` | `Union[str, int]` | Column containing the numeric time series values |
 

@@ -105,6 +105,18 @@
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"
+    },
+    "max_entries": {
+      "type": "integer",
+      "label": "Max Entries",
+      "description": "LRU eviction: cap total number of cached parquets in `cache_dir/`. When set, after every miss-write we scan the dir, sort by mtime ascending (oldest = LRU), and delete the oldest files until count <= max_entries.",
+      "required": false
+    },
+    "max_bytes": {
+      "type": "integer",
+      "label": "Max Bytes",
+      "description": "LRU eviction: cap total bytes in `cache_dir/`. Same mechanic as max_entries but tallies file sizes. Both can be set simultaneously (whichever cap is hit first triggers eviction).",
+      "required": false
     }
   },
   "tags": [

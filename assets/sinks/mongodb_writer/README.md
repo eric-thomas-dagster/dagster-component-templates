@@ -15,7 +15,7 @@ The `MongodbWriterComponent` accepts an upstream DataFrame asset and writes its 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the output asset to create |
-| `upstream_asset_key` | `str` | Asset key of the upstream DataFrame asset |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of the upstream DataFrame asset |
 | `database` | `str` | MongoDB database name |
 | `collection` | `str` | MongoDB collection name |
 

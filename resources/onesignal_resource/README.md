@@ -24,6 +24,11 @@ Pairs with `onesignal_push_send` (the reverse-ETL "send a push notification to e
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"onesignal_resource"` | Key used to register this resource. Other components reference it via resource_key. |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
 | `api_base_url` | `str` | `"https://api.onesignal.com"` | OneSignal REST API base URL (override for a different region/version). |
 
 [//]: # (FIELDS:END)

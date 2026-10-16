@@ -16,14 +16,14 @@ pip install requests
 
 | Field | Type | Description |
 |---|---|---|
-| `access_token_env_var` | `str` | Env var holding a Drift API access token (private-app token or OAuth2 access token) |
+| `access_token_env_var` | `str` | Env var holding a Drift API access token |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"drift_resource"` | Key used to register this resource. Other components reference it via resource_key. |
-| `base_url` | `str` | `"https://driftapi.com"` | Drift API base URL. Override only for Drift-provided test/sandbox environments. |
+| `base_url` | `str` | `"https://driftapi.com"` | Drift API base URL |
 
 [//]: # (FIELDS:END)
 

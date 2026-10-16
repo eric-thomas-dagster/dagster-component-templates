@@ -35,7 +35,12 @@ pip install requests
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"recurly"` | Dagster resource key |
-| `api_version` | `str` | `"2021-02-25"` | Recurly dated API version (sent as 'application/vnd.recurly.v<version>+json'). |
+
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `api_version` | `str` | `"2021-02-25"` | Recurly dated API version. |
 
 [//]: # (FIELDS:END)
 

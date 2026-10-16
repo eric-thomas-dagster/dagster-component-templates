@@ -95,6 +95,37 @@
       "label": "Preview Rows",
       "required": false,
       "default": 25
+    },
+    "authenticator": {
+      "type": "string",
+      "label": "Authenticator",
+      "description": "Snowflake authenticator: 'SNOWFLAKE_JWT' (keypair), 'externalbrowser' (SSO), 'oauth', etc.",
+      "required": false
+    },
+    "private_key_file_env_var": {
+      "type": "string",
+      "label": "Private Key File Env Var",
+      "description": "Env var holding the path to a PEM RSA private key file (for authenticator='SNOWFLAKE_JWT').",
+      "required": false
+    },
+    "private_key_file_pwd_env_var": {
+      "type": "string",
+      "label": "Private Key File Pwd Env Var",
+      "description": "Env var holding the passphrase for an encrypted private key file (optional).",
+      "required": false
+    },
+    "token_env_var": {
+      "type": "string",
+      "label": "Token Env Var",
+      "description": "Env var holding an OAuth / PAT token (with authenticator='oauth' or PAT).",
+      "required": false
+    },
+    "emit_materialization": {
+      "default": true,
+      "description": "When True (default), the sensor emits AssetMaterialization. When False, emits AssetObservation instead. Only used when create_observation_sensor=True.",
+      "label": "Emit Materialization",
+      "required": false,
+      "type": "boolean"
     }
   },
   "tags": [

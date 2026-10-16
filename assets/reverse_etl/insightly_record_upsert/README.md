@@ -58,7 +58,7 @@ Insightly's generic Search endpoint matches on "any standard or custom field" pe
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
 | `object_type` | `str` | Target Insightly object type: 'Contacts', 'Leads', or 'Organisations'. Only 'Contacts' gets the CONTACTINFOS email/phone nesting — Leads/Organisations use flat fields. |
-| `dedupe_field` | `str` | fields_map VALUE used to find an existing record before create-or-update — e.g. 'email' (the CONTACTINFOS sentinel, Contacts only) or a flat field name like 'LAST_NAME'. MUST be present in fields_map values, exactly like external_id_field in salesforce_record_upsert / key_property in hubspot_object_upsert. |
+| `dedupe_field` | `str` | fields_map VALUE used to find an existing record before create-or-update — e.g. 'email' (the CONTACTINFOS sentinel, Contacts only) or a flat field name like 'LAST_NAME'. MUST be present in fields_map values, exactly like… _(full docs in schema.json + component README)_ |
 | `fields_map` | `Dict[str, str]` | Upstream column → Insightly field name. Values 'email' / 'phone' are special-cased (Contacts only) into the CONTACTINFOS array; every other value is a flat top-level Insightly field name (e.g. 'FIRST_NAME', 'LAST_NAME'). |
 
 ### Connection
@@ -66,7 +66,6 @@ Insightly's generic Search endpoint matches on "any standard or custom field" pe
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"insightly"` | Resource key registered by InsightlyResourceComponent. |
-| `dedupe_search_field_name` | `str` | — | Insightly field_name passed to GET /{object_type}/Search. Defaults to 'EMAIL_ADDRESS' when dedupe_field='email', 'PHONE' when dedupe_field='phone', else dedupe_field itself verbatim. |
 
 ### Execution
 
@@ -88,8 +87,9 @@ Insightly's generic Search endpoint matches on "any standard or custom field" pe
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
+| `dedupe_search_field_name` | `str` | — | Insightly field_name passed to GET /{object_type}/Search. Defaults to 'EMAIL_ADDRESS' when dedupe_field='email', 'PHONE' when dedupe_field='phone', else dedupe_field itself verbatim (for flat fields, where the Insightly… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

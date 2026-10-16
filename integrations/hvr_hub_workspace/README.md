@@ -89,7 +89,6 @@ See `example.yaml`.
 | `wait_for_completion` | `bool` | `true` | If `action: refresh` and this is true, poll until the refresh completes. |
 | `poll_interval_seconds` | `int` | `30` | Poll interval while waiting for refresh completion. |
 | `timeout_seconds` | `int` | `3600` | Give up waiting after this many seconds (asset materialization fails). |
-| `concurrency_key` | `str \| None` | `None` | Tags each `action: refresh` asset's op with `dagster/concurrency_key`, so overlapping scheduled refreshes of the same channel can be prevented. Tagging alone only makes the key available — the actual limit (e.g. 1) still has to be set in Dagster+'s Concurrency settings or `run_coordinator.tag_concurrency_limits`. No default, since a component can't set a deployment-level limit on your behalf. |
 
 ### Catalog metadata
 
@@ -114,6 +113,7 @@ See `example.yaml`.
 | `channel_selector` | `ChannelSelector` | — | Optional inclusion/exclusion filter for channel names. |
 | `asset_key_prefix` | `List[str]` | — | Asset key prefix parts. Default: `['hvr', <hub_name>]`. Every emitted asset gets `[<prefix>..., <channel>, <target_loc>, <table>]`. |
 | `action` | `str` | `"noop"` | What each asset does when materialized: `noop` (default — HVR CDC is continuous; there's nothing to trigger) or `refresh` (POST `/channels/{c}/refresh` + poll until integrate catches up). |
+| `concurrency_key` | `str` | — | Tags each `action: refresh` asset with `dagster/concurrency_key` set to this value, so overlapping scheduled refreshes of the SAME channel can be prevented. Tagging alone only makes the key available -- the actual limit… _(full docs in schema.json + component README)_ |
 | `polling_sensor` | `bool` | `false` | If true, adds a polling sensor `{hub_name}_hvr_observer` that polls `GET /jobs?fetch=latency` and emits AssetMaterialization events (or AssetObservation — see `emit_materialization`) with `integrate_lag_seconds`, `state`… _(full docs in schema.json + component README)_ |
 | `observation_interval_seconds` | `int` | `300` | Polling sensor cadence. |
 | `emit_materialization` | `bool` | `true` | When True (default), the polling sensor emits AssetMaterialization events — HVR asset tiles go GREEN in the Dagster UI when integrate lag or state advances, matching how snowflake_workspace, tasks, snowpipes, and dynamic… _(full docs in schema.json + component README)_ |

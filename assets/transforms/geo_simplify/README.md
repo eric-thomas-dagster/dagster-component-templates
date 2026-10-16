@@ -26,7 +26,7 @@ threshold directly.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a (Geo)DataFrame with a geometry column |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a (Geo)DataFrame with a geometry column |
 | `tolerance` | `float` | Simplification tolerance, in the CRS's units. For EPSG:4326 (lat/lon degrees), 0.001 ≈ 100 meters at the equator. For EPSG:3857 (Web Mercator meters), use the desired vertex-spacing in meters directly. |
 
 ### Catalog metadata

@@ -106,6 +106,18 @@
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"
+    },
+    "per_partition_budget": {
+      "type": "object",
+      "label": "Per Partition Budget",
+      "description": "Per-partition-key override. e.g. {'hourly': 10, 'daily': 100}. Falls back to budget_usd if no key matches. When set, cumulative cost is tracked per-partition (each partition's budget is isolated from others).",
+      "required": false
+    },
+    "partition_matcher": {
+      "type": "string",
+      "label": "Partition Matcher",
+      "description": "How partition_key is matched against per_partition_budget keys: 'exact' \\| 'prefix' \\| 'regex'. Default exact match.",
+      "required": false
     }
   },
   "tags": [

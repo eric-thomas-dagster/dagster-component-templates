@@ -11,7 +11,7 @@ For each record in the DataFrame, find the K nearest neighbors by feature simila
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `feature_columns` | `List[Union[str, int]]` | List of column names to use for distance computation |
 
 ### Catalog metadata

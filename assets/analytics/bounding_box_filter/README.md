@@ -11,7 +11,7 @@ Filter a DataFrame of geographic points to keep only rows whose lat/lng coordina
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with lat/lng columns |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with lat/lng columns |
 | `min_lat` | `float` | Southern boundary (minimum latitude) |
 | `max_lat` | `float` | Northern boundary (maximum latitude) |
 | `min_lng` | `float` | Western boundary (minimum longitude) |

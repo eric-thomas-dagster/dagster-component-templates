@@ -91,7 +91,7 @@ cohort_period  cohort_size  period_0  period_1  period_2  period_3
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with customer activity data |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with customer activity data |
 
 ### Catalog metadata
 

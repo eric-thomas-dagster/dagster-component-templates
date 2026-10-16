@@ -11,7 +11,7 @@ Extract text from a column containing PDF file paths or PDF bytes. Uses `pdfplum
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `column` | `Union[str, int]` | Column containing PDF file paths or bytes |
 
 ### Catalog metadata

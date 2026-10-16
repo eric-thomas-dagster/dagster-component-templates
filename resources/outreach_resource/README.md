@@ -12,20 +12,20 @@ pip install requests
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `client_id_env_var` | `str` | Env var holding the Outreach OAuth Client ID |
-| `client_secret_env_var` | `str` | Env var holding the Outreach OAuth Client Secret |
-| `refresh_token_env_var` | `str` | Env var holding the initial OAuth refresh token (obtained once via the authorization_code grant) |
-
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"outreach_resource"` | Key used to register this resource. Other components reference it via resource_key. |
+| `client_id_env_var` | `str` | `"OUTREACH_CLIENT_ID"` | Env var holding the Outreach OAuth Client ID |
+| `client_secret_env_var` | `str` | `"OUTREACH_CLIENT_SECRET"` | Env var holding the Outreach OAuth Client Secret |
 | `base_url` | `str` | `"https://api.outreach.io/api/v2"` | Outreach API base URL |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `refresh_token_env_var` | `str` | `"OUTREACH_REFRESH_TOKEN"` | Env var holding the initial OAuth refresh token |
 | `token_url` | `str` | `"https://api.outreach.io/oauth/token"` | Outreach OAuth token endpoint |
 
 [//]: # (FIELDS:END)

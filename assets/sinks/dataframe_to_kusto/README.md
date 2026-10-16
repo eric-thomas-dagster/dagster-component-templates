@@ -16,7 +16,7 @@ Push a DataFrame to a Kusto table on an ADX cluster. Queued ingestion (durable) 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Asset key of upstream DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of upstream DataFrame |
 | `cluster_url` | `str` | ADX cluster URL |
 | `database` | `str` | ADX database name |
 | `table` | `str` | Target Kusto table (must already exist with matching schema) |

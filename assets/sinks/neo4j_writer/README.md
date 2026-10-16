@@ -15,7 +15,7 @@ The `Neo4jWriterComponent` accepts an upstream DataFrame asset and writes each r
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the output asset to create |
-| `upstream_asset_key` | `str` | Asset key of the upstream DataFrame asset |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of the upstream DataFrame asset |
 | `node_label` | `str` | Neo4j node label to assign to created nodes |
 | `id_column` | `Union[str, int]` | DataFrame column to use as the node identity property for MERGE |
 

@@ -15,7 +15,7 @@ Ship audit-log DataFrame to Splunk via the HTTP Event Collector (HEC).
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key — events to ship |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset key — events to ship |
 | `hec_url` | `str` | Splunk HEC endpoint (e.g. 'https://splunk.acme.com:8088/services/collector') |
 
 ### Connection
@@ -73,6 +73,8 @@ Ship audit-log DataFrame to Splunk via the HTTP Event Collector (HEC).
 | `source` | `str` | — | source |
 | `verify_ssl` | `bool` | `true` | Verify TLS cert (set false for self-signed dev splunk) |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
+| `include_preview_metadata` | `bool` | `false` | Include a markdown preview of the shipped rows in the materialization metadata. |
+| `preview_rows` | `int` | `25` | Max rows to include in the preview when include_preview_metadata is True. |
 
 [//]: # (FIELDS:END)
 

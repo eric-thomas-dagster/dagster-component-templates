@@ -78,7 +78,7 @@ The Priority Scorer Component calculates priority scores for support tickets usi
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream DataFrame asset key providing the rows to score. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream DataFrame asset key providing the rows to score. |
 | `method` | `str` | `"rules"` | Scoring method: llm, ml (logistic/XGBoost), or rules |
 | `llm_provider` | `str` | — | LLM provider: openai or anthropic (for method=llm) |
 | `llm_model` | `str` | — | LLM model name (for method=llm) |

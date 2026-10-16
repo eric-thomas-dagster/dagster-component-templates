@@ -69,7 +69,7 @@ Also requires `ffmpeg` in PATH, `pip install pyannote.audio` (pulls in `torch`/`
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame of audio file paths -- e.g. video_audio_extract_asset's output, or synthetic_audio_generator for a quick test fixture. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame of audio file paths -- e.g. video_audio_extract_asset's output, or synthetic_audio_generator for a quick test fixture. |
 
 ### Execution
 

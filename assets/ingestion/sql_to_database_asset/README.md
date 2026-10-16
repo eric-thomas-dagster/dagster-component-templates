@@ -21,8 +21,6 @@ sqlalchemy>=2.0.0
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `source_url_env_var` | `str` | Env var with source SQLAlchemy database URL |
-| `destination_url_env_var` | `str` | Env var with destination SQLAlchemy database URL |
 | `destination_table` | `str` | Destination table name |
 
 ### Catalog metadata
@@ -36,6 +34,7 @@ sqlalchemy>=2.0.0
 | `asset_tags` | `Dict[str, str]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
 | `kinds` | `List[str]` | — | Asset kinds for the catalog (e.g. ['snowflake', 'python']). Auto-inferred from component name when unset. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run. For time-based partition types (daily/weekly/monthly/hourly) with a watermark_column set, this is ONE co… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -48,13 +47,14 @@ sqlalchemy>=2.0.0
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_type` | `str` | `"none"` | none, daily, weekly, or monthly |
+| `partition_type` | `str` | `"none"` | none, daily, weekly, monthly, hourly, static, multi, or dynamic |
 | `partition_start_date` | `str` | — | Partition start date YYYY-MM-DD (required if partition_type != none) |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
 | `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 
 ### Retry policy
 
@@ -68,6 +68,8 @@ sqlalchemy>=2.0.0
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `source_url_env_var` | `str` | — | Env var with source SQLAlchemy database URL. Set this OR source_resource_key. |
+| `source_resource_key` | `str` | — | Key of a registered SQL resource to use for the source connection instead of source_url_env_var. The resource must expose a connection_string property (e.g. PostgresResource, MongoDBResource); not all resource types do. |
 | `source_table` | `str` | — | Source table name (use source_table OR source_query) |
 | `source_schema` | `str` | — | Source schema name |
 | `source_query` | `str` | — | Custom SQL query (overrides source_table) |
@@ -77,11 +79,17 @@ sqlalchemy>=2.0.0
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `destination_url_env_var` | `str` | — | Env var with destination SQLAlchemy database URL. Set this OR destination_resource_key. |
+| `destination_resource_key` | `str` | — | Key of a registered SQL resource to use for the destination connection instead of destination_url_env_var. The resource must expose a connection_string property (e.g. PostgresResource, MongoDBResource); not all resource types do. |
 | `destination_schema` | `str` | — | Destination schema name |
 | `watermark_column` | `Union[str, int]` | — | Incremental watermark column (e.g. updated_at, id) |
 | `watermark_env_var` | `str` | — | Env var storing the last watermark value |
 | `chunksize` | `int` | `10000` | Rows to read/write per chunk |
 | `column_mapping` | `dict` | — | Rename columns: {old: new} |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `include_preview_metadata` | `bool` | `false` | Include a markdown preview of the written rows in the materialization metadata. |
+| `preview_rows` | `int` | `25` | Max rows to include in the preview when include_preview_metadata is True. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

@@ -11,7 +11,7 @@ Fit a decision tree for classification or regression tasks. Supports both `Decis
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `target_column` | `Union[str, int]` | Column name of the target variable |
 | `feature_columns` | `List[Union[str, int]]` | List of column names to use as features |
 

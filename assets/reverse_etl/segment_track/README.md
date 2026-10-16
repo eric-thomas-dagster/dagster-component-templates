@@ -83,7 +83,7 @@ any identifier are silently dropped.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | — |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | — |
 | `source` | `Dict[str, Any]` | — | Inline source config: {kind: sql\|csv\|inline, ...} |
 | `user_id_column` | `str` | — | Column with userId (preferred Segment identifier). |
 | `anonymous_id_column` | `str` | — | Column with anonymousId (fallback when userId is unknown — Segment requires one of the two). |

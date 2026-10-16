@@ -32,7 +32,7 @@ attributes:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset key. |
 | `location` | `str` | Queue region (e.g. 'us-central1'). |
 | `queue_id` | `str` | Cloud Tasks queue id. |
 | `target_url` | `str` | HTTPS URL the worker hits (e.g. a Cloud Run service endpoint). Can include `{column}` placeholders to template per-row. |

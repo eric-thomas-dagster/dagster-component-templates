@@ -428,6 +428,8 @@ available at all.
 | `derive_freshness_policies` | `bool` | `false` | — |
 | `emit_contract_checks` | `bool` | `false` | — |
 | `external_packages` | `List[str]` | — | — |
+| `external_package_schemas` | `Dict[str, str]` | — | — |
+| `external_package_workspaces` | `Dict[str, Dict[str, int]]` | — | — |
 | `emit_semantic_layer_as_assets` | `bool` | `false` | — |
 | `enable_materialization_kinds` | `bool` | `false` | — |
 | `auto_trigger_on_freshness_failure` | `bool` | `false` | — |

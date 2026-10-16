@@ -17,7 +17,7 @@ The Medical Record Extractor Component uses a large language model to parse unst
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with medical record content |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with medical record content |
 
 ### Connection
 

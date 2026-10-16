@@ -82,7 +82,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream DataFrame asset key.. Mutually exclusive with `source` -- set exactly one. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream DataFrame asset key.. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `expand` | `bool` | `true` | If True (default), nested dict values are expanded into new columns via pandas.json_normalize — e.g. row with `properties: {mag: 3.4}` becomes new columns `properties.mag` (or `mag` if strip_prefix=True). If False, neste… _(full docs in schema.json + component README)_ |
 | `separator` | `str` | `"."` | Separator used between parent/child keys when expand=True (e.g. '.', '_'). |

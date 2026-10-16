@@ -108,8 +108,8 @@ This component expects to receive a DataFrame from an upstream asset. Use the **
 |---|---|---|---|
 | `database_path` | `str` | `"data.duckdb"` | Path to the DuckDB database file (will be created if doesn't exist) |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
-| `upstream_asset_key` | `str` | — | Single upstream asset key. Convenience field for the common single-source case. |
-| `upstream_asset_keys` | `List[str]` | — | Multiple upstream asset keys for multi-source writes. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Single upstream asset key. Convenience field for the common single-source case. |
+| `upstream_asset_keys` | `Union[str, List[str]]` | — | Multiple upstream asset keys for multi-source writes. |
 
 [//]: # (FIELDS:END)
 

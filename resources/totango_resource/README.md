@@ -12,16 +12,16 @@ pip install requests
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"totango_resource"` | Key used to register this resource. Other components reference it via resource_key. |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
 | `region` | `str` | `"us"` | Totango region: 'us' or 'eu'. |
 | `app_token_env_var` | `str` | `"TOTANGO_APP_TOKEN"` | Env var holding the Totango service token |
 

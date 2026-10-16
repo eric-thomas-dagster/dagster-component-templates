@@ -369,10 +369,40 @@ point rather than leaving dead code around.
 
 ## Fields
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `select` | `str` | — | — |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `project` | `str` | — | — |
+| `cli_args` | `Any` | — | — |
+| `translation` | `Any` | — | — |
+| `exclude` | `str` | — | — |
+| `dbt_docs_url` | `str` | — | — |
+| `include_exposures` | `bool` | `false` | — |
+| `include_metrics` | `bool` | `false` | — |
+| `include_semantic_models` | `bool` | `false` | — |
+| `include_contracts` | `bool` | `false` | — |
+| `include_meta` | `bool` | `false` | — |
+| `include_source_freshness` | `bool` | `false` | — |
+| `include_doc_blocks` | `bool` | `false` | — |
+| `asset_overrides` | `Dict[str, AssetOverride]` | — | — |
+| `defer_config` | `DbtDeferConfig` | — | — |
+| `emit_exposures_as_assets` | `bool` | `false` | — |
+| `derive_freshness_policies` | `bool` | `false` | — |
+| `emit_contract_checks` | `bool` | `false` | — |
+| `external_packages` | `List[str]` | — | — |
+| `external_package_schemas` | `Dict[str, str]` | — | — |
+| `external_package_manifest_paths` | `Dict[str, str]` | — | — |
 | `dbt_cloud_workspace` | `Any` | — | — |
+| `job_filter` | `str` | — | — |
+| `monitor_runs` | `bool` | `false` | — |
+| `fail_fast` | `bool` | `false` | — |
+| `poll_interval` | `float` | `5.0` | — |
 
 [//]: # (FIELDS:END)

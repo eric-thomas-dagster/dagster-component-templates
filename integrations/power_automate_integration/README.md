@@ -168,55 +168,28 @@ Not a Power Automate killer. This component keeps Power Automate in the loop as 
 
 ## Fields
 
-### Connection
+### Required
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `endpoint` | `str` | `"https://api.flow.microsoft.com"` | Power Automate REST API base URL (used when demo_mode=false). |
-
-### Execution
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `poll_interval_seconds` | `int` | `10` | Seconds between Power Automate run status polls. |
-| `max_retries` | `int` | `2` | Dagster-side asset retries on failure. |
+| Field | Type | Description |
+|---|---|---|
+| `flow_id` | `str` | Power Automate flow ID — the GUID from the flow's URL. |
+| `asset_name` | `str` | Dagster asset name that wraps this cloud flow. |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `group_name` | `str` | `"power_automate_integration"` | Dagster asset group for the flow assets. |
-
-### Partitions
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `partition_start_date` | `str` | `"2024-01-01"` | Start date for the daily partitioned assets. |
-
-### Retry policy
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `retry_delay_seconds` | `int` | `60` | Delay between Dagster asset retries. |
-
-### Source / target
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `source_tables` | `List[PowerAutomateSourceTableSpec]` | `list()` | Tables loaded by Power Automate flows that Dagster observes (adds to lineage). |
+| `description` | `str` | — | Prose description shown in the Dagster UI. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `demo_mode` | `bool` | `true` | Simulate the REST API on stdout (no external calls). |
-| `jobs` | `List[PowerAutomateFlowSpec]` | `list()` | Power Automate cloud flows to wrap as daily-partitioned Dagster assets. |
-| `upstream_deps` | `List[str]` | `list()` | Upstream asset keys (slash-separated for nested keys) that must complete before flows run. |
-| `power_automate_tenant_env` | `str` | `"POWER_AUTOMATE_TENANT_ID"` | Env var holding the Azure AD / Entra ID tenant GUID. |
-| `power_automate_client_id_env` | `str` | `"POWER_AUTOMATE_CLIENT_ID"` | Env var holding the Azure AD app registration client ID. |
-| `power_automate_client_secret_env` | `str` | `"POWER_AUTOMATE_CLIENT_SECRET"` | Env var holding the Azure AD app registration client secret. |
-| `poll_timeout_seconds` | `int` | `3600` | Total seconds to wait for terminal status before failing. |
-| `reconciliation_cron` | `str` | `"0 * * * *"` | Cron for the Power Automate vs Dagster state reconciliation job. |
+| `environment_id` | `str` | — | Power Automate environment ID; usually "Default-<tenant_id>". |
+| `solution` | `str` | — | Business tag for the containing solution. |
+| `application` | `str` | — | Business tag (e.g. FINANCE_OPS, HR_ONBOARDING). |
+| `trigger_input` | `dict` | `dict()` | JSON passed to the manual trigger. String values templated with {partition_key}. |
+| `run_as` | `str` | `"svc_dagster"` | Service principal name used to invoke the flow. |
 
 [//]: # (FIELDS:END)
 

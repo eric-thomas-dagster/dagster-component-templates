@@ -24,7 +24,7 @@ Send each DataFrame row to an Azure Service Bus queue or topic as a JSON message
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Asset key of upstream DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of upstream DataFrame |
 | `connection_string_env_var` | `str` | Env var holding the SB namespace or queue/topic-scoped connection string |
 | `destination_name` | `str` | Queue or topic name (the SB entity to send to) |
 

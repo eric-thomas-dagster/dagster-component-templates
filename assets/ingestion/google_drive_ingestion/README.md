@@ -95,6 +95,8 @@ Also: the **Drive API has to be enabled** on the SA's GCP project. If it's not, 
 | `download_max_bytes` | `int` | `10 * 1024 * 1024` | Skip files larger than this. Default 10 MB. |
 | `inline_text_content` | `bool` | `false` | When `download=True` and the file is plain-text-ish (text/*, json, csv), also write the decoded content into a `content` column on the DataFrame. Binary files always get a `path` column instead. |
 | `dynamic_partition_name` | `str` | — | — |
+| `include_preview_metadata` | `bool` | `true` | Include a markdown preview of the fetched rows in the materialization metadata. |
+| `preview_rows` | `int` | `10` | Max rows to include in the preview when include_preview_metadata is True. |
 
 [//]: # (FIELDS:END)
 

@@ -52,8 +52,8 @@ family with a different API surface.
 | `import_semantic_models` | `bool` | `false` | — |
 | `import_reports` | `bool` | `false` | — |
 | `exclude_name_pattern` | `str` | — | Regex applied to Fabric item display names for exclusion. |
-| `upstream_asset_keys` | `List[str]` | — | Asset keys that all imported assets wait for (lineage-only). |
-| `polling_sensor` (alias: `generate_sensor`) | `bool` | `false` | If true, adds a polling sensor that detects new Fabric item job completions and emits AssetObservation events. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceComponent. Off by d… _(full docs in schema.json + component README)_ |
+| `upstream_asset_keys` | `Union[str, List[str]]` | — | Asset keys that all imported assets wait for (lineage-only). |
+| `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects new Fabric item job completions and emits AssetObservation events. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceComponent. Off by d… _(full docs in schema.json + component README)_ |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
 
 [//]: # (FIELDS:END)

@@ -100,6 +100,70 @@
       "items": {
         "type": "string"
       }
+    },
+    "dt_name": {
+      "type": "string",
+      "label": "Dt Name",
+      "description": "Dynamic table name (unquoted identifier)",
+      "required": true
+    },
+    "target_lag": {
+      "type": "string",
+      "label": "Target Lag",
+      "description": "\"5 minutes\" / \"1 hour\" / \"DOWNSTREAM\"",
+      "required": true
+    },
+    "sql": {
+      "type": "string",
+      "label": "Sql",
+      "description": "The dynamic table's SELECT statement.",
+      "required": true
+    },
+    "initialize": {
+      "type": "string",
+      "label": "Initialize",
+      "description": "'ON_CREATE' or 'ON_SCHEDULE'. Default ON_SCHEDULE avoids immediate-refresh privilege issues.",
+      "required": false
+    },
+    "refresh_mode": {
+      "type": "string",
+      "label": "Refresh Mode",
+      "description": "'AUTO' / 'INCREMENTAL' / 'FULL'",
+      "required": false
+    },
+    "cluster_by": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Cluster By",
+      "description": "Columns to CLUSTER BY for performance.",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
     }
   }
 }

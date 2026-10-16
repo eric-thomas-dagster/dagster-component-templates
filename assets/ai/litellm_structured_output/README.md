@@ -17,7 +17,7 @@ Extract structured JSON data from text using LiteLLM's JSON mode. Expands extrac
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `text_column` | `Union[str, int]` | Column containing input text |
 | `schema_definition` | `Dict[str, Any]` | JSON Schema describing the fields to extract e.g. {"name": {"type": "string"}, "age": {"type": "integer"}} |
 

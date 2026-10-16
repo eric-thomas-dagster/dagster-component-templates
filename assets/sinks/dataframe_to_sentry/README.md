@@ -46,7 +46,7 @@ attributes:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name (this asset is a sink and returns None). |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset. |
 
 ### Catalog metadata
 

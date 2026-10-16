@@ -50,6 +50,7 @@ It feels old because SharePoint OData specifically is old — SharePoint is a 20
 | `asset_tags` | `Dict[str, str]` | — | — |
 | `kinds` | `List[str]` | — | Defaults to ['odata']. |
 | `deps` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (one full paginated fetch per partition in the range, each with its own $filter {partition_key} substitut… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -99,6 +100,7 @@ It feels old because SharePoint OData specifically is old — SharePoint is a 20
 | `include_preview_metadata` | `bool` | `true` | — |
 | `preview_rows` | `int` | `25` | — |
 | `dynamic_partition_name` | `str` | — | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `max_pages` | `int` | `1000` | Safety cap on pagination follow-throughs (prevents runaway pulls). |
 
 [//]: # (FIELDS:END)

@@ -92,7 +92,7 @@ fallback for rows where the column is null). One must be present.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | — |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | — |
 | `source` | `Dict[str, Any]` | — | Inline source config: {kind: sql\|csv\|inline, ...} |
 | `event_type_column` | `str` | — | Column holding the event_type. If unset, use `default_event_type`. |
 | `default_event_type` | `str` | — | Fallback event_type when `event_type_column` is unset or the row's value is null. |

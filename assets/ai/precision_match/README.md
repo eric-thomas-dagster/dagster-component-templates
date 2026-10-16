@@ -13,7 +13,7 @@ Use an LLM to fuzzy-match varied string values in a DataFrame column to a canoni
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with values to standardize |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with values to standardize |
 | `column` | `Union[str, int]` | Column with varied strings to standardize |
 
 ### Connection

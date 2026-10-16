@@ -67,6 +67,12 @@
       "label": "Tls",
       "required": false,
       "default": false
+    },
+    "connection_string": {
+      "type": "string",
+      "label": "Connection String",
+      "description": "MongoDB connection string (literal). Set this OR connection_string_env_var.",
+      "required": false
     }
   }
 }

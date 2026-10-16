@@ -64,6 +64,12 @@
         "running",
         "stopped"
       ]
+    },
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Optional Dagster asset key. When set, the sensor also yields AssetMaterialization(asset_key=...) on each target-stage transition — which lights up the matching external_huggingface_space asset. Use '/' separators for nested keys.",
+      "required": false
     }
   },
   "tags": [

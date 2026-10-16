@@ -11,7 +11,7 @@ Compute semantic or lexical similarity between two text columns, or between each
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `text_column_a` | `Union[str, int]` | First text column for comparison |
 
 ### Catalog metadata

@@ -206,6 +206,12 @@
         "fixed"
       ],
       "ui:widget": "select"
+    },
+    "model_path": {
+      "type": "string",
+      "label": "Model Path",
+      "description": "If set, save the fitted statsmodels GLM result to this path via statsmodels' native `.save()` (pickle-based). Downstream `model_score` loads it with `deserializer: pickle`.",
+      "required": false
     }
   },
   "tags": [

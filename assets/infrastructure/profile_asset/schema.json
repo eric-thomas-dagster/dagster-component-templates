@@ -91,6 +91,24 @@
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"
+    },
+    "histogram_bins": {
+      "type": "integer",
+      "label": "Histogram Bins",
+      "description": "If set, emit per-numeric-column histogram with this many bins.",
+      "required": false
+    },
+    "correlation_matrix": {
+      "type": "boolean",
+      "label": "Correlation Matrix",
+      "description": "If True, compute Pearson correlation between numeric columns and emit as metadata. Expensive on wide tables — off by default.",
+      "required": false
+    },
+    "histogram_render": {
+      "type": "string",
+      "label": "Histogram Render",
+      "description": "How histograms render in the Metadata panel. 'ascii' (default, zero deps) = Unicode-bar table + sparkline; 'png' (requires matplotlib) = embedded PNG data-URI; 'both' = sparkline preview + PNG. Falls back to 'ascii' if matplotlib is unavailable.",
+      "required": false
     }
   },
   "tags": [

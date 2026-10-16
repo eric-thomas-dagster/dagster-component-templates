@@ -28,8 +28,13 @@ This component enables event-driven data ingestion from S3 to databases. It's de
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset |
-| `database_url` | `str` | Database connection URL (use ${DB_URL} for env var) |
 | `table_name` | `str` | Name of the database table to write to |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | — | Key of a registered SQL resource (e.g. postgres_resource) to use for the destination connection instead of database_url. The resource must expose a connection_string property (e.g. PostgresResource, MongoDBResource); not… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -41,6 +46,7 @@ This component enables event-driven data ingestion from S3 to databases. It's de
 | `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'} |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set. |
 | `deps` | `list[str]` | — | Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset']) |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (reads and concatenates one S3 file per day in the range, then writes once). 'multi_run' launches one run… _(full docs in schema.json + component README)_ |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
 
 ### Freshness
@@ -80,6 +86,7 @@ This component enables event-driven data ingestion from S3 to databases. It's de
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `database_url` | `str` | — | Database connection URL (use ${DB_URL} for env var). Set this OR resource_key. |
 | `schema_name` | `str` | — | Database schema name (optional) |
 | `aws_region` | `str` | — | AWS region (optional, uses default if not specified) |
 | `file_format` | `str` | `"csv"` | Expected file format: 'csv', 'json', 'parquet', 'auto' (detect from extension) |
@@ -89,6 +96,7 @@ This component enables event-driven data ingestion from S3 to databases. It's de
 | `dtype_mapping` | `str` | — | JSON string for specifying column types, e.g. {"col1": "int64"} |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the DataFrame about to be written, in metadata, so builder UIs can show 'what's being sunk' without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. Random sample if len > 10x preview_rows; else head. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)

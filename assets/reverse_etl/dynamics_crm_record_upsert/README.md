@@ -45,9 +45,9 @@ Without a matching Alternate Key, the upsert PATCH 404s.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
-| `entity_set_name` | `str` | Target Dataverse entity SET name — plural, lowercase logical name (e.g. 'accounts', 'contacts', 'leads', 'opportunities', or a custom table's plural logical name like 'new_customthings'). NOT the singular display name shown in the maker portal UI. |
-| `alternate_key_field` | `str` | Dataverse field logical name used as the upsert match key — MUST be a pre-defined Alternate Key on the table (maker portal -> table -> Keys). MUST be present in fields_map values. |
-| `fields_map` | `Dict[str, str]` | Upstream column → Dataverse field logical name. |
+| `entity_set_name` | `str` | Target Dataverse entity SET name -- plural, lowercase logical name (e.g. 'accounts', 'contacts', 'leads', 'opportunities', or a custom table's plural logical name like 'new_customthings'). NOT the singular display name s… _(full docs in schema.json + component README)_ |
+| `alternate_key_field` | `str` | Dataverse field logical name used as the upsert match key -- MUST be a pre-defined Alternate Key on the table (maker portal -> table -> Keys). MUST be present in fields_map values. |
+| `fields_map` | `Dict[str, str]` | Upstream column -> Dataverse field logical name. |
 
 ### Connection
 
@@ -60,7 +60,6 @@ Without a matching Alternate Key, the upsert PATCH 404s.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `batch_size` | `int` | `5000` | Max upstream rows per run (safety cap). One PATCH per row. |
-| `prefer_representation` | `bool` | `true` | Send `Prefer: return=representation` on every PATCH so the response status code (201/200) distinguishes created vs. updated and the row's GUID comes back in the same round trip. Set false to skip the extra server-side retrieve (faster, but every row's action is reported as 'unknown' — Dataverse always returns 204 for both outcomes without this header). |
 
 ### Catalog metadata
 
@@ -76,8 +75,9 @@ Without a matching Alternate Key, the upsert PATCH 404s.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
+| `prefer_representation` | `bool` | `true` | Send `Prefer: return=representation` on every PATCH so the response status code (201/200) distinguishes created vs. updated and the row's GUID comes back in the same round trip. Set false to skip the extra server-side re… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

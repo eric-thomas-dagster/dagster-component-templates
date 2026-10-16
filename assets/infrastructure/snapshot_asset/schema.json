@@ -101,6 +101,12 @@
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"
+    },
+    "compression": {
+      "type": "string",
+      "label": "Compression",
+      "description": "Compression codec: `gzip` \\| `zstd` \\| `snappy` \\| `brotli` \\| `bz2` \\| `xz` \\| `none`. Default None = format default (parquet defaults to snappy). Parquet forwards this to `df.to_parquet(compression=...)`. JSON / text / bin writes gzip/bz2/zstd via stdlib codecs and the file gains a `.gz` / `.zst` / `.bz2` suffix. Pickle ignores the flag (warns).",
+      "required": false
     }
   },
   "tags": [

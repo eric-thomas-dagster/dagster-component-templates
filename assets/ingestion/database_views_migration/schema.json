@@ -37,7 +37,19 @@
     "owners": {"description": "Asset owners", "type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
     "asset_tags": {"description": "Additional tags", "type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
     "kinds": {"description": "Asset kinds (default: ['views', source_type, target_type])", "type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
-    "deps": {"description": "Upstream asset keys (typically table replications)", "type": "array", "items": {"type": "string"}, "label": "Deps", "required": false}
+    "deps": {"description": "Upstream asset keys (typically table replications)", "type": "array", "items": {"type": "string"}, "label": "Deps", "required": false},
+    "source_connection": {
+      "type": "string",
+      "label": "Source Connection",
+      "description": "SQLAlchemy URL for source DB. Set this OR source_connection_env_var.",
+      "required": false
+    },
+    "target_connection": {
+      "type": "string",
+      "label": "Target Connection",
+      "description": "SQLAlchemy URL for target DB. Set this OR target_connection_env_var.",
+      "required": false
+    }
   },
   "tags": ["ingestion", "migration", "views", "bulk", "warehouse", "status-report"],
   "name": "Database Views Migration"

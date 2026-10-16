@@ -141,55 +141,26 @@ Not a Rundeck killer. If you're doing a full migration off Rundeck, the `airflow
 
 ## Fields
 
-### Connection
+### Required
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `endpoint` | `str` | `"http://localhost:4440"` | Rundeck base URL (used when demo_mode=false). |
-| `api_version` | `int` | `47` | Rundeck API version (v47 current as of 2026; older installs use lower ints). |
-
-### Execution
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `poll_interval_seconds` | `int` | `10` | Seconds between Rundeck execution status polls. |
-| `max_retries` | `int` | `2` | Dagster-side asset retries on failure. |
+| Field | Type | Description |
+|---|---|---|
+| `job_id` | `str` | Rundeck Job UUID (as shown in the Rundeck UI job detail URL). |
+| `asset_name` | `str` | Dagster asset name that wraps this Rundeck Job. |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `group_name` | `str` | `"rundeck_integration"` | Dagster asset group for the job assets. |
-
-### Partitions
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `partition_start_date` | `str` | `"2024-01-01"` | Start date for the daily partitioned assets. |
-
-### Retry policy
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `retry_delay_seconds` | `int` | `60` | Delay between Dagster asset retries. |
-
-### Source / target
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `source_tables` | `List[RundeckSourceTableSpec]` | `list()` | Tables loaded by Rundeck executions that Dagster observes (adds to lineage). |
+| `description` | `str` | — | Prose description shown in the Dagster UI. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `demo_mode` | `bool` | `true` | Simulate the REST API on stdout (no external calls). |
-| `jobs` | `List[RundeckJobSpec]` | `list()` | Rundeck Jobs to wrap as daily-partitioned Dagster assets. |
-| `upstream_deps` | `List[str]` | `list()` | Upstream asset keys (slash-separated for nested keys) that must complete before jobs run. |
-| `rundeck_token_env` | `str` | `"RUNDECK_API_TOKEN"` | Env var holding the Rundeck API token. |
-| `poll_timeout_seconds` | `int` | `3600` | Total seconds to wait for terminal status before failing. |
-| `output_retrieval` | `bool` | `true` | Retrieve execution output entries on completion. |
-| `reconciliation_cron` | `str` | `"0 * * * *"` | Cron for the Rundeck vs Dagster state reconciliation job. |
+| `project` | `str` | — | Rundeck Project (analog to Control-M Folder / RMJ Application). |
+| `arg_string` | `str` | — | Rundeck argString of option values (e.g. `-key1 value1 -key2 value2`). |
+| `run_as` | `str` | `"svc_dagster"` | Rundeck asUser identity for the execution. |
 
 [//]: # (FIELDS:END)
 

@@ -58,7 +58,7 @@ Basecamp has no native "upsert" endpoint for to-dos, so (same as `github_issue_u
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
 | `description_column` | `str` | — | Column holding the to-do description (HTML). |
 | `due_on_column` | `str` | — | Column holding an ISO-8601 due date (e.g. '2026-01-01'). |

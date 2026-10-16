@@ -62,7 +62,7 @@ Defaults to `email` (Marketo's most common lookup key). Can also be `id` (Market
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
 | `lookup_field` | `str` | `"email"` | Marketo field used as the createOrUpdate match key (Marketo's `lookupField`). MUST be present in fields_map values. Typically 'email', but can be 'id' or a custom field marked for lookup. |
 

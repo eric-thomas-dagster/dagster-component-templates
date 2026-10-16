@@ -16,15 +16,20 @@ pip install requests
 
 | Field | Type | Description |
 |---|---|---|
+| `subdomain` | `str` | Your Vitally subdomain, from https://<subdomain>.vitally.io |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"vitally_resource"` | Key used to register this resource. Other components reference it via resource_key. |
-| `subdomain` | `str` | — | Your Vitally subdomain, from https://<subdomain>.vitally.io |
+| `api_key_env_var` | `str` | `"VITALLY_API_KEY"` | Env var holding the Vitally REST API key (Settings -> Integrations -> REST API) |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
 | `region` | `str` | `"us"` | Vitally region: 'us' or 'eu'. |
-| `api_key_env_var` | `str` | `"VITALLY_API_KEY"` | Env var holding the Vitally REST API key |
 
 [//]: # (FIELDS:END)
 

@@ -40,6 +40,12 @@
         "append"
       ],
       "ui:widget": "select"
+    },
+    "connection_uri": {
+      "type": "string",
+      "label": "Connection Uri",
+      "description": "MongoDB URI (literal). Set this OR connection_uri_env_var.",
+      "required": false
     }
   },
   "tags": [

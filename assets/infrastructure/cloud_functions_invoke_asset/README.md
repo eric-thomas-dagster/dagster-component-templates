@@ -76,7 +76,7 @@ Use `cloud_run_job_trigger_asset` for Cloud Run **jobs** (long-running batch), n
 | `credentials_path` | `str` | — | Falls back to GOOGLE_APPLICATION_CREDENTIALS. |
 | `method` | `str` | `"POST"` | HTTP method (POST / GET / PUT / PATCH / DELETE). |
 | `payload` | `Any` | — | Static request body (dict → JSON, str → raw). Mutually exclusive with upstream_asset_key. |
-| `upstream_asset_key` | `str` | — | Upstream DataFrame asset. One function call per row. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream DataFrame asset. One function call per row. |
 | `payload_column` | `Union[str, int]` | — | When set, publish only this column's value as the body. dict → JSON, others → str. |
 | `payload_template` | `Dict[str, Any]` | — | Static dict template. Each {column_name} string in any value is replaced with the row's value before serialization. |
 | `headers` | `Dict[str, str]` | — | — |

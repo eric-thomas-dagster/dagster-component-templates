@@ -11,7 +11,7 @@ Parse XML content stored in a DataFrame column into separate fields using XPath 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `xml_column` | `Union[str, int]` | Column containing XML strings |
 | `xpath_expressions` | `Dict[str, str]` | Mapping of {output_column_name: xpath_expression} |
 

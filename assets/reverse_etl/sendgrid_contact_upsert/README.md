@@ -90,7 +90,7 @@ Look up your custom field IDs via `GET /v3/marketing/field_definitions`.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with source:. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with source:. |
 | `source` | `Dict[str, Any]` | — | Inline source config. {kind: sql\|csv\|inline, ...}. |
 | `list_ids` | `List[str]` | — | Optional SendGrid marketing list ids to add contacts to. |
 | `email_column` | `str` | `"email"` | Column with the contact's email address (required — SendGrid's primary identifier). |

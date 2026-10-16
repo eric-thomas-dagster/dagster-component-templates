@@ -316,6 +316,115 @@
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "replace_ops": {
+      "type": "string",
+      "label": "Replace Ops",
+      "description": "JSON list of REPLACE ops: [{\"column\": \"name\", \"find\": \"Mr.\", \"replace\": \"\"}]. Multiple ops on the same column chain in order.",
+      "required": false
+    },
+    "split_ops": {
+      "type": "string",
+      "label": "Split Ops",
+      "description": "JSON list of split ops: [{\"column\": \"full_name\", \"delimiter\": \" \", \"into\": \"first_name,last_name\"}].",
+      "required": false
+    },
+    "window_ops": {
+      "type": "string",
+      "label": "Window Ops",
+      "description": "JSON list of window ops: [{\"kind\": \"rank\", \"orderBy\": \"amount\", \"partitionBy\": \"customer_id\", \"orderAsc\": false, \"into\": \"amount_rank\"}]. kind: rank, dense_rank, row_number.",
+      "required": false
+    },
+    "count_match_ops": {
+      "type": "string",
+      "label": "Count Match Ops",
+      "description": "JSON list of count-matching ops: [{\"column\": \"status\", \"operator\": \"equals\", \"value\": \"completed\", \"into\": \"completed_count\", \"partitionBy\": \"customer_id\"}].",
+      "required": false
+    },
+    "case_when_ops": {
+      "type": "string",
+      "label": "Case When Ops",
+      "description": "JSON list of case-when ops: [{\"branches\": [{\"column\": \"amount\", \"operator\": \"greater_than\", \"value\": \"100\", \"then\": \"large\"}], \"else\": \"small\", \"into\": \"size_bucket\"}].",
+      "required": false
+    },
+    "concat_ops": {
+      "type": "string",
+      "label": "Concat Ops",
+      "description": "JSON list of concat ops: [{\"columns\": \"first_name,last_name\", \"separator\": \" \", \"into\": \"full_name\"}].",
+      "required": false
+    },
+    "date_extract_ops": {
+      "type": "string",
+      "label": "Date Extract Ops",
+      "description": "JSON list of date-extract ops: [{\"column\": \"created_at\", \"part\": \"year\", \"into\": \"created_year\"}]. part: year, month, day, dayofweek, hour.",
+      "required": false
+    },
+    "substring_ops": {
+      "type": "string",
+      "label": "Substring Ops",
+      "description": "JSON list of substring ops: [{\"column\": \"sku\", \"start\": 1, \"length\": 3, \"into\": \"sku_prefix\"}]. start is 1-based; omit length to take the rest of the string.",
+      "required": false
+    },
+    "numeric_ops": {
+      "type": "string",
+      "label": "Numeric Ops",
+      "description": "JSON list of numeric ops: [{\"column\": \"price\", \"op\": \"round\", \"digits\": 2, \"into\": \"price_rounded\"}]. op: round, floor, ceil, abs.",
+      "required": false
+    },
+    "sample_config": {
+      "type": "string",
+      "label": "Sample Config",
+      "description": "JSON sample config: {\"n\": 1000, \"random\": true} or {\"fraction\": 0.1, \"random\": true}. n takes precedence when both are set.",
+      "required": false
+    },
+    "bin_ops": {
+      "type": "string",
+      "label": "Bin Ops",
+      "description": "JSON list of binning ops: [{\"column\": \"age\", \"boundaries\": \"18,35,50\", \"labels\": \"young,mid,senior,elder\", \"into\": \"age_bucket\"}].",
+      "required": false
+    },
+    "dedupe_subset": {
+      "type": "string",
+      "label": "Dedupe Subset",
+      "description": "JSON dedupe config: {\"subsetCols\": \"customer_id,order_date\", \"keep\": \"first\"}.",
+      "required": false
+    },
+    "cumsum_ops": {
+      "type": "string",
+      "label": "Cumsum Ops",
+      "description": "JSON list of cumulative-sum ops: [{\"column\": \"amount\", \"partitionBy\": \"customer_id\", \"orderBy\": \"order_date\", \"into\": \"running_total\"}].",
+      "required": false
+    },
+    "fill_direction_ops": {
+      "type": "string",
+      "label": "Fill Direction Ops",
+      "description": "JSON list of fill-direction ops: [{\"column\": \"price\", \"direction\": \"ffill\", \"partitionBy\": \"sku\", \"orderBy\": \"date\"}]. direction: ffill (forward-fill) or bfill (backward-fill), applied in place.",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
     }
   },
   "tags": [

@@ -86,7 +86,6 @@ Both strategies respect `max_pages` as a hard cap.
 |---|---|---|
 | `endpoint_env_var` | `str` | Env var name holding the GraphQL endpoint URL. |
 | `queries` | `list` | List of query configs. Each entry must have a ``name`` (used as table name suffix) and ``query`` (GraphQL query string). Optional: ``variables`` (dict), ``data_path`` (dot-separated path to the result array in the response). |
-| `database_url_env_var` | `str` | Env var name holding the SQLAlchemy database connection URL. |
 | `asset_name` | `str` | Dagster asset key name. |
 
 ### Connection
@@ -94,6 +93,8 @@ Both strategies respect `max_pages` as a hard cap.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `api_key_env_var` | `str` | — | Env var name holding the API key / token. Omit to disable auth. |
+| `database_url_env_var` | `str` | — | Env var name holding the SQLAlchemy database connection URL. Set this OR resource_key. |
+| `resource_key` | `str` | — | Key of a registered SQL resource (e.g. postgres_resource) to use for the destination connection instead of database_url_env_var. The resource must expose a connection_string property (e.g. PostgresResource, MongoDBResour… _(full docs in schema.json + component README)_ |
 
 ### Execution
 
@@ -114,6 +115,7 @@ Both strategies respect `max_pages` as a hard cap.
 | `kinds` | `List[str]` | — | Asset kinds for the catalog (e.g. ['snowflake', 'python']). Auto-inferred from component name when unset. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run: each query's full result set is fetched once (as always) and then filtered down to the whole range via p… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -160,6 +162,7 @@ Both strategies respect `max_pages` as a hard cap.
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the data being written / produced in metadata, so builder UIs can show output shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. Random sample if len > 10x preview_rows; else head. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

@@ -70,7 +70,7 @@ Other `fields_map` values can use **dotted keys** to build QBO's nested object f
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
 | `lookup_field` | `str` | `"DisplayName"` | QuickBooks Customer field used to find an existing record via a query WHERE clause. MUST be a top-level (non-dotted) field present in fields_map values -- QBO enforces DisplayName uniqueness, making it the conventional match key. |
 

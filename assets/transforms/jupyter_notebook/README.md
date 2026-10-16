@@ -68,7 +68,7 @@ attributes:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key (DataFrame in) |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key (DataFrame in) |
 
 ### Execution
 

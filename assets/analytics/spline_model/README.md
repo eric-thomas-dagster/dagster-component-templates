@@ -11,7 +11,7 @@ Fits ordinary least squares using sklearn's SplineTransformer to allow smooth no
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `target_column` | `Union[str, int]` | Continuous target column. |
 | `feature_columns` | `List[Union[str, int]]` | Numeric feature columns to transform via splines. |
 

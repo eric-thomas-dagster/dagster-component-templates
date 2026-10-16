@@ -16,7 +16,7 @@ Ship audit-log DataFrame to Google Chronicle (SecOps) via the unstructuredlogent
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key — events to ship |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset key — events to ship |
 | `customer_id` | `str` | Chronicle customer ID (GUID) |
 | `sa_credentials_path` | `str` | Path to GCP service account JSON with chronicle scope |
 
@@ -66,6 +66,8 @@ Ship audit-log DataFrame to Google Chronicle (SecOps) via the unstructuredlogent
 | `region` | `str` | `"us"` | Chronicle region: 'us', 'eu', 'asia-southeast1', etc. |
 | `log_type` | `str` | `"WORKDAY"` | Chronicle log type (WORKDAY, OKTA, AWS_CLOUDTRAIL, etc.) |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
+| `include_preview_metadata` | `bool` | `false` | Include a markdown preview of the shipped rows in the materialization metadata. |
+| `preview_rows` | `int` | `25` | Max rows to include in the preview when include_preview_metadata is True. |
 
 [//]: # (FIELDS:END)
 

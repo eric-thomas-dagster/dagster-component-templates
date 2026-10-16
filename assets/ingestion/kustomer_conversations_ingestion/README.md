@@ -25,32 +25,49 @@ Also requires a `KustomerResourceComponent` on the same code location for authen
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `"kustomer_resource"` | Key of the KustomerResource this asset depends on for authentication |
+
 ### Execution
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `limit` | `int` | `100` | Maximum number of conversations to fetch across all pages |
 | `page_size` | `int` | `100` | Conversations requested per page (Kustomer's documented max page size) |
-| `max_pages` | `int` | `100` | Safety cap on the number of search pages walked, regardless of limit |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the date-window filter below already handles a multi-partition range correctly). 'multi_run' launches on… _(full docs in schema.json + component README)_ |
 | `description` | `str` | — | Asset description |
 | `group_name` | `str` | `"kustomer"` | Asset group for organization |
-| `owners` | `List[str]` | — | Asset owners — list of team names or email addresses |
+| `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:support', 'user@company.com'] |
 | `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['kustomer', 'python']. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime) |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned. When time-based, from_date_time/to_date_time are derived from the partition window instead of the static config. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'us,eu,asia'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"kustomer_resource"` | Key of the KustomerResource this asset depends on for authentication |
-| `from_date_time` | `str` | — | Start of the conversation window (ISO-8601). Server-side filter. |
-| `to_date_time` | `str` | — | End of the conversation window (ISO-8601). Server-side filter. |
+| `from_date_time` | `str` | — | Start of the conversation window (ISO-8601). Passed as a server-side conversation_created_at >= filter on the Search API. |
+| `to_date_time` | `str` | — | End of the conversation window (ISO-8601). Passed as a server-side conversation_created_at < filter on the Search API. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `max_pages` | `int` | `100` | Safety cap on the number of search pages walked, regardless of limit |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
 

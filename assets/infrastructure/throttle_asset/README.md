@@ -164,7 +164,7 @@ def hot_index(context):
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | — |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | — |
 | `compute` | `Dict[str, Any]` | — | `{kind: python, python: 'mod:fn'}`. Mutually exclusive with `wraps`. |
 | `wraps` | `Dict[str, Any]` | — | Wrap another DCC component's assets with throttle rate-limiting instead of defining new compute. Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. Mutually exclusive with `compute`. |
 | `on_throttle` | `str` | `"skip"` | 'skip' (default) returns None + emits AssetObservation; 'fail' raises dg.Failure. |

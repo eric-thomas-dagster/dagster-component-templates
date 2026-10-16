@@ -202,7 +202,7 @@ output_fields: [invoice_number, vendor, total_amount, po_reference]  # your own 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream asset key providing a DataFrame with document content. Mutually exclusive with `path` -- set exactly one. Use this when another asset (e.g. file_lister) already lists/produces the documents; use `path` when this… _(full docs in schema.json + component README)_ |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset key providing a DataFrame with document content. Mutually exclusive with `path` -- set exactly one. Use this when another asset (e.g. file_lister) already lists/produces the documents; use `path` when this… _(full docs in schema.json + component README)_ |
 | `path` | `str` | — | Glob pattern or fsspec URI to list documents from directly (s3://, gs://, abfss:// / abfs:// / az://, or a local path), e.g. 's3://my-bucket/invoices/**/*.pdf'. Mutually exclusive with `upstream_asset_key` -- set exactly… _(full docs in schema.json + component README)_ |
 | `download` | `bool` | `true` | When using `path`: download each matched file to a local cache directory first. Ignored when using `upstream_asset_key`. |
 | `download_dir` | `str` | — | When using `path` with download=true: local cache directory. Auto-generated under the system temp dir if unset. |

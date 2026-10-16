@@ -59,7 +59,7 @@ Returns a Pandas DataFrame with search results containing:
 | `asset_name` | `str` | Name of the asset |
 | `provider` | `str` | Provider: 'pinecone', 'weaviate', 'chromadb', 'faiss', 'qdrant' |
 | `collection_name` | `str` | Collection/index name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with query embeddings |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with query embeddings |
 
 ### Connection
 

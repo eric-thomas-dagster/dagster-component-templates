@@ -37,7 +37,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `api_key` | `str` | — | Amplitude project API key, used as the HTTP Basic auth username. Required unless resource_key is set. |
-| `resource_key` | `str` | — | Optional resource key registered by an AmplitudeResourceComponent. When set, api_key above is read from that resource at run time -- lets one Amplitude API key serve both this ingestion connector and the dataframe_to_amp… _(full docs in schema.json + component README)_ |
+| `resource_key` | `str` | — | Optional resource key registered by an AmplitudeResourceComponent. When set, api_key above is read from that resource at run time -- lets one Amplitude API key serve both this ingestion connector and the amplitude_event_… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -75,6 +75,12 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 | `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
 | `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `bucket_url` | `str` | — | Bucket/path URL for filesystem-shaped storage (e.g. 's3://my-bucket/path', 'gs://my-bucket/path', 'az://my-container/path', or 'file:///local/path'). Required when destination='filesystem' (the final write target). Also… _(full docs in schema.json + component README)_ |
+
 ### Other
 
 | Field | Type | Default | Description |
@@ -87,6 +93,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 | `persist_only` | `bool` | `false` | If True with destination set: emit a MaterializeResult and skip DataFrame return. If False: query the destination back into a DataFrame (only meaningful for SQL destinations -- non-SQL destinations always emit MaterializeResult). |
 | `destination_credentials_url` | `str` | — | Inline connection string passed to dlt's destination factory. Useful when one Dagster project ingests into multiple accounts of the same destination type. If unset, dlt resolves credentials from env vars -- see ../DESTINATIONS.md. |
 | `destination_credentials_env_var` | `str` | — | Alternative to destination_credentials_url: name of an env var holding the connection string. Resolved at run-time. |
+| `athena_query_result_bucket` | `str` | — | Optional S3 path where Athena writes query results (e.g. 's3://my-bucket/results/'). Only used when destination='athena'. May be omitted to use Athena-managed query results instead. |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |

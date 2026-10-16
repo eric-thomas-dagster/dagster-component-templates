@@ -148,55 +148,27 @@ Not a Stonebranch UAC killer. If you're doing a full migration off UAC, the `air
 
 ## Fields
 
-### Connection
+### Required
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `endpoint` | `str` | `"http://localhost:8080/uc"` | Stonebranch UAC REST API base URL (used when demo_mode=false). |
-
-### Execution
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `poll_interval_seconds` | `int` | `10` | Seconds between Stonebranch task instance status polls. |
-| `max_retries` | `int` | `2` | Dagster-side asset retries on failure. |
+| Field | Type | Description |
+|---|---|---|
+| `task_name` | `str` | Stonebranch UAC Task name (as registered in Universal Controller). |
+| `asset_name` | `str` | Dagster asset name that wraps this Task. |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `group_name` | `str` | `"stonebranch_uac_integration"` | Dagster asset group for the task assets. |
-
-### Partitions
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `partition_start_date` | `str` | `"2024-01-01"` | Start date for the daily partitioned assets. |
-
-### Retry policy
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `retry_delay_seconds` | `int` | `60` | Delay between Dagster asset retries. |
-
-### Source / target
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `source_tables` | `List[StonebranchSourceTableSpec]` | `list()` | Tables loaded by Stonebranch tasks that Dagster observes (adds to lineage). |
+| `description` | `str` | — | Prose description shown in the Dagster UI. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `demo_mode` | `bool` | `true` | Simulate the REST API on stdout (no external calls). |
-| `jobs` | `List[StonebranchTaskSpec]` | `list()` | Stonebranch UAC Tasks to wrap as daily-partitioned Dagster assets. |
-| `upstream_deps` | `List[str]` | `list()` | Upstream asset keys (slash-separated for nested keys) that must complete before tasks run. |
-| `stonebranch_user_env` | `str` | `"STONEBRANCH_USER"` | Env var holding the Stonebranch UAC REST username. |
-| `stonebranch_password_env` | `str` | `"STONEBRANCH_PASSWORD"` | Env var holding the Stonebranch UAC REST password. |
-| `poll_timeout_seconds` | `int` | `3600` | Total seconds to wait for terminal status before failing. |
-| `output_retrieval` | `bool` | `true` | Retrieve task instance output on completion. |
-| `reconciliation_cron` | `str` | `"0 * * * *"` | Cron for the Stonebranch vs Dagster state reconciliation job. |
+| `workflow` | `str` | — | Stonebranch Workflow (analog to Control-M Folder / RMJ Application). |
+| `application` | `str` | — | Business tag for the task (e.g. CORE_BANKING). |
+| `agent` | `str` | — | Stonebranch Universal Agent that runs the task (analog to Control-M Agent / RMJ Queue). |
+| `run_as` | `str` | `"svc_dagster"` | OS user Stonebranch runs the task as. |
 
 [//]: # (FIELDS:END)
 

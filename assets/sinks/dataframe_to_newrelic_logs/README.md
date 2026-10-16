@@ -16,7 +16,7 @@ Push DataFrame rows as log events to New Relic. Each row becomes one log entry; 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Asset key of upstream DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of upstream DataFrame |
 | `api_key_env_var` | `str` | Env var holding the License Key or User API Key |
 
 ### Execution

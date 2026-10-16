@@ -22,7 +22,7 @@ source column is never mutated.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with the address column. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with the address column. |
 | `address_column` | `Union[str, int]` | Source column with the single-line address string ('123 Main St, Springfield, MA 01103'). The API can also accept parsed components — see address_line_columns if you already have street/city/state split out. |
 
 ### Connection

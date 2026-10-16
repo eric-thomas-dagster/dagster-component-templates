@@ -110,7 +110,7 @@ side by side share the same upstream — both stay in lock-step).
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | `"lineage_graph"` | Upstream asset emitting the canonical lineage payload (typically from lineage_graph_extractor). |
+| `upstream_asset_key` | `Union[str, List[str]]` | `"lineage_graph"` | Upstream asset emitting the canonical lineage payload (typically from lineage_graph_extractor). |
 | `catalog_url` | `str` | `"https://api.castordoc.com/public/graphql"` | Castor/Coalesce Catalog GraphQL endpoint. EU tenants use api.castordoc.com (default); US tenants use https://api.us.castordoc.com/public/graphql. |
 | `api_token_env` | `str` | `"CASTORDOC_API_TOKEN"` | Env var holding the Castor API token (sent as `Token` header, not Bearer). |
 | `only_push_on_change` | `bool` | `true` | If true, skip the Castor calls when the upstream payload_hash matches the last successfully pushed hash. Stored as asset metadata across runs. |

@@ -41,7 +41,7 @@ For small frames or single-machine work, `polars_pipeline` is lighter weight. Fo
 | `source` | `Dict[str, Any]` | — | Top-level single-source shape: {kind: parquet\|csv\|json\|orc\|delta\|table\|jdbc\|upstream, ...} |
 | `operations` | `List[Dict[str, Any]]` | — | — |
 | `sink` | `Dict[str, Any]` | — | Top-level single-sink shape. |
-| `upstream_asset_key` | `str` | — | Only when (flat shape) source.kind='upstream'. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Only when (flat shape) source.kind='upstream'. |
 | `steps` | `List[Dict[str, Any]]` | — | Named steps. Each: {id, source: {kind: parquet\|table\|jdbc\|upstream\|ref\|..., ...}, operations: [...]} |
 | `sinks` | `List[Dict[str, Any]]` | — | Sinks. Each: {from: <step_id>, kind: parquet\|csv\|json\|delta\|table\|jdbc, path/table/url, mode}. |
 | `variables` | `Dict[str, Any]` | — | Feed-level constants available at run time via {{ vars.<key> }} in condition when: / for_each over: / SQL where relevant. Merged with prior-run `checkpoint.*` values (see checkpoint_dir). |

@@ -23,6 +23,12 @@ Also requires a `GainsightResourceComponent` on the same code location for authe
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `"gainsight_resource"` | Key of the GainsightResource this asset depends on for authentication |
+
 ### Execution
 
 | Field | Type | Default | Description |
@@ -34,23 +40,40 @@ Also requires a `GainsightResourceComponent` on the same code location for authe
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the date-window filter below already handles a multi-partition range correctly). 'multi_run' launches on… _(full docs in schema.json + component README)_ |
 | `description` | `str` | — | Asset description |
 | `group_name` | `str` | `"gainsight"` | Asset group for organization |
-| `owners` | `List[str]` | — | Asset owners — list of team names or email addresses |
+| `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:customer-success', 'user@company.com'] |
 | `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['gainsight', 'python']. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime) |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned. When time-based, modified_after/modified_before are derived from the partition window instead of the static config. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'us,eu,asia'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `select_fields` | `List[str]` | `lambda: ['Gsid', 'Name', 'Csm', 'Status', 'Stage', 'Renewal_Date', 'Health_Score']()` | Fields to select from the object. Health score / scorecard field names are org-specific custom fields in most Gainsight tenants -- confirm your actual field name (e.g. 'Health_Score__c') before relying on the default. |
+| `where_filter` | `Dict[str, Any]` | — | Raw Gainsight 'where' clause (conditions/expression) merged with any date-window filter |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"gainsight_resource"` | Key of the GainsightResource this asset depends on for authentication |
-| `object_name` | `str` | `"Company"` | Gainsight object to query |
-| `select_fields` | `List[str]` | `["Gsid", "Name", "Csm", "Status", "Stage", "Renewal_Date", "Health_Score"]` | Fields to select |
-| `where_filter` | `dict` | — | Raw Gainsight 'where' clause merged with any date-window filter |
-| `date_field` | `str` | `"Last_Modified_Date"` | Field used for the optional modified-date window filter |
-| `modified_after` / `modified_before` | `str` | — | Static date-window bounds (ISO-8601) |
+| `object_name` | `str` | `"Company"` | Gainsight object to query (e.g. 'Company', 'Relationship', or a custom object API name) |
+| `date_field` | `str` | `"Last_Modified_Date"` | Field used for the optional modified-date window filter (static or partition-derived) |
+| `modified_after` | `str` | — | Static lower bound (ISO-8601) for date_field. Ignored when a time-based partition_type is set. |
+| `modified_before` | `str` | — | Static upper bound (ISO-8601) for date_field. Ignored when a time-based partition_type is set. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
 

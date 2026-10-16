@@ -70,7 +70,7 @@ The component outputs parsed data in the specified format:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with LLM output to parse |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with LLM output to parse |
 | `parser_type` | `str` | Parser: 'json', 'csv', 'list', 'key_value', 'markdown_table', 'custom' |
 
 ### Catalog metadata

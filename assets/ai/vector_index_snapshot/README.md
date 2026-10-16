@@ -22,7 +22,7 @@ Default embedder is ChromaDB's built-in ONNX MiniLM (no API key needed). Swap to
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream document_corpus asset key (supports slash-paths for cross-loc). |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream document_corpus asset key (supports slash-paths for cross-loc). |
 | `snapshot_root_dir` | `str` | Directory that holds all snapshots. Each materialization writes a new subdir. |
 
 ### Connection

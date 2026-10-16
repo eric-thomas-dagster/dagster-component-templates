@@ -265,7 +265,7 @@ Plus one `AssetCheckResult` per audit check with pass/fail + description + metad
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Optional upstream asset passed as second arg to compute.python. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Optional upstream asset passed as second arg to compute.python. |
 | `on_pass` | `str` | `"publish"` | Publish policy on ALL checks pass: `publish` (default) or `discard`. |
 | `on_fail` | `str` | `"quarantine"` | Publish policy on ANY check fail: `quarantine` (default), `discard`, `tag_and_keep`. |
 | `quarantine` | `Dict[str, Any]` | — | Quarantine target. Filesystem: `{quarantine_path}`. SQL: `{quarantine_table}`. Iceberg: `{quarantine_tag}`. Delta: `{quarantine_uri}`. Omit to auto-derive. |

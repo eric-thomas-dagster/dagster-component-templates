@@ -84,6 +84,18 @@
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"
+    },
+    "detect_breaking_changes": {
+      "type": "boolean",
+      "label": "Detect Breaking Changes",
+      "description": "Compare current contract to the prior emission via event log. Emits `contract_breaking_change` observation on dropped columns / narrowed types / nullable→non-nullable transitions.",
+      "required": false
+    },
+    "on_breaking_change": {
+      "type": "string",
+      "label": "On Breaking Change",
+      "description": "When `detect_breaking_changes: true`, controls what happens on a breaking flag: 'warn' (default — just emit observation) or 'fail' (also raise dg.Failure and block materialization).",
+      "required": false
     }
   },
   "tags": [

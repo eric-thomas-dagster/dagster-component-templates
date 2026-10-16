@@ -11,7 +11,7 @@ Tile the bounding box of the input geometries (or an explicit bbox) into a regul
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `cell_size_meters` | `float` | Grid cell size in meters. |
 
 ### Catalog metadata

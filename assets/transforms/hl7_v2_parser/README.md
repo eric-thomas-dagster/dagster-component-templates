@@ -78,7 +78,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream DataFrame asset key.. Mutually exclusive with `source` -- set exactly one. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream DataFrame asset key.. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `message_column` | `Union[str, int]` | `"message"` | Column holding the raw HL7 v2 message (\r-delimited segments). |
 | `keep_segments` | `List[Literal['MSH', 'PID', 'OBX', 'ORC', 'OBR', 'PV1', 'EVN…` | `['MSH', 'PID', 'OBX']` | Segments to emit. Full extractors: MSH, PID, OBX, ORC, OBR, PV1, EVN, DG1, AL1. Other segments are silently skipped. |

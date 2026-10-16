@@ -85,7 +85,7 @@ any resolvable identifier are silently dropped.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | — |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | — |
 | `source` | `Dict[str, Any]` | — | Inline source config: {kind: sql\|csv\|inline, ...} |
 | `id_column` | `str` | — | Column with your customer id (Customer.io's `id` primary identifier). Preferred. |
 | `email_column` | `str` | — | Column with email (fallback identifier). Rows lacking both id_column and email are dropped. |

@@ -112,6 +112,65 @@
       "default": 25,
       "minimum": 1,
       "maximum": 500
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "description": "File / URL source shape. `{kind: file, path, format?, delimiter?}` or `{kind: url, url, format?, delimiter?}` or `{kind: upstream_asset, upstream_asset_key}`. `path`/`url` support `{partition_key}` and `{partition.<name>}` templating. Format is inferred from extension (.json / .ndjson / .csv / .parquet / .ipc / .avro) when unset. Mutually exclusive with `upstream_asset_key`.",
+      "required": false
+    },
+    "partition_type": {
+      "default": null,
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "label": "Partition Type",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "default": null,
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "label": "Partition Start Date",
+      "required": false,
+      "type": "string"
+    },
+    "partition_values": {
+      "default": null,
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "label": "Partition Values",
+      "required": false,
+      "type": "string"
+    },
+    "dynamic_partition_name": {
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "type": "string"
+    },
+    "partition_dimensions": {
+      "default": null,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "required": false,
+      "type": "array"
+    },
+    "metadata": {
+      "type": "object",
+      "label": "Metadata",
+      "description": "Asset-level metadata dict — passed straight through to `@asset(metadata=...)`. Useful for keys the IO manager reads at handle_output time (e.g. `{partition_expr: created_at}` for `DuckDBPolarsIOManagerComponent`, or `{dagster/column_schema: <schema>}` for a hand-authored schema). Kept separate from `asset_tags` — tags are for catalog filtering, metadata is arbitrary key-value data consumed by tooling.",
+      "required": false
     }
   }
 }

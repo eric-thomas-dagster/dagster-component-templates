@@ -59,7 +59,7 @@ Together they cover **both directions** of ServiceNow data movement.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key: <name>, query: <sql>} {kind: sql, database_url_env_var: <env>, query: <sql>} {kind: csv, path: <path>, read_csv_kwargs… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)

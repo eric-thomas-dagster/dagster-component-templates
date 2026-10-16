@@ -15,7 +15,7 @@ The `RedisWriterComponent` accepts an upstream DataFrame asset and writes each r
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the output asset to create |
-| `upstream_asset_key` | `str` | Asset key of the upstream DataFrame asset |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of the upstream DataFrame asset |
 | `key_column` | `Union[str, int]` | DataFrame column to use as the Redis key |
 
 ### Connection

@@ -47,8 +47,8 @@ All three object types accept `phone_numbers: [{"number": ..., "category": "work
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
 | `object_type` | `str` | Target Copper object type: 'people', 'leads', or 'companies'. |
-| `dedupe_field` | `str` | Copper field used to search for an existing record before writing (typically 'email'; MUST be present in fields_map values). Copper has no atomic upsert, so this match is emulated via search-then-write and is therefore NOT race-condition-safe under concurrent writers — see the component README. |
-| `fields_map` | `Dict[str, str]` | Upstream column → Copper field name. Special logical names 'email' and 'phone' are shaped into Copper's nested emails/email/phone_numbers structures (shape differs by object_type — see module docstring). Any other value is written as a flat top-level scalar field (e.g. 'name', 'email_domain' for companies, a custom field slug). |
+| `dedupe_field` | `str` | Copper field used to search for an existing record before writing (typically 'email'; MUST be present in fields_map values). Copper has no atomic upsert, so this match is emulated via search-then-write and is therefore N… _(full docs in schema.json + component README)_ |
+| `fields_map` | `Dict[str, str]` | Upstream column -> Copper field name. Special logical names 'email' and 'phone' are shaped into Copper's nested emails/email/phone_numbers structures (shape differs by object_type -- see module docstring). Any other valu… _(full docs in schema.json + component README)_ |
 
 ### Connection
 
@@ -76,7 +76,7 @@ All three object types accept `phone_numbers: [{"number": ..., "category": "work
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
 
 [//]: # (FIELDS:END)

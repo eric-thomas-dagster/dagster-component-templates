@@ -21,6 +21,12 @@
       "description": "Env var holding Airtable personal access token",
       "required": true,
       "ui:widget": "env_var"
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify Ssl",
+      "description": "TLS cert verification.",
+      "required": false
     }
   },
   "tags": [

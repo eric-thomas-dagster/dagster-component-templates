@@ -37,6 +37,7 @@ This asset component makes HTTP requests to REST API endpoints and materializes 
 | `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com'] |
 | `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'} |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (one full request+reshape per partition in the range, each with its own {partition_key}/{partition_date}… _(full docs in schema.json + component README)_ |
 | `deps` | `list[str]` | — | Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset']) |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
 
@@ -51,7 +52,7 @@ This asset component makes HTTP requests to REST API endpoints and materializes 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None. The partition key is exposed to api_url and params via {partition_key} (always), plus {partition_date} / {partition_date_next} for time-based partitions. |
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None. The partition key is exposed to api_url and params via {partition_key} (always), plus {partition_date} / {partition_date_next… _(full docs in schema.json + component README)_ |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_values` | `List[Union[str, int]]` | — | Values for static or multi partitioning. Accepts a YAML list (`[1, 2, 3]` or `[us, eu, asia]`) or a single comma-separated string (`'1,2,3'`). |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
@@ -87,6 +88,8 @@ This asset component makes HTTP requests to REST API endpoints and materializes 
 | `cache_results` | `bool` | `false` | Whether to cache results locally |
 | `cache_path` | `str` | — | Path to cache file (required if cache_results is True) |
 | `verify_ssl` | `bool` | `true` | Whether to verify SSL certificates |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `include_preview_metadata` | `bool` | `false` | Include sample data preview in metadata when output_format is 'dataframe' (first 5 rows as markdown table and interactive preview) |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
 | `response_path` | `str` | — | JMESPath expression selecting the array of records to iterate. Used with `column_map` to normalize a nested / heterogeneous API response into a tabular batch. Example: `output.rateReplyDetails` or `data.results[?status==… _(full docs in schema.json + component README)_ |

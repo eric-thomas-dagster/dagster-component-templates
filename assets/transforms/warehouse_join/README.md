@@ -45,6 +45,7 @@ attributes:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `resource_key` | `str` | — | Name of a registered Dagster resource to connect through (e.g. a DuckDBResource/SnowflakeResource in this project's resources.py) -- the proper Dagster pattern, tried first. Falls back to database_url/database_url_env_va… _(full docs in schema.json + component README)_ |
 | `database_url_env_var` | `str` | — | — |
 
 ### Catalog metadata

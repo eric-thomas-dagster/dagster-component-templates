@@ -212,6 +212,66 @@
       "description": "Key of a registered SQL resource (e.g. postgres_resource) to use for the destination connection instead of database_url_env_var. The resource must expose a connection_string property (e.g. PostgresResource, MongoDBResource); not all resource types do.",
       "required": false,
       "default": null
+    },
+    "endpoint_env_var": {
+      "type": "string",
+      "label": "Endpoint Env Var",
+      "description": "Env var name holding the GraphQL endpoint URL.",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "description": "Env var name holding the API key / token. Omit to disable auth.",
+      "required": false
+    },
+    "auth_header": {
+      "type": "string",
+      "label": "Auth Header",
+      "description": "HTTP header name used for the API key.",
+      "required": false
+    },
+    "auth_prefix": {
+      "type": "string",
+      "label": "Auth Prefix",
+      "description": "Prefix added before the key value, e.g. \"Bearer\". Set to \"\" for raw key.",
+      "required": false
+    },
+    "target_schema": {
+      "type": "string",
+      "label": "Target Schema",
+      "description": "Database schema to write tables into. Uses default schema if None.",
+      "required": false
+    },
+    "if_exists": {
+      "type": "string",
+      "label": "If Exists",
+      "description": "Behaviour when a table already exists: \"replace\", \"append\", or \"fail\".",
+      "required": false
+    },
+    "paginate": {
+      "type": "boolean",
+      "label": "Paginate",
+      "description": "If True, paginate results. Cursor-based pagination is attempted first (pageInfo.endCursor / pageInfo.hasNextPage). Falls back to integer page variable.",
+      "required": false
+    },
+    "page_size": {
+      "type": "integer",
+      "label": "Page Size",
+      "description": "Records per page when paginating.",
+      "required": false
+    },
+    "max_pages": {
+      "type": "integer",
+      "label": "Max Pages",
+      "description": "Maximum pages to fetch per query as a safety cap.",
+      "required": false
+    },
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset key name.",
+      "required": true
     }
   },
   "tags": [

@@ -31,7 +31,7 @@ Both additions mirror `context_engineering_pipeline`'s design, so this component
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `text_column` | `Union[str, int]` | Column containing text to classify |
-| `candidate_labels` | `List[str]` | Categories to classify into e.g. ['positive', 'negative', 'neutral'] |
+| `candidate_labels` | `List[Union[str, int]]` | Categories to classify into e.g. ['positive', 'negative', 'neutral']. Accepts int too: dagster-components runs every string attribute through Jinja2's NativeTemplate for {{ }} templating support, which coerces a purely-n… _(full docs in schema.json + component README)_ |
 
 ### Execution
 
@@ -91,7 +91,7 @@ Both additions mirror `context_engineering_pipeline`'s design, so this component
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource>, sql: <query>}. resource_key must point at a resource exposing .get_engine() (SQLAlchemy) or .get_… _(full docs in schema.json + component README)_ |
 | `llm_model` | `str` | `"gpt-4o-mini"` | litellm model name for mode='llm' (e.g. 'gpt-4o-mini', 'claude-3-5-haiku-latest', 'ollama/llama3'). |
 | `llm_api_key_env_var` | `str` | `"OPENAI_API_KEY"` | Environment variable holding the API key for mode='llm'. |

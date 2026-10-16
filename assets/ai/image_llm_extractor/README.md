@@ -17,7 +17,7 @@ The Image LLM Extractor Component sends each image to a vision-capable large lan
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `image_column` | `Union[str, int]` | Column with image file paths or URLs |
 | `extraction_fields` | `Dict[str, str]` | Mapping of column_name -> description, e.g. {'product_name': 'name of product shown', 'price': 'price if visible'} |
 

@@ -224,6 +224,17 @@
       "label": "Dynamic Partition Name",
       "type": "string",
       "required": false
+    },
+    "id_type": {
+      "type": "string",
+      "enum": [
+        "external_id",
+        "braze_id",
+        "user_alias"
+      ],
+      "label": "Id Type",
+      "description": "Which Braze primary identifier the user_id_column value maps to: `external_id` (your customer id — most common), `braze_id` (Braze's opaque id), or `user_alias` (namespaced — value should be a `{alias_name, alias_label}` dict).",
+      "required": false
     }
   },
   "tags": [

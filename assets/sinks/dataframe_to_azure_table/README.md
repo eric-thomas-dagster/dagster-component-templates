@@ -15,7 +15,7 @@ Use `azure_table_reader` to read entities back as a DataFrame.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Asset key of upstream DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of upstream DataFrame |
 | `table` | `str` | Table name (created if it doesn't exist) |
 | `partition_key_column` | `Union[str, int]` | DataFrame column that maps to PartitionKey on each entity |
 | `row_key_column` | `Union[str, int]` | DataFrame column that maps to RowKey on each entity (unique within partition) |

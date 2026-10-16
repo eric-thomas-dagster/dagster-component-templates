@@ -266,6 +266,18 @@
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "range_start": {
+      "type": "integer",
+      "label": "Range Start",
+      "description": "1-indexed inclusive start row for method='range'. e.g. 3 keeps rows 3, 4, 5, ... `Ranges=3-21` in some ETL tools maps to `range_start=3, range_end=21`.",
+      "required": false
+    },
+    "range_end": {
+      "type": "integer",
+      "label": "Range End",
+      "description": "1-indexed inclusive end row for method='range'.",
+      "required": false
     }
   },
   "tags": [

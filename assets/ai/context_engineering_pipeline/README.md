@@ -101,48 +101,63 @@ Every field name and step shape here is meant to be as readable for a human anal
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `id_column` | `str` | Column uniquely identifying each source row — threaded through to every chunk as a citation back to the source. |
-| `text_column` | `str` | Column containing the raw text to chunk. |
-| `steps` | `List[Dict]` | Ordered list of `{id, op, ...op-specific fields}` dicts. Each step's `source:` names a prior step's id to read from; if omitted, defaults to the immediately preceding step. Valid ops: `chunk` (must be first), `classify`, `embed`, `write_vector_store`. |
+| `id_column` | `Union[str, int]` | Column uniquely identifying each source row -- threaded through to every chunk as a citation back to the source. |
+| `text_column` | `Union[str, int]` | Column containing the raw text to chunk. |
+| `steps` | `List[Dict[str, Any]]` | Ordered list of {id, op, ...op-specific fields} dicts. Each step's `source:` names a prior step's id to read from; if omitted, defaults to the immediately preceding step (so you don't have to repeat `source:` on every li… _(full docs in schema.json + component README)_ |
 
-### Source (set exactly one of the two)
-
-| Field | Type | Description |
-|---|---|---|
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame of raw text rows. |
-| `source` | `Dict` | `{kind: warehouse_query, resource_key: ..., sql: ...}` — pull rows directly via SQL instead. |
-
-### Scale / execution mode
+### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `max_source_rows` | `int` | — | Safety cap on source rows processed per materialize (python mode only). Pair with partitioning to process the full corpus over multiple runs. |
-| `execution_mode` | `str` | `"python"` | `"python"` or `"sql"`. `"sql"` runs the whole chain server-side — no egress, no in-memory limit — but only for warehouses with a native AI function. |
-| `sql_dialect` | `str` | — | Required when `execution_mode: sql`. One of `snowflake_cortex`, `bigquery`, `databricks`. |
-| `output_table` | `str` | — | Required when `execution_mode: sql`. Destination table for the resulting knowledge base, in the same database. |
+| `group_name` | `str` | — | Dagster asset group name |
+| `description` | `str` | — | Asset description shown in the Dagster catalog. |
+| `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
+| `owners` | `List[str]` | — | Asset owners — list of team names or email addresses. |
+| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset. |
+| `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Auto-inferred if unset. |
+
+### Freshness
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `freshness_max_lag_minutes` | `int` | — | Maximum acceptable lag in minutes before the asset is considered stale. |
+| `freshness_cron` | `str` | — | Cron schedule string for the freshness policy. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily'/'weekly'/'monthly'/'hourly'/'static'/'dynamic'/None. |
+| `partition_start` | `str` | — | Partition start date (ISO), required for time-based types. |
+| `partition_values` | `str` | — | Comma-separated values for static partitioning. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_policy_max_retries` | `int` | — | Max retries on asset failure. Defines a RetryPolicy. |
+| `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
+| `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `output_table` | `str` | — | Required when execution_mode='sql'. Fully-qualified destination table name the final chunk/category/embedding rows are written to, in the same database (CREATE OR REPLACE TABLE ... AS ...) -- the knowledge base never leaves the warehouse. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `metadata_columns` | `List[str]` | — | Additional source columns carried onto every chunk row and written as vector-store metadata for filtered search. |
-| `group_name` | `str` | — | Dagster asset group name |
-| `description` | `str` | — | Asset description shown in the Dagster catalog. |
-| `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
-| `owners` | `List[str]` | — | Asset owners — team names or email addresses. |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset. |
-| `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Auto-inferred if unset. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset key providing a DataFrame of raw text rows. Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | Pull raw text rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource>, sql: <query>}. resource_key must point at a resource exposing .get_engine() (SQLAlchemy)… _(full docs in schema.json + component README)_ |
+| `metadata_columns` | `List[str]` | — | Additional source columns to carry forward onto every chunk row (e.g. customer_id, created_at) -- available to later steps and written as vector-store metadata for filtered search. |
+| `max_source_rows` | `int` | — | Safety cap on source rows processed per materialize (applied AFTER any SQL filtering, before chunking). A real corpus is typically far too large to process in one in-memory run -- pair this with partitioning (partition_t… _(full docs in schema.json + component README)_ |
+| `execution_mode` | `str` | `"python"` | 'python' (default): pulls rows into a DataFrame and calls chunk/classify/embed as Python/API calls -- works with every provider, but data leaves the database and the corpus must fit in memory (bound it with max_source_ro… _(full docs in schema.json + component README)_ |
+| `sql_dialect` | `str` | — | Required when execution_mode='sql'. One of: 'snowflake_cortex', 'bigquery', 'databricks'. Selects which warehouse-native AI SQL functions to emit. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata. |
-| `preview_rows` | `int` | `25` | Rows to include in the preview metadata. |
-| `retry_policy_max_retries` | `int` | — | Max retries on asset failure. |
-| `retry_policy_delay_seconds` | `int` | — | Seconds between retries. |
-| `retry_policy_backoff` | `str` | `"exponential"` | `linear` or `exponential`. |
-| `freshness_max_lag_minutes` | `int` | — | Maximum acceptable lag before the asset is considered stale. |
-| `freshness_cron` | `str` | — | Cron schedule string for the freshness policy. |
-| `partition_type` | `str` | — | `daily`/`weekly`/`monthly`/`hourly`/`static`/`dynamic`/None. |
-| `partition_start` | `str` | — | Partition start date (ISO), required for time-based types. |
-| `partition_values` | `str` | — | Comma-separated values for static partitioning. |
-| `dynamic_partition_name` | `str` | — | Name for `DynamicPartitionsDefinition`. |
+| `preview_rows` | `int` | `25` | Rows to include in the preview metadata when include_preview_metadata is True. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)
 

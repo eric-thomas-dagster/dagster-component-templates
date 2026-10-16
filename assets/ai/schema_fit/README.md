@@ -17,7 +17,7 @@ The Schema Fit Component removes the tedium of writing manual column mapping cod
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing the source DataFrame to transform |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing the source DataFrame to transform |
 | `target_schema` | `Dict[str, str]` | Target schema definition: {column_name: description} e.g. {'customer_id': 'unique customer identifier'} |
 
 ### Connection

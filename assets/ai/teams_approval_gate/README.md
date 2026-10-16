@@ -86,7 +86,7 @@ See `example.yaml`.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor. |
-| `upstream_asset_key` | `str` | Upstream asset whose text is posted to Teams for approval. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset whose text is posted to Teams for approval. |
 | `approval_dir` | `str` | Absolute path to the shared approval-token directory. Matches HumanApprovalGateComponent's `approval_dir` so the existing downstream gate + sensor pipeline just works. |
 | `teams_team_id` | `str` | Teams team id (from Teams client → team → three-dot menu → Get link). |
 | `teams_channel_id` | `str` | Teams channel id inside the team (e.g. `19:xxx@thread.tacv2`). |

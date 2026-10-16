@@ -20,7 +20,7 @@ Statistical A/B test analysis including:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with experiment data |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with experiment data |
 
 ### Catalog metadata
 

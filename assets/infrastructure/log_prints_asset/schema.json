@@ -73,6 +73,18 @@
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"
+    },
+    "route_levels": {
+      "type": "boolean",
+      "label": "Route Levels",
+      "description": "If True (default), captured lines starting with `INFO:` / `WARN:` / `WARNING:` / `ERROR:` / `DEBUG:` route to `context.log.<level>()`. Case-insensitive; the prefix is stripped from the emitted message. Unmatched lines fall back to `.info` for stdout and `.warning` for stderr.",
+      "required": false
+    },
+    "capture_stderr": {
+      "type": "boolean",
+      "label": "Capture Stderr",
+      "description": "If True, also redirect `sys.stderr` into `context.log`. Stderr lines default to `context.log.warning` (or level-routed when `route_levels=True`). Default False (stdout only).",
+      "required": false
     }
   },
   "tags": [

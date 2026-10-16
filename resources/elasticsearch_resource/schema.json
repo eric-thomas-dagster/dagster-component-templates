@@ -88,6 +88,18 @@
       "label": "Verify Certs",
       "required": false,
       "default": true
+    },
+    "api_key": {
+      "type": "string",
+      "label": "Api Key",
+      "description": "Elasticsearch API key (literal). Set this OR api_key_env_var. Mutually exclusive with username/password.",
+      "required": false
+    },
+    "password": {
+      "type": "string",
+      "label": "Password",
+      "description": "Elasticsearch password (literal). Set this OR password_env_var.",
+      "required": false
     }
   }
 }

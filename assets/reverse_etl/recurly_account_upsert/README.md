@@ -53,7 +53,7 @@ So a real "upsert" from this component's perspective requires, per row:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `batch_size` | `int` | `5000` | Max upstream rows per run (safety cap). Recurly's PUT /accounts/{account_id} only updates (404s if absent) -- every row costs one existence-check GET plus one write. |
+| `batch_size` | `int` | `5000` | Max upstream rows per run (safety cap). Recurly's PUT /accounts/ {account_id} only updates (404s if absent) -- every row costs one existence-check GET plus one write. |
 
 ### Catalog metadata
 
@@ -69,7 +69,7 @@ So a real "upsert" from this component's perspective requires, per row:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
 | `lookup_field` | `str` | `"code"` | Recurly Account field used as the merchant-assigned unique account code (substituted into the `code-<value>` path segment). MUST be present in fields_map values. |
 

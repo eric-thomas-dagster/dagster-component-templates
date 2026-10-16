@@ -73,7 +73,7 @@ either way), just paid at query time instead of IO-manager read time.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream DataFrame. Mutually exclusive with `source` -- set exactly one. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream DataFrame. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` --… _(full docs in schema.json + component README)_ |
 | `default_asset_name` | `str` | — | Name for the catch-all asset (rows that didn't match any condition) |
 | `exclusive` | `bool` | `true` | If True, each row goes to exactly one route (first match). If False, a row may appear in multiple routes (overlapping conditions). |

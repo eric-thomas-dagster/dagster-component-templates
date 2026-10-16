@@ -20,7 +20,7 @@ In a RAG or semantic-search pipeline:
 |---|---|---|
 | `asset_name` | `str` | Dagster asset key for this component. |
 | `collection_name` | `str` | ChromaDB collection to get-or-create and upsert documents into. |
-| `upstream_asset_key` | `str` | Asset key of the upstream asset providing a pandas DataFrame with document text and optional metadata columns. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of the upstream asset providing a pandas DataFrame with document text and optional metadata columns. |
 | `id_column` | `Union[str, int]` | Primary key column. Values are cast to strings and used as ChromaDB document IDs. |
 | `text_column` | `Union[str, int]` | Column containing the document text to embed. |
 

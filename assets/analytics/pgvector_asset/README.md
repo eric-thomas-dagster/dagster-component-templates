@@ -19,7 +19,7 @@ In a typical RAG or semantic-search pipeline:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset key for this component. |
-| `upstream_asset_key` | `str` | Asset key of the upstream asset providing a pandas DataFrame with at least the columns referenced by ``id_column`` and ``text_column``. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of the upstream asset providing a pandas DataFrame with at least the columns referenced by ``id_column`` and ``text_column``. |
 | `id_column` | `Union[str, int]` | Primary key column in the upstream DataFrame. Used as the embedding row ID. |
 | `text_column` | `Union[str, int]` | Column containing the raw text to embed. |
 | `database_url_env_var` | `str` | Env var containing a PostgreSQL connection string compatible with psycopg2 and the pgvector extension (e.g. ``postgresql://user:pass@host:5432/db``). |

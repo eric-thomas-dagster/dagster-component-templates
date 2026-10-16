@@ -11,7 +11,7 @@ Stack two or more upstream DataFrame assets vertically, equivalent to SQL UNION 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_keys` | `List[str]` | List of asset keys to union |
+| `upstream_asset_keys` | `Union[str, List[str]]` | List of asset keys to union |
 
 ### Catalog metadata
 

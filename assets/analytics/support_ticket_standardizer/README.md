@@ -139,7 +139,7 @@ Standardized support ticket data:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream asset containing raw platform data (automatically set via lineage) |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset containing raw platform data (automatically set via lineage) |
 | `ticket_id_field` | `str` | — | Field name for ticket ID (auto-detected if not provided) |
 | `status_field` | `str` | — | Field name for status (auto-detected if not provided) |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |

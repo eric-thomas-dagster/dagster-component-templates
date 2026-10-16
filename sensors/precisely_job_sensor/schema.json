@@ -65,6 +65,25 @@
       "required": false,
       "default": "running",
       "enum": ["running", "stopped"]
+    },
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Optional Dagster asset key. When set, the sensor also emits AssetMaterialization (or AssetObservation — see asset_event_type) for this key on terminal SUCCESS — which lights up the matching external_precisely_job asset in the catalog. Use '/' separators for nested keys, e.g. 'precisely/etl/load_customers'.",
+      "required": false
+    },
+    "asset_event_type": {
+      "type": "string",
+      "label": "Asset Event Type",
+      "description": "What kind of asset event to emit on terminal SUCCESS: 'materialization' (default — lights up the materialization history, what you want for jobs Dagster doesn't run itself) or 'observation' (emits AssetObservation instead — better when you want the materialization timeline reserved for assets Dagster materializes itself, and Precisely runs to be observability data alongside).",
+      "required": false
+    },
+    "emit_materialization": {
+      "default": true,
+      "description": "When True (default), the sensor emits AssetMaterialization. When False, emits AssetObservation instead. Only used when create_observation_sensor=True.",
+      "label": "Emit Materialization",
+      "required": false,
+      "type": "boolean"
     }
   },
   "tags": [

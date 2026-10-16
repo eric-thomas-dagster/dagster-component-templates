@@ -15,7 +15,7 @@ Asset check that emits OpenLineage START/COMPLETE events to OL-compatible backen
 | Field | Type | Description |
 |---|---|---|
 | `check_name` | `str` | Asset check name |
-| `upstream_asset_key` | `str` | Asset whose materialization triggers an OL event |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset whose materialization triggers an OL event |
 | `openlineage_url` | `str` | OL backend endpoint (e.g. 'https://marquez.acme.com/api/v1/lineage') |
 
 ### Execution

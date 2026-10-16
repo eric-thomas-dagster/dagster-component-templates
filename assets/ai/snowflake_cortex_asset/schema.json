@@ -152,6 +152,120 @@
       "label": "Partition Static Column",
       "required": false,
       "x-dagster-widget": "column"
+    },
+    "snowflake_account_env_var": {
+      "type": "string",
+      "label": "Snowflake Account Env Var",
+      "description": "Env var name holding the Snowflake account identifier.",
+      "required": false
+    },
+    "snowflake_user_env_var": {
+      "type": "string",
+      "label": "Snowflake User Env Var",
+      "description": "Env var name holding the Snowflake username.",
+      "required": false
+    },
+    "snowflake_password_env_var": {
+      "type": "string",
+      "label": "Snowflake Password Env Var",
+      "description": "Env var name holding the Snowflake password. Leave None / empty when using SSO or keypair.",
+      "required": false
+    },
+    "snowflake_authenticator": {
+      "type": "string",
+      "label": "Snowflake Authenticator",
+      "description": "Snowflake authenticator: 'SNOWFLAKE_JWT' (keypair), 'externalbrowser' (SSO), 'oauth', etc.",
+      "required": false
+    },
+    "snowflake_private_key_file_env_var": {
+      "type": "string",
+      "label": "Snowflake Private Key File Env Var",
+      "description": "Env var holding the path to a PEM RSA private key file (for snowflake_authenticator='SNOWFLAKE_JWT').",
+      "required": false
+    },
+    "snowflake_private_key_file_pwd_env_var": {
+      "type": "string",
+      "label": "Snowflake Private Key File Pwd Env Var",
+      "description": "Env var holding the passphrase for an encrypted private key file (optional).",
+      "required": false
+    },
+    "snowflake_token_env_var": {
+      "type": "string",
+      "label": "Snowflake Token Env Var",
+      "description": "Env var holding an OAuth / PAT token (with snowflake_authenticator='oauth' or PAT).",
+      "required": false
+    },
+    "snowflake_database": {
+      "type": "string",
+      "label": "Snowflake Database",
+      "description": "Snowflake database name.",
+      "required": true
+    },
+    "snowflake_schema": {
+      "type": "string",
+      "label": "Snowflake Schema",
+      "description": "Snowflake schema name.",
+      "required": false
+    },
+    "snowflake_warehouse": {
+      "type": "string",
+      "label": "Snowflake Warehouse",
+      "description": "Snowflake virtual warehouse to use. Uses the user default if None.",
+      "required": false
+    },
+    "source_table": {
+      "type": "string",
+      "label": "Source Table",
+      "description": "Source table name (fully qualified or relative to database/schema).",
+      "required": true
+    },
+    "target_table": {
+      "type": "string",
+      "label": "Target Table",
+      "description": "Target table where enriched results are written.",
+      "required": true
+    },
+    "cortex_function": {
+      "type": "string",
+      "label": "Cortex Function",
+      "description": "Cortex function to apply: COMPLETE, CLASSIFY_TEXT, SENTIMENT, SUMMARIZE, TRANSLATE, or EXTRACT_ANSWER.",
+      "required": false
+    },
+    "prompt_template": {
+      "type": "string",
+      "label": "Prompt Template",
+      "description": "For COMPLETE: prompt template with a {text} placeholder. E.g. 'Summarize this in one sentence: {text}'",
+      "required": false
+    },
+    "translate_target_language": {
+      "type": "string",
+      "label": "Translate Target Language",
+      "description": "For TRANSLATE: BCP-47 language code, e.g. \"en\", \"fr\", \"de\".",
+      "required": false
+    },
+    "extract_answer_question": {
+      "type": "string",
+      "label": "Extract Answer Question",
+      "description": "For EXTRACT_ANSWER: the question to answer from the text.",
+      "required": false
+    },
+    "if_exists": {
+      "type": "string",
+      "label": "If Exists",
+      "description": "Table write mode: \"replace\" (CREATE OR REPLACE) or \"append\" (INSERT INTO).",
+      "required": false
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "description": "Row batch size for logging progress (does not affect SQL execution).",
+      "required": false
+    },
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset key name.",
+      "required": true
     }
   },
   "tags": [

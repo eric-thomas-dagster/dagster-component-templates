@@ -20,7 +20,7 @@ DataFrame-producing asset (e.g. `synthetic_data_generator`,
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Asset key of upstream DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of upstream DataFrame |
 | `connection_string_env_var` | `str` | Env var holding the Event Hubs namespace or hub-scoped connection string |
 | `eventhub_name` | `str` | Event Hub name (the entity inside the namespace) |
 

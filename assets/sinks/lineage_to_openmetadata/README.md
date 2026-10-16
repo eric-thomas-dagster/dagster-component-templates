@@ -120,7 +120,7 @@ Then in OpenMetadata Web → **Explore → Database Services → Dagster** — e
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | `"lineage_graph"` | Upstream asset emitting the canonical lineage payload (from lineage_graph_extractor). |
+| `upstream_asset_key` | `Union[str, List[str]]` | `"lineage_graph"` | Upstream asset emitting the canonical lineage payload (from lineage_graph_extractor). |
 | `catalog_url` | `str` | `"https://openmetadata.example.com"` | OpenMetadata host (e.g. https://openmetadata.acme.com). /api/v1/... is appended. |
 | `api_token_env` | `str` | `"OPENMETADATA_API_TOKEN"` | Env var holding the JWT bearer token. Generate one in OM under Settings → Bots. |
 | `service_name` | `str` | `"dagster"` | OpenMetadata DatabaseService name to ensure-exist + parent the asset graph under. |

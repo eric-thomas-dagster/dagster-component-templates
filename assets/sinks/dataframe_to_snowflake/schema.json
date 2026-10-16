@@ -275,6 +275,30 @@
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "authenticator": {
+      "type": "string",
+      "label": "Authenticator",
+      "description": "Snowflake authenticator: 'SNOWFLAKE_JWT' (keypair), 'externalbrowser' (SSO), 'oauth', etc.",
+      "required": false
+    },
+    "private_key_file_env_var": {
+      "type": "string",
+      "label": "Private Key File Env Var",
+      "description": "Env var holding the path to a PEM RSA private key file (for authenticator='SNOWFLAKE_JWT').",
+      "required": false
+    },
+    "private_key_file_pwd_env_var": {
+      "type": "string",
+      "label": "Private Key File Pwd Env Var",
+      "description": "Env var holding the passphrase for an encrypted private key file (optional).",
+      "required": false
+    },
+    "token_env_var": {
+      "type": "string",
+      "label": "Token Env Var",
+      "description": "Env var holding an OAuth / PAT token (with authenticator='oauth' or PAT).",
+      "required": false
     }
   },
   "tags": [

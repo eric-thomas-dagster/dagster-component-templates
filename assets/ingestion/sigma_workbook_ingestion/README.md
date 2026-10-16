@@ -22,6 +22,12 @@ Also requires a `SigmaResourceComponent` on the same code location for authentic
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `"sigma_resource"` | Key of the SigmaResource this asset depends on for authentication |
+
 ### Catalog metadata
 
 | Field | Type | Default | Description |
@@ -52,7 +58,6 @@ Also requires a `SigmaResourceComponent` on the same code location for authentic
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"sigma_resource"` | Key of the SigmaResource this asset depends on for authentication |
 | `workbook_limit` | `int` | `500` | Maximum number of workbooks to catalog across all pages |
 | `page_limit` | `int` | `100` | Page size for both the workbooks and elements list calls (Sigma caps `limit` at 1,000). |
 | `include_elements` | `bool` | `true` | If true (default), fetch each workbook's elements via `GET /v2/workbooks/{id}/elements` (one extra paginated call per workbook) and emit one row per (workbook, element). If false, emit one row per workbook with element f… _(full docs in schema.json + component README)_ |

@@ -21,6 +21,12 @@ Requires a `SupabaseResource` (see `resources/supabase_resource`) providing the 
 | `sensor_name` | `str` | Unique name for this sensor |
 | `bucket_name` | `str` | Supabase Storage bucket to monitor |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `"supabase_resource"` | Resource key of the SupabaseResource providing the client. |
+
 ### Execution
 
 | Field | Type | Default | Description |
@@ -45,7 +51,6 @@ Requires a `SupabaseResource` (see `resources/supabase_resource`) providing the 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"supabase_resource"` | Resource key of the SupabaseResource providing the client. |
 | `dynamic_partition_name` | `str` | — | Optional name of a DynamicPartitionsDefinition. When set, each new object path is registered as a dynamic partition and RunRequests are keyed on the object path. |
 
 [//]: # (FIELDS:END)

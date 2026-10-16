@@ -21,6 +21,18 @@
       "description": "Env var holding Stripe secret key (sk_live_... or sk_test_...)",
       "required": true,
       "ui:widget": "env_var"
+    },
+    "api_base_url": {
+      "type": "string",
+      "label": "Api Base Url",
+      "description": "API base URL (override for mocks / edge locations).",
+      "required": false
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify Ssl",
+      "description": "TLS cert verification.",
+      "required": false
     }
   },
   "tags": [

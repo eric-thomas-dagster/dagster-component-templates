@@ -15,7 +15,7 @@ The Time Series Model Factory Component is designed for multi-entity forecasting
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `date_column` | `Union[str, int]` | Column containing dates or timestamps |
 | `value_column` | `Union[str, int]` | Column containing numeric time series values |
 | `group_column` | `Union[str, int]` | Column identifying each group/entity (e.g. product_id, store_id) |

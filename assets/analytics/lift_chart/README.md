@@ -11,7 +11,7 @@ Compute a decile lift/gains chart from actual binary labels and predicted probab
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with actual labels and predicted probabilities |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with actual labels and predicted probabilities |
 | `actual_column` | `Union[str, int]` | Binary target column (0/1) |
 | `predicted_proba_column` | `Union[str, int]` | Predicted probability column |
 

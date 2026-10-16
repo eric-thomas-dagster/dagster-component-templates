@@ -15,7 +15,7 @@ The `GeocoderComponent` iterates over an address column in a DataFrame and uses 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with address data |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with address data |
 | `address_column` | `Union[str, int]` | Column with full address strings to geocode |
 
 ### Connection

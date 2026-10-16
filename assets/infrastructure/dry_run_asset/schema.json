@@ -73,6 +73,18 @@
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"
+    },
+    "cost_fn": {
+      "type": "string",
+      "label": "Cost Fn",
+      "description": "Optional 'mod:fn' reference to a callable `(context, elapsed_s, result) -> usd`. When set, the dry-run observation surfaces `estimated_cost_usd` — see what the run would cost without paying.",
+      "required": false
+    },
+    "diff_vs_current": {
+      "type": "boolean",
+      "label": "Diff Vs Current",
+      "description": "When True and dry-run is enabled, compare the discarded output against the latest committed asset value. Emits `dry_run_diff` observation metadata (row_count_delta, column_delta, sample_value_diffs). Silent no-op if no prior materialization exists.",
+      "required": false
     }
   },
   "tags": [

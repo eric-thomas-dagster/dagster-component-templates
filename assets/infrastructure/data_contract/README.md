@@ -393,7 +393,7 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Optional upstream asset passed to compute. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Optional upstream asset passed to compute. |
 | `on_violation` | `str` | `"block"` | 'block' (default) raises dg.Failure on any check fail — asset does not materialize. 'warn' materializes anyway; downstream can block via AutomationCondition.eager() on the failing check. |
 | `detect_breaking_changes` | `bool` | `false` | Compare current contract to the prior emission via event log. Emits `contract_breaking_change` observation on dropped columns / narrowed types / nullable→non-nullable transitions. |
 | `on_breaking_change` | `str` | `"warn"` | When `detect_breaking_changes: true`, controls what happens on a breaking flag: 'warn' (default — just emit observation) or 'fail' (also raise dg.Failure and block materialization). |

@@ -50,7 +50,7 @@ One recipient's send failing (unsubscribed device, invalid id, etc.) is caught a
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
 | `recipient_column` | `str` | Upstream column holding the target OneSignal Subscription ID (device-level id; current API field -- replaces the deprecated 'Player ID'). |
-| `message_template` | `str` | Push notification body ('contents') template. Supports `{column_name}` substitution from other upstream row columns, e.g. '{first_name}, your cart has {item_count} item(s) waiting.'. A missing column renders as empty string rather than failing the row. |
+| `message_template` | `str` | Push notification body ('contents') template. Supports `{column_name}` substitution from other upstream row columns, e.g. '{first_name}, your cart has {item_count} item(s) waiting.'. A missing column renders as empty str… _(full docs in schema.json + component README)_ |
 
 ### Connection
 
@@ -62,7 +62,6 @@ One recipient's send failing (unsubscribed device, invalid id, etc.) is caught a
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `heading_template` | `str` | — | Push notification title ('headings') template (same `{column_name}` substitution as message_template). Optional. |
 | `batch_size` | `int` | `1000` | Max upstream rows per run (safety cap). Each row is one real push send -- this is NOT a throughput/rate-limit control, it's a blast-radius cap. Configure it deliberately; this component does not add its own rate-limiting beyond this cap. |
 
 ### Catalog metadata
@@ -74,5 +73,13 @@ One recipient's send failing (unsubscribed device, invalid id, etc.) is caught a
 | `owners` | `List[str]` | — | Asset owners. |
 | `tags` | `Dict[str, str]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'onesignal'). |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
+| `heading_template` | `str` | — | Push notification title ('headings') template (same `{column_name}` substitution as message_template). Optional. |
 
 [//]: # (FIELDS:END)

@@ -11,7 +11,7 @@ Takes a DataFrame of users and assigns each to a variant using a stable hash of 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `user_id_column` | `Union[str, int]` | Column with user IDs. |
 | `experiment_id` | `str` | Experiment identifier (used in the hash so the same user can be in different splits across experiments). |
 

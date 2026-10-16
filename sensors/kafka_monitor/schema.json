@@ -109,6 +109,25 @@
         "running"
       ],
       "ui:widget": "select"
+    },
+    "op_name": {
+      "type": "string",
+      "label": "Op Name",
+      "description": "Op name to key the run_config under. Emitted as `{'ops': {op_name: {'config': {...}}}}`. Defaults to 'config' for backward compat, but if the target job's op is not named 'config' (e.g. an @asset or @multi_asset with a custom name), set this to the actual op name — otherwise Dagster rejects the run config with 'Received unexpected config entry \"config\" at path root:ops'.",
+      "required": false
+    },
+    "source_asset_key": {
+      "type": "string",
+      "label": "Source Asset Key",
+      "description": "Optional asset key (e.g. 'kafka_user_events') to receive an AssetObservation on every tick that yields new messages. Metadata includes topic, new_messages, last_event_id, last_event_ts — lets an observable-source asset in the graph show a live timeline of message arrivals in the Dagster UI.",
+      "required": false
+    },
+    "emit_materialization": {
+      "default": true,
+      "description": "When True (default), the sensor emits AssetMaterialization. When False, emits AssetObservation instead. Only used when create_observation_sensor=True.",
+      "label": "Emit Materialization",
+      "required": false,
+      "type": "boolean"
     }
   },
   "tags": [

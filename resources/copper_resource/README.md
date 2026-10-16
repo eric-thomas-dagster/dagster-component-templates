@@ -55,8 +55,13 @@ Per Copper's own documentation: **180 requests/minute**, evaluated on a rolling 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `request_timeout_seconds` | `int` | `60` | Per-request timeout in seconds. |
 | `max_retries` | `int` | `3` | Retry attempts on 429 / 5xx (exponential backoff, honors Retry-After). |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `request_timeout_seconds` | `int` | `60` | Per-request timeout in seconds. |
 
 [//]: # (FIELDS:END)
 

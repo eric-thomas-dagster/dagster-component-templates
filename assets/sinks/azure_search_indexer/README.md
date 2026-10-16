@@ -15,7 +15,7 @@ Use `azure_search_query` to run search queries (text / vector / semantic) and ge
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Asset key of upstream DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of upstream DataFrame |
 | `endpoint` | `str` | Azure AI Search endpoint URL, e.g. 'https://my-search.search.windows.net' |
 | `index_name` | `str` | Target search index (must already exist) |
 

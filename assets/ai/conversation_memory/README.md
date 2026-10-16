@@ -76,7 +76,7 @@ The component outputs a dictionary with complete conversation memory:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with message columns |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with message columns |
 | `memory_file` | `str` | Path to memory file |
 
 ### Execution

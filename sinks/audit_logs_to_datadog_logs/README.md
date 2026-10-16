@@ -15,7 +15,7 @@ Ship audit-log DataFrame to Datadog Logs via /api/v2/logs.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key — events to ship |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset key — events to ship |
 
 ### Execution
 
@@ -66,6 +66,8 @@ Ship audit-log DataFrame to Datadog Logs via /api/v2/logs.
 | `ddsource` | `str` | `"dagster"` | ddsource attribute |
 | `ddtags` | `str` | — | Comma-separated tags (env:prod,team:security) |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
+| `include_preview_metadata` | `bool` | `false` | Include a markdown preview of the shipped rows in the materialization metadata. |
+| `preview_rows` | `int` | `25` | Max rows to include in the preview when include_preview_metadata is True. |
 
 [//]: # (FIELDS:END)
 

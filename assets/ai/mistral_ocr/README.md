@@ -34,7 +34,7 @@ Set `input_kind: document` or `input_kind: image` to force the classification in
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset key. |
 | `input_column` | `Union[str, int]` | Column holding either a public http(s) URL or a local file path to the document/image to OCR. |
 
 ### Connection

@@ -96,7 +96,7 @@ Sigma documents a hard cap of **2,000 rows per Insert row(s) action** when fed f
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
 | `rows_parameter_name` | `str` | `"rows"` | JSON key of the array-type webhook parameter that receives the row objects -- must match the parameter name configured on the webhook trigger in Sigma exactly (webhook parameter names are user-defined at configuration time). |
 | `static_parameters` | `Dict[str, Any]` | — | Extra scalar webhook parameters sent on every call alongside rows_parameter_name (e.g. a batch marker), if your webhook trigger defines any beyond the rows array. |

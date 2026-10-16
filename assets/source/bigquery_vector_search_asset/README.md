@@ -88,7 +88,7 @@ query_id_column: query_id
 | `top_k` | `int` | `5` | Number of neighbors to return per query vector. |
 | `distance_type` | `Literal['COSINE', 'EUCLIDEAN', 'DOT_PRODUCT']` | `"COSINE"` | — |
 | `query_vectors` | `List[List[float]]` | — | Static mode: inline list of query vectors. One row of results per vector. |
-| `upstream_asset_key` | `str` | — | From-upstream mode: asset key of an upstream DataFrame holding query vectors. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | From-upstream mode: asset key of an upstream DataFrame holding query vectors. |
 | `query_vector_column` | `Union[str, int]` | — | From-upstream mode: column in upstream containing the embedding vector. |
 | `query_id_column` | `Union[str, int]` | — | Optional column in upstream to carry forward as `query_id` in results. |
 | `use_brute_force` | `bool` | `false` | If True, force exhaustive scan (no index). Use only for small tables or correctness validation. |

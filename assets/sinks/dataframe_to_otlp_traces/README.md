@@ -13,7 +13,7 @@ See schema.json for full attribute reference.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Asset key of upstream DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of upstream DataFrame |
 | `endpoint` | `str` | OTLP/HTTP endpoint base URL |
 | `span_name_column` | `Union[str, int]` | Column whose value becomes the span name |
 

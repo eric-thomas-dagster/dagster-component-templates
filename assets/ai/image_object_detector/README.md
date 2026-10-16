@@ -15,7 +15,7 @@ The Image Object Detector Component uses HuggingFace's `transformers` object-det
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `image_column` | `Union[str, int]` | Column with image file paths or URLs |
 
 ### Catalog metadata

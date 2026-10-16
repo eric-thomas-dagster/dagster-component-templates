@@ -37,7 +37,7 @@ attributes:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name (summary row). |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset key. |
 | `host` | `str` | SMTP server hostname. |
 | `username_env_var` | `str` | Env var with SMTP username. |
 | `password_env_var` | `str` | Env var with SMTP password (Gmail: app password). |

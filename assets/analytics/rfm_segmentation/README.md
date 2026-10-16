@@ -136,7 +136,7 @@ Returns a DataFrame with one row per customer and their RFM analysis:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Source asset with transaction data (set via lineage in Dagster Designer) |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Source asset with transaction data (set via lineage in Dagster Designer) |
 | `scoring_method` | `Literal['quintile', 'quartile']` | `"quintile"` | Scoring method: quintile (1-5) or quartile (1-4) |
 | `lookback_days` | `int` | `365` | Number of days to look back for transaction data |
 | `customer_id_field` | `str` | — | Customer ID column name (auto-detected if not specified) |

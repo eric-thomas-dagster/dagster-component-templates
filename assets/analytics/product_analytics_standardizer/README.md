@@ -139,7 +139,7 @@ Standardized product analytics metrics:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream asset containing raw platform data (automatically set via lineage) |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset containing raw platform data (automatically set via lineage) |
 | `date_field` | `str` | — | Field name for date (auto-detected if not provided) |
 | `event_name_field` | `str` | — | Field name for event name (auto-detected if not provided) |
 | `user_id_field` | `str` | — | Field name for user ID (auto-detected if not provided) |

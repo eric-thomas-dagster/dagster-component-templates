@@ -15,7 +15,7 @@ The `DynamodbWriterComponent` accepts an upstream DataFrame asset and writes its
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the output asset to create |
-| `upstream_asset_key` | `str` | Asset key of the upstream DataFrame asset |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of the upstream DataFrame asset |
 | `table` | `str` | DynamoDB table name |
 
 ### Catalog metadata

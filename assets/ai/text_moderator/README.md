@@ -17,7 +17,7 @@ The Text Moderator Component provides comprehensive content moderation and safet
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset that will hold moderated content |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with text to moderate |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with text to moderate |
 
 ### Connection
 

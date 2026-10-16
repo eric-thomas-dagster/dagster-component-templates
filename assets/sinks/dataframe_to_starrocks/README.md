@@ -13,7 +13,7 @@ Bulk-ingest a Pandas DataFrame into StarRocks via Stream Load (HTTP PUT). Mirror
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
-| `upstream_asset_key` | `str` | Upstream asset providing the DataFrame. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset providing the DataFrame. |
 | `table` | `str` | Destination StarRocks table name. |
 | `database` | `str` | Destination StarRocks database. |
 

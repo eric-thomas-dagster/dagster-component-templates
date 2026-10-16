@@ -65,7 +65,7 @@ You will also need the appropriate SQLAlchemy dialect driver for your source dat
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset key name. |
-| `upstream_asset_key` | `str` | Asset key of the upstream asset providing a pandas DataFrame. In ``log_metrics`` mode, each row is logged as a W&B run step. In ``log_artifact`` mode, this field is used for lineage only. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of the upstream asset providing a pandas DataFrame. In ``log_metrics`` mode, each row is logged as a W&B run step. In ``log_artifact`` mode, this field is used for lineage only. |
 | `project` | `str` | W&B project name to log runs into. |
 
 ### Catalog metadata

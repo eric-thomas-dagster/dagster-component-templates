@@ -15,7 +15,7 @@ This component receives a DataFrame from an upstream Dagster asset and loads it 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `table_id` | `str` | Full BigQuery table ID in the form project.dataset.table |
 
 ### Catalog metadata

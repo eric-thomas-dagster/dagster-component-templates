@@ -13,7 +13,7 @@ See schema.json for full attribute reference.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Asset key of upstream DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of upstream DataFrame |
 | `endpoint` | `str` | OTLP/HTTP endpoint base URL, e.g. 'http://localhost:4318' (OTel collector default), 'https://api.honeycomb.io', 'https://otlp.eu01.nr-data.net'. |
 | `metric_name` | `str` | OTel metric name (dot-namespaced, e.g. 'orders.processed.total') |
 | `value_column` | `Union[str, int]` | DataFrame column with numeric metric values |

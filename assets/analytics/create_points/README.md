@@ -11,7 +11,7 @@ Takes a DataFrame with lat/lng columns and returns a GeoDataFrame with a `geomet
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 
 ### Catalog metadata
 

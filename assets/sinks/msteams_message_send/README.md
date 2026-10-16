@@ -52,14 +52,13 @@ into the other).
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name (summary row). |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset key. |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | — | Resource key registered by an MSTeamsResourceComponent. Takes priority over webhook_url_env_var when both are set. |
-| `webhook_url_env_var` | `str` | — | Env var with the Teams incoming-webhook URL. Used when resource_key is not set. |
 
 ### Catalog metadata
 
@@ -103,8 +102,9 @@ into the other).
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `webhook_url_env_var` | `str` | — | Env var with the Teams incoming-webhook URL. Used when resource_key is not set. |
 | `title_template` | `str` | — | Card title, with `{column}` placeholders. Optional — omitted if unset. |
-| `message_template` | `str` | `""` | Card body text, with `{column}` placeholders. |
+| `message_template` | `str` | — | Card body text, with `{column}` placeholders. |
 | `summary_template` | `str` | — | For mode='summary', a template rendered against the whole DataFrame's row summary (use `{row_count}` / `{table_md}`, a markdown table of up to 50 rows). |
 | `dry_run` | `bool` | `false` | If True, render and log every message but don't post to Teams. Use for staging. |
 | `max_send` | `int` | — | Hard cap on messages sent per run. None = no limit. |

@@ -62,7 +62,7 @@ Not exhaustive — add whatever your fleet actually needs. The point is picking 
 | `version` | `str` | `"1.0.0"` | Agent version, A2A field name kept as-is. |
 | `default_input_modes` | `List[str]` | — | Default input MIME types (real A2A AgentCard field -- required there, optional here). delegate drops this card for a step whose input_mode isn't in this list; leave unset to never be excluded on this basis. |
 | `default_output_modes` | `List[str]` | — | Default output MIME types (real A2A AgentCard field). |
-| `capabilities` | `List[str]` | — | This project's OWN verb taxonomy -- NOT part of the A2A or MCP standard. Freeform strings describing WHAT KIND of action this agent can perform (e.g. critique, supervise, triage, translate, summarize, classify, lookup, extract, gen… _(full docs in schema.json + component README)_ |
+| `capabilities` | `List[str]` | — | Our OWN verb taxonomy -- NOT part of the A2A or MCP standard. Freeform strings describing WHAT KIND of action this agent can perform (e.g. critique, supervise, triage, translate, summarize, classify, lookup, extract, gen… _(full docs in schema.json + component README)_ |
 | `asset_key_prefix` | `List[str]` | — | Prefix for the emitted asset key. |
 
 [//]: # (FIELDS:END)

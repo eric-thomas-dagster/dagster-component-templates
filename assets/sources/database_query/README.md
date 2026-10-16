@@ -69,6 +69,7 @@ Run SQL queries against any SQLAlchemy-compatible database and materialize the r
 | `cache_to_parquet` | `bool` | `false` | Whether to cache results to parquet file |
 | `cache_path` | `str` | — | Path to parquet cache file (required if cache_to_parquet is True) |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `sinks` | `List[Dict[str, Any]]` | — | Optional list of sinks that write the queried DataFrame to a warehouse table via an existing Dagster resource, in addition to returning the DataFrame -- skips needing a separate downstream writer asset. Each: {kind: tabl… _(full docs in schema.json + component README)_ |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
 

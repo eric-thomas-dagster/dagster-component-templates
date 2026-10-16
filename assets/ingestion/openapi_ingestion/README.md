@@ -88,6 +88,7 @@ You will also need the appropriate SQLAlchemy dialect driver for your destinatio
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | `"openapi"` | — |
+| `backfill_policy` | `str` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run: each tag asset's full result set is fetched once (as always) and then filtered down to the whole range v… _(full docs in schema.json + component README)_ |
 
 ### Partitions
 
@@ -95,6 +96,7 @@ You will also need the appropriate SQLAlchemy dialect driver for your destinatio
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key is exposed via context.partition_key for use in filtering / templating. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set. |
+| `partition_date_column` | `str` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 
 ### Retry policy
 
@@ -123,6 +125,7 @@ You will also need the appropriate SQLAlchemy dialect driver for your destinatio
 | `include_tags` | `list` | — | — |
 | `exclude_tags` | `list` | — | — |
 | `max_pages` | `int` | `100` | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

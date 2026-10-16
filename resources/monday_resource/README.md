@@ -22,9 +22,19 @@ pip install requests
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"monday_resource"` | Key used to register this resource. Other components reference it via resource_key. |
-| `api_url` | `str` | `"https://api.monday.com/v2"` | monday.com GraphQL endpoint |
+| `resource_key` | `str` | `"monday_resource"` | Dagster resource key |
+
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
 | `api_version` | `str` | `"2026-07"` | monday.com API version sent via the 'API-Version' header |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `api_url` | `str` | `"https://api.monday.com/v2"` | monday.com GraphQL endpoint |
 
 [//]: # (FIELDS:END)
 

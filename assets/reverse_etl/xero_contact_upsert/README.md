@@ -70,9 +70,9 @@ Only **flat** Contact fields are supported in `fields_map` (e.g. `Name`, `EmailA
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
-| `lookup_field` | `str` | `"Name"` | Xero Contact field used to find an existing record via a where= filter query. MUST be present in fields_map values -- Xero enforces Name uniqueness across active contacts, making it the conventional match key (ContactNumber is a common alternative when you maintain your own external id). |
+| `lookup_field` | `str` | `"Name"` | Xero Contact field used to find an existing record via a where= filter query. MUST be present in fields_map values -- Xero enforces Name uniqueness across active contacts, making it the conventional match key (ContactNum… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

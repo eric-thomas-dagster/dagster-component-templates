@@ -11,7 +11,7 @@ Sweeps k from k_min to k_max, fits k-means at each k, and emits a row per k with
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `feature_columns` | `List[Union[str, int]]` | Numeric feature columns. |
 
 ### Catalog metadata

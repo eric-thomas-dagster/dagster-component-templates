@@ -16,17 +16,22 @@ pip install requests
 
 | Field | Type | Description |
 |---|---|---|
-| `sender_id` | `str` | Web Services sender ID registered with Sage support and whitelisted on the company |
+| `sender_id` | `str` | Web Services sender ID registered with Sage support |
 | `sender_password_env_var` | `str` | Env var holding the Web Services sender password |
 | `company_id` | `str` | Intacct company ID |
-| `user_id` | `str` | Intacct user ID (an API-enabled web services user) |
+| `user_id` | `str` | Intacct user ID |
 | `user_password_env_var` | `str` | Env var holding the Intacct user (login) password |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"sage_intacct_resource"` | Key used to register this resource. Other components reference it via resource_key. |
+| `resource_key` | `str` | `"sage_intacct_resource"` | Dagster resource key |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
 | `entity_id` | `str` | — | Entity/location ID for multi-entity companies (omit for single-entity companies) |
 | `endpoint_url` | `str` | `"https://api.intacct.com/ia/xml/xmlgw.phtml"` | Intacct XML gateway endpoint |
 

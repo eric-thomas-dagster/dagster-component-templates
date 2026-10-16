@@ -15,7 +15,7 @@ The `CosmosdbWriterComponent` accepts an upstream DataFrame asset and writes eac
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the output asset to create |
-| `upstream_asset_key` | `str` | Asset key of the upstream DataFrame asset |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of the upstream DataFrame asset |
 | `database` | `str` | Cosmos DB database name |
 | `container` | `str` | Cosmos DB container name |
 

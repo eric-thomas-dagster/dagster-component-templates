@@ -60,7 +60,7 @@ side by side share the same upstream — both stay in lock-step).
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | `"lineage_graph"` | Upstream asset emitting the canonical lineage payload (typically from lineage_graph_extractor). |
+| `upstream_asset_key` | `Union[str, List[str]]` | `"lineage_graph"` | Upstream asset emitting the canonical lineage payload (typically from lineage_graph_extractor). |
 | `catalog_url` | `str` | `"https://example.collibra.com"` | Catalog endpoint base URL. |
 | `api_token_env` | `str` | `"COLLIBRA_API_TOKEN"` | Env var holding the API token / OAuth bearer. |
 | `only_push_on_change` | `bool` | `true` | If true, skip the catalog POST when the upstream payload_hash matches the last successfully pushed hash. Stored as asset metadata across runs. |

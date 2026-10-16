@@ -78,7 +78,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream DataFrame asset key.. Mutually exclusive with `source` -- set exactly one. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream DataFrame asset key.. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `message_column` | `Union[str, int]` | `"message"` | Column holding the raw FIX message (tag=value pairs separated by SOH or `\|`). |
 | `msg_type_filter` | `List[Union[str, int]]` | — | Optional list of MsgType codes to emit. E.g. [D, 8] for orders + executions only. Default: all. Numeric codes like 8 may be passed as ints in YAML — they're coerced to str at runtime. |

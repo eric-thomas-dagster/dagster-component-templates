@@ -30,7 +30,7 @@ Drop-in for Alteryx's **Blob Convert** tool.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `input_column` | `Union[str, int]` | Column containing the input bytes / text |
 | `operation` | `str` | One of: to_base64, from_base64, to_hex, from_hex, to_text, to_bytes |
 

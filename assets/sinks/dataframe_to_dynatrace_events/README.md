@@ -18,7 +18,7 @@ Push DataFrame rows as Dynatrace events via the v2 Events API. Use for batch-job
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Asset key of upstream DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of upstream DataFrame |
 | `environment_url` | `str` | Dynatrace environment URL |
 | `api_token_env_var` | `str` | Env var holding the API token (events.ingest scope) |
 

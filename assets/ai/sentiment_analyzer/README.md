@@ -284,7 +284,7 @@ Use sentiment results with:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset that will hold the sentiment analysis results |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with text to analyze |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with text to analyze |
 
 ### Connection
 

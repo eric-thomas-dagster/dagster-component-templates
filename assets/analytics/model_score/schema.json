@@ -207,6 +207,21 @@
         "fixed"
       ],
       "ui:widget": "select"
+    },
+    "score_classes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Score Classes",
+      "description": "Optional list of class labels to emit `Score_<class>` probability columns for. Used when the model can't be loaded (stub / demo runs) so downstream chains that reference a specific Score_<Yes>/Score_<Lost>/etc. still resolve. When the model loads successfully, this field is ignored — real classes come from `model.classes_`.",
+      "required": false
+    },
+    "framework": {
+      "type": "string",
+      "label": "Framework",
+      "description": "How the model was serialized. 'auto' (default) tries joblib then pickle; 'sklearn' forces joblib; 'statsmodels' uses sm.load() and prepends a constant column (statsmodels' GLM.predict expects the design matrix with intercept). Set explicitly when scoring count_regression / gamma_regression / other statsmodels-fit components.",
+      "required": false
     }
   },
   "tags": [

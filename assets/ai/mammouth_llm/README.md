@@ -49,7 +49,7 @@ Because the wire format is fully OpenAI-compatible, this component uses the stoc
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset key. |
 
 ### Connection
 

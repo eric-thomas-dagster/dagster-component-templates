@@ -58,6 +58,8 @@ One row per task per materialization. Columns:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `tasks` | `List[str]` | — | Optional whitelist of task names. When set, only these tasks (across all `servers`) are included. Leave unset to include every task on every server. |
+| `include_preview_metadata` | `bool` | `false` | Include a markdown preview of the fetched rows in the materialization metadata. |
+| `preview_rows` | `int` | `25` | Max rows to include in the preview when include_preview_metadata is True. |
 
 [//]: # (FIELDS:END)
 

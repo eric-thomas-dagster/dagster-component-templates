@@ -25,6 +25,11 @@ pip install requests pyjwt cryptography
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"docusign_resource"` | Key used to register this resource. Other components reference it via resource_key. |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
 | `account_id` | `str` | — | Specific DocuSign account ID. If unset, the default account from the JWT userinfo response is used. |
 | `use_demo_env` | `bool` | `false` | Use DocuSign's demo/sandbox environment (account-d.docusign.com) instead of production. |
 

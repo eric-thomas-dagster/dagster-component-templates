@@ -31,7 +31,7 @@ pip install requests requests-oauthlib
 
 | Field | Type | Description |
 |---|---|---|
-| `account_id` | `str` | NetSuite account id, e.g. '1234567' or '1234567_SB1' (sandbox). |
+| `account_id` | `str` | NetSuite account id, e.g. '1234567' or '1234567_SB1' |
 | `consumer_key_env_var` | `str` | Env var with OAuth1 Consumer Key |
 | `consumer_secret_env_var` | `str` | Env var with OAuth1 Consumer Secret |
 | `token_id_env_var` | `str` | Env var with OAuth1 Token ID |

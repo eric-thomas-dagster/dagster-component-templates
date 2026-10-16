@@ -98,7 +98,7 @@ Supply exactly one of:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
 | `document_id_column` | `str` | — | Upstream column holding an EXISTING Vanta document id. When present and non-empty for a row, document creation is skipped and the file is uploaded straight to that document. |
 | `document_name_column` | `str` | — | Upstream column holding the document title (used as `title` when creating a new document). Ignored for rows resolved via `document_id_column`. |

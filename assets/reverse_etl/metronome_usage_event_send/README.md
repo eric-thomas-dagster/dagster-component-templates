@@ -64,16 +64,8 @@ Requires a `metronome_resource` registered via `MetronomeResourceComponent` (sta
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `event_type` | `str` | — | Static event_type applied to every row (the billable-metric grouping key). Mutually exclusive with `event_type_column`. |
-| `event_type_column` | `str` | — | Upstream column holding a per-row event_type. Mutually exclusive with the static `event_type`. |
-| `timestamp_column` | `str` | — | Upstream column holding the event timestamp. Defaults to current UTC time if unset. |
-| `transaction_id_column` | `str` | — | Upstream column holding a stable, unique-per-event identifier. Strongly recommended for idempotency. |
-| `properties_columns` | `List[str]` | — | Upstream columns to include in the event's `properties` object. Defaults to all non-reserved columns. |
-| `batch_size` | `int` | `100` | Rows per /ingest request. Metronome's hard limit is 100 events per request (validated). |
-| `max_rows_per_run` | `int` | — | Optional blast-radius safety cap on total rows sent per materialization. |
-| `max_retries` | `int` | `5` | Max retry attempts per batch on network error, 5xx, or 429 before raising. |
-| `initial_backoff_seconds` | `float` | `1.0` | Backoff before the first retry. |
-| `backoff_multiplier` | `float` | `2.0` | Multiplier applied to the backoff delay after each retry. |
+| `batch_size` | `int` | `100` | Rows per /ingest request. Metronome accepts at most 100 events per request -- this is validated, not just a default. |
+| `max_retries` | `int` | `5` | Max retry attempts per batch on a network error, 5xx, or 429 before raising. Metronome's own guidance is to always retry 5xx/network errors until a 200 -- this bounds that to a finite budget with exponential backoff rath… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -84,5 +76,20 @@ Requires a `metronome_resource` registered via `MetronomeResourceComponent` (sta
 | `owners` | `List[str]` | — | Asset owners. |
 | `tags` | `Dict[str, str]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'metronome'). |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
+| `event_type` | `str` | — | Static event_type applied to every row (the billable-metric grouping key). Mutually exclusive with `event_type_column`. |
+| `event_type_column` | `str` | — | Upstream column holding a per-row event_type. Mutually exclusive with the static `event_type`. |
+| `timestamp_column` | `str` | — | Upstream column holding the event timestamp. If unset, the current UTC time at send time is used for every row (fine for near-real-time activation, NOT recommended for backfills -- set this explicitly when replaying historical usage). |
+| `transaction_id_column` | `str` | — | Upstream column holding a stable, unique-per-event identifier (e.g. a request ID). STRONGLY recommended: this becomes the event's `transaction_id`, Metronome's idempotency key. Without it, a deterministic hash of (custom… _(full docs in schema.json + component README)_ |
+| `properties_columns` | `List[str]` | — | Upstream columns to include in the event's `properties` object. Defaults to every column EXCEPT customer_id_column/event_type_column/timestamp_column/transaction_id_column. |
+| `max_rows_per_run` | `int` | — | Optional blast-radius safety cap on total rows sent per materialization (independent of batch_size, which only governs HTTP chunk size). Unset means no cap beyond the upstream data. |
+| `initial_backoff_seconds` | `float` | `1.0` | Backoff before the first retry. Doubles (x backoff_multiplier) each subsequent attempt. |
+| `backoff_multiplier` | `float` | `2.0` | Multiplier applied to the backoff delay after each retry. |
 
 [//]: # (FIELDS:END)

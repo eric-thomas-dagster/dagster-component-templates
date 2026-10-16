@@ -53,7 +53,7 @@ Some older Close client libraries reference a simpler `GET /api/v1/lead/?query=.
 
 | Field | Type | Description |
 |---|---|---|
-| `api_key_env_var` | `str` | Env var holding the Close API key. Sent as the HTTP Basic username with a blank password. |
+| `api_key_env_var` | `str` | Env var holding the Close API key. Sent as the HTTP Basic username with a blank password (Close's standard REST auth). |
 
 ### Connection
 
@@ -61,13 +61,18 @@ Some older Close client libraries reference a simpler `GET /api/v1/lead/?query=.
 |---|---|---|---|
 | `resource_key` | `str` | `"close_crm"` | Key used to register this resource. Other components reference it via resource_key. |
 | `base_url` | `str` | `"https://api.close.com/api/v1"` | Close REST API base URL. |
-| `request_timeout_seconds` | `int` | `30` | Per-request timeout in seconds. |
 
 ### Execution
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `max_retries` | `int` | `3` | Retry attempts on 429 (sliding-window rate limit -- backs off using the `RateLimit` response header's `reset` value, falling back to `retry-after`, then exponential backoff) and on 5xx. |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `request_timeout_seconds` | `int` | `30` | Per-request timeout in seconds. |
 
 [//]: # (FIELDS:END)
 

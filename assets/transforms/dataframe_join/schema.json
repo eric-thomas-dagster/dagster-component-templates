@@ -274,6 +274,42 @@
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "backend": {
+      "type": "string",
+      "label": "Backend",
+      "description": "'pandas' (default) or 'polars'. Polars uses .join() with the same how/on/left_on/right_on semantics and returns a polars DataFrame.",
+      "required": false
+    },
+    "additional_asset_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Additional Asset Keys",
+      "description": "Optional list of further DataFrame asset keys to join in after `right` (N-way merge). Each is merged onto the running result using the same `how` / `on` / `suffixes`. Cannot be combined with `left_on`/`right_on`.",
+      "required": false
+    },
+    "right_prefix": {
+      "type": "string",
+      "label": "Right Prefix",
+      "description": "If set, the post-merge `rename` and `drop_columns` will fuzzy-match keys that start with this prefix against the actual merged column names: try `prefix + col`, then `col`, then `col + suffixes[1]`. Useful when the rename map was authored against a tool that prefixes right-side columns (e.g. 'Right_') but pandas only suffixes on collision.",
+      "required": false
+    },
+    "rename": {
+      "type": "object",
+      "label": "Rename",
+      "description": "Post-merge rename map, e.g. {'Right_Age': 'Age At Win'}. Missing keys are ignored.",
+      "required": false
+    },
+    "keep_only_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Keep Only Columns",
+      "description": "If set, keep only these columns post-merge (applied AFTER `rename` and `drop_columns`). Missing columns are ignored.",
+      "required": false
     }
   },
   "tags": [

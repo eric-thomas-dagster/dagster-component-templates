@@ -149,6 +149,12 @@
       "default": 25,
       "minimum": 1,
       "maximum": 200
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Name of a registered Dagster resource to connect through (e.g. a DuckDBResource/SnowflakeResource in this project's resources.py) -- the proper Dagster pattern, tried first. Falls back to database_url/database_url_env_var when unset. The resource must expose .get_engine() (a SQLAlchemy Engine) or .get_connection().",
+      "required": false
     }
   }
 }

@@ -96,7 +96,7 @@ That's it! The IO manager automatically passes the text.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with text to chunk |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with text to chunk |
 
 ### Execution
 

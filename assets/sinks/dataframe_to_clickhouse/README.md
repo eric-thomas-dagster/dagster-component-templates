@@ -13,7 +13,7 @@ Insert a Pandas DataFrame into a ClickHouse table via clickhouse-connect's clien
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
-| `upstream_asset_key` | `str` | Upstream asset providing the DataFrame. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset providing the DataFrame. |
 | `table` | `str` | Destination ClickHouse table name. |
 
 ### Connection

@@ -244,6 +244,12 @@
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "id_field": {
+      "type": "string",
+      "label": "Id Field",
+      "description": "If set and the upstream rows lack an 'id' field (which Cosmos requires), copy the value from this column. e.g. id_field='order_id' will write {id: <order_id>, ...} for each row. If the row already has 'id', this is a no-op.",
+      "required": false
     }
   },
   "dependencies": {

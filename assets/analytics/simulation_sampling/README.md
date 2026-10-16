@@ -15,7 +15,7 @@ The `SimulationSamplingComponent` reads a distribution definition DataFrame wher
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame defining distributions (one row per variable) |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame defining distributions (one row per variable) |
 | `variable_column` | `Union[str, int]` | Column with variable names |
 | `distribution_column` | `Union[str, int]` | Column with distribution type: normal, uniform, triangular, lognormal, poisson, exponential, beta |
 | `param1_column` | `str` | Column with first distribution parameter (mean for normal, low for uniform, etc.) |

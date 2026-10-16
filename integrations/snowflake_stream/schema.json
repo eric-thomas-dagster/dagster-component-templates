@@ -100,6 +100,55 @@
       "items": {
         "type": "string"
       }
+    },
+    "stream_name": {
+      "type": "string",
+      "label": "Stream Name",
+      "description": "Stream name (unquoted identifier)",
+      "required": true
+    },
+    "on_table": {
+      "type": "string",
+      "label": "On Table",
+      "description": "Fully-qualified source table, e.g. DB.SCHEMA.TABLE",
+      "required": true
+    },
+    "append_only": {
+      "type": "boolean",
+      "label": "Append Only",
+      "description": "If True, stream only tracks INSERTs (skips updates/deletes).",
+      "required": false
+    },
+    "show_initial_rows": {
+      "type": "boolean",
+      "label": "Show Initial Rows",
+      "description": "Show Initial Rows",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
     }
   }
 }

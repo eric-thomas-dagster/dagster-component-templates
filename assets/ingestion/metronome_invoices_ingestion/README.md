@@ -24,17 +24,11 @@ Also requires a `MetronomeResourceComponent` on the same code location for authe
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
 
-### Execution
+### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `customer_ids` | `List[str]` | — | Specific Metronome customer IDs to fetch invoices for. If unset, all customers are listed and invoices fetched for each. |
-| `invoice_status` | `str` | — | Filter invoices by status (e.g. 'DRAFT', 'FINALIZED', 'VOID'). |
-| `starting_on` | `str` | — | Only include invoices starting on/after this ISO-8601 timestamp. |
-| `ending_before` | `str` | — | Only include invoices ending before this ISO-8601 timestamp. |
-| `customers_page_limit` | `int` | `100` | Page size for the GET /customers listing. |
-| `invoices_page_limit` | `int` | `100` | Page size for the GET /customers/{id}/invoices listing, per customer. |
-| `max_customers` | `int` | — | Safety cap on the number of distinct customers to fetch invoices for in a single run. |
+| `resource_key` | `str` | `"metronome_resource"` | Key of the MetronomeResource this asset depends on for authentication |
 
 ### Catalog metadata
 
@@ -42,16 +36,22 @@ Also requires a `MetronomeResourceComponent` on the same code location for authe
 |---|---|---|---|
 | `description` | `str` | — | Asset description |
 | `group_name` | `str` | `"metronome"` | Asset group for organization |
-| `owners` | `List[str]` | — | Asset owners |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags |
-| `kinds` | `List[str]` | — | Asset kinds. Defaults to ['metronome', 'python']. |
-| `deps` | `List[str]` | — | Lineage-only upstream asset keys |
+| `owners` | `List[str]` | — | Asset owners -- list of team names or email addresses, e.g. ['team:finance', 'user@company.com'] |
+| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset |
+| `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['metronome', 'python']. |
+| `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime) |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"metronome_resource"` | Key of the MetronomeResource this asset depends on for authentication |
+| `customer_ids` | `List[str]` | — | Specific Metronome customer IDs to fetch invoices for. If unset, all customers are listed via GET /customers and invoices are fetched for each. |
+| `invoice_status` | `str` | — | Filter invoices by status (e.g. 'DRAFT', 'FINALIZED', 'VOID'). Unset fetches all statuses. |
+| `starting_on` | `str` | — | Only include invoices starting on/after this ISO-8601 timestamp. |
+| `ending_before` | `str` | — | Only include invoices ending before this ISO-8601 timestamp. |
+| `customers_page_limit` | `int` | `100` | Page size for the GET /customers listing (only used when customer_ids is unset). |
+| `invoices_page_limit` | `int` | `100` | Page size for the GET /customers/{id}/invoices listing, per customer. |
+| `max_customers` | `int` | — | Safety cap on the number of distinct customers to fetch invoices for in a single run (only applies when customer_ids is unset and the account has many customers). |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
 

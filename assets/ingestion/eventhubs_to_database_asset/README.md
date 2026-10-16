@@ -21,8 +21,14 @@ sqlalchemy>=2.0.0
 | `asset_name` | `str` | Dagster asset name |
 | `connection_string_env_var` | `str` | Env var with Event Hubs connection string |
 | `eventhub_name` | `str` | Event Hub name |
-| `database_url_env_var` | `str` | Env var with SQLAlchemy database URL |
 | `table_name` | `str` | Destination table name |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `database_url_env_var` | `str` | — | Env var with SQLAlchemy database URL. Set this OR database_url OR resource_key. |
+| `resource_key` | `str` | — | Key of a registered SQL resource (e.g. postgres_resource) to use for the destination connection instead of database_url/database_url_env_var. The resource must expose a connection_string property (e.g. PostgresResource… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -47,13 +53,14 @@ sqlalchemy>=2.0.0
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_type` | `str` | `"none"` | none, daily, weekly, or monthly |
+| `partition_type` | `str` | `"none"` | none, daily, weekly, monthly, hourly, static, multi, or dynamic |
 | `partition_start_date` | `str` | — | Partition start date YYYY-MM-DD (required if partition_type != none) |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
 | `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 
 ### Retry policy
 
@@ -74,10 +81,14 @@ sqlalchemy>=2.0.0
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `consumer_group` | `str` | `"$Default"` | Consumer group |
+| `database_url` | `str` | — | SQLAlchemy database URL. Set this OR database_url_env_var OR resource_key. |
 | `schema_name` | `str` | — | Destination schema name |
 | `max_events` | `int` | `10000` | Max events to consume per run |
 | `max_wait_seconds` | `float` | `5.0` | Max seconds to wait for events |
 | `column_mapping` | `dict` | — | Rename columns: {old: new} |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `include_preview_metadata` | `bool` | `false` | Include a markdown preview of the written rows in the materialization metadata. |
+| `preview_rows` | `int` | `25` | Max rows to include in the preview when include_preview_metadata is True. |
 
 [//]: # (FIELDS:END)
 

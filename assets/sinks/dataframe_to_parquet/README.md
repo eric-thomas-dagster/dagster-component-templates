@@ -13,7 +13,7 @@ Writes a Pandas DataFrame to a Parquet file. This is a terminal sink component â
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `file_path` | `str` | Destination file path. Supports env var substitution e.g. ${OUTPUT_DIR}/results.parquet. Also supports s3://bucket/path.parquet and gs://bucket/path.parquet. S3 requires pyarrow and s3fs; GCS requires gcsfs. |
 
 ### Catalog metadata

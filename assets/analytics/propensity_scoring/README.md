@@ -100,7 +100,7 @@ Scores range 0-100, classified as High/Medium/Low propensity.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream asset key providing a DataFrame with customer behavior data. Mutually exclusive with `source` -- set exactly one. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset key providing a DataFrame with customer behavior data. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Also required (with execution_mode='sql') to na… _(full docs in schema.json + component README)_ |
 | `scoring_method` | `str` | `"heuristic"` | 'heuristic' (default): the original behavior-pattern scoring below, unchanged. 'ml': fits a real scikit-learn classifier against a `target_column` you supply. None of the 4 propensity_type formulas are fit against any ob… _(full docs in schema.json + component README)_ |
 | `execution_mode` | `str` | `"python"` | Only meaningful when scoring_method='ml'. 'python' (default): fits a real scikit-learn LogisticRegression locally. 'sql': trains AND predicts server-side via BigQuery/Snowflake ML (Databricks is predict-only). Requires `… _(full docs in schema.json + component README)_ |

@@ -35,7 +35,7 @@ attributes:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name |
-| `upstream_asset_key` | `str` | Upstream asset key (must materialize a pandas DataFrame) |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key (must materialize a pandas DataFrame) |
 | `file_path` | `str` | Destination path or fsspec URI. Local (`/tmp/out.avro`) and remote URIs (`s3://...`, `gs://...`, `abfss://...`) both work via fsspec. `{partition_key}` is substituted from the asset's partition key when the asset is part… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata

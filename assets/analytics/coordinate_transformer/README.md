@@ -11,7 +11,7 @@ Reproject coordinate columns in a DataFrame from one coordinate reference system
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with coordinate columns |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with coordinate columns |
 | `x_column` | `Union[str, int]` | Input column name for X values (longitude in geographic CRS) |
 | `y_column` | `Union[str, int]` | Input column name for Y values (latitude in geographic CRS) |
 

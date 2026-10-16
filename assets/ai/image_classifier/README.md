@@ -15,7 +15,7 @@ The Image Classifier Component loads a pre-trained vision model and classifies e
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `image_column` | `Union[str, int]` | Column with image file paths or URLs |
 
 ### Catalog metadata
@@ -71,7 +71,7 @@ The Image Classifier Component loads a pre-trained vision model and classifies e
 | `score_column` | `Union[str, int]` | `"confidence_score"` | Confidence score for top prediction |
 | `top_k` | `int` | `3` | Return top-k predictions |
 | `all_predictions_column` | `Union[str, int]` | — | If set, write list of [{label, score}] dicts to this column |
-| `candidate_labels` | `List[str]` | — | For CLIP zero-shot, restrict to these labels |
+| `candidate_labels` | `List[Union[str, int]]` | — | For CLIP zero-shot, restrict to these labels. Accepts int too: dagster-components runs every string attribute through Jinja2's NativeTemplate for {{ }} templating support, which coerces a purely-numeric-looking label (e… _(full docs in schema.json + component README)_ |
 | `device` | `str` | `"cpu"` | Compute device: cpu, cuda, or mps |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |

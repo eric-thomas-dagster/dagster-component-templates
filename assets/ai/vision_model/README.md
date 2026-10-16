@@ -17,7 +17,7 @@ The Vision Model Component enables image understanding and analysis using state-
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset that will hold image analysis results |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with image references |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with image references |
 | `provider` | `str` | Vision model provider: openai, anthropic |
 | `model` | `str` | Model name (e.g., 'gpt-4o', 'gpt-4-vision-preview', 'claude-3-opus-20240229') |
 | `api_key` | `str` | API key for provider. Use ${API_KEY_NAME} for env vars. |

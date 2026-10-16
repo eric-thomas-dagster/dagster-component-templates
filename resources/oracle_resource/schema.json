@@ -11,6 +11,12 @@
     "sid": {"type": "string", "label": "SID", "description": "Oracle SID (legacy; prefer service_name).", "required": false},
     "username": {"type": "string", "label": "Username", "description": "Database username", "required": true},
     "password_env_var": {"type": "string", "label": "Password Env Var", "description": "Env var holding the password", "required": true},
-    "thick_mode": {"type": "boolean", "label": "Thick Mode", "description": "Use python-oracledb thick mode (requires Oracle Instant Client). Leave false for default thin-mode (pure Python).", "required": false, "default": false}
+    "thick_mode": {"type": "boolean", "label": "Thick Mode", "description": "Use python-oracledb thick mode (requires Oracle Instant Client). Leave false for default thin-mode (pure Python).", "required": false, "default": false},
+    "password": {
+      "type": "string",
+      "label": "Password",
+      "description": "Oracle password (literal). Set this OR password_env_var.",
+      "required": false
+    }
   }
 }

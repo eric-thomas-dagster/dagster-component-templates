@@ -13,7 +13,7 @@ Writes a Pandas DataFrame to a CSV file. This is a terminal sink component — i
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `file_path` | `str` | Destination file path or fsspec URI. Local paths (`/tmp/out.csv`) and remote URIs (`s3://bucket/out.csv`, `gs://bucket/out.csv`, `az://container/out.csv`) both work — pandas' `to_csv()` accepts fsspec URIs natively when… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata

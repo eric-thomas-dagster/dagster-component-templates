@@ -30,6 +30,18 @@
     "asset_tags":         {"description": "Additional key-value tags applied to the asset in the Dagster catalog.", "label": "Asset Tags", "type": "object"},
     "kinds":              {"description": "Asset kinds for the Dagster catalog.", "label": "Kinds", "type": "array", "items": {"type": "string"}},
     "owners":             {"description": "Asset owners.", "label": "Owners", "type": "array", "items": {"type": "string"}},
-    "deps":               {"description": "Lineage-only upstream asset keys (no data passed at runtime).", "label": "Deps", "type": "array", "items": {"type": "string"}}
+    "deps":               {"description": "Lineage-only upstream asset keys (no data passed at runtime).", "label": "Deps", "type": "array", "items": {"type": "string"}},
+    "variables": {
+      "type": "object",
+      "label": "Variables",
+      "description": "Feed-level constants available at run time via {{ vars.<key> }} in condition when: / for_each over: / SQL where relevant. Merged with prior-run `checkpoint.*` values (see checkpoint_dir).",
+      "required": false
+    },
+    "checkpoint_dir": {
+      "type": "string",
+      "label": "Checkpoint Dir",
+      "description": "Directory (relative to project root, or absolute) where `type: checkpoint` steps persist named values across runs. Default `checkpoints/` under the project root. On each run, `checkpoints/<asset_name>.json` is loaded and its keys become available as {{ checkpoint.<key> }}.",
+      "required": false
+    }
   }
 }

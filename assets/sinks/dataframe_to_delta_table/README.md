@@ -62,7 +62,7 @@ The component does `when_matched_update_all()` + `when_not_matched_insert_all()`
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset producing the DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset producing the DataFrame |
 | `table_uri` | `str` | Delta table location (s3://, az://, gs://, /local, uc://) |
 
 ### Catalog metadata

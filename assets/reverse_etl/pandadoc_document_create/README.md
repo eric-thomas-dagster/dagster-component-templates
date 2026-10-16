@@ -72,15 +72,7 @@ One document failing (invalid template token, PandaDoc processing error, poll ti
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `name_template` | `str` | `"Document for {recipient_email_column}"` | Document name template. Supports `{column_name}` substitution from other upstream row columns. |
-| `recipient_first_name_column` | `str` | — | Upstream column holding the recipient's first name. |
-| `recipient_last_name_column` | `str` | — | Upstream column holding the recipient's last name. |
-| `recipient_role` | `str` | — | Template recipient role name to assign this recipient to. |
-| `tokens_map` | `Dict[str, str]` | — | Upstream column -> PandaDoc template token name. Prefills the named tokens with the row's column values. |
-| `auto_send` | `bool` | `true` | Poll the created document until sendable, then send immediately; false only creates it. |
-| `send_message` | `str` | — | Optional message included in the send-notification email (auto_send mode only). |
-| `poll_interval_seconds` | `float` | `2.0` | Seconds between document-status polls (auto_send mode only). |
-| `poll_timeout_seconds` | `float` | `120.0` | Max seconds to wait for the document to become sendable before failing that row (auto_send mode only). |
+| `poll_interval_seconds` | `float` | `2.0` | Seconds between document-status polls while waiting for 'document.draft' (auto_send mode only). |
 | `batch_size` | `int` | `200` | Max upstream rows per run (safety cap). Each row creates one real document -- this is NOT a throughput/rate-limit control, it's a blast-radius cap. |
 
 ### Catalog metadata
@@ -92,5 +84,20 @@ One document failing (invalid template token, PandaDoc processing error, poll ti
 | `owners` | `List[str]` | — | Asset owners. |
 | `tags` | `Dict[str, str]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'pandadoc'). |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
+| `name_template` | `str` | `"Document for {recipient_email_column}"` | Document name template. Supports `{column_name}` substitution from other upstream row columns. |
+| `recipient_first_name_column` | `str` | — | Upstream column holding the recipient's first name. |
+| `recipient_last_name_column` | `str` | — | Upstream column holding the recipient's last name. |
+| `recipient_role` | `str` | — | Template recipient role name to assign this recipient to (must match a role defined on the PandaDoc template). Required when the template defines named roles. |
+| `tokens_map` | `Dict[str, str]` | — | Upstream column -> PandaDoc template token name. Prefills the named tokens with the row's column values (e.g. {contract_value: 'contract.value'}). Optional -- omit to rely solely on the template's own default token values. |
+| `auto_send` | `bool` | `true` | If true (default): poll the created document until PandaDoc marks it sendable (status 'document.draft'), then send it immediately. If false: only create the document (status stays as PandaDoc leaves it, e.g. for manual r… _(full docs in schema.json + component README)_ |
+| `send_message` | `str` | — | Optional message included in the send-notification email (auto_send mode only). |
+| `poll_timeout_seconds` | `float` | `120.0` | Max seconds to wait for the document to reach 'document.draft' before failing that row (auto_send mode only). |
 
 [//]: # (FIELDS:END)

@@ -241,7 +241,7 @@ Use standardized data with:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream asset containing raw platform data (automatically set via lineage) |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset containing raw platform data (automatically set via lineage) |
 | `campaign_id_field` | `str` | — | Field name for campaign ID (auto-detected if not provided) |
 | `campaign_name_field` | `str` | — | Field name for campaign name (auto-detected if not provided) |
 | `date_field` | `str` | — | Field name for date (auto-detected if not provided) |

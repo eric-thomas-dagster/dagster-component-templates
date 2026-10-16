@@ -36,7 +36,12 @@ pip install requests
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"quickbooks"` | Dagster resource key |
-| `minor_version` | `int` | `75` | QuickBooks API minor version (appended to every request). |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `minor_version` | `int` | `75` | QuickBooks API minor version. |
 
 [//]: # (FIELDS:END)
 

@@ -17,7 +17,7 @@ Extract structured Pydantic models from text using the Instructor library. Works
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `text_column` | `Union[str, int]` | Column containing input text |
 | `extraction_schema` | `Dict[str, Any]` | Dict describing fields to extract: {"field_name": {"type": "str\|int\|float\|bool\|list", "description": "..."}} |
 

@@ -27,7 +27,7 @@ Pair with the registry's `lineage_graph_extractor` upstream — it produces the 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | `"lineage_graph"` | Upstream asset emitting the canonical lineage payload (lineage_graph_extractor). |
+| `upstream_asset_key` | `Union[str, List[str]]` | `"lineage_graph"` | Upstream asset emitting the canonical lineage payload (lineage_graph_extractor). |
 | `catalog_url` | `str` | `"https://api.data.precisely.com/data360/catalog"` | Data360 Govern Catalog REST base URL. |
 | `token_url` | `str` | `DATA360_DEFAULT_TOKEN_URL` | OAuth2 token endpoint (override for non-global Data360 tenants). |
 | `client_id_env` | `str` | `"PRECISELY_DIS_CLIENT_ID"` | Env var with the Data360 OAuth2 client_id. |

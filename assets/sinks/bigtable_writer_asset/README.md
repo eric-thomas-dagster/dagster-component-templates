@@ -32,7 +32,7 @@ attributes:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset key. |
 | `instance_id` | `str` | Bigtable instance id. |
 | `table_id` | `str` | Bigtable table id. |
 | `row_key_column` | `Union[str, int]` | DataFrame column to use as the Bigtable row key. |

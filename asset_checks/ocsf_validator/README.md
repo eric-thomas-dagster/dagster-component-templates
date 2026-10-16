@@ -14,7 +14,7 @@ Asset check: validates OCSF v1.x conformance — required fields, severity range
 | Field | Type | Description |
 |---|---|---|
 | `check_name` | `str` | Asset check name |
-| `upstream_asset_key` | `str` | OCSF DataFrame asset to validate |
+| `upstream_asset_key` | `Union[str, List[str]]` | OCSF DataFrame asset to validate |
 
 ### Catalog metadata
 

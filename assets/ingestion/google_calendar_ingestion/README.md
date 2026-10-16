@@ -99,6 +99,8 @@ google-api-python-client>=2.0.0
 | `single_events` | `bool` | `true` | Expand recurring events into individual instances. Recommended True. |
 | `show_deleted` | `bool` | `false` | — |
 | `dynamic_partition_name` | `str` | — | — |
+| `include_preview_metadata` | `bool` | `true` | Include a markdown preview of the fetched rows in the materialization metadata. |
+| `preview_rows` | `int` | `10` | Max rows to include in the preview when include_preview_metadata is True. |
 
 [//]: # (FIELDS:END)
 

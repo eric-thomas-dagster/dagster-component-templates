@@ -11,7 +11,7 @@ Detect and redact PII from text columns using Microsoft Presidio, replacing enti
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `input_column` | `Union[str, int]` | Column containing text to redact PII from |
 
 ### Catalog metadata

@@ -92,12 +92,14 @@ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa.json
 | `credentials` | `Dict[str, Any]` | — | — |
 | `credentials_path` | `str` | — | Path to service-account JSON. Falls back to GOOGLE_APPLICATION_CREDENTIALS. |
 | `doc_ids` | `List[str]` | — | Explicit list of Google Doc IDs. Mutually exclusive with upstream_asset_key. |
-| `upstream_asset_key` | `str` | — | Upstream DataFrame asset key. Each row's id_column value is treated as a Doc ID. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream DataFrame asset key. Each row's id_column value is treated as a Doc ID. |
 | `id_column` | `Union[str, int]` | `"id"` | When upstream_asset_key is set, the column with the Doc IDs. |
 | `include_headings` | `bool` | `true` | Include `headings` list column. |
 | `include_text` | `bool` | `true` | Include the full plain-text `text` column. |
 | `rate_limit_delay` | `float` | `0.2` | Seconds between Doc fetches. |
 | `dynamic_partition_name` | `str` | — | — |
+| `include_preview_metadata` | `bool` | `true` | Include a markdown preview of the fetched rows in the materialization metadata. |
+| `preview_rows` | `int` | `10` | Max rows to include in the preview when include_preview_metadata is True. |
 
 [//]: # (FIELDS:END)
 

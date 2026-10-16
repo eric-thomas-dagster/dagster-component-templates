@@ -11,7 +11,7 @@ Reads a WKT `geometry` column and replaces each geometry with its buffer at the 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `radius_meters` | `float` | Buffer radius in meters. Geometries are reprojected to a metric CRS for the buffer. |
 
 ### Catalog metadata

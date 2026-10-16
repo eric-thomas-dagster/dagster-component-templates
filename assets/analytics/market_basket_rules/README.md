@@ -11,7 +11,7 @@ Group rows into baskets (e.g. by transaction_id), one-hot encode item presence p
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `basket_column` | `Union[str, int]` | Column that identifies a basket (e.g. transaction_id). |
 | `item_column` | `Union[str, int]` | Column with item names. |
 

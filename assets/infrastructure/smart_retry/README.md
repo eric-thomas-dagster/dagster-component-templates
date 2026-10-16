@@ -327,7 +327,7 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Optional upstream asset the compute callable receives as second arg. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Optional upstream asset the compute callable receives as second arg. |
 | `compute` | `Dict[str, Any]` | — | How to run the actual work. Shape: `{kind: python\|shell\|http, ...kind-specific fields}`. python: `python: 'mod.path:func'`. shell: `cmd: '...'` or `cmd: [list]` + optional `timeout_seconds`. http: `method, url, headers… _(full docs in schema.json + component README)_ |
 | `wraps` | `Dict[str, Any]` | — | Wrap another DCC component's assets with smart_retry logic instead of defining new compute. Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. Mutually exclusive with `compute`. |
 | `llm_fallback` | `Dict[str, Any]` | — | OPTIONAL. LLM classification for unclassified errors — one API call per un-rule-matched exception. Shape: `{model: 'gpt-4o-mini', api_key_env_var: 'OPENAI_API_KEY', timeout_seconds: 10}`. Omit to skip LLM fallback (uncla… _(full docs in schema.json + component README)_ |

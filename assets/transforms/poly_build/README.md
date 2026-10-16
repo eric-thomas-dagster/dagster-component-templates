@@ -83,7 +83,7 @@ attributes:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key — DataFrame with one row per vertex |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key — DataFrame with one row per vertex |
 | `group_column` | `Union[str, int]` | Column identifying which polygon each vertex belongs to |
 
 ### Catalog metadata

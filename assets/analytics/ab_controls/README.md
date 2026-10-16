@@ -11,7 +11,7 @@ Given a baseline conversion rate, minimum detectable effect (MDE), significance 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `baseline_rate` | `float` | Current conversion rate (e.g. 0.10). |
 | `mde` | `float` | Minimum detectable effect, relative (e.g. 0.05 = 5%). |
 

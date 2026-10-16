@@ -15,7 +15,7 @@ The Image Similarity Scorer Component encodes images using a CLIP model to produ
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `image_column_a` | `Union[str, int]` | First image column (file paths or URLs) |
 
 ### Catalog metadata

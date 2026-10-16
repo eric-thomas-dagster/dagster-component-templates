@@ -17,7 +17,7 @@ The Insurance Claim Extractor Component uses a large language model to parse uns
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with insurance claim content |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with insurance claim content |
 
 ### Connection
 

@@ -260,6 +260,18 @@
       "description": "Optional list of sinks that write the loaded DataFrame to a warehouse table via an existing Dagster resource, in addition to returning the DataFrame -- skips needing a separate downstream writer asset. Each: {kind: table, resource_key: <name>, table: <name>, schema: <optional>, if_exists: append|replace, mode: upsert_on_match, match: [col, col]}. mode:upsert_on_match gives partition-rewrite idempotency (DELETE-then-INSERT keyed by match, in a transaction). Auto-detects DuckDB .register() fast path; falls back to SQLAlchemy for postgres/snowflake/bigquery/mysql/mssql. The resource named by resource_key must already be configured elsewhere in the project (e.g. a snowflake_resource or postgres_resource component instance).",
       "required": false,
       "default": null
+    },
+    "add_filename_column": {
+      "type": "boolean",
+      "label": "Add Filename Column",
+      "description": "If True, add a column to the output containing the source file's basename. Useful when reading a glob pattern that matches multiple files and downstream needs to identify which file each row came from.",
+      "required": false
+    },
+    "filename_strip_extension": {
+      "type": "boolean",
+      "label": "Filename Strip Extension",
+      "description": "If True, the auto-added filename column contains the basename WITHOUT extension (e.g. `bodies_karts` instead of `bodies_karts.csv`). Matches Alteryx's Input Data 'Output File Name as Field' semantics. Only meaningful when add_filename_column=True.",
+      "required": false
     }
   },
   "tags": [

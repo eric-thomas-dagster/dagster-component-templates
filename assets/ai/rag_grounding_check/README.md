@@ -50,57 +50,67 @@ Asset-level metadata: `mean_grounding_score`, `fabrication_rate`, `n_scored` (ro
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 
-### Source (set exactly one of the two)
-
-| Field | Type | Description |
-|---|---|---|
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame of query/answer/sources rows (e.g. rag_pipeline's output). |
-| `source` | `Dict` | `{kind: warehouse_query, resource_key: ..., sql: ...}` — pull rows directly via SQL instead. |
-
-### Grounding scoring
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `query_column` | `str` | `"query"` | Column containing the original query. |
-| `answer_column` | `str` | `"answer"` | Column containing the generated answer to check. |
-| `sources_column` | `str` | `"sources"` | Column containing the retrieved source chunks. |
-| `mode` | `str` | `"overlap"` | `"overlap"` (deterministic, free) or `"llm_judge"` (litellm-backed). |
-| `ngram_size` | `int` | `3` | N-gram size for `mode='overlap'` scoring. |
-| `per_row_grounded_threshold` | `float` | `0.3` | Per-row `grounding_score` at or above this is marked `grounded=True`. |
-| `llm_model` | `str` | `"gpt-4o-mini"` | litellm model name for `mode='llm_judge'`. |
-| `llm_api_key_env_var` | `str` | `"OPENAI_API_KEY"` | Env var holding the API key for `mode='llm_judge'`. |
-| `llm_max_retries` | `int` | `2` | Retries on transient LLM failures. |
-| `llm_prompt_prefix` | `str` | — | Optional text prepended to every `mode='llm_judge'` prompt. |
-
-### Asset check thresholds
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `min_grounding_score_threshold` | `float` | `0.5` | Absolute minimum mean `grounding_score`. Asset check fails below this. |
-| `regression_pct_threshold` | `float` | `10.0` | Max allowed drop (percentage points) vs the prior materialization. |
-| `max_fabrication_rate` | `float` | — | If set, asset check fails when the fabrication rate exceeds this. |
-
-### Other
+### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | — | Dagster asset group name |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
-| `owners` | `List[str]` | — | Asset owners — team names or email addresses. |
+| `owners` | `List[str]` | — | Asset owners — list of team names or email addresses. |
 | `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset. |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Auto-inferred if unset. |
-| `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata. |
-| `preview_rows` | `int` | `25` | Rows to include in the preview metadata. |
-| `retry_policy_max_retries` | `int` | — | Max retries on asset failure. |
-| `retry_policy_delay_seconds` | `int` | — | Seconds between retries. |
-| `retry_policy_backoff` | `str` | `"exponential"` | `linear` or `exponential`. |
-| `freshness_max_lag_minutes` | `int` | — | Maximum acceptable lag before the asset is considered stale. |
+
+### Freshness
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `freshness_max_lag_minutes` | `int` | — | Maximum acceptable lag in minutes before the asset is considered stale. |
 | `freshness_cron` | `str` | — | Cron schedule string for the freshness policy. |
-| `partition_type` | `str` | — | `daily`/`weekly`/`monthly`/`hourly`/`static`/`dynamic`/None. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily'/'weekly'/'monthly'/'hourly'/'static'/'dynamic'/None. |
 | `partition_start` | `str` | — | Partition start date (ISO), required for time-based types. |
 | `partition_values` | `str` | — | Comma-separated values for static partitioning. |
-| `dynamic_partition_name` | `str` | — | Name for `DynamicPartitionsDefinition`. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_policy_max_retries` | `int` | — | Max retries on asset failure. Defines a RetryPolicy. |
+| `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
+| `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `mode` | `str` | `"overlap"` | 'overlap' (default): deterministic n-gram overlap + fabricated-number check -- free, no API key. 'llm_judge': any litellm-supported model judges groundedness -- costs money per row, catches paraphrased claims overlap scoring can't. |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset key providing a DataFrame of query/answer/sources rows (e.g. rag_pipeline's output). Mutually exclusive with `source` -- set exactly one. |
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource>, sql: <query>}. resource_key must point at a resource exposing .get_engine() (SQLAlchemy) or .get_… _(full docs in schema.json + component README)_ |
+| `query_column` | `Union[str, int]` | `"query"` | Column containing the original query. |
+| `answer_column` | `Union[str, int]` | `"answer"` | Column containing the generated answer to check. |
+| `sources_column` | `Union[str, int]` | `"sources"` | Column containing the retrieved source chunks the answer should be grounded in -- a list of {text: ...} dicts (rag_pipeline's native shape), a list of strings, or a single pre-joined string. |
+| `ngram_size` | `int` | `3` | N-gram size for mode='overlap' scoring (default: trigrams). |
+| `per_row_grounded_threshold` | `float` | `0.3` | Per-row grounding_score at or above this is marked `grounded=True` in the output column. |
+| `llm_model` | `str` | `"gpt-4o-mini"` | litellm model name for mode='llm_judge'. |
+| `llm_api_key_env_var` | `str` | `"OPENAI_API_KEY"` | Environment variable holding the API key for mode='llm_judge'. |
+| `llm_max_retries` | `int` | `2` | Retries on transient LLM failures for mode='llm_judge'. |
+| `llm_prompt_prefix` | `str` | — | Optional text prepended to every mode='llm_judge' prompt (e.g. domain context). |
+| `min_grounding_score_threshold` | `float` | `0.5` | Absolute minimum mean grounding_score across the batch. Asset check fails below this. |
+| `regression_pct_threshold` | `float` | `10.0` | Max allowed drop (percentage points) in mean grounding_score vs the immediately-prior materialization. Mirrors rag_eval's regression check. |
+| `max_fabrication_rate` | `float` | — | If set, asset check fails when the fraction of rows with at least one fabricated number exceeds this (0.0-1.0). None (default) skips this check. |
+| `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata. |
+| `preview_rows` | `int` | `25` | Rows to include in the preview metadata when include_preview_metadata is True. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)
 

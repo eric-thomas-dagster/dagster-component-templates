@@ -228,6 +228,12 @@
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "table": {
+      "type": "string",
+      "label": "Table",
+      "description": "DynamoDB table name",
+      "required": true
     }
   },
   "tags": [

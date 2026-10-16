@@ -25,7 +25,7 @@ derived.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Asset key of upstream DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of upstream DataFrame |
 | `workspace_id` | `str` | Fabric workspace ID (GUID) |
 | `lakehouse_name` | `str` | Lakehouse name (the .Lakehouse item in the workspace) |
 | `table` | `str` | Target Delta table name (created if missing) |

@@ -11,7 +11,7 @@ Estimate survival functions from time-to-event data using the Kaplan-Meier estim
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `duration_column` | `Union[str, int]` | Time-to-event column |
 | `event_column` | `Union[str, int]` | Binary event indicator (1=event occurred, 0=censored) |
 

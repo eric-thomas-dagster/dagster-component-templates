@@ -104,6 +104,24 @@
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"
+    },
+    "per_partition_expected": {
+      "type": "object",
+      "label": "Per Partition Expected",
+      "description": "Per-partition-key override. e.g. {'hourly': 30, 'daily': 300}. Falls back to expected_duration_seconds if no key matches. Only meaningful on partitioned assets.",
+      "required": false
+    },
+    "partition_matcher": {
+      "type": "string",
+      "label": "Partition Matcher",
+      "description": "How partition_key is matched against per_partition_expected keys: 'exact' \\| 'prefix' \\| 'regex'. Default exact match.",
+      "required": false
+    },
+    "derive_expected_from_history": {
+      "type": "object",
+      "label": "Derive Expected From History",
+      "description": "Auto-derive expected_duration_seconds from prior materializations. Shape: {n_runs: 10, statistic: 'median' \\| 'p95' \\| 'mean' \\| 'p99', multiplier: 1.5}. If set, this OVERRIDES expected_duration_seconds. n_runs = how many recent successful runs to consider. multiplier = safety factor (1.5 = allow 50%% overhead over baseline). If fewer than 3 runs available, falls back to expected_duration_seconds.",
+      "required": false
     }
   },
   "tags": [

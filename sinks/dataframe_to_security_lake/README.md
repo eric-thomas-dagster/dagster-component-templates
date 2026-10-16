@@ -16,7 +16,7 @@ Write an OCSF DataFrame to AWS Security Lake — Parquet with snappy compression
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | OCSF DataFrame to write |
+| `upstream_asset_key` | `Union[str, List[str]]` | OCSF DataFrame to write |
 | `bucket` | `str` | Security Lake S3 bucket (e.g. 'aws-security-data-lake-us-east-1-<id>') |
 | `source_location` | `str` | Custom-source location/name (e.g. 'ext-dagster-plus-audit'). Becomes the top-level S3 prefix. |
 
@@ -65,6 +65,8 @@ Write an OCSF DataFrame to AWS Security Lake — Parquet with snappy compression
 | `glue_database` | `str` | — | — |
 | `glue_table` | `str` | — | — |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
+| `include_preview_metadata` | `bool` | `false` | Include a markdown preview of the shipped rows in the materialization metadata. |
+| `preview_rows` | `int` | `25` | Max rows to include in the preview when include_preview_metadata is True. |
 
 [//]: # (FIELDS:END)
 

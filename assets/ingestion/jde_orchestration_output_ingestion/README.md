@@ -48,6 +48,8 @@ JDE orchestration responses vary — some return flat top-level lists, others ne
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `inputs` | `Dict[str, Any]` | — | Orchestration input parameter overrides. |
+| `include_preview_metadata` | `bool` | `false` | Include a markdown preview of the fetched rows in the materialization metadata. |
+| `preview_rows` | `int` | `25` | Max rows to include in the preview when include_preview_metadata is True. |
 
 [//]: # (FIELDS:END)
 

@@ -286,6 +286,7 @@ ACORD insurance XML envelopes — for acord_xml_parser demos:
 |---|---|---|---|
 | `description` | `str` | — | Description of the asset |
 | `group_name` | `str` | — | Asset group name for organization |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the generator produces row_count rows for EACH day in the range, concatenated into one DataFrame -- each… _(full docs in schema.json + component README)_ |
 | `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com'] |
 | `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'} |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set. |
@@ -327,8 +328,9 @@ ACORD insurance XML envelopes — for acord_xml_parser demos:
 | `schema_type` | `Literal['customers', 'orders', 'products', 'transactions',…` | `"customers"` | Type of data schema to generate |
 | `row_count` | `int` | `100` | Number of rows to generate |
 | `random_state` | `int` | — | Random seed for reproducible data generation (leave empty for random) |
-| `schema_options` | `Dict[str, Any]` | — | Per-schema knobs. Keys recognized by specific schemas: subscriptions: tiers: list of {name, weight, daily_churn_rate, max_days} defaults: free (55%, 2%/day, 180d), pro (35%, 0.5%/day, 365d), enterprise (10%, 0.1%/day, 73… _(full docs in schema.json + component README)_ |
+| `schema_options` | `Dict[str, Any]` | — | Per-schema knobs. Keys recognized by specific schemas: orders: customer_count: int (default 1000) -- upper bound for the generated customer_id range (CUST000001-CUST<customer_count:06d>). Set this to match the sibling 'c… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `inject_dq_issues` | `bool` | `false` | If True, seed intentional data-quality issues into the output DataFrame — approximately 5% nulls per numeric column, ~3% duplicate rows, ~2% outliers (10x-50x scale) on the first numeric column, and ~5% trailing-whitespa… _(full docs in schema.json + component README)_ |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |

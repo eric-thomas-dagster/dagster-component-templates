@@ -101,6 +101,25 @@
       "description": "Template for the partition key per detected object. Fields: {bucket}, {key}, {prefix}. Default {key} is the bare S3 key. Use s3://{bucket}/{key} for the full URI as the partition key (note: '://' breaks Dagster's filesystem IO manager — keep the bare key unless you're using a custom IO manager).",
       "required": false,
       "default": "{key}"
+    },
+    "op_name": {
+      "type": "string",
+      "label": "Op Name",
+      "description": "Op name to key the run_config under. Emitted as `{'ops': {op_name: {'config': {...}}}}`. Defaults to 'config' for backward compat, but if the target job's op is not named 'config' (e.g. an @asset or @multi_asset with a custom name), set this to the actual op name — otherwise Dagster rejects the run config with 'Received unexpected config entry \"config\" at path root:ops'.",
+      "required": false
+    },
+    "source_asset_key": {
+      "type": "string",
+      "label": "Source Asset Key",
+      "description": "Optional asset key (e.g. 's3_landing_zone') to receive an AssetObservation on every tick that yields new objects. Metadata includes bucket, prefix, new_objects, last_key, last_modified — lets an observable-source asset in the graph show a live timeline of object arrivals in the Dagster UI.",
+      "required": false
+    },
+    "emit_materialization": {
+      "default": true,
+      "description": "When True (default), the sensor emits AssetMaterialization. When False, emits AssetObservation instead. Only used when create_observation_sensor=True.",
+      "label": "Emit Materialization",
+      "required": false,
+      "type": "boolean"
     }
   },
   "tags": [

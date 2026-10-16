@@ -74,22 +74,22 @@ Defaults to `v8` -- Zoho's current REST API version per its own developer docs, 
 | `resource_key` | `str` | `"zoho_crm"` | Resource key. Other components reference it via this name. |
 | `client_id_env_var` | `str` | `"ZOHO_CLIENT_ID"` | Env var holding the Zoho OAuth Client ID. |
 | `client_secret_env_var` | `str` | `"ZOHO_CLIENT_SECRET"` | Env var holding the Zoho OAuth Client Secret. |
-| `refresh_token_env_var` | `str` | `"ZOHO_REFRESH_TOKEN"` | Env var holding the long-lived OAuth refresh token. |
 
 ### Execution
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `api_version` | `str` | `"v8"` | Zoho CRM REST API version. |
-| `request_timeout_seconds` | `int` | `60` | Per-request timeout in seconds. |
-| `max_retries` | `int` | `3` | Retry attempts on 429 / 5xx (exponential backoff, capped at 10s) + one on 401 (token refresh). |
+| `max_retries` | `int` | `3` | Retry attempts on 429 / 5xx (exponential backoff) + one on 401 (token refresh). |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `refresh_token_env_var` | `str` | `"ZOHO_REFRESH_TOKEN"` | Env var holding the long-lived OAuth refresh token. |
 | `accounts_domain` | `str` | `"com"` | Zoho accounts data-center region: 'com' (US), 'eu', 'in', 'com.au', 'jp', 'com.cn', or 'ca' (zohocloud.ca). |
 | `api_domain` | `str` | — | Override the Zoho API host. Leave unset to use the api_domain Zoho's OAuth token response returns for your data center. |
+| `request_timeout_seconds` | `int` | `60` | Per-request timeout in seconds. |
 
 [//]: # (FIELDS:END)
 

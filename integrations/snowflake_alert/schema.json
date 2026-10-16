@@ -100,6 +100,55 @@
       "items": {
         "type": "string"
       }
+    },
+    "alert_name": {
+      "type": "string",
+      "label": "Alert Name",
+      "description": "Alert name (unquoted identifier)",
+      "required": true
+    },
+    "schedule": {
+      "type": "string",
+      "label": "Schedule",
+      "description": "\"60 minute\" or \"USING CRON 0 * * * * UTC\"",
+      "required": false
+    },
+    "condition_sql": {
+      "type": "string",
+      "label": "Condition Sql",
+      "description": "A SELECT that the alert evaluates. If it returns rows, the action fires.",
+      "required": true
+    },
+    "action_sql": {
+      "type": "string",
+      "label": "Action Sql",
+      "description": "The action to run when condition_sql returns rows.",
+      "required": true
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
     }
   }
 }

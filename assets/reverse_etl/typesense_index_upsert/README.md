@@ -53,28 +53,37 @@ always loops per-document (no batching possible).
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
 | `collection_name` | `str` | Target Typesense collection name. |
-| `id_field` | `str` | Upstream column whose (stringified) value becomes the Typesense document's `id` field. |
-
-### Source (exactly one)
-
-| Field | Type | Description |
-|---|---|---|
-| `upstream_asset_key` | `str` | Upstream Dagster asset providing the DataFrame. |
-| `source` | `dict` | Inline source config: `{kind: sql\|csv\|inline, ...}`. |
+| `id_field` | `str` | Upstream column whose (stringified) value becomes the Typesense document's `id` field. Required -- Typesense needs `id` inside the document body itself. Excluded from the rest of the document to avoid a duplicate key. |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"typesense_resource"` | Resource key registered by `TypesenseResourceComponent`. |
+| `resource_key` | `str` | `"typesense_resource"` | Resource key registered by TypesenseResourceComponent. |
+
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `batch_size` | `int` | `50000` | Max upstream rows per run (safety cap). |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `group_name` | `str` | `"typesense"` | Dagster asset group name. |
+| `description` | `str` | — | Asset description. |
+| `owners` | `List[str]` | — | Asset owners. |
+| `tags` | `Dict[str, str]` | — | Catalog tags. |
+| `kinds` | `List[str]` | — | Asset kinds (auto-includes 'typesense'). |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `operation` | `str` | `"upsert"` | `upsert` (batched import) or `delete` (per-row DELETE calls). |
-| `batch_size` | `int` | `50000` | Max upstream rows per run (safety cap). |
-| `group_name` | `str` | `"typesense"` | Dagster asset group name. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
+| `operation` | `str` | `"upsert"` | 'upsert' (default) -- create-or-replace via the Import endpoint's `action=upsert`. 'delete' -- removes each row via a per-document `DELETE .../documents/{id}` call (Typesense's import endpoint has no bulk-delete mode). |
 
 [//]: # (FIELDS:END)
 

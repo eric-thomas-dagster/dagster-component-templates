@@ -27,7 +27,7 @@ No dedicated Prometheus transform needed — exposition format is simple enough 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Asset key of upstream DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of upstream DataFrame |
 | `pushgateway_url` | `str` | Pushgateway URL, e.g. 'http://localhost:9091' or env-var-driven |
 | `job` | `str` | Prometheus job name (identifies the source group on the pushgateway) |
 | `metric_name` | `str` | Metric name (e.g. 'orders_total') |

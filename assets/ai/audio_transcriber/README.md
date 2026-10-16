@@ -13,8 +13,7 @@ Transcribe audio files from a file path column using OpenAI Whisper (local model
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
-| `audio_path_column` | `Union[str, int]` | Column containing local audio file paths |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 
 ### Catalog metadata
 
@@ -69,6 +68,7 @@ Transcribe audio files from a file path column using OpenAI Whisper (local model
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
+| `audio_path_column` | `Union[str, int]` | `"audio_path"` | Column containing local audio file paths. Defaults to 'audio_path' to pair directly with video_audio_extract_asset's output_path_column -- same default audio_diarized_transcriber already uses; this component had none, th… _(full docs in schema.json + component README)_ |
 | `language_column` | `Union[str, int]` | — | Column to write the detected language code |
 | `language` | `str` | — | Hint language to skip auto-detection (ISO 639-1 code, e.g. 'en') |
 

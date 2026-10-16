@@ -116,7 +116,7 @@ Second approval (`.bob@example.com.json`) unblocks the gate; the third is option
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset whose value passes through the gate when quorum approves. String (not AssetKey); slash notation for multi-part keys. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset whose value passes through the gate when quorum approves. String (not AssetKey); slash notation for multi-part keys. |
 | `approval_dir` | `str` | Where votes live. Plain path (`/tmp/approvals`) or fsspec URI (`s3://bucket/approvals`, `gs://...`, `abfs://...`). On Dagster+ Serverless, use cloud URIs — container FS is ephemeral. |
 | `approver_allowlist` | `List[str]` | Approver IDs (email, username, whatever your org uses) allowed to vote. Files from other IDs are ignored. Vote filename is `<safe_partition_key>.<approver_id>.json`. |
 

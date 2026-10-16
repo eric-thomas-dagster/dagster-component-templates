@@ -73,7 +73,7 @@ Together they cover both directions of LinkedIn Ads data movement.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
 | `operation` | `str` | `"add"` | 'add' (default) adds matching users to the segment (LinkedIn action=ADD) — the normal activation case. 'remove' removes them (action=REMOVE) — useful for suppression. |
 | `linkedin_api_version` | `str` | `"202501"` | LinkedIn REST API version header (format YYYYMM). LinkedIn sunsets old versions roughly 12 months after release — bump this periodically rather than relying on a hardcoded default. |

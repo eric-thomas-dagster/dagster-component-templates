@@ -17,7 +17,7 @@ The Ticket Classifier Component automatically classifies support tickets across 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset that will hold classified ticket data |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with ticket text to classify |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with ticket text to classify |
 
 ### Connection
 

@@ -21,6 +21,12 @@ Requires a `SupabaseResource` (see `resources/supabase_resource`).
 | `asset_name` | `str` | Output asset name. |
 | `table_name` | `str` | Supabase table containing the vector column. |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `"supabase_resource"` | Resource key of the SupabaseResource providing the client. |
+
 ### Catalog metadata
 
 | Field | Type | Default | Description |
@@ -35,9 +41,8 @@ Requires a `SupabaseResource` (see `resources/supabase_resource`).
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"supabase_resource"` | Resource key of the SupabaseResource providing the client. |
 | `embedding_column` | `str` | `"embedding"` | Vector column on the target table (pgvector type). |
-| `upstream_asset_key` | `str` | — | Upstream DataFrame asset providing query vectors (one search per row). |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream DataFrame asset providing query vectors (one search per row). |
 | `query_embedding_column` | `str` | — | Column on the upstream DataFrame holding the query vector (list[float] or ndarray). |
 | `query_vector` | `List[float]` | — | Static query vector (list[float]). Use in place of upstream/query_embedding_column for a one-shot search. |
 | `top_k` | `int` | `10` | Number of nearest neighbors to return per query. |

@@ -183,6 +183,12 @@
         "fixed"
       ],
       "ui:widget": "select"
+    },
+    "codegen_output_dir": {
+      "type": "string",
+      "label": "Codegen Output Dir",
+      "description": "If set, after synthesis the component writes one ready-to-commit defs.yaml per successful pick to this directory. Point at your project's `src/<pkg>/defs/` folder. The generated YAMLs reproduce the agent's trajectory as permanent Dagster assets — drop the catalog_agent config afterwards and materialize directly (zero LLM cost from that point). Preview of the equivalent YAML is ALWAYS included in the synthesis asset's metadata regardless.",
+      "required": false
     }
   }
 }

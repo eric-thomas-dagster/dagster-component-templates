@@ -17,7 +17,7 @@ Run a compiled DSPy program against a DataFrame column. DSPy optimizes prompts a
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `text_column` | `Union[str, int]` | Column containing input text |
 | `signature` | `str` | DSPy signature string e.g. "question -> answer" or "document -> summary, key_points" |
 

@@ -21,6 +21,24 @@
       "description": "Env var holding HubSpot private app access token",
       "required": true,
       "ui:widget": "env_var"
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base Url",
+      "description": "HubSpot API base URL. Default matches all standard portals.",
+      "required": false
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "description": "Per-request timeout in seconds.",
+      "required": false
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "description": "Retry attempts on 429 (honors Retry-After) / 5xx.",
+      "required": false
     }
   },
   "tags": [

@@ -73,8 +73,13 @@ Unlike Salesforce (`/composite/sobjects`, Bulk 2.0), Dataverse has no single-cal
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `api_version` | `str` | `"v9.2"` | Dataverse Web API version segment (e.g. 'v9.2'). |
-| `request_timeout_seconds` | `int` | `60` | Per-request timeout in seconds. |
 | `max_retries` | `int` | `3` | Retry attempts on 429 / 5xx + one on 401 (token refresh). |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `request_timeout_seconds` | `int` | `60` | Per-request timeout in seconds. |
 
 [//]: # (FIELDS:END)
 

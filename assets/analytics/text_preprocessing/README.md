@@ -11,7 +11,7 @@ Clean and normalize text data for NLP tasks using NLTK. Supports lowercasing, pu
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `text_column` | `Union[str, int]` | Column name containing the raw text to process |
 
 ### Catalog metadata

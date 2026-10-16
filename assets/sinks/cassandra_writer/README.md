@@ -15,7 +15,7 @@ The `CassandraWriterComponent` accepts an upstream DataFrame asset and writes ea
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the output asset to create |
-| `upstream_asset_key` | `str` | Asset key of the upstream DataFrame asset |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of the upstream DataFrame asset |
 | `keyspace` | `str` | Cassandra keyspace name |
 | `table` | `str` | Cassandra table name to write to |
 

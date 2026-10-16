@@ -59,7 +59,7 @@ Same fsspec-based abstraction as the other approval gates. `approval_dir` accept
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor. |
-| `upstream_asset_key` | `str` | Upstream asset whose text is emailed for approval. String (not AssetKey object); multi-part keys use slash notation. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset whose text is emailed for approval. String (not AssetKey object); multi-part keys use slash notation. |
 | `approval_dir` | `str` | Where to write the standard JSON approval token on quorum, and where the outbound message sidecar lives. Plain path or fsspec URI. |
 | `smtp_server` | `str` | SMTP host, e.g. `smtp.gmail.com`. |
 | `smtp_username_env_var` | `str` | Env var holding the SMTP username (usually the from-email). |

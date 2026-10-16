@@ -15,7 +15,7 @@ The `FirestoreWriterComponent` accepts an upstream DataFrame asset and writes ea
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the output asset to create |
-| `upstream_asset_key` | `str` | Asset key of the upstream DataFrame asset |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of the upstream DataFrame asset |
 | `collection` | `str` | Firestore collection name |
 
 ### Catalog metadata

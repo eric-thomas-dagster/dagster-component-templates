@@ -60,7 +60,7 @@ For deeply nested keys, use dot-paths: `output.choices.0.message.content` (numer
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
-| `upstream_asset_key` | `str` | Upstream asset to evaluate (typically an *_agent or LLM output). |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset to evaluate (typically an *_agent or LLM output). |
 | `evaluations` | `List[str]` | Which evaluations to run. Valid: 'answer_relevance', 'groundedness', 'context_relevance', 'harmfulness', 'helpfulness', 'coherence'. Each runs one LLM judge call. |
 
 ### Connection

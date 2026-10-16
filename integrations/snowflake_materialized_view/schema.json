@@ -100,6 +100,52 @@
       "items": {
         "type": "string"
       }
+    },
+    "mv_name": {
+      "type": "string",
+      "label": "Mv Name",
+      "description": "Materialized view name (unquoted identifier)",
+      "required": true
+    },
+    "sql": {
+      "type": "string",
+      "label": "Sql",
+      "description": "The MV's SELECT statement. Standard MV restrictions apply (single source table, no joins, etc.).",
+      "required": true
+    },
+    "cluster_by": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Cluster By",
+      "description": "Cluster By",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
     }
   }
 }

@@ -35,7 +35,7 @@ Set the matching `api_key_env_var` (`OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `AZU
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset key. |
 | `model` | `str` | LiteLLM model id. e.g. `openai/tts-1`, `openai/tts-1-hd`, `elevenlabs/eleven_multilingual_v2`, `azure/<deployment>`. |
 | `api_key_env_var` | `str` | Env var holding the API key for the selected provider. |
 | `text_column` | `Union[str, int]` | Column containing text to speak. |

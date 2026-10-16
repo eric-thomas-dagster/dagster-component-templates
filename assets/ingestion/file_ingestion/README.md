@@ -55,6 +55,7 @@ from_run_config:
 | `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'} |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set. |
 | `deps` | `list[str]` | — | Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset']) |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset -- only applies to the 'fixed file_path' mode (file_path set, no sensor/upstream config). 'single_run' materializes an entire backfill range in one run (reads and conca… _(full docs in schema.json + component README)_ |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
 
 ### Freshness
@@ -110,6 +111,7 @@ from_run_config:
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
 | `fixed_width_colspecs` | `List[List[int]]` | — | For `format: fixed_width` only — list of [start, end] character positions (0-indexed, exclusive end) per column. Example for a mainframe COBOL layout: fixed_width_colspecs: - [0, 10] # 10-char customer ID - [10, 40] # 30… _(full docs in schema.json + component README)_ |
 | `fixed_width_names` | `List[str]` | — | For `format: fixed_width` only — column names list. Required unless the file has a header row (then set `header_row: 0`). |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)

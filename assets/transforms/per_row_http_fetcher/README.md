@@ -33,7 +33,7 @@ Concurrent fetches via `concurrent.futures.ThreadPoolExecutor`
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `url_column` | `Union[str, int]` | Column whose value is the URL to fetch for each row. |
 
 ### Execution

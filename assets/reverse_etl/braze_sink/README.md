@@ -154,7 +154,7 @@ attribute_columns: [email, first_name, last_name]
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key\|database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
 | `rest_endpoint` | `str` | — | Inline fallback: region-specific Braze REST endpoint URL. Only used when `resource_key` is unset. |
 | `catalog_name` | `str` | — | Required when endpoint='catalogs'. |

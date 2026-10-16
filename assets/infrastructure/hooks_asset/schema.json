@@ -88,6 +88,24 @@
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"
+    },
+    "on_start": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "On Start",
+      "description": "Callbacks fired BEFORE compute (in list order). Signature: `(context) -> None`. Each is a `mod:fn` reference.",
+      "required": false
+    },
+    "on_end": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "On End",
+      "description": "Callbacks fired AFTER compute (finally-style — regardless of success or failure, in list order). Signature: `(context, outcome: str, result_or_exc) -> None`. Runs after on_success/on_failure.",
+      "required": false
     }
   },
   "tags": [

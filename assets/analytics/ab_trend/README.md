@@ -11,7 +11,7 @@ Takes A/B exposure rows and bucks them by date. Outputs one row per (date_bucket
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `variant_column` | `Union[str, int]` | Variant column (control/treatment). |
 | `converted_column` | `Union[str, int]` | Binary conversion column (0/1). |
 | `date_column` | `Union[str, int]` | Datetime column to bucket by. |

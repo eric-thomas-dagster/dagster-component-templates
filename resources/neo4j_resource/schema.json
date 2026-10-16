@@ -78,6 +78,12 @@
       "label": "Database",
       "required": false,
       "default": "neo4j"
+    },
+    "password": {
+      "type": "string",
+      "label": "Password",
+      "description": "Neo4j password (literal). Set this OR password_env_var.",
+      "required": false
     }
   }
 }

@@ -18,7 +18,7 @@ pip install requests
 |---|---|---|
 | `subdomain` | `str` | Gorgias account subdomain, e.g. 'acme' for https://acme.gorgias.com |
 | `email_env_var` | `str` | Env var holding the Gorgias account email used as the Basic Auth username |
-| `api_key_env_var` | `str` | Env var holding the Gorgias REST API key (Settings > REST API) |
+| `api_key_env_var` | `str` | Env var holding the Gorgias REST API key |
 
 ### Connection
 

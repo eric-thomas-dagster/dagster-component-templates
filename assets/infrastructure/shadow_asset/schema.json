@@ -79,6 +79,24 @@
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"
+    },
+    "shadow_wraps": {
+      "type": "object",
+      "label": "Shadow Wraps",
+      "description": "Shadow component to run alongside `wraps:` — its result is diffed against the primary but NOT materialized. Required when using `wraps:`.",
+      "required": false
+    },
+    "fuzzy_match": {
+      "type": "object",
+      "label": "Fuzzy Match",
+      "description": "Fuzzy comparison config for DataFrame diffs. `{float_tolerance: 1e-6, ignore_columns: [col_a, col_b], ignore_row_order: true}`. Float cells within tolerance count as equal; ignored columns are dropped before compare; row-order-invariant sorts both by all columns first. Ignored on non-DataFrame outputs.",
+      "required": false
+    },
+    "diff_export_uri": {
+      "type": "string",
+      "label": "Diff Export Uri",
+      "description": "When mismatch is detected, write mismatched rows to this fsspec URI (local path or `s3://`, `gs://`, `abfs://`). Path shape: `<uri>/<asset>/<UTC_ts>__<run_id>.parquet`. Emitted as observation metadata `shadow_diff_export_path`. DataFrame outputs only.",
+      "required": false
     }
   },
   "tags": [

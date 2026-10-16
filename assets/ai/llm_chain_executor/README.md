@@ -108,7 +108,7 @@ attributes:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `provider` | `str` | LLM provider |
 | `model` | `str` | Model name |
 | `chain_steps` | `List[Dict[str, Any]]` | List of chain steps, each with 'prompt' and 'output_key' |

@@ -17,7 +17,7 @@ pip install requests
 | Field | Type | Description |
 |---|---|---|
 | `org_subdomain` | `str` | Kustomer org subdomain, e.g. 'acme' for https://acme.api.kustomerapp.com |
-| `api_key_env_var` | `str` | Env var holding the Kustomer API key (Settings > Security > API Keys) |
+| `api_key_env_var` | `str` | Env var holding the Kustomer API key |
 
 ### Connection
 

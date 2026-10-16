@@ -52,6 +52,7 @@ PyIceberg's `load_catalog(...)` handles all the standard catalog implementations
 | `asset_tags` | `Dict[str, str]` | — | — |
 | `kinds` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (one table scan per partition in the range, each with its own row_filter {partition_key} substitution, co… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -96,6 +97,7 @@ PyIceberg's `load_catalog(...)` handles all the standard catalog implementations
 | `include_preview_metadata` | `bool` | `true` | — |
 | `preview_rows` | `int` | `25` | — |
 | `dynamic_partition_name` | `str` | — | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

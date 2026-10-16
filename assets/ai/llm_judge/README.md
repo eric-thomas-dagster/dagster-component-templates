@@ -17,7 +17,7 @@ Evaluate and score LLM outputs against a rubric using another LLM as a judge. Us
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `response_column` | `Union[str, int]` | Column containing LLM responses to evaluate |
 | `criteria` | `List[str]` | Evaluation criteria e.g. ["accuracy", "clarity", "completeness"] |
 

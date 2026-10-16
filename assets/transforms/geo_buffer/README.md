@@ -28,7 +28,7 @@ state plane for your region.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a (Geo)DataFrame with a geometry column |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a (Geo)DataFrame with a geometry column |
 | `distance` | `float` | Buffer distance, in `units`. |
 
 ### Catalog metadata

@@ -81,7 +81,7 @@ Pairs with **`MixpanelResourceComponent`** for shared auth.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | — |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | — |
 | `source` | `Dict[str, Any]` | — | Inline source config: {kind: sql\|csv\|inline, ...} |
 | `event_column` | `str` | — | For events mode: column with the event name. Required for events mode. |
 | `default_event` | `str` | — | Fallback event name when `event_column` is unset or null. |

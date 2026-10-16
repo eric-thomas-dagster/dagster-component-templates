@@ -25,6 +25,12 @@ Also requires a `GorgiasResourceComponent` on the same code location for authent
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `"gorgias_resource"` | Key of the GorgiasResource this asset depends on for authentication |
+
 ### Execution
 
 | Field | Type | Default | Description |
@@ -36,21 +42,37 @@ Also requires a `GorgiasResourceComponent` on the same code location for authent
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the date-window filter below already handles a multi-partition range correctly). 'multi_run' launches on… _(full docs in schema.json + component README)_ |
 | `description` | `str` | — | Asset description |
 | `group_name` | `str` | `"gorgias"` | Asset group for organization |
-| `owners` | `List[str]` | — | Asset owners — list of team names or email addresses |
+| `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:support', 'user@company.com'] |
 | `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['gorgias', 'python']. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime) |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned. When time-based, from_date_time/to_date_time are derived from the partition window instead of the static config. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'us,eu,asia'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `order_by` | `str` | `"created_datetime:desc"` | Gorgias order_by param, e.g. 'created_datetime:desc' or 'updated_datetime:asc' |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"gorgias_resource"` | Key of the GorgiasResource this asset depends on for authentication |
-| `from_date_time` | `str` | — | Start of the ticket window (ISO-8601). Client-side filter only (see below). |
-| `to_date_time` | `str` | — | End of the ticket window (ISO-8601). Client-side filter only. |
-| `order_by` | `str` | `"created_datetime:desc"` | Gorgias order_by param |
+| `from_date_time` | `str` | — | Start of the ticket window (ISO-8601, e.g. '2026-06-01T00:00:00Z'). Gorgias's /api/tickets endpoint has no server-side date filter, so this is applied as a client-side filter on created_datetime after fetching. |
+| `to_date_time` | `str` | — | End of the ticket window (ISO-8601, e.g. '2026-07-01T00:00:00Z'). Applied client-side on created_datetime, same caveat as from_date_time. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
 

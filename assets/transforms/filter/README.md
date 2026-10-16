@@ -82,7 +82,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `backend` | `str` | `"pandas"` | Execution backend: 'pandas' (default) or 'polars'. Polars runs the filter via its SQL engine over the same condition string and returns a polars DataFrame; pandas uses .query() and returns a pandas DataFrame. The conditi… _(full docs in schema.json + component README)_ |
 | `negate` | `bool` | `false` | If True, keep rows that do NOT match the condition |

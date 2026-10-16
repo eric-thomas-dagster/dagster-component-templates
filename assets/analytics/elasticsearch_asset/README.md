@@ -65,7 +65,7 @@ For Elastic Cloud, set `api_key_env_var` in addition to `elasticsearch_url_env_v
 | `asset_name` | `str` | Dagster asset key for this component. |
 | `elasticsearch_url_env_var` | `str` | Name of the environment variable containing the Elasticsearch URL (e.g. ``http://localhost:9200`` or an Elastic Cloud endpoint). |
 | `index_name` | `str` | Elasticsearch index to operate on. |
-| `upstream_asset_key` | `str` | Asset key of the upstream asset providing a pandas DataFrame. In ``index`` mode the DataFrame rows are indexed as ES documents. In ``query`` mode this field is still required for lineage but the upstream value is not used. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of the upstream asset providing a pandas DataFrame. In ``index`` mode the DataFrame rows are indexed as ES documents. In ``query`` mode this field is still required for lineage but the upstream value is not used. |
 
 ### Connection
 

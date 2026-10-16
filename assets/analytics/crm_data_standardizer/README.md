@@ -151,7 +151,7 @@ Standardized CRM data with unified fields:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream asset containing raw platform data (automatically set via lineage) |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset containing raw platform data (automatically set via lineage) |
 | `record_id_field` | `str` | — | Field name for record ID (auto-detected if not provided) |
 | `name_field` | `str` | — | Field name for name/title (auto-detected if not provided) |
 | `email_field` | `str` | — | Field name for email (auto-detected if not provided) |

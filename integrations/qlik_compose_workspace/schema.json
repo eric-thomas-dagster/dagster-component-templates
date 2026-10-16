@@ -77,6 +77,12 @@
       "type": "object",
       "label": "Defs State Config",
       "required": false
+    },
+    "assets_by_name": {
+      "type": "object",
+      "label": "Assets By Name",
+      "description": "Per-object overrides keyed by the imported object's name (workflow name / data-mart name). Values are dicts of @asset kwargs applied on top of the auto-generated ones (group_name, tags, metadata, description, etc.).",
+      "required": false
     }
   }
 }

@@ -17,7 +17,7 @@ pip install requests
 | Field | Type | Description |
 |---|---|---|
 | `app_id` | `str` | Algolia Application ID |
-| `api_key_env_var` | `str` | Env var holding an Algolia Admin API Key (write access required for batch/delete). |
+| `api_key_env_var` | `str` | Env var holding an Algolia Admin API Key (write access required). |
 
 ### Connection
 
@@ -29,7 +29,7 @@ pip install requests
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `api_base_url` | `str` | `""` | Override the Algolia REST host. Defaults to `https://{app_id}-dsn.algolia.net`. |
+| `api_base_url` | `str` | — | Override the Algolia REST host. Defaults to 'https://{app_id}-dsn.algolia.net'. |
 
 [//]: # (FIELDS:END)
 

@@ -270,7 +270,7 @@ Process LLM outputs with:
 |---|---|---|
 | `asset_name` | `str` | Name of the asset that will hold the enriched data |
 | `api_key` | `str` | OpenAI API key. Use ${OPENAI_API_KEY} for environment variables. |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with text to process |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with text to process |
 
 ### Execution
 

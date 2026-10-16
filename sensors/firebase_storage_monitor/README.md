@@ -23,6 +23,12 @@ Pair with a `firebase_resource` component in the same Dagster project.
 | `sensor_name` | `str` | Unique name for this sensor. |
 | `bucket_name` | `str` | Firebase Storage bucket name (e.g. '<project>.appspot.com'). Falls back to the FirebaseResource's default bucket when empty. |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `"firebase_resource"` | Name of the FirebaseResource this sensor uses. |
+
 ### Sensor configuration
 
 | Field | Type | Default | Description |
@@ -41,7 +47,6 @@ Pair with a `firebase_resource` component in the same Dagster project.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"firebase_resource"` | Name of the FirebaseResource this sensor uses. |
 | `blob_pattern` | `str` | `".*"` | Regex matched against the blob name relative to the prefix. |
 | `dynamic_partition_name` | `str` | — | If set, register detected blob names as dynamic partitions under this name and yield RunRequest(partition_key=<name>). |
 

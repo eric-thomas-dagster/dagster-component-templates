@@ -147,7 +147,7 @@ Standardized e-commerce data with unified fields:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream asset containing raw platform data (automatically set via lineage) |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset containing raw platform data (automatically set via lineage) |
 | `order_id_field` | `str` | — | Field name for order ID (auto-detected if not provided) |
 | `customer_id_field` | `str` | — | Field name for customer ID (auto-detected if not provided) |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |

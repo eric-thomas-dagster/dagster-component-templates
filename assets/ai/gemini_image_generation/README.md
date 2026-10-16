@@ -37,7 +37,7 @@ Get a key at https://aistudio.google.com/app/apikey.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key. Each row triggers one image generation. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset key. Each row triggers one image generation. |
 
 ### Connection
 

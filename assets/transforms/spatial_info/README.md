@@ -21,7 +21,7 @@ column. Drop-in for Alteryx's **Spatial Info** tool.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream (Geo)DataFrame with a geometry column |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream (Geo)DataFrame with a geometry column |
 
 ### Catalog metadata
 

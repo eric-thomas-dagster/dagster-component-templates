@@ -68,7 +68,7 @@ This component takes a DataFrame from an upstream asset and writes it to any dlt
 |---|---|---|---|
 | `primary_key` | `str` | — | Primary key column(s) for merge mode (comma-separated if multiple) |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
-| `upstream_asset_keys` | `str` | — | Comma-separated list of upstream asset keys to load DataFrames from (automatically set by custom lineage) |
+| `upstream_asset_keys` | `Union[str, List[str]]` | — | Comma-separated list of upstream asset keys to load DataFrames from (automatically set by custom lineage) |
 | `destination` | `str` | — | Database destination for persisting data (leave empty for in-memory DuckDB) |
 | `snowflake_account` | `str` | — | Snowflake account identifier |
 | `snowflake_database` | `str` | — | Snowflake database name |

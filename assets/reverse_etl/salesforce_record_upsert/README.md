@@ -82,7 +82,7 @@ Together they cover both directions of Salesforce data movement.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
 | `use_composite` | `bool` | `true` | Use `/composite/sobjects/{Object}/{ExtIdField}` for 200-record batching. Set false for per-row PATCHes (slower, but per-row error isolation). Ignored when `use_bulk: true`. |
 | `composite_all_or_none` | `bool` | `false` | Only used when `use_composite: true`. If true, Salesforce rolls back the entire 200-record batch on any error. Default false (partial success — each row succeeds or fails independently). |

@@ -18,6 +18,12 @@
     "owners": {"description": "Asset owners.", "label": "Owners", "type": "array", "required": false},
     "tags": {"description": "Catalog tags.", "label": "Tags", "type": "object", "required": false},
     "kinds": {"description": "Asset kinds (auto-includes 'cube', 'semantic-layer').", "label": "Kinds", "type": "array", "required": false},
-    "deps": {"description": "Upstream Dagster asset keys.", "label": "Deps", "type": "array", "required": false}
+    "deps": {"description": "Upstream Dagster asset keys.", "label": "Deps", "type": "array", "required": false},
+    "strip_cube_prefix": {
+      "type": "boolean",
+      "label": "Strip Cube Prefix",
+      "description": "When true (default), strip the '<CubeName>.' prefix from column names — 'Orders.customerName' becomes 'customerName'. Makes downstream consumers (dbt sources, LangChain templates that use {var} syntax, pandas transforms) friendlier. Set to false to preserve the fully-qualified Cube identifiers.",
+      "required": false
+    }
   }
 }

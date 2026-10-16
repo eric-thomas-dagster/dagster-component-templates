@@ -21,6 +21,24 @@
       "description": "Env var holding Jira API token",
       "required": true,
       "ui:widget": "env_var"
+    },
+    "email_env_var": {
+      "type": "string",
+      "label": "Email Env Var",
+      "description": "Env var holding the Atlassian account email (Basic auth username).",
+      "required": false
+    },
+    "base_url": {
+      "type": "string",
+      "label": "Base Url",
+      "description": "Jira instance URL, e.g. https://<workspace>.atlassian.net (no trailing slash).",
+      "required": true
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify Ssl",
+      "description": "TLS cert verification.",
+      "required": false
     }
   },
   "tags": [

@@ -230,6 +230,12 @@
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "backend": {
+      "type": "string",
+      "label": "Backend",
+      "description": "Execution backend: 'pandas' (default) or 'polars'. Polars runs the filter via its SQL engine over the same condition string and returns a polars DataFrame; pandas uses .query() and returns a pandas DataFrame. The condition syntax is identical across backends for common predicates (col op value, AND/OR, IN, IS NULL, etc.).",
+      "required": false
     }
   },
   "tags": [

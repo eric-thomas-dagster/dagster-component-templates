@@ -16,8 +16,8 @@ pip install requests
 
 | Field | Type | Description |
 |---|---|---|
-| `api_key_env_var` | `str` | Env var holding the Lever API key (Basic auth username, blank password). |
-| `perform_as` | `str` | Lever user ID of the acting user, required by Lever on every mutating call. Look this up once via GET /users and hardcode it here -- it is NOT optional on Lever's real API. |
+| `api_key_env_var` | `str` | Env var holding the Lever API key (Basic auth username). |
+| `perform_as` | `str` | Lever user ID of the acting user, required by Lever on every mutating call. Look this up once via GET /users. |
 
 ### Connection
 

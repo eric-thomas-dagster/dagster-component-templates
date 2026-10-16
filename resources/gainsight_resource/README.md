@@ -23,7 +23,12 @@ pip install requests
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"gainsight_resource"` | Key used to register this resource. Other components reference it via resource_key. |
-| `access_key_env_var` | `str` | `"GAINSIGHT_ACCESS_KEY"` | Env var holding the org-wide Gainsight Access Key |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `access_key_env_var` | `str` | `"GAINSIGHT_ACCESS_KEY"` | Env var holding the org-wide Gainsight Access Key (Administration -> Connectors 2.0 -> Gainsight API -> Access_Key) |
 
 [//]: # (FIELDS:END)
 

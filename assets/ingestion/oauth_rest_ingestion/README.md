@@ -69,6 +69,7 @@ Config: `pagination: offset`, `offset_param: offset`, `limit_param: limit`, `pag
 | `asset_tags` | `Dict[str, str]` | — | — |
 | `kinds` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (one full paginated fetch per partition in the range, each with its own query_params {partition_key} subs… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -115,6 +116,7 @@ Config: `pagination: offset`, `offset_param: offset`, `limit_param: limit`, `pag
 | `include_preview_metadata` | `bool` | `true` | — |
 | `preview_rows` | `int` | `25` | — |
 | `dynamic_partition_name` | `str` | — | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

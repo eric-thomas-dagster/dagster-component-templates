@@ -92,7 +92,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `backend` | `str` | `"pandas"` | Accept polars input via auto-conversion. The describe() computation itself runs in pandas — the profiling output shape (transposed table of stats per column) is pandas-shaped. Setting backend='polars' accepts polars inpu… _(full docs in schema.json + component README)_ |
-| `upstream_asset_key` | `str` | — | Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset key providing a DataFrame. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `include` | `str` | `"all"` | Which columns to profile: 'all', 'number', 'object', or 'datetime'. Mirrors pandas describe(include=...). |
 | `percentiles` | `List[float]` | — | Percentiles to compute (default [.25, .5, .75]). Values between 0 and 1. |

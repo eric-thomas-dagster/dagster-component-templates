@@ -50,6 +50,7 @@ Run shell commands on a remote host via SSH as a first-class Dagster asset. Uses
 | `asset_tags` | `Dict[str, str]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
 | `kinds` | `List[str]` | — | Asset kinds for the catalog (e.g. ['snowflake', 'python']). Auto-inferred from component name when unset. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run: `commands`/`working_dir` are templated with {partition_key} and run once PER partition key in the range… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -64,11 +65,11 @@ Run shell commands on a remote host via SSH as a first-class Dagster asset. Uses
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key is exposed via context.partition_key for use in filtering / templating. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set. |
-| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Unused by this component -- there is no DataFrame to filter here (it runs shell commands over SSH). `commands`/`working_dir` support `{partition_key}` templating directly instead -- see partition_type. Kept for schema co… _(full docs in schema.json + component README)_ |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Unused by this component -- there is no DataFrame to filter here (it runs shell commands over SSH). Kept for schema consistency with the rest of the ingestion components. |
 
 ### Retry policy
 
@@ -90,6 +91,7 @@ Run shell commands on a remote host via SSH as a first-class Dagster asset. Uses
 | `sftp_upload` | `dict` | — | If provided, upload a local file to the remote host via SFTP before running commands. Expected keys: ``local_path`` (str) and ``remote_path`` (str). |
 | `sftp_download` | `dict` | — | If provided, download a remote file to the local filesystem via SFTP after all commands complete. Expected keys: ``remote_path`` (str) and ``local_path`` (str). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

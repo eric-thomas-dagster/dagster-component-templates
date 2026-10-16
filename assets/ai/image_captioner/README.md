@@ -13,7 +13,7 @@
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `image_path_column` | `Union[str, int]` | Column containing local image file paths or URLs |
 
 ### Connection

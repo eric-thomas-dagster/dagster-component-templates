@@ -67,6 +67,7 @@ Pull Okta System Log events (every authentication, MFA challenge, admin action) 
 | `include_preview_metadata` | `bool` | `true` | Emit preview metadata |
 | `preview_rows` | `int` | `20` | Preview row count |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
+| `sinks` | `list` | — | Optional list of sinks that write the fetched DataFrame to a warehouse table via an existing Dagster resource, in addition to returning the DataFrame -- skips needing a separate downstream writer asset. Each: {kind: tabl… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

@@ -517,6 +517,15 @@
       "description": "Column-level lineage.",
       "required": false,
       "default": null
+    },
+    "column_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Column Ids",
+      "description": "For the 'items' resource: specific column IDs to fetch via column_values(ids: [...]). Fetches all columns if unset.",
+      "required": false
     }
   },
   "tags": [

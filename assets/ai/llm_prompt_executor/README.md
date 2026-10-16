@@ -179,7 +179,7 @@ attributes:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with text to process |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with text to process |
 | `provider` | `str` | LLM provider: 'openai', 'anthropic', 'cohere', or 'huggingface' |
 | `model` | `str` | Model name (e.g., 'gpt-4', 'claude-3-5-sonnet-20241022', 'command-r-plus') |
 

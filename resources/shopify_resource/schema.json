@@ -34,6 +34,18 @@
       "description": "Shopify API version",
       "required": false,
       "default": "2024-01"
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "description": "Per-request timeout in seconds.",
+      "required": false
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "description": "Retry attempts on 429 (honors Retry-After) / 5xx.",
+      "required": false
     }
   },
   "tags": [

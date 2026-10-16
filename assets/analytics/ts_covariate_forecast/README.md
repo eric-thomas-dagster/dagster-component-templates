@@ -11,7 +11,7 @@ Fits a SARIMAX model (statsmodels) with optional exogenous covariates. Forecasts
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `date_column` | `Union[str, int]` | Datetime column. |
 | `value_column` | `Union[str, int]` | Numeric series to forecast. |
 | `covariate_columns` | `List[str]` | Exogenous regressor columns (must extend through the forecast window in the input). |

@@ -28,7 +28,7 @@ Memory-efficient bulk load of a pandas DataFrame into a Snowflake table via chun
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `table` | `str` | Destination Snowflake table name |
 
 ### Connection

@@ -11,7 +11,7 @@ Detect the language of text in a column and output ISO 639-1 language codes (e.g
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `input_column` | `Union[str, int]` | Column containing text to detect language from |
 
 ### Catalog metadata

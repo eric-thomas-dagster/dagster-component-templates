@@ -87,7 +87,7 @@ Pairs with **`IterableResourceComponent`** for shared auth.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | — |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | — |
 | `source` | `Dict[str, Any]` | — | Inline source config: {kind: sql\|csv\|inline, ...} |
 | `fields_map` | `Dict[str, str]` | — | Explicit source_col -> iterable_field mapping. For users, fields other than userId/email land under dataFields; for events, everything except eventName/userId/email/campaignId lands under dataFields. |
 | `user_id_column` | `str` | — | Column holding the userId (Iterable's primary id when different from email). |

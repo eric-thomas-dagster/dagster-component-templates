@@ -23,33 +23,59 @@ Also requires a `TotangoResourceComponent` on the same code location for authent
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `"totango_resource"` | Key of the TotangoResource this asset depends on for authentication |
+
 ### Execution
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `limit` | `int` | `5000` | Maximum number of accounts to fetch across all pages |
-| `count` | `int` | `1000` | Accounts requested per page (Totango caps this at 1000) |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the date-window filter below already handles a multi-partition range correctly). 'multi_run' launches on… _(full docs in schema.json + component README)_ |
 | `description` | `str` | — | Asset description |
 | `group_name` | `str` | `"totango"` | Asset group for organization |
-| `owners` | `List[str]` | — | Asset owners — list of team names or email addresses |
+| `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:customer-success', 'user@company.com'] |
 | `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['totango', 'python']. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime) |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned. When time-based, the partition window is translated into a range term on date_term_name. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'us,eu,asia'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `sort_by` | `str` | — | Field to sort results by |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"totango_resource"` | Key of the TotangoResource this asset depends on for authentication |
-| `terms` | `List[dict]` | — | Raw Totango Search API 'terms' filter conditions |
-| `fields` | `List[str]` | `["name", "display_name", "health", "last_activity_time", "status"]` | Account fields to return |
-| `date_term_name` | `str` | `"last_updated"` | Attribute name used to build the optional modified-date range term |
-| `modified_after` / `modified_before` | `str` | — | Static date-window bounds (ISO-8601) |
+| `terms` | `List[Dict[str, Any]]` | — | Raw Totango Search API 'terms' filter conditions. Combined with any date-window term (on date_term_name) derived from a time-based partition. |
+| `fields` | `List[str]` | `lambda: ['name', 'display_name', 'health', 'last_activity_time', 'status']()` | Account fields to return. Field names (especially custom attributes like health scores) are configured per Totango org -- confirm yours before relying on this default. |
+| `date_term_name` | `str` | `"last_updated"` | Attribute name used to build the optional modified-date range term (static or partition-derived) |
+| `modified_after` | `str` | — | Static lower bound (ISO-8601) for date_term_name. Ignored when a time-based partition_type is set. |
+| `modified_before` | `str` | — | Static upper bound (ISO-8601) for date_term_name. Ignored when a time-based partition_type is set. |
+| `sort_order` | `str` | — | 'asc' or 'desc' |
+| `scope` | `str` | — | Totango search scope, if applicable to your org |
+| `count` | `int` | `1000` | Accounts requested per page. Totango caps this at 1000. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
 

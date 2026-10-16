@@ -38,7 +38,7 @@ attributes:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset key. |
 
 ### Connection
 
@@ -98,7 +98,7 @@ attributes:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `text_model` | `str` | `"mistral-large-latest"` | Mistral model id. Common: mistral-large-latest, mistral-medium-latest, mistral-small-latest, open-mistral-nemo, codestral-latest, ministral-8b-latest, ministral-3b-latest. '-latest' aliases always resolve to Mistral's current release in that tier. |
+| `text_model` | `str` | `"mistral-large-latest"` | Mistral model id. Common: mistral-large-latest, mistral-medium-latest, mistral-small-latest, open-mistral-nemo, codestral-latest, ministral-8b-latest, ministral-3b-latest. '-latest' aliases always resolve to Mistral's cu… _(full docs in schema.json + component README)_ |
 | `system_prompt` | `str` | — | — |
 | `user_prompt_template` | `str` | — | Template with {column} placeholders. Mutually exclusive with input_column. |
 | `max_tokens` | `int` | `1024` | — |

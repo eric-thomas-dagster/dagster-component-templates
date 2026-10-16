@@ -78,6 +78,7 @@ The `RedisReaderComponent` connects to Redis, scans for keys matching a pattern,
 | `key_pattern` | `str` | `"*"` | Glob pattern for keys to fetch (e.g. 'session:*') |
 | `data_type` | `str` | `"auto"` | Redis data type: 'auto', 'string', 'hash', 'list', 'set', 'zset' |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `sinks` | `List[Dict[str, Any]]` | — | Optional list of sinks that write the read DataFrame to a warehouse table via an existing Dagster resource, in addition to returning the DataFrame -- skips needing a separate downstream writer asset. Each: {kind: table… _(full docs in schema.json + component README)_ |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
 

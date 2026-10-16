@@ -106,6 +106,18 @@
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"
+    },
+    "backend": {
+      "type": "string",
+      "label": "Backend",
+      "description": "Lock backend: `event_log` (default, soft mutex via AssetObservation events — races on simultaneous acquire) OR `postgres` (hard mutex via `pg_try_advisory_lock`, requires a Postgres URL env var + `psycopg` or `psycopg2` installed).",
+      "required": false
+    },
+    "postgres_url_env_var": {
+      "type": "string",
+      "label": "Postgres Url Env Var",
+      "description": "Env var name holding a Postgres URL. Required when `backend=postgres`. Uses `pg_try_advisory_lock` / `pg_advisory_unlock` keyed on a signed int64 derived from sha256(asset_key + partition_key). Lock auto-released on session end.",
+      "required": false
     }
   },
   "tags": [

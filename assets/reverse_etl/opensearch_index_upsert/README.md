@@ -51,28 +51,37 @@ HTTP request.
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
 | `index_name` | `str` | Target OpenSearch index name. |
-| `id_field` | `str` | Upstream column whose value becomes the OpenSearch document's `_id`. |
-
-### Source (exactly one)
-
-| Field | Type | Description |
-|---|---|---|
-| `upstream_asset_key` | `str` | Upstream Dagster asset providing the DataFrame. |
-| `source` | `dict` | Inline source config: `{kind: sql\|csv\|inline, ...}`. |
+| `id_field` | `str` | Upstream column whose value becomes the OpenSearch document's `_id`. Required. Excluded from the document source (its value already lives in the bulk action's metadata line). |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"opensearch_resource"` | Resource key registered by `OpenSearchResourceComponent`. |
+| `resource_key` | `str` | `"opensearch_resource"` | Resource key registered by OpenSearchResourceComponent. |
+
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `batch_size` | `int` | `50000` | Max upstream rows per run (safety cap). |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `group_name` | `str` | `"opensearch"` | Dagster asset group name. |
+| `description` | `str` | — | Asset description. |
+| `owners` | `List[str]` | — | Asset owners. |
+| `tags` | `Dict[str, str]` | — | Catalog tags. |
+| `kinds` | `List[str]` | — | Asset kinds (auto-includes 'opensearch'). |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `operation` | `str` | `"upsert"` | `upsert` or `delete`. |
-| `batch_size` | `int` | `50000` | Max upstream rows per run (safety cap). |
-| `group_name` | `str` | `"opensearch"` | Dagster asset group name. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
+| `operation` | `str` | `"upsert"` | 'upsert' (default) -- create-or-replace via the `index` bulk action. 'delete' -- remove the document via the `delete` bulk action (no source line). |
 
 [//]: # (FIELDS:END)
 

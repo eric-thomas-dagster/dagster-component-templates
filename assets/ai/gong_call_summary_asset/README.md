@@ -28,7 +28,7 @@ Empty transcripts (when `skip_empty: true`) yield `""` and `[]` without an API c
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame with a transcript column |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with a transcript column |
 
 ### Connection
 

@@ -12,17 +12,12 @@ pip install requests
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `api_key_env_var` | `str` | Env var holding the Salesloft API key (Bearer token) |
-
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"salesloft_resource"` | Key used to register this resource. Other components reference it via resource_key. |
+| `api_key_env_var` | `str` | `"SALESLOFT_API_KEY"` | Env var holding the Salesloft API key (Bearer token) |
 | `base_url` | `str` | `"https://api.salesloft.com/v2"` | Salesloft API base URL |
 
 [//]: # (FIELDS:END)

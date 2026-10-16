@@ -54,7 +54,13 @@
     "owners": {"description": "Asset owners", "type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
     "asset_tags": {"description": "Additional asset tags", "type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
     "kinds": {"description": "Asset kinds (default: [database_type, 'inventory'])", "type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
-    "deps": {"description": "Lineage-only upstream asset keys", "type": "array", "items": {"type": "string"}, "label": "Deps", "required": false}
+    "deps": {"description": "Lineage-only upstream asset keys", "type": "array", "items": {"type": "string"}, "label": "Deps", "required": false},
+    "connection": {
+      "type": "string",
+      "label": "Connection",
+      "description": "SQLAlchemy URL for the source DB (e.g. 'postgresql://user:pass@host:5432/db'). Set this OR connection_env_var.",
+      "required": false
+    }
   },
   "tags": ["source", "metadata", "inventory", "migration", "warehouse", "schema"],
   "name": "Database Schema Inventory"

@@ -105,7 +105,7 @@ Either `upstream_asset_key` or `source_database_url_env_var` must be set.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame (must return a pandas DataFrame) |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame (must return a pandas DataFrame) |
 | `prompt_template` | `str` | LangChain prompt template string with {column_name} placeholders |
 
 ### Connection

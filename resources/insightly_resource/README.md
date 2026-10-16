@@ -78,14 +78,19 @@ Leads and Organisations are flatter (Leads expose flat `EMAIL` / `PHONE` fields 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `resource_key` | `str` | `"insightly"` | Key used to register this resource. Other components reference it via resource_key. |
-| `pod` | `str` | `"na1"` | Insightly pod identifier, from your account's API Settings page (directly under your API key), e.g. 'na1'. |
 
 ### Execution
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `request_timeout_seconds` | `int` | `60` | Per-request timeout in seconds. |
 | `max_retries` | `int` | `3` | Retry attempts on 429 / 5xx (exponential backoff, capped at 10s). |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `pod` | `str` | `"na1"` | Insightly pod identifier, from your account's API Settings page (directly under your API key), e.g. 'na1'. |
+| `request_timeout_seconds` | `int` | `60` | Per-request timeout in seconds. |
 
 [//]: # (FIELDS:END)
 

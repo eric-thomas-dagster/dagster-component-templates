@@ -56,7 +56,7 @@ Together they cover **both directions** of Freshservice data movement.
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
 | `key_field` | `str` | Freshservice field (or custom field, with a 'custom_fields.' prefix) used to match existing tickets via the Filter Tickets API. Must be present in `fields_map` values. |
-| `fields_map` | `Dict[str, str]` | Source column → Freshservice field. Values prefixed 'custom_fields.' (e.g. 'custom_fields.unique_external_id') go into the nested custom_fields sub-object on create/update; unprefixed values (e.g. 'subject', 'description', 'email', 'priority', 'status') are top-level ticket fields. |
+| `fields_map` | `Dict[str, str]` | Source column -> Freshservice field. Values prefixed 'custom_fields.' (e.g. 'custom_fields.unique_external_id') go into the nested custom_fields sub-object on create/update; unprefixed values (e.g. 'subject', 'descriptio… _(full docs in schema.json + component README)_ |
 
 ### Connection
 
@@ -84,8 +84,8 @@ Together they cover **both directions** of Freshservice data movement.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
-| `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key, query} / {kind: csv, path, read_csv_kwargs} / {kind: inline, rows}. _(full docs in schema.json + component README)_ |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key: <name>, query: <sql>} {kind: sql, database_url_env_var: <env>, query: <sql>} {kind: csv, path: <path>, read_csv_kwargs… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

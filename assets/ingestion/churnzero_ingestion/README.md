@@ -23,32 +23,54 @@ Also requires a `ChurnZeroResourceComponent` on the same code location for authe
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `"churnzero_resource"` | Key of the ChurnZeroResource this asset depends on for authentication |
+
 ### Execution
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `limit` | `int` | `1000` | Maximum number of accounts to fetch across all pages |
-| `top` | `int` | `100` | Accounts requested per page ($top, ChurnZero caps at 100) |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the date-window filter below already handles a multi-partition range correctly). 'multi_run' launches on… _(full docs in schema.json + component README)_ |
 | `description` | `str` | — | Asset description |
 | `group_name` | `str` | `"churnzero"` | Asset group for organization |
-| `owners` | `List[str]` | — | Asset owners — list of team names or email addresses |
+| `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:customer-success', 'user@company.com'] |
 | `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['churnzero', 'python']. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime) |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned. When time-based, the partition window is translated into an OData $filter on date_field. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'us,eu,asia'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `filter_expr` | `str` | — | Raw OData $filter expression, e.g. "Status eq 'Active'". Combined with any date-window filter via 'and' when both are present. |
+| `order_by` | `str` | `"ObjectLastModifiedDate"` | OData $orderby expression |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"churnzero_resource"` | Key of the ChurnZeroResource this asset depends on for authentication |
-| `date_field` | `str` | `"ObjectLastModifiedDate"` | Field used to build the optional modified-date $filter |
-| `filter_expr` | `str` | — | Raw OData $filter expression |
-| `order_by` | `str` | `"ObjectLastModifiedDate"` | OData $orderby expression |
+| `date_field` | `str` | `"ObjectLastModifiedDate"` | Field used to build the optional modified-date $filter (static or partition-derived) |
+| `top` | `int` | `100` | Accounts requested per page ($top). ChurnZero caps this at 100. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
 

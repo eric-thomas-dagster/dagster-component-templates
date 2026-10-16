@@ -242,7 +242,7 @@ Simple comparison to fixed value.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream asset key providing a DataFrame to analyze for anomalies. Mutually exclusive with `source` -- set exactly one. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset key providing a DataFrame to analyze for anomalies. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Also required (with `execution_mode='sql'`) to… _(full docs in schema.json + component README)_ |
 | `execution_mode` | `str` | `"python"` | 'python' (default): pulls rows into a DataFrame and computes z_score/iqr/moving_average/threshold locally -- works with any source, but data leaves the database and the corpus must fit in memory. 'sql': the same statisti… _(full docs in schema.json + component README)_ |
 | `sql_dialect` | `str` | — | `f"Required when execution_mode='sql'. One of: {_SQL_DIALECTS}."` |

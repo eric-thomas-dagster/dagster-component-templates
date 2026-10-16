@@ -58,8 +58,8 @@ Required because Auth0's create-user endpoint needs to know which connection to 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
-| `connection` | `str` | Auth0 connection name new users are created under (e.g. 'Username-Password-Authentication' for a database connection, or an enterprise connection name for feder… _(full docs in schema.json + component README)_ |
-| `fields_map` | `Dict[str, str]` | Upstream column -> Auth0 user field. Values can be a top-level field ('email', 'name', 'given_name', 'phone_number', ...) or a dotted path into user_metadata/app… _(full docs in schema.json + component README)_ |
+| `connection` | `str` | Auth0 connection name new users are created under (e.g. 'Username-Password-Authentication' for a database connection, or an enterprise connection name for federated/SSO users). Required because Auth0's create-user endpoi… _(full docs in schema.json + component README)_ |
+| `fields_map` | `Dict[str, str]` | Upstream column -> Auth0 user field. Values can be a top-level field ('email', 'name', 'given_name', 'phone_number', ...) or a dotted path into user_metadata/app_metadata (e.g. 'user_metadata.department'). Exactly one va… _(full docs in schema.json + component README)_ |
 
 ### Connection
 
@@ -87,9 +87,9 @@ Required because Auth0's create-user endpoint needs to know which connection to 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
-| `operation` | `str` | `"sync"` | 'sync' (default, SAFE) -- create-if-absent, update-profile-if-present; never blocks or deletes anyone. 'deactivate' (EXPLICIT) -- blocks (does not delete) users matched by email; rows with no matching user are skipped, never created. No other value is accepted -- there is no 'delete' operation. |
+| `operation` | `str` | `"sync"` | 'sync' (default, SAFE) -- create-if-absent, update-profile-if-present; never blocks or deletes anyone. 'deactivate' (EXPLICIT) -- blocks (does not delete) users matched by email; rows with no matching user are skipped, n… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

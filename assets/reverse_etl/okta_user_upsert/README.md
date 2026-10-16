@@ -51,7 +51,7 @@ Exactly one value **must** be `login` (the match key — and required by Okta to
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
-| `fields_map` | `Dict[str, str]` | Upstream column -> Okta profile attribute (flat names: 'login', 'email', 'firstName', 'lastName', 'mobilePhone', 'secondEmail', 'displayName', or a custom sc… _(full docs in schema.json + component README)_ |
+| `fields_map` | `Dict[str, str]` | Upstream column -> Okta profile attribute (flat names: 'login', 'email', 'firstName', 'lastName', 'mobilePhone', 'secondEmail', 'displayName', or a custom schema attribute). Exactly one value MUST be 'login' -- it is the… _(full docs in schema.json + component README)_ |
 
 ### Connection
 
@@ -79,11 +79,11 @@ Exactly one value **must** be `login` (the match key — and required by Okta to
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream Dagster asset providing the DataFrame. Mutually exclusive with `source:`. |
 | `source` | `Dict[str, Any]` | — | Inline source config. Mutually exclusive with `upstream_asset_key`. Shapes: {kind: sql, resource_key/database_url_env_var, query}, {kind: csv, path, read_csv_kwargs}, {kind: inline, rows}. |
-| `operation` | `str` | `"sync"` | 'sync' (default, SAFE) -- create-if-absent, update-profile-if-present (merge semantics); never deactivates or deletes anyone. 'deactivate' (EXPLICIT) -- deactivates users matched by login via Okta's lifecycle endpoint; rows with no matching user are skipped, never created. No other value is accepted -- there is no 'delete' operation. |
-| `activate_on_create` | `bool` | `True` | Only used in 'sync' mode when a row has no existing Okta match: passed as Okta's own `activate` query param on user creation (Okta's documented default is also true). |
-| `send_deactivate_email` | `bool` | `False` | Only used in 'deactivate' mode: Okta's `sendEmail` lifecycle param. |
+| `operation` | `str` | `"sync"` | 'sync' (default, SAFE) -- create-if-absent, update-profile-if-present (merge semantics); never deactivates or deletes anyone. 'deactivate' (EXPLICIT) -- deactivates users matched by login via Okta's lifecycle endpoint; r… _(full docs in schema.json + component README)_ |
+| `activate_on_create` | `bool` | `true` | Only used in 'sync' mode when a row has no existing Okta match: passed as Okta's own `activate` query param on user creation (Okta's documented default is also true). |
+| `send_deactivate_email` | `bool` | `false` | Only used in 'deactivate' mode: Okta's `sendEmail` lifecycle param. |
 
 [//]: # (FIELDS:END)
 

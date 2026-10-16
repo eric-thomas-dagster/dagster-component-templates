@@ -65,7 +65,7 @@ This component is built to the classic, still-documented, OpenAI-wire-compatible
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset key. |
 
 ### Connection
 
@@ -125,18 +125,18 @@ This component is built to the classic, still-documented, OpenAI-wire-compatible
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `text_model` | `str` | `"sonar"` | Perplexity model id. Common: sonar, sonar-pro, sonar-reasoning, sonar-reasoning-pro, sonar-deep-research. |
+| `text_model` | `str` | `"sonar"` | Perplexity model id. Common: sonar (fast, web-grounded), sonar-pro (deeper search, more citations), sonar-reasoning, sonar-reasoning-pro (chain-of-thought + search), sonar-deep-research (exhaustive multi-step research). |
 | `system_prompt` | `str` | — | — |
 | `user_prompt_template` | `str` | — | Template with {column} placeholders. Mutually exclusive with input_column. |
 | `citations_column` | `Union[str, int]` | `"perplexity_citations"` | Column holding the list of web source URLs Perplexity cited for that row's answer. |
-| `include_search_results` | `bool` | `false` | When true, also add a '<citations_column>_detail' column with the fuller search_results payload. |
+| `include_search_results` | `bool` | `false` | When true, also add a column (named '<citations_column>_detail') with the fuller search_results payload (title/url/date/snippet per source) instead of just bare URLs. |
 | `max_tokens` | `int` | `1024` | — |
 | `temperature` | `float` | `0.0` | — |
 | `top_p` | `float` | — | — |
 | `response_format` | `str` | — | Set to 'json_object' to force JSON-only responses. |
-| `search_domain_filter` | `List[str]` | — | Limit/exclude web sources by domain (max 20). |
-| `search_recency_filter` | `str` | — | 'day', 'week', 'month', or 'year'. |
-| `return_related_questions` | `bool` | — | Also return suggested follow-up questions (surfaced in metadata). |
+| `search_domain_filter` | `List[str]` | — | Limit/exclude web sources by domain (max 20). Plain entries allowlist a domain; prefix with '-' to denylist it, e.g. ['nytimes.com', '-reddit.com']. |
+| `search_recency_filter` | `str` | — | Restrict search results to a recency window: 'day', 'week', 'month', or 'year'. |
+| `return_related_questions` | `bool` | — | Ask Perplexity to also return suggested follow-up questions (surfaced in metadata, not per row). |
 | `rate_limit_delay` | `float` | `0.0` | Seconds to sleep between rows. Raise this if you hit Perplexity's rate limits. |
 | `dynamic_partition_name` | `str` | — | — |
 

@@ -20,7 +20,7 @@ sentiment, classification, summarization, entity extraction.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `context_columns` | `List[str]` | Columns to include as context for each row |
 | `enrichment_fields` | `Dict[str, str]` | Mapping of new_column_name -> instruction e.g. {'sentiment': 'positive/negative/neutral'} |
 

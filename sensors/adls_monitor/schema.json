@@ -115,6 +115,12 @@
       "description": "Template for the partition key. Fields: {storage_account}, {container}, {file_path}, {file_name}. Default {file_path} is the ADLS file path inside the container.",
       "required": false,
       "default": "{file_path}"
+    },
+    "target_op_name": {
+      "type": "string",
+      "label": "Target Op Name",
+      "description": "When the target job materializes a single config-aware op/asset, set this to the op's name (e.g. the asset name from adls_to_database_asset). The sensor will emit run_config nested under `ops.<target_op_name>.config.{container_name, blob_name, blob_size}` so the asset's Config picks up the values directly. When None, the legacy generic shape (`ops.config.<keys>`) is emitted.",
+      "required": false
     }
   },
   "tags": [

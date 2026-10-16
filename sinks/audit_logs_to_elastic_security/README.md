@@ -15,7 +15,7 @@ Ship audit-log DataFrame to Elastic Security via the bulk indexing API.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key — events to ship |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset key — events to ship |
 | `es_url` | `str` | Elasticsearch URL (e.g. 'https://es.acme.com:9200') |
 
 ### Catalog metadata
@@ -61,6 +61,8 @@ Ship audit-log DataFrame to Elastic Security via the bulk indexing API.
 | `index` | `str` | `"logs-audit-default"` | Target index or data stream |
 | `verify_certs` | `bool` | `true` | — |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
+| `include_preview_metadata` | `bool` | `false` | Include a markdown preview of the shipped rows in the materialization metadata. |
+| `preview_rows` | `int` | `25` | Max rows to include in the preview when include_preview_metadata is True. |
 
 [//]: # (FIELDS:END)
 

@@ -13,7 +13,7 @@ This component takes two upstream assets: one for points and one for regions.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Points asset key providing a DataFrame with lat/lng columns |
+| `upstream_asset_key` | `Union[str, List[str]]` | Points asset key providing a DataFrame with lat/lng columns |
 | `regions_asset_key` | `str` | Regions asset key providing a DataFrame with a GeoJSON geometry column |
 
 ### Catalog metadata

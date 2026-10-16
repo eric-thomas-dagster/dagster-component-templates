@@ -154,7 +154,7 @@ per-deploy for Dagster Cloud).
 | `max_wait_seconds` | `int` | `3600` | — |
 | `run_poll_interval_seconds` | `int` | `30` | — |
 | `capture_activity_metadata` | `bool` | `true` | — |
-| `upstream_asset_keys` | `List[str]` | — | — |
+| `upstream_asset_keys` | `Union[str, List[str]]` | — | — |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Override per-deploy for Dagster Cloud. |
 
 [//]: # (FIELDS:END)

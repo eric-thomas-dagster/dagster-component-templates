@@ -18,7 +18,7 @@ Right for: "score today's batch" as a first-class Dagster asset in the graph —
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name for the scored output. |
-| `upstream_asset_key` | `str` | Asset key of the upstream DataFrame to score. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of the upstream DataFrame to score. |
 | `tracking_uri_env_var` | `str` | Env var holding the MLflow Tracking URI. |
 | `model_name` | `str` | Registered model name to load from MLflow. |
 

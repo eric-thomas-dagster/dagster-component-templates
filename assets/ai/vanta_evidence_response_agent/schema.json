@@ -95,6 +95,72 @@
       "label": "Max Tokens",
       "required": false,
       "default": 800
+    },
+    "system_prompt": {
+      "type": "string",
+      "label": "System Prompt",
+      "description": "System prompt setting the compliance-analyst persona.",
+      "required": false
+    },
+    "max_rows": {
+      "type": "integer",
+      "label": "Max Rows",
+      "description": "Cap the number of rows processed (useful for testing / cost control)",
+      "required": false
+    },
+    "batch_log_every": {
+      "type": "integer",
+      "label": "Batch Log Every",
+      "description": "Log progress every N rows",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
     }
   },
   "tags": [

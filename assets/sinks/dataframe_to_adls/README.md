@@ -15,7 +15,7 @@ This component receives a DataFrame from an upstream Dagster asset and writes it
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
 | `container` | `str` | ADLS container / filesystem name |
 | `blob_path` | `str` | Path within container e.g. processed/results.parquet |
 

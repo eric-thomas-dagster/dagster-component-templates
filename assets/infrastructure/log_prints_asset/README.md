@@ -107,7 +107,7 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | — |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | — |
 | `compute` | `Dict[str, Any]` | — | `{kind: python, python: 'mod:fn'}`. Any return type. Mutually exclusive with `wraps`. |
 | `wraps` | `Dict[str, Any]` | — | Wrap another DCC component's assets with stdout-to-context.log capture instead of defining new compute. Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. Mutually exclusive with `compute`. |
 | `route_levels` | `bool` | `true` | If True (default), captured lines starting with `INFO:` / `WARN:` / `WARNING:` / `ERROR:` / `DEBUG:` route to `context.log.<level>()`. Case-insensitive; the prefix is stripped from the emitted message. Unmatched lines fa… _(full docs in schema.json + component README)_ |

@@ -187,6 +187,18 @@
       },
       "label": "Deps",
       "required": false
+    },
+    "source_connection": {
+      "type": "string",
+      "label": "Source Connection",
+      "description": "Full Sling-compatible source connection URL (e.g. 'postgres://user:pass@host:5432/db'). Set this OR source_connection_env_var.",
+      "required": false
+    },
+    "target_connection": {
+      "type": "string",
+      "label": "Target Connection",
+      "description": "Full Sling-compatible target connection URL (e.g. 'snowflake://user:pass@account.snowflakecomputing.com/db/schema?warehouse=W'). Set this OR target_connection_env_var.",
+      "required": false
     }
   },
   "tags": [

@@ -37,7 +37,7 @@ operate on the isochrone polygons.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a (Geo)DataFrame |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a (Geo)DataFrame |
 | `drive_minutes` | `float` | Isochrone size in minutes (e.g. 15 = polygon reachable within 15 min drive). |
 
 ### Connection

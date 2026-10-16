@@ -15,7 +15,7 @@ Ship audit-log DataFrame to Microsoft Sentinel via the Log Analytics Data Collec
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream DataFrame asset key — events to ship |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream DataFrame asset key — events to ship |
 | `workspace_id` | `str` | Log Analytics workspace ID (GUID) |
 
 ### Execution
@@ -64,6 +64,8 @@ Ship audit-log DataFrame to Microsoft Sentinel via the Log Analytics Data Collec
 | `workspace_key_env` | `str` | `"SENTINEL_WORKSPACE_KEY"` | Env var with primary/secondary key |
 | `log_type` | `str` | `"DagsterAudit"` | Custom Logs table name (Sentinel will append _CL) |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
+| `include_preview_metadata` | `bool` | `false` | Include a markdown preview of the shipped rows in the materialization metadata. |
+| `preview_rows` | `int` | `25` | Max rows to include in the preview when include_preview_metadata is True. |
 
 [//]: # (FIELDS:END)
 

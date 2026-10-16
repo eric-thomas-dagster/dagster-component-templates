@@ -76,8 +76,8 @@ blocks downstream materialization.
 |---|---|---|---|
 | `check_name` | `str` | `"rpa_health"` | Asset check name shown in the UI. |
 | `max_age_hours` | `float` | `24.0` | Fail if the latest materialization is older than this many hours. |
-| `expected_statuses` | `List[str]` | `["success", "Successful", "COMPLETED", "Completed", "Succeeded", "Ended OK"]` | Terminal-success values across RPA + scheduler vendors. Check passes if the asset's status metadata is in this list. |
-| `require_non_empty_output` | `bool` | `False` | Also fail if output_payload.output_arguments (or output_payload.trigger_input) is empty. |
+| `expected_statuses` | `List[str]` | `lambda: ['success', 'Successful', 'COMPLETED', 'Completed', 'Succeeded', 'Ended OK']()` | Terminal-success values across RPA + scheduler vendors. Check passes if the asset's status metadata is in this list. |
+| `require_non_empty_output` | `bool` | `false` | Also fail if output_payload.output_arguments (or output_payload.trigger_input) is empty. |
 | `severity` | `str` | `"WARN"` | 'WARN' (flag only) or 'ERROR' (blocks downstream materialization). |
 
 [//]: # (FIELDS:END)

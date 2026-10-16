@@ -23,12 +23,16 @@ Also requires a `VitallyResourceComponent` on the same code location for authent
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | `"vitally_resource"` | Key of the VitallyResource this asset depends on for authentication |
+
 ### Execution
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `status` | `str` | `"active"` | Account state filter: 'active', 'churned', or 'activeOrChurned' |
-| `sort_by` | `str` | `"updatedAt"` | Sort field: 'createdAt' or 'updatedAt' |
 | `limit` | `int` | `1000` | Maximum number of accounts to fetch across all pages |
 | `page_size` | `int` | `100` | Accounts requested per page (Vitally caps this at 100) |
 
@@ -36,18 +40,36 @@ Also requires a `VitallyResourceComponent` on the same code location for authent
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the date-window filter below already handles a multi-partition range correctly). 'multi_run' launches on… _(full docs in schema.json + component README)_ |
 | `description` | `str` | — | Asset description |
 | `group_name` | `str` | `"vitally"` | Asset group for organization |
-| `owners` | `List[str]` | — | Asset owners — list of team names or email addresses |
+| `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:customer-success', 'user@company.com'] |
 | `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['vitally', 'python']. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime) |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned. Vitally's Accounts endpoint has no server-side date filter, so a time-based partition only tags run met… _(full docs in schema.json + component README)_ |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'us,eu,asia'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `sort_by` | `str` | `"updatedAt"` | Sort field for pagination ordering: 'createdAt' or 'updatedAt' |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | `"vitally_resource"` | Key of the VitallyResource this asset depends on for authentication |
+| `status` | `str` | `"active"` | Account state filter: 'active' (default), 'churned', or 'activeOrChurned' |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
 

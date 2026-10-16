@@ -205,7 +205,7 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | — |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | — |
 | `compute` | `Dict[str, Any]` | — | `{kind: python, python: 'mod:fn'}`. Returns pandas DataFrame. Mutually exclusive with `wraps`. |
 | `wraps` | `Dict[str, Any]` | — | Wrap another DCC component's assets with caching instead of defining new compute. Shape: `{type: 'dagster_community_components.<Component>', attributes: {...}}`. Inner asset must return pandas.DataFrame. Mutually exclusive with `compute`. |
 | `ttl_seconds` | `float` | — | Cache expiry. If the cached file's mtime is older than this, treat as miss. |

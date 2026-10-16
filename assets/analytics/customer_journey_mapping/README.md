@@ -64,7 +64,7 @@ Customer journey mapping traces the path customers take from awareness to conver
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | — | Source asset with customer event/touchpoint data (set via lineage) |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Source asset with customer event/touchpoint data (set via lineage) |
 | `journey_stages` | `list` | — | Ordered list of journey stages to track (optional) |
 | `max_journey_length` | `int` | `20` | Maximum events to include in a journey path |
 | `conversion_event` | `str` | — | Event name that indicates conversion (e.g., 'purchase', 'signup') |

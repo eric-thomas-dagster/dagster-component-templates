@@ -251,6 +251,12 @@
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "rename": {
+      "type": "object",
+      "label": "Rename",
+      "description": "Post-join column renames applied to the joined DataFrame. Maps current column name → new column name. Use this when an upstream ETL tool's embedded select-and-rename block produced colliding left/right columns that need to land under specific names downstream (e.g. Target_address → NewAddress).",
+      "required": false
     }
   },
   "tags": [

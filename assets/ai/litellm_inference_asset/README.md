@@ -121,7 +121,7 @@ You will also need any provider-specific SDK your chosen model requires (e.g. `b
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `str` | Upstream asset key providing a DataFrame (e.g. 'raw_orders' or 'schema/table') |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame (e.g. 'raw_orders' or 'schema/table') |
 | `prompt_template` | `str` | Python format string using column names: 'Classify: {text_column}' |
 
 ### Connection

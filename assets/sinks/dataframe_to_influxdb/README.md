@@ -13,7 +13,7 @@ Bulk-write a Pandas DataFrame to InfluxDB 2.x / 3.x as line-protocol points. Aut
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
-| `upstream_asset_key` | `str` | Upstream asset providing the DataFrame. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset providing the DataFrame. |
 | `measurement` | `str` | InfluxDB measurement name. |
 | `bucket` | `str` | Destination bucket. |
 

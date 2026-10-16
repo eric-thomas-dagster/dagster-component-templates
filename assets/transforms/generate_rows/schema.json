@@ -255,6 +255,30 @@
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "init_expression": {
+      "type": "string",
+      "label": "Init Expression",
+      "description": "For mode='loop_expression': Python expression for the initial value (evaluated against each upstream row dict). Example: \"row['Start']\" or \"row['Range-1']\".",
+      "required": false
+    },
+    "condition_expression": {
+      "type": "string",
+      "label": "Condition Expression",
+      "description": "For mode='loop_expression': Python expression returning bool; loop continues while True. The loop variable is in scope as `value`. Example: \"value <= row['Range-2']\".",
+      "required": false
+    },
+    "loop_expression": {
+      "type": "string",
+      "label": "Loop Expression",
+      "description": "For mode='loop_expression': Python expression returning the next value. Example: \"value + 1\" or \"value + pd.Timedelta(days=1)\".",
+      "required": false
+    },
+    "loop_max_iterations": {
+      "type": "integer",
+      "label": "Loop Max Iterations",
+      "description": "For mode='loop_expression': safety limit per row to prevent infinite loops.",
+      "required": false
     }
   },
   "tags": [

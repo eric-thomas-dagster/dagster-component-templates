@@ -90,6 +90,18 @@
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"
+    },
+    "per_partition_min_gap": {
+      "type": "object",
+      "label": "Per Partition Min Gap",
+      "description": "Per-partition-key override. e.g. {'hourly': 30, 'daily': 300}. Falls back to min_gap_seconds if no key matches. When set, throttling is per-partition — the 'last materialization' check is filtered to the same partition_key so hourly and daily partitions throttle independently.",
+      "required": false
+    },
+    "partition_matcher": {
+      "type": "string",
+      "label": "Partition Matcher",
+      "description": "How partition_key is matched against per_partition_min_gap keys: 'exact' \\| 'prefix' \\| 'regex'. Default exact match.",
+      "required": false
     }
   },
   "tags": [

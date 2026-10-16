@@ -813,11 +813,15 @@ group_name=group_name,
                     df = df.sort_values(by=existing_cols, ascending=sort_ascending)
                     context.log.info(f"Sorted by: {existing_cols} ({'ascending' if sort_ascending else 'descending'})")
 
-            # Aggregation
-            if group_by and agg_functions_str:
+            # Aggregation. group_by with NO agg_functions is valid and means
+            # "distinct combinations of the group columns" (SQL GROUP BY
+            # semantics, which is also what the Transform UI preview and the
+            # SQL transformer produce) -- it used to be silently ignored
+            # unless an aggregation was also set.
+            if group_by:
                 try:
                     group_cols = [c.strip() for c in group_by.split(',')]
-                    agg_map = json.loads(agg_functions_str)
+                    agg_map = json.loads(agg_functions_str) if agg_functions_str else {}
 
                     # Filter to existing columns
                     group_cols = [c for c in group_cols if c in df.columns]
@@ -827,6 +831,10 @@ group_name=group_name,
                         before = len(df)
                         df = df.groupby(group_cols).agg(agg_map).reset_index()
                         context.log.info(f"Grouped by {group_cols}, aggregated {len(agg_map)} columns ({before} → {len(df)} rows)")
+                    elif group_cols:
+                        before = len(df)
+                        df = df[group_cols].drop_duplicates().reset_index(drop=True)
+                        context.log.info(f"Grouped by {group_cols} (no aggregations): {before} → {len(df)} distinct rows")
                 except Exception as e:
                     context.log.error(f"Aggregation failed: {e}")
                     raise

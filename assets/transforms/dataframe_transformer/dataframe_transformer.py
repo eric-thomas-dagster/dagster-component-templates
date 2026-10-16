@@ -360,11 +360,12 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
                     df = df.sort_values(by=existing_cols, ascending=sort_ascending)
                     context.log.info(f"Sorted by: {existing_cols} ({'ascending' if sort_ascending else 'descending'})")
 
-            # Aggregation
-            if group_by and agg_functions_str:
+            # Aggregation (group_by alone = distinct combinations of the group
+            # columns, matching component.py / the SQL transformer).
+            if group_by:
                 try:
                     group_cols = [c.strip() for c in group_by.split(',')]
-                    agg_map = json.loads(agg_functions_str)
+                    agg_map = json.loads(agg_functions_str) if agg_functions_str else {}
 
                     # Filter to existing columns
                     group_cols = [c for c in group_cols if c in df.columns]
@@ -374,6 +375,10 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
                         before = len(df)
                         df = df.groupby(group_cols).agg(agg_map).reset_index()
                         context.log.info(f"Grouped by {group_cols}, aggregated {len(agg_map)} columns ({before} → {len(df)} rows)")
+                    elif group_cols:
+                        before = len(df)
+                        df = df[group_cols].drop_duplicates().reset_index(drop=True)
+                        context.log.info(f"Grouped by {group_cols} (no aggregations): {before} → {len(df)} distinct rows")
                 except Exception as e:
                     context.log.error(f"Aggregation failed: {e}")
                     raise

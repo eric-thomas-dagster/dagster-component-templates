@@ -1234,7 +1234,7 @@ Return your analysis as JSON:
             _effective_lineage = column_lineage
             if not _effective_lineage:
                 try:
-                    _upstream_cols = set(upstream.columns)
+                    _upstream_cols = set(input_df.columns)
                     _effective_lineage = {
                         col.name: [col.name] for col in _col_schema.columns
                         if col.name in _upstream_cols

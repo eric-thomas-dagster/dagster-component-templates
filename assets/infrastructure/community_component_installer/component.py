@@ -262,7 +262,7 @@ def _build_reporting_defs(
 ) -> dg.Definitions:
     """Build a single reporting asset that surfaces install state in the catalog."""
     @dg.asset(
-        key=AssetKey.from_user_string(asset_name),
+        key=dg.AssetKey.from_user_string(asset_name),
         group_name=group_name,
         kinds={"installer", "registry"},
     )
@@ -407,9 +407,23 @@ if _HAS_STATE_BACKED:
             state_path: Optional[Path],
         ) -> dg.Definitions:
             """Emit a reporting asset describing what's installed."""
-            if state_path is None or not (state_path / "install_manifest.json").exists():
+            if state_path is None:
                 return dg.Definitions()
-            manifest = json.loads((state_path / "install_manifest.json").read_text())
+            manifest_file = state_path / "install_manifest.json"
+            # The state is a directory swapped in with two renames (see refresh_state), so a reader that
+            # lands between them briefly sees it missing. Retry briefly (~2s max) before concluding there is
+            # no state -- the same mitigation enriched_dbt_project uses when it loads mid-refresh.
+            import time
+
+            manifest = None
+            for _attempt in range(40):
+                try:
+                    manifest = json.loads(manifest_file.read_text())
+                    break
+                except (FileNotFoundError, NotADirectoryError, json.JSONDecodeError):
+                    time.sleep(0.05)
+            if manifest is None:
+                return dg.Definitions()
             return _build_reporting_defs(self.asset_name, self.group_name, manifest)
 
 else:

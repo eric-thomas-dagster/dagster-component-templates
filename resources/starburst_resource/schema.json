@@ -16,6 +16,36 @@
       "label": "Port",
       "required": false,
       "default": 443
+    },
+    "host": {
+      "type": "string",
+      "label": "Host",
+      "description": "Trino coordinator host",
+      "required": false
+    },
+    "user": {
+      "type": "string",
+      "label": "User",
+      "description": "Trino user name",
+      "required": false
+    },
+    "catalog": {
+      "type": "string",
+      "label": "Catalog",
+      "description": "Default catalog, e.g. 'iceberg', 'hive', 'delta'",
+      "required": false
+    },
+    "schema_name": {
+      "type": "string",
+      "label": "Schema Name",
+      "description": "Default schema within the catalog",
+      "required": false
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Environment variable holding the Trino password (for basic auth)",
+      "required": false
     }
   }
 }

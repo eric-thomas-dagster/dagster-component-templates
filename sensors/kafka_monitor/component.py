@@ -181,6 +181,8 @@ class KafkaMonitorSensorComponent(Component, Model, Resolvable):
 
         required_resource_keys = {resource_key} if resource_key else set()
 
+        _event_cls = AssetMaterialization if self.emit_materialization else AssetObservation
+
         def _observation(new_messages: int, last_id: Optional[str], last_ts) -> list:
             if not source_asset_key or new_messages == 0:
                 return []
@@ -204,7 +206,6 @@ class KafkaMonitorSensorComponent(Component, Model, Resolvable):
             required_resource_keys=required_resource_keys,
         )
         def kafka_sensor(context: SensorEvaluationContext, **_resources):
-            _event_cls = AssetMaterialization if self.emit_materialization else AssetObservation
             """Sensor that polls a Kafka topic for new messages."""
             import os
 

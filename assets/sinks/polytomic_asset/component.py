@@ -111,6 +111,9 @@ def _build_polytomic_defs(
     poll_interval_seconds: int,
     sync_timeout_seconds: int,
     assets_by_sync_name: Optional[dict] = None,
+    retry_policy_max_retries: Optional[int] = None,
+    retry_policy_delay_seconds: Optional[int] = None,
+    retry_policy_backoff: str = "exponential",
 ) -> dg.Definitions:
     """Build Definitions from a cached list of Polytomic sync dicts (no network calls)."""
     from dagster import AssetExecutionContext
@@ -162,17 +165,17 @@ def _build_polytomic_defs(
 
             _retry_policy = None
 
-            if self.retry_policy_max_retries is not None:
+            if retry_policy_max_retries is not None:
 
                 from dagster import Backoff, RetryPolicy
 
                 _retry_policy = RetryPolicy(
 
-                    max_retries=self.retry_policy_max_retries,
+                    max_retries=retry_policy_max_retries,
 
-                    delay=self.retry_policy_delay_seconds or 1,
+                    delay=retry_policy_delay_seconds or 1,
 
-                    backoff=Backoff[self.retry_policy_backoff.upper()],
+                    backoff=Backoff[retry_policy_backoff.upper()],
 
                 )
 
@@ -400,6 +403,9 @@ if _HAS_STATE_BACKED:
         poll_interval_seconds: int = 15
         sync_timeout_seconds: int = 7200
         assets_by_sync_name: Optional[dict] = None
+        retry_policy_max_retries: Optional[int] = None
+        retry_policy_delay_seconds: Optional[int] = None
+        retry_policy_backoff: str = "exponential"
         defs_state: ResolvedDefsStateConfig = field(
             default_factory=DefsStateConfigArgs.local_filesystem
         )
@@ -519,6 +525,9 @@ if _HAS_STATE_BACKED:
                 poll_interval_seconds=self.poll_interval_seconds,
                 sync_timeout_seconds=self.sync_timeout_seconds,
                 assets_by_sync_name=self.assets_by_sync_name,
+                retry_policy_max_retries=self.retry_policy_max_retries,
+                retry_policy_delay_seconds=self.retry_policy_delay_seconds,
+                retry_policy_backoff=self.retry_policy_backoff,
             )
 
 else:
@@ -573,4 +582,7 @@ else:
                 poll_interval_seconds=self.poll_interval_seconds,
                 sync_timeout_seconds=self.sync_timeout_seconds,
                 assets_by_sync_name=self.assets_by_sync_name,
+                retry_policy_max_retries=self.retry_policy_max_retries,
+                retry_policy_delay_seconds=self.retry_policy_delay_seconds,
+                retry_policy_backoff=self.retry_policy_backoff,
             )

@@ -70,7 +70,9 @@ def component_field_names(cp: Path) -> set[str]:
     """Fields declared directly on the Component class (not nested models)."""
     out: set[str] = set()
     for n in ast.parse(cp.read_text()).body:
-        if isinstance(n, ast.ClassDef) and any("Component" in ast.unparse(b) for b in n.bases):
+        # public classes only: a component may inline a private engine class (e.g. _PySparkPipelineImpl)
+        # whose fields are not the component's own
+        if isinstance(n, ast.ClassDef) and not n.name.startswith("_") and any("Component" in ast.unparse(b) for b in n.bases):
             out |= {x.target.id for x in n.body if isinstance(x, ast.AnnAssign) and isinstance(x.target, ast.Name)}
     return out
 

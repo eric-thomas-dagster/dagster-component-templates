@@ -629,7 +629,7 @@ class ElasticsearchAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                         "num_docs": len(df),
                         "destination_table": component.table_name,
                         "if_exists": component.if_exists,
-                    **({"preview": MetadataValue.md((df.sample(preview_rows) if len(df) > preview_rows * 10 else df.head(preview_rows)).to_markdown(index=False))} if include_preview and len(df) > 0 else {}),
+                    **({"preview": dg.MetadataValue.md((df.sample(component.preview_rows) if len(df) > component.preview_rows * 10 else df.head(component.preview_rows)).to_markdown(index=False))} if component.include_preview_metadata and len(df) > 0 else {}),
                 }
                 )
 

@@ -160,6 +160,8 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
 
         required_resource_keys = {resource_key} if resource_key else set()
 
+        _event_cls = AssetMaterialization if self.emit_materialization else AssetObservation
+
         def _observation(new_rows: int, last_id: Optional[str], last_watermark) -> list:
             if not source_asset_key or new_rows == 0:
                 return []
@@ -183,7 +185,6 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
             required_resource_keys=required_resource_keys,
         )
         def sql_sensor(context: SensorEvaluationContext, **_resources):
-            _event_cls = AssetMaterialization if self.emit_materialization else AssetObservation
             """Sensor that monitors a SQL table for new or updated rows."""
             import os
 

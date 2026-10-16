@@ -3132,6 +3132,7 @@ def _build_generic_event_sensor(
     actions: List[Action],
     minimum_interval_seconds: int,
     default_status: dg.DefaultSensorStatus,
+    throttle=None,
 ) -> dg.SensorDefinition:
     """Factory for the common shape: scan event log for `event_type`, apply
     `filter_fn(record) -> bool`, build tokens via `token_builder(record)`,
@@ -3158,7 +3159,7 @@ def _build_generic_event_sensor(
             except Exception as exc:
                 context.log.warning(f"filter/token error: {exc}")
                 continue
-            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance, throttle=trigger.throttle, sensor_name=name))
+            all_requests.extend(_run_actions(actions, tokens, context.log, instance=instance, throttle=throttle, sensor_name=name))
         if max_id > last_seen_id:
             context.update_cursor(str(max_id))
         return dg.SensorResult(run_requests=all_requests) if all_requests else dg.SkipReason("no matches")
@@ -3213,7 +3214,8 @@ def _build_hook_fired_sensor(name, trigger, actions, default_status):
         )
     # Scan HOOK_COMPLETED (dagster ships both HOOK_COMPLETED / HOOK_ERRORED)
     return _build_generic_event_sensor(
-        name, "HOOK_COMPLETED", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status
+        name, "HOOK_COMPLETED", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status,
+        throttle=getattr(trigger, "throttle", None),
     )
 
 
@@ -3265,7 +3267,8 @@ def _build_asset_partition_materialized_sensor(name, trigger, actions, default_s
             tokens[f"partition_{dim}"] = val
         return tokens
     return _build_generic_event_sensor(
-        name, "ASSET_MATERIALIZATION", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status
+        name, "ASSET_MATERIALIZATION", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status,
+        throttle=getattr(trigger, "throttle", None),
     )
 
 
@@ -3332,7 +3335,8 @@ def _build_asset_wipe_sensor(name, trigger, actions, default_status):
             message="Asset materialization history wiped",
         )
     return _build_generic_event_sensor(
-        name, "ASSET_WIPED", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status
+        name, "ASSET_WIPED", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status,
+        throttle=getattr(trigger, "throttle", None),
     )
 
 
@@ -3438,7 +3442,8 @@ def _build_unhandled_exception_sensor(name, trigger, actions, default_status):
             message=(msg or "Run failed with unhandled exception")[:500],
         )
     return _build_generic_event_sensor(
-        name, "PIPELINE_FAILURE", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status
+        name, "PIPELINE_FAILURE", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status,
+        throttle=getattr(trigger, "throttle", None),
     )
 
 
@@ -3475,7 +3480,8 @@ def _build_asset_check_severity_sensor(name, trigger, actions, default_status):
             message=f"Check '{check_name}' at severity {trigger.severity}",
         )
     return _build_generic_event_sensor(
-        name, "ASSET_CHECK_EVALUATION", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status
+        name, "ASSET_CHECK_EVALUATION", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status,
+        throttle=getattr(trigger, "throttle", None),
     )
 
 
@@ -3506,7 +3512,8 @@ def _build_op_output_sensor(name, trigger, actions, default_status):
             message=f"Step {getattr(evt, 'step_key', '')} yielded output",
         )
     return _build_generic_event_sensor(
-        name, "STEP_OUTPUT", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status
+        name, "STEP_OUTPUT", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status,
+        throttle=getattr(trigger, "throttle", None),
     )
 
 
@@ -3536,7 +3543,8 @@ def _build_materialization_planned_sensor(name, trigger, actions, default_status
             tokens[f"partition_{dim}"] = val
         return tokens
     return _build_generic_event_sensor(
-        name, "ASSET_MATERIALIZATION_PLANNED", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status
+        name, "ASSET_MATERIALIZATION_PLANNED", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status,
+        throttle=getattr(trigger, "throttle", None),
     )
 
 
@@ -3566,7 +3574,8 @@ def _build_asset_check_started_sensor(name, trigger, actions, default_status):
             message=f"Check '{getattr(planned_data, 'check_name', '')}' started",
         )
     return _build_generic_event_sensor(
-        name, "ASSET_CHECK_EVALUATION_PLANNED", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status
+        name, "ASSET_CHECK_EVALUATION_PLANNED", filter_fn, token_builder, actions, trigger.minimum_interval_seconds, default_status,
+        throttle=getattr(trigger, "throttle", None),
     )
 
 

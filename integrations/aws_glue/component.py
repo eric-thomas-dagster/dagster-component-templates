@@ -162,6 +162,9 @@ def _build_glue_defs(
     exclude_name_pattern: Optional[str],
     filter_by_tags: Optional[str],
     assets_by_job_name: Optional[dict] = None,
+    retry_policy_max_retries: Optional[int] = None,
+    retry_policy_delay_seconds: Optional[int] = None,
+    retry_policy_backoff: str = "exponential",
 ) -> dg.Definitions:
     """Build Definitions from cached state dict with zero network calls."""
 
@@ -338,17 +341,17 @@ def _build_glue_defs(
 
         _retry_policy = None
 
-        if self.retry_policy_max_retries is not None:
+        if retry_policy_max_retries is not None:
 
             from dagster import Backoff, RetryPolicy
 
             _retry_policy = RetryPolicy(
 
-                max_retries=self.retry_policy_max_retries,
+                max_retries=retry_policy_max_retries,
 
-                delay=self.retry_policy_delay_seconds or 1,
+                delay=retry_policy_delay_seconds or 1,
 
-                backoff=Backoff[self.retry_policy_backoff.upper()],
+                backoff=Backoff[retry_policy_backoff.upper()],
 
             )
 
@@ -671,6 +674,9 @@ if _HAS_STATE_BACKED:
         assets_by_job_name: Optional[dict] = None
 
         # ── State backing ─────────────────────────────────────────────────────
+        retry_policy_max_retries: Optional[int] = None
+        retry_policy_delay_seconds: Optional[int] = None
+        retry_policy_backoff: str = "exponential"
         defs_state: ResolvedDefsStateConfig = field(
             default_factory=DefsStateConfigArgs.local_filesystem
         )
@@ -940,6 +946,9 @@ if _HAS_STATE_BACKED:
                 exclude_name_pattern=self.exclude_name_pattern,
                 filter_by_tags=self.filter_by_tags,
                 assets_by_job_name=self.assets_by_job_name,
+                retry_policy_max_retries=self.retry_policy_max_retries,
+                retry_policy_delay_seconds=self.retry_policy_delay_seconds,
+                retry_policy_backoff=self.retry_policy_backoff,
             )
 
 else:
@@ -1164,4 +1173,7 @@ else:
                 exclude_name_pattern=self.exclude_name_pattern,
                 filter_by_tags=self.filter_by_tags,
                 assets_by_job_name=self.assets_by_job_name,
+                retry_policy_max_retries=self.retry_policy_max_retries,
+                retry_policy_delay_seconds=self.retry_policy_delay_seconds,
+                retry_policy_backoff=self.retry_policy_backoff,
             )

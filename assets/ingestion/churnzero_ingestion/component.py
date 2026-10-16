@@ -10,10 +10,11 @@ absolute URL, which is followed verbatim (not reconstructed) until absent,
 a short page is returned, or `limit` is reached.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import pandas as pd
 from dagster import (
+    BackfillPolicy,
     AssetExecutionContext,
     AssetKey,
     Component,
@@ -183,6 +184,26 @@ class ChurnZeroAccountsIngestionComponent(Component, Model, Resolvable):
         default=None,
         description="Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned. When time-based, the partition window is translated into an OData $filter on date_field.",
     )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run (the date-window "
+            "filter below already handles a multi-partition range correctly). "
+            "'multi_run' launches one run per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for Dagster's "
+            "default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set. 'single_run' requires a partition-"
+            "range-aware IO manager (e.g. a DB-table IO manager with "
+            "partition_expr set) -- a generic filesystem/default IO manager "
+            "cannot persist a single_run output spanning multiple partitions "
+            "and will raise a clear error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
     partition_start: Optional[str] = Field(
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
@@ -260,6 +281,15 @@ class ChurnZeroAccountsIngestionComponent(Component, Model, Resolvable):
             self.partition_dimensions,
         )
 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            backfill_policy = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            backfill_policy = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+
         _kinds = list(self.kinds or ["churnzero", "python"])
         _all_tags = dict(self.asset_tags or {})
         for _k in _kinds:
@@ -276,10 +306,11 @@ class ChurnZeroAccountsIngestionComponent(Component, Model, Resolvable):
             required_resource_keys={resource_key},
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             partitions_def=partitions_def,
+            backfill_policy=backfill_policy,
         )
         def churnzero_accounts_ingestion_asset(context: AssetExecutionContext):
             date_filter = None
-            if context.has_partition_key:
+            if context.has_partition_key or context.has_partition_key_range:
                 try:
                     _window = context.partition_time_window
                     _after = _window.start.strftime("%Y-%m-%dT%H:%M:%SZ")

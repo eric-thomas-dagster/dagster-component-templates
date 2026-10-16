@@ -9,11 +9,12 @@ Set `destination` to persist directly to any dlt-supported destination
 """
 
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
 import dlt
 from dagster import (
+    BackfillPolicy,
     AssetExecutionContext,
     AssetKey,
     Component,
@@ -370,6 +371,26 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
         description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key is exposed via context.partition_key for use in filtering / templating.",
 
     )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run (the date-window "
+            "filter below already handles a multi-partition range correctly). "
+            "'multi_run' launches one run per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for Dagster's "
+            "default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set. 'single_run' requires a partition-"
+            "range-aware IO manager (e.g. a DB-table IO manager with "
+            "partition_expr set) -- a generic filesystem/default IO manager "
+            "cannot persist a single_run output spanning multiple partitions "
+            "and will raise a clear error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
 
     partition_start: Optional[str] = Field(
 
@@ -519,6 +540,15 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
             self.partition_dimensions,
         )
 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            backfill_policy = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            backfill_policy = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+
 
         # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).
 
@@ -548,7 +578,8 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, 
+        @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
+            backfill_policy=backfill_policy, 
             key=AssetKey.from_user_string(asset_name),
             description=description,
             owners=owners,
@@ -579,7 +610,7 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
             # forward from there, so this grounds the floor correctly but can't bound
             # the ceiling the way a true [start, end) range would.
             _start_date = start_date
-            if context.has_partition_key:
+            if context.has_partition_key or context.has_partition_key_range:
                 try:
                     _start_date = context.partition_time_window.start.strftime("%Y-%m-%d")
                 except Exception:

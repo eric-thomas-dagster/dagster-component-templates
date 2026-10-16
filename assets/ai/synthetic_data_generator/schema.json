@@ -144,7 +144,7 @@
     "backfill_policy": {
       "type": "string",
       "label": "Backfill Policy",
-      "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (row_count rows per day in the range, each day still varying). 'multi_run' launches one run per partition. Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is not set.",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (row_count rows per day in the range, each day still varying). 'multi_run' launches one run per partition. Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is not set. 'single_run' requires a partition-range-aware IO manager (e.g. a DB-table IO manager with partition_expr set) -- a generic filesystem/default IO manager cannot persist a single_run output spanning multiple partitions and will raise a clear error at materialization time.",
       "required": false,
       "default": null,
       "enum": [

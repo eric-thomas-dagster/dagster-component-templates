@@ -186,3 +186,66 @@ def test_custom_resource_key(mod):
     component = _make_component(mod, resource_key="my_churnzero")
     result = _materialize(component, fake)
     assert result.success
+
+
+def test_backfill_policy_single_run_is_wired_onto_the_asset(mod):
+    component = _make_component(
+        mod, partition_type="daily", partition_start="2024-01-01",
+        backfill_policy="single_run",
+    )
+    asset_def = list(component.build_defs(context=None).assets)[0]
+    assert asset_def.backfill_policy == dg.BackfillPolicy.single_run()
+
+
+def test_backfill_policy_unset_by_default(mod):
+    """Non-regression: every existing project (no backfill_policy configured)
+    must not silently acquire one."""
+    component = _make_component(mod, partition_type="daily", partition_start="2024-01-01")
+    asset_def = list(component.build_defs(context=None).assets)[0]
+    assert asset_def.backfill_policy is None
+
+
+def test_single_run_backfill_builds_a_date_filter_spanning_the_whole_range(mod):
+    """Real bug this component (and the 30 others sharing this exact
+    `if context.has_partition_key:` gate) had before the fix: the gate only
+    checked has_partition_key, which is False for a multi-partition
+    single_run backfill (has_partition_key_range is True instead) --
+    silently skipping date filtering entirely and refetching an unbounded
+    result for every day in the range. Confirmed fixed: the widened gate
+    (`... or context.has_partition_key_range`) now builds a filter spanning
+    the FULL range, not just a single day, using partition_time_window --
+    already range-aware in dagster itself, confirmed via its own source.
+
+    Uses a real dg.materialize() run (not direct invocation) with the same
+    `dagster/asset_partition_range_*` tags a real single_run backfill sets,
+    since `context.partition_time_window` is NOT available under direct
+    invocation at all (confirmed live: DirectAssetExecutionContext raises
+    DagsterInvalidPropertyError for it) -- direct invocation would have
+    silently exercised the component's own `except Exception: pass` instead
+    of actually testing the range logic. Also needs an IO manager that can
+    persist a single output spanning multiple partitions (the project
+    default can't -- see the backfill_policy field's own docstring); the
+    stock InMemoryIOManager handles this fine since it keys by the whole
+    output identifier, not a one-path-per-partition assumption."""
+    fake = FakeChurnZeroResource(pages=[([{"Id": "1"}], None)])
+    component = _make_component(
+        mod,
+        partition_type="daily",
+        partition_start="2024-01-01",
+        date_field="ObjectLastModifiedDate",
+        backfill_policy="single_run",
+    )
+    asset_def = component.build_defs(context=None).assets[0]
+    result = dg.materialize(
+        [asset_def],
+        resources={component.resource_key: fake, "io_manager": dg.InMemoryIOManager()},
+        tags={
+            "dagster/asset_partition_range_start": "2024-01-02",
+            "dagster/asset_partition_range_end": "2024-01-05",
+        },
+    )
+    assert result.success
+
+    filter_str = fake.get_calls[0]["params"]["$filter"]
+    assert "ObjectLastModifiedDate ge 2024-01-02" in filter_str
+    assert "ObjectLastModifiedDate lt 2024-01-06" in filter_str

@@ -262,7 +262,12 @@ class SyntheticDataGeneratorComponent(Component, Model, Resolvable):
             "varying random draws). 'multi_run' launches one run per partition "
             "(optionally capped via backfill_policy_max_partitions_per_run). "
             "Leave unset for Dagster's default (one run per partition, "
-            "uncapped). Ignored when partition_type is not set."
+            "uncapped). Ignored when partition_type is not set. 'single_run' "
+            "requires a partition-range-aware IO manager (e.g. a DB-table IO "
+            "manager with partition_expr set, like this quickstart's "
+            "DuckDBIOManagerComponent) -- a generic filesystem/default IO "
+            "manager cannot persist a single_run output spanning multiple "
+            "partitions and will raise a clear error at materialization time."
         ),
     )
     backfill_policy_max_partitions_per_run: Optional[int] = Field(

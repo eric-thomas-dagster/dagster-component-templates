@@ -21,6 +21,10 @@ A no-frills IO manager that writes pandas DataFrames as Parquet files in a local
 
 [//]: # (FIELDS:END)
 
+## Partition ranges (single_run backfills)
+
+For an asset with `BackfillPolicy.single_run()`, one run covers a range of partitions. In that case the asset must return a dict `{partition_key: DataFrame}` whose keys are exactly the range's partition keys; each entry is written to its own per-partition file (same layout as a single-partition run). Loading an upstream range returns `{partition_key: DataFrame}`. Anything else raises a clear `TypeError`/`ValueError`. Single-partition and unpartitioned behaviour is unchanged.
+
 ## Example YAML
 ```yaml
 type: dagster_component_templates.LocalParquetIOManagerComponent

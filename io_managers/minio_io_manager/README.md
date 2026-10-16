@@ -87,3 +87,9 @@ The Delta table directory contains the standard `_delta_log/` folder and a parti
 - **Per-partition writes**: when an asset has a partition key, the manager appends a `partition_column` (default `partition_key`) to the DataFrame and uses Delta's `predicate` overwrite mode so only matching rows are replaced. Backfills don't trample each other.
 - **Authentication**: MinIO access/secret keys are required; set them via env vars.
 - **S3-compatible backends**: any endpoint that accepts the AWS S3 protocol works (MinIO, LocalStack, Cloudflare R2, Ceph RGW, etc.). Adjust `endpoint_url` accordingly.
+
+## Partition ranges (single_run backfills)
+
+When an asset uses `BackfillPolicy.single_run()` and Dagster materializes several partitions in one run, the output covers a partition *range*. The asset must return either a dict `{partition_key: DataFrame}` whose keys equal the range, or one DataFrame that already contains the `partition_column` whose values are all inside the range. The manager performs a single Delta predicate overwrite (`partition_column IN (...)`) covering every key in the range, including keys with no rows; rows of partitions outside the range are never touched. Output metadata `partition_key` reports the range (e.g. `2024-01-01...2024-01-03`).
+
+Loading an upstream range returns ONE DataFrame via a Delta partition-filtered read (`partition_column in [...]`). Single-partition and unpartitioned behavior is unchanged.

@@ -94,3 +94,9 @@ For asset key `["analytics","customers","daily"]`:
 - **Athena query results**: `s3_staging_dir` must exist and be writable — Athena writes intermediate query result CSVs there.
 - **Default credential chain**: leave `aws_access_key_env_var` / `aws_secret_key_env_var` empty to use IAM role / instance profile / `~/.aws` credentials. Recommended in production.
 - **Reads**: `load_input` issues `SELECT * FROM "<db>"."<tbl>"` (filtered by `partition_column` when applicable) via Athena and returns a pandas DataFrame.
+
+## Partition ranges (single_run backfills)
+
+When an asset uses `BackfillPolicy.single_run()` and Dagster materializes several partitions in one run, the output covers a partition *range*. The asset must return either a dict `{partition_key: DataFrame}` whose keys equal the range, or one DataFrame that already contains the `partition_column` whose values are all inside the range. The manager performs an Athena `overwrite_partitions` write of only the partitions present in the data (a range key with zero rows leaves that partition's old files in place); rows of partitions outside the range are never touched. Output metadata `partition_key` reports the range (e.g. `2024-01-01...2024-01-03`).
+
+Loading an upstream range returns ONE DataFrame via one `SELECT ... WHERE partition_column IN (...)`. Single-partition and unpartitioned behavior is unchanged.

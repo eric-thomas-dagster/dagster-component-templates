@@ -4,6 +4,7 @@ YAML/Component wrapper around `DatabricksIOManager`. Use `resource_key:
 io_manager` to make this the default IO manager for the project.
 """
 from typing import Optional, Union
+from collections.abc import Mapping
 import dagster as dg
 from pydantic import Field
 import pandas as pd
@@ -37,8 +38,94 @@ def _databricks_type_for(dtype) -> str:
     return "STRING"
 
 
+
+
+def _range_keys(ctx) -> Optional[list]:
+    """Partition keys when ``ctx`` covers a partition RANGE (single_run backfill).
+
+    For a range, Dagster reports ``has_partition_key=False`` while
+    ``has_asset_partitions=True`` (and ``partition_key`` raises), so gating on
+    ``has_partition_key`` alone would silently treat a range as unpartitioned.
+    Returns None for single-partition or unpartitioned contexts.
+    """
+    if ctx.has_partition_key:
+        return None
+    if ctx.has_asset_partitions:
+        keys = [str(k) for k in ctx.asset_partition_keys]
+        if keys:
+            return keys
+    return None
+
+
+def _partition_label(keys: list) -> str:
+    return keys[0] if len(keys) == 1 else f"{keys[0]}...{keys[-1]}"
+
+
+def _build_partitioned_frame(obj, keys: list, column: str, single: bool) -> pd.DataFrame:
+    """Return one DataFrame carrying ``column`` for every row being written.
+
+    single=True: ``obj`` is a DataFrame for the one partition ``keys[0]``.
+    single=False (range): ``obj`` is either a Mapping {partition_key: DataFrame}
+    whose keys equal the range, or a DataFrame that already has ``column`` whose
+    distinct values are a subset of ``keys``.
+    """
+    if single:
+        df = obj.copy()
+        df[column] = keys[0]
+        return df
+    expected = set(keys)
+    if isinstance(obj, Mapping):
+        got = {str(k) for k in obj.keys()}
+        if got != expected:
+            raise ValueError(
+                f"Multi-partition output keys must equal the materialized partition range. "
+                f"Missing: {sorted(expected - got)}; unexpected: {sorted(got - expected)}."
+            )
+        by_key = {str(k): v for k, v in obj.items()}
+        frames = []
+        for k in keys:
+            v = by_key[k]
+            if not isinstance(v, pd.DataFrame):
+                raise TypeError(f"Value for partition {k!r} must be a pandas DataFrame; got {type(v).__name__}.")
+            part = v.copy()
+            part[column] = k
+            frames.append(part)
+        return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame({column: []})
+    if isinstance(obj, pd.DataFrame):
+        if column not in obj.columns:
+            raise ValueError(
+                f"This asset materialized a partition range ({_partition_label(keys)}) but the returned "
+                f"DataFrame has no {column!r} column to split rows by partition. Return a DataFrame that "
+                f"includes {column!r}, or a dict {{partition_key: DataFrame}}."
+            )
+        if obj[column].isna().any():
+            raise ValueError(f"Column {column!r} contains nulls; every row must name its partition key.")
+        df = obj.copy()
+        df[column] = df[column].astype(str)
+        bad = set(df[column].unique()) - expected
+        if bad:
+            raise ValueError(
+                f"Column {column!r} has values outside the materialized partition range: {sorted(bad)} "
+                f"(range: {_partition_label(keys)})."
+            )
+        return df
+    raise TypeError(
+        f"A multi-partition (single_run backfill) output must be a dict {{partition_key: DataFrame}} "
+        f"or a DataFrame containing {column!r}; got {type(obj).__name__}."
+    )
+
+
 class DatabricksIOManager(dg.ConfigurableIOManager):
-    """ConfigurableIOManager that reads/writes pandas DataFrames as Unity Catalog Delta tables."""
+    """ConfigurableIOManager that reads/writes pandas DataFrames as Unity Catalog Delta tables.
+
+    Partition ranges (single_run backfills): when an asset with
+    ``BackfillPolicy.single_run()`` materializes several partitions in one run,
+    return either a dict ``{partition_key: DataFrame}`` (keys must equal the
+    range) or one DataFrame that already contains ``partition_column`` whose
+    values are a subset of the range. Exactly the range's rows are deleted and
+    re-inserted; other partitions are never touched. Loading a range returns ONE
+    DataFrame filtered with ``partition_column IN (...)``.
+    """
 
     server_hostname: str = Field(description="Databricks workspace hostname")
     http_path: str = Field(description="HTTP path to the SQL warehouse or cluster")
@@ -74,7 +161,8 @@ class DatabricksIOManager(dg.ConfigurableIOManager):
     def handle_output(self, context: dg.OutputContext, obj: pd.DataFrame) -> None:
         if obj is None:
             return
-        if not isinstance(obj, pd.DataFrame):
+        range_keys = _range_keys(context)
+        if range_keys is None and not isinstance(obj, pd.DataFrame):
             raise TypeError(
                 f"DatabricksIOManager only handles pandas DataFrames; got {type(obj).__name__}. "
                 f"Use a different IO manager for non-DataFrame outputs."
@@ -83,11 +171,21 @@ class DatabricksIOManager(dg.ConfigurableIOManager):
         schema, table = self._table_name(context)
         qualified = f"`{self.catalog}`.`{schema}`.`{table}`"
 
+        partition_keys = [str(context.partition_key)] if context.has_partition_key else range_keys
+        if partition_keys is not None:
+            # obj now carries partition_column on every row (single key or whole range).
+            obj = _build_partitioned_frame(
+                obj, partition_keys, self.partition_column, single=range_keys is None
+            )
+            in_list = ", ".join(_sql_literal(k) for k in partition_keys)
+            delete_sql = f"DELETE FROM {qualified} WHERE `{self.partition_column}` IN ({in_list})"
+        else:
+            delete_sql = f"DELETE FROM {qualified}"
+
         col_defs = ", ".join(
-            f"`{c}` {_databricks_type_for(obj[c].dtype)}" for c in obj.columns
+            f"`{c}` {'STRING' if partition_keys is not None and c == self.partition_column else _databricks_type_for(obj[c].dtype)}"
+            for c in obj.columns
         )
-        if context.has_partition_key:
-            col_defs = f"{col_defs}, `{self.partition_column}` STRING"
 
         conn = self._get_connection()
         try:
@@ -99,19 +197,9 @@ class DatabricksIOManager(dg.ConfigurableIOManager):
                 # Stage Parquet to cloud storage and COPY INTO. Single transactional MERGE-like step.
                 import uuid
                 stage_path = f"{self.staging_location.rstrip('/')}/{schema}_{table}_{uuid.uuid4().hex}.parquet"
-                df = obj.copy()
-                if context.has_partition_key:
-                    df[self.partition_column] = str(context.partition_key)
-                df.to_parquet(stage_path, index=False)
+                obj.to_parquet(stage_path, index=False)
 
-                if context.has_partition_key:
-                    cur.execute(
-                        f"DELETE FROM {qualified} "
-                        f"WHERE `{self.partition_column}` = "
-                        f"{_sql_literal(str(context.partition_key))}"
-                    )
-                else:
-                    cur.execute(f"DELETE FROM {qualified}")
+                cur.execute(delete_sql)
                 cur.execute(
                     f"COPY INTO {qualified} FROM '{stage_path}' "
                     "FILEFORMAT = PARQUET "
@@ -121,25 +209,13 @@ class DatabricksIOManager(dg.ConfigurableIOManager):
             else:
                 # Inline DELETE+INSERT — Databricks SQL auto-commits each statement,
                 # but Delta's per-statement ACID semantics ensure each is atomic.
-                if context.has_partition_key:
-                    cur.execute(
-                        f"DELETE FROM {qualified} "
-                        f"WHERE `{self.partition_column}` = "
-                        f"{_sql_literal(str(context.partition_key))}"
-                    )
-                else:
-                    cur.execute(f"DELETE FROM {qualified}")
+                cur.execute(delete_sql)
 
                 if len(obj) > 0:
                     col_list = ", ".join(f"`{c}`" for c in obj.columns)
-                    if context.has_partition_key:
-                        col_list = f"{col_list}, `{self.partition_column}`"
-                    pk_literal = _sql_literal(str(context.partition_key)) if context.has_partition_key else None
                     rows_sql = []
                     for _, row in obj.iterrows():
                         vals = ", ".join(_sql_literal(v) for v in row)
-                        if context.has_partition_key:
-                            vals = f"{vals}, {pk_literal}"
                         rows_sql.append(f"({vals})")
                     cur.execute(f"INSERT INTO {qualified} ({col_list}) VALUES {', '.join(rows_sql)}")
         finally:
@@ -150,7 +226,7 @@ class DatabricksIOManager(dg.ConfigurableIOManager):
                 "table": dg.MetadataValue.text(qualified),
                 "row_count": dg.MetadataValue.int(len(obj)),
                 "partition_key": dg.MetadataValue.text(
-                    str(context.partition_key) if context.has_partition_key else "(unpartitioned)"
+                    _partition_label(partition_keys) if partition_keys is not None else "(unpartitioned)"
                 ),
             }
         )
@@ -163,11 +239,12 @@ class DatabricksIOManager(dg.ConfigurableIOManager):
         conn = self._get_connection()
         try:
             cur = conn.cursor()
-            if upstream.has_partition_key:
+            load_keys = [str(upstream.partition_key)] if upstream.has_partition_key else _range_keys(upstream)
+            if load_keys is not None:
+                in_list = ", ".join(_sql_literal(k) for k in load_keys)
                 cur.execute(
                     f"SELECT * FROM {qualified} "
-                    f"WHERE `{self.partition_column}` = "
-                    f"{_sql_literal(str(upstream.partition_key))}"
+                    f"WHERE `{self.partition_column}` IN ({in_list})"
                 )
             else:
                 cur.execute(f"SELECT * FROM {qualified}")

@@ -3,7 +3,7 @@
 YAML/Component wrapper around `LanceIOManager`. Use `resource_key:
 io_manager` to make this the default IO manager for the project.
 """
-from typing import Optional, Any
+from typing import Optional, Any, Mapping
 import dagster as dg
 from pydantic import Field
 import pandas as pd
@@ -14,8 +14,64 @@ def _sanitize(component: str) -> str:
     return component.replace("[", "--").replace("]", "--").replace(" ", "_")
 
 
+def _output_range_keys(context) -> Optional[list]:
+    """Partition keys covered by an OutputContext that spans a partition RANGE.
+
+    For a single_run backfill, ``has_partition_key`` is False while
+    ``has_asset_partitions`` is True and ``asset_partition_keys`` lists the range.
+    Returns None for single-partition and unpartitioned outputs.
+    """
+    if context.has_partition_key:
+        return None
+    if not context.has_asset_partitions:
+        return None
+    return [str(k) for k in context.asset_partition_keys]
+
+
+def _input_range_keys(context) -> Optional[list]:
+    """Upstream partition keys when an InputContext loads a partition RANGE, else None."""
+    if context.upstream_output is None or context.upstream_output.has_partition_key:
+        return None
+    if not context.has_asset_partitions:
+        return None
+    return [str(k) for k in context.asset_partition_keys]
+
+
+def _partition_label(context) -> str:
+    """Human-readable partition for metadata: the key, 'start...end' for a range, or '(unpartitioned)'."""
+    if context.has_partition_key:
+        return str(context.partition_key)
+    if _output_range_keys(context) is not None:
+        rng = context.asset_partition_key_range
+        return f"{rng.start}...{rng.end}"
+    return "(unpartitioned)"
+
+
+def _check_range_mapping(manager_name: str, context, obj, keys) -> None:
+    """Validate that a multi-partition output is a Mapping {partition_key: DataFrame} covering exactly `keys`."""
+    if not isinstance(obj, Mapping):
+        raise TypeError(
+            f"{manager_name}: this output covers a partition range ({len(keys)} partitions, a "
+            f"BackfillPolicy.single_run backfill), so the asset must return a dict "
+            f"{{partition_key: DataFrame}} with one entry per partition; got {type(obj).__name__}."
+        )
+    got, want = {str(k) for k in obj.keys()}, set(keys)
+    if got != want:
+        raise ValueError(
+            f"{manager_name}: dict keys must equal the partition range's keys. "
+            f"Missing: {sorted(want - got)}; unexpected: {sorted(got - want)}."
+        )
+
+
 class LanceIOManager(dg.ConfigurableIOManager):
-    """ConfigurableIOManager that reads/writes pandas DataFrames (or pyarrow Tables) as LanceDB tables."""
+    """ConfigurableIOManager that reads/writes pandas DataFrames (or pyarrow Tables) as LanceDB tables.
+
+    Partition ranges (single_run backfills): when one run covers a range of
+    partitions (``BackfillPolicy.single_run()``), the asset must return a dict
+    ``{partition_key: DataFrame}`` whose keys equal the range's partition keys; each
+    key is written exactly like a single partition. Downstream assets loading the
+    range receive a dict ``{partition_key: DataFrame}``.
+    """
 
     base_path: str = Field(description="Directory or object-storage URI where LanceDB tables live")
     table_name_prefix: Optional[str] = Field(default=None, description="Optional prefix prepended to every table name")
@@ -35,7 +91,7 @@ class LanceIOManager(dg.ConfigurableIOManager):
             storage_options["allow_http"] = "true"
         return lancedb.connect(self.base_path, storage_options=storage_options or None)
 
-    def _table_name(self, context) -> str:
+    def _table_name(self, context, partition_key: Optional[str] = None) -> str:
         """Build the LanceDB table name for an asset (or output).
 
         Layout: ``<prefix><asset_path_joined>[__<partition_key>]``
@@ -48,14 +104,15 @@ class LanceIOManager(dg.ConfigurableIOManager):
             base = "__".join(_sanitize(p) for p in context.asset_key.path)
         else:
             base = "__".join(_sanitize(p) for p in (context.run_id, context.step_key, context.name))
-        if context.has_partition_key:
-            return f"{prefix}{base}__{_sanitize(context.partition_key)}"
+        if partition_key is None and context.has_partition_key:
+            partition_key = context.partition_key
+        if partition_key is not None:
+            return f"{prefix}{base}__{_sanitize(str(partition_key))}"
         return f"{prefix}{base}"
 
-    def handle_output(self, context: dg.OutputContext, obj: Any) -> None:
-        if obj is None:
-            return
-        # Lance accepts pandas DataFrames and pyarrow Tables; reject everything else.
+    @staticmethod
+    def _validate(obj: Any) -> int:
+        """Lance accepts pandas DataFrames and pyarrow Tables; reject everything else. Returns row count."""
         try:
             import pyarrow as pa
             is_arrow = isinstance(obj, pa.Table)
@@ -66,22 +123,51 @@ class LanceIOManager(dg.ConfigurableIOManager):
                 f"LanceIOManager only handles pandas DataFrames or pyarrow Tables; got {type(obj).__name__}. "
                 f"Use a different IO manager for non-tabular outputs."
             )
+        return len(obj) if isinstance(obj, pd.DataFrame) else obj.num_rows
+
+    def handle_output(self, context: dg.OutputContext, obj: Any) -> None:
+        if obj is None:
+            return
+        keys = _output_range_keys(context)
+        if keys is not None:
+            _check_range_mapping("LanceIOManager", context, obj, keys)
+            by_key = {str(k): v for k, v in obj.items()}
+            counts = {k: self._validate(by_key[k]) for k in keys}  # validate all before writing any
+            db = self._get_db()
+            names = {}
+            for k in keys:
+                names[k] = self._table_name(context, partition_key=k)
+                db.create_table(names[k], by_key[k], mode="overwrite")
+            context.add_output_metadata(
+                {
+                    "object_path": dg.MetadataValue.path(
+                        ", ".join(f"{self.base_path.rstrip('/')}/{names[k]}.lance" for k in keys)
+                    ),
+                    "row_count": dg.MetadataValue.int(sum(counts.values())),
+                    "partition_key": dg.MetadataValue.text(_partition_label(context)),
+                }
+            )
+            return
+        row_count = self._validate(obj)
         db = self._get_db()
         name = self._table_name(context)
         db.create_table(name, obj, mode="overwrite")
-        row_count = len(obj) if isinstance(obj, pd.DataFrame) else obj.num_rows
         context.add_output_metadata(
             {
                 "object_path": dg.MetadataValue.path(f"{self.base_path.rstrip('/')}/{name}.lance"),
                 "row_count": dg.MetadataValue.int(row_count),
-                "partition_key": dg.MetadataValue.text(
-                    str(context.partition_key) if context.has_partition_key else "(unpartitioned)"
-                ),
+                "partition_key": dg.MetadataValue.text(_partition_label(context)),
             }
         )
 
-    def load_input(self, context: dg.InputContext) -> pd.DataFrame:
+    def load_input(self, context: dg.InputContext):
         db = self._get_db()
+        keys = _input_range_keys(context)
+        if keys is not None:
+            return {
+                k: db.open_table(self._table_name(context.upstream_output, partition_key=k)).to_pandas()
+                for k in keys
+            }
         name = self._table_name(context.upstream_output)
         return db.open_table(name).to_pandas()
 

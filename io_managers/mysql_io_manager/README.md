@@ -44,3 +44,7 @@ pandas
 sqlalchemy
 pymysql
 ```
+
+## Partition ranges (single_run backfills)
+
+When one run covers a range of partitions (`BackfillPolicy.single_run()`), Dagster gives the IO manager a partition *range* rather than a single key. The asset must then return a dict `{partition_key: DataFrame}` whose keys equal the range's partition keys; each key is written exactly like a single partition (its own table/collection/object, other partitions untouched). Downstream assets that load the range receive a dict `{partition_key: DataFrame}`. Anything else raises a clear `TypeError`/`ValueError`, and nothing is written. Output metadata `partition_key` reports the range as `start...end`.

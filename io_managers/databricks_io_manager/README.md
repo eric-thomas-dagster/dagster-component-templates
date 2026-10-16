@@ -110,3 +110,8 @@ out-of-the-box with Azure Databricks via the standard `host` /
 The service principal needs the **Contributor** role on the workspace,
 plus appropriate Unity Catalog / cluster permissions inside Databricks.
 
+## Partition ranges (single_run backfills)
+
+When an asset uses `BackfillPolicy.single_run()` and Dagster materializes several partitions in one run, the output covers a partition *range*. The asset must return either a dict `{partition_key: DataFrame}` whose keys equal the range, or one DataFrame that already contains the `partition_column` whose values are all inside the range. The manager performs `DELETE ... WHERE partition_column IN (...)` then insert (or `COPY INTO` when `staging_location` is set); rows of partitions outside the range are never touched. Output metadata `partition_key` reports the range (e.g. `2024-01-01...2024-01-03`).
+
+Loading an upstream range returns ONE DataFrame via one `SELECT ... WHERE partition_column IN (...)`. Single-partition and unpartitioned behavior is unchanged.

@@ -4,6 +4,7 @@ from typing import Union
 YAML/Component wrapper around `RedshiftIOManager`. Use `resource_key:
 io_manager` to make this the default IO manager for the project.
 """
+from collections.abc import Mapping
 import dagster as dg
 from pydantic import Field
 from typing import Optional
@@ -15,8 +16,94 @@ def _sanitize_ident(component: str) -> str:
     return cleaned.lower().strip("_") or "t"
 
 
+
+
+def _range_keys(ctx) -> Optional[list]:
+    """Partition keys when ``ctx`` covers a partition RANGE (single_run backfill).
+
+    For a range, Dagster reports ``has_partition_key=False`` while
+    ``has_asset_partitions=True`` (and ``partition_key`` raises), so gating on
+    ``has_partition_key`` alone would silently treat a range as unpartitioned.
+    Returns None for single-partition or unpartitioned contexts.
+    """
+    if ctx.has_partition_key:
+        return None
+    if ctx.has_asset_partitions:
+        keys = [str(k) for k in ctx.asset_partition_keys]
+        if keys:
+            return keys
+    return None
+
+
+def _partition_label(keys: list) -> str:
+    return keys[0] if len(keys) == 1 else f"{keys[0]}...{keys[-1]}"
+
+
+def _build_partitioned_frame(obj, keys: list, column: str, single: bool) -> pd.DataFrame:
+    """Return one DataFrame carrying ``column`` for every row being written.
+
+    single=True: ``obj`` is a DataFrame for the one partition ``keys[0]``.
+    single=False (range): ``obj`` is either a Mapping {partition_key: DataFrame}
+    whose keys equal the range, or a DataFrame that already has ``column`` whose
+    distinct values are a subset of ``keys``.
+    """
+    if single:
+        df = obj.copy()
+        df[column] = keys[0]
+        return df
+    expected = set(keys)
+    if isinstance(obj, Mapping):
+        got = {str(k) for k in obj.keys()}
+        if got != expected:
+            raise ValueError(
+                f"Multi-partition output keys must equal the materialized partition range. "
+                f"Missing: {sorted(expected - got)}; unexpected: {sorted(got - expected)}."
+            )
+        by_key = {str(k): v for k, v in obj.items()}
+        frames = []
+        for k in keys:
+            v = by_key[k]
+            if not isinstance(v, pd.DataFrame):
+                raise TypeError(f"Value for partition {k!r} must be a pandas DataFrame; got {type(v).__name__}.")
+            part = v.copy()
+            part[column] = k
+            frames.append(part)
+        return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame({column: []})
+    if isinstance(obj, pd.DataFrame):
+        if column not in obj.columns:
+            raise ValueError(
+                f"This asset materialized a partition range ({_partition_label(keys)}) but the returned "
+                f"DataFrame has no {column!r} column to split rows by partition. Return a DataFrame that "
+                f"includes {column!r}, or a dict {{partition_key: DataFrame}}."
+            )
+        if obj[column].isna().any():
+            raise ValueError(f"Column {column!r} contains nulls; every row must name its partition key.")
+        df = obj.copy()
+        df[column] = df[column].astype(str)
+        bad = set(df[column].unique()) - expected
+        if bad:
+            raise ValueError(
+                f"Column {column!r} has values outside the materialized partition range: {sorted(bad)} "
+                f"(range: {_partition_label(keys)})."
+            )
+        return df
+    raise TypeError(
+        f"A multi-partition (single_run backfill) output must be a dict {{partition_key: DataFrame}} "
+        f"or a DataFrame containing {column!r}; got {type(obj).__name__}."
+    )
+
+
 class RedshiftIOManager(dg.ConfigurableIOManager):
-    """ConfigurableIOManager that reads/writes pandas DataFrames as Redshift tables."""
+    """ConfigurableIOManager that reads/writes pandas DataFrames as Redshift tables.
+
+    Partition ranges (single_run backfills): when an asset with
+    ``BackfillPolicy.single_run()`` materializes several partitions in one run,
+    return either a dict ``{partition_key: DataFrame}`` (keys must equal the
+    range) or one DataFrame that already contains ``partition_column`` whose
+    values are a subset of the range. Exactly the range's rows are deleted and
+    re-inserted in one transaction; other partitions are never touched. Loading
+    a range returns ONE DataFrame filtered with ``partition_column IN (...)``.
+    """
 
     host: str = Field(description="Redshift cluster endpoint host")
     port: int = Field(default=5439, description="Redshift port")
@@ -48,7 +135,8 @@ class RedshiftIOManager(dg.ConfigurableIOManager):
     def handle_output(self, context: dg.OutputContext, obj: pd.DataFrame) -> None:
         if obj is None:
             return
-        if not isinstance(obj, pd.DataFrame):
+        range_keys = _range_keys(context)
+        if range_keys is None and not isinstance(obj, pd.DataFrame):
             raise TypeError(
                 f"RedshiftIOManager only handles pandas DataFrames; got {type(obj).__name__}. "
                 f"Use a different IO manager for non-DataFrame outputs."
@@ -57,14 +145,16 @@ class RedshiftIOManager(dg.ConfigurableIOManager):
 
         schema, table = self._table_name(context)
         engine = self._get_engine()
+        partition_keys = [str(context.partition_key)] if context.has_partition_key else range_keys
+        row_count = len(obj)
 
         with engine.begin() as conn:
             conn.execute(sa.text(f'CREATE SCHEMA IF NOT EXISTS "{schema}"'))
 
-            if context.has_partition_key:
-                partition_value = str(context.partition_key)
-                df = obj.copy()
-                df[self.partition_column] = partition_value
+            if partition_keys is not None:
+                df = _build_partitioned_frame(
+                    obj, partition_keys, self.partition_column, single=range_keys is None
+                )
                 exists = conn.execute(
                     sa.text(
                         "SELECT 1 FROM information_schema.tables "
@@ -76,22 +166,23 @@ class RedshiftIOManager(dg.ConfigurableIOManager):
                     conn.execute(
                         sa.text(
                             f'DELETE FROM "{schema}"."{table}" '
-                            f'WHERE "{self.partition_column}" = :pk'
-                        ),
-                        {"pk": partition_value},
+                            f'WHERE "{self.partition_column}" IN :pks'
+                        ).bindparams(sa.bindparam("pks", expanding=True)),
+                        {"pks": partition_keys},
                     )
                     df.to_sql(table, conn, schema=schema, if_exists="append", index=False)
                 else:
                     df.to_sql(table, conn, schema=schema, if_exists="replace", index=False)
+                row_count = len(df)
             else:
                 obj.to_sql(table, conn, schema=schema, if_exists=self.if_exists, index=False)
 
         context.add_output_metadata(
             {
                 "table": dg.MetadataValue.text(f"{schema}.{table}"),
-                "row_count": dg.MetadataValue.int(len(obj)),
+                "row_count": dg.MetadataValue.int(row_count),
                 "partition_key": dg.MetadataValue.text(
-                    str(context.partition_key) if context.has_partition_key else "(unpartitioned)"
+                    _partition_label(partition_keys) if partition_keys is not None else "(unpartitioned)"
                 ),
             }
         )
@@ -103,15 +194,15 @@ class RedshiftIOManager(dg.ConfigurableIOManager):
         schema, table = self._table_name(upstream)
         engine = self._get_engine()
         with engine.connect() as conn:
-            if upstream.has_partition_key:
-                partition_value = str(upstream.partition_key)
+            load_keys = [str(upstream.partition_key)] if upstream.has_partition_key else _range_keys(upstream)
+            if load_keys is not None:
                 return pd.read_sql(
                     sa.text(
                         f'SELECT * FROM "{schema}"."{table}" '
-                        f'WHERE "{self.partition_column}" = :pk'
-                    ),
+                        f'WHERE "{self.partition_column}" IN :pks'
+                    ).bindparams(sa.bindparam("pks", expanding=True)),
                     conn,
-                    params={"pk": partition_value},
+                    params={"pks": load_keys},
                 )
             return pd.read_sql(sa.text(f'SELECT * FROM "{schema}"."{table}"'), conn)
 

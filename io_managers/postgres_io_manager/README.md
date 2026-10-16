@@ -94,3 +94,9 @@ For asset key `["analytics","customers","daily"]`:
 - **Transactional writes**: per-partition `DELETE` + `INSERT` runs inside `engine.begin()` so the partition either fully replaces or fully rolls back.
 - **First-write table creation**: when a partitioned asset materializes for the first time the table doesn't exist yet, so the manager creates it with `to_sql(if_exists='replace')` then switches to `DELETE+append` on subsequent partitions.
 - **Authentication**: set `POSTGRES_PASSWORD` (or whatever env var name you configure) before launching Dagster.
+
+## Partition ranges (single_run backfills)
+
+When an asset uses `BackfillPolicy.single_run()` and Dagster materializes several partitions in one run, the output covers a partition *range*. The asset must return either a dict `{partition_key: DataFrame}` whose keys equal the range, or one DataFrame that already contains the `partition_column` whose values are all inside the range. The manager performs one transaction: `DELETE ... WHERE partition_column IN (...)` then insert; rows of partitions outside the range are never touched. Output metadata `partition_key` reports the range (e.g. `2024-01-01...2024-01-03`).
+
+Loading an upstream range returns ONE DataFrame via one `SELECT ... WHERE partition_column IN (...)`. Single-partition and unpartitioned behavior is unchanged.

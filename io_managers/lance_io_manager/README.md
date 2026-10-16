@@ -77,3 +77,7 @@ For an asset `["features","embeddings","text"]`:
 - **Use cases**: embedding vectors produced by AI/ML components, fast nearest-neighbor search without a separate vector DB, columnar ML feature stores with versioning.
 - **Pyarrow Tables**: Lance accepts pyarrow Tables natively (faster than DataFrames for large arrow-backed data). The manager type-checks for either.
 - **S3-compatible backends**: set `base_path` to `s3://...` and provide `s3_endpoint_url` for MinIO/LocalStack.
+
+## Partition ranges (single_run backfills)
+
+When one run covers a range of partitions (`BackfillPolicy.single_run()`), Dagster gives the IO manager a partition *range* rather than a single key. The asset must then return a dict `{partition_key: DataFrame}` whose keys equal the range's partition keys; each key is written exactly like a single partition (its own table/collection/object, other partitions untouched). Downstream assets that load the range receive a dict `{partition_key: DataFrame}`. Anything else raises a clear `TypeError`/`ValueError`, and nothing is written. Output metadata `partition_key` reports the range as `start...end`.

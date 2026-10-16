@@ -94,3 +94,9 @@ For asset key `["analytics","customers","daily"]`:
 - **Transactional writes**: per-partition `DELETE` + `INSERT` runs inside `engine.begin()` so the partition either fully replaces or fully rolls back.
 - **First-write table creation**: when a partitioned asset materializes for the first time, the table is created via `to_sql(if_exists='replace')`; subsequent partitions use `DELETE+append`.
 - **Bulk loads**: for very large datasets, prefer Redshift's native `COPY` from S3 (this manager uses `INSERT` via SQLAlchemy, suitable for moderate volumes). For high-volume ELT, write Parquet to S3 with the S3 IO manager and run a `COPY` step downstream.
+
+## Partition ranges (single_run backfills)
+
+When an asset uses `BackfillPolicy.single_run()` and Dagster materializes several partitions in one run, the output covers a partition *range*. The asset must return either a dict `{partition_key: DataFrame}` whose keys equal the range, or one DataFrame that already contains the `partition_column` whose values are all inside the range. The manager performs one transaction: `DELETE ... WHERE partition_column IN (...)` then insert; rows of partitions outside the range are never touched. Output metadata `partition_key` reports the range (e.g. `2024-01-01...2024-01-03`).
+
+Loading an upstream range returns ONE DataFrame via one `SELECT ... WHERE partition_column IN (...)`. Single-partition and unpartitioned behavior is unchanged.

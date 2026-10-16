@@ -83,3 +83,9 @@ For asset key `["analytics","customers","daily"]` with catalog `iceberg`:
 - **Connector requirements**: row-level `DELETE` is only supported by some Trino connectors. Use Iceberg/Delta for the cleanest semantics; Hive requires ACID tables.
 - **Authentication**: omit `password_env_var` for unauthenticated dev clusters; set it to use HTTP basic auth.
 - **Bulk loads**: this manager writes via `INSERT INTO ... VALUES (...)` which is fine for moderate volumes. For high-volume ELT, prefer staging Parquet to object storage and registering an external table.
+
+## Partition ranges (single_run backfills)
+
+When an asset uses `BackfillPolicy.single_run()` and Dagster materializes several partitions in one run, the output covers a partition *range*. The asset must return either a dict `{partition_key: DataFrame}` whose keys equal the range, or one DataFrame that already contains the `partition_column` whose values are all inside the range. The manager performs one transaction: `DELETE ... WHERE partition_column IN (...)` then insert; rows of partitions outside the range are never touched. Output metadata `partition_key` reports the range (e.g. `2024-01-01...2024-01-03`).
+
+Loading an upstream range returns ONE DataFrame via one `SELECT ... WHERE partition_column IN (...)`. Single-partition and unpartitioned behavior is unchanged.

@@ -6,7 +6,7 @@ io_manager` to make this the default IO manager for the project.
 import dagster as dg
 from pydantic import Field
 from datetime import datetime, timezone
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 import pandas as pd
 
 
@@ -15,8 +15,64 @@ def _sanitize(component: str) -> str:
     return component.replace("[", "--").replace("]", "--").replace(" ", "_")
 
 
+def _output_range_keys(context) -> Optional[list]:
+    """Partition keys covered by an OutputContext that spans a partition RANGE.
+
+    For a single_run backfill, ``has_partition_key`` is False while
+    ``has_asset_partitions`` is True and ``asset_partition_keys`` lists the range.
+    Returns None for single-partition and unpartitioned outputs.
+    """
+    if context.has_partition_key:
+        return None
+    if not context.has_asset_partitions:
+        return None
+    return [str(k) for k in context.asset_partition_keys]
+
+
+def _input_range_keys(context) -> Optional[list]:
+    """Upstream partition keys when an InputContext loads a partition RANGE, else None."""
+    if context.upstream_output is None or context.upstream_output.has_partition_key:
+        return None
+    if not context.has_asset_partitions:
+        return None
+    return [str(k) for k in context.asset_partition_keys]
+
+
+def _partition_label(context) -> str:
+    """Human-readable partition for metadata: the key, 'start...end' for a range, or '(unpartitioned)'."""
+    if context.has_partition_key:
+        return str(context.partition_key)
+    if _output_range_keys(context) is not None:
+        rng = context.asset_partition_key_range
+        return f"{rng.start}...{rng.end}"
+    return "(unpartitioned)"
+
+
+def _check_range_mapping(manager_name: str, context, obj, keys) -> None:
+    """Validate that a multi-partition output is a Mapping {partition_key: DataFrame} covering exactly `keys`."""
+    if not isinstance(obj, Mapping):
+        raise TypeError(
+            f"{manager_name}: this output covers a partition range ({len(keys)} partitions, a "
+            f"BackfillPolicy.single_run backfill), so the asset must return a dict "
+            f"{{partition_key: DataFrame}} with one entry per partition; got {type(obj).__name__}."
+        )
+    got, want = {str(k) for k in obj.keys()}, set(keys)
+    if got != want:
+        raise ValueError(
+            f"{manager_name}: dict keys must equal the partition range's keys. "
+            f"Missing: {sorted(want - got)}; unexpected: {sorted(got - want)}."
+        )
+
+
 class LakeFSIOManager(dg.ConfigurableIOManager):
-    """ConfigurableIOManager that reads/writes pandas DataFrames as Parquet on lakeFS."""
+    """ConfigurableIOManager that reads/writes pandas DataFrames as Parquet on lakeFS.
+
+    Partition ranges (single_run backfills): when one run covers a range of
+    partitions (``BackfillPolicy.single_run()``), the asset must return a dict
+    ``{partition_key: DataFrame}`` whose keys equal the range's partition keys; each
+    key is written exactly like a single partition. Downstream assets loading the
+    range receive a dict ``{partition_key: DataFrame}``.
+    """
 
     repository: str = Field(description="lakeFS repository name")
     branch: str = Field(default="main", description="Branch within the repository")
@@ -45,7 +101,7 @@ class LakeFSIOManager(dg.ConfigurableIOManager):
             kwargs["secret"] = self.secret_key
         return s3fs.S3FileSystem(**kwargs)
 
-    def _object_path(self, context) -> str:
+    def _object_path(self, context, partition_key: Optional[str] = None) -> str:
         """Build the lakeFS object path for an asset (or output).
 
         Layout: ``<repository>/<branch>/<prefix>/<asset_path>/<partition_key>.parquet``
@@ -57,13 +113,15 @@ class LakeFSIOManager(dg.ConfigurableIOManager):
             base = "/".join(key_parts)
         else:
             base = "/".join(_sanitize(p) for p in (context.run_id, context.step_key, context.name))
-        if context.has_partition_key:
-            return f"{self.repository}/{self.branch}/{self.prefix}/{base}/{_sanitize(context.partition_key)}.parquet"
+        if partition_key is None and context.has_partition_key:
+            partition_key = context.partition_key
+        if partition_key is not None:
+            return f"{self.repository}/{self.branch}/{self.prefix}/{base}/{_sanitize(str(partition_key))}.parquet"
         return f"{self.repository}/{self.branch}/{self.prefix}/{base}.parquet"
 
     def _format_commit_message(self, context: dg.OutputContext, row_count: int) -> str:
         asset_key = "/".join(context.asset_key.path) if context.has_asset_key else context.step_key
-        partition_key = str(context.partition_key) if context.has_partition_key else "(unpartitioned)"
+        partition_key = _partition_label(context)
         timestamp = datetime.now(timezone.utc).isoformat()
         return self.commit_message_template.format(
             asset_key=asset_key,
@@ -94,41 +152,69 @@ class LakeFSIOManager(dg.ConfigurableIOManager):
         commit_id = getattr(commit, "id", None) or getattr(commit, "get_commit", lambda: None)()
         return str(commit_id) if commit_id else None
 
-    def handle_output(self, context: dg.OutputContext, obj: pd.DataFrame) -> None:
-        if obj is None:
-            return
+    @staticmethod
+    def _validate(obj: Any) -> None:
         if not isinstance(obj, pd.DataFrame):
             raise TypeError(
                 f"LakeFSIOManager only handles pandas DataFrames; got {type(obj).__name__}. "
                 f"Use a different IO manager for non-DataFrame outputs."
             )
-        path = self._object_path(context)
-        with self._get_fs().open(path, "wb") as f:
-            obj.to_parquet(f, index=False)
+
+    def handle_output(self, context: dg.OutputContext, obj: pd.DataFrame) -> None:
+        if obj is None:
+            return
+        keys = _output_range_keys(context)
+        if keys is not None:
+            _check_range_mapping("LakeFSIOManager", context, obj, keys)
+            by_key = {str(k): v for k, v in obj.items()}
+            for k in keys:  # validate all before writing any
+                self._validate(by_key[k])
+            fs = self._get_fs()
+            paths = []
+            for k in keys:
+                path = self._object_path(context, partition_key=k)
+                with fs.open(path, "wb") as f:
+                    by_key[k].to_parquet(f, index=False)
+                paths.append(path)
+            total_rows = sum(len(by_key[k]) for k in keys)
+            path_meta = ", ".join(f"s3://{p}" for p in paths)
+        else:
+            self._validate(obj)
+            path = self._object_path(context)
+            with self._get_fs().open(path, "wb") as f:
+                obj.to_parquet(f, index=False)
+            total_rows = len(obj)
+            path_meta = f"s3://{path}"
 
         metadata: dict[str, Any] = {
-            "object_path": dg.MetadataValue.path(f"s3://{path}"),
+            "object_path": dg.MetadataValue.path(path_meta),
             "lakefs_uri": dg.MetadataValue.path(
                 f"lakefs://{self.repository}/{self.branch}/{self.prefix}/"
                 + "/".join(_sanitize(p) for p in (context.asset_key.path if context.has_asset_key else []))
             ),
-            "row_count": dg.MetadataValue.int(len(obj)),
+            "row_count": dg.MetadataValue.int(total_rows),
             "branch": dg.MetadataValue.text(self.branch),
-            "partition_key": dg.MetadataValue.text(
-                str(context.partition_key) if context.has_partition_key else "(unpartitioned)"
-            ),
+            "partition_key": dg.MetadataValue.text(_partition_label(context)),
         }
 
         if self.commit_per_materialization:
-            commit_id = self._commit(context, len(obj))
+            commit_id = self._commit(context, total_rows)
             if commit_id:
                 metadata["commit_id"] = dg.MetadataValue.text(commit_id)
 
         context.add_output_metadata(metadata)
 
-    def load_input(self, context: dg.InputContext) -> pd.DataFrame:
+    def load_input(self, context: dg.InputContext):
+        fs = self._get_fs()
+        keys = _input_range_keys(context)
+        if keys is not None:
+            out = {}
+            for k in keys:
+                with fs.open(self._object_path(context.upstream_output, partition_key=k), "rb") as f:
+                    out[k] = pd.read_parquet(f)
+            return out
         path = self._object_path(context.upstream_output)
-        with self._get_fs().open(path, "rb") as f:
+        with fs.open(path, "rb") as f:
             return pd.read_parquet(f)
 
 

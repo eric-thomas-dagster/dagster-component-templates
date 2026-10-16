@@ -104,3 +104,7 @@ The same path is reachable through the S3 gateway as `s3://data-lake/main/dagste
 - **Branching workflows**: point the manager at a development branch (e.g. `branch: dev`) and merge to `main` after validation. This gives you Dagster-native dev/prod isolation on the *data*, not just the code.
 - **Commit cost**: `commit_per_materialization: true` adds one lakeFS API call per asset write. For high-frequency partitioned backfills, prefer batching via a sensor that commits after the run completes.
 - **Python client**: this manager uses the official high-level [`lakefs`](https://pypi.org/project/lakefs/) SDK from Treeverse for the commit step; the underlying object I/O goes through `s3fs` against the lakeFS S3 gateway.
+
+## Partition ranges (single_run backfills)
+
+When one run covers a range of partitions (`BackfillPolicy.single_run()`), Dagster gives the IO manager a partition *range* rather than a single key. The asset must then return a dict `{partition_key: DataFrame}` whose keys equal the range's partition keys; each key is written exactly like a single partition (its own table/collection/object, other partitions untouched). Downstream assets that load the range receive a dict `{partition_key: DataFrame}`. Anything else raises a clear `TypeError`/`ValueError`, and nothing is written. Output metadata `partition_key` reports the range as `start...end`.

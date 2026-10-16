@@ -1,8 +1,7 @@
 {
   "component_type": "dagster_component_templates.FileIngestionComponent",
-  "description": "Unified tabular-file ingestion \u2014 reads CSV / TSV / JSON / JSONL / Parquet / Excel into a pandas DataFrame. Three mutually-exclusive input modes: file_path (fixed local or fsspec URI), from_upstream (resolve from upstream asset's dict), or from_run_config (sensor-injected RunConfig with optional {partition_key} interpolation for dynamic-partition flows).",
+  "description": "Unified tabular-file ingestion — reads CSV / TSV / JSON / JSONL / Parquet / Excel into a pandas DataFrame. Three mutually-exclusive input modes: file_path (fixed local or fsspec URI), from_upstream (resolve from upstream asset's dict), or from_run_config (sensor-injected RunConfig with optional {partition_key} interpolation for dynamic-partition flows).",
   "category": "source",
-
   "vertical": "cloud-storage",
   "icon": "ArrowUpFromLine",
   "x-dagster-io": {
@@ -51,7 +50,7 @@
     "from_run_config": {
       "type": "object",
       "label": "From Run Config",
-      "description": "Resolve URI from sensor-injected RunConfig. Shape: {uri_template: \"s3://{bucket}/{key}\"}. The Config class is built from {field} placeholders. {partition_key} is sourced from context.partition_key (not RunConfig) \u2014 pair with partition_type: dynamic for dynamic-partition flows.",
+      "description": "Resolve URI from sensor-injected RunConfig. Shape: {uri_template: \"s3://{bucket}/{key}\"}. The Config class is built from {field} placeholders. {partition_key} is sourced from context.partition_key (not RunConfig) — pair with partition_type: dynamic for dynamic-partition flows.",
       "required": false,
       "default": null
     },
@@ -149,7 +148,7 @@
     "owners": {
       "type": "array",
       "label": "Owners",
-      "description": "Asset owners \u2014 list of team:name or email addresses",
+      "description": "Asset owners — list of team:name or email addresses",
       "required": false,
       "default": null
     },
@@ -210,6 +209,25 @@
       "type": "string",
       "label": "Partition Start",
       "description": "Partition start date (ISO) for time-based partitions",
+      "required": false,
+      "default": null
+    },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset -- only applies to the 'fixed file_path' mode (file_path set, no sensor/upstream config). 'single_run' materializes an entire backfill range in one run (reads and concatenates one file per partition in the range, including per-partition parquet caching if cache_to_parquet is set). 'multi_run' launches one run per partition. Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is not set. 'single_run' requires a partition-range-aware IO manager (e.g. a DB-table IO manager with partition_expr set) -- a generic filesystem/default IO manager cannot persist a single_run output spanning multiple partitions and will raise a clear error at materialization time.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
       "required": false,
       "default": null
     },

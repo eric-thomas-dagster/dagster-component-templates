@@ -1,10 +1,11 @@
 """CSV File Ingestion Asset Component."""
 
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 import pandas as pd
 from pathlib import Path
 from datetime import datetime
 from dagster import (
+    BackfillPolicy,
     Component,
     Resolvable,
     Model,
@@ -523,6 +524,29 @@ class FileIngestionComponent(Component, Model, Resolvable):
 
     )
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset -- only applies "
+            "to the 'fixed file_path' mode (file_path set, no sensor/upstream "
+            "config). 'single_run' materializes an entire backfill range in one "
+            "run (reads and concatenates one file per partition in the range, "
+            "including per-partition parquet caching if cache_to_parquet is "
+            "set). 'multi_run' launches one run per partition (optionally "
+            "capped via backfill_policy_max_partitions_per_run). Leave unset "
+            "for Dagster's default (one run per partition, uncapped). Ignored "
+            "when partition_type is not set. 'single_run' requires a "
+            "partition-range-aware IO manager (e.g. a DB-table IO manager with "
+            "partition_expr set) -- a generic filesystem/default IO manager "
+            "cannot persist a single_run output spanning multiple partitions "
+            "and will raise a clear error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
 
     retry_policy_max_retries: Optional[int] = Field(
 
@@ -913,7 +937,21 @@ class FileIngestionComponent(Component, Model, Resolvable):
 
         # --- Branch B: file_path — fixed path on disk (existing behavior) ---
         assert file_path is not None  # validated above
+
+        # backfill_policy only applies to this branch (fixed file_path) --
+        # the sensor-driven and from_upstream branches above resolve paths
+        # from per-run injected config / an upstream dict, not a uniform
+        # date/key-templated path, so a single_run range doesn't generalize
+        # the same way there; left unwired for those two.
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            backfill_policy = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            backfill_policy = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
         @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
+            backfill_policy=backfill_policy,
             key=AssetKey.from_user_string(asset_name),
             description=description or f"CSV data from {file_path}",
                         owners=owners,
@@ -930,109 +968,107 @@ group_name=group_name,
         def csv_ingestion_asset(context: AssetExecutionContext):
             """Asset that ingests CSV file into a pandas DataFrame."""
 
-            # Check if running in partitioned mode
-            partition_date = None
-            partitioned_file_path = file_path
-            if context.has_partition_key:
-                # Parse partition key as date (format: YYYY-MM-DD)
-                try:
-                    partition_date = datetime.strptime(context.partition_key, "%Y-%m-%d")
-                    context.log.info(f"Reading CSV for partition {context.partition_key}")
+            # Partition key(s) this call must process: a normal tick gives
+            # exactly one; a single_run backfill gives the whole range.
+            partition_keys = [None]
+            if context.has_partition_key or context.has_partition_key_range:
+                partition_keys = list(context.partition_keys)
 
-                    # Support partitioned file paths with {partition_date} placeholder
-                    # e.g., /data/sales_{partition_date}.csv -> /data/sales_2024-01-01.csv
+            def _resolve_path(partition_key):
+                """Support partitioned file paths with a {partition_date} placeholder
+                (e.g. /data/sales_{partition_date}.csv -> /data/sales_2024-01-01.csv),
+                independent of whether the key also uses {partition_key} -- static/
+                dynamic partition keys aren't dates, so that substitution must not
+                depend on the date parse succeeding."""
+                if partition_key is None:
+                    context.log.info("Reading CSV (non-partitioned)")
+                    return file_path
+                context.log.info(f"Reading CSV for partition {partition_key}")
+                partitioned_file_path = file_path
+                try:
+                    partition_date = datetime.strptime(partition_key, "%Y-%m-%d")
                     if "{partition_date}" in file_path:
                         partitioned_file_path = file_path.replace(
-                            "{partition_date}",
-                            partition_date.strftime("%Y-%m-%d")
+                            "{partition_date}", partition_date.strftime("%Y-%m-%d")
                         )
                         context.log.info(f"Using partitioned file path: {partitioned_file_path}")
-                    elif "{partition_key}" in file_path:
-                        partitioned_file_path = file_path.replace(
-                            "{partition_key}",
-                            context.partition_key
-                        )
-                        context.log.info(f"Using partitioned file path: {partitioned_file_path}")
+                        return partitioned_file_path
                 except ValueError:
                     context.log.warning(
-                        f"Could not parse partition key '{context.partition_key}' as date, "
+                        f"Could not parse partition key '{partition_key}' as date, "
                         "using original file path"
                     )
-            else:
-                context.log.info("Reading CSV (non-partitioned)")
+                if "{partition_key}" in file_path:
+                    partitioned_file_path = file_path.replace("{partition_key}", partition_key)
+                    context.log.info(f"Using partitioned file path: {partitioned_file_path}")
+                return partitioned_file_path
 
-            # Check if we should use cached parquet
-            if cache_to_parquet:
-                cache_path = parquet_path or f"{partitioned_file_path}.parquet"
-                cache_file = Path(cache_path)
-                source_file = Path(partitioned_file_path)
+            def _read_one(partition_key):
+                partitioned_file_path = _resolve_path(partition_key)
 
-                # Use cache if it exists and is newer than source
-                if cache_file.exists() and cache_file.stat().st_mtime > source_file.stat().st_mtime:
-                    context.log.info(f"Loading from parquet cache: {cache_path}")
-                    df = pd.read_parquet(cache_path)
-                    return df
-
-            # Read the file (format dispatched by _read_file based on `file_format`)
-            context.log.info(
-                f"Reading file (format={file_format}): {partitioned_file_path}"
-            )
-
-            try:
-                df = _read_file(
-                    partitioned_file_path, file_format,
-                    delimiter=delimiter, encoding=encoding,
-                    skip_rows=skip_rows, header_row=header_row,
-                    columns_to_read=columns_to_read, dtype_mapping=dtype_mapping,
-                    parse_dates=parse_dates,
-                    fixed_width_colspecs=fw_colspecs, fixed_width_names=fw_names,
-                )
-
-                context.log.info(f"Loaded {len(df)} rows, {len(df.columns)} columns")
-
-                # Log basic statistics
-                context.log.info(f"Columns: {list(df.columns)}")
-                context.log.info(f"Memory usage: {df.memory_usage(deep=True).sum() / 1024 / 1024:.2f} MB")
-
-                # Cache to parquet if requested
+                # Check if we should use cached parquet
                 if cache_to_parquet:
                     cache_path = parquet_path or f"{partitioned_file_path}.parquet"
-                    context.log.info(f"Caching to parquet: {cache_path}")
-                    df.to_parquet(cache_path, index=False)
+                    cache_file = Path(cache_path)
+                    source_file = Path(partitioned_file_path)
+                    if cache_file.exists() and cache_file.stat().st_mtime > source_file.stat().st_mtime:
+                        context.log.info(f"Loading from parquet cache: {cache_path}")
+                        return pd.read_parquet(cache_path)
 
-                # Add row count metadata. Cast numpy scalars to native Python
-                # types so Dagster's event log serializer can handle them.
-                context.add_output_metadata({
-                    "num_rows": int(len(df)),
-                    "num_columns": int(len(df.columns)),
-                    "columns": list(df.columns),
-                    "memory_mb": float(df.memory_usage(deep=True).sum()) / 1024 / 1024,
-                })
-
-                if include_preview and len(df) > 0:
-                    # Return with sample metadata
-                    return Output(
-                        value=df,
-                        metadata={
-                            "row_count": len(df),
-                            "columns": df.columns.tolist(),
-                            "preview": MetadataValue.md(df.head().to_markdown())
-                        }
+                context.log.info(f"Reading file (format={file_format}): {partitioned_file_path}")
+                try:
+                    df = _read_file(
+                        partitioned_file_path, file_format,
+                        delimiter=delimiter, encoding=encoding,
+                        skip_rows=skip_rows, header_row=header_row,
+                        columns_to_read=columns_to_read, dtype_mapping=dtype_mapping,
+                        parse_dates=parse_dates,
+                        fixed_width_colspecs=fw_colspecs, fixed_width_names=fw_names,
                     )
-                else:
+                    context.log.info(f"Loaded {len(df)} rows, {len(df.columns)} columns")
+                    if cache_to_parquet:
+                        cache_path = parquet_path or f"{partitioned_file_path}.parquet"
+                        context.log.info(f"Caching to parquet: {cache_path}")
+                        df.to_parquet(cache_path, index=False)
                     return df
+                except FileNotFoundError:
+                    context.log.warning(
+                        f"file_ingestion: source file not found at {partitioned_file_path!r}. "
+                        "Returning empty DataFrame so downstream chain can still materialize."
+                    )
+                    return pd.DataFrame()
+                except pd.errors.EmptyDataError:
+                    context.log.error(f"CSV file is empty: {partitioned_file_path}")
+                    raise
+                except Exception as e:
+                    context.log.error(f"Error reading CSV file: {str(e)}")
+                    raise
 
-            except FileNotFoundError:
-                context.log.warning(
-                    f"file_ingestion: source file not found at {partitioned_file_path!r}. "
-                    "Returning empty DataFrame so downstream chain can still materialize."
+            dfs = [_read_one(pk) for pk in partition_keys]
+            df = pd.concat(dfs, ignore_index=True) if len(dfs) > 1 else dfs[0]
+
+            context.log.info(f"Columns: {list(df.columns)}")
+            context.log.info(f"Memory usage: {df.memory_usage(deep=True).sum() / 1024 / 1024:.2f} MB")
+
+            # Add row count metadata. Cast numpy scalars to native Python
+            # types so Dagster's event log serializer can handle them.
+            context.add_output_metadata({
+                "num_rows": int(len(df)),
+                "num_columns": int(len(df.columns)),
+                "columns": list(df.columns),
+                "memory_mb": float(df.memory_usage(deep=True).sum()) / 1024 / 1024,
+            })
+
+            if include_preview and len(df) > 0:
+                return Output(
+                    value=df,
+                    metadata={
+                        "row_count": len(df),
+                        "columns": df.columns.tolist(),
+                        "preview": MetadataValue.md(df.head().to_markdown())
+                    }
                 )
-                return pd.DataFrame()
-            except pd.errors.EmptyDataError:
-                context.log.error(f"CSV file is empty: {partitioned_file_path}")
-                raise
-            except Exception as e:
-                context.log.error(f"Error reading CSV file: {str(e)}")
-                raise
+            else:
+                return df
 
         return Definitions(assets=[csv_ingestion_asset])

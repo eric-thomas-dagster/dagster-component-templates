@@ -1,6 +1,7 @@
 """DuckDB Table Writer Asset Component."""
 
 from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Literal
 import pandas as pd
 from pathlib import Path
 from dagster import (
@@ -240,6 +241,16 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
         description="Description of the asset"
     )
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered DuckDBResourceComponent (resources/duckdb_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "database_path -- lets one credential serve this sink and other components "
+            "without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
     group_name: Optional[str] = Field(
         default="",
         description="Asset group name for organization"
@@ -278,6 +289,28 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in ONE run: the upstream frame "
+            "(loaded once, spanning the whole range) is filtered to every partition "
+            "key in the range via partition_date_column/partition_static_column and "
+            "written together. 'multi_run' launches one run per partition (optionally "
+            "capped via backfill_policy_max_partitions_per_run). Leave unset for "
+            "Dagster's default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set. Requires a partition-range-aware IO manager "
+            "for the upstream asset (e.g. a DB-table IO manager with partition_expr "
+            "set) -- a generic filesystem IO manager cannot persist/load a single_run "
+            "output spanning multiple partitions and raises a clear error at "
+            "materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     owners: Optional[List[str]] = Field(
         default=None,
         description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
@@ -423,6 +456,18 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
 
+        resource_key = self.resource_key
+
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            from dagster import BackfillPolicy
+            _backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            from dagster import BackfillPolicy
+            _backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
         _asset_kwargs = dict(
             key=AssetKey.from_user_string(asset_name),
             description=description,
@@ -433,6 +478,10 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in upstream_keys] if upstream_keys else None,
         )
+        if _backfill_policy_obj is not None:
+            _asset_kwargs["backfill_policy"] = _backfill_policy_obj
+        if resource_key:
+            _asset_kwargs["required_resource_keys"] = {resource_key}
         if self.automation_condition is not None:
             _asset_kwargs["automation_condition"] = self.automation_condition
 
@@ -452,12 +501,21 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
                 # load call. Upstream assets that share the partition scheme
                 # then load only their matching partition slice.
                 _load_pk = context.partition_key if context.has_partition_key else None
+                # A single_run/multi_run backfill range has no single partition_key:
+                # load each key in the range and concatenate (see the filter below).
+                _load_range = list(context.partition_keys) if (not _load_pk and context.has_partition_key_range) else None
                 for key in upstream_keys:
                     try:
                         # Convert string key to AssetKey if needed; supports slash-paths.
                         asset_key = AssetKey.from_user_string(key) if isinstance(key, str) else key
                         try:
-                            value = context.load_asset_value(asset_key, partition_key=_load_pk) if _load_pk else context.load_asset_value(asset_key)
+                            if _load_range:
+                                _parts = [context.load_asset_value(asset_key, partition_key=_k) for _k in _load_range]
+                                if not all(isinstance(_p, pd.DataFrame) for _p in _parts):
+                                    raise ValueError(f"Expected DataFrame partitions from upstream '{key}' for the backfill range")
+                                value = pd.concat(_parts, ignore_index=True)
+                            else:
+                                value = context.load_asset_value(asset_key, partition_key=_load_pk) if _load_pk else context.load_asset_value(asset_key)
                         except Exception:
                             # Upstream may be unpartitioned or use a different
                             # partition scheme — fall back to a plain load.
@@ -489,30 +547,46 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
             # partition_date_column are set. Note the upstream may already be
             # filtered by a partitioned producer, in which case the filter is
             # a no-op — safe.
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in df.columns and _date_key:
-                    _col_dates = pd.to_datetime(df[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
-                    df = df[_col_dates == _date_key]
-                if partition_static_column and partition_static_column in df.columns and _static_key:
-                    df = df[df[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in df.columns and not _is_multi:
-                    df = df[df[partition_static_column].astype(str) == str(_pk)]
+            # A single_run/multi_run backfill range spans several partition keys:
+            # keep rows matching ANY key in the range (one key on a normal run).
+            if context.has_partition_key or context.has_partition_key_range:
+                import numpy as _np
+                _keys = [context.partition_key] if context.has_partition_key else list(context.partition_keys)
+                _keep = _np.zeros(len(df), dtype=bool)
+                for _pk in _keys:
+                    _is_multi = hasattr(_pk, "keys_by_dimension")
+                    _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                    _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                    _m = _np.ones(len(df), dtype=bool)
+                    if partition_date_column and partition_date_column in df.columns and _date_key:
+                        _col_dates = pd.to_datetime(df[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
+                        _m &= (_col_dates == _date_key).to_numpy()
+                    if partition_static_column and partition_static_column in df.columns and _static_key:
+                        _m &= (df[partition_static_column].astype(str) == _static_key).to_numpy()
+                    elif partition_static_column and partition_static_column in df.columns and not _is_multi:
+                        _m &= (df[partition_static_column].astype(str) == str(_pk)).to_numpy()
+                    _keep |= _m
+                df = df[_keep]
 
             context.log.info(
                 f"Writing {len(df)} rows to DuckDB table '{table_name}' "
                 f"at {database_path}"
             )
 
-            # Ensure database directory exists
-            db_path = Path(database_path)
-            db_path.parent.mkdir(parents=True, exist_ok=True)
+            import contextlib
 
-            # Connect to DuckDB
-            con = duckdb.connect(str(db_path))
+            _duck_stack = contextlib.ExitStack()
+            if resource_key:
+                # The registered DuckDBResource owns the database path / Quack remote setup;
+                # its get_connection() context manager yields the connection.
+                con = _duck_stack.enter_context(getattr(context.resources, resource_key).get_connection())
+            else:
+                # Ensure database directory exists
+                db_path = Path(database_path)
+                db_path.parent.mkdir(parents=True, exist_ok=True)
+
+                # Connect to DuckDB
+                con = duckdb.connect(str(db_path))
 
             try:
                 # Check if table exists
@@ -559,6 +633,9 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
                 )
 
             finally:
-                con.close()
+                if resource_key:
+                    _duck_stack.close()
+                else:
+                    con.close()
 
         return Definitions(assets=[duckdb_writer_asset])

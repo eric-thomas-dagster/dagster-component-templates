@@ -206,6 +206,13 @@
       "required": false,
       "type": "string",
       "x-dagster-widget": "cron"
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered S3ResourceComponent (resources/aws_s3_resource). When set, connection credentials are read from that resource at run time instead of the inline connection fields above (lets one credential serve several components). Leave empty to use the inline fields. Only the S3 uploads use the resource; the optional Glue registration check still uses AWS Profile.",
+      "required": false,
+      "default": null
     }
   }
 }

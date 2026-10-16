@@ -8,10 +8,11 @@ with `null`. For producers that need explicit schema control, pass
 """
 import os
 from typing import Any, Dict, List, Optional
+from typing import Literal
 
 import pandas as pd
 import dagster as dg
-from dagster import AssetExecutionContext, AssetIn, AssetKey, MetadataValue, Output, asset
+from dagster import AssetExecutionContext, AssetIn, AssetKey, MaterializeResult, MetadataValue, Output, asset
 from pydantic import Field
 
 
@@ -229,6 +230,70 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+class _PartitionKeyContext:
+    """Delegates to the real context but pins ONE key of a backfill range as the partition key."""
+
+    def __init__(self, context, key):
+        self._ctx = context
+        self._key = key
+
+    def __getattr__(self, name):
+        return getattr(self._ctx, name)
+
+    @property
+    def has_partition_key(self):
+        return True
+
+    @property
+    def partition_key(self):
+        return self._key
+
+    @property
+    def has_partition_key_range(self):
+        return False
+
+    @property
+    def partition_keys(self):
+        return [self._key]
+
+
+def _path_is_partition_templated(path):
+    """True when path has a {placeholder} other than {run_id} / ${ENV_VAR}."""
+    import re
+
+    return bool(re.search(r"(?<!\$)\{(?!run_id\})", path or ""))
+
+
+def _write_each_partition_key(context, upstream, write_one, can_split_rows):
+    """Run ``write_one`` once per partition key of a single_run/multi_run backfill range.
+
+    A path templated on the partition key must produce one file per key. The
+    upstream value for the range is either a ``{partition_key: DataFrame}`` dict
+    (what a partition-aware IO manager hands an asset consuming a range) -- sliced
+    per key here -- or one frame spanning the range, which is only splittable
+    when the component filters rows per key (``can_split_rows``).
+    """
+    if not isinstance(upstream, dict) and not can_split_rows:
+        raise ValueError(
+            "A backfill range (backfill_policy) with a path templated on the partition key needs "
+            "either a per-partition upstream (dict of DataFrames per partition key) or "
+            "partition_date_column/partition_static_column to split rows per key; "
+            "otherwise every key's file would receive the whole range."
+        )
+    metas = []
+    for _k in context.partition_keys:
+        _piece = upstream[_k] if isinstance(upstream, dict) and _k in upstream else upstream
+        _res = write_one(_PartitionKeyContext(context, _k), _piece)
+        metas.append(dict(_res.metadata or {}))
+    merged = dict(metas[-1])
+    for _name in ("row_count", "dagster/row_count"):
+        if all(_name in _m for _m in metas):
+            merged[_name] = MetadataValue.int(sum(int(getattr(_m[_name], "value", _m[_name])) for _m in metas))
+    merged["partition_keys_written"] = MetadataValue.int(len(metas))
+    return merged
+
+
+
 class DataframeToAvroComponent(dg.Component, dg.Model, dg.Resolvable):
     """Write a pandas DataFrame as Avro to a local path or fsspec URI.
 
@@ -274,6 +339,31 @@ class DataframeToAvroComponent(dg.Component, dg.Model, dg.Resolvable):
     partition_start: Optional[str] = Field(default=None)
     partition_values: Optional[Union[str, List[str]]] = Field(default=None)
     dynamic_partition_name: Optional[str] = Field(default=None)
+
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in ONE run. If file_path is "
+            "templated on the partition key (e.g. {partition_key}), one file is "
+            "written per key in the range -- this needs a per-partition upstream "
+            "(a partition-aware IO manager that hands the asset a dict of "
+            "DataFrames keyed by partition key; this component has no row-level "
+            "partition filter) and raises a clear error otherwise. A non-templated "
+            "file_path gets the whole range in a single file. 'multi_run' launches one run per partition (optionally "
+            "capped via backfill_policy_max_partitions_per_run). Leave unset for "
+            "Dagster's default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set. Requires a partition-range-aware IO manager "
+            "for the upstream asset (e.g. a DB-table IO manager with partition_expr "
+            "set) -- a generic filesystem IO manager cannot persist/load a single_run "
+            "output spanning multiple partitions and raises a clear error at "
+            "materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
 
     retry_policy_max_retries: Optional[int] = Field(
         default=None,
@@ -342,17 +432,17 @@ class DataframeToAvroComponent(dg.Component, dg.Model, dg.Resolvable):
             self.partition_values, self.dynamic_partition_name,
         )
 
-        @asset(
-            key=AssetKey.from_user_string(asset_name),
-            description=description,
-            group_name=group_name,
-            partitions_def=partitions_def,
-            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
-            deps=deps_keys,
-            retry_policy=retry_policy,
-            freshness_policy=freshness_policy,
-        )
-        def _asset(context: AssetExecutionContext, upstream: Any):
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            from dagster import BackfillPolicy
+            _backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            from dagster import BackfillPolicy
+            _backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        def _write_one(context, upstream):
             # Defensive Output/MaterializeResult unwrap — see summarize for the rationale.
             # Tolerates upstream authors who annotate `-> Output` or
             # return `Output(value=df, ...)` / `MaterializeResult(value=df)`.
@@ -381,8 +471,9 @@ class DataframeToAvroComponent(dg.Component, dg.Model, dg.Resolvable):
 
             context.log.info(f"Wrote {len(records)} rows to {resolved} (Avro, codec={codec})")
 
-            return Output(
-                value=None,
+            # MaterializeResult (not Output(value=None)): a sink has no value to persist, and a
+            # single_run backfill range makes the IO manager fail on handle_output.
+            return MaterializeResult(
                 metadata={
                     "destination":   MetadataValue.text(resolved),
                     "row_count":     MetadataValue.int(len(records)),
@@ -391,5 +482,30 @@ class DataframeToAvroComponent(dg.Component, dg.Model, dg.Resolvable):
                     "schema_inferred": MetadataValue.bool(explicit_schema is None),
                 },
             )
+
+        @asset(backfill_policy=_backfill_policy_obj, 
+            key=AssetKey.from_user_string(asset_name),
+            description=description,
+            group_name=group_name,
+            partitions_def=partitions_def,
+            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+            deps=deps_keys,
+            retry_policy=retry_policy,
+            freshness_policy=freshness_policy,
+        )
+        def _asset(context: AssetExecutionContext, upstream: Any):
+            # single_run/multi_run backfill range + path templated on the partition
+            # key: one write per key. Otherwise one write (a non-templated path gets
+            # the whole range's rows in a single file).
+            if (
+                context.has_partition_key_range
+                and not context.has_partition_key
+                and _path_is_partition_templated(file_path)
+            ):
+                _merged = _write_each_partition_key(
+                    context, upstream, _write_one, can_split_rows=False
+                )
+                return MaterializeResult(metadata=_merged)
+            return _write_one(context, upstream)
 
         return dg.Definitions(assets=[_asset])

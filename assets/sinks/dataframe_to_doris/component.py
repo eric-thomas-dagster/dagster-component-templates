@@ -113,6 +113,15 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+
+def _unescape(value):
+    """Turn the escaped text form used in Stream Load headers (the default line_delimiter
+    is the two characters backslash+n) into the real characters for the CSV payload;
+    otherwise the data would be joined by literal "\\n" text and load as a single row."""
+    value = str(value)
+    return value.replace("\\r", "\r").replace("\\n", "\n").replace("\\t", "\t")
+
+
 class DataframeToDorisComponent(dg.Component, dg.Model, dg.Resolvable):
     """Bulk-ingest a Pandas DataFrame into Apache Doris via Stream Load.
 
@@ -123,12 +132,16 @@ class DataframeToDorisComponent(dg.Component, dg.Model, dg.Resolvable):
         attributes:
           asset_name: doris_orders_load
           upstream_asset_key: orders_clean
-          table: orders                          # Doris table (database from resource)
-          host_env_var: DORIS_FE_HOST            # OR use resource_key
+          table: orders                          # Doris table
+          database: analytics                    # always set here (not taken from the resource)
+          # Connection: EITHER the inline env-var fields ...
+          host_env_var: DORIS_FE_HOST
           http_port: 8030
           username_env_var: DORIS_USER
           password_env_var: DORIS_PASSWORD
-          database: analytics
+          # ... OR a registered DorisResourceComponent (host/http_port/ssl/credentials
+          # then come from the resource and the four fields above are ignored):
+          # resource_key: doris_resource
           mode: append                           # 'append' or 'replace' (DELETE+INSERT pattern)
           format: csv
         ```
@@ -169,6 +182,16 @@ class DataframeToDorisComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     request_timeout_seconds: int = Field(default=300, ge=10)
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered DorisResourceComponent (resources/doris_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "host_env_var/username_env_var/password_env_var/http_port/ssl fields -- lets one credential serve this sink and other components "
+            "without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
     group_name: Optional[str] = Field(default="doris", description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
@@ -208,6 +231,7 @@ class DataframeToDorisComponent(dg.Component, dg.Model, dg.Resolvable):
             raise ValueError("mode='replace' requires replace_predicate (a SQL WHERE clause).")
 
         @dg.asset(
+            required_resource_keys=({_self.resource_key} if _self.resource_key else None),
             key=dg.AssetKey.from_user_string(_self.asset_name),
             ins={"upstream": dg.AssetIn(key=dg.AssetKey.from_user_string(_self.upstream_asset_key))},
             group_name=_self.group_name,
@@ -250,17 +274,24 @@ class DataframeToDorisComponent(dg.Component, dg.Model, dg.Resolvable):
             except ImportError:
                 raise ImportError("dataframe_to_doris requires `requests`: pip install requests")
 
-            host = os.environ.get(_self.host_env_var, "")
-            user = os.environ.get(_self.username_env_var, "")
-            password = os.environ.get(_self.password_env_var, "")
-            if not host or not user:
-                raise RuntimeError(
-                    f"Doris creds missing: set {_self.host_env_var} + {_self.username_env_var}."
-                )
+            if _self.resource_key:
+                # Frontend host/port/credentials come from the registered DorisResource.
+                _res = getattr(context.resources, _self.resource_key)
+                host, user, password = _res.host, _res.username, _res.password
+                _ssl, _http_port = _res.ssl, _res.http_port
+            else:
+                host = os.environ.get(_self.host_env_var, "")
+                user = os.environ.get(_self.username_env_var, "")
+                password = os.environ.get(_self.password_env_var, "")
+                _ssl, _http_port = _self.ssl, _self.http_port
+                if not host or not user:
+                    raise RuntimeError(
+                        f"Doris creds missing: set {_self.host_env_var} + {_self.username_env_var}."
+                    )
 
-            scheme = "https" if _self.ssl else "http"
+            scheme = "https" if _ssl else "http"
             url = (
-                f"{scheme}://{host}:{_self.http_port}/api/{_self.database}/"
+                f"{scheme}://{host}:{_http_port}/api/{_self.database}/"
                 f"{resolved_table}/_stream_load"
             )
 
@@ -286,10 +317,10 @@ class DataframeToDorisComponent(dg.Component, dg.Model, dg.Resolvable):
             if _self.format == "csv":
                 upstream.to_csv(
                     buf,
-                    sep=_self.column_separator,
+                    sep=_unescape(_self.column_separator),
                     index=False,
                     header=False,
-                    lineterminator=_self.line_delimiter,
+                    lineterminator=_unescape(_self.line_delimiter),
                 )
                 data = buf.getvalue()
                 headers = {

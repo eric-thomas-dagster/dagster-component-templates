@@ -120,6 +120,16 @@ class FirestoreWriterAssetComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output asset name.")
     upstream_asset_key: Union[str, List[str]] = Field(description="Upstream DataFrame asset key.")
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered FirestoreResourceComponent (resources/firestore_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "credentials/credentials_path/project_id fields -- lets one credential serve this sink and other components "
+            "without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
     credentials: Optional[Dict[str, Any]] = Field(default=None)
     credentials_path: Optional[str] = Field(default=None, description="Falls back to GOOGLE_APPLICATION_CREDENTIALS.")
 
@@ -248,17 +258,20 @@ class FirestoreWriterAssetComponent(Component, Model, Resolvable):
             )
 
         creds_dict = self.credentials
-        if creds_dict is None:
+        if creds_dict is None and not self.resource_key:
             cred_path = self.credentials_path or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
             if cred_path:
                 with open(cred_path, "r") as fh:
                     creds_dict = json.load(fh)
-        if creds_dict is None:
-            raise ValueError("Provide credentials, credentials_path, or set GOOGLE_APPLICATION_CREDENTIALS.")
+        if creds_dict is None and not self.resource_key:
+            raise ValueError(
+                "Provide resource_key (a registered FirestoreResourceComponent), credentials, "
+                "credentials_path, or set GOOGLE_APPLICATION_CREDENTIALS."
+            )
 
         asset_name = self.asset_name
         upstream_key = AssetKey.from_user_string(self.upstream_asset_key)
-        project_id = self.project_id or creds_dict.get("project_id")
+        project_id = self.project_id or (creds_dict or {}).get("project_id")
         database = self.database
         collection = self.collection
         id_column = self.id_column
@@ -267,6 +280,7 @@ class FirestoreWriterAssetComponent(Component, Model, Resolvable):
         batch_size = self.batch_size
 
         @asset(
+            required_resource_keys=({self.resource_key} if self.resource_key else None),
             key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Firestore write to {collection} in {project_id}/{database}.",
             group_name=self.group_name,
@@ -299,8 +313,11 @@ class FirestoreWriterAssetComponent(Component, Model, Resolvable):
             except ImportError:
                 raise ImportError("pip install google-cloud-firestore google-auth")
 
-            sa_creds = service_account.Credentials.from_service_account_info(creds_dict)
-            client = firestore.Client(project=project_id, credentials=sa_creds, database=database)
+            if self.resource_key:
+                client = getattr(context.resources, self.resource_key).get_client()
+            else:
+                sa_creds = service_account.Credentials.from_service_account_info(creds_dict)
+                client = firestore.Client(project=project_id, credentials=sa_creds, database=database)
             col = client.collection(collection)
 
             df = upstream.copy().reset_index(drop=True)

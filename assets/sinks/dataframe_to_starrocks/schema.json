@@ -162,6 +162,13 @@
       "required": false,
       "description": "When set AND the asset is partitioned, appends this column to every row with the current partition key as its value. Enables the single-table + partition_column analytics pattern (WHERE partition_date = '2025-01-15') without needing per-partition tables. Prefer this over `{partition_key}` templating in the `table:` field for warehouse sinks — analytics queries stay clean. See docs/partition_patterns.md.",
       "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered StarRocksResourceComponent (resources/starrocks_resource). When set, connection credentials are read from that resource at run time instead of the inline connection fields above (lets one credential serve several components). Leave empty to use the inline fields. The target database and table stay configured on this component.",
+      "required": false,
+      "default": null
     }
   }
 }

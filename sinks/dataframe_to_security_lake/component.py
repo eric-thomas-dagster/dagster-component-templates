@@ -115,6 +115,16 @@ class DataframeToSecurityLakeComponent(dg.Component, dg.Model, dg.Resolvable):
     region_name: str = Field(default="us-east-1", description="AWS region (also used in partition key)")
     account_id: Optional[str] = Field(default=None, description="AWS account ID — falls back to AWS_ACCOUNT_ID env if unset")
     event_day_field: str = Field(default="time", description="Field used to derive eventDay partition (epoch ms expected)")
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered S3ResourceComponent (resources/aws_s3_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "aws_profile/region_name session (S3 uploads only; the optional Glue check still uses aws_profile) -- lets one credential serve this sink and other components "
+            "without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
     aws_profile: Optional[str] = Field(default=None)
 
     # Optional Glue catalog registration
@@ -224,6 +234,7 @@ class DataframeToSecurityLakeComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         @dg.asset(
+            required_resource_keys=({self.resource_key} if self.resource_key else None),
             key=dg.AssetKey.from_user_string(self.asset_name),
             description=self.description or "Write OCSF events to AWS Security Lake",
             group_name=self.group_name,
@@ -266,7 +277,12 @@ class DataframeToSecurityLakeComponent(dg.Component, dg.Model, dg.Resolvable):
                 raise ValueError("account_id is required (set field or AWS_ACCOUNT_ID env var)")
 
             sess = boto3.Session(profile_name=_self.aws_profile, region_name=_self.region_name)
-            s3 = sess.client("s3")
+            if _self.resource_key:
+                # S3 uploads go through the registered S3Resource's client (credentials/endpoint
+                # from that resource); the optional Glue check below still uses the aws_profile session.
+                s3 = getattr(context.resources, _self.resource_key).get_client()
+            else:
+                s3 = sess.client("s3")
 
             # Bucket eventDay from the OCSF `time` field (epoch ms)
             if _self.event_day_field not in df.columns:

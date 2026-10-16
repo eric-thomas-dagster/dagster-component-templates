@@ -108,6 +108,15 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+
+def _unescape(value):
+    """Turn the escaped text form used in Stream Load headers (the default line_delimiter
+    is the two characters backslash+n) into the real characters for the CSV payload;
+    otherwise the data would be joined by literal "\\n" text and load as a single row."""
+    value = str(value)
+    return value.replace("\\r", "\r").replace("\\n", "\n").replace("\\t", "\t")
+
+
 class DataframeToStarRocksComponent(dg.Component, dg.Model, dg.Resolvable):
     """Bulk-ingest a Pandas DataFrame into StarRocks via Stream Load.
 
@@ -148,6 +157,16 @@ class DataframeToStarRocksComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     request_timeout_seconds: int = Field(default=300, ge=10)
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered StarRocksResourceComponent (resources/starrocks_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "host_env_var/username_env_var/password_env_var/http_port/ssl fields -- lets one credential serve this sink and other components "
+            "without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
     group_name: Optional[str] = Field(default="starrocks", description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
@@ -182,6 +201,7 @@ class DataframeToStarRocksComponent(dg.Component, dg.Model, dg.Resolvable):
         kinds.add("starrocks")
 
         @dg.asset(
+            required_resource_keys=({_self.resource_key} if _self.resource_key else None),
             key=dg.AssetKey.from_user_string(_self.asset_name),
             ins={"upstream": dg.AssetIn(key=dg.AssetKey.from_user_string(_self.upstream_asset_key))},
             group_name=_self.group_name,
@@ -223,20 +243,27 @@ class DataframeToStarRocksComponent(dg.Component, dg.Model, dg.Resolvable):
             except ImportError:
                 raise ImportError("dataframe_to_starrocks requires `requests`: pip install requests")
 
-            host = os.environ.get(_self.host_env_var, "")
-            user = os.environ.get(_self.username_env_var, "")
-            password = os.environ.get(_self.password_env_var, "")
-            if not host or not user:
-                raise RuntimeError(f"StarRocks creds missing: set {_self.host_env_var} + {_self.username_env_var}.")
+            if _self.resource_key:
+                # Frontend host/port/credentials come from the registered StarRocksResource.
+                _res = getattr(context.resources, _self.resource_key)
+                host, user, password = _res.host, _res.username, _res.password
+                _ssl, _http_port = _res.ssl, _res.http_port
+            else:
+                host = os.environ.get(_self.host_env_var, "")
+                user = os.environ.get(_self.username_env_var, "")
+                password = os.environ.get(_self.password_env_var, "")
+                _ssl, _http_port = _self.ssl, _self.http_port
+                if not host or not user:
+                    raise RuntimeError(f"StarRocks creds missing: set {_self.host_env_var} + {_self.username_env_var}.")
 
-            scheme = "https" if _self.ssl else "http"
-            url = f"{scheme}://{host}:{_self.http_port}/api/{_self.database}/{resolved_table}/_stream_load"
+            scheme = "https" if _ssl else "http"
+            url = f"{scheme}://{host}:{_http_port}/api/{_self.database}/{resolved_table}/_stream_load"
 
             buf = io.BytesIO()
             if _self.format == "csv":
                 upstream.to_csv(
-                    buf, sep=_self.column_separator, index=False, header=False,
-                    lineterminator=_self.line_delimiter,
+                    buf, sep=_unescape(_self.column_separator), index=False, header=False,
+                    lineterminator=_unescape(_self.line_delimiter),
                 )
                 data = buf.getvalue()
                 headers = {

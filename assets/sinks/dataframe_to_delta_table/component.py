@@ -15,6 +15,7 @@ when-matched-delete), use Spark/Databricks SQL.
 
 import os
 from typing import Any, Dict, List, Optional
+from typing import Literal
 
 import pandas as pd
 from dagster import (
@@ -26,6 +27,7 @@ from dagster import (
     Definitions,
     MetadataValue,
     Model,
+    MaterializeResult,
     Output,
     Resolvable,
     asset,
@@ -169,6 +171,70 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+class _PartitionKeyContext:
+    """Delegates to the real context but pins ONE key of a backfill range as the partition key."""
+
+    def __init__(self, context, key):
+        self._ctx = context
+        self._key = key
+
+    def __getattr__(self, name):
+        return getattr(self._ctx, name)
+
+    @property
+    def has_partition_key(self):
+        return True
+
+    @property
+    def partition_key(self):
+        return self._key
+
+    @property
+    def has_partition_key_range(self):
+        return False
+
+    @property
+    def partition_keys(self):
+        return [self._key]
+
+
+def _path_is_partition_templated(path):
+    """True when path has a {placeholder} other than {run_id} / ${ENV_VAR}."""
+    import re
+
+    return bool(re.search(r"(?<!\$)\{(?!run_id\})", path or ""))
+
+
+def _write_each_partition_key(context, upstream, write_one, can_split_rows):
+    """Run ``write_one`` once per partition key of a single_run/multi_run backfill range.
+
+    A path templated on the partition key must produce one file per key. The
+    upstream value for the range is either a ``{partition_key: DataFrame}`` dict
+    (what a partition-aware IO manager hands an asset consuming a range) -- sliced
+    per key here -- or one frame spanning the range, which is only splittable
+    when the component filters rows per key (``can_split_rows``).
+    """
+    if not isinstance(upstream, dict) and not can_split_rows:
+        raise ValueError(
+            "A backfill range (backfill_policy) with a path templated on the partition key needs "
+            "either a per-partition upstream (dict of DataFrames per partition key) or "
+            "partition_date_column/partition_static_column to split rows per key; "
+            "otherwise every key's file would receive the whole range."
+        )
+    metas = []
+    for _k in context.partition_keys:
+        _piece = upstream[_k] if isinstance(upstream, dict) and _k in upstream else upstream
+        _res = write_one(_PartitionKeyContext(context, _k), _piece)
+        metas.append(dict(_res.metadata or {}))
+    merged = dict(metas[-1])
+    for _name in ("row_count", "dagster/row_count", "rows_written"):
+        if all(_name in _m for _m in metas):
+            merged[_name] = MetadataValue.int(sum(int(getattr(_m[_name], "value", _m[_name])) for _m in metas))
+    merged["partition_keys_written"] = MetadataValue.int(len(metas))
+    return merged
+
+
+
 class DataframeToDeltaTableComponent(Component, Model, Resolvable):
     """Sink — write a DataFrame to an existing Delta Lake table.
 
@@ -254,6 +320,32 @@ class DataframeToDeltaTableComponent(Component, Model, Resolvable):
     partition_values: Optional[Union[str, List[str]]] = Field(default=None)
     dynamic_partition_name: Optional[str] = Field(default=None)
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in ONE run. When overwrite_partition_filter "
+            "is templated on the partition key, one write per key in the range "
+            "is issued (each replacing only that key's slice) -- this needs a "
+            "per-partition upstream (a partition-aware IO manager handing the "
+            "asset a dict of DataFrames keyed by partition key; this component has "
+            "no row-level partition filter) and raises a clear error otherwise. "
+            "Without a partition-key template the whole range is written in one "
+            "call. 'multi_run' launches one run per partition (optionally "
+            "capped via backfill_policy_max_partitions_per_run). Leave unset for "
+            "Dagster's default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set. Requires a partition-range-aware IO manager "
+            "for the upstream asset (e.g. a DB-table IO manager with partition_expr "
+            "set) -- a generic filesystem IO manager cannot persist/load a single_run "
+            "output spanning multiple partitions and raises a clear error at "
+            "materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     retry_policy_max_retries: Optional[int] = Field(default=None)
     retry_policy_delay_seconds: Optional[int] = Field(default=None)
     retry_policy_backoff: str = Field(default="exponential")
@@ -311,19 +403,22 @@ class DataframeToDeltaTableComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
-        @asset(
-            key=AssetKey.from_user_string(asset_name),
-            description=description,
-            owners=self.owners or [],
-            tags=all_tags,
-            group_name=self.group_name,
-            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
-            partitions_def=partitions_def,
-            retry_policy=retry_policy,
-            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
-            freshness_policy=freshness_policy,
-        )
-        def dataframe_to_delta_table_asset(context: AssetExecutionContext, upstream):
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            from dagster import BackfillPolicy
+            _backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            from dagster import BackfillPolicy
+            _backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        def _write_one(context, upstream):
+            # partition bridge dict-concat: a backfill range (or an unpartitioned
+            # consumer of a partitioned upstream) arrives as {partition_key: DataFrame}.
+            if isinstance(upstream, dict):
+                _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             from deltalake import write_deltalake, DeltaTable
 
             if not isinstance(upstream, pd.DataFrame):
@@ -372,7 +467,22 @@ class DataframeToDeltaTableComponent(Component, Model, Resolvable):
                         val = val.replace("{partition_key}", partition_key)
                     pfilters.append((col, op, val))
                 kwargs["mode"] = "overwrite"
-                kwargs["partition_filters"] = pfilters
+                import inspect
+
+                if "partition_filters" in inspect.signature(write_deltalake).parameters:
+                    kwargs["partition_filters"] = pfilters
+                else:
+                    # deltalake >= 1.0 removed partition_filters in favour of a SQL `predicate`.
+                    def _lit(v):
+                        return v if isinstance(v, (int, float)) and not isinstance(v, bool) else "'" + str(v).replace("'", "''") + "'"
+
+                    _clauses = []
+                    for _c, _op, _v in pfilters:
+                        if isinstance(_v, (list, tuple, set)):
+                            _clauses.append(f"{_c} {_op.upper()} ({', '.join(_lit(x) for x in _v)})")
+                        else:
+                            _clauses.append(f"{_c} {_op} {_lit(_v)}")
+                    kwargs["predicate"] = " AND ".join(_clauses)
                 write_deltalake(component.table_uri, df, **kwargs)
             elif mode in ("append", "overwrite", "error", "ignore"):
                 kwargs["mode"] = mode
@@ -402,6 +512,36 @@ class DataframeToDeltaTableComponent(Component, Model, Resolvable):
             context.log.info(
                 f"Delta sink: wrote {len(df)} rows ({mode}) → {component.table_uri} (v{dt.version()})"
             )
-            return Output(value=None, metadata=metadata)
+            # MaterializeResult, not Output(value=None): a sink has no value to persist, and a
+            # single_run backfill range makes the IO manager fail in handle_output.
+            return MaterializeResult(metadata=metadata)
+
+        @asset(backfill_policy=_backfill_policy_obj, 
+            key=AssetKey.from_user_string(asset_name),
+            description=description,
+            owners=self.owners or [],
+            tags=all_tags,
+            group_name=self.group_name,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            partitions_def=partitions_def,
+            retry_policy=retry_policy,
+            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+            freshness_policy=freshness_policy,
+        )
+        def dataframe_to_delta_table_asset(context: AssetExecutionContext, upstream):
+            # single_run/multi_run backfill range + path templated on the partition
+            # key: one write per key. Otherwise one write (a non-templated path gets
+            # the whole range's rows in a single file).
+            if (
+                context.has_partition_key_range
+                and not context.has_partition_key
+                and component.mode.lower() == "overwrite"
+                and any("{partition_key}" in str(_v) for _f in (component.overwrite_partition_filter or []) for _v in _f)
+            ):
+                _merged = _write_each_partition_key(
+                    context, upstream, _write_one, can_split_rows=False
+                )
+                return MaterializeResult(metadata=_merged)
+            return _write_one(context, upstream)
 
         return Definitions(assets=[dataframe_to_delta_table_asset])

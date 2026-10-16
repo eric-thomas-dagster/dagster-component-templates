@@ -220,6 +220,25 @@
       "required": false,
       "type": "string",
       "x-dagster-widget": "cron"
+    },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in ONE run: when overwrite_partition_filter is templated on the partition key, one write per key in the range is issued (each replacing only that key's slice) -- needs a per-partition upstream (partition-aware IO manager handing the asset a dict of DataFrames keyed by partition key; this component has no row-level partition filter) and raises a clear error otherwise; without a partition-key template the whole range is written in one call. 'multi_run' launches one run per partition (optionally capped via Backfill Max Partitions Per Run). Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is not set. Requires a partition-range-aware IO manager for the upstream asset (e.g. a DB-table IO manager with partition_expr set, or InMemoryIOManager in tests) -- a generic filesystem IO manager cannot persist/load a single_run output spanning multiple partitions and raises a clear error at materialization time.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
+      "required": false,
+      "default": null
     }
   },
   "tags": [

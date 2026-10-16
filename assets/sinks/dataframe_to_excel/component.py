@@ -4,6 +4,7 @@ Write a DataFrame asset to an Excel (.xlsx) file.
 """
 import os
 from typing import Any, Dict, List, Optional, Union
+from typing import Literal
 
 import pandas as pd
 from dagster import (
@@ -208,6 +209,70 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+class _PartitionKeyContext:
+    """Delegates to the real context but pins ONE key of a backfill range as the partition key."""
+
+    def __init__(self, context, key):
+        self._ctx = context
+        self._key = key
+
+    def __getattr__(self, name):
+        return getattr(self._ctx, name)
+
+    @property
+    def has_partition_key(self):
+        return True
+
+    @property
+    def partition_key(self):
+        return self._key
+
+    @property
+    def has_partition_key_range(self):
+        return False
+
+    @property
+    def partition_keys(self):
+        return [self._key]
+
+
+def _path_is_partition_templated(path):
+    """True when path has a {placeholder} other than {run_id} / ${ENV_VAR}."""
+    import re
+
+    return bool(re.search(r"(?<!\$)\{(?!run_id\})", path or ""))
+
+
+def _write_each_partition_key(context, upstream, write_one, can_split_rows):
+    """Run ``write_one`` once per partition key of a single_run/multi_run backfill range.
+
+    A path templated on the partition key must produce one file per key. The
+    upstream value for the range is either a ``{partition_key: DataFrame}`` dict
+    (what a partition-aware IO manager hands an asset consuming a range) -- sliced
+    per key here -- or one frame spanning the range, which is only splittable
+    when the component filters rows per key (``can_split_rows``).
+    """
+    if not isinstance(upstream, dict) and not can_split_rows:
+        raise ValueError(
+            "A backfill range (backfill_policy) with a path templated on the partition key needs "
+            "either a per-partition upstream (dict of DataFrames per partition key) or "
+            "partition_date_column/partition_static_column to split rows per key; "
+            "otherwise every key's file would receive the whole range."
+        )
+    metas = []
+    for _k in context.partition_keys:
+        _piece = upstream[_k] if isinstance(upstream, dict) and _k in upstream else upstream
+        _res = write_one(_PartitionKeyContext(context, _k), _piece)
+        metas.append(dict(_res.metadata or {}))
+    merged = dict(metas[-1])
+    for _name in ("row_count", "dagster/row_count"):
+        if all(_name in _m for _m in metas):
+            merged[_name] = MetadataValue.int(sum(int(getattr(_m[_name], "value", _m[_name])) for _m in metas))
+    merged["partition_keys_written"] = MetadataValue.int(len(metas))
+    return merged
+
+
+
 class DataframeToExcelComponent(Component, Model, Resolvable):
     """Write a DataFrame to an Excel (.xlsx) file."""
 
@@ -288,6 +353,28 @@ class DataframeToExcelComponent(Component, Model, Resolvable):
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in ONE run: the upstream frame "
+            "(loaded once, spanning the whole range) is filtered to every partition "
+            "key in the range via partition_date_column/partition_static_column and "
+            "written together. 'multi_run' launches one run per partition (optionally "
+            "capped via backfill_policy_max_partitions_per_run). Leave unset for "
+            "Dagster's default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set. Requires a partition-range-aware IO manager "
+            "for the upstream asset (e.g. a DB-table IO manager with partition_expr "
+            "set) -- a generic filesystem IO manager cannot persist/load a single_run "
+            "output spanning multiple partitions and raises a clear error at "
+            "materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     owners: Optional[List[str]] = Field(
         default=None,
         description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
@@ -435,19 +522,17 @@ class DataframeToExcelComponent(Component, Model, Resolvable):
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
 
-        @asset(
-            key=AssetKey.from_user_string(asset_name),
-            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
-            partitions_def=partitions_def,
-                        owners=owners,
-            tags=_all_tags,
-            freshness_policy=_freshness_policy,
-group_name=group_name,
-            description=DataframeToExcelComponent.get_description(),
-            retry_policy=_retry_policy,
-            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
-        )
-        def _asset(context: AssetExecutionContext, upstream: Any) -> MaterializeResult:
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            from dagster import BackfillPolicy
+            _backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            from dagster import BackfillPolicy
+            _backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        def _write_one(context, upstream):
             # Defensive Output/MaterializeResult unwrap — see summarize for the rationale.
             # Tolerates upstream authors who annotate `-> Output` or
             # return `Output(value=df, ...)` / `MaterializeResult(value=df)`.
@@ -461,18 +546,26 @@ group_name=group_name,
                 _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
                 upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             # Filter to current partition if partitioned
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    _col_dates = pd.to_datetime(upstream[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
-                    upstream = upstream[_col_dates == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+            # A single_run/multi_run backfill range spans several partition keys:
+            # keep rows matching ANY key in the range (one key on a normal run).
+            if context.has_partition_key or context.has_partition_key_range:
+                import numpy as _np
+                _keys = [context.partition_key] if context.has_partition_key else list(context.partition_keys)
+                _keep = _np.zeros(len(upstream), dtype=bool)
+                for _pk in _keys:
+                    _is_multi = hasattr(_pk, "keys_by_dimension")
+                    _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                    _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                    _m = _np.ones(len(upstream), dtype=bool)
+                    if partition_date_column and partition_date_column in upstream.columns and _date_key:
+                        _col_dates = pd.to_datetime(upstream[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
+                        _m &= (_col_dates == _date_key).to_numpy()
+                    if partition_static_column and partition_static_column in upstream.columns and _static_key:
+                        _m &= (upstream[partition_static_column].astype(str) == _static_key).to_numpy()
+                    elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
+                        _m &= (upstream[partition_static_column].astype(str) == str(_pk)).to_numpy()
+                    _keep |= _m
+                upstream = upstream[_keep]
             # Format-string templating for file_path with partition placeholders.
             # Users can include {partition_key}, {partition_date}, {partition_date_next}
             # in file_path; they're substituted at run-time when partitioned.
@@ -529,5 +622,32 @@ group_name=group_name,
                     **({"preview": MetadataValue.md((df.sample(preview_rows) if len(df) > preview_rows * 10 else df.head(preview_rows)).to_markdown(index=False))} if include_preview and len(df) > 0 else {}),
                 }
             )
+
+        @asset(backfill_policy=_backfill_policy_obj, 
+            key=AssetKey.from_user_string(asset_name),
+            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
+            partitions_def=partitions_def,
+                        owners=owners,
+            tags=_all_tags,
+            freshness_policy=_freshness_policy,
+group_name=group_name,
+            description=DataframeToExcelComponent.get_description(),
+            retry_policy=_retry_policy,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+        )
+        def _asset(context: AssetExecutionContext, upstream: Any) -> MaterializeResult:
+            # single_run/multi_run backfill range + path templated on the partition
+            # key: one write per key. Otherwise one write (a non-templated path gets
+            # the whole range's rows in a single file).
+            if (
+                context.has_partition_key_range
+                and not context.has_partition_key
+                and _path_is_partition_templated(file_path)
+            ):
+                _merged = _write_each_partition_key(
+                    context, upstream, _write_one, can_split_rows=bool(partition_date_column or partition_static_column)
+                )
+                return MaterializeResult(metadata=_merged)
+            return _write_one(context, upstream)
 
         return Definitions(assets=[_asset])

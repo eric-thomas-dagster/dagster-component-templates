@@ -5,6 +5,7 @@ via Dagster's ins mechanism and persists it to a relational database.
 """
 import os
 from typing import Any, Dict, List, Optional, Union
+from typing import Literal
 
 import pandas as pd
 from dagster import (
@@ -262,6 +263,16 @@ class DataframeToTableComponent(Component, Model, Resolvable):
     chunksize: Optional[int] = Field(
         default=None, description="Rows per batch when writing to the database"
     )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered SQL resource component exposing get_engine() or a SQLAlchemy-URL connection_string (e.g. PostgresResourceComponent, MssqlResourceComponent, ClickHouseResourceComponent). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "database_url/database_url_env_var -- lets one credential serve this sink and other components "
+            "without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
         default=None,
@@ -297,6 +308,28 @@ class DataframeToTableComponent(Component, Model, Resolvable):
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in ONE run: the upstream frame "
+            "(loaded once, spanning the whole range) is filtered to every partition "
+            "key in the range via partition_date_column/partition_static_column and "
+            "written together. 'multi_run' launches one run per partition (optionally "
+            "capped via backfill_policy_max_partitions_per_run). Leave unset for "
+            "Dagster's default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set. Requires a partition-range-aware IO manager "
+            "for the upstream asset (e.g. a DB-table IO manager with partition_expr "
+            "set) -- a generic filesystem IO manager cannot persist/load a single_run "
+            "output spanning multiple partitions and raises a clear error at "
+            "materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     owners: Optional[List[str]] = Field(
         default=None,
         description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
@@ -463,7 +496,19 @@ class DataframeToTableComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        resource_key = self.resource_key
+
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            from dagster import BackfillPolicy
+            _backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            from dagster import BackfillPolicy
+            _backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        @asset(retry_policy=_retry_policy, backfill_policy=_backfill_policy_obj, required_resource_keys=({resource_key} if resource_key else None),
             key=AssetKey.from_user_string(asset_name),
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
             partitions_def=partitions_def,
@@ -485,32 +530,54 @@ group_name=group_name,
                 _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
                 upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
             # Filter to current partition if partitioned
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    _col_dates = pd.to_datetime(upstream[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
-                    upstream = upstream[_col_dates == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+            # A single_run/multi_run backfill range spans several partition keys:
+            # keep rows matching ANY key in the range (one key on a normal run).
+            if context.has_partition_key or context.has_partition_key_range:
+                import numpy as _np
+                _keys = [context.partition_key] if context.has_partition_key else list(context.partition_keys)
+                _keep = _np.zeros(len(upstream), dtype=bool)
+                for _pk in _keys:
+                    _is_multi = hasattr(_pk, "keys_by_dimension")
+                    _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                    _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                    _m = _np.ones(len(upstream), dtype=bool)
+                    if partition_date_column and partition_date_column in upstream.columns and _date_key:
+                        _col_dates = pd.to_datetime(upstream[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
+                        _m &= (_col_dates == _date_key).to_numpy()
+                    if partition_static_column and partition_static_column in upstream.columns and _static_key:
+                        _m &= (upstream[partition_static_column].astype(str) == _static_key).to_numpy()
+                    elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
+                        _m &= (upstream[partition_static_column].astype(str) == str(_pk)).to_numpy()
+                    _keep |= _m
+                upstream = upstream[_keep]
             try:
                 import sqlalchemy
             except ImportError:
                 raise ImportError("sqlalchemy required: pip install sqlalchemy")
 
-            if database_url:
-                resolved_url = database_url
-            elif database_url_env_var and database_url_env_var in os.environ:
-                resolved_url = _require_env(database_url_env_var)
+            if resource_key:
+                # Engine comes from the registered SQL resource: .get_engine() when it has
+                # one, else its SQLAlchemy-URL .connection_string.
+                _res = getattr(context.resources, resource_key)
+                if hasattr(_res, "get_engine"):
+                    engine = _res.get_engine()
+                elif isinstance(getattr(_res, "connection_string", None), str) and "://" in _res.connection_string:
+                    engine = sqlalchemy.create_engine(_res.connection_string)
+                else:
+                    raise ValueError(
+                        f"resource_key={resource_key!r} resolved to {type(_res).__name__}, which exposes neither "
+                        ".get_engine() nor a SQLAlchemy-URL .connection_string; dataframe_to_table needs a SQLAlchemy engine."
+                    )
             else:
-                raise EnvironmentError(
-                    f"Set either 'database_url' or env var '{database_url_env_var}'"
-                )
-            engine = sqlalchemy.create_engine(resolved_url)
+                if database_url:
+                    resolved_url = database_url
+                elif database_url_env_var and database_url_env_var in os.environ:
+                    resolved_url = _require_env(database_url_env_var)
+                else:
+                    raise EnvironmentError(
+                        f"Set either 'database_url' or env var '{database_url_env_var}'"
+                    )
+                engine = sqlalchemy.create_engine(resolved_url)
 
             # Oracle's FLOAT type requires explicit binary_precision; SQLAlchemy
             # refuses to auto-create FLOAT columns against an Oracle dialect.

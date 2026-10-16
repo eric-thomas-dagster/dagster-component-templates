@@ -6,6 +6,7 @@ Supports upsert (PUT with revision) and insert (POST) modes.
 
 import os
 from typing import Any, Dict, List, Optional, Union
+from typing import Literal
 import pandas as pd
 from dagster import (
     AssetExecutionContext,
@@ -279,6 +280,16 @@ class CouchdbWriterComponent(Component, Model, Resolvable):
         ),
     )
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered CouchDBResourceComponent (resources/couchdb_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "url_env_var -- lets one credential serve this sink and other components "
+            "without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
     group_name: Optional[str] = Field(
         default=None,
         description="Asset group for organization",
@@ -317,6 +328,28 @@ class CouchdbWriterComponent(Component, Model, Resolvable):
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in ONE run: the upstream frame "
+            "(loaded once, spanning the whole range) is filtered to every partition "
+            "key in the range via partition_date_column/partition_static_column and "
+            "written together. 'multi_run' launches one run per partition (optionally "
+            "capped via backfill_policy_max_partitions_per_run). Leave unset for "
+            "Dagster's default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set. Requires a partition-range-aware IO manager "
+            "for the upstream asset (e.g. a DB-table IO manager with partition_expr "
+            "set) -- a generic filesystem IO manager cannot persist/load a single_run "
+            "output spanning multiple partitions and raises a clear error at "
+            "materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     owners: Optional[List[str]] = Field(
         default=None,
         description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
@@ -478,7 +511,19 @@ class CouchdbWriterComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        resource_key = self.resource_key
+
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            from dagster import BackfillPolicy
+            _backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            from dagster import BackfillPolicy
+            _backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        @asset(retry_policy=_retry_policy, backfill_policy=_backfill_policy_obj, required_resource_keys=({resource_key} if resource_key else None),
             key=AssetKey.from_user_string(asset_name),
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
             partitions_def=partitions_def,
@@ -493,25 +538,40 @@ group_name=group_name,
             context: AssetExecutionContext, upstream: pd.DataFrame
         ) -> MaterializeResult:
             # Filter to current partition if partitioned
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                    _col_dates = pd.to_datetime(upstream[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
-                    upstream = upstream[_col_dates == _date_key]
-                if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+            # A single_run/multi_run backfill range spans several partition keys:
+            # keep rows matching ANY key in the range (one key on a normal run).
+            if context.has_partition_key or context.has_partition_key_range:
+                import numpy as _np
+                _keys = [context.partition_key] if context.has_partition_key else list(context.partition_keys)
+                _keep = _np.zeros(len(upstream), dtype=bool)
+                for _pk in _keys:
+                    _is_multi = hasattr(_pk, "keys_by_dimension")
+                    _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                    _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                    _m = _np.ones(len(upstream), dtype=bool)
+                    if partition_date_column and partition_date_column in upstream.columns and _date_key:
+                        _col_dates = pd.to_datetime(upstream[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
+                        _m &= (_col_dates == _date_key).to_numpy()
+                    if partition_static_column and partition_static_column in upstream.columns and _static_key:
+                        _m &= (upstream[partition_static_column].astype(str) == _static_key).to_numpy()
+                    elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
+                        _m &= (upstream[partition_static_column].astype(str) == str(_pk)).to_numpy()
+                    _keep |= _m
+                upstream = upstream[_keep]
             """Write DataFrame rows to CouchDB as documents."""
             try:
                 import requests
             except ImportError:
                 raise ImportError("requests required: pip install requests")
 
-            base_url = _require_env(url_env_var).rstrip("/")
+            if resource_key:
+                # Server URL + basic-auth credentials come from the registered resource.
+                _res = getattr(context.resources, resource_key)
+                base_url = _res.url.rstrip("/")
+                _auth = (_res.username, _res.password) if getattr(_res, "username", "") else None
+            else:
+                base_url = _require_env(url_env_var).rstrip("/")
+                _auth = None
             db_url = f"{base_url}/{database}"
             headers = {"Content-Type": "application/json"}
 
@@ -534,6 +594,7 @@ group_name=group_name,
                             f"{db_url}/{doc_id}",
                             headers=headers,
                             timeout=60,
+                            auth=_auth,
                         )
                         if existing.status_code == 200:
                             doc["_rev"] = existing.json().get("_rev")
@@ -543,6 +604,7 @@ group_name=group_name,
                             json=doc,
                             headers=headers,
                             timeout=60,
+                            auth=_auth,
                         )
                     else:
                         resp = requests.put(
@@ -550,10 +612,11 @@ group_name=group_name,
                             json=doc,
                             headers=headers,
                             timeout=60,
+                            auth=_auth,
                         )
                 else:
                     # POST to auto-generate ID
-                    resp = requests.post(db_url, json=doc, headers=headers, timeout=60)
+                    resp = requests.post(db_url, json=doc, headers=headers, timeout=60, auth=_auth)
 
                 resp.raise_for_status()
                 written += 1

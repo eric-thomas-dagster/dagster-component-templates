@@ -204,6 +204,13 @@
       "label": "Dynamic Partition Name",
       "required": false,
       "type": "string"
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered FirestoreResourceComponent (resources/firestore_resource). When set, connection credentials are read from that resource at run time instead of the inline connection fields above (lets one credential serve several components). Leave empty to use the inline fields. The target collection stays configured on this component.",
+      "required": false,
+      "default": null
     }
   },
   "tags": [

@@ -180,6 +180,16 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
         ),
     )
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "account_env_var/user_env_var/password_env_var fields -- lets one credential serve this sink and other components "
+            "without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners")
     asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Additional asset tags")
@@ -243,6 +253,7 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
             )
 
         @asset(
+            required_resource_keys=({self.resource_key} if self.resource_key else None),
             key=AssetKey.from_user_string(asset_name),
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
             owners=self.owners or [],
@@ -286,7 +297,7 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
                     "snowflake-connector-python required: pip install snowflake-connector-python[pandas]"
                 ) from e
 
-            conn_kwargs = {
+            conn_kwargs = {} if self.resource_key else {
                 "account": _require_env(account_env_var),
                 "user": _require_env(user_env_var),
                 "password": _require_env(password_env_var),
@@ -327,7 +338,15 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
             )
             stage_name = f"@~/{resolved_table.lower()}_{uuid.uuid4().hex[:12]}"
 
-            conn = snowflake.connector.connect(**conn_kwargs)
+            import contextlib
+
+            _snow_stack = contextlib.ExitStack()
+            if self.resource_key:
+                # Credentials/account/warehouse come from the registered dagster-snowflake
+                # SnowflakeResource; its get_connection() context manager yields the connection.
+                conn = _snow_stack.enter_context(getattr(context.resources, self.resource_key).get_connection())
+            else:
+                conn = snowflake.connector.connect(**conn_kwargs)
             cur = conn.cursor()
 
             t0 = time.time()
@@ -435,6 +454,7 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
                     pass
                 cur.close()
                 conn.close()
+                _snow_stack.close()
 
             return MaterializeResult(
                 metadata={

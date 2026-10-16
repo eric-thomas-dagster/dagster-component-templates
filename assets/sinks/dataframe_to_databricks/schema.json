@@ -270,6 +270,32 @@
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in ONE run: the upstream frame (loaded once, spanning the whole range) is filtered to every partition key in the range via Partition Date Column/Partition Static Column and written together. 'multi_run' launches one run per partition (optionally capped via Backfill Max Partitions Per Run). Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is not set. Requires a partition-range-aware IO manager for the upstream asset (e.g. a DB-table IO manager with partition_expr set, or InMemoryIOManager in tests) -- a generic filesystem IO manager cannot persist/load a single_run output spanning multiple partitions and raises a clear error at materialization time.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
+      "required": false,
+      "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional key of a registered DatabricksSqlResourceComponent (resources/databricks_sql_resource). When set, connection credentials are read from that resource at run time instead of the inline connection fields above (lets one credential serve several components). Leave empty to use the inline fields. Catalog, schema and table stay configured on this component.",
+      "required": false,
+      "default": null
     }
   },
   "tags": [

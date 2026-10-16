@@ -149,6 +149,16 @@ class DataframeToClickHouseComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     request_timeout_seconds: int = Field(default=300, ge=10)
 
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional key of a registered ClickHouseResourceComponent (resources/clickhouse_resource). When set, connection "
+            "credentials are read from that resource at run time instead of the inline "
+            "host_env_var/port/username_env_var/password_env_var/secure fields -- lets one credential serve this sink and other components "
+            "without configuring it twice. Leave unset to use the inline fields "
+            "(existing behavior, unchanged)."
+        ),
+    )
     group_name: Optional[str] = Field(default="clickhouse", description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
@@ -183,6 +193,7 @@ class DataframeToClickHouseComponent(dg.Component, dg.Model, dg.Resolvable):
         kinds.add("clickhouse")
 
         @dg.asset(
+            required_resource_keys=({_self.resource_key} if _self.resource_key else None),
             key=dg.AssetKey.from_user_string(_self.asset_name),
             ins={"upstream": dg.AssetIn(key=dg.AssetKey.from_user_string(_self.upstream_asset_key))},
             group_name=_self.group_name,
@@ -220,29 +231,32 @@ class DataframeToClickHouseComponent(dg.Component, dg.Model, dg.Resolvable):
                 upstream = upstream.assign(**{_self.partition_column: str(partition_key)})
                 context.log.info(f"partition-aware write (Pattern B): added column {_self.partition_column!r}={partition_key!r} to {len(upstream)} rows")
 
-            try:
-                import clickhouse_connect
-            except ImportError:
-                raise ImportError(
-                    "dataframe_to_clickhouse requires `clickhouse-connect`: "
-                    "pip install clickhouse-connect"
+            if _self.resource_key:
+                client = getattr(context.resources, _self.resource_key).get_client()
+            else:
+                try:
+                    import clickhouse_connect
+                except ImportError:
+                    raise ImportError(
+                        "dataframe_to_clickhouse requires `clickhouse-connect`: "
+                        "pip install clickhouse-connect"
+                    )
+
+                host = os.environ.get(_self.host_env_var, "")
+                user = os.environ.get(_self.username_env_var, "default")
+                password = os.environ.get(_self.password_env_var, "")
+                if not host:
+                    raise RuntimeError(f"ClickHouse host missing: set {_self.host_env_var}.")
+
+                client = clickhouse_connect.get_client(
+                    host=host,
+                    port=_self.port,
+                    username=user,
+                    password=password,
+                    database=_self.database,
+                    secure=_self.secure,
+                    connect_timeout=_self.request_timeout_seconds,
                 )
-
-            host = os.environ.get(_self.host_env_var, "")
-            user = os.environ.get(_self.username_env_var, "default")
-            password = os.environ.get(_self.password_env_var, "")
-            if not host:
-                raise RuntimeError(f"ClickHouse host missing: set {_self.host_env_var}.")
-
-            client = clickhouse_connect.get_client(
-                host=host,
-                port=_self.port,
-                username=user,
-                password=password,
-                database=_self.database,
-                secure=_self.secure,
-                connect_timeout=_self.request_timeout_seconds,
-            )
 
             df = upstream
             if _self.column_names:

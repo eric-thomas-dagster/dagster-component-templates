@@ -119,7 +119,7 @@
     "asset_overrides": {
       "type": "object",
       "label": "Asset Overrides",
-      "description": "Per-asset overrides keyed by either the emitted asset key or the dbt unique_id (e.g. model.my_project.my_model). Today supports {depends_on: [...]} to inject Dagster asset dependencies.",
+      "description": "Per-asset overrides keyed by either the emitted asset key or the dbt unique_id (e.g. model.my_project.my_model). Supports {depends_on: [...]} to inject Dagster asset dependencies, and {asset_key: '...'} to force a dbt-mesh external_packages stub's own key to a specific value -- needed when the two projects' manifests resolve the same model's config.schema differently (same translator logic, different compiled config data), which the translator-based stub-key computation alone can't fix.",
       "required": false
     },
     "default_automation_condition": {

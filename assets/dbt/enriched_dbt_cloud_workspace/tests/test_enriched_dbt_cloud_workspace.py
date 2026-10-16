@@ -13,7 +13,11 @@ conditions could only be changed by patching the component:
    configured translator (`get_asset_spec`) instead of a bare model-name
    guess, so they respect schema nesting like every other dagster-dbt key.
 4. `asset_overrides` can be keyed by dbt `unique_id` in addition to the
-   serialized AssetKey string.
+   serialized AssetKey string, and its `asset_key:` field can force a
+   mesh stub's own key to a specific value when the two projects'
+   manifests resolve the same model's `config.schema` differently (a
+   real customer-reported cross-manifest mismatch the translator fix
+   alone can't close).
 5. `_build_child_map`: dbt v2 / Fusion manifests omit the top-level
    `child_map` key entirely (confirmed against dagster_dbt's own identical
    workaround) -- include_exposures/include_metrics/include_semantic_models
@@ -235,6 +239,106 @@ def test_resolve_override_deps_by_asset_key_string_still_works(mod):
         overrides, lookup_key="shared/customer_summary", unique_id="model.shared_core.customer_summary"
     )
     assert result == [dg.AssetKey(["ext", "thing"])]
+
+
+# --- asset_overrides.asset_key: forcing a mismatched mesh stub key ------
+#
+# Real customer-reported bug: a downstream ("gold") project's manifest can
+# legitimately resolve an upstream ("silver") model's config.schema
+# differently than the upstream project's own manifest does (two separate
+# `dbt parse` runs, same translator logic, different compiled config
+# data) -- e.g. gold's compiled node for a mesh model has no config.schema
+# at all, so the stub falls back to a bare name, while silver's own code
+# location publishes a schema-nested key for the SAME model. Dagster then
+# sees two unrelated assets and cross-project lineage silently breaks.
+# `asset_overrides` keyed by unique_id, with an `asset_key:` entry, forces
+# the stub to the correct value.
+
+def test_external_package_stub_key_forced_via_asset_override(mod, component):
+    """The translator computes a bare "filtered_usage_events" key (no
+    config.schema on this node, matching the real customer report), but
+    asset_overrides forces it to match the upstream project's real
+    published key."""
+    component.external_packages = ["shared_core"]
+    component.asset_overrides = {
+        "model.shared_core.filtered_usage_events": mod.AssetOverride(
+            asset_key="silver_cursorapi/filtered_usage_events"
+        ),
+    }
+    manifest = {
+        "nodes": {
+            "model.shared_core.filtered_usage_events": {
+                "resource_type": "model",
+                "unique_id": "model.shared_core.filtered_usage_events",
+                "package_name": "shared_core",
+                "name": "filtered_usage_events",
+                "alias": "filtered_usage_events",
+                "meta": {},
+                "config": {},  # no schema -- translator alone would compute a bare key
+                "depends_on": {"nodes": []},
+                "fqn": ["shared_core", "filtered_usage_events"],
+            }
+        }
+    }
+    specs = component._build_external_package_specs(manifest)
+    assert len(specs) == 1
+    assert specs[0].key == dg.AssetKey(["silver_cursorapi", "filtered_usage_events"])
+
+
+def test_external_package_stub_key_without_override_stays_bare(mod, component):
+    """Non-regression: without an asset_overrides entry, the translator's
+    own (possibly-mismatched) key is unchanged -- the override is
+    additive, not a behavior change for every other mesh stub."""
+    component.external_packages = ["shared_core"]
+    manifest = {
+        "nodes": {
+            "model.shared_core.filtered_usage_events": {
+                "resource_type": "model",
+                "unique_id": "model.shared_core.filtered_usage_events",
+                "package_name": "shared_core",
+                "name": "filtered_usage_events",
+                "alias": "filtered_usage_events",
+                "meta": {},
+                "config": {},
+                "depends_on": {"nodes": []},
+                "fqn": ["shared_core", "filtered_usage_events"],
+            }
+        }
+    }
+    specs = component._build_external_package_specs(manifest)
+    assert len(specs) == 1
+    assert specs[0].key == dg.AssetKey(["filtered_usage_events"])
+
+
+def test_resolve_override_asset_key_by_unique_id(mod):
+    overrides = {
+        "model.shared_core.filtered_usage_events": mod.AssetOverride(
+            asset_key="silver_cursorapi/filtered_usage_events"
+        ),
+    }
+    result = mod._resolve_override_asset_key(
+        overrides, lookup_key="filtered_usage_events", unique_id="model.shared_core.filtered_usage_events"
+    )
+    assert result == dg.AssetKey(["silver_cursorapi", "filtered_usage_events"])
+
+
+def test_resolve_override_asset_key_no_match_returns_none(mod):
+    overrides = {"other/key": mod.AssetOverride(asset_key="x/y")}
+    result = mod._resolve_override_asset_key(overrides, lookup_key="filtered_usage_events", unique_id=None)
+    assert result is None
+
+
+def test_resolve_override_asset_key_ignores_depends_on_only_overrides(mod):
+    """An override entry with only `depends_on` (no `asset_key`) must not
+    be mistaken for a key override -- these two features share the same
+    override dict but are independent."""
+    overrides = {
+        "model.shared_core.filtered_usage_events": mod.AssetOverride(depends_on=["fx_rates"]),
+    }
+    result = mod._resolve_override_asset_key(
+        overrides, lookup_key="filtered_usage_events", unique_id="model.shared_core.filtered_usage_events"
+    )
+    assert result is None
 
 
 # --- _build_child_map: dbt v2 / Fusion manifests (no child_map key) -----

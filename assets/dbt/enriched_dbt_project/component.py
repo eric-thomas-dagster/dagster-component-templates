@@ -692,6 +692,7 @@ def _automation_condition_from_meta(meta: Mapping[str, Any]) -> Optional[Any]:
 @dataclass
 class AssetOverride(dg.Resolvable):
     depends_on: Optional[List[str]] = None
+    asset_key: Optional[str] = None
 
 
 @dataclass
@@ -744,6 +745,35 @@ def _resolve_override_deps(
     if not ov or not ov.depends_on:
         return []
     return [dg.AssetKey(d.split("/")) if "/" in d else dg.AssetKey(d) for d in ov.depends_on]
+
+
+def _resolve_override_asset_key(
+    asset_overrides: Optional[Dict[str, "AssetOverride"]],
+    lookup_key: str,
+    unique_id: Optional[str] = None,
+) -> Optional[dg.AssetKey]:
+    """Look up an asset_key override the same way _resolve_override_deps looks
+    up depends_on overrides -- by the computed AssetKey string first, falling
+    back to the dbt unique_id. Used to force a dbt-mesh stub's own key to
+    match the real key the upstream project's own code location actually
+    publishes, for the one class of mismatch the translator-based fix in
+    _build_external_package_specs can't close on its own: the two projects'
+    manifests can legitimately resolve the SAME model's `config.schema`
+    differently during their own separate `dbt parse` runs (e.g. because
+    schema-name generation depends on vars/profile/env that differ between
+    "parsed standalone as the real project" vs. "parsed as an installed
+    package dependency inside someone else's project"), producing two
+    different schema-aware keys from the identical translator logic -- not a
+    bug in the translation scheme, just inconsistent input data across the
+    two manifests."""
+    if not asset_overrides:
+        return None
+    ov = asset_overrides.get(lookup_key)
+    if ov is None and unique_id:
+        ov = asset_overrides.get(unique_id)
+    if not ov or not ov.asset_key:
+        return None
+    return dg.AssetKey(ov.asset_key.split("/")) if "/" in ov.asset_key else dg.AssetKey(ov.asset_key)
 
 
 def _get_str_meta(metadata: dict, key: str) -> Optional[str]:
@@ -1595,7 +1625,16 @@ try:
             with no manual ``asset_overrides`` needed. Falls back to the
             lightweight ``_build_external_package_deps_map`` derivation only
             if the translator call raises (e.g. a node shape the translator
-            doesn't expect)."""
+            doesn't expect).
+
+            Even with the translator fix, the two projects' manifests can
+            resolve the SAME model's ``config.schema`` differently during
+            their own separate ``dbt parse`` runs -- same translator logic,
+            different compiled config data, so the keys can still diverge.
+            ``asset_overrides`` (keyed by unique_id) with an ``asset_key:``
+            entry forces this stub's key to a specific value for exactly
+            that case -- checked after the translator/fallback computation,
+            so it always wins when present."""
             if not self.external_packages:
                 return []
             package_set = set(self.external_packages)
@@ -1614,6 +1653,11 @@ try:
                     asset_key = fallback_map.get(unique_id)
                     if asset_key is None:
                         continue
+                override_key = _resolve_override_asset_key(
+                    self.asset_overrides, asset_key.to_user_string(), unique_id
+                )
+                if override_key is not None:
+                    asset_key = override_key
                 specs.append(
                     dg.AssetSpec(
                         key=asset_key,

@@ -53,7 +53,7 @@ identically to the base `DbtProjectComponent`.
 | `state_manifest_path` | Path to a dbt state `manifest.json` (or a directory containing one). Enables the checksum-comparison enrichments below. |
 | `include_state_explain` | Requires `state_manifest_path`. Attaches `dbt_state/state` (`new` / `unchanged` / `modified`) and `dbt_state/explanation` (human-readable reason) metadata per model. Build-time equivalent of the state-reuse case of `dbt state explain`. |
 | `derive_state_tags` | Requires `state_manifest_path`. Adds a `dbt/state` tag with the same value so `tag:dbt/state=modified` selections work. |
-| `asset_overrides` | Per-asset overrides keyed by either the serialized AssetKey string (e.g. `fct_daily_pnl`) or the dbt `unique_id` (e.g. `model.my_project.fct_daily_pnl`) — the latter is easier to get right since it doesn't depend on the translation scheme. Today supports `{depends_on: [...]}` to inject Dagster asset dependencies (e.g. external assets not managed by dbt, or a mesh stub whose computed key you want to double-check before relying on it). |
+| `asset_overrides` | Per-asset overrides keyed by either the serialized AssetKey string (e.g. `fct_daily_pnl`) or the dbt `unique_id` (e.g. `model.my_project.fct_daily_pnl`) — the latter is easier to get right since it doesn't depend on the translation scheme. Supports `{depends_on: [...]}` to inject Dagster asset dependencies (e.g. external assets not managed by dbt), and `{asset_key: '...'}` to force an `external_packages` mesh stub's own key to a specific value — see the mesh-key-mismatch note below. |
 | `defer_config` | dbt slim CI config: `{state_path, defer, favor_state}`. Appends `--state <path> [--defer] [--favor-state]` to the dbt invocation so the run only builds changed models, deferring `ref()` resolution to the state's tables for unchanged upstream models. Pairs naturally with `state_manifest_path` (typically both point at the same state artifact). |
 
 ### Per-model config (read from dbt YAML `meta.dagster.*`)
@@ -129,9 +129,47 @@ whole dependency list rather than appending to it.
   existing dep list — `asset_overrides.depends_on` appends; `post_processing`'s
   `attributes.deps` would require listing every real dbt-derived dep too.
 
-Neither mechanism can fix a **wrong** AssetKey — that's why `external_packages`
-above computes the mesh stub's key via the real configured translator rather
-than relying on an attribute override to paper over a mismatch.
+`post_processing` can't fix a **wrong** AssetKey at all — that's why
+`external_packages` above computes the mesh stub's key via the real
+configured translator rather than relying on an attribute override to paper
+over a mismatch. `asset_overrides.asset_key` *can*, though, for the one
+case the translator fix can't close on its own — see below.
+
+### When a mesh stub's key still doesn't line up
+
+The translator-based fix makes `external_packages` compute a stub's key the
+same way `dagster-dbt` computes any key: `[config.schema, name]` when the
+model configures a schema, else just `[name]`. That's "same logic" — but
+the two projects' manifests are two separate `dbt parse` runs, and nothing
+guarantees they resolve `config.schema` for the *same* model identically.
+Schema-name generation (`generate_schema_name`, custom macros, vars,
+target/profile) can legitimately differ between "parsed as the real
+project" and "parsed as an installed package dependency inside someone
+else's project" — most commonly, the downstream project's manifest simply
+never carries the upstream model's schema config override at all, so the
+stub falls back to a bare name while the upstream project's own code
+location publishes a schema-nested key. Dagster then sees two unrelated
+assets instead of one, and lineage across the mesh boundary silently stops.
+
+Check this by comparing the stub's key (grep the downstream project's
+`manifest.json` for the model's `unique_id`, look at its `config.schema`)
+against the real asset's key (same `unique_id`, upstream project's own
+`manifest.json`). If they differ, force the stub to the correct value with
+`asset_overrides`, keyed by the model's dbt `unique_id` (stable across both
+manifests, unlike the computed key):
+
+```yaml
+asset_overrides:
+  model.shared_core.filtered_usage_events:
+    asset_key: "silver_cursorapi/filtered_usage_events"   # the upstream project's real published key
+```
+
+This is a manual escape hatch for a real cross-manifest data
+inconsistency, not a bug in the translation logic — renaming assets in
+Dagster-side post-processing can't help here either, since
+`post_processing` operates on already-built specs by selector, after the
+mismatch has already prevented the two assets from being recognized as
+one.
 
 ## Full example
 
@@ -175,6 +213,8 @@ attributes:
       depends_on: [fx_rates]
     model.shared_core.customer_summary:          # equivalent, by unique_id
       depends_on: [fx_rates]
+    model.shared_core.filtered_usage_events:     # force a mismatched mesh stub key
+      asset_key: "silver_cursorapi/filtered_usage_events"
 ```
 
 ## dbt v2 / Fusion compatibility

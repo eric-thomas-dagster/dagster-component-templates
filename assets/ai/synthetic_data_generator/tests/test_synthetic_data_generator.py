@@ -16,6 +16,14 @@ hardcoded to [1, 1000] with no config exposing the assumption that some
 sibling "customers" asset has exactly that many rows -- a silent convention,
 not an enforced link. Promoted to an explicit `schema_options.customer_count`
 knob instead.
+
+And a third, user-reported follow-up: every partition replayed the exact
+same `random.seed(random_state)` sequence, so e.g. daily order revenue was
+byte-for-byte identical on every single partition (confirmed live against
+real materialized data) -- useless as the basis for any check/metric meant
+to show a real trend chart. Fixed by offsetting the seed by the partition
+date's ordinal, so each day's draws genuinely differ while the SAME day
+still reproduces identically on rematerialization.
 """
 import re
 
@@ -115,3 +123,28 @@ def test_orders_customer_id_respects_schema_options_customer_count(mod):
     ids = {int(c[4:]) for c in orders_df["customer_id"]}
     assert ids, "expected at least one order"
     assert ids <= set(range(1, 8))
+
+
+def test_partitioned_output_varies_across_partitions_but_not_within_one(mod):
+    """Every partition used to replay the identical random.seed(random_state)
+    sequence, so e.g. daily revenue was byte-for-byte identical on every
+    single day -- confirmed live against real materialized data. A check
+    meant to chart something like daily revenue needs genuine day-to-day
+    variation to be any use at all."""
+    def _materialize_revenue(partition_key: str) -> float:
+        orders = mod.SyntheticDataGeneratorComponent(
+            asset_name="raw_orders", schema_type="orders", row_count=50,
+            random_state=42, partition_type="daily", partition_start="2026-09-01",
+        )
+        result = dg.materialize(
+            assets=orders.build_defs(context=None).assets, partition_key=partition_key,
+        )
+        assert result.success
+        return float(result.output_for_node("raw_orders")["total"].sum())
+
+    revenue_day_1 = _materialize_revenue("2026-10-03")
+    revenue_day_1_again = _materialize_revenue("2026-10-03")
+    revenue_day_2 = _materialize_revenue("2026-10-04")
+
+    assert revenue_day_1 == revenue_day_1_again, "same partition must reproduce identically"
+    assert revenue_day_1 != revenue_day_2, "different partitions must not be byte-for-byte identical"

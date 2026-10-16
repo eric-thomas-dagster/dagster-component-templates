@@ -441,10 +441,6 @@ group_name=group_name,
         def synthetic_data_asset(context: AssetExecutionContext) -> pd.DataFrame:
             """Generate synthetic data based on schema type."""
 
-            # Set random seed if provided
-            if random_seed is not None:
-                random.seed(random_seed)
-
             # Check if running in partitioned mode. `context.has_partition_key`
             # reflects whether the current RUN targets a single partition, not
             # whether THIS asset itself is partitioned (confirmed against
@@ -468,6 +464,19 @@ group_name=group_name,
                     target_date = None
             else:
                 context.log.info(f"Generating {row_count} rows of {schema_type} data (non-partitioned)")
+
+            # Set random seed if provided. Offsetting by the partition date's
+            # ordinal (when partitioned) makes each partition's "random" draws
+            # genuinely different from every other partition's, while staying
+            # exactly reproducible -- rematerializing the SAME partition key
+            # always replays the SAME sequence. Without this, every partition
+            # reset to the identical seed and replayed the identical sequence
+            # of random draws, so e.g. daily revenue was byte-for-byte
+            # identical across every single day (confirmed live) -- any
+            # check/metric built on top of it was necessarily flat too.
+            if random_seed is not None:
+                effective_seed = random_seed + target_date.toordinal() if target_date else random_seed
+                random.seed(effective_seed)
 
             # Generate data based on schema type
             if schema_type == "customers":

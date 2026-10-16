@@ -20,3 +20,18 @@ attributes:
             - column: num_items
               expected_type: int
           blocking: false
+      # Daily revenue trend monitor -- emits a `max_delta` metadata value
+      # (percent change vs. the trailing `history`-day average) on every
+      # run, which Dagster's asset check history renders as a real numeric
+      # trend chart. Requires raw_orders' per-partition random seed to
+      # actually vary day to day (see synthetic_data_generator/component.py)
+      # -- otherwise sum:total would be identical every day and this would
+      # just be another flat line. Informational (blocking: false): a big
+      # swing in a synthetic demo isn't a real incident, just something
+      # worth a chart.
+      percent_delta:
+        - name: raw_orders_revenue_trend
+          metric: "sum:total"
+          max_delta: 50.0
+          history: 7
+          blocking: false

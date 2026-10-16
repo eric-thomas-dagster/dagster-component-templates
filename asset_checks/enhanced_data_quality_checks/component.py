@@ -5937,10 +5937,32 @@ len(result['failed_column_names'])
                 # Filter for events that match our exact asset and check name
                 matching_events = []
                 
-                # Get the correct check name - it should be the full check name, not just the type
-                sanitized_name = self._sanitize_asset_key_name(asset_key_for_filter)
-                expected_check_name = f"{sanitized_name}_{check_name}"
-                
+                # Get the correct check name - it should be the full check name, not just the type.
+                # Prefer the REAL, already-resolved name of the check currently executing: a
+                # custom `name:` override (BaseCheckConfig.name) means the actual emitted
+                # check_name does NOT necessarily follow the "{asset}_{check_type}" convention
+                # this reconstruction assumes. Confirmed live this silently broke historical-
+                # data lookup entirely for any check configured with a custom name -- Strategy
+                # 1/2's asset_key filter is separately broken (see comment above), so this was
+                # the only remaining path, and a wrong expected_check_name here means it just
+                # finds nothing instead of erroring.
+                #
+                # `context.asset_check_spec` does not exist on AssetCheckExecutionContext
+                # (confirmed against the installed dagster version -- an earlier version of
+                # this fix relied on it and silently fell through to the broken reconstruction
+                # below via this very except clause, with no visible error). The real,
+                # per-execution attribute is `selected_asset_check_keys` -- exactly the
+                # check(s) targeted by the current step, each check running as its own step.
+                try:
+                    selected_keys = context.selected_asset_check_keys
+                    matching_key = next(
+                        k for k in selected_keys if k.asset_key == asset_key_for_filter
+                    )
+                    expected_check_name = str(matching_key.name)
+                except Exception:
+                    sanitized_name = self._sanitize_asset_key_name(asset_key_for_filter)
+                    expected_check_name = f"{sanitized_name}_{check_name}"
+
                 context.log.info(f"Historical data - Looking for asset: {asset_key_for_filter}, check_name: {expected_check_name}")
                 
                 for event in all_check_events:

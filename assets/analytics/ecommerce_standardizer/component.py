@@ -208,6 +208,97 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+# --- backfill_policy support -------------------------------------------------
+# A single_run backfill hands the asset a whole partition RANGE, on which
+# `context.partition_key` raises. The compute below was written against one
+# key at a time, so a range is run key-by-key through a thin context proxy and
+# the per-partition frames are concatenated.
+from typing import Literal  # noqa: E402,F401
+
+
+class _SinglePartitionContext:
+    """Presents ONE partition key of a range run to compute code that reads
+    ``context.partition_key``; everything else delegates to the real context.
+    ``add_output_metadata`` is captured (the real context only accepts one call
+    per output) and merged by ``_run_per_partition``."""
+
+    def __init__(self, context, partition_key):
+        self._ctx = context
+        self._key = partition_key
+        self.captured_metadata = {}
+
+    @property
+    def has_partition_key(self):
+        return self._key is not None
+
+    @property
+    def has_partition_key_range(self):
+        return False
+
+    @property
+    def partition_key(self):
+        if self._key is None:
+            raise AttributeError("no partition key on this run")
+        return self._key
+
+    @property
+    def partition_keys(self):
+        return [] if self._key is None else [self._key]
+
+    def add_output_metadata(self, metadata, output_name=None, mapping_key=None):
+        self.captured_metadata.update(metadata or {})
+
+    def __getattr__(self, name):
+        return getattr(self._ctx, name)
+
+
+def _run_per_partition(context, compute, partitions_def, loop, args, kwargs):
+    """Run ``compute(context, *args, **kwargs)``; for a multi-partition range
+    run it once per key (when ``loop``) and concatenate the DataFrames."""
+    import pandas as pd
+    from dagster import MetadataValue, Output
+
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return compute(context, *args, **kwargs)
+    keys = list(context.partition_keys)
+    if len(keys) <= 1 and context.has_partition_key:
+        return compute(context, *args, **kwargs)  # ordinary single-partition run
+
+    if not loop:
+        # Partition key does not change the computation: run once.
+        proxy = _SinglePartitionContext(context, None)
+        result = compute(proxy, *args, **kwargs)
+        if isinstance(result, Output):
+            proxy.captured_metadata.update(result.metadata or {})
+            result = result.value
+        if proxy.captured_metadata:
+            context.add_output_metadata(proxy.captured_metadata)
+        return result
+
+    frames, merged = [], {}
+    for key in keys:
+        if hasattr(partitions_def, "partitions_defs") and not hasattr(key, "keys_by_dimension"):
+            key = partitions_def.get_partition_key_from_str(key)
+        proxy = _SinglePartitionContext(context, key)
+        result = compute(proxy, *args, **kwargs)
+        merged.update(proxy.captured_metadata)
+        if isinstance(result, Output):
+            merged.update(result.metadata or {})
+            result = result.value
+        if not isinstance(result, pd.DataFrame):
+            raise TypeError(
+                f"backfill_policy='single_run' needs a DataFrame result per partition; "
+                f"got {type(result).__name__} for partition {key!r}"
+            )
+        result = result.copy()
+        if "_partition_key" not in result.columns:
+            result["_partition_key"] = str(key)
+        frames.append(result)
+    merged["partition_keys"] = MetadataValue.json([str(k) for k in keys])
+    context.add_output_metadata(merged)
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+
 class EcommerceStandardizerComponent(Component, Model, Resolvable):
     """Component for standardizing e-commerce data across platforms.
 
@@ -374,6 +465,17 @@ class EcommerceStandardizerComponent(Component, Model, Resolvable):
         ),
     )
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run: the analysis runs once per partition in the range, each on the upstream rows filtered to that partition (via partition_date_column / partition_static_column), and the per-partition outputs are concatenated with a '_partition_key' column added. 'multi_run' launches one run per partition (optionally capped via backfill_policy_max_partitions_per_run). Leave unset for Dagster's default (one run per partition, uncapped). Ignored when partition_type is not set. 'single_run' requires a partition-range-aware IO manager (e.g. a DB-table IO manager with partition_expr set) -- a generic filesystem/default IO manager cannot persist a single_run output spanning multiple partitions and will raise a clear error at materialization time. If neither partition_date_column nor partition_static_column is set the partition key does not change the computation, so a range runs the analysis once. Components that persist side effects (e.g. model files) write them once per partition, so the last partition in the range wins."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     retry_policy_max_retries: Optional[int] = Field(
 
         default=None,
@@ -513,17 +615,27 @@ class EcommerceStandardizerComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            from dagster import BackfillPolicy
+            _backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            from dagster import BackfillPolicy
+            _backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+        _deco_ecommerce_standardizer_asset = asset(retry_policy=_retry_policy, 
             key=AssetKey.from_user_string(asset_name),
             description=description,
             partitions_def=partitions_def,
+            backfill_policy=_backfill_policy_obj,
                         owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,
 group_name=group_name,
             deps=upstream_keys if upstream_keys else None,
         )
-        def ecommerce_standardizer_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
+        def ecommerce_standardizer_asset_compute(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
             """Asset that standardizes platform-specific e-commerce data."""
 
             context.log.info(f"Standardizing {platform} {resource_type} data")
@@ -945,6 +1057,10 @@ group_name=group_name,
                         )
                 context.add_output_metadata(_metadata)
                 return std_df
+        @_deco_ecommerce_standardizer_asset
+        def ecommerce_standardizer_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
+            return _run_per_partition(context, ecommerce_standardizer_asset_compute, partitions_def, bool(partition_date_column or partition_static_column), [], kwargs)
+
 
         from dagster import build_column_schema_change_checks
 

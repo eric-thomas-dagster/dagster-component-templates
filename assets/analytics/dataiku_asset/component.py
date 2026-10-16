@@ -417,6 +417,61 @@ if _HAS_STATE_BACKED:
                 default_key=f"DataikuAssetComponent[{self.host_env_var}]",
             )
 
+        async def refresh_state(self, project_root: Path) -> str:
+            """Refresh LOCAL_FILESYSTEM state atomically.
+
+            The stock ``StateBackedComponent.refresh_state`` does ``shutil.rmtree(state_path)`` and only then
+            runs ``write_state_to_path`` (network calls, seconds long), so for the whole fetch -- and again
+            while the file is half-written -- a concurrent reader (run worker, step subprocess, ``dg list defs``;
+            every ``dg`` command refreshes in dev mode) sees missing/partial state: empty Definitions or a
+            JSONDecodeError. Here the new state is built beside the old and swapped in with a rename, so the
+            previous state stays readable until the new one is complete (and survives a failed refresh)."""
+            import os
+            import shutil
+            import uuid
+
+            from dagster._core.storage.defs_state.base import DefsStateStorage
+            from dagster.components.utils.project_paths import get_local_state_path
+            from dagster_shared.serdes.objects.models.defs_state_info import (
+                LOCAL_STATE_VERSION,
+                DefsStateManagementType,
+            )
+
+            config = self.defs_state_config
+            if config.management_type != DefsStateManagementType.LOCAL_FILESYSTEM:
+                return await super().refresh_state(project_root)
+            state_path = get_local_state_path(config.key, project_root)
+            state_path.parent.mkdir(parents=True, exist_ok=True)
+            token = f"{os.getpid()}-{uuid.uuid4().hex[:8]}"
+            work = state_path.parent / f".{state_path.name}.refresh-{token}"
+            old = state_path.parent / f".{state_path.name}.old-{token}"
+            try:
+                await self._write_state_to_path_async(work)
+                if work.exists():
+                    if work.is_dir() and state_path.is_dir():
+                        try:
+                            os.rename(state_path, old)
+                            os.rename(work, state_path)
+                        except OSError:  # e.g. Windows: directory held open by another process
+                            shutil.rmtree(state_path, ignore_errors=True)
+                            os.rename(work, state_path)
+                    else:
+                        if state_path.is_dir():
+                            shutil.rmtree(state_path, ignore_errors=True)
+                        elif work.is_dir() and state_path.exists():
+                            state_path.unlink()
+                        os.replace(work, state_path)
+            finally:
+                for _p in (work, old):
+                    if _p.is_dir():
+                        shutil.rmtree(_p, ignore_errors=True)
+                    else:
+                        _p.unlink(missing_ok=True)
+            state_storage = DefsStateStorage.get()
+            if state_storage:
+                state_storage.set_latest_version(config.key, LOCAL_STATE_VERSION)
+            return LOCAL_STATE_VERSION
+
         def write_state_to_path(self, state_path: Path) -> None:
             """Fetch all matching scenarios from Dataiku DSS API and cache to disk."""
             host = dg.EnvVar(self.host_env_var).get_value()

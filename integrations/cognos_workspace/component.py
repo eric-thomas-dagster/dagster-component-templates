@@ -60,10 +60,45 @@ from dagster.components.utils.translation import (
 from dagster_shared.record import record
 from pydantic import ConfigDict, Field
 
-# Reuse the community `CognosResource` so users don't have to redeclare its
-# fields inline. `CognosResource` already exposes `base_url` / `username` /
-# `password` / `namespace` / `verify_ssl` + REST helper methods.
-from dagster_community_components import CognosResource
+
+
+import urllib.parse
+# Self-contained: `CognosResource` is inlined from resources/cognos_resource (a component.py must not import
+# another component -- the CLI copies only this file). Keep in sync with that resource.
+
+
+class CognosResource(dg.ConfigurableResource):
+    """Provides Cognos Analytics base URL + auth."""
+
+    base_url: str
+    username: Optional[str] = None
+    password: Optional[str] = None
+    namespace: Optional[str] = None  # Cognos security namespace
+    verify_ssl: bool = True
+
+    @property
+    def api_base(self) -> str:
+        return f"{self.base_url.rstrip('/')}/api/v1"
+
+    def report_url(self, report_id: str) -> str:
+        return f"{self.api_base}/reports/{urllib.parse.quote(report_id)}"
+
+    def content_url(self, path: str) -> str:
+        return f"{self.api_base}/content{path if path.startswith('/') else '/' + path}"
+
+    def get_auth_headers(self) -> dict:
+        return {"Accept": "application/json", "Content-Type": "application/json"}
+
+    def login_body(self) -> Optional[dict]:
+        if self.username and self.password and self.namespace:
+            return {
+                "parameters": [
+                    {"name": "CAMNamespace", "value": self.namespace},
+                    {"name": "CAMUsername", "value": self.username},
+                    {"name": "CAMPassword", "value": self.password},
+                ]
+            }
+        return None
 
 
 @record

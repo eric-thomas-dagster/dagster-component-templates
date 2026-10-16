@@ -5,7 +5,7 @@ Works with visual dependency drawing - just connect DataFrame-producing assets!
 """
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Literal
 import json
 import string as _string_module
 
@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 from dagster import (
     AssetKey,
+    BackfillPolicy,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -377,6 +378,26 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run (the upstream "
+            "DataFrame is filtered once per partition key in the range and the "
+            "matching rows are combined). 'multi_run' launches one run per "
+            "partition (optionally capped via backfill_policy_max_partitions_per_run). "
+            "Leave unset for Dagster's default (one run per partition, uncapped). "
+            "Ignored when partition_type/partition_dimensions is not set. "
+            "'single_run' requires a partition-range-aware IO manager -- a "
+            "generic filesystem/default IO manager cannot persist a single_run "
+            "output spanning multiple partitions and will raise a clear error at "
+            "materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
     owners: Optional[List[str]] = Field(
         default=None,
         description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
@@ -730,10 +751,18 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
 
 
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            _backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            _backfill_policy_obj = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
         @asset(
             key=AssetKey.from_user_string(asset_name),
             description=description,
-            partitions_def=partitions_def,
+            partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
                         owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,
@@ -808,20 +837,33 @@ group_name=group_name,
                 raise TypeError(error_msg)
 
             # Filter each connected input to current partition if partitioned
-            if context.has_partition_key:
-                _pk = context.partition_key
-                _is_multi = hasattr(_pk, "keys_by_dimension")
-                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
-                for _key, _frame in dataframes.items():
-                    if partition_date_column and partition_date_column in _frame.columns and _date_key:
-                        _col_dates = pd.to_datetime(_frame[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
-                        _frame = _frame[_col_dates == _date_key]
-                    if partition_static_column and partition_static_column in _frame.columns and _static_key:
-                        _frame = _frame[_frame[partition_static_column].astype(str) == _static_key]
-                    elif partition_static_column and partition_static_column in _frame.columns and not _is_multi:
-                        _frame = _frame[_frame[partition_static_column].astype(str) == str(_pk)]
-                    dataframes[_key] = _frame
+            if context.has_partition_key or context.has_partition_key_range:
+                # One filter pass per partition key: a normal tick gives exactly one,
+                # a single_run backfill gives the whole range. Rows are selected by
+                # position so keys that match overlapping rows never duplicate them.
+                _pk_base = _frame
+                _pk_pos = _pk_base.reset_index(drop=True) if hasattr(_pk_base, 'reset_index') else _pk_base
+                _pk_keep = set()
+                _pk_filtered = False
+                for _pk_iter in context.partition_keys:
+                    _frame = _pk_pos
+                    _pk = _pk_iter
+                    _is_multi = hasattr(_pk, "keys_by_dimension")
+                    _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                    _static_key = _pk.keys_by_dimension.get(partition_static_dim or "segment", "") if _is_multi else None
+                    for _key, _frame in dataframes.items():
+                        if partition_date_column and partition_date_column in _frame.columns and _date_key:
+                            _col_dates = pd.to_datetime(_frame[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
+                            _frame = _frame[_col_dates == _date_key]
+                        if partition_static_column and partition_static_column in _frame.columns and _static_key:
+                            _frame = _frame[_frame[partition_static_column].astype(str) == _static_key]
+                        elif partition_static_column and partition_static_column in _frame.columns and not _is_multi:
+                            _frame = _frame[_frame[partition_static_column].astype(str) == str(_pk)]
+                        dataframes[_key] = _frame
+                    if _frame is not _pk_pos:
+                        _pk_filtered = True
+                        _pk_keep.update(_frame.index)
+                _frame = _pk_base.iloc[sorted(_pk_keep)] if _pk_filtered else _pk_base
 
             # Handle multiple DataFrames
             if len(dataframes) == 1:

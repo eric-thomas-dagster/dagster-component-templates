@@ -63,7 +63,50 @@ from pydantic import ConfigDict, Field
 # cam_namespace + verify_ssl) so the workspace: block matches the
 # `tm1_resource` component and the rest of the TM1 toolkit
 # (tm1_process_trigger_job, tm1_cube_data_ingestion, etc.).
-from dagster_community_components import TM1Resource
+
+
+import urllib.parse
+# Self-contained: `TM1Resource` is inlined from resources/tm1_resource (a component.py must not import
+# another component -- the CLI copies only this file). Keep in sync with that resource.
+
+
+class TM1Resource(dg.ConfigurableResource):
+    """Provides TM1 base URL + auth for REST calls."""
+
+    base_url: str  # e.g. 'https://tm1.acme.com:5495' (with port, no /api path)
+    username: Optional[str] = None
+    password: Optional[str] = None
+    cam_namespace: Optional[str] = None  # CAM security only
+    verify_ssl: bool = True
+
+    @property
+    def api_base(self) -> str:
+        return f"{self.base_url.rstrip('/')}/api/v1"
+
+    def cube_url(self, cube: str) -> str:
+        return f"{self.api_base}/Cubes('{urllib.parse.quote(cube)}')"
+
+    def process_url(self, process: str) -> str:
+        return f"{self.api_base}/Processes('{urllib.parse.quote(process)}')"
+
+    def chore_url(self, chore: str) -> str:
+        return f"{self.api_base}/Chores('{urllib.parse.quote(chore)}')"
+
+    def get_auth_headers(self) -> dict:
+        """Headers for basic + optional CAM namespace."""
+        import base64
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        if self.username and self.password:
+            token = base64.b64encode(f"{self.username}:{self.password}".encode()).decode()
+            headers["Authorization"] = f"Basic {token}"
+            if self.cam_namespace:
+                # TM1 CAM SSO: Authorization header uses CAMNamespace prefix.
+                # user:password:namespace base64-encoded.
+                cam_token = base64.b64encode(
+                    f"{self.username}:{self.password}:{self.cam_namespace}".encode()
+                ).decode()
+                headers["Authorization"] = f"CAMNamespace {cam_token}"
+        return headers
 
 
 @record

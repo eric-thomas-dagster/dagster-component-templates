@@ -250,10 +250,103 @@ class AmplitudeEventTrackComponent(Component, Model, Resolvable):
         return Definitions(assets=[amplitude_export_inline])
 
 
+# Self-contained: `AmplitudeResource` is inlined from resources/amplitude_resource (a component.py must not import
+# another component -- the CLI copies only this file). Keep in sync with that resource.
+from typing import Any, Dict, List, Optional  # noqa: E402,F401
+import dagster as dg  # noqa: E402
+from pydantic import Field  # noqa: E402,F401
+
+
+_MAX_EVENTS_PER_CALL = 1000
+
+
+class AmplitudeResource(dg.ConfigurableResource):
+    """Amplitude REST API workhorse — auth + typed batch operations."""
+
+    api_key_env_var: str = Field(default="AMPLITUDE_API_KEY",
+        description="Env var holding the Amplitude project API key.")
+    base_url: str = Field(default="https://api2.amplitude.com",
+        description="Amplitude API base URL. Use https://api.eu.amplitude.com for EU projects.")
+    request_timeout_seconds: int = Field(default=30)
+
+    def _token(self) -> str:
+        import os
+        t = os.environ.get(self.api_key_env_var)
+        if not t: raise dg.Failure(f"env var {self.api_key_env_var!r} is unset — set your Amplitude API key.")
+        return t
+
+    def _post_raw(self, path: str, json_body: Any) -> Any:
+        import requests
+        url = self.base_url.rstrip("/") + "/" + path.lstrip("/")
+        return requests.post(url, json=json_body,
+                             headers={"Content-Type": "application/json", "Accept": "*/*"},
+                             timeout=self.request_timeout_seconds)
+
+    def post(self, path: str, json_body: Any) -> Any:
+        """Raw escape hatch — POST + parse JSON. Raises Failure on non-2xx."""
+        resp = self._post_raw(path, json_body)
+        if not (200 <= resp.status_code < 300):
+            raise dg.Failure(f"Amplitude POST {path} failed: HTTP {resp.status_code} body={(resp.text or '')[:500]}")
+        try:
+            return resp.json()
+        except Exception:
+            return None
+
+    def track_events_bulk(
+        self, events: List[Dict[str, Any]],
+        batch_size: int = _MAX_EVENTS_PER_CALL,
+        dry_run: bool = False, logger: Any = None,
+    ) -> Dict[str, Any]:
+        """Batch-track Amplitude events via /2/httpapi.
+
+        Args:
+            events: List of event dicts. Each MUST have ``user_id`` OR
+                ``device_id`` and ``event_type``. Optional ``event_properties``,
+                ``user_properties``, ``time`` (unix ms), ``insert_id`` for
+                de-dup, ``groups`` for account-level analytics.
+            batch_size: Max 1000 events per HTTPV2 request.
+
+        Returns: {sent, failed, batches, ingested, error_samples}
+        """
+        total = len(events)
+        sent = failed = batches = ingested = 0
+        error_samples: List[Any] = []
+        if total == 0:
+            if logger is not None: logger.warning("Amplitude /2/httpapi: no events.")
+            return {"sent": 0, "failed": 0, "batches": 0, "ingested": 0, "error_samples": []}
+        batch_size = min(batch_size, _MAX_EVENTS_PER_CALL)
+
+        for start in range(0, total, batch_size):
+            chunk = events[start : start + batch_size]
+            body = {"api_key": self._token(), "events": chunk}
+            if dry_run:
+                if logger is not None: logger.info(f"[dry_run] Would POST {len(chunk)} events to Amplitude /2/httpapi")
+                sent += len(chunk); batches += 1; continue
+            resp = self._post_raw("/2/httpapi", body)
+            batches += 1
+            if 200 <= resp.status_code < 300:
+                sent += len(chunk)
+                try:
+                    j = resp.json()
+                    if isinstance(j, dict):
+                        ingested += int(j.get("events_ingested") or 0)
+                except Exception:
+                    pass
+            else:
+                failed += len(chunk)
+                sample = (resp.text or "")[:400]
+                if len(error_samples) < 3:
+                    error_samples.append(sample)
+                if logger is not None:
+                    logger.warning(f"Amplitude POST failed: HTTP {resp.status_code} body={sample}")
+
+        return {"sent": sent, "failed": failed, "batches": batches, "ingested": ingested, "error_samples": error_samples}
+
+
+
 def _get_resource(cfg: AmplitudeEventTrackComponent, context: AssetExecutionContext) -> Any:
     if cfg.resource_key:
         return getattr(context.resources, cfg.resource_key)
-    from dagster_community_components import AmplitudeResource
     return AmplitudeResource(
         api_key_env_var=cfg.api_key_env_var,
         base_url=cfg.base_url or "https://api2.amplitude.com",

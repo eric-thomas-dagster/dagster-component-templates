@@ -65,7 +65,39 @@ from pydantic import ConfigDict, Field
 
 # Reuse the community JDE Orchestrator resource so the workspace: block is
 # the same shape used by every other JDE component in the registry.
-from dagster_community_components import JDEOrchestratorResource
+
+
+import urllib.parse
+# Self-contained: `JDEOrchestratorResource` is inlined from resources/jde_orchestrator_resource (a component.py must not import
+# another component -- the CLI copies only this file). Keep in sync with that resource.
+
+
+class JDEOrchestratorResource(dg.ConfigurableResource):
+    """Provides JDE Orchestrator base URL + auth."""
+
+    base_url: str
+    username: Optional[str] = None
+    password: Optional[str] = None
+    api_path_prefix: str = "/jderest/v3/orchestrator"
+    verify_ssl: bool = True
+
+    @property
+    def api_base(self) -> str:
+        return f"{self.base_url.rstrip('/')}{self.api_path_prefix}"
+
+    def orchestration_url(self, orchestration: str) -> str:
+        return f"{self.api_base}/{urllib.parse.quote(orchestration)}"
+
+    def status_url(self, job_id: str) -> str:
+        return f"{self.base_url.rstrip('/')}/jderest/v3/orchestrator/status/{urllib.parse.quote(job_id)}"
+
+    def get_auth_headers(self) -> dict:
+        import base64
+        headers = {"Accept": "application/json", "Content-Type": "application/json"}
+        if self.username and self.password:
+            token = base64.b64encode(f"{self.username}:{self.password}".encode()).decode()
+            headers["Authorization"] = f"Basic {token}"
+        return headers
 
 
 @record

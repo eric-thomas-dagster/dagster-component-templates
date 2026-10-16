@@ -118,6 +118,59 @@ def _build_partitions_def(
     raise ValueError(f"unknown partition_type: {partition_type!r}")
 
 
+
+# BEGIN upstream-asset-key normalization (inlined per component; keep copies identical — see tests/test_upstream_keys.py)
+from typing import List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def normalize_upstream_keys(single, plural=None) -> List[str]:
+    """Merge ``upstream_asset_key`` / ``upstream_asset_keys`` into one clean list.
+
+    Each argument may be a str, a list/tuple of str, or None. Entries are
+    stripped, empties dropped, and duplicates removed (order preserved).
+    """
+    out: List[str] = []
+    for value in (single, plural):
+        if value is None:
+            continue
+        items = [value] if isinstance(value, str) else value
+        if not isinstance(items, (list, tuple)):
+            raise ValueError(
+                f"upstream asset key(s) must be a string or a list of strings, got {value!r}"
+            )
+        for item in items:
+            if not isinstance(item, str):
+                raise ValueError(f"upstream asset keys must be strings, got {item!r}")
+            item = item.strip()
+            if item and item not in out:
+                out.append(item)
+    return out
+
+
+def coerce_upstream_input(data, *, component: str, mode: str, optional: bool = True):
+    """Rewrite raw component input so both spellings/shapes land on the declared field(s).
+
+    mode "single": declared field is ``upstream_asset_key`` (str); >1 key is an error.
+    mode "multi":  declared field is ``upstream_asset_keys`` (list).
+    mode "both":   both fields are declared; everything is merged into the plural one.
+    """
+    if not isinstance(data, dict):
+        return data
+    if "upstream_asset_key" not in data and "upstream_asset_keys" not in data:
+        return data
+    keys = normalize_upstream_keys(data.get("upstream_asset_key"), data.get("upstream_asset_keys"))
+    out = {k: v for k, v in data.items() if k not in ("upstream_asset_key", "upstream_asset_keys")}
+    if mode == "single":
+        if len(keys) > 1:
+            raise ValueError(f"{component} takes exactly one upstream asset, got {keys}")
+        out["upstream_asset_key"] = keys[0] if keys else (None if optional else "")
+    else:
+        out["upstream_asset_keys"] = keys or (None if optional else [])
+    return out
+# END upstream-asset-key normalization
+
+
 class DuckDBTableWriterComponent(Component, Model, Resolvable):
     """
     Component for writing pandas DataFrames to DuckDB tables.
@@ -227,11 +280,11 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
     )
 
     # Per FIELD_CONVENTIONS: singular for one upstream, plural list for multi.
-    upstream_asset_key: Optional[str] = Field(
+    upstream_asset_key: Optional[Union[str, List[str]]] = Field(
         default=None,
         description="Single upstream asset key. Convenience field for the common single-source case.",
     )
-    upstream_asset_keys: Optional[List[str]] = Field(
+    upstream_asset_keys: Optional[Union[str, List[str]]] = Field(
         default=None,
         description="Multiple upstream asset keys for multi-source writes.",
     )
@@ -261,6 +314,11 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
         default="exponential",
         description="Backoff strategy: 'linear' or 'exponential'.",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_upstream_asset_keys(cls, data):
+        return coerce_upstream_input(data, component=cls.__name__, mode="both", optional=True)
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions for the DuckDB table writer."""

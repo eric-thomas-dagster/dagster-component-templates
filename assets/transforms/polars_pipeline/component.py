@@ -375,6 +375,59 @@ def _apply_op(pl, lf, op: Dict[str, Any], step_outputs: Dict[str, Any]):
     raise ValueError(f"polars_pipeline op={kind!r} not supported. Valid: {sorted(_VALID_OPS)}")
 
 
+
+# BEGIN upstream-asset-key normalization (inlined per component; keep copies identical — see tests/test_upstream_keys.py)
+from typing import List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def normalize_upstream_keys(single, plural=None) -> List[str]:
+    """Merge ``upstream_asset_key`` / ``upstream_asset_keys`` into one clean list.
+
+    Each argument may be a str, a list/tuple of str, or None. Entries are
+    stripped, empties dropped, and duplicates removed (order preserved).
+    """
+    out: List[str] = []
+    for value in (single, plural):
+        if value is None:
+            continue
+        items = [value] if isinstance(value, str) else value
+        if not isinstance(items, (list, tuple)):
+            raise ValueError(
+                f"upstream asset key(s) must be a string or a list of strings, got {value!r}"
+            )
+        for item in items:
+            if not isinstance(item, str):
+                raise ValueError(f"upstream asset keys must be strings, got {item!r}")
+            item = item.strip()
+            if item and item not in out:
+                out.append(item)
+    return out
+
+
+def coerce_upstream_input(data, *, component: str, mode: str, optional: bool = True):
+    """Rewrite raw component input so both spellings/shapes land on the declared field(s).
+
+    mode "single": declared field is ``upstream_asset_key`` (str); >1 key is an error.
+    mode "multi":  declared field is ``upstream_asset_keys`` (list).
+    mode "both":   both fields are declared; everything is merged into the plural one.
+    """
+    if not isinstance(data, dict):
+        return data
+    if "upstream_asset_key" not in data and "upstream_asset_keys" not in data:
+        return data
+    keys = normalize_upstream_keys(data.get("upstream_asset_key"), data.get("upstream_asset_keys"))
+    out = {k: v for k, v in data.items() if k not in ("upstream_asset_key", "upstream_asset_keys")}
+    if mode == "single":
+        if len(keys) > 1:
+            raise ValueError(f"{component} takes exactly one upstream asset, got {keys}")
+        out["upstream_asset_key"] = keys[0] if keys else (None if optional else "")
+    else:
+        out["upstream_asset_keys"] = keys or (None if optional else [])
+    return out
+# END upstream-asset-key normalization
+
+
 class PolarsPipelineComponent(Component, Model, Resolvable):
     """Multi-step polars LazyFrame pipeline in a single Dagster asset.
 
@@ -420,7 +473,7 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Output Dagster asset name")
 
     # Flat-shape single-source shape ------------------------------------------
-    upstream_asset_key: Optional[str] = Field(
+    upstream_asset_key: Optional[Union[str, List[str]]] = Field(
         default=None,
         description="Top-level single-source shape: Dagster upstream asset key (pandas or polars DataFrame). Mutually exclusive with `source:`.",
     )
@@ -511,6 +564,11 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
     )
     include_preview_metadata: bool = Field(default=False)
     preview_rows: int = Field(default=25, ge=1, le=500)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_upstream_asset_keys(cls, data):
+        return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=True)
 
     @classmethod
     def get_description(cls) -> str:

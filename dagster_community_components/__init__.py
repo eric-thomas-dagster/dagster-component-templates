@@ -241,7 +241,7 @@ _CLASS_PATHS: dict[str, str] = {
     "CohortAnalysisComponent": "assets/analytics/cohort_analysis/component.py",
     "CollibraExportJobComponent": "jobs/collibra_export_job/component.py",
     "CommunityComponentInstallerComponent": "assets/infrastructure/community_component_installer/component.py",
-    "ComposerAirflowAuthBackendComponent": "resources/composer_airflow_auth_backend/component.py",
+    "ComposerAirflowAuthBackendResourceComponent": "resources/composer_airflow_auth_backend/component.py",
     "ConcurIngestionComponent": "assets/ingestion/concur_ingestion/component.py",
     "ConfluenceIngestionComponent": "assets/ingestion/confluence_ingestion/component.py",
     "ConfluencePageUpsertComponent": "assets/reverse_etl/confluence_page_upsert/component.py",
@@ -1489,6 +1489,42 @@ class _MissingDepsPlaceholder:
         return f"<MissingDeps {self._component_name}: {self._cause}>"
 
 
+class _UnavailablePlaceholder(_MissingDepsPlaceholder):
+    """A registry entry that can't be loaded for a reason OTHER than a missing
+    optional dependency: its source file is gone, the class was renamed/removed
+    without updating `_CLASS_PATHS`, or the module raised while importing.
+
+    One bad entry must never take down the whole library -- every `dg dev` /
+    `dg list components` / `dg check defs` walks and snapshots ALL ~1,400
+    entries, and an exception from any single one used to abort the walk
+    (0.10.109/0.10.110 shipped with exactly that after a class rename).
+    Behaves like the missing-deps placeholder: discovery skips it, snapshot
+    builders fall back to the Component base defaults, and only real USE of the
+    component raises -- with the actual reason.
+    """
+
+    def __call__(self, *args, **kwargs):
+        raise ImportError(
+            f"Component '{self._component_name}' is unavailable: {self._cause}"
+        )
+
+    def __repr__(self) -> str:
+        return f"<Unavailable {self._component_name}: {self._cause}>"
+
+
+def _unavailable(name: str, cause: str):
+    import warnings
+
+    warnings.warn(
+        f"dagster_community_components: skipping '{name}': {cause}",
+        RuntimeWarning,
+        stacklevel=3,
+    )
+    placeholder = _UnavailablePlaceholder(name, cause)
+    _loaded[name] = placeholder
+    return placeholder
+
+
 # ── Lazy stub mechanism (import-tax fix) ──────────────────────────────
 #
 # Dagster's component discovery walks `dir(pkg)` and calls
@@ -1523,9 +1559,9 @@ def _load_real_class(name: str):
     rel = _CLASS_PATHS[name]
     path = _PACKAGE_ROOT / rel
     if not path.exists():
-        raise ImportError(
-            f"Component file missing for '{name}' at {path}. "
-            f"The package may be incomplete — try reinstalling."
+        return _unavailable(
+            name,
+            f"component file missing at {path} (the package may be incomplete — try reinstalling)",
         )
     rel_no_ext = rel[:-3] if rel.endswith(".py") else rel
     mod_name = "dagster_community_components." + rel_no_ext.replace("/", ".")
@@ -1535,9 +1571,13 @@ def _load_real_class(name: str):
         placeholder = _MissingDepsPlaceholder(name, str(e))
         _loaded[name] = placeholder
         return placeholder
+    except Exception as e:  # SyntaxError, a module-level bug, ... in ONE component
+        return _unavailable(name, f"importing {mod_name} raised {type(e).__name__}: {e}")
     cls = getattr(mod, name, None)
     if cls is None:
-        raise AttributeError(f"Class '{name}' not found in {path} — registry/source mismatch.")
+        return _unavailable(
+            name, f"class not found in {path} — registry/source mismatch (renamed or removed?)"
+        )
     _loaded[name] = cls
     return cls
 

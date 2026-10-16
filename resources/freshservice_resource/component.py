@@ -34,7 +34,7 @@ class FreshserviceResource(ConfigurableResource):
         """POST /api/v2/tickets -- create a new ticket."""
         session = self.get_session()
         base_url = session.base_url  # type: ignore[attr-defined]
-        resp = session.post(f"{base_url}/tickets", json=fields)
+        resp = session.post(f"{base_url}/tickets", json=fields, timeout=60)
         resp.raise_for_status()
         return resp.json().get("ticket", {})
 
@@ -42,7 +42,7 @@ class FreshserviceResource(ConfigurableResource):
         """PUT /api/v2/tickets/{ticket_id} -- update an existing ticket."""
         session = self.get_session()
         base_url = session.base_url  # type: ignore[attr-defined]
-        resp = session.put(f"{base_url}/tickets/{ticket_id}", json=fields)
+        resp = session.put(f"{base_url}/tickets/{ticket_id}", json=fields, timeout=60)
         resp.raise_for_status()
         return resp.json().get("ticket", {})
 
@@ -57,7 +57,7 @@ class FreshserviceResource(ConfigurableResource):
         """
         session = self.get_session()
         base_url = session.base_url  # type: ignore[attr-defined]
-        resp = session.get(f"{base_url}/tickets/filter", params={"query": f'"{query}"'})
+        resp = session.get(f"{base_url}/tickets/filter", params={"query": f'"{query}"'}, timeout=60)
         resp.raise_for_status()
         return resp.json().get("tickets", [])
 

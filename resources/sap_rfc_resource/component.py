@@ -37,6 +37,20 @@ import dagster as dg
 from pydantic import Field
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 class SapRFCResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register an SAP RFC connection as a Dagster resource.
 
@@ -129,7 +143,7 @@ class SapRFCResourceComponent(dg.Component, dg.Model, dg.Resolvable):
                 params: dict = {
                     "client": cfg.client,
                     "user": cfg.user,
-                    "passwd": os.environ[cfg.passwd_env_var],
+                    "passwd": _require_env(cfg.passwd_env_var),
                     "lang": cfg.lang,
                     "trace": str(cfg.trace),
                 }

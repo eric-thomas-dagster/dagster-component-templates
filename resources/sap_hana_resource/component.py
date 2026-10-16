@@ -22,6 +22,20 @@ import dagster as dg
 from pydantic import Field
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 class SapHanaResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a SAP HANA database resource.
 
@@ -50,7 +64,7 @@ class SapHanaResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             def url(self) -> str:
                 """Return a SQLAlchemy URL for HANA."""
                 import os, urllib.parse
-                pwd = os.environ[cfg.password_env_var]
+                pwd = _require_env(cfg.password_env_var)
                 pwd_enc = urllib.parse.quote(pwd, safe="")
                 params = []
                 if cfg.encrypt:

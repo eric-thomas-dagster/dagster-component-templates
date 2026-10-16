@@ -456,6 +456,37 @@ def _write_sink(df, sink: Dict[str, Any]):
     raise ValueError(f"snowpark_pipeline sink.kind={kind!r} not supported. Use 'table' or 'none'.")
 
 
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
+
+
 class SnowparkPipelineComponent(Component, Model, Resolvable):
     """Multi-step Snowpark pipeline — all compute pushed to Snowflake.
 
@@ -495,7 +526,7 @@ class SnowparkPipelineComponent(Component, Model, Resolvable):
 
     group_name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
-    asset_tags: Optional[Dict[str, str]] = Field(default=None)
+    asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None)
     kinds: Optional[List[str]] = Field(default=None)
     owners: Optional[List[str]] = Field(default=None)
     deps: Optional[List[str]] = Field(default=None)
@@ -509,7 +540,7 @@ class SnowparkPipelineComponent(Component, Model, Resolvable):
         default=None,
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
     )
-    partition_values: Optional[str] = Field(
+    partition_values: Optional[Union[str, List[str]]] = Field(
         default=None,
         description="Comma-separated values for static or multi partitioning, e.g. 'us,eu,apac'.",
     )
@@ -531,6 +562,11 @@ class SnowparkPipelineComponent(Component, Model, Resolvable):
         default="exponential",
         description="Backoff strategy: 'linear' or 'exponential'.",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, lists=('kinds', 'owners', 'deps'), csv=('partition_values',), tags=('asset_tags',))
 
     @classmethod
     def get_description(cls) -> str:

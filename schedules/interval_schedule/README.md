@@ -78,7 +78,7 @@ If you need a non-boundary fire time (e.g. hourly partitions firing at `:15`), u
 | Field | Type | Description |
 |---|---|---|
 | `schedule_name` | `str` | Unique schedule name. |
-| `every` | `str` | Interval value + unit, e.g. `'15m'`, `'2h'`, `'1d'`, `'1w'`, `'1mo'`. |
+| `every` | `str` | Interval value + unit, e.g. '15m', '2h', '1d', '1w', '1mo'. |
 | `asset_keys` | `List[str]` | Slash-separated asset keys to materialize on each tick. |
 
 ### Catalog metadata
@@ -87,28 +87,28 @@ If you need a non-boundary fire time (e.g. hourly partitions firing at `:15`), u
 |---|---|---|---|
 | `tags` | `Dict[str, str]` | — | Tags applied to runs created by this schedule. |
 
-### Sensor configuration
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `job_name` | `str` | — | Name of the underlying job (defaults to `'<schedule_name>_job'`). |
-| `default_status` | `str` | `"STOPPED"` | `'RUNNING'` or `'STOPPED'`. |
-
 ### Partitions
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_type` | `str` | — | `'daily'` / `'weekly'` / `'monthly'` / `'hourly'` / `'static'` / `'multi'` / `'dynamic'`, or None for unpartitioned. Only time-based types work with the partitioned-job path; `static` / `dynamic` raise. |
-| `partition_start` | `str` | — | Partition start in ISO format (e.g. `'2024-01-01'` or `'2024-01-01-00:00'` for hourly). Required for time-based types. |
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. Only time-based types ('hourly'/'daily'/'weekly'/'monthly') work with the partitioned-job path; 'static' /… _(full docs in schema.json + component README)_ |
+| `partition_start` | `str` | — | Partition start in ISO format (e.g. '2024-01-01' or '2024-01-01-00:00' for hourly). Required for time-based types. |
 | `partition_values` | `str` | — | Comma-separated values for multi-axis partitioning (unused in flat time-based mode). |
-| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of `{name, type, start, values, dynamic_partition_name}` dicts. Overrides flat fields when set. |
-| `dynamic_partition_name` | `str` | — | Declared for parity with `cron_schedule` but rejected by this schedule (`build_schedule_from_partitioned_job` requires a time-based cadence). |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
+
+### Sensor configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `job_name` | `str` | — | Name of the underlying job (defaults to '<schedule_name>_job'). |
+| `default_status` | `str` | `"STOPPED"` | 'RUNNING' or 'STOPPED'. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `execution_timezone` | `str` | `"UTC"` | IANA timezone, e.g. `'America/New_York'`. Applied only in the un-partitioned path — in the partitioned path Dagster uses the partitions_def's timezone. |
+| `execution_timezone` | `str` | — | IANA timezone, e.g. 'America/New_York'. Applied in the un-partitioned path (Dagster falls back to UTC when None); silently IGNORED in the partitioned path — build_schedule_from_partitioned_job forbids execution_timezone… _(full docs in schema.json + component README)_ |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (rejected by this schedule — declared for parity with cron_schedule). |
 
 [//]: # (FIELDS:END)
 

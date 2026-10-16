@@ -31,6 +31,20 @@ from dagster import (
 from pydantic import ConfigDict, Field
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 class MCPServerSpec(dg.Model, dg.Resolvable):
     """One MCP server connection — stdio (subprocess), http (streamable), or sse."""
 
@@ -61,6 +75,37 @@ class MCPServerSpec(dg.Model, dg.Resolvable):
         default=None,
         description="http / sse: map of header_name → env_var_name; the header value is read from the named env var at materialization time. Use this for tokens (e.g. {'Authorization': 'DAGSTER_PLUS_TOKEN'} where DAGSTER_PLUS_TOKEN env var holds 'Bearer xyz123').",
     )
+
+
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
 
 
 class LiteLLMAgentComponent(Component, Model, Resolvable):
@@ -154,7 +199,7 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
-    asset_tags: Optional[Dict[str, str]] = Field(default=None, description="Extra asset tags.")
+    asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Extra asset tags.")
     kinds: Optional[List[str]] = Field(
         default=None,
         description="Asset kinds for the Dagster catalog. Defaults to ['llm', 'agent', 'litellm'].",
@@ -167,7 +212,7 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
     # Partitions (with {partition_key} / {partition_keys.<dim>} substitution into prompt + system_prompt).
     partition_type: Optional[str] = Field(default=None, description="'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'multi' | 'dynamic'.")
     partition_start: Optional[str] = Field(default=None, description="ISO date for time-based partitions.")
-    partition_values: Optional[str] = Field(default=None, description="Comma-separated values for static/multi.")
+    partition_values: Optional[Union[str, List[str]]] = Field(default=None, description="Comma-separated values for static/multi.")
     dynamic_partition_name: Optional[str] = Field(default=None, description="Name for DynamicPartitionsDefinition.")
     partition_dimensions: Optional[List[Dict[str, Any]]] = Field(
         default=None,
@@ -182,6 +227,11 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
     retry_policy_max_retries: Optional[int] = Field(default=None, description="Max retries on failure (transient API / network).")
     retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries.")
     retry_policy_backoff: str = Field(default="exponential", description="'linear' or 'exponential'.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=('partition_values',), tags=('asset_tags',))
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
@@ -560,9 +610,9 @@ async def _run_agent(
             "max_tokens": max_tokens,
         }
         if api_key_env_var:
-            completion_kwargs["api_key"] = os.environ[api_key_env_var]
+            completion_kwargs["api_key"] = _require_env(api_key_env_var)
         if api_base_env_var:
-            completion_kwargs["api_base"] = os.environ[api_base_env_var]
+            completion_kwargs["api_base"] = _require_env(api_base_env_var)
         # Reasoning params — filtered by provider family since LiteLLM's
         # drop_params doesn't strip thinking_budget when forwarding to
         # OpenAI (which then 400s).

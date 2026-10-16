@@ -12,6 +12,20 @@ import dagster as dg
 from pydantic import Field
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 class ObservabilityHeartbeatJobComponent(dg.Component, dg.Model, dg.Resolvable):
     """Compound op job: send a heartbeat to multiple destinations (Slack + PagerDuty + HTTP) on cron — single YAML config."""
 
@@ -36,11 +50,11 @@ class ObservabilityHeartbeatJobComponent(dg.Component, dg.Model, dg.Resolvable):
         def _heartbeat(context):
             sent = []
             if _self.slack_webhook_url_env:
-                u = os.environ[_self.slack_webhook_url_env]
+                u = _require_env(_self.slack_webhook_url_env)
                 requests.post(u, json={"text": _self.message}, timeout=30)
                 sent.append("slack")
             if _self.pagerduty_routing_key_env:
-                k = os.environ[_self.pagerduty_routing_key_env]
+                k = _require_env(_self.pagerduty_routing_key_env)
                 requests.post("https://events.pagerduty.com/v2/enqueue", timeout=30, json={
                     "routing_key": k, "event_action": "resolve",
                     "dedup_key": f"dagster-{_self.job_name}",
@@ -51,7 +65,7 @@ class ObservabilityHeartbeatJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 requests.get(_self.http_heartbeat_url, timeout=30)
                 sent.append("http")
             if _self.teams_webhook_url_env:
-                u = os.environ[_self.teams_webhook_url_env]
+                u = _require_env(_self.teams_webhook_url_env)
                 requests.post(u, json={"@type": "MessageCard", "title": "Heartbeat", "text": _self.message}, timeout=30)
                 sent.append("teams")
             context.log.info(f"heartbeat -> {', '.join(sent) or 'no targets configured'}")

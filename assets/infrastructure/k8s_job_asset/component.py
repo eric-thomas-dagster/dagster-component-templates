@@ -8,6 +8,37 @@ import dagster as dg
 from pydantic import Field
 
 
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
+
+
 class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """Run a Kubernetes Job as a Dagster asset via dagster-k8s."""
 
@@ -20,6 +51,11 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     memory_limit: Optional[str] = Field(default=None, description="Memory limit (e.g. '2Gi').")
     group_name: str = Field(default="k8s", description="Asset group.")
     deps: Optional[List[str]] = Field(default=None, description="Upstream asset keys.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, lists=('deps',), csv=(), tags=())
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_k8s import execute_k8s_job, k8s_job_op

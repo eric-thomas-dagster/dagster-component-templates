@@ -30,15 +30,15 @@ class FreshdeskResource(ConfigurableResource):
         """
         session = self.get_session()
         base_url = session.base_url  # type: ignore[attr-defined]
-        search_resp = session.get(f"{base_url}/contacts", params={"unique_external_id": unique_external_id})
+        search_resp = session.get(f"{base_url}/contacts", params={"unique_external_id": unique_external_id}, timeout=60)
         search_resp.raise_for_status()
         matches = search_resp.json() or []
         body = dict(fields)
         body["unique_external_id"] = unique_external_id
         if matches:
-            resp = session.put(f"{base_url}/contacts/{matches[0]['id']}", json=body)
+            resp = session.put(f"{base_url}/contacts/{matches[0]['id']}", json=body, timeout=60)
         else:
-            resp = session.post(f"{base_url}/contacts", json=body)
+            resp = session.post(f"{base_url}/contacts", json=body, timeout=60)
         resp.raise_for_status()
         return resp.json()
 

@@ -185,8 +185,8 @@ class PerPartitionBackfillJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 # accounting still occurs.
                 try:
                     context.instance.add_run_tags(context.run_id, tags)
-                except Exception:
-                    pass  # best-effort
+                except Exception as _exc:
+                    context.log.warning(f"Could not persist run tag; the next run cannot dedupe against this one ({type(_exc).__name__}: {_exc})")
 
             # Look up the asset def from the loaded code location's repository.
             # `context.repository_def` is the public-facing accessor;

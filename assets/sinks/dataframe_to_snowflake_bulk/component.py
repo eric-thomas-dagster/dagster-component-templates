@@ -81,6 +81,50 @@ def coerce_upstream_input(data, *, component: str, mode: str, optional: bool = T
 # END upstream-asset-key normalization
 
 
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
+
+
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
 class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
     """Bulk-load a DataFrame into a Snowflake table via internal stage + COPY INTO.
 
@@ -138,7 +182,7 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
 
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners")
-    asset_tags: Optional[Dict[str, str]] = Field(default=None, description="Additional asset tags")
+    asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Additional asset tags")
     kinds: Optional[List[str]] = Field(default=None, description="Asset kinds (default: ['snowflake', 'python'])")
     description: Optional[str] = Field(default=None, description="Asset description")
     deps: Optional[List[str]] = Field(default=None, description="Lineage-only upstream asset keys")
@@ -146,6 +190,11 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
     retry_policy_max_retries: Optional[int] = Field(default=None, description="Max retries on failure")
     retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries")
     retry_policy_backoff: str = Field(default="exponential", description="Backoff: 'linear' or 'exponential'")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=(), tags=('asset_tags',))
 
     @model_validator(mode="before")
     @classmethod
@@ -238,9 +287,9 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
                 ) from e
 
             conn_kwargs = {
-                "account": os.environ[account_env_var],
-                "user": os.environ[user_env_var],
-                "password": os.environ[password_env_var],
+                "account": _require_env(account_env_var),
+                "user": _require_env(user_env_var),
+                "password": _require_env(password_env_var),
             }
             if database:
                 conn_kwargs["database"] = database

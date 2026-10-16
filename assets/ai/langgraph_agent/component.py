@@ -146,6 +146,37 @@ class LangGraphStep(dg.Model, dg.Resolvable):
     )
 
 
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
+
+
 class LangGraphAgentComponent(Component, Model, Resolvable):
     """Run a LangGraph pipeline as one Dagster asset — either a declarative
     prompt chain (`steps`) or your own pre-built graph (`graph_fn`). Exactly
@@ -282,7 +313,7 @@ class LangGraphAgentComponent(Component, Model, Resolvable):
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
-    asset_tags: Optional[Dict[str, str]] = Field(default=None, description="Extra asset tags.")
+    asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Extra asset tags.")
     kinds: Optional[List[str]] = Field(
         default=None,
         description="Asset kinds. Defaults to ['ai', 'langgraph', 'agent'].",
@@ -292,6 +323,11 @@ class LangGraphAgentComponent(Component, Model, Resolvable):
     retry_policy_max_retries: Optional[int] = Field(default=None, description="Max retries on failure.")
     retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries.")
     retry_policy_backoff: str = Field(default="exponential", description="'linear' or 'exponential'.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=(), tags=('asset_tags',))
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         _self = self

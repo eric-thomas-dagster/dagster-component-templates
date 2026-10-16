@@ -38,6 +38,20 @@ _POLYTOMIC_BASE_URL = "https://app.polytomic.com/api"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 def _sanitize_name(name: str) -> str:
     """Convert a Polytomic sync name to a valid Dagster asset key segment."""
     return re.sub(r"[^a-zA-Z0-9_]", "_", name).strip("_").lower()
@@ -182,7 +196,7 @@ def _build_polytomic_defs(
                 __poll=poll_interval_seconds,
                 __timeout=sync_timeout_seconds,
             ) -> dg.MaterializeResult:
-                api_key = os.environ[__api_key_env_var]
+                api_key = _require_env(__api_key_env_var)
                 headers = _polytomic_headers(api_key)
 
                 context.log.info(f"Starting Polytomic sync '{__name}' (id={__sync_id})")
@@ -268,7 +282,7 @@ def _build_polytomic_defs(
                 __timeout=sync_timeout_seconds,
                 __specs=_expanded_specs,
             ):
-                api_key = os.environ[__api_key_env_var]
+                api_key = _require_env(__api_key_env_var)
                 headers = _polytomic_headers(api_key)
 
                 context.log.info(f"Starting Polytomic sync '{__name}' (id={__sync_id})")

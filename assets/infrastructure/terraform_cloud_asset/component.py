@@ -51,6 +51,20 @@ _SUCCESS_STATUSES = frozenset({"applied", "planned_and_finished"})
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 def _tfc_headers(token: str) -> dict:
     return {
         "Authorization": f"Bearer {token}",
@@ -223,7 +237,7 @@ def _build_terraform_defs(
                 __poll_interval=_poll_interval,
                 __timeout=_timeout,
             ) -> dg.MaterializeResult:
-                token = os.environ[__api_token_env_var]
+                token = _require_env(__api_token_env_var)
                 headers = _tfc_headers(token)
 
                 # Create a run
@@ -328,7 +342,7 @@ def _build_terraform_defs(
                 __timeout=_timeout,
                 __specs=_expanded_specs,
             ):
-                token = os.environ[__api_token_env_var]
+                token = _require_env(__api_token_env_var)
                 headers = _tfc_headers(token)
 
                 # Create a run

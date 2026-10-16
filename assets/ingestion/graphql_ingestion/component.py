@@ -16,6 +16,20 @@ import dagster as dg
 from pydantic import Field
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 def _get_nested(obj: Any, path: str) -> Any:
     """Navigate a dot-separated path through nested dicts/lists."""
     for key in path.split("."):
@@ -162,6 +176,37 @@ def _build_partitions_def(
             "static_dim": StaticPartitionsDefinition(_values),
         })
     raise ValueError(f"unknown partition_type: {partition_type!r}")
+
+
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
 
 
 class GraphQLIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -354,7 +399,7 @@ class GraphQLIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Asset owners — team names ('team:analytics') or email addresses.",
     )
 
-    asset_tags: Optional[Dict[str, str]] = Field(
+    asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(
         default=None,
         description="Additional key-value tags applied to the asset in the Dagster catalog.",
     )
@@ -399,7 +444,7 @@ class GraphQLIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
     )
 
-    partition_values: Optional[str] = Field(
+    partition_values: Optional[Union[str, List[str]]] = Field(
         default=None,
         description="Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'.",
     )
@@ -435,6 +480,11 @@ class GraphQLIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, lists=('deps', 'owners', 'kinds'), csv=('partition_values',), tags=('asset_tags',))
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         # Standard catalog fields — phase 2 wiring
@@ -528,7 +578,7 @@ class GraphQLIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             import pandas as pd
             from sqlalchemy import create_engine
 
-            endpoint = os.environ[self.endpoint_env_var]
+            endpoint = _require_env(self.endpoint_env_var)
             if self.resource_key:
                 resource = getattr(context.resources, self.resource_key, None)
                 if resource is None:
@@ -541,13 +591,13 @@ class GraphQLIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
                         "URL automatically. Use database_url_env_var instead."
                     )
             elif self.database_url_env_var:
-                db_url = os.environ[self.database_url_env_var]
+                db_url = _require_env(self.database_url_env_var)
             else:
                 raise ValueError("Set 'resource_key' or 'database_url_env_var'.")
 
             headers: dict[str, str] = {"Content-Type": "application/json"}
             if self.api_key_env_var:
-                key = os.environ[self.api_key_env_var]
+                key = _require_env(self.api_key_env_var)
                 headers[self.auth_header] = (
                     f"{self.auth_prefix} {key}" if self.auth_prefix else key
                 )

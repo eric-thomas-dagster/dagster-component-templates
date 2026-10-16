@@ -12,6 +12,20 @@ from pydantic import Field
 
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 def _build_partitions_def(
     partition_type,
     partition_start,
@@ -143,8 +157,39 @@ def _resolve_db_url(context, resource_key, database_url, database_url_env_var):
     if database_url_env_var:
         if database_url_env_var not in os.environ:
             raise KeyError(f"Env var '{database_url_env_var}' is not set")
-        return os.environ[database_url_env_var]
+        return _require_env(database_url_env_var)
     raise ValueError("Set 'resource_key', 'database_url', or 'database_url_env_var'.")
+
+
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
 
 
 class SFTPToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -221,7 +266,7 @@ class SFTPToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Asset owners — team names ('team:analytics') or email addresses.",
     )
 
-    asset_tags: Optional[Dict[str, str]] = Field(
+    asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(
         default=None,
         description="Additional key-value tags applied to the asset in the Dagster catalog.",
     )
@@ -277,7 +322,7 @@ class SFTPToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Column used to filter the upstream DataFrame to the current date partition key.",
     )
 
-    partition_values: Optional[str] = Field(
+    partition_values: Optional[Union[str, List[str]]] = Field(
         default=None,
         description="Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'.",
     )
@@ -311,6 +356,11 @@ class SFTPToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default=25,
         description="Max rows to include in the preview when include_preview_metadata is True.",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, lists=('deps', 'owners', 'kinds'), csv=('partition_values',), tags=('asset_tags',))
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
@@ -373,8 +423,8 @@ class SFTPToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             import pandas as pd
             from sqlalchemy import create_engine
 
-            host = os.environ[_self.host_env_var]
-            username = os.environ[_self.username_env_var]
+            host = _require_env(_self.host_env_var)
+            username = _require_env(_self.username_env_var)
             db_url = _resolve_db_url(context, _self.resource_key, _self.database_url, _self.database_url_env_var)
 
             # Partition key(s) this call must process: a normal tick gives
@@ -392,9 +442,9 @@ class SFTPToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
             connect_kwargs: dict = {"username": username, "port": _self.port}
             if _self.private_key_env_var:
-                connect_kwargs["key_filename"] = os.environ[_self.private_key_env_var]
+                connect_kwargs["key_filename"] = _require_env(_self.private_key_env_var)
             elif _self.password_env_var:
-                connect_kwargs["password"] = os.environ[_self.password_env_var]
+                connect_kwargs["password"] = _require_env(_self.password_env_var)
 
             ssh.connect(host, **connect_kwargs)
             sftp = ssh.open_sftp()

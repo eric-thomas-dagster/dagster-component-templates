@@ -146,13 +146,44 @@ def _push(log, objects, edges, catalog_base, token_url, client_id_env, client_se
     return pushed_objects, pushed_edges
 
 
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
+
+
 class Data360ExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
     """Op-shaped job that walks the asset graph and pushes lineage to Precisely Data360."""
 
     job_name: str = Field(description="Dagster job name")
     schedule: Optional[str] = Field(default=None, description="Cron schedule (None = manual / sensor-triggered).")
     default_status: str = Field(default="STOPPED", description="STOPPED | RUNNING")
-    tags: Optional[Dict[str, str]] = Field(default=None, description="Dagster job tags")
+    tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Dagster job tags")
 
     catalog_url: str = Field(
         default="https://api.data.precisely.com/data360/catalog",
@@ -174,6 +205,11 @@ class Data360ExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
 
     only_export_on_change: bool = Field(default=True)
     fail_on_catalog_error: bool = Field(default=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, lists=(), csv=(), tags=('tags',))
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
@@ -199,8 +235,8 @@ class Data360ExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
                         last_hash = (r.tags or {}).get("data360_export/payload_hash")
                         if last_hash:
                             break
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    context.log.warning(f"Could not read the previous payload hash; pushing anyway ({type(_exc).__name__}: {_exc})")
                 if last_hash == payload_hash:
                     context.log.info(f"Asset graph unchanged (hash={payload_hash}); skipping push.")
                     context.instance.add_run_tags(context.run_id, {"data360_export/payload_hash": payload_hash})
@@ -222,8 +258,8 @@ class Data360ExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
 
             try:
                 context.instance.add_run_tags(context.run_id, {"data360_export/payload_hash": payload_hash})
-            except Exception:
-                pass
+            except Exception as _exc:
+                context.log.warning(f"Could not persist run tag; the next run cannot dedupe against this one ({type(_exc).__name__}: {_exc})")
 
             return {
                 "pushed": True,

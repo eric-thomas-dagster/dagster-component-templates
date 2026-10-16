@@ -1152,7 +1152,7 @@ if _HAS_STATE_BACKED:
                     _last_cfg = _last_failed.get("config")
                     if isinstance(_last_cfg, str):
                         try: _last_cfg = json.loads(_last_cfg)
-                        except: _last_cfg = {}
+                        except ValueError: _last_cfg = {}
                     if (
                         _last_failed.get("component_id") == cid
                         and _cfg_fingerprint(_last_cfg) == _cfg_fingerprint(cfg)

@@ -39,6 +39,20 @@ import dagster as dg
 from pydantic import Field
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 class VictoriaMetricsCardinalitySensorComponent(dg.Component, dg.Model, dg.Resolvable):
     """Watch VM series cardinality; emit RunRequest or warning SkipReason past threshold.
 
@@ -129,7 +143,7 @@ class VictoriaMetricsCardinalitySensorComponent(dg.Component, dg.Model, dg.Resol
             base_url = base_url.rstrip("/")
             headers = {}
             if _self.bearer_token_env_var and os.environ.get(_self.bearer_token_env_var):
-                headers["Authorization"] = f"Bearer {os.environ[_self.bearer_token_env_var]}"
+                headers["Authorization"] = f"Bearer {_require_env(_self.bearer_token_env_var)}"
 
             try:
                 resp = requests.get(

@@ -7,6 +7,20 @@ from dagster import ConfigurableResource
 from pydantic import Field
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 class GoogleAdsResource(ConfigurableResource):
     """Dagster resource wrapping the official `google-ads` Python client."""
 
@@ -30,10 +44,10 @@ class GoogleAdsResource(ConfigurableResource):
         from google.ads.googleads.client import GoogleAdsClient
 
         config = {
-            "developer_token": os.environ[self.developer_token_env_var],
-            "client_id": os.environ[self.client_id_env_var],
-            "client_secret": os.environ[self.client_secret_env_var],
-            "refresh_token": os.environ[self.refresh_token_env_var],
+            "developer_token": _require_env(self.developer_token_env_var),
+            "client_id": _require_env(self.client_id_env_var),
+            "client_secret": _require_env(self.client_secret_env_var),
+            "refresh_token": _require_env(self.refresh_token_env_var),
             "use_proto_plus": True,
         }
         if self.login_customer_id:

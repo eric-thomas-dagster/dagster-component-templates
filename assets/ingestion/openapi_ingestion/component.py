@@ -27,6 +27,20 @@ except ImportError:
     _HAS_STATE_BACKED = False
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 def _fetch_spec(spec_url: Optional[str], spec_path: Optional[str]) -> dict:
     """Fetch an OpenAPI spec from a URL or local file. Returns the parsed dict."""
     if spec_url:
@@ -202,11 +216,11 @@ def _build_openapi_defs(
                 import pandas as pd
                 from sqlalchemy import create_engine
 
-                base_url = os.environ[api_base_url_env_var]
-                db_url = os.environ[database_url_env_var]
+                base_url = _require_env(api_base_url_env_var)
+                db_url = _require_env(database_url_env_var)
                 headers = {}
                 if api_key_env_var:
-                    key = os.environ[api_key_env_var]
+                    key = _require_env(api_key_env_var)
                     headers[auth_header] = f"{auth_prefix} {key}" if auth_prefix else key
 
                 all_records = []

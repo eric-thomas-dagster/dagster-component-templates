@@ -42,6 +42,20 @@ import dagster as dg
 from pydantic import Field
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 class ODataResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a reusable OData connection (base URL + auth) as a Dagster resource.
 
@@ -143,13 +157,13 @@ class ODataResourceComponent(dg.Component, dg.Model, dg.Resolvable):
                             "auth_type='basic' requires auth_username_env_var + auth_password_env_var."
                         )
                     s.auth = (
-                        os.environ[cfg.auth_username_env_var],
-                        os.environ[cfg.auth_password_env_var],
+                        _require_env(cfg.auth_username_env_var),
+                        _require_env(cfg.auth_password_env_var),
                     )
                 elif cfg.auth_type == "bearer":
                     if not cfg.auth_token_env_var:
                         raise ValueError("auth_type='bearer' requires auth_token_env_var.")
-                    s.headers["Authorization"] = f"Bearer {os.environ[cfg.auth_token_env_var]}"
+                    s.headers["Authorization"] = f"Bearer {_require_env(cfg.auth_token_env_var)}"
                 elif cfg.auth_type == "oauth_resource":
                     # Note: actually resolving this requires the consumer to look up the
                     # oauth_token_resource and call its get_access_token() at request time.

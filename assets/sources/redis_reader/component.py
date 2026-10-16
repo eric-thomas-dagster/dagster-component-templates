@@ -21,6 +21,20 @@ from dagster import (
 from pydantic import Field
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 def _build_partitions_def(
     partition_type,
     partition_start,
@@ -123,6 +137,37 @@ def _build_partitions_def(
     raise ValueError(f"unknown partition_type: {partition_type!r}")
 
 
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
+
+
 class RedisReaderComponent(Component, Model, Resolvable):
     """Component for reading keys from a Redis instance.
 
@@ -207,7 +252,7 @@ class RedisReaderComponent(Component, Model, Resolvable):
         description="Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
     )
 
-    partition_values: Optional[str] = Field(
+    partition_values: Optional[Union[str, List[str]]] = Field(
         default=None,
         description="Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
     )
@@ -223,7 +268,7 @@ class RedisReaderComponent(Component, Model, Resolvable):
         default=None,
         description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
     )
-    asset_tags: Optional[Dict[str, str]] = Field(
+    asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(
         default=None,
         description="Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'}",
     )
@@ -312,6 +357,11 @@ class RedisReaderComponent(Component, Model, Resolvable):
         default=None,
         description="Asset description shown in the Dagster catalog.",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, lists=('deps', 'owners', 'kinds'), csv=('partition_values',), tags=('asset_tags',))
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
@@ -437,7 +487,7 @@ group_name=group_name,
                 raise ImportError("redis required: pip install redis")
 
             r = redis_lib.Redis(
-                host=os.environ[host_env_var],
+                host=_require_env(host_env_var),
                 port=port,
                 password=os.environ.get(password_env_var) if password_env_var else None,
                 db=db,

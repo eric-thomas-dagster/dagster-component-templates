@@ -203,6 +203,23 @@ def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
 _SQL_MODEL_DIALECTS = ("snowflake", "bigquery", "databricks")
 
 
+import re as _re_ident
+
+_SQL_IDENT = _re_ident.compile(r"^[A-Za-z0-9_$.\-]+$")
+
+
+def _check_sql_identifiers(**named):
+    """Reject table/model/column names that could change the shape of the generated SQL.
+
+    `source_sql` is deliberately free-form; every other interpolated name must be a plain
+    (optionally dot-qualified) identifier -- no quotes, whitespace, semicolons or comments.
+    """
+    for label, value in named.items():
+        for v in (value if isinstance(value, (list, tuple)) else [value]):
+            if v is not None and not _SQL_IDENT.match(str(v)):
+                raise ValueError(f"{label}={v!r} is not a plain SQL identifier (letters, digits, _ $ . - only)")
+
+
 def _build_sql_mode_statements(
     dialect: str, source_sql: str, output_table: str, model_name: str,
     target_column: str, feature_columns: List[str], task_type: str,
@@ -210,6 +227,8 @@ def _build_sql_mode_statements(
 ) -> List[str]:
     if dialect not in _SQL_MODEL_DIALECTS:
         raise ValueError(f"unsupported sql_dialect: {dialect!r}. Valid: {_SQL_MODEL_DIALECTS}")
+
+    _check_sql_identifiers(output_table=output_table, model_name=model_name, target_column=target_column, feature_columns=feature_columns)
     if task_type not in ("classification", "regression"):
         raise ValueError(f"unknown task_type: {task_type!r}. Use 'classification' or 'regression'.")
 
@@ -356,6 +375,37 @@ def coerce_upstream_input(data, *, component: str, mode: str, optional: bool = T
 # END upstream-asset-key normalization
 
 
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
+
+
 class NeuralNetworkModelComponent(Component, Model, Resolvable):
     """Fit a multi-layer perceptron neural network for classification or regression."""
 
@@ -454,7 +504,7 @@ class NeuralNetworkModelComponent(Component, Model, Resolvable):
         description="Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
     )
 
-    partition_values: Optional[str] = Field(
+    partition_values: Optional[Union[str, List[str]]] = Field(
         default=None,
         description="Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
     )
@@ -470,7 +520,7 @@ class NeuralNetworkModelComponent(Component, Model, Resolvable):
         default=None,
         description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
     )
-    asset_tags: Optional[Dict[str, str]] = Field(
+    asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(
         default=None,
         description="Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'}",
     )
@@ -501,6 +551,11 @@ class NeuralNetworkModelComponent(Component, Model, Resolvable):
         default=None,
         description="Lineage-only upstream asset keys (no data passed at runtime).",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=('partition_values',), tags=('asset_tags',))
 
     @model_validator(mode="before")
     @classmethod

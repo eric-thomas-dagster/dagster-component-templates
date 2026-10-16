@@ -41,6 +41,20 @@ from dagster import (
 from pydantic import Field
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 class ODataCheckComponent(dg.Component, dg.Model, dg.Resolvable):
     """Validate that an OData entity set is reachable and matches expectations."""
 
@@ -93,13 +107,13 @@ class ODataCheckComponent(dg.Component, dg.Model, dg.Resolvable):
                     "auth_type='basic' requires auth_username_env_var + auth_password_env_var."
                 )
             return (
-                os.environ[self.auth_username_env_var],
-                os.environ[self.auth_password_env_var],
+                _require_env(self.auth_username_env_var),
+                _require_env(self.auth_password_env_var),
             ), {}
         if self.auth_type == "bearer":
             if not self.auth_token_env_var:
                 raise ValueError("auth_type='bearer' requires auth_token_env_var.")
-            return None, {"Authorization": f"Bearer {os.environ[self.auth_token_env_var]}"}
+            return None, {"Authorization": f"Bearer {_require_env(self.auth_token_env_var)}"}
         raise ValueError(f"unknown auth_type: {self.auth_type!r}")
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:

@@ -29,6 +29,20 @@ from dagster._core.definitions.sensor_definition import DefaultSensorStatus
 from pydantic import Field
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 class SnowflakeOpenflowStatusSensorComponent(Component, Model, Resolvable):
     """Emit AssetMaterialization on each new OpenFlow telemetry activity for a named flow.
 
@@ -77,17 +91,17 @@ class SnowflakeOpenflowStatusSensorComponent(Component, Model, Resolvable):
     def _connection_kwargs(self) -> Dict[str, Any]:
         import os
         kwargs: Dict[str, Any] = {
-            "account": os.environ[self.account_env_var],
-            "user": os.environ[self.user_env_var],
+            "account": _require_env(self.account_env_var),
+            "user": _require_env(self.user_env_var),
         }
         if self.warehouse_env_var:
             kwargs["warehouse"] = os.environ.get(self.warehouse_env_var, "")
         if self.role_env_var:
             kwargs["role"] = os.environ.get(self.role_env_var, "")
         if self.pat_env_var and os.environ.get(self.pat_env_var):
-            kwargs["password"] = os.environ[self.pat_env_var]
+            kwargs["password"] = _require_env(self.pat_env_var)
         elif self.private_key_path_env_var and os.environ.get(self.private_key_path_env_var):
-            kwargs["private_key_file"] = os.environ[self.private_key_path_env_var]
+            kwargs["private_key_file"] = _require_env(self.private_key_path_env_var)
             if self.private_key_passphrase_env_var:
                 kwargs["private_key_file_pwd"] = os.environ.get(self.private_key_passphrase_env_var, "")
             kwargs["authenticator"] = "snowflake_jwt"

@@ -32,6 +32,20 @@ import dagster as dg
 from pydantic import Field
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 class DagsterFailuresToOtlpSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     """Push Dagster run failure events to an OTLP/HTTP logs endpoint.
 
@@ -115,7 +129,7 @@ class DagsterFailuresToOtlpSensorComponent(dg.Component, dg.Model, dg.Resolvable
         # Parse comma-separated headers, OTel convention.
         headers: Dict[str, str] = {"Content-Type": "application/json"}
         if self.otlp_headers_env_var and os.environ.get(self.otlp_headers_env_var):
-            for pair in os.environ[self.otlp_headers_env_var].split(","):
+            for pair in _require_env(self.otlp_headers_env_var).split(","):
                 pair = pair.strip()
                 if "=" not in pair:
                     continue

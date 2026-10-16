@@ -21,6 +21,20 @@ from dagster import (
 from pydantic import Field
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 def _emit_query_perf(cursor, query_id) -> dict:
     """Per-query Snowflake perf metrics as plottable MetadataValue.int/float fields.
 
@@ -52,6 +66,37 @@ def _emit_query_perf(cursor, query_id) -> dict:
         }
     except Exception:
         return {}
+
+
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
 
 
 class SnowflakeStoredProcedureCallAssetComponent(Component, Model, Resolvable):
@@ -98,17 +143,22 @@ class SnowflakeStoredProcedureCallAssetComponent(Component, Model, Resolvable):
     group_name: Optional[str] = Field(default="snowflake", description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
-    asset_tags: Optional[Dict[str, str]] = Field(default=None, description="Catalog tags.")
+    asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Catalog tags.")
     kinds: Optional[List[str]] = Field(default=None, description="Asset kinds (auto-includes 'snowflake').")
     deps: Optional[List[str]] = Field(default=None, description="Upstream Dagster asset keys.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=(), tags=('asset_tags',))
 
     model_config = {"populate_by_name": True}
 
     def _connection_kwargs(self) -> Dict[str, Any]:
         import os
         kwargs: Dict[str, Any] = {
-            "account": os.environ[self.account_env_var],
-            "user": os.environ[self.user_env_var],
+            "account": _require_env(self.account_env_var),
+            "user": _require_env(self.user_env_var),
             "database": self.database,
             "schema": self.schema_name,
         }
@@ -117,9 +167,9 @@ class SnowflakeStoredProcedureCallAssetComponent(Component, Model, Resolvable):
         if self.role_env_var:
             kwargs["role"] = os.environ.get(self.role_env_var, "")
         if self.pat_env_var and os.environ.get(self.pat_env_var):
-            kwargs["password"] = os.environ[self.pat_env_var]
+            kwargs["password"] = _require_env(self.pat_env_var)
         elif self.private_key_path_env_var and os.environ.get(self.private_key_path_env_var):
-            kwargs["private_key_file"] = os.environ[self.private_key_path_env_var]
+            kwargs["private_key_file"] = _require_env(self.private_key_path_env_var)
             if self.private_key_passphrase_env_var:
                 kwargs["private_key_file_pwd"] = os.environ.get(self.private_key_passphrase_env_var, "")
             kwargs["authenticator"] = "snowflake_jwt"

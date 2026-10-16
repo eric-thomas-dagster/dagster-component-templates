@@ -40,6 +40,20 @@ except ImportError:
 
 # ── Condition parser ──────────────────────────────────────────────────────────
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 def _parse_conditions(condition_str: str) -> list[str]:
     """Parse AutoSys condition syntax and return upstream job names to depend on.
 
@@ -79,7 +93,7 @@ def _rest_headers(
 ) -> dict:
     headers: dict = {"Content-Type": "application/json", "Accept": "application/json"}
     if token_env_var and os.environ.get(token_env_var):
-        headers["X-AUTH-TOKEN"] = os.environ[token_env_var]
+        headers["X-AUTH-TOKEN"] = _require_env(token_env_var)
     elif username_env_var and password_env_var:
         user = os.environ.get(username_env_var, "")
         pwd = os.environ.get(password_env_var, "")

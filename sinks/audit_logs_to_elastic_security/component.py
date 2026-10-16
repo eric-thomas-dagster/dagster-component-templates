@@ -67,6 +67,50 @@ def coerce_upstream_input(data, *, component: str, mode: str, optional: bool = T
 # END upstream-asset-key normalization
 
 
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
+
+
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
 class AuditLogsToElasticSecurityComponent(dg.Component, dg.Model, dg.Resolvable):
     """Ship audit-log DataFrame to Elastic Security via the bulk indexing API."""
 
@@ -83,7 +127,7 @@ class AuditLogsToElasticSecurityComponent(dg.Component, dg.Model, dg.Resolvable)
     description: Optional[str] = Field(default=None)
     group_name: str = Field(default="security_sink", description="Dagster asset group")
     owners: Optional[list[str]] = Field(default=None)
-    asset_tags: Optional[dict] = Field(default=None)
+    asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None)
     kinds: Optional[list[str]] = Field(default=None)
     retry_policy_max_retries: Optional[int] = Field(default=None)
     retry_policy_delay_seconds: Optional[int] = Field(default=None)
@@ -106,7 +150,7 @@ class AuditLogsToElasticSecurityComponent(dg.Component, dg.Model, dg.Resolvable)
         default=None,
         description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
     )
-    partition_values: Optional[str] = Field(
+    partition_values: Optional[Union[str, List[str]]] = Field(
         default=None,
         description="Comma-separated values for static partitioning, e.g. 'us,eu,asia'.",
     )
@@ -123,6 +167,11 @@ class AuditLogsToElasticSecurityComponent(dg.Component, dg.Model, dg.Resolvable)
         default=25,
         description="Max rows to include in the preview when include_preview_metadata is True.",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, lists=('owners', 'kinds'), csv=('partition_values',), tags=('asset_tags',))
 
     @model_validator(mode="before")
     @classmethod
@@ -210,9 +259,9 @@ class AuditLogsToElasticSecurityComponent(dg.Component, dg.Model, dg.Resolvable)
             from elasticsearch import Elasticsearch, helpers
             kw = {"verify_certs": _self.verify_certs}
             if _self.api_key_env:
-                kw["api_key"] = os.environ[_self.api_key_env]
+                kw["api_key"] = _require_env(_self.api_key_env)
             elif _self.username_env and _self.password_env:
-                kw["basic_auth"] = (os.environ[_self.username_env], os.environ[_self.password_env])
+                kw["basic_auth"] = (_require_env(_self.username_env), _require_env(_self.password_env))
             es = Elasticsearch(_self.es_url, **kw)
             actions = ({"_index": _self.index, "_source": json.loads(row.to_json())} for _, row in df.iterrows())
             success, errors = helpers.bulk(es, actions, raise_on_error=False)

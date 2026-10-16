@@ -52,7 +52,7 @@ Two modes — same field surface:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `cron_expression` | `str` | — | Cron expression (5 fields: m h dom mon dow). E.g. '0 9 * * *' = daily 09:00. REQUIRED when no partition fields are set; OPTIONAL in the partitioned-job path (cadence is inferred from the partitions_def). If supplied in t… _(full docs in schema.json + component README)_ |
-| `execution_timezone` | `str` | `"UTC"` | IANA timezone for cron evaluation, e.g. 'America/Los_Angeles'. |
+| `execution_timezone` | `str` | — | IANA timezone for cron evaluation, e.g. 'America/Los_Angeles'. Applied in the un-partitioned path (Dagster falls back to UTC when None). Silently IGNORED in the partitioned path — Dagster's build_schedule_from_partitione… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). NOTE: the schedule rejects dynamic-only partitions. |
 
 [//]: # (FIELDS:END)

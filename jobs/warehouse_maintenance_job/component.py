@@ -12,6 +12,20 @@ import dagster as dg
 from pydantic import Field
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 class WarehouseMaintenanceJobComponent(dg.Component, dg.Model, dg.Resolvable):
     """Compound op job: run warehouse maintenance (VACUUM / ANALYZE / REFRESH MATERIALIZED VIEW) across many statements with one schedule."""
 
@@ -32,7 +46,7 @@ class WarehouseMaintenanceJobComponent(dg.Component, dg.Model, dg.Resolvable):
 
         @dg.op(name=f"{self.job_name}_op")
         def _maint(context):
-            url = os.environ[_self.connection_string_env]
+            url = _require_env(_self.connection_string_env)
             engine = create_engine(url, isolation_level="AUTOCOMMIT" if _self.autocommit else None)
             errors = []
             with engine.connect() as conn:

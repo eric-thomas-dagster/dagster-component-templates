@@ -16,6 +16,20 @@ import dagster as dg
 from pydantic import Field
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 def _resolve_engine_sql(engine: str, op: str, table: str, params: dict) -> str:
     """Return the engine-specific SQL for a maintenance op."""
     if engine == "spark":
@@ -104,7 +118,7 @@ class IcebergMaintenanceJobComponent(dg.Component, dg.Model, dg.Resolvable):
         @dg.op(retry_policy=retry)
         def _maintenance(_ctx):
             from sqlalchemy import create_engine, text
-            url = os.environ[_self.connection_string_env]
+            url = _require_env(_self.connection_string_env)
             engine = create_engine(url, isolation_level="AUTOCOMMIT")
             errors = []
             results = []

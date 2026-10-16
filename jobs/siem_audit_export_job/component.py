@@ -13,6 +13,20 @@ import pandas as pd
 from pydantic import Field
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 class SiemAuditExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
     """Compound op job: pull audit logs from a SaaS source, normalize to OCSF/ECS, ship to a SIEM — all in one YAML config."""
 
@@ -48,7 +62,7 @@ class SiemAuditExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
         def _fetch_okta(cfg, end, start):
             import requests
             domain = cfg["okta_domain"]
-            token = os.environ[cfg.get("api_token_env", "OKTA_API_TOKEN")]
+            token = _require_env(cfg.get("api_token_env", "OKTA_API_TOKEN"))
             r = requests.get(f"https://{domain}/api/v1/logs",
                              params={"since": start.isoformat() + "Z", "until": end.isoformat() + "Z", "limit": 1000},
                              headers={"Authorization": f"SSWS {token}"}, timeout=60)
@@ -68,7 +82,7 @@ class SiemAuditExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
         def _fetch_github(cfg, end, start):
             import requests
             org = cfg["org"]
-            token = os.environ[cfg.get("token_env", "GITHUB_TOKEN")]
+            token = _require_env(cfg.get("token_env", "GITHUB_TOKEN"))
             r = requests.get(f"https://api.github.com/orgs/{org}/audit-log",
                              params={"phrase": f"created:>{start.isoformat()}Z", "per_page": 100},
                              headers={"Authorization": f"Bearer {token}"}, timeout=60)
@@ -106,7 +120,7 @@ class SiemAuditExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
         def _ship_splunk(df, cfg, log):
             import requests
             url = cfg["hec_url"]
-            token = os.environ[cfg.get("hec_token_env", "SPLUNK_HEC_TOKEN")]
+            token = _require_env(cfg.get("hec_token_env", "SPLUNK_HEC_TOKEN"))
             payload = "\n".join(_json.dumps({"event": _json.loads(row.to_json())}) for _, row in df.iterrows())
             r = requests.post(url, data=payload, headers={"Authorization": f"Splunk {token}"},
                               verify=cfg.get("verify_ssl", True), timeout=60)
@@ -115,7 +129,7 @@ class SiemAuditExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
 
         def _ship_datadog(df, cfg, log):
             import requests
-            api_key = os.environ[cfg.get("api_key_env", "DD_API_KEY")]
+            api_key = _require_env(cfg.get("api_key_env", "DD_API_KEY"))
             site = cfg.get("site", "datadoghq.com")
             url = f"https://http-intake.logs.{site}/api/v2/logs"
             payload = [{"message": row.to_json(), "service": cfg.get("service", "dagster-audit"), "ddsource": "dagster"}
@@ -134,7 +148,7 @@ class SiemAuditExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
 
         def _ship_sumo_logic(df, cfg, log):
             import requests
-            url = os.environ[cfg.get("collector_url_env", "SUMO_HTTP_URL")]
+            url = _require_env(cfg.get("collector_url_env", "SUMO_HTTP_URL"))
             body = "\n".join(row.to_json() for _, row in df.iterrows())
             r = requests.post(url, data=body, timeout=60)
             if r.status_code >= 300:

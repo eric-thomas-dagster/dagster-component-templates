@@ -104,8 +104,9 @@ def _discover_sibling_assets(
                 for assets_def in sibling_defs.assets:
                     for key in assets_def.keys:
                         keys.append(key.to_user_string())
-    except Exception:
-        pass
+    except Exception as _exc:
+        import logging
+        logging.getLogger(__name__).warning(f"Could not discover sibling assets for the monitored folder; the sensor will see no assets ({type(_exc).__name__}: {_exc})")
     return keys, sibling_defs
 
 
@@ -179,8 +180,9 @@ def _resolve_selection(
             matched = dg.AssetSelection.from_string(selection).resolve(graph)
             if matched:
                 return sorted(k.to_user_string() for k in matched)
-        except Exception:
-            pass
+        except Exception as _exc:
+            import logging
+            logging.getLogger(__name__).warning(f"Could not resolve the asset selection; falling back to key matching ({type(_exc).__name__}: {_exc})")
 
     return [k for k in discovered_keys if fnmatch.fnmatch(k, selection)]
 

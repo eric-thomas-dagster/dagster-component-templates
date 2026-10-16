@@ -35,6 +35,37 @@ import dagster as dg
 from pydantic import Field
 
 
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
+
+
 class DataRemediationAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """Apply an agent-produced plan of remediation actions to a DataFrame.
 
@@ -83,7 +114,7 @@ class DataRemediationAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     group_name: Optional[str] = Field(default=None, description="Asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
-    tags: Optional[Dict[str, str]] = Field(default=None, description="Catalog tags.")
+    tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Catalog tags.")
     kinds: Optional[List[str]] = Field(
         default=None,
         description="Asset kinds (auto-includes 'ai', 'dq').",
@@ -95,13 +126,18 @@ class DataRemediationAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic'",
     )
     partition_start: Optional[str] = Field(default=None, description="ISO date for time-based partitions.")
-    partition_values: Optional[str] = Field(default=None, description="Comma-separated values for static partitions.")
+    partition_values: Optional[Union[str, List[str]]] = Field(default=None, description="Comma-separated values for static partitions.")
     dynamic_partition_name: Optional[str] = Field(default=None, description="Name for DynamicPartitionsDefinition.")
     freshness_max_lag_minutes: Optional[int] = Field(default=None, description="FreshnessPolicy max lag minutes.")
     freshness_cron: Optional[str] = Field(default=None, description="FreshnessPolicy cron schedule.")
     retry_policy_max_retries: Optional[int] = Field(default=None, description="RetryPolicy max retries.")
     retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries.")
     retry_policy_backoff: str = Field(default="exponential", description="'linear' or 'exponential'.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, lists=('owners', 'kinds'), csv=('partition_values',), tags=('tags',))
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self

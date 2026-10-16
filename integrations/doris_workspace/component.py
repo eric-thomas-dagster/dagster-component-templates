@@ -64,6 +64,20 @@ _logger = logging.getLogger(__name__)
 _SYSTEM_SCHEMAS = {"information_schema", "__internal_schema", "mysql", "performance_schema"}
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 def _sanitize_asset_key(name: str) -> str:
     """Convert a Doris object name into a valid Dagster asset key segment."""
     return re.sub(r"[^a-zA-Z0-9_]", "_", name.lower())
@@ -71,6 +85,37 @@ def _sanitize_asset_key(name: str) -> str:
 
 def _matches_any(name: str, patterns: List[str]) -> bool:
     return any(fnmatch.fnmatchcase(name, p) for p in patterns)
+
+
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
 
 
 class DorisWorkspaceComponent(Component, Model, Resolvable):
@@ -139,10 +184,15 @@ class DorisWorkspaceComponent(Component, Model, Resolvable):
     # Asset-level overrides.
     group_name: Optional[str] = Field(default="doris", description="Dagster group name for all discovered assets.")
     owners: Optional[List[str]] = Field(default=None, description="Owners applied to every discovered asset.")
-    tags: Optional[Dict[str, str]] = Field(default=None, description="Tags applied to every discovered asset.")
+    tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Tags applied to every discovered asset.")
     kinds: Optional[List[str]] = Field(default=None, description="Additional kinds (always includes 'doris').")
 
     request_timeout_seconds: int = Field(default=30, ge=1)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, lists=('owners', 'kinds'), csv=(), tags=('tags',))
 
     # --------------------------------------------------------------------- conn
 
@@ -151,7 +201,7 @@ class DorisWorkspaceComponent(Component, Model, Resolvable):
         if self.password is not None:
             return self.password
         if self.password_env_var and os.environ.get(self.password_env_var):
-            return os.environ[self.password_env_var]
+            return _require_env(self.password_env_var)
         raise RuntimeError(
             "Doris workspace requires a password — set `password` or "
             f"`password_env_var` (currently {self.password_env_var!r})."

@@ -72,6 +72,20 @@ DEFAULT_RESULT_PATHS = {
 }
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 class DagsterPlusToSiemJobComponent(dg.Component, dg.Model, dg.Resolvable):
     """Compound op job: pull Dagster+ events (audit-log/runs/asset-events) → optionally normalize → ship to SIEM (Splunk/Sentinel/Datadog/Sumo/S3) on cron."""
 
@@ -134,7 +148,7 @@ class DagsterPlusToSiemJobComponent(dg.Component, dg.Model, dg.Resolvable):
 
         def _fetch(context):
             import requests
-            token = os.environ[_self.user_token_env]
+            token = _require_env(_self.user_token_env)
             headers = {"Dagster-Cloud-Api-Token": token, "Content-Type": "application/json"}
             query = _self.query or DEFAULT_QUERIES.get(_self.event_type)
             if not query:
@@ -224,7 +238,7 @@ class DagsterPlusToSiemJobComponent(dg.Component, dg.Model, dg.Resolvable):
         def _ship_splunk(df, cfg, log):
             import requests
             url = cfg["hec_url"]
-            token = os.environ[cfg.get("hec_token_env", "SPLUNK_HEC_TOKEN")]
+            token = _require_env(cfg.get("hec_token_env", "SPLUNK_HEC_TOKEN"))
             payload = "\n".join(_json.dumps({
                 "event": _json.loads(row.to_json()),
                 **({"index": cfg["index"]} if cfg.get("index") else {}),
@@ -239,7 +253,7 @@ class DagsterPlusToSiemJobComponent(dg.Component, dg.Model, dg.Resolvable):
         def _ship_sentinel(df, cfg, log):
             import requests, hashlib, hmac, base64
             workspace_id = cfg["workspace_id"]
-            key = os.environ[cfg.get("workspace_key_env", "SENTINEL_WORKSPACE_KEY")]
+            key = _require_env(cfg.get("workspace_key_env", "SENTINEL_WORKSPACE_KEY"))
             log_type = cfg.get("log_type", "DagsterPlusAudit")
             body = df.to_json(orient="records")
             now = dt.datetime.utcnow().strftime("%a, %d %b %Y %H:%M:%S GMT")
@@ -258,7 +272,7 @@ class DagsterPlusToSiemJobComponent(dg.Component, dg.Model, dg.Resolvable):
 
         def _ship_datadog(df, cfg, log):
             import requests
-            api_key = os.environ[cfg.get("api_key_env", "DD_API_KEY")]
+            api_key = _require_env(cfg.get("api_key_env", "DD_API_KEY"))
             site = cfg.get("site", "datadoghq.com")
             url = f"https://http-intake.logs.{site}/api/v2/logs"
             payload = [{"message": row.to_json(), "service": cfg.get("service", "dagster-plus"), "ddsource": "dagster"} for _, row in df.iterrows()]
@@ -268,7 +282,7 @@ class DagsterPlusToSiemJobComponent(dg.Component, dg.Model, dg.Resolvable):
 
         def _ship_sumo_logic(df, cfg, log):
             import requests
-            url = os.environ[cfg.get("collector_url_env", "SUMO_HTTP_URL")]
+            url = _require_env(cfg.get("collector_url_env", "SUMO_HTTP_URL"))
             body = "\n".join(row.to_json() for _, row in df.iterrows())
             r = requests.post(url, data=body, timeout=60)
             if r.status_code >= 300:

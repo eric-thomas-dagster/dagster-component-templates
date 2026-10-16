@@ -37,6 +37,20 @@ import dagster as dg
 from pydantic import Field
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 class DagsterRunsToPrometheusSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     """Push Dagster run lifecycle metrics to Prometheus Push Gateway / VM / Mimir.
 
@@ -184,7 +198,7 @@ class DagsterRunsToPrometheusSensorComponent(dg.Component, dg.Model, dg.Resolvab
         base_url = base_url.rstrip("/")
         headers = {"Content-Type": "text/plain; version=0.0.4"}
         if self.bearer_token_env_var and os.environ.get(self.bearer_token_env_var):
-            headers["Authorization"] = f"Bearer {os.environ[self.bearer_token_env_var]}"
+            headers["Authorization"] = f"Bearer {_require_env(self.bearer_token_env_var)}"
 
         if self.target_kind == "vm_import":
             # VictoriaMetrics: text-format ingest.

@@ -182,6 +182,37 @@ def _validate_interval_matches_cadence(every: str, unit: str, cadence: str) -> N
         )
 
 
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
+
+
 class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
     """Run an asset selection at a fixed interval (every N minutes / hours / days).
 
@@ -208,7 +239,7 @@ class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
     default_status: str = Field(default="STOPPED", description="'RUNNING' or 'STOPPED'.")
-    tags: Optional[Dict[str, str]] = Field(default=None, description="Tags applied to runs created by this schedule.")
+    tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Tags applied to runs created by this schedule.")
 
     partition_type: Optional[str] = Field(
         default=None,
@@ -223,7 +254,7 @@ class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Partition start in ISO format (e.g. '2024-01-01' or '2024-01-01-00:00' for hourly). Required for time-based types.",
     )
-    partition_values: Optional[str] = Field(
+    partition_values: Optional[Union[str, List[str]]] = Field(
         default=None,
         description="Comma-separated values for multi-axis partitioning (unused in flat time-based mode).",
     )
@@ -235,6 +266,11 @@ class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, lists=(), csv=('partition_values',), tags=('tags',))
 
     def build_defs(self, context: dg.ComponentLoadContext) -> Definitions:
         targets = [AssetKey.from_user_string(k) for k in self.asset_keys]

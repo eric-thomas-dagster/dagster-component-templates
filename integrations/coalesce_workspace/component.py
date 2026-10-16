@@ -101,6 +101,20 @@ except ImportError:
 
 # ── Resource ──────────────────────────────────────────────────────────────────
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 class CoalesceResource(dg.ConfigurableResource):
     """Shared Coalesce connection config.
 
@@ -463,7 +477,7 @@ def _build_coalesce_defs(
     def coalesce_project(context: AssetExecutionContext):
         import time
 
-        token = os.environ[api_token_env_var]
+        token = _require_env(api_token_env_var)
         headers = {"Authorization": f"Bearer {token}"}
 
         # Group selected asset keys by node_id (one node may map to multiple assets)

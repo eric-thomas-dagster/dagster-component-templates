@@ -37,6 +37,20 @@ except ImportError:
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 def _sanitize(name: str) -> str:
     """Lowercase and replace non-alphanumeric characters with underscores."""
     return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
@@ -154,8 +168,8 @@ def _build_dataiku_defs(
                         deps=list(spec.deps or []),
                     )
                     def _dataiku_scenario_asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
-                        host = os.environ[host_env_var].rstrip("/")
-                        api_key = os.environ[api_key_env_var]
+                        host = _require_env(host_env_var).rstrip("/")
+                        api_key = _require_env(api_key_env_var)
                         auth = (api_key, "")
 
                         # Trigger the scenario
@@ -222,8 +236,8 @@ def _build_dataiku_defs(
 
                     @dg.multi_asset(specs=_expanded_specs, name=f"{_safe_scenario}_multi")
                     def _dataiku_scenario_multi_asset(context: dg.AssetExecutionContext):
-                        host = os.environ[host_env_var].rstrip("/")
-                        api_key = os.environ[api_key_env_var]
+                        host = _require_env(host_env_var).rstrip("/")
+                        api_key = _require_env(api_key_env_var)
                         auth = (api_key, "")
 
                         # Trigger the scenario

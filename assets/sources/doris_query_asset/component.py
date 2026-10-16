@@ -23,6 +23,50 @@ import pandas as pd
 from pydantic import Field
 
 
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
+
+
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
 class DorisQueryAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """Run a SQL query against Apache Doris and emit the result as a DataFrame asset.
 
@@ -79,9 +123,14 @@ class DorisQueryAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     group_name: Optional[str] = Field(default="doris", description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
-    tags: Optional[Dict[str, str]] = Field(default=None, description="Catalog tags.")
+    tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Catalog tags.")
     kinds: Optional[List[str]] = Field(default=None, description="Asset kinds (auto-includes 'doris').")
     deps: Optional[List[str]] = Field(default=None, description="Upstream Dagster asset keys.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=(), tags=('tags',))
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
@@ -104,7 +153,7 @@ class DorisQueryAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 raise ImportError("doris_query_asset requires `sqlalchemy>=2.0`: pip install sqlalchemy pymysql")
 
             if _self.connection_string_env_var and os.environ.get(_self.connection_string_env_var):
-                conn_str = os.environ[_self.connection_string_env_var]
+                conn_str = _require_env(_self.connection_string_env_var)
             else:
                 host = os.environ.get(_self.host_env_var or "", "")
                 user = os.environ.get(_self.username_env_var or "", "")

@@ -42,6 +42,20 @@ ARGO_TERMINAL_SUCCESS = {"Succeeded", "Skipped"}
 ARGO_TERMINAL_FAIL = {"Failed", "Error", "Omitted"}
 
 
+def _require_env(name: str) -> str:
+    """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
+    from dagster import EnvVar
+
+    value = EnvVar(name).get_value()
+    if value is None:
+        raise KeyError(
+            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            "Dagster code location (or point the *_env_var field at one that is)."
+        )
+    return value
+
+
+
 class ArgoWorkflowSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     """Fire a Dagster job when an Argo Workflow reaches a terminal success phase.
 
@@ -157,7 +171,7 @@ class ArgoWorkflowSensorComponent(dg.Component, dg.Model, dg.Resolvable):
                 return SensorResult(skip_reason=f"{_self.host_env_var} not set")
             headers: Dict[str, str] = {"Accept": "application/json"}
             if _self.token_env_var and os.environ.get(_self.token_env_var):
-                headers["Authorization"] = f"Bearer {os.environ[_self.token_env_var]}"
+                headers["Authorization"] = f"Bearer {_require_env(_self.token_env_var)}"
 
             # Pick the workflow to inspect.
             if _self.workflow_name:

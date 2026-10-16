@@ -39,14 +39,15 @@ class PipedriveResource(ConfigurableResource):
         search_resp = session.get(
             f"{base_url}/persons/search",
             params={"term": key_value, "fields": key_field, "exact_match": "true"},
+            timeout=60,
         )
         search_resp.raise_for_status()
         items = (search_resp.json().get("data") or {}).get("items") or []
         if items:
             person_id = items[0]["item"]["id"]
-            resp = session.put(f"{base_url}/persons/{person_id}", json=fields)
+            resp = session.put(f"{base_url}/persons/{person_id}", json=fields, timeout=60)
         else:
-            resp = session.post(f"{base_url}/persons", json=fields)
+            resp = session.post(f"{base_url}/persons", json=fields, timeout=60)
         resp.raise_for_status()
         return resp.json()
 

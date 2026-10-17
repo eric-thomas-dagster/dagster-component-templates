@@ -1922,6 +1922,29 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
 # column types via the canonical block above. The row folding is the shared _fold_* code, so results match the other stores
 # (a parity test runs one scenario through each). Writes use one transaction per call where the database has them.
 
+_SQL_DRIVER_HINTS = {  # URL scheme -> what to pip install (these drivers are optional: only the backend you use needs one)
+    "postgresql": "sqlalchemy psycopg2-binary", "postgres": "sqlalchemy psycopg2-binary", "mysql": "sqlalchemy pymysql",
+    "mariadb": "sqlalchemy pymysql", "snowflake": "sqlalchemy snowflake-sqlalchemy", "databricks": "sqlalchemy databricks-sqlalchemy",
+    "duckdb": "sqlalchemy duckdb-engine", "sqlite": "sqlalchemy",
+}
+
+
+def _create_sql_engine(url: str) -> Any:
+    """``sqlalchemy.create_engine`` with an actionable error when the SQLAlchemy driver for this database is not installed."""
+    scheme = url.split(":", 1)[0].split("+", 1)[0].lower()
+    hint = _SQL_DRIVER_HINTS.get(scheme)
+    try:
+        import sqlalchemy
+
+        return sqlalchemy.create_engine(url)
+    except (ImportError, Exception) as exc:  # noqa: BLE001  (NoSuchModuleError subclasses Exception, not ImportError)
+        missing = isinstance(exc, ImportError) or type(exc).__name__ == "NoSuchModuleError"
+        if missing and hint:
+            raise ImportError(f"backend: sql with a {scheme!r} URL needs its SQLAlchemy driver, which is not installed: "
+                              f"pip install {hint}  (underlying error: {exc})") from exc
+        raise
+
+
 _SQL_DIALECT_NAMES = {"postgresql": "postgres", "postgres": "postgres", "mysql": "mysql", "mariadb": "mysql", "sqlite": "sqlite",
                       "duckdb": "duckdb", "snowflake": "snowflake", "databricks": "databricks"}
 
@@ -1937,7 +1960,7 @@ class SqlContextReceiptStore(ContextReceiptStore):
         self._engine_obj: Any = None
         self._engine_factory: Any = None
         if isinstance(engine, str):
-            self._engine_factory = lambda url=engine: __import__("sqlalchemy").create_engine(url)
+            self._engine_factory = lambda url=engine: _create_sql_engine(url)
         elif callable(engine) and not hasattr(engine, "dialect"):
             self._engine_factory = engine
         else:
@@ -2880,7 +2903,10 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
             location, env_var = self.bigquery_location, self.gcp_credentials_env_var
 
             def client_factory():
-                from dagster_gcp import BigQueryResource  # dagster-gcp is only needed for this backend
+                try:
+                    from dagster_gcp import BigQueryResource  # dagster-gcp is only needed for this backend
+                except ImportError as exc:
+                    raise ImportError("backend: bigquery needs dagster-gcp (it brings google-cloud-bigquery): pip install dagster-gcp") from exc
 
                 creds = dg.EnvVar(env_var).get_value() if env_var else None
                 return BigQueryResource(project=project, location=location, gcp_credentials=creds).get_client()
@@ -2893,9 +2919,7 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
             url_env = self.sql_url_env_var
 
             def engine_factory():
-                import sqlalchemy
-
-                return sqlalchemy.create_engine(dg.EnvVar(url_env).get_value())
+                return _create_sql_engine(dg.EnvVar(url_env).get_value())
 
             cls = AsyncSqlContextReceiptStore if self.async_writes else SqlContextReceiptStore
             store = cls(engine_factory, schema=self.sql_schema, table_prefix=self.sql_table_prefix)

@@ -221,3 +221,16 @@ def test_mysql_ddl_quotes_the_reserved_rank_column(mod):
     ddl = "\n".join(mod.receipt_table_ddl("db", "p_", "mysql"))
     assert "`rank` BIGINT" in ddl and "{K}" not in ddl
     assert "\n".join(mod.receipt_table_ddl("db", "p_", "postgres")).count(" rank BIGINT") == 1
+
+
+def test_missing_sql_driver_names_exactly_what_to_install(mod, monkeypatch):
+    import sqlalchemy
+    from sqlalchemy.exc import NoSuchModuleError
+
+    def boom(url, **kw):
+        raise NoSuchModuleError("Can't load plugin: sqlalchemy.dialects:snowflake")
+    monkeypatch.setattr(sqlalchemy, "create_engine", boom)
+    with pytest.raises(ImportError, match="pip install sqlalchemy snowflake-sqlalchemy"):
+        mod._create_sql_engine("snowflake://u:p@acct/db")
+    with pytest.raises(ImportError, match="psycopg2-binary"):
+        mod._create_sql_engine("postgresql+psycopg2://u@h/db")

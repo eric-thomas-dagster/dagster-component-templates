@@ -276,6 +276,10 @@ def approve_step(tmp_path, **kw):
     return {"id": "gate", "op": "approve", "source": "draft", "approval_dir": str(tmp_path), "key": "t1", **kw}
 
 
+def fp(mod, text="Refund $120 to customer 9", step_id="gate", **kw):
+    return mod._approval_fingerprint(step_id, text, mod._clip(text, 600), **kw)
+
+
 def state_with_draft(**kw):
     s = new_state(**kw)
     s["draft"] = {"text": "Refund $120 to customer 9"}
@@ -283,13 +287,13 @@ def state_with_draft(**kw):
 
 
 def test_approved_token_passes_the_text_through(mod, ctx, tmp_path):
-    (tmp_path / "t1.json").write_text(json.dumps({"approved": True, "approver": "eric", "reason": "ok"}))
+    (tmp_path / "t1.json").write_text(json.dumps({"approved": True, "approver": "eric", "reason": "ok", "fingerprint": fp(mod)}))
     out, _ = run(mod, ctx, approve_step(tmp_path), state_with_draft())
     assert out["approved"] is True and out["status"] == "approved" and out["approver"] == "eric" and out["text"] == "Refund $120 to customer 9"
 
 
 def test_rejected_stops_the_pipeline_or_continues_on_request(mod, ctx, tmp_path):
-    (tmp_path / "t1.json").write_text(json.dumps({"approved": False, "reason": "wrong customer"}))
+    (tmp_path / "t1.json").write_text(json.dumps({"approved": False, "reason": "wrong customer", "fingerprint": fp(mod)}))
     with pytest.raises(RuntimeError, match="wrong customer"):
         run(mod, ctx, approve_step(tmp_path), state_with_draft())
     out, _ = run(mod, ctx, approve_step(tmp_path, on_reject="continue"), state_with_draft())
@@ -299,7 +303,7 @@ def test_rejected_stops_the_pipeline_or_continues_on_request(mod, ctx, tmp_path)
 def test_no_token_defaults_to_reject_the_safe_default(mod, ctx, tmp_path):
     with pytest.raises(RuntimeError, match="timeout_default_reject"):
         run(mod, ctx, approve_step(tmp_path), state_with_draft())
-    assert not (tmp_path / "pending" / "t1.json").exists()                 # decided (by default) -> left the queue
+    assert json.loads((tmp_path / "pending" / "t1.json").read_text())["outcome"] == "timeout_default_reject"   # stays queued, marked
 
 
 def test_timeout_policies(mod, ctx, tmp_path):
@@ -315,7 +319,7 @@ def test_token_arriving_during_the_window_is_honoured(mod, ctx, tmp_path):
     def reviewer():
         time.sleep(0.4)
         assert (tmp_path / "pending" / "t1.json").exists()                  # the request was visible while waiting
-        (tmp_path / "t1.json").write_text(json.dumps({"approved": True, "approver": "slack:eric"}))
+        (tmp_path / "t1.json").write_text(json.dumps({"approved": True, "approver": "slack:eric", "fingerprint": fp(mod)}))
 
     t = threading.Thread(target=reviewer)
     t.start()
@@ -421,7 +425,7 @@ def test_approve_reads_a_token_and_writes_the_queue_on_remote_storage(mod, ctx):
     assert out["status"] == "pending"
     pending = json.loads(fs.cat_file("/approvals-remote-1/pending/t1.json"))                     # queue entry on the remote store
     assert pending["approve_by_writing"]["path"] == f"{base}/t1.json"                            # the URI a reviewer should write to
-    fs.pipe_file("/approvals-remote-1/t1.json", json.dumps({"approved": True, "approver": "bucket-reviewer"}).encode())
+    fs.pipe_file("/approvals-remote-1/t1.json", json.dumps({"approved": True, "approver": "bucket-reviewer", "fingerprint": fp(mod)}).encode())
     out, _ = run(mod, ctx, dict(step), state_with_draft())
     assert out["approved"] is True and out["approver"] == "bucket-reviewer" and out["text"] == "Refund $120 to customer 9"
     assert not fs.exists("/approvals-remote-1/pending/t1.json")                                  # decided -> out of the queue

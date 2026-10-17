@@ -585,17 +585,87 @@ def _ctx_of(state: Dict[str, Any]) -> Dict[str, Any]:
     return state.get("__ctx__") or {}
 
 
+_SRC_PLACEHOLDER_RE = re.compile(r"\{(partition_key|partition_start|partition_end|partition\.[A-Za-z0-9_\-]+)\}")
+
+
+def _partition_window(partition_key: Optional[str], partitions_def) -> Optional[Dict[str, str]]:
+    """{"partition_start", "partition_end"} (ISO) for a time-window partition (or the time dimension of a multi-partition),
+    else None."""
+    if partition_key is None or partitions_def is None:
+        return None
+    from dagster import MultiPartitionsDefinition, TimeWindowPartitionsDefinition
+    try:
+        if isinstance(partitions_def, TimeWindowPartitionsDefinition):
+            w = partitions_def.time_window_for_partition_key(partition_key)
+        elif isinstance(partitions_def, MultiPartitionsDefinition):
+            kbd = getattr(partition_key, "keys_by_dimension", None)
+            if kbd is None:
+                return None
+            w = None
+            for d in partitions_def.partitions_defs:
+                if isinstance(d.partitions_def, TimeWindowPartitionsDefinition):
+                    w = d.partitions_def.time_window_for_partition_key(kbd[d.name])
+                    break
+        else:
+            return None
+    except Exception:
+        return None
+    return {"partition_start": w.start.isoformat(), "partition_end": w.end.isoformat()} if w is not None else None
+
+
+def _source_placeholders(s: Any) -> List[str]:
+    """Partition placeholders in a source string ({{ and }} are literal-brace escapes)."""
+    return _SRC_PLACEHOLDER_RE.findall(str(s).replace("{{", "\0").replace("}}", "\0"))
+
+
+def _bind_source_sql(sql: str, partition_key: Optional[str], partition_fields: Optional[Dict[str, Any]],
+                     window: Optional[Dict[str, str]]) -> str:
+    """Bind {partition_key} / {partition.<dim>} / {partition_start} / {partition_end} into a `database` source query as COMPLETE
+    single-quoted SQL string literals (embedded quotes doubled; `{{` / `}}` are literal braces) -- same semantics as
+    context_engineering_pipeline's warehouse_query source. Write `WHERE day = {partition_key}`, not `'{partition_key}'`: a
+    placeholder already wrapped in quotes is rejected rather than double-quoted. The query runs through sqlalchemy.text(), so
+    colons inside bound values are escaped (`\\:`) to avoid being read as bind parameters."""
+    names = _source_placeholders(sql)
+    unescape = lambda t: t.replace("{{", "{").replace("}}", "}")  # noqa: E731
+    if not names:
+        return unescape(sql)
+    bindings: Dict[str, Any] = {}
+    if partition_key is not None:
+        bindings["partition_key"] = partition_key
+    for k, v in (partition_fields or {}).items():
+        bindings[f"partition.{k}"] = v
+    bindings.update(window or {})
+    for n in set(names):
+        if n not in bindings:
+            raise ValueError(f"source.query: placeholder {{{n}}} is not available for this run; available: {sorted(bindings)}")
+        if re.search(rf"[\'\"`]\{{{re.escape(n)}\}}|\{{{re.escape(n)}\}}[\'\"`]", sql):
+            raise ValueError(f"source.query: {{{n}}} is replaced by a complete quoted string literal; remove the quotes around it")
+    protected = sql.replace("{{", "\0L").replace("}}", "\0R")
+
+    def quote(m):
+        v = str(bindings[m.group(1)]).replace("'", "''").replace(":", "\\:")
+        return f"'{v}'"
+    out = _SRC_PLACEHOLDER_RE.sub(quote, protected)
+    return out.replace("\0L", "{").replace("\0R", "}")
+
+
 def _ingest(
     source_config: dict,
     context,
     partition_key: Optional[str] = None,
     partition_fields: Optional[Dict[str, str]] = None,
+    partitions_def=None,
 ) -> Dict[str, Any]:
     """Return the initial state dict: {"text": str, "source_kind": str, ...}."""
     kind = source_config.get("kind", "literal")
+    window = _partition_window(partition_key, partitions_def)
 
     def _sub(s: Any) -> Any:
-        return _apply_ctx_substitutions(s, partition_key, partition_fields)
+        s = _apply_ctx_substitutions(s, partition_key, partition_fields)
+        if window and isinstance(s, str):
+            for k, v in window.items():
+                s = s.replace("{" + k + "}", v)
+        return s
 
     if kind == "literal":
         raw = source_config["text"]
@@ -635,7 +705,7 @@ def _ingest(
         else:
             raise ValueError("source kind=database requires 'database_url' or 'database_url_env_var'")
 
-        query = _sub(source_config["query"])
+        query = _bind_source_sql(source_config["query"], partition_key, partition_fields, window)
         row_limit = source_config.get("row_limit", 500)
 
         engine = sqlalchemy.create_engine(url)
@@ -976,6 +1046,64 @@ def _build_backfill_policy(partitions_def, policy: Optional[str], max_per_run: O
             f"{where}: backfill_policy_max_partitions_per_run={max_per_run} is not supported: a run with several partitions has "
             "no single partition_key (see backfill_policy='single_run'). Leave it unset or use 1.")
     return dg.BackfillPolicy.multi_run(max_partitions_per_run=1)
+
+
+def _step_strings(obj: Any):
+    if isinstance(obj, str):
+        yield obj
+    elif isinstance(obj, dict):
+        for v in obj.values():
+            yield from _step_strings(v)
+    elif isinstance(obj, (list, tuple)):
+        for v in obj:
+            yield from _step_strings(v)
+
+
+def _validate_source_partitioning(source_config: Dict[str, Any], steps: List[Dict[str, Any]], partitions_def) -> None:
+    """A partitioned pipeline whose INPUT never mentions the partition reads the same input in every partition.
+
+    Per source kind (what can be templated, and what an identical read means):
+      * upstream_asset -- nothing to template: a partitioned upstream maps partition-to-partition automatically. No check.
+      * literal -- constant text can never differ between partitions: RAISE, unless some step consumes the partition
+        (a prompt_template / tool_args / ... with a partition placeholder), which makes a fixed source a deliberate choice.
+      * file / url -- WARN: the content behind a static path/URL may legitimately change between runs (a "latest" snapshot),
+        but a backfill cannot reproduce past partitions from it. Raising would forbid that real use.
+      * database -- WARN: the query CAN be bound to the partition ({partition_key}, {partition_start}/{partition_end}); without
+        it every partition reads the whole table. (Not an error: a deliberate full re-read per partition is possible.)
+    Placeholders that cannot resolve (e.g. {partition_start} without a time-window partition) always raise."""
+    kind = source_config.get("kind", "literal")
+    field = {"literal": "text", "file": "path", "url": "url", "database": "query"}.get(kind)
+    if field is None:
+        return
+    value = str(source_config.get(field, ""))
+    names = set(_source_placeholders(value))
+    if names & {"partition_start", "partition_end"}:
+        from dagster import MultiPartitionsDefinition, TimeWindowPartitionsDefinition
+        timed = isinstance(partitions_def, TimeWindowPartitionsDefinition) or (
+            isinstance(partitions_def, MultiPartitionsDefinition)
+            and any(isinstance(d.partitions_def, TimeWindowPartitionsDefinition) for d in partitions_def.partitions_defs))
+        if not timed:
+            raise ValueError(f"source.{field}: {{partition_start}} / {{partition_end}} need a daily/weekly/monthly/hourly partition "
+                             "(or a multi-partition with a time dimension)")
+    if partitions_def is None:
+        if names and kind == "database":
+            raise ValueError(f"source.query uses partition placeholder(s) {sorted(names)} but no partitioning is configured")
+        return
+    if names:
+        return
+    used_in_steps = any(
+        _source_placeholders(t) for st in steps for k, v in st.items()
+        if not (st.get("op") == "approve" and k in ("key", "approval_dir")) for t in _step_strings(v))
+    if kind == "literal" and not used_in_steps:
+        raise ValueError(
+            "partitioned pipeline, but the literal source text has no {partition_key} / {partition.<name>} / {partition_start} / "
+            "{partition_end} placeholder and no step uses one either: every partition would process the identical input. "
+            "Template the source (or a step's prompt), or drop the partitioning.")
+    if kind in ("file", "url", "database") and not (kind != "database" and used_in_steps):
+        logging.getLogger(__name__).warning(
+            "agentic_pipeline: partitioned, but source.%s (kind=%s) has no partition placeholder ({partition_key}, "
+            "{partition.<name>}, {partition_start}, {partition_end}): every partition reads the SAME input%s.",
+            field, kind, " (the whole query result)" if kind == "database" else "")
 
 
 def _validate_approve_partitioning(steps: List[Dict[str, Any]], partitioned: bool) -> None:
@@ -5161,6 +5289,16 @@ class _ApprovalStore:
             with open(p, "w") as f:
                 f.write(text)
 
+    def modified(self, p: str) -> Optional[datetime]:
+        """Last-modified time of a file (fallback age for tokens without `approved_at`); None when the store can't say."""
+        try:
+            if self.is_uri:
+                m = self.fs.modified(p)
+                return m if m.tzinfo else m.replace(tzinfo=timezone.utc)
+            return datetime.fromtimestamp(os.path.getmtime(p), tz=timezone.utc)
+        except (OSError, NotImplementedError, AttributeError, ValueError):
+            return None
+
     def remove(self, p: str) -> None:
         try:
             self.fs.rm(p) if self.is_uri else os.remove(p)
@@ -5179,23 +5317,111 @@ def _approval_key(raw: Any) -> str:
     return safe
 
 
-def _do_approve(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
-    """Human gate inside the pipeline, using the SAME token contract as `human_approval_gate`:
-    `<approval_dir>/<key>.json` = {"approved": true|false, "approver": "...", "reason": "..."} -- written by anything (Slack bot,
-    Retool, a CLI, another asset).
+_APPROVE_REUSE = ("once", "until_changed", "always")
 
-    While waiting, a pending record is written to `<approval_dir>/pending/<key>.json` (what is being approved, why, when it expires):
-    that directory IS the review queue. Pair with a `when:` guard so only exceptions reach a human.
+
+def _validate_approve_options(steps: List[Dict[str, Any]]) -> None:
+    for st in steps:
+        if st.get("op") != "approve":
+            continue
+        where = f"approve step {st.get('id')!r}"
+        if st.get("reuse", "until_changed") not in _APPROVE_REUSE:
+            raise ValueError(f"{where}: reuse must be one of {' | '.join(_APPROVE_REUSE)}, got {st.get('reuse')!r}")
+        bt = st.get("bind_to", ["text", "summary"])
+        if not isinstance(bt, list) or not bt or any(b not in ("text", "summary") for b in bt):
+            raise ValueError(f"{where}: bind_to must be a non-empty list drawn from [text, summary], got {bt!r}")
+        age = st.get("max_age_hours")
+        if age is not None:
+            try:
+                ok = float(age) > 0
+            except (TypeError, ValueError):
+                ok = False
+            if not ok:
+                raise ValueError(f"{where}: max_age_hours must be a number > 0 (omit it for no expiry), got {age!r}")
+
+
+def _approval_fingerprint(step_id: str, text: str, summary: str, bind_to: Optional[List[str]] = None) -> str:
+    """What an approval is bound to: the step plus what the reviewer was shown (by default the full input text and the summary;
+    `bind_to` narrows it, e.g. [summary] when the text is regenerated by a model on every run)."""
+    import hashlib
+    bind_to = bind_to or ["text", "summary"]
+    blob = json.dumps({"step": step_id, **({"text": text} if "text" in bind_to else {}),
+                       **({"summary": summary} if "summary" in bind_to else {})}, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:32]
+
+
+def _approval_token_state(tok: Optional[Dict[str, Any]], fingerprint: str, reuse: str, max_age_hours: Optional[float],
+                          modified: Optional[datetime], now: Optional[datetime] = None) -> "tuple[str, Optional[str]]":
+    """Is this token a valid decision for the CURRENT request? -> (state, reason). state: valid | none | consumed | expired | stale.
+    The reason is what the run log, the pending record and the review queue show."""
+    if tok is None:
+        return "none", None
+    if tok.get("consumed_at"):
+        return "consumed", f"consumed: this approval was already used by a run at {tok['consumed_at']}; a fresh one is needed"
+    if max_age_hours is not None:
+        at = None
+        try:
+            at = datetime.fromisoformat(str(tok["approved_at"]).replace("Z", "+00:00")) if tok.get("approved_at") else None
+            at = at.replace(tzinfo=timezone.utc) if at is not None and at.tzinfo is None else at
+        except ValueError:
+            at = None
+        at = at or modified
+        if at is None:
+            return "expired", "approval expired: its age cannot be determined (no approved_at, no modification time)"
+        age_h = ((now or datetime.now(timezone.utc)) - at).total_seconds() / 3600.0
+        if age_h > float(max_age_hours):
+            return "expired", f"approval expired: given {age_h:.1f}h ago, max_age_hours={max_age_hours:g}"
+    if reuse != "always":
+        fp = tok.get("fingerprint")
+        if not fp:
+            return "stale", "token carries no fingerprint, so it is not bound to what was reviewed (write the token from the pending record)"
+        if fp != fingerprint:
+            return "stale", "input changed since approval"
+    return "valid", None
+
+
+def approve_pending(approval_dir: str, key: str, *, approved: bool = True, approver: str = "<you>", reason: str = "") -> Dict[str, Any]:
+    """Approve (or reject) the pending record AS WRITTEN: copies its fingerprint into the token, so the decision is bound to
+    exactly what was shown. Reviewer tooling (CLI/API/Slack bot) does the same by writing the token from the record's
+    `approve_by_writing.json`. Raises FileNotFoundError when nothing is pending for the key."""
+    store = _ApprovalStore(approval_dir)
+    key = _approval_key(key)
+    pend = json.loads(store.read_text(store.path("pending", f"{key}.json")))
+    tok = {**(pend.get("approve_by_writing") or {}).get("json", {}), "approved": bool(approved), "approver": approver,
+           "reason": reason, "fingerprint": pend["fingerprint"], "approved_at": _now_iso()}
+    store.write_text(store.path(f"{key}.json"), json.dumps(tok, indent=2))
+    return tok
+
+
+def _do_approve(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
+    """Human gate inside the pipeline. A token `<approval_dir>/<key>.json` = {"approved": true|false, "approver": "...",
+    "reason": "...", "fingerprint": "...", "approved_at": "<iso>"} -- written by anything (Slack bot, Retool, a CLI, another asset).
+
+    An approval is bound to WHAT was approved: the pending record carries a `fingerprint` (hash of the step id + the input text +
+    the summary the reviewer was shown) and its `approve_by_writing.json` is the token to write (`approve_pending()` does it). A
+    token is honoured only while its fingerprint matches the current request, so re-running a partition whose input changed asks
+    again instead of reusing an old yes. `bind_to` (default [text, summary]) picks what is fingerprinted; use [summary] when the
+    source text is regenerated by a model on every run (otherwise each re-run would differ and need a new approval).
 
     Config: approval_dir, key (default: partition key or step id), summary (shown to the reviewer; default: a preview of the source),
-    wait_seconds (default 0 = don't block), poll_seconds (5), on_timeout: reject | approve | pending (default reject -- the safe
-    default), on_reject: stop | continue (default stop: raise, so nothing downstream runs)."""
+    reuse: until_changed (default: honoured while the fingerprint matches) | once (consumed when a run passes the gate; every run
+    needs a fresh approval) | always (any token approves every later run of the key, fingerprint ignored), max_age_hours (older
+    token = expired; default no expiry), wait_seconds (default 0 = don't block), poll_seconds (5), on_timeout: reject | approve |
+    pending (default reject -- the safe default), on_reject: stop | continue (default stop: raise, so nothing downstream runs).
+
+    A token that exists but cannot be honoured (input changed / expired / consumed) is logged with the exact reason, the reason is
+    written to the pending record (`state` + `reason`, shown by agent_review_queue), and approval is requested again. With
+    on_timeout=reject (no person answered) the pending record stays in the queue marked `outcome: timeout_default_reject`, so it can
+    still be approved as written for the next run."""
     materialized_at = _now_iso()
     source_id = step.get("source", _ROOT_SOURCE_ID)
     text = _get_source_text(state, source_id) if source_id else ""
     approval_dir = step.get("approval_dir")
     if not approval_dir:
         raise ValueError("approve needs `approval_dir:` (where approval tokens + the pending review queue live)")
+    _validate_approve_options([step])
+    reuse = step.get("reuse", "until_changed")
+    max_age = float(step["max_age_hours"]) if step.get("max_age_hours") is not None else None
     key = _approval_key(step.get("key") or _ctx_of(state).get("partition_key") or step["id"])
     store = _ApprovalStore(approval_dir)
     token_path = store.path(f"{key}.json")
@@ -5210,6 +5436,8 @@ def _do_approve(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     else:
         _pol_path(approval_dir, "read")
         _pol_path(pending_path, "write")
+    summary = step.get("summary") or _clip(text, 600)
+    fingerprint = _approval_fingerprint(step["id"], text, summary, step.get("bind_to"))
 
     def read_token() -> Optional[Dict[str, Any]]:
         if not store.exists(token_path):
@@ -5220,22 +5448,36 @@ def _do_approve(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         except (OSError, json.JSONDecodeError):
             return None  # half-written token: treat as not there yet
 
-    tok = read_token()
+    def judge() -> "tuple[Optional[Dict[str, Any]], str, Optional[str]]":
+        tok = read_token()
+        st, why = _approval_token_state(tok, fingerprint, reuse, max_age, store.modified(token_path) if tok else None)
+        return tok, st, why
+
+    tok, tstate, why = judge()
     waited = 0.0
-    if tok is None:
+    honoured = tok if tstate == "valid" else None
+    if honoured is None:
+        if tok is not None:
+            context.log.warning(f"[approve:{step['id']}] existing token for {key!r} not honoured -- {why}; requesting approval again")
         expires = time.time() + wait_seconds
         store.write_text(pending_path, json.dumps({
-            "step": step["id"], "key": key, "requested_at": materialized_at,
+            "step": step["id"], "key": key, "requested_at": materialized_at, "fingerprint": fingerprint,
+            "state": tstate if tok is not None else "new", "reason": why,
+            "reuse": reuse, "max_age_hours": max_age,
             "expires_at": datetime.fromtimestamp(expires, tz=timezone.utc).isoformat() if wait_seconds else None,
-            "on_timeout": on_timeout, "summary": step.get("summary") or _clip(text, 600), "preview": _clip(text, 2000),
-            "approve_by_writing": {"path": store.shown(f"{key}.json"), "json": {"approved": True, "approver": "<you>", "reason": "<why>"}},
+            "on_timeout": on_timeout, "summary": summary, "preview": _clip(text, 2000),
+            "approve_by_writing": {"path": store.shown(f"{key}.json"),
+                                   "json": {"approved": True, "approver": "<you>", "reason": "<why>",
+                                            "fingerprint": fingerprint, "approved_at": "<iso timestamp>"}},
         }, indent=2))
         context.log.info(f"[approve:{step['id']}] pending -> {store.shown('pending', key + '.json')}; waiting up to {wait_seconds:g}s")
         t0 = time.time()
-        while tok is None and time.time() - t0 < wait_seconds:
+        while honoured is None and time.time() - t0 < wait_seconds:
             time.sleep(min(poll, max(wait_seconds - (time.time() - t0), 0.01)))
-            tok = read_token()
+            tok, tstate, why = judge()
+            honoured = tok if tstate == "valid" else None
         waited = round(time.time() - t0, 2)
+    tok = honoured
     status, approved = None, None
     if tok is not None:
         approved = bool(tok.get("approved"))
@@ -5246,14 +5488,30 @@ def _do_approve(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         approved, status = False, "timeout_default_reject"
     else:
         approved, status = None, "pending"
-    if tok is not None or on_timeout != "pending":
+    if tok is not None or on_timeout == "approve":
         store.remove(pending_path)  # decided: leaves the review queue (the token stays as the audit record)
+    elif on_timeout == "reject":
+        # Defaulted to "do not proceed", not decided by a person: the request STAYS in the queue (marked) so a reviewer can still
+        # approve it as written and the next run goes through -- removing it would leave nothing to approve.
+        try:
+            rec = json.loads(store.read_text(pending_path))
+            store.write_text(pending_path, json.dumps({**rec, "outcome": "timeout_default_reject", "decided_at": _now_iso()}, indent=2))
+        except (OSError, json.JSONDecodeError):
+            pass
+    if tok is not None and reuse == "once":
+        # Consume exactly the decision we honoured: re-read first so a fresh token a reviewer wrote meanwhile is never marked used.
+        cur = read_token()
+        if cur is not None and cur.get("fingerprint") == tok.get("fingerprint") and cur.get("approved_at") == tok.get("approved_at") \
+                and not cur.get("consumed_at"):
+            store.write_text(token_path, json.dumps({**cur, "consumed_at": _now_iso(), "consumed_by_step": step["id"]}, indent=2))
     if approved is False and step.get("on_reject", "stop") == "stop":
-        raise RuntimeError(f"[approve:{step['id']}] {status}: {(tok or {}).get('reason') or 'not approved'} -- stopping the pipeline here")
+        detail = (tok or {}).get("reason") or (why if tok is None and why else None) or "not approved"
+        raise RuntimeError(f"[approve:{step['id']}] {status}: {detail} -- stopping the pipeline here")
     return {
         "text": text if approved else "", "op": "approve", "approved": approved, "status": status,
         "approver": (tok or {}).get("approver"), "approval_reason": (tok or {}).get("reason"), "waited_seconds": waited,
-        "approval_key": key, "materialized_at": materialized_at, "n_llm_calls": 0,
+        "approval_key": key, "approval_fingerprint": fingerprint, "approval_not_honoured_reason": None if tok is not None else why,
+        "materialized_at": materialized_at, "n_llm_calls": 0,
     }
 
 
@@ -6031,6 +6289,8 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         _backfill_policy = _build_backfill_policy(
             _partitions_def, self.backfill_policy, self.backfill_policy_max_partitions_per_run)
         _validate_approve_partitioning(steps, _partitions_def is not None)
+        _validate_approve_options(steps)
+        _validate_source_partitioning(source_config, steps, _partitions_def)
 
         # ── Branch: per_step_ops selects the emitted shape ────────────
         # (True → graph_multi_asset with N+2 ops; False → single multi_asset)
@@ -6129,6 +6389,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     source_config, context,
                     partition_key=partition_key,
                     partition_fields=partition_fields,
+                    partitions_def=_partitions_def,
                 )
                 context.log.info(
                     f"ingested {len(initial_entry.get('text', ''))} chars via {source_config.get('kind', 'literal')}"
@@ -6372,6 +6633,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     initial_entry = _ingest(
                         source_config, context,
                         partition_key=partition_key, partition_fields=partition_fields,
+                        partitions_def=partitions_def,
                     )
                 context.log.info(
                     f"[{prefix}_ingest] {len(initial_entry.get('text', ''))} chars "

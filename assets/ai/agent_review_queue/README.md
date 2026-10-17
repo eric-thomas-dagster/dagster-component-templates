@@ -6,10 +6,13 @@ directories as you give it, local or `s3://` / `gs://` / `abfs://` — into a Da
 person, for how long, and what happens if nobody answers.* An asset check flags reviews that are overdue.
 
 It is **read-only**. It never approves or rejects anything; a person (or a Slack bot, Retool form, CLI…) decides by writing the token file named
-in each row's `approve_path`:
+in each row's `approve_path`. Approve the pending record **as written** — its `approve_by_writing.json` carries the `fingerprint` that binds the
+approval to exactly what the reviewer was shown (a token for an older input is not honoured, and the queue says so):
 
 ```bash
-echo '{"approved": true, "approver": "eric@dagsterlabs.com", "reason": "PO confirmed"}' > approvals/INV-2291.json
+jq '.approve_by_writing.json + {approver: "eric@dagsterlabs.com", reason: "PO confirmed", approved_at: (now | todate)}' \
+  approvals/pending/INV-2291.json > approvals/INV-2291.json
+# reviewer tooling in Python does the same: read pending/<key>.json, write approve_by_writing.json + your name/time as the token
 ```
 
 ```yaml
@@ -26,13 +29,13 @@ attributes:
 
 | Output | |
 |---|---|
-| DataFrame | one row per pending review: `approval_dir, key, step, summary, requested_at, expires_at, age_minutes, overdue, on_timeout, approve_path` |
-| Metadata | `pending_count`, `overdue_count`, `oldest_age_minutes`, a markdown preview of the queue |
+| DataFrame | one row per pending review: `approval_dir, key, step, summary, requested_at, expires_at, age_minutes, overdue, on_timeout, approve_path, state, reason, outcome` — `state` is `new` (first request) / `stale` (a token exists but the input changed, or it has no fingerprint) / `expired` (older than `max_age_hours`) / `consumed` (a `reuse: once` approval was already spent), `reason` is the exact explanation, `outcome` is `timeout_default_reject` for a request nobody answered in time |
+| Metadata | `pending_count`, `overdue_count`, `re_requested_count` (stale + expired + consumed), `oldest_age_minutes`, a markdown preview of the queue |
 | Asset check `no_overdue_reviews` | fails (WARN or ERROR) when any review is older than `overdue_after_minutes` **or** past its own `expires_at`; lists the overdue keys. Attach a Dagster+ alert policy to it to notify someone. |
 | Schedule (optional) | `cron_schedule` re-materializes the queue so it stays current |
 
-An unreadable pending record is shown as overdue rather than hidden. A review leaves the queue when its gate runs and finds the token (the token
-stays as the audit record).
+An unreadable pending record is shown as overdue rather than hidden. A review leaves the queue when its gate runs and honours a token (the token
+stays as the audit record). A request that timed out with `on_timeout: reject` stays queued (`outcome: timeout_default_reject`) so it can still be approved as written for the next run.
 
 ## How it fits
 

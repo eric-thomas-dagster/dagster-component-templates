@@ -25,10 +25,9 @@ def run(c, key, raise_on_error=False):
     return dg.materialize(c.build_defs(None).assets, partition_key=key, raise_on_error=raise_on_error)
 
 
-def approve(tmp_path, key, ok=True):
-    d = tmp_path / "approvals"
-    d.mkdir(exist_ok=True)
-    (d / f"{key}.json").write_text(json.dumps({"approved": ok, "approver": "t"}))
+def approve(mod, tmp_path, key, ok=True):
+    """The reviewer's step: approve (or reject) the PENDING record as written."""
+    return mod.approve_pending(str(tmp_path / "approvals"), key, approved=ok, approver="t")
 
 
 @pytest.fixture(autouse=True)
@@ -41,27 +40,29 @@ def test_two_partitions_share_no_state_approvals_or_sinks(mod, fake_litellm, tmp
     c = comp(mod, tmp_path, per_step_ops=per_step_ops)
     fake_litellm.reply("summary of a")
     fake_litellm.reply("summary of b")
-    approve(tmp_path, "a")                                          # only partition a is approved
-    ra = run(c, "a")
-    rb = run(c, "b")
-    assert ra.success and not rb.success                            # b has no token: the safe default stops it
+    assert not run(c, "a").success and not run(c, "b").success      # nobody has approved yet: the safe default stops both
+    approve(mod, tmp_path, "a")                                     # only partition a is approved
+    fake_litellm.reply("summary of a")
+    assert run(c, "a").success
+    fake_litellm.reply("summary of b")
+    assert not run(c, "b").success                                  # b still has no decision
     assert (tmp_path / "out" / "a.txt").read_text() == "summary of a"
     assert not (tmp_path / "out" / "b.txt").exists()                # b's sink never ran, a's file untouched
     prompts = [c_["messages"][-1]["content"] for c_ in fake_litellm.calls]
-    assert prompts == ["Summarize: doc for a", "Summarize: doc for b"]   # each run saw only its own partition's text
-    # approving b later does not need (or disturb) a's token
-    approve(tmp_path, "b")
-    fake_litellm.reply("summary of b2")
+    assert prompts == ["Summarize: doc for a", "Summarize: doc for b"] * 2   # each run saw only its own partition's text
+    approve(mod, tmp_path, "b")                                     # approving b does not need (or disturb) a's token
+    fake_litellm.reply("summary of b")
     assert run(c, "b").success
     assert (tmp_path / "out" / "a.txt").read_text() == "summary of a"
-    assert (tmp_path / "out" / "b.txt").read_text() == "summary of b2"
+    assert (tmp_path / "out" / "b.txt").read_text() == "summary of b"
     assert sorted(p.name for p in (tmp_path / "approvals").glob("*.json")) == ["a.json", "b.json"]
 
 
 def test_a_rejection_of_one_partition_does_not_reject_another(mod, fake_litellm, tmp_path):
     c = comp(mod, tmp_path)
-    approve(tmp_path, "a", ok=False)
-    approve(tmp_path, "b", ok=True)
+    assert not run(c, "a").success and not run(c, "b").success
+    approve(mod, tmp_path, "a", ok=False)
+    approve(mod, tmp_path, "b", ok=True)
     assert not run(c, "a").success
     assert run(c, "b").success
 
@@ -73,7 +74,7 @@ def test_pending_review_records_are_per_partition(mod, fake_litellm, tmp_path):
     pending = tmp_path / "approvals" / "pending"
     assert sorted(p.name for p in pending.glob("*.json")) == ["a.json", "b.json"]
     assert json.loads((pending / "a.json").read_text())["key"] == "a"
-    approve(tmp_path, "a")                                           # approving a leaves b's queue entry alone
+    approve(mod, tmp_path, "a")                                      # approving a leaves b's queue entry alone
     assert run(c, "a").success
     assert (pending / "b.json").exists() and not (pending / "a.json").exists()
 
@@ -81,7 +82,8 @@ def test_pending_review_records_are_per_partition(mod, fake_litellm, tmp_path):
 def test_partition_keys_that_sanitize_alike_do_not_share_an_approval(mod, fake_litellm, tmp_path):
     """'x/y' and 'x_y' both sanitize to x_y; before the fix one token approved both partitions."""
     c = comp(mod, tmp_path, partition_values="x/y,x_y", sinks=False)
-    approve(tmp_path, mod._approval_key("x/y"))
+    assert not run(c, "x/y").success and not run(c, "x_y").success
+    approve(mod, tmp_path, "x/y")
     assert run(c, "x/y").success
     assert not run(c, "x_y").success
     assert mod._approval_key("x_y") == "x_y" and mod._approval_key("INV-2291") == "INV-2291"   # safe keys are unchanged

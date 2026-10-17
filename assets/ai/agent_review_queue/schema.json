@@ -6,7 +6,7 @@
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe",
-      "description": "One row per pending review: approval_dir, key, step, summary, requested_at, expires_at, age_minutes, overdue, on_timeout, approve_path."
+      "description": "One row per pending review: approval_dir, key, step, summary, requested_at, expires_at, age_minutes, overdue, on_timeout, approve_path, state (new|stale|expired|consumed), reason, outcome."
     }
   },
   "attributes": {

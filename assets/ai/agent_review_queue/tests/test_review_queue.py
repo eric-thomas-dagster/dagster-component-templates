@@ -66,9 +66,31 @@ def test_lists_real_pending_reviews_across_directories(mod, agentic, tmp_path):
 def test_a_decided_review_leaves_the_queue(mod, agentic, tmp_path):
     ask(agentic, tmp_path, "INV-1", "Pay?")
     ask(agentic, tmp_path, "INV-2", "Pay?")
-    (tmp_path / "INV-1.json").write_text(json.dumps({"approved": True, "approver": "eric"}))
+    agentic.approve_pending(str(tmp_path), "INV-1", approver="eric")  # approve the pending record as written
     ask(agentic, tmp_path, "INV-1", "Pay?")                          # the gate re-runs, sees the token, and clears its queue entry
     assert list(queue_df(materialize(component(mod, [tmp_path])))["key"]) == ["INV-2"]
+
+
+def test_queue_shows_why_approval_was_requested_again(mod, agentic, tmp_path):
+    ask(agentic, tmp_path, "NEW", "first request")
+    ask(agentic, tmp_path, "CHG", "Pay $10?")
+    agentic.approve_pending(str(tmp_path), "CHG")
+    ask(agentic, tmp_path, "CHG", "Pay $9,000?")                      # summary changed after approval -> stale
+    ask(agentic, tmp_path, "OLD", "Pay?", max_age_hours=1)
+    tok = agentic.approve_pending(str(tmp_path), "OLD")
+    (tmp_path / "OLD.json").write_text(json.dumps({**tok, "approved_at": (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat()}))
+    ask(agentic, tmp_path, "OLD", "Pay?", max_age_hours=1)            # token older than max_age_hours -> expired
+    ask(agentic, tmp_path, "ONCE", "Pay?", reuse="once")
+    agentic.approve_pending(str(tmp_path), "ONCE")
+    ask(agentic, tmp_path, "ONCE", "Pay?", reuse="once")              # passes and spends the approval
+    ask(agentic, tmp_path, "ONCE", "Pay?", reuse="once")              # same input again -> consumed
+    r = materialize(component(mod, [tmp_path]))
+    df = queue_df(r).set_index("key")
+    assert df.loc["NEW", "state"] == "new" and df.loc["NEW", "reason"] is None
+    assert df.loc["CHG", "state"] == "stale" and df.loc["CHG", "reason"] == "input changed since approval"
+    assert df.loc["OLD", "state"] == "expired" and df.loc["OLD", "reason"].startswith("approval expired")
+    assert df.loc["ONCE", "state"] == "consumed" and df.loc["ONCE", "reason"].startswith("consumed")
+    assert r.get_asset_materialization_events()[0].materialization.metadata["re_requested_count"].value == 3
 
 
 def write_pending(tmp_path, key, requested_at, expires_at=None):

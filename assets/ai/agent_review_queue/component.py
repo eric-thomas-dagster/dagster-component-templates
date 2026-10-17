@@ -6,7 +6,8 @@ fsspec) into a DataFrame -- "what is waiting for a person, for how long, and wha
 Dagster UI, with an asset check that flags overdue reviews.
 
 It is read-only: it never approves or rejects anything. Decisions are made by writing the token file named in each row's
-`approve_path` (the same contract as `human_approval_gate`).
+`approve_path` -- copy the pending record's `approve_by_writing.json` (it carries the fingerprint that binds the approval to
+what the reviewer was shown).
 """
 
 import json
@@ -96,7 +97,7 @@ def _collect_pending(approval_dirs: List[str], overdue_after_minutes: float, now
             except (OSError, json.JSONDecodeError):
                 rows.append({"approval_dir": root, "key": Path(path).stem, "step": None, "summary": "(unreadable pending record)",
                              "requested_at": None, "expires_at": None, "age_minutes": None, "overdue": True,
-                             "on_timeout": None, "approve_path": None})
+                             "on_timeout": None, "approve_path": None, "state": "unreadable", "reason": None, "outcome": None})
                 continue
             requested = _parse_ts(rec.get("requested_at"))
             expires = _parse_ts(rec.get("expires_at"))
@@ -107,13 +108,20 @@ def _collect_pending(approval_dirs: List[str], overdue_after_minutes: float, now
                 "summary": rec.get("summary"), "requested_at": rec.get("requested_at"), "expires_at": rec.get("expires_at"),
                 "age_minutes": age, "overdue": overdue, "on_timeout": rec.get("on_timeout"),
                 "approve_path": (rec.get("approve_by_writing") or {}).get("path"),
+                # new = first request; stale = a token exists but the input changed / has no fingerprint; expired = token older
+                # than max_age_hours; consumed = a reuse:once approval was already spent. `reason` is the exact explanation.
+                "state": rec.get("state") or "new", "reason": rec.get("reason"), "outcome": rec.get("outcome"),
             })
     return rows
 
 
 class AgentReviewQueueComponent(dg.Component, dg.Model, dg.Resolvable):
     """List the reviews waiting on a person (written by `agentic_pipeline`'s `approve` op) as a DataFrame asset, with an
-    asset check that flags overdue reviews. Read-only."""
+    asset check that flags overdue reviews. Read-only.
+
+    Columns include `state` (new | stale | expired | consumed: why approval is being requested again for a key that already had a
+    token) and `reason` (the exact explanation, e.g. 'input changed since approval'); `outcome` is `timeout_default_reject` for a
+    request nobody answered in time (it stays queued so it can still be approved as written)."""
 
     asset_name: str = Field(default="agent_review_queue", description="Dagster asset name")
     approval_dirs: List[str] = Field(
@@ -162,7 +170,7 @@ class AgentReviewQueueComponent(dg.Component, dg.Model, dg.Resolvable):
             import pandas as pd
             rows = _collect_pending(dirs, overdue_after)
             df = pd.DataFrame(rows, columns=["approval_dir", "key", "step", "summary", "requested_at", "expires_at",
-                                              "age_minutes", "overdue", "on_timeout", "approve_path"])
+                                              "age_minutes", "overdue", "on_timeout", "approve_path", "state", "reason", "outcome"])
             overdue = df[df["overdue"]] if len(df) else df
             ages = df["age_minutes"].dropna() if len(df) else df.get("age_minutes", [])
             md: Dict[str, Any] = {
@@ -170,9 +178,10 @@ class AgentReviewQueueComponent(dg.Component, dg.Model, dg.Resolvable):
                 "pending_count": dg.MetadataValue.int(len(df)),
                 "overdue_count": dg.MetadataValue.int(len(overdue)),
                 "oldest_age_minutes": dg.MetadataValue.float(float(max(ages)) if len(ages) else 0.0),
+                "re_requested_count": dg.MetadataValue.int(int(df["state"].isin(["stale", "expired", "consumed"]).sum()) if len(df) else 0),
             }
             if len(df):
-                md["queue"] = dg.MetadataValue.md(df[["key", "step", "age_minutes", "overdue", "summary"]].head(50).to_markdown(index=False))
+                md["queue"] = dg.MetadataValue.md(df[["key", "step", "state", "reason", "age_minutes", "overdue", "summary"]].head(50).to_markdown(index=False))
             yield dg.Output(df, metadata=md)
             yield dg.AssetCheckResult(
                 check_name=check_name, passed=len(overdue) == 0, severity=severity,

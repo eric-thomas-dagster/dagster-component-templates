@@ -303,7 +303,7 @@ See [`SyntheticPromptGeneratorComponent`](../../source/synthetic_prompt_generato
 | `verify` | answer + evidence → verdict | Grounding check: is the answer supported by the evidence? Returns `verdict`, `score`, `passed`, `unsupported_claims`; `on_fail: fail` makes it a hard gate. The answer passes through unchanged. |
 | `eval` | output (+ reference) → rubric scores | LLM-as-judge on a weighted `criteria:` rubric; `scores`, `rationales`, `overall`; `fail_below` is a hard gate. |
 | `decide` | input + evidence → ONE named outcome | A decision record: pick from a fixed `outcomes:` menu with reason, confidence and quoted evidence. Off-menu answers use `default_outcome` or fail — never silently pick. Feed `when:` to branch on `outcome`. |
-| `approve` | human gate with a review queue | Same token contract as `human_approval_gate` (`<approval_dir>/<key>.json`). Writes a pending record to `<approval_dir>/pending/` (the review queue), can wait `wait_seconds`, and applies a safe default on timeout (`on_timeout: reject`). Pair with `when:` so only exceptions reach a person. |
+| `approve` | human gate with a review queue | Token `<approval_dir>/<key>.json`, **bound to what was approved** (see [Approvals](#approvals-what-a-token-is-bound-to)). Writes a pending record to `<approval_dir>/pending/` (the review queue), can wait `wait_seconds`, and applies a safe default on timeout (`on_timeout: reject`). Options `reuse` (`until_changed` default / `once` / `always`), `max_age_hours`, `bind_to`. Pair with `when:` so only exceptions reach a person. |
 
 ## Typed named inputs (v2 — join any op from any prior op by port name)
 
@@ -1006,21 +1006,21 @@ All string fields on sources support `{partition_key}` substitution — a partit
 | Field | Required | Description |
 |---|---|---|
 | `kind` | ✅ | `literal` |
-| `text` | ✅ | Static text used as the pipeline's initial input. `{partition_key}` templated. |
+| `text` | ✅ | Static text used as the pipeline's initial input. `{partition_key}` / `{partition.<name>}` / `{partition_start}` / `{partition_end}` templated. **Partitioned with no placeholder here and none in any step: rejected at load** (every partition would process identical input). |
 
 ### `kind: file`
 
 | Field | Required | Description |
 |---|---|---|
 | `kind` | ✅ | `file` |
-| `path` | ✅ | Filesystem path. `{partition_key}` templated (`questions/{partition_key}.txt`). Relative paths resolve against the code-location's working directory. |
+| `path` | ✅ | Filesystem path. `{partition_key}` / `{partition_start}` / `{partition_end}` templated (`questions/{partition_key}.txt`). Relative paths resolve against the code-location's working directory. Partitioned with no placeholder: **warning at load**. |
 
 ### `kind: url`
 
 | Field | Required | Description |
 |---|---|---|
 | `kind` | ✅ | `url` |
-| `url` | ✅ | URL to fetch. `{partition_key}` templated. Response body becomes the source text. |
+| `url` | ✅ | URL to fetch. `{partition_key}` / `{partition_start}` / `{partition_end}` templated. Response body becomes the source text. Partitioned with no placeholder: **warning at load**. |
 | `headers` |  | Optional `{header: value}` map. Values `{partition_key}`-templated. |
 
 ### `kind: database`
@@ -1028,7 +1028,7 @@ All string fields on sources support `{partition_key}` substitution — a partit
 | Field | Required | Description |
 |---|---|---|
 | `kind` | ✅ | `database` |
-| `query` | ✅ | SQL query to run. `{partition_key}` templated. Result is rendered as a markdown table and used as the pipeline's initial input. |
+| `query` | ✅ | SQL query to run. Placeholders `{partition_key}`, `{partition.<name>}`, `{partition_start}`, `{partition_end}` (ISO timestamps of a time-window partition) are bound as **complete quoted SQL string literals** with embedded quotes doubled: write `WHERE day >= {partition_start}`, not `'{partition_start}'` (a placeholder already inside quotes is rejected). `{{` / `}}` are literal braces. Same semantics as `context_engineering_pipeline`'s warehouse query. Partitioned with no placeholder: **warning at load** (every partition reads the whole result). Placeholders without partitioning, or `{partition_start}` without a daily/weekly/monthly/hourly partition: rejected at load. Result is rendered as a markdown table and used as the pipeline's initial input. |
 | `database_url` |  | SQLAlchemy connection URL. Set this OR `database_url_env_var`. |
 | `database_url_env_var` |  | Env var holding the connection URL. |
 | `row_limit` |  | Max rows to render into the table (default 500) — keeps large result sets from blowing out the LLM context window. |
@@ -1087,11 +1087,25 @@ post_processing:
         owners: ["ai-team@company.com"]
 ```
 
+
+### Approvals: what a token is bound to
+
+An approval is bound to **what was approved**, not just to a key. When `approve` requests a decision it writes `pending/<key>.json` with a `fingerprint` (sha256 of the step id plus what the reviewer is shown: the full input text and the summary; `bind_to: [text, summary]` is the default, `[summary]` or `[text]` narrows it) and an `approve_by_writing.json` to copy. Approving **the pending record as written** is the natural flow: the token copies that fingerprint (`jq '.approve_by_writing.json + {approver: "me", approved_at: (now|todate)}' pending/K.json > K.json`).
+
+| Option | Default | Meaning |
+|---|---|---|
+| `reuse` | `until_changed` | `until_changed`: the token is honoured while its fingerprint matches the current request. `once`: honoured, then **consumed** (`consumed_at` written to the token, kept as the audit record) when a run passes the gate, so every run needs a fresh approval. `always`: any token approves every later run of the key, fingerprint ignored (explicit opt-in). |
+| `max_age_hours` | none | A token older than this (its `approved_at`, else the file's modification time) is expired. Applies under every `reuse` mode. |
+| `bind_to` | `[text, summary]` | What is fingerprinted. Use `[summary]` when the source text is regenerated by a model each run, or every re-run would differ and need a new approval. |
+
+A token that exists but cannot be honoured is never a mysterious failure: the run log warns with the exact reason, the pending record gets `state` + `reason`, and approval is requested again. Reasons: `input changed since approval`, `approval expired: ...`, `consumed: ...`, or `token carries no fingerprint` (a hand-written `{"approved": true}` is not bound to anything, so `until_changed` / `once` do not honour it; use `reuse: always` if that is what you want). A rejection token is bound the same way. Consumption and expiry touch only that key's own files, so concurrent partitions never share state; it works the same on a local directory and on any fsspec URI. A request that nobody answered with `on_timeout: reject` stays in the queue marked `outcome: timeout_default_reject`, so it can still be approved as written. `once` consumes when the run passes the gate; if a later step then fails, the approval is already spent.
+
 ### One partition per run, approvals per partition, `backfill_policy`
 
 With the first-class `partition_type` / `partition_values` / `partition_dimensions` fields, each run resolves `{partition_key}`, sink paths and `approve` keys from **one** partition, and its output is one value per partition. So:
 
 - `backfill_policy: multi_run` (one run per partition) is the supported shape; `backfill_policy_max_partitions_per_run` must be unset or `1`. `single_run` (or a cap above 1) is **rejected at load time**: a run covering several partitions has no single `partition_key`, so templates and approval keys could not be resolved. If such a run is forced anyway (for example by launching a range from the UI against a policy set elsewhere) it fails with a clear error instead of silently running as unpartitioned.
+- **A source that never mentions the partition** reads identical input in every partition, so it is checked at load, per kind: `literal` is rejected (constant text can never differ) unless some step uses a partition placeholder (then a fixed source is a deliberate choice); `file` / `url` / `database` log a WARNING naming the field (the content behind a path/URL can legitimately change between runs, and a database query *can* be bound, but a deliberate full re-read is possible); `upstream_asset` is exempt.
 - `approve` tokens are `<approval_dir>/<key>.json`, with the partition key as the default key, so partitions never share an approval. A key containing characters outside `A-Za-z0-9._-` gets a short hash suffix (`x/y` and `x_y` are different partitions and must not share a token); keys that are already safe are unchanged. Under partitioning, two `approve` steps without their own `key`, or a fixed `key` with no `{partition_key}` / `{partition.<name>}` in it, are rejected at load time (they would share one human decision across steps or partitions).
 - These guards apply to partitions declared with the component's own fields; partitions attached later through `post_processing` are not seen by the component.
 

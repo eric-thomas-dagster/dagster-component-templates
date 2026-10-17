@@ -49,6 +49,9 @@ attributes:
       approval_dir: ./approvals
       key: INV-2291
       summary: "Invoice INV-2291 ($4,180.00, Acme Industrial Supply) has no purchase order. Approve payment?"
+      bind_to: [summary]                      # `decision` is model-written and differs on every run; bind the approval to the summary the reviewer reads
+      reuse: once                             # a payment approval is spent when the run passes the gate
+      max_age_hours: 72                       # ...and goes stale if nobody acts on it for 3 days
       wait_seconds: 0                         # raise to hold the run open for a reviewer
       on_timeout: reject                      # the safe default: "Do not pay"
       policy:

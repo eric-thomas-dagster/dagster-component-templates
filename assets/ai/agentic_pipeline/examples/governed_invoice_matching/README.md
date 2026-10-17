@@ -18,12 +18,14 @@ step (and what depends on it) stale.
 ## Approving
 
 ```bash
-# the reviewer (or a Slack bot / Retool form / another asset) writes the token:
-echo '{"approved": true, "approver": "eric@dagsterlabs.com", "reason": "PO confirmed by phone"}' > approvals/INV-2291.json
+# the reviewer (or a Slack bot / Retool form / another asset) approves the pending record AS WRITTEN: the token copies the
+# record's fingerprint, so it is bound to exactly what was shown (an edited summary needs a fresh approval):
+jq '.approve_by_writing.json + {approver: "eric@dagsterlabs.com", reason: "PO confirmed by phone", approved_at: (now | todate)}' \
+  approvals/pending/INV-2291.json > approvals/INV-2291.json
 dg launch --assets 'invoice*'
 ```
 
-Same token contract as the standalone [`human_approval_gate`](../../../human_approval_gate/README.md).
+`reuse: once` spends the approval when a run passes the gate; `max_age_hours: 72` expires an unused one. Same token shape as the standalone [`human_approval_gate`](../../../human_approval_gate/README.md).
 
 ## What is verified
 

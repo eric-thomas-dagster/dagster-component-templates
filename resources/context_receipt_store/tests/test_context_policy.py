@@ -165,3 +165,23 @@ def test_custom_column_names_and_partitioned_asset(mod):
 def test_decorator_must_follow_dg_asset(mod):
     with pytest.raises(TypeError, match="after @dg.asset"):
         mod.context_asset()(lambda: None)
+
+
+def test_decorator_keeps_both_function_inputs_and_lineage_only_deps(mod):
+    @dg.asset(name="source_a")
+    def source_a():
+        return 1
+
+    @dg.asset(name="source_b")
+    def source_b():
+        return 2
+
+    @mod.context_asset()
+    @dg.asset(name="mixed", ins={"a": dg.AssetIn("source_a")}, deps=[source_b])
+    def mixed(a):
+        return _bundle([("c1", f"text {a}", "acme")])
+
+    spec = mixed.get_asset_spec(dg.AssetKey("mixed"))
+    assert {d.asset_key.to_user_string() for d in spec.deps} == {"source_a", "source_b"}
+    result = dg.materialize([source_a, source_b, mixed])
+    assert result.success and result.output_for_node("mixed")["chunk_text"].iloc[0] == "text 1"

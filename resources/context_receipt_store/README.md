@@ -224,16 +224,35 @@ Dagster gives every materialization two versions, and they answer different ques
   `source_code_version`, `store.outcomes_by_code_version("support_kb")` answers "did the new chunking help?" from what users
   actually thought. The usage sensor reports the same split as `context_receipts/outcomes_by_code_version`.
 
+## Governance: consumption, retention, health
+
+**Downstream consumption.** `@context_consumer(clearance="internal", access_tags=[...])` (after `@dg.asset`) declares who an
+asset's audience is. `check_context_consumption(defs)` raises, at load and before any run, if such an asset has a context
+ancestor whose policy it is not cleared for (sensitivity above its clearance, or required access tags it lacks), looking
+through intermediate assets. `validate_context_consumption(defs)` returns the violations instead. Per-tenant `scope` and
+chunk-level PII are enforced at retrieval, not from the graph.
+
+**Retention.** Set `retention_days` in a policy and `enforce_retention: true` on the component: the usage sensor deletes
+receipts past it, using the shortest retention among the assets a receipt touched; receipts that touched no asset with a
+retention are kept. `store.enforce_retention({...})` does the same on demand. It is the only deletion the store performs;
+aggregated item priors are statistics and are kept. (Expired chunks in the index: `purge_expired` on the pipeline's
+`write_vector_store` step.)
+
+**Health.** `context_health(store, instance, ["support_kb"])` returns `{status: healthy | degraded | unhealthy, failing,
+checks, current data and code version}` from the same numbers the asset checks use, so a gateway can put it in a result or
+an agent runtime can degrade on it. It is a library call; serving it over a network API is a deployment choice.
+
 ## Context health as asset checks
 
-`check_asset_keys: [support/tickets]` attaches three checks to each asset, evaluated over a
+`check_asset_keys: [support/tickets]` attaches four checks to each asset, evaluated over a
 rolling window (`check_window_hours`): **`context_staleness`** (ERROR: share of retrieved
 items served from an out-of-date data version, per partition), **`context_outcome_quality`**
 (WARN: mean outcome of answers built from the asset; needs `min_checked_receipts`
 outcomes before it judges), and **`context_verified_share`** (WARN: share of outputs whose
 receipt reached `verified` or `counterfactual_tested` evidence; `cited` does not count,
-it is the model's own claim). They turn context debt into red/green on the asset. There is
-no ungrounded-claim-rate check yet because nothing computes claim-level grounding.
+it is the model's own claim), and **`context_grounding`** (WARN: share of claims a verifier found ungrounded, read from
+evidence `details.claims_total` / `details.claims_ungrounded`; passes when no verifier has reported claims, and the
+verifier that produces those counts is not part of this module). They turn context debt into red/green on the asset.
 
 ## Trace an MCP call to its context
 

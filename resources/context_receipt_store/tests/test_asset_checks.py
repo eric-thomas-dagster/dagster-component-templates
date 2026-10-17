@@ -86,13 +86,13 @@ def test_verified_share_counts_outputs_that_reached_verified_evidence(mod, tmp_p
     assert _run_checks(mod, store)["context_verified_share"].metadata["verified_share"].value == 0.5
 
 
-def test_component_attaches_three_checks_per_asset(mod, tmp_path):
+def test_component_attaches_four_checks_per_asset(mod, tmp_path):
     comp = mod.ContextReceiptStoreComponent(
         database_path=str(tmp_path / "c.db"), check_asset_keys=["docs", "other"]
     )
     defs = comp.build_defs(None)
     names = sorted((k.asset_key.to_user_string(), k.name) for c in defs.asset_checks for k in c.check_keys)
     assert names == sorted(
-        (a, n) for a in ("docs", "other") for n in ("context_staleness", "context_outcome_quality", "context_verified_share")
+        (a, n) for a in ("docs", "other") for n in ("context_staleness", "context_outcome_quality", "context_verified_share", "context_grounding")
     )
     assert not list(mod.ContextReceiptStoreComponent(database_path=str(tmp_path / "d.db")).build_defs(None).asset_checks or [])

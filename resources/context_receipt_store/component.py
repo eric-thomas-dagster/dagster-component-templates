@@ -3,6 +3,7 @@
 
 import functools
 import hashlib
+import inspect
 import json
 import math
 import os
@@ -314,46 +315,153 @@ def context_asset(
     )
 
     def decorator(target: Any) -> Any:
-        if not isinstance(target, dg.AssetsDefinition):
-            raise TypeError("@context_asset must be applied after @dg.asset (it decorates an AssetsDefinition)")
-        if len(target.keys) != 1:
-            raise ValueError("@context_asset supports single-asset definitions only")
-        key = next(iter(target.keys))
-        spec = target.get_asset_spec(key)
-        raw_fn = getattr(getattr(target.node_def, "compute_fn", None), "decorated_fn", None)
-        if raw_fn is None:
-            raise RuntimeError("@context_asset could not read the compute function from the AssetsDefinition")
-
-        @functools.wraps(raw_fn)
-        def compute(*args: Any, **kwargs: Any) -> Any:
-            return _finalize_bundle(raw_fn(*args, **kwargs), id_column, text_column, emit_data_version)
-
-        in_keys = set(target.keys_by_input_name.values())
-        tags = {**(spec.tags or {}), "context/sensitivity": policy.sensitivity}
+        tags = {"context/sensitivity": policy.sensitivity}
         if policy.scope:
             tags["context/scope"] = policy.scope
-        kinds = set(spec.kinds or ())
-        if len(kinds) < 3:
-            kinds.add("context")
-        return dg.asset(
-            key=key,
-            description=spec.description,
-            group_name=spec.group_name,
-            owners=list(spec.owners) if spec.owners else None,
-            tags=tags,
-            metadata={**(spec.metadata or {}), CONTEXT_POLICY_METADATA_KEY: dg.MetadataValue.json(policy.to_dict())},
-            code_version=code_version or spec.code_version,
-            partitions_def=target.partitions_def,
-            automation_condition=spec.automation_condition,
-            kinds=kinds,
-            check_specs=list(target.check_specs) if getattr(target, "check_specs", None) else None,
-            ins={name: dg.AssetIn(key=dep) for name, dep in target.keys_by_input_name.items()} or None,
-            deps=[d.asset_key for d in (spec.deps or []) if d.asset_key not in in_keys] or None,
-            retry_policy=getattr(target.node_def, "retry_policy", None),
-            backfill_policy=getattr(target, "backfill_policy", None),
-        )(compute)
+        return _rebuild_asset(
+            target, "@context_asset",
+            metadata={CONTEXT_POLICY_METADATA_KEY: dg.MetadataValue.json(policy.to_dict())},
+            tags=tags, add_kind="context", code_version=code_version,
+            wrap=lambda raw_fn: _wrap_bundle(raw_fn, id_column, text_column, emit_data_version),
+        )
 
     return decorator
+
+
+def _wrap_bundle(raw_fn: Any, id_column: str, text_column: str, emit_data_version: bool) -> Any:
+    @functools.wraps(raw_fn)
+    def compute(*args: Any, **kwargs: Any) -> Any:
+        return _finalize_bundle(raw_fn(*args, **kwargs), id_column, text_column, emit_data_version)
+
+    return compute
+
+
+def _rebuild_asset(
+    target: Any,
+    decorator_name: str,
+    *,
+    metadata: dict[str, Any],
+    tags: dict[str, str],
+    add_kind: str | None = None,
+    code_version: str | None = None,
+    wrap: Any = None,
+) -> Any:
+    """Re-declare a single ``@dg.asset`` with extra metadata/tags (and optionally a wrapped compute), keeping
+    its group, owners, partitions, inputs, deps, automation, retry and backfill settings."""
+    if not isinstance(target, dg.AssetsDefinition):
+        raise TypeError(f"{decorator_name} must be applied after @dg.asset (it decorates an AssetsDefinition)")
+    if len(target.keys) != 1:
+        raise ValueError(f"{decorator_name} supports single-asset definitions only")
+    key = next(iter(target.keys))
+    spec = target.get_asset_spec(key)
+    raw_fn = getattr(getattr(target.node_def, "compute_fn", None), "decorated_fn", None)
+    if raw_fn is None:
+        raise RuntimeError(f"{decorator_name} could not read the compute function from the AssetsDefinition")
+    # Real function inputs vs lineage-only deps: only parameters of the compute function can be ``ins``.
+    params = set(inspect.signature(raw_fn).parameters)
+    ins = {name: dg.AssetIn(key=dep) for name, dep in target.keys_by_input_name.items() if name in params}
+    bound = {i.key for i in ins.values()}
+    deps = {d.asset_key for d in (spec.deps or [])} | {k for n, k in target.keys_by_input_name.items() if n not in params}
+    kinds = set(spec.kinds or ())
+    if add_kind and len(kinds) < 3:
+        kinds.add(add_kind)
+    return dg.asset(
+        key=key,
+        description=spec.description,
+        group_name=spec.group_name,
+        owners=list(spec.owners) if spec.owners else None,
+        tags={**(spec.tags or {}), **tags},
+        metadata={**(spec.metadata or {}), **metadata},
+        code_version=code_version or spec.code_version,
+        partitions_def=target.partitions_def,
+        automation_condition=spec.automation_condition,
+        kinds=kinds,
+        check_specs=list(target.check_specs) if getattr(target, "check_specs", None) else None,
+        ins=ins or None,
+        deps=sorted((d for d in deps if d not in bound), key=lambda k: k.to_user_string()) or None,
+        retry_policy=getattr(target.node_def, "retry_policy", None),
+        backfill_policy=getattr(target, "backfill_policy", None),
+    )(wrap(raw_fn) if wrap else raw_fn)
+
+
+CONTEXT_CONSUMER_METADATA_KEY = "context/consumer"
+
+
+@dataclass(frozen=True)
+class ContextViolation:
+    """A consumer asset that sits downstream of context it is not cleared for."""
+
+    consumer: str
+    context_asset: str
+    reason: str
+
+
+def context_consumer(
+    *, clearance: str = "internal", access_tags: Sequence[str] = (), allow_pii: bool = False
+):
+    """Declare who an asset is cleared to consume: the clearance and access tags its audience holds.
+
+    Apply after ``@dg.asset``. ``check_context_consumption(defs)`` then fails if the asset has any ancestor
+    context asset whose policy (sensitivity above this clearance, or required access tags this consumer
+    lacks) it is not cleared for, so a summary built from confidential tickets cannot be wired into an
+    asset meant for a wider audience. It looks through intermediate assets, treating them as carrying the
+    context's policy forward.
+    """
+    if clearance not in SENSITIVITY_LEVELS:
+        raise ValueError(f"clearance must be one of {SENSITIVITY_LEVELS}, got {clearance!r}")
+    declaration = {"clearance": clearance, "access_tags": list(access_tags), "allow_pii": bool(allow_pii)}
+
+    def decorator(target: Any) -> Any:
+        return _rebuild_asset(
+            target, "@context_consumer",
+            metadata={CONTEXT_CONSUMER_METADATA_KEY: dg.MetadataValue.json(declaration)},
+            tags={"context/consumer-clearance": clearance},
+        )
+
+    return decorator
+
+
+def validate_context_consumption(source: Any) -> list[ContextViolation]:
+    """Every declared consumer's ancestors checked against its clearance; empty list means compliant.
+
+    Scope: asset sensitivity versus clearance, and required access tags. Per-tenant ``scope`` and chunk-level
+    PII are enforced at retrieval by the gateway and cannot be judged from the graph."""
+    graph = source.resolve_asset_graph() if hasattr(source, "resolve_asset_graph") else source
+    violations: list[ContextViolation] = []
+    for key in graph.get_all_asset_keys():
+        raw = (graph.get(key).metadata or {}).get(CONTEXT_CONSUMER_METADATA_KEY)
+        if raw is None:
+            continue
+        consumer = getattr(raw, "value", raw)
+        for ancestor in sorted(graph.get_ancestor_asset_keys(key), key=lambda k: k.to_user_string()):
+            policy_raw = (graph.get(ancestor).metadata or {}).get(CONTEXT_POLICY_METADATA_KEY)
+            if policy_raw is None:
+                continue
+            policy = ContextPolicy.from_dict(getattr(policy_raw, "value", policy_raw))
+            if SENSITIVITY_LEVELS.index(policy.sensitivity) > SENSITIVITY_LEVELS.index(consumer["clearance"]):
+                violations.append(ContextViolation(
+                    key.to_user_string(), ancestor.to_user_string(),
+                    f"{ancestor.to_user_string()} is {policy.sensitivity}; consumer clearance is {consumer['clearance']}"))
+            elif policy.access_tags and not set(policy.access_tags) & set(consumer["access_tags"]):
+                violations.append(ContextViolation(
+                    key.to_user_string(), ancestor.to_user_string(),
+                    f"{ancestor.to_user_string()} requires one of {list(policy.access_tags)}; consumer holds {consumer['access_tags']}"))
+    return violations
+
+
+class ContextPolicyViolation(Exception):
+    """Raised by ``check_context_consumption`` with every violation listed."""
+
+
+def check_context_consumption(source: Any) -> None:
+    """Fail loudly (at load time, before any run) if a consumer is wired to context it is not cleared for.
+
+    Call it where definitions are assembled, e.g. ``check_context_consumption(defs)`` at the bottom of
+    ``definitions.py``, or in a test."""
+    violations = validate_context_consumption(source)
+    if violations:
+        raise ContextPolicyViolation(
+            "context consumption not allowed:\n" + "\n".join(f"  {v.consumer}: {v.reason}" for v in violations))
 
 
 def context_policies(source: Any) -> dict[str, ContextPolicy]:
@@ -1080,6 +1188,7 @@ class ContextReceiptStore:
         outcomes: dict[str, dict[str, float]] = {}
         with_output: set[str] = set()
         verified: set[str] = set()
+        claims: dict[str, tuple[int, int]] = {}  # receipt -> (claims_total, claims_ungrounded), latest report wins
         for ev in events:
             payload = json.loads(ev["payload_json"])
             if ev["event_type"] == "outcome":
@@ -1087,9 +1196,15 @@ class ContextReceiptStore:
                 outcomes.setdefault(ev["receipt_id"], {})[key] = payload["value"]
             elif ev["event_type"] == "output_attached":
                 with_output.add(ev["receipt_id"])
-            elif ev["event_type"] == "evidence" and payload["level"] in ("verified", "counterfactual_tested"):
-                verified.add(ev["receipt_id"])
+            elif ev["event_type"] == "evidence":
+                if payload["level"] in ("verified", "counterfactual_tested"):
+                    verified.add(ev["receipt_id"])
+                details = payload.get("details") or {}
+                if isinstance(details.get("claims_total"), int) and isinstance(details.get("claims_ungrounded"), int):
+                    claims[ev["receipt_id"]] = (details["claims_total"], details["claims_ungrounded"])
         return {
+            "claims_total": sum(t for t, _ in claims.values()),
+            "claims_ungrounded": sum(u for _, u in claims.values()),
             "receipts": len(ids),
             "items": [(r["source_partition"], r["source_version"]) for r in rows],
             "outcome_means": [sum(v.values()) / len(v) for v in outcomes.values()],
@@ -1179,6 +1294,40 @@ class ContextReceiptStore:
                  "mean_outcome": round(e["_sum"] / e["outcomes"], 4) if e["outcomes"] else None}
             for cv, e in sorted(stats.items())
         }
+
+    def enforce_retention(self, retention_days: Mapping[str, float | None], *, now: datetime | None = None) -> dict[str, int]:
+        """Delete receipts past their retention; the one deletion this append-only store performs.
+
+        ``retention_days`` maps asset key to the retention declared in its policy (``None`` = keep forever). A
+        receipt expires ``min(retention of the assets it used)`` days after it was created, so a receipt that
+        touched a 30-day asset and a 90-day asset goes at 30 days. Receipts that touched no asset with a
+        retention are kept. Returns ``{"receipts_deleted": n}``. Aggregated item priors are statistics, not
+        receipts, and are not removed.
+        """
+        limits = {k: float(v) for k, v in retention_days.items() if v}
+        if not limits:
+            return {"receipts_deleted": 0}
+        now = now or datetime.now(timezone.utc)
+        cutoff = (now - timedelta(days=min(limits.values()))).isoformat()
+        with self._connect() as conn:
+            candidates = conn.execute(
+                "SELECT receipt_id, created_at FROM context_receipts WHERE created_at < ?", (cutoff,)
+            ).fetchall()
+            doomed: list[str] = []
+            for row in candidates:
+                assets = {r[0] for r in conn.execute(
+                    "SELECT source_asset_key FROM context_receipt_items WHERE receipt_id = ? AND source_asset_key IS NOT NULL "
+                    "UNION SELECT source_asset_key FROM context_receipt_excluded WHERE receipt_id = ? AND source_asset_key IS NOT NULL",
+                    (row["receipt_id"], row["receipt_id"]))}
+                applicable = [limits[a] for a in assets if a in limits]
+                if applicable and _as_datetime(row["created_at"]) + timedelta(days=min(applicable)) <= now:
+                    doomed.append(row["receipt_id"])
+            for i in range(0, len(doomed), 500):
+                batch = doomed[i:i + 500]
+                marks = ",".join("?" * len(batch))
+                for table in ("context_receipt_events", "context_receipt_excluded", "context_receipt_items", "context_receipts"):
+                    conn.execute(f"DELETE FROM {table} WHERE receipt_id IN ({marks})", batch)
+        return {"receipts_deleted": len(doomed)}
 
     def find_by_assets(self, targets: Mapping[str, Iterable[str] | None]) -> dict[str, list[str]]:
         """Receipts that used the given assets, optionally narrowed to partitions.
@@ -1356,6 +1505,101 @@ def impacted_receipts(
     }
 
 
+@dataclass(frozen=True)
+class HealthThresholds:
+    max_stale_share: float = 0.1
+    min_mean_outcome: float = -0.2
+    min_verified_share: float = 0.5
+    max_ungrounded_rate: float = 0.1
+    min_checked_receipts: int = 5
+
+
+def _asset_health(
+    store: "ContextReceiptStore", instance: Any, asset_key: str, window_hours: float, t: HealthThresholds
+) -> dict[str, Any]:
+    """One evaluation of a context asset's health over a rolling window: the metrics, and for each of the
+    four checks whether it passed, its severity, and its numbers. Shared by the asset checks and
+    ``context_health`` so a check and an agent asking "is this context healthy?" can never disagree."""
+    key = dg.AssetKey.from_user_string(asset_key)
+    since = (datetime.now(timezone.utc) - timedelta(hours=window_hours)).isoformat()
+    usage = store.asset_usage_since(asset_key, since)
+
+    judged = stale = 0
+    current: dict[str | None, str | None] = {}
+    for partition, version in usage["items"]:
+        if partition not in current:
+            current[partition] = _current_data_version(instance, key, partition)
+        if current[partition] is None or version is None:
+            continue
+        judged += 1
+        stale += version != current[partition]
+    stale_share = stale / judged if judged else 0.0
+
+    means = usage["outcome_means"]
+    judged_outcomes = len(means) >= t.min_checked_receipts
+    mean_outcome = sum(means) / len(means) if means else None
+
+    outputs = usage["with_output"]
+    verified_share = usage["verified_outputs"] / outputs if outputs else 1.0
+
+    claims = usage["claims_total"]
+    ungrounded_rate = usage["claims_ungrounded"] / claims if claims else 0.0
+
+    record = instance.get_latest_data_version_record(key)
+    tags = (getattr(getattr(record, "asset_materialization", None), "tags", None) or {}) if record else {}
+    return {
+        "receipts": usage["receipts"],
+        "window_hours": window_hours,
+        "current_data_version": tags.get("dagster/data_version"),
+        "current_code_version": tags.get("dagster/code_version"),
+        "checks": {
+            "context_staleness": {
+                "passed": stale_share <= t.max_stale_share, "severity": "ERROR",
+                "metadata": {"stale_share": round(stale_share, 4), "stale_items": stale, "judged_items": judged,
+                             "receipts": usage["receipts"], "window_hours": window_hours}},
+            "context_outcome_quality": {
+                "passed": (not judged_outcomes) or mean_outcome >= t.min_mean_outcome, "severity": "WARN",
+                "metadata": ({"mean_outcome": round(mean_outcome, 4), "outcomes": len(means), "window_hours": window_hours}
+                             if judged_outcomes else {"note": "insufficient outcomes to judge", "outcomes": len(means)})},
+            "context_verified_share": {
+                "passed": verified_share >= t.min_verified_share, "severity": "WARN",
+                "metadata": {"verified_share": round(verified_share, 4), "outputs": outputs, "window_hours": window_hours}},
+            "context_grounding": {
+                "passed": ungrounded_rate <= t.max_ungrounded_rate, "severity": "WARN",
+                "metadata": ({"ungrounded_rate": round(ungrounded_rate, 4), "claims": claims,
+                              "ungrounded_claims": usage["claims_ungrounded"], "window_hours": window_hours}
+                             if claims else {"note": "no claim-level verification reported", "claims": 0})},
+        },
+    }
+
+
+def context_health(
+    store: "ContextReceiptStore",
+    instance: Any,
+    asset_keys: Iterable[str],
+    *,
+    window_hours: float = 24.0,
+    thresholds: HealthThresholds | None = None,
+) -> dict[str, dict[str, Any]]:
+    """Is this context healthy right now? ``{asset_key: {status, checks, current versions, receipts}}``.
+
+    ``status`` is ``unhealthy`` when staleness fails (the ERROR check), ``degraded`` when only WARN checks
+    fail, else ``healthy``. Same numbers the asset checks report, so a gateway can put it in results, or an agent
+    runtime can degrade, without waiting for someone to look at a red check. In-process: pass the Dagster
+    instance and the receipt store; serving it over a network API is a deployment choice outside this module."""
+    t = thresholds or HealthThresholds()
+    out: dict[str, dict[str, Any]] = {}
+    for asset_key in asset_keys:
+        health = _asset_health(store, instance, asset_key, window_hours, t)
+        failed = {name: c for name, c in health["checks"].items() if not c["passed"]}
+        health["status"] = (
+            "unhealthy" if any(c["severity"] == "ERROR" for c in failed.values())
+            else "degraded" if failed else "healthy")
+        health["failing"] = sorted(failed)
+        out[asset_key] = health
+    return out
+
+
 def build_usage_checks(
     store: ContextReceiptStore,
     asset_key: str,
@@ -1365,68 +1609,38 @@ def build_usage_checks(
     min_mean_outcome: float,
     min_verified_share: float,
     min_checked_receipts: int,
+    max_ungrounded_rate: float = 0.1,
 ) -> list[Any]:
     """Asset checks over receipt data so context debt is a red/green signal on the asset.
 
-    - ``context_staleness`` (ERROR): share of retrieved items served from an out-of-date
-      data version in the window must be <= ``max_stale_share``. Items whose current
-      version is unknown are not judged.
-    - ``context_outcome_quality`` (WARN): mean outcome across receipts must be >=
-      ``min_mean_outcome``; passes with a note below ``min_checked_receipts`` samples.
-    - ``context_verified_share`` (WARN): share of outputs whose receipt reached verified or
-      counterfactual evidence must be >= ``min_verified_share``; passes when there are no outputs.
+    - ``context_staleness`` (ERROR): share of retrieved items served from an out-of-date data version in the
+      window must be <= ``max_stale_share``. Items whose current version is unknown are not judged.
+    - ``context_outcome_quality`` (WARN): mean outcome across receipts must be >= ``min_mean_outcome``;
+      passes with a note below ``min_checked_receipts`` samples.
+    - ``context_verified_share`` (WARN): share of outputs whose receipt reached verified or counterfactual
+      evidence must be >= ``min_verified_share``; passes when there are no outputs.
+    - ``context_grounding`` (WARN): share of claims a verifier reported as ungrounded (evidence ``details``
+      ``claims_total`` / ``claims_ungrounded``) must be <= ``max_ungrounded_rate``; passes when no verifier
+      has reported claims. The verifier that produces those counts is not part of this module.
     """
     key = dg.AssetKey.from_user_string(asset_key)
+    thresholds = HealthThresholds(max_stale_share, min_mean_outcome, min_verified_share, max_ungrounded_rate, min_checked_receipts)
 
-    def window() -> str:
-        return (datetime.now(timezone.utc) - timedelta(hours=window_hours)).isoformat()
-
-    @dg.asset_check(asset=key, name="context_staleness", description="Share of context served from an out-of-date version.")
-    def staleness(context):
-        usage = store.asset_usage_since(asset_key, window())
-        judged = stale = 0
-        current: dict[str | None, str | None] = {}
-        for partition, version in usage["items"]:
-            if partition not in current:
-                current[partition] = _current_data_version(context.instance, key, partition)
-            if current[partition] is None or version is None:
-                continue
-            judged += 1
-            stale += version != current[partition]
-        share = stale / judged if judged else 0.0
-        return dg.AssetCheckResult(
-            passed=share <= max_stale_share,
-            severity=dg.AssetCheckSeverity.ERROR,
-            metadata={"stale_share": round(share, 4), "stale_items": stale, "judged_items": judged,
-                      "receipts": usage["receipts"], "window_hours": window_hours},
-        )
-
-    @dg.asset_check(asset=key, name="context_outcome_quality", description="Mean outcome of answers built from this asset.")
-    def outcome_quality(context):
-        usage = store.asset_usage_since(asset_key, window())
-        means = usage["outcome_means"]
-        if len(means) < min_checked_receipts:
+    def make(name: str, description: str):
+        @dg.asset_check(asset=key, name=name, description=description)
+        def check(context):
+            verdict = _asset_health(store, context.instance, asset_key, window_hours, thresholds)["checks"][name]
             return dg.AssetCheckResult(
-                passed=True, severity=dg.AssetCheckSeverity.WARN,
-                metadata={"note": "insufficient outcomes to judge", "outcomes": len(means)},
-            )
-        mean = sum(means) / len(means)
-        return dg.AssetCheckResult(
-            passed=mean >= min_mean_outcome, severity=dg.AssetCheckSeverity.WARN,
-            metadata={"mean_outcome": round(mean, 4), "outcomes": len(means), "window_hours": window_hours},
-        )
+                passed=verdict["passed"], severity=getattr(dg.AssetCheckSeverity, verdict["severity"]),
+                metadata=verdict["metadata"])
+        return check
 
-    @dg.asset_check(asset=key, name="context_verified_share", description="Share of outputs whose context reached verified evidence.")
-    def verified_share(context):
-        usage = store.asset_usage_since(asset_key, window())
-        outputs = usage["with_output"]
-        share = usage["verified_outputs"] / outputs if outputs else 1.0
-        return dg.AssetCheckResult(
-            passed=share >= min_verified_share, severity=dg.AssetCheckSeverity.WARN,
-            metadata={"verified_share": round(share, 4), "outputs": outputs, "window_hours": window_hours},
-        )
-
-    return [staleness, outcome_quality, verified_share]
+    return [
+        make("context_staleness", "Share of context served from an out-of-date version."),
+        make("context_outcome_quality", "Mean outcome of answers built from this asset."),
+        make("context_verified_share", "Share of outputs whose context reached verified evidence."),
+        make("context_grounding", "Share of claims a verifier found ungrounded."),
+    ]
 
 
 def _current_data_version(instance: Any, asset_key: dg.AssetKey, partition: str | None = None) -> str | None:
@@ -1448,6 +1662,7 @@ def build_usage_sensor(
     prior_strength: float,
     implicit_signals: bool = False,
     reformulation_window_seconds: float = 120.0,
+    enforce_retention: bool = False,
 ) -> dg.SensorDefinition:
     """Cold-path sensor: tail receipts, report aggregated usage, learn priors, request rebuilds.
 
@@ -1467,6 +1682,11 @@ def build_usage_sensor(
     )
     def context_receipt_usage_sensor(context: dg.SensorEvaluationContext):
         state = json.loads(context.cursor) if context.cursor else {}
+        if enforce_retention:
+            policies = context_policies(context.repository_def.asset_graph)
+            deleted = store.enforce_retention({k: p.retention_days for k, p in policies.items()})["receipts_deleted"]
+            if deleted:
+                context.log.info(f"retention: deleted {deleted} receipt(s) past their policy retention")
         if implicit_signals:  # written before reading so they are scored in this same tick
             store.derive_implicit_outcomes(
                 window_seconds=reformulation_window_seconds,
@@ -1606,6 +1826,15 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
     min_mean_outcome: float = Field(default=-0.2, description="Warn context_outcome_quality below this mean outcome.")
     min_verified_share: float = Field(default=0.5, description="Warn context_verified_share below this share.")
     min_checked_receipts: int = Field(default=5, description="Outcomes needed before the quality check judges.")
+    max_ungrounded_rate: float = Field(default=0.1, description="Warn context_grounding above this share of ungrounded claims (reported by a verifier in evidence details).")
+    enforce_retention: bool = Field(
+        default=False,
+        description=(
+            "Have the usage sensor delete receipts past the retention_days declared in the policies of the assets "
+            "they used (the shortest applicable retention wins). Reads policies from every context asset in the "
+            "code location. This is the only deletion the receipt store performs."
+        ),
+    )
     implicit_signals_enabled: bool = Field(
         default=False,
         description=(
@@ -1633,6 +1862,7 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
                     stale_reads_threshold=self.stale_reads_threshold,
                     prior_strength=self.score_prior_strength,
                     implicit_signals=self.implicit_signals_enabled,
+                    enforce_retention=self.enforce_retention,
                     reformulation_window_seconds=self.reformulation_window_seconds,
                 )
             )
@@ -1646,6 +1876,7 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
                 min_mean_outcome=self.min_mean_outcome,
                 min_verified_share=self.min_verified_share,
                 min_checked_receipts=self.min_checked_receipts,
+                max_ungrounded_rate=self.max_ungrounded_rate,
             )
         ]
         return dg.Definitions(

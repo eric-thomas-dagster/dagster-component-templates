@@ -108,6 +108,20 @@
       "required": false,
       "default": 120.0,
       "description": "Max gap between two retrievals to count as a reformulation."
+    },
+    "max_ungrounded_rate": {
+      "type": "number",
+      "label": "Max Ungrounded Rate",
+      "required": false,
+      "default": 0.1,
+      "description": "Warn context_grounding above this share of ungrounded claims (reported by a verifier in evidence details)."
+    },
+    "enforce_retention": {
+      "type": "boolean",
+      "label": "Enforce Retention",
+      "required": false,
+      "default": false,
+      "description": "Have the usage sensor delete receipts past the retention_days declared in the policies of the assets they used (the shortest applicable retention wins). Reads policies from every context asset in the code location. This is the only deletion the receipt store performs."
     }
   }
 }

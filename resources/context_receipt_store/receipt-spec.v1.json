@@ -94,7 +94,7 @@
         "receipt_id": {"$ref": "#/$defs/id"},
         "occurred_at": {"type": "string"},
         "level": {"enum": ["cited", "verified", "counterfactual_tested"], "description": "What was done, not how certain the outcome is. 'retrieved' is implicit in the retrieval event."},
-        "details": {"type": "object", "description": "References and hashes only. `item_ids` (array of strings), if present, scopes this evidence to those retrieved items; otherwise it applies to all of them."}
+        "details": {"type": "object", "description": "References and hashes only. `item_ids` (array of strings), if present, scopes this evidence to those retrieved items; otherwise it applies to all of them. A claim-level verifier may report integer `claims_total` and `claims_ungrounded`."}
       }
     },
     "outcome": {

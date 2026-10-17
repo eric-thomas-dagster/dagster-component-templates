@@ -251,6 +251,7 @@ _CLASS_PATHS: dict[str, str] = {
     "ContextEngineeringPipelineComponent": "assets/ai/context_engineering_pipeline/component.py",
     "AsyncReceiptWriter": "resources/context_receipt_store/component.py",
     "CallerContext": "resources/context_receipt_store/component.py",
+    "HealthThresholds": "resources/context_receipt_store/component.py",
     "ContextPolicy": "resources/context_receipt_store/component.py",
     "ContextReceiptStore": "resources/context_receipt_store/component.py",
     "ContextReceiptStoreComponent": "resources/context_receipt_store/component.py",
@@ -1727,6 +1728,14 @@ _HELPERS = {
         "dagster_community_components.resources.context_receipt_store.component:rerank",
     "context_asset":
         "dagster_community_components.resources.context_receipt_store.component:context_asset",
+    "context_consumer":
+        "dagster_community_components.resources.context_receipt_store.component:context_consumer",
+    "check_context_consumption":
+        "dagster_community_components.resources.context_receipt_store.component:check_context_consumption",
+    "validate_context_consumption":
+        "dagster_community_components.resources.context_receipt_store.component:validate_context_consumption",
+    "context_health":
+        "dagster_community_components.resources.context_receipt_store.component:context_health",
     "context_policies":
         "dagster_community_components.resources.context_receipt_store.component:context_policies",
     "receipts_impacted_by":

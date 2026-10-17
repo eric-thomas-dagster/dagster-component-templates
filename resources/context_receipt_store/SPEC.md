@@ -27,7 +27,8 @@ reference its `receipt_id`. Appended events never rewrite the retrieval.
   policy and context versions, `query_hash`, counts.
 - `output`: `output_id`, `model`, `model_version`, `output_hash`, `prefect_run_id`.
 - `evidence`: `level` in `cited | verified | counterfactual_tested`, `details`
-  (`details.item_ids` scopes it to specific items).
+  (`details.item_ids` scopes it to specific items; a claim-level verifier reports `details.claims_total` and
+  `details.claims_ungrounded`, which the `context_grounding` check reads).
 - `outcome`: `signal`, `value` in [-1, 1], `source`, `outcome_ref`.
 
 Every event carries `spec_version: "1"` and `type`.

@@ -52,6 +52,16 @@ the language, small units are packed together, oversized ones split, and `sectio
 retrieval priors do not carry over to different text), `header_template` (e.g. `"[{title}] "`, prepended to each chunk
 and included in its hash). Every chunk gets a `content_hash`.
 
+**`chunk` parent-child:** `parent_chunk_size` (and `parent_chunk_overlap`) embeds small child chunks but keeps each
+child's larger parent passage as `parent_text` / `parent_id` (written to the index metadata), so retrieval matches
+precisely and can return the surrounding passage. A child's identity includes its parent, so a change to the surrounding
+passage changes the version.
+
+**`enrich`**: an LLM-written field on every chunk: `mode: summary | keywords | questions | context` (a situating
+sentence, the "contextual retrieval" technique; it is shown the chunk's `parent_text` when there is one), `model` (any
+litellm model, required), `prepend: true` to put the text in front of the chunk so it is embedded and hashed,
+`on_error: raise | skip`. One model call per chunk: it costs money and time.
+
 **`filter`**: drop by `min_chars`, `max_chars`, `min_alnum_ratio`, `exclude_patterns` (regexes for boilerplate, footers,
 signatures); reasons are counted in the step metadata.
 
@@ -68,7 +78,7 @@ signatures); reasons are counted in the step metadata.
 and embedding model already exist in the index, so only new or changed chunks pay for an embedding call. Every embedded
 row records its `embedding_model`.
 
-**`write_vector_store`**: `sync_mode: replace_sources` (default; deletes chunks of the source rows in this run that no
+**`write_vector_store`**: `purge_expired: true` (chromadb) also deletes this asset's chunks whose `valid_until` has passed; `sync_mode: replace_sources` (default; deletes chunks of the source rows in this run that no
 longer exist, so a shrunk document leaves no stale chunks) | `upsert` (never deletes) | `replace_all` (collection becomes
 exactly this run; refused for partitioned assets). chromadb is exercised by tests. Qdrant and Pinecone are not tested
 against live services; Pinecone cannot delete by filter on serverless indexes, so it behaves as `upsert` with a warning.
@@ -96,6 +106,15 @@ checks and rebuilds stay per source.
 Separate collections are the simplest. Assets may share one collection if each sets a distinct `chunk_id_prefix`; a chunk id that already belongs to a
 different asset raises, and stale-chunk cleanup only touches the writing asset's own chunks. Getting the raw rows in (from a ticketing export, a docs site, a git checkout) is
 the job of the upstream ingestion assets.
+
+## Gating on retrieval quality
+
+`retrieval_eval: {queries: [{query: "how do I export?", expected: [export_doc_0]}], k: 5, min_recall: 0.8, min_mrr: 0.5,
+severity: ERROR, blocking: true}` embeds each golden query with the pipeline's own embed step, runs it against the index
+this run just wrote, and reports **`retrieval_quality`** as an asset check: recall@k (a hit when any expected chunk id or
+source id is in the top k) and MRR. `blocking: true` holds downstream assets until it passes. Together with the code
+version this is the safety net for recipe changes: a new chunking or embedding model must still answer the golden
+questions. Python mode, chromadb only.
 
 ## Declaring governance policy
 

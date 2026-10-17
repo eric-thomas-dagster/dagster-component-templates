@@ -63,11 +63,15 @@ import hashlib
 import json
 import re
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 
 from dagster import (
+    AssetCheckResult,
+    AssetCheckSeverity,
+    AssetCheckSpec,
     AssetExecutionContext,
     AssetIn,
     AssetKey,
@@ -400,7 +404,9 @@ def _do_chunk(df: pd.DataFrame, step: dict, id_column: str, text_column: str, me
     vector collection and their source ids can overlap), chunk_size/chunk_overlap with length_unit
     (chars|tokens, tokens estimated via chars_per_token), preserve_sentences (fixed only),
     min_chunk_chars, max_chunks_per_source, chunk_id_mode (positional|content), header_template
-    (prepended to each chunk's text, may use any carried column and {section_path})."""
+    (prepended to each chunk's text, may use any carried column and {section_path}), parent_chunk_size
+    (small-to-big: embed small child chunks but keep each child's larger parent passage as `parent_text`
+    and `parent_id`, so retrieval can match precisely and return the surrounding context)."""
     strategy = step.get("strategy", "fixed")
     if strategy not in ("fixed", "recursive", "markdown", "code"):
         raise ValueError(f"chunk op: strategy must be fixed, recursive, markdown or code, got {strategy!r}")
@@ -421,6 +427,23 @@ def _do_chunk(df: pd.DataFrame, step: dict, id_column: str, text_column: str, me
     id_prefix = str(step.get("chunk_id_prefix") or "")
     code_language = _normalize_language(step.get("language"))
     language_column, path_column = step.get("language_column"), step.get("path_column")
+    parent_size = step.get("parent_chunk_size")
+    if parent_size is not None:
+        parent_size = max(1, _to_chars(parent_size, unit, cpt))
+        parent_overlap = _to_chars(step.get("parent_chunk_overlap", 0), unit, cpt)
+        if parent_size <= chunk_size:
+            raise ValueError("chunk op: parent_chunk_size must be larger than chunk_size")
+        if parent_overlap >= parent_size:
+            raise ValueError("chunk op: parent_chunk_overlap must be smaller than parent_chunk_size")
+
+    def split(text: str, size: int, overlap: int, lang: Optional[str]) -> List[Tuple[str, str]]:
+        if strategy == "fixed":
+            return [(c, "") for c in _chunk_fixed(text, size, overlap, preserve_sentences)]
+        if strategy == "recursive":
+            return [(c, "") for c in _chunk_recursive(text, size, overlap)]
+        if strategy == "markdown":
+            return _chunk_markdown(text, size, overlap)
+        return _chunk_code(text, size, overlap, lang)
 
     rows: List[Dict[str, Any]] = []
     skipped = dropped_small = capped = 0
@@ -430,26 +453,27 @@ def _do_chunk(df: pd.DataFrame, step: dict, id_column: str, text_column: str, me
         if not text.strip():
             skipped += 1
             continue
-        if strategy == "fixed":
-            pieces = [(c, "") for c in _chunk_fixed(text, chunk_size, chunk_overlap, preserve_sentences)]
-        elif strategy == "recursive":
-            pieces = [(c, "") for c in _chunk_recursive(text, chunk_size, chunk_overlap)]
-        elif strategy == "markdown":
-            pieces = _chunk_markdown(text, chunk_size, chunk_overlap)
-        else:
-            lang = code_language
+        lang = code_language
+        if strategy == "code":
             if lang is None and language_column and language_column in df.columns:
                 lang = _normalize_language(row[language_column])
             if lang is None and path_column and path_column in df.columns:
                 lang = _normalize_language(row[path_column])
-            pieces = _chunk_code(text, chunk_size, chunk_overlap, lang)
-        kept = [(c, sp) for c, sp in pieces if len(c) >= min_chars]
+        if parent_size is None:
+            pieces = [(c, sp, None, None) for c, sp in split(text, chunk_size, chunk_overlap, lang)]
+        else:
+            pieces = [
+                (child, sp_child or sp_parent, pidx, parent_body)
+                for pidx, (parent_body, sp_parent) in enumerate(split(text, parent_size, parent_overlap, lang))
+                for child, sp_child in split(parent_body, chunk_size, chunk_overlap, lang)
+            ]
+        kept = [piece for piece in pieces if len(piece[0]) >= min_chars]
         dropped_small += len(pieces) - len(kept)
         if max_chunks is not None and len(kept) > int(max_chunks):
             capped += len(kept) - int(max_chunks)
             kept = kept[: int(max_chunks)]
         seen_ids: set = set()
-        for i, (body, section_path) in enumerate(kept):
+        for i, (body, section_path, parent_idx, parent_body) in enumerate(kept):
             record: Dict[str, Any] = {id_column: source_id}
             for col in metadata_columns:
                 if col in df.columns:
@@ -458,7 +482,8 @@ def _do_chunk(df: pd.DataFrame, step: dict, id_column: str, text_column: str, me
             if header_template:
                 fields = _SafeFormat({**{k: ("" if pd.isna(v) else v) for k, v in row.items() if k != text_column}, "section_path": section_path})
                 chunk_text = header_template.format_map(fields) + body
-            digest = _sha256(chunk_text)
+            # A child's identity includes its parent passage: the text a retrieval returns changes if either does.
+            digest = _sha256(chunk_text if parent_body is None else chunk_text + "\x1f" + parent_body)
             chunk_id = f"{id_prefix}{source_id}_{digest[:12]}" if id_mode == "content" else f"{id_prefix}{source_id}_{i}"
             if chunk_id in seen_ids:  # identical text twice in one source (content ids): keep both
                 chunk_id = f"{chunk_id}-{i}"
@@ -472,6 +497,9 @@ def _do_chunk(df: pd.DataFrame, step: dict, id_column: str, text_column: str, me
             })
             if strategy in ("markdown", "code"):
                 record["section_path"] = section_path
+            if parent_body is not None:
+                record["parent_id"] = f"{id_prefix}{source_id}_p{parent_idx}"
+                record["parent_text"] = parent_body
             rows.append(record)
     if skipped:
         context.log.warning(f"chunk: skipped {skipped} row(s) with empty {text_column!r}")
@@ -624,6 +652,62 @@ def _do_sensitivity(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
     flagged = sum(f == "pii" for f in flags)
     out.attrs["stats"] = {"pii_chunks": flagged}
     context.log.info(f"sensitivity ({action}): {flagged} of {len(df)} chunks contain PII")
+    return out
+
+
+_ENRICH_PROMPTS = {
+    "summary": "Write one sentence that summarises this passage. Reply with the sentence only.",
+    "keywords": "List up to 8 keywords or short phrases a reader might search for to find this passage, comma-separated. Reply with the list only.",
+    "questions": "Write 3 short questions this passage answers, one per line. Reply with the questions only.",
+    "context": "Write one short sentence that situates this passage within its source so it can be understood on its own (what it is about and where it comes from). Reply with the sentence only.",
+}
+
+
+def _do_enrich(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
+    """Add an LLM-written field to every chunk. mode: summary | keywords | questions | context (a situating
+    sentence, the "contextual retrieval" technique). `prepend: true` puts the generated text in front of the
+    chunk so it is part of what gets embedded (and hashed, so the version reflects it); otherwise it is just
+    a column that travels to the vector store as metadata. One model call per chunk, so it costs money and
+    time; `model` is required (any litellm model). For `context` mode the passage's `parent_text` is shown
+    to the model when the chunk has one. on_error: raise (default) | skip (leave the field empty)."""
+    col = _text_column(df, step)
+    mode = step.get("mode", "context")
+    if mode not in _ENRICH_PROMPTS:
+        raise ValueError(f"enrich op: mode must be one of {sorted(_ENRICH_PROMPTS)}, got {mode!r}")
+    if not step.get("model"):
+        raise ValueError("enrich op: `model` is required (a litellm model name)")
+    on_error = step.get("on_error", "raise")
+    if on_error not in ("raise", "skip"):
+        raise ValueError(f"enrich op: on_error must be 'raise' or 'skip', got {on_error!r}")
+    try:
+        import litellm
+    except ImportError:
+        raise ImportError("enrich op requires: pip install litellm")
+    out_col = step.get("output_column", f"enrichment_{mode}")
+    out = df.copy()
+    values: List[str] = []
+    failures = 0
+    for _, row in out.iterrows():
+        passage = str(row[col])
+        source = str(row["parent_text"]) if mode == "context" and "parent_text" in out.columns and pd.notna(row.get("parent_text")) else None
+        user = (f"Source passage:\n{source}\n\nChunk:\n{passage}" if source else f"Passage:\n{passage}")
+        try:
+            resp = litellm.completion(
+                model=step["model"], temperature=0, max_tokens=int(step.get("max_tokens", 200)),
+                messages=[{"role": "system", "content": _ENRICH_PROMPTS[mode]}, {"role": "user", "content": user}],
+            )
+            values.append(str(resp.choices[0].message.content).strip())
+        except Exception as exc:
+            if on_error == "raise":
+                raise
+            failures += 1
+            context.log.warning(f"enrich: skipped one chunk: {exc}")
+            values.append("")
+    out[out_col] = values
+    if step.get("prepend"):
+        out[col] = [f"{v}\n\n{t}" if v else t for v, t in zip(values, out[col].astype(str))]
+        out = _rehash(out, col)
+    out.attrs["stats"] = {"enriched": len(values) - failures, "failed": failures}
     return out
 
 
@@ -877,6 +961,19 @@ def _do_embed(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
 
 # ── write_vector_store op ────────────────────────────────────────────────
 
+def _is_expired(value: Any, now: datetime) -> bool:
+    if value is None or value == "":
+        return False
+    text = str(value)
+    try:
+        if len(text) == 10:
+            return now >= datetime.fromisoformat(text).replace(tzinfo=timezone.utc) + timedelta(days=1)
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        return now >= (parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc))
+    except ValueError:
+        return False
+
+
 def _delete_in_batches(delete_fn, ids: List[str], size: int = 500) -> None:
     for i in range(0, len(ids), size):
         delete_fn(ids[i:i + size])
@@ -887,7 +984,8 @@ def _do_write_vector_store(df: pd.DataFrame, step: dict, id_column: str, context
     upsert | replace_all), batch_size, metadata_columns. `stamp` (see the component's stamp_provenance)
     writes source_asset_key / source_version / source_partition / chunk_id / content_hash /
     embedding_model / source_id onto every chunk so a retrieval gateway can build receipts straight from
-    index hits. sync_mode=replace_sources deletes chunks of the source rows in this run that no longer
+    index hits. purge_expired (chromadb) deletes this asset's chunks whose valid_until has passed.
+    sync_mode=replace_sources deletes chunks of the source rows in this run that no longer
     exist (a shrunk document no longer leaves stale chunks behind); replace_all makes this asset's
     chunks exactly this run (the whole collection when provenance is not stamped; refused for partitioned
     assets). With provenance stamped, sync only touches this asset's chunks, and a chunk id that already
@@ -964,6 +1062,16 @@ def _do_write_vector_store(df: pd.DataFrame, step: dict, id_column: str, context
             orphans = [cid for cid in got["ids"] if cid not in new_ids]
         _delete_in_batches(lambda batch: collection.delete(ids=batch), orphans)
         stats["orphans_deleted"] = len(orphans)
+        if step.get("purge_expired"):
+            # Physically remove chunks whose valid_until (set by the stamp op's ttl_days) has passed; a bare date is
+            # valid through the end of that day. A gateway already withholds them as "stale"; this also frees the index.
+            field = step.get("valid_until_field", "valid_until")
+            current = collection.get(where=own, include=["metadatas"]) if own else collection.get(include=["metadatas"])
+            now = datetime.now(timezone.utc)
+            expired = [cid for cid, meta in zip(current["ids"], current["metadatas"])
+                       if _is_expired((meta or {}).get(field), now)]
+            _delete_in_batches(lambda batch: collection.delete(ids=batch), expired)
+            stats["expired_deleted"] = len(expired)
         context.log.info(f"write_vector_store: upserted {len(df)} chunks into chromadb collection {collection_name!r} at {connection_string!r}; removed {len(orphans)} stale chunk(s) ({sync_mode})")
 
     elif provider == "pinecone":
@@ -1034,6 +1142,7 @@ _FRAME_OPS = {
     "filter": lambda df, step, ctx: _do_filter(df, step, ctx),
     "dedupe": lambda df, step, ctx: _do_dedupe(df, step, ctx),
     "sensitivity": lambda df, step, ctx: _do_sensitivity(df, step, ctx),
+    "enrich": lambda df, step, ctx: _do_enrich(df, step, ctx),
     "stamp": lambda df, step, ctx: _do_stamp(df, step, ctx),
 }
 
@@ -1069,6 +1178,67 @@ def _recipe_fingerprint(steps_cfg: List[dict]) -> str:
         for step in steps_cfg if step.get("op") != "write_vector_store"
     ]
     return hashlib.sha256(json.dumps(recipe, sort_keys=True, default=str).encode()).hexdigest()[:16]
+
+
+def _validate_retrieval_eval(cfg: Dict[str, Any], steps_cfg: List[dict]) -> Dict[str, Any]:
+    unknown = set(cfg) - {"queries", "k", "min_recall", "min_mrr", "severity", "blocking"}
+    if unknown:
+        raise ValueError(f"retrieval_eval: unknown field(s) {sorted(unknown)}")
+    queries = cfg.get("queries")
+    if not isinstance(queries, list) or not queries:
+        raise ValueError("retrieval_eval: `queries` must be a non-empty list of {query, expected: [chunk or source ids]}")
+    for q in queries:
+        if not isinstance(q, dict) or not str(q.get("query", "")).strip() or not q.get("expected"):
+            raise ValueError(f"retrieval_eval: every query needs `query` and a non-empty `expected`; got {q!r}")
+    if int(cfg.get("k", 5)) < 1:
+        raise ValueError("retrieval_eval: k must be >= 1")
+    for name in ("min_recall", "min_mrr"):
+        if cfg.get(name) is not None and not 0 <= float(cfg[name]) <= 1:
+            raise ValueError(f"retrieval_eval: {name} must be between 0 and 1")
+    if cfg.get("severity", "ERROR") not in ("ERROR", "WARN"):
+        raise ValueError("retrieval_eval: severity must be ERROR or WARN")
+    writes = [s_ for s_ in steps_cfg if s_["op"] == "write_vector_store"]
+    if not any(s_["op"] == "embed" for s_ in steps_cfg) or not writes or writes[-1].get("provider", "chromadb") != "chromadb":
+        raise ValueError("retrieval_eval needs an embed step and a chromadb write_vector_store step (the only index it can query)")
+    return dict(cfg)
+
+
+def _run_retrieval_eval(cfg: Dict[str, Any], steps_cfg: List[dict], asset_name: str, scoped: bool, context) -> AssetCheckResult:
+    """Embed each golden query with the same embedding step, query the index this run just wrote, and report
+    recall@k (a query is a hit when any expected chunk id or source id is in the top k) and MRR."""
+    embed_step = next(s_ for s_ in steps_cfg if s_["op"] == "embed")
+    write_step = [s_ for s_ in steps_cfg if s_["op"] == "write_vector_store"][-1]
+    queries = cfg["queries"]
+    k = int(cfg.get("k", 5))
+    embedded = _do_embed_raw(
+        pd.DataFrame({"chunk_text": [q["query"] for q in queries]}),
+        {**embed_step, "text_column": "chunk_text", "output_column": "embedding"}, context)
+    import chromadb
+    collection = chromadb.PersistentClient(path=write_step.get("connection_string") or "./chroma_db").get_collection(
+        write_step.get("collection_name", "context_engineering_kb"))
+    where = {"source_asset_key": {"$eq": asset_name}} if scoped else None
+    hits = 0
+    reciprocal = 0.0
+    misses: List[str] = []
+    for q, embedding in zip(queries, embedded["embedding"]):
+        res = collection.query(query_embeddings=[list(embedding)], n_results=k, where=where, include=["metadatas"])
+        expected = {str(e) for e in q["expected"]}
+        rank = next((i for i, (cid, meta) in enumerate(zip(res["ids"][0], res["metadatas"][0]))
+                     if cid in expected or (meta or {}).get("source_id") in expected), None)
+        if rank is None:
+            misses.append(q["query"])
+        else:
+            hits += 1
+            reciprocal += 1.0 / (rank + 1)
+    recall, mrr = hits / len(queries), reciprocal / len(queries)
+    passed = recall >= float(cfg.get("min_recall", 0.8)) and (cfg.get("min_mrr") is None or mrr >= float(cfg["min_mrr"]))
+    return AssetCheckResult(
+        check_name="retrieval_quality", passed=passed,
+        severity=AssetCheckSeverity[cfg.get("severity", "ERROR")],
+        metadata={"recall_at_k": MetadataValue.float(round(recall, 4)), "mrr": MetadataValue.float(round(mrr, 4)),
+                  "k": MetadataValue.int(k), "queries": MetadataValue.int(len(queries)),
+                  "misses": MetadataValue.json(misses[:10])},
+    )
 
 
 def _content_version(df: pd.DataFrame, text_column: str, steps_cfg: List[dict]) -> str:
@@ -1376,8 +1546,8 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             "Ordered list of {id, op, ...op-specific fields} dicts. Each step's `source:` "
             "names a prior step's id to read from; if omitted, defaults to the immediately "
             "preceding step (so you don't have to repeat `source:` on every line). "
-            "Valid ops: 'chunk' (must be first), 'filter', 'dedupe', 'sensitivity', 'stamp', 'classify', 'embed', "
-            "'write_vector_store'. filter/dedupe/sensitivity/stamp are python-mode only."
+            "Valid ops: 'chunk' (must be first), 'filter', 'dedupe', 'sensitivity', 'stamp', 'enrich', 'classify', 'embed', "
+            "'write_vector_store'. filter/dedupe/sensitivity/stamp/enrich are python-mode only."
         )
     )
 
@@ -1409,6 +1579,16 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         ),
     )
 
+    retrieval_eval: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "A golden set that gates this knowledge base: {queries: [{query, expected: [chunk or source ids]}], k: 5, "
+            "min_recall: 0.8, min_mrr: null, severity: ERROR|WARN, blocking: false}. After the index is written, each "
+            "query is embedded with the same embed step and run against it; the `retrieval_quality` asset check reports "
+            "recall@k and MRR and fails below the thresholds, with `blocking: true` holding downstream assets until it "
+            "passes. Pair with code_version: a new recipe must still answer the golden questions. Python mode, chromadb only."
+        ),
+    )
     context_policy: Optional[Dict[str, Any]] = Field(
         default=None,
         description=(
@@ -1459,7 +1639,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             raise ValueError("context_engineering_pipeline requires at least one step in `steps:`.")
         if steps_cfg[0]["op"] != "chunk":
             raise ValueError("context_engineering_pipeline: the first step must be op='chunk'.")
-        valid_ops = {"chunk", "classify", "embed", "write_vector_store", "filter", "dedupe", "sensitivity", "stamp"}
+        valid_ops = {"chunk", "classify", "embed", "write_vector_store", "filter", "dedupe", "sensitivity", "stamp", "enrich"}
         for s in steps_cfg:
             if "id" not in s or "op" not in s:
                 raise ValueError(f"every step needs {{id, op}}; got: {s}")
@@ -1523,6 +1703,11 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         output_table = self.output_table
 
         context_policy = _validate_context_policy(self.context_policy) if self.context_policy else None
+        retrieval_eval = None
+        if self.retrieval_eval:
+            if execution_mode == "sql":
+                raise ValueError("retrieval_eval is python-mode only")
+            retrieval_eval = _validate_retrieval_eval(self.retrieval_eval, steps_cfg)
         _inferred_kinds = self.kinds or ["ai", "context-engineering"]
         _all_tags = dict(self.asset_tags or {})
         for _kind in _inferred_kinds:
@@ -1544,6 +1729,10 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
+        if retrieval_eval is not None:
+            asset_kwargs["check_specs"] = [AssetCheckSpec(
+                name="retrieval_quality", asset=AssetKey.from_user_string(asset_name),
+                blocking=bool(retrieval_eval.get("blocking", False)))]
         if context_policy is not None:
             asset_kwargs["metadata"] = {_CONTEXT_POLICY_METADATA_KEY: MetadataValue.json(context_policy)}
         if self.upstream_asset_key:
@@ -1643,10 +1832,12 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                     metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False) or "")
                 except Exception as e:
                     context.log.warning(f"preview emission failed: {e}")
-            return Output(
+            yield Output(
                 value=final_df,
                 metadata=metadata,
                 data_version=DataVersion(content_version) if (emit_data_version and content_version) else None,
             )
+            if retrieval_eval is not None:
+                yield _run_retrieval_eval(retrieval_eval, steps_cfg, asset_name, stamp_provenance, context)
 
         return Definitions(assets=[_asset])

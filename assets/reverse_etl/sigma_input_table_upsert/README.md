@@ -136,3 +136,7 @@ attributes:
 
 - `sigma_resource` — OAuth2 client_credentials bearer token.
 - `sigma_workbook_ingestion` — the READ-side counterpart (workbook/element/Input-Table catalog pull); use it to find `workbook_id`s and confirm an Input Table exists before wiring up its writeback.
+
+## Partitioning
+
+When `partition_type` is set, a run sends only the rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range) and `partition_static_column` selects the rows for a static/dynamic partition key. Unpartitioned runs send every row.

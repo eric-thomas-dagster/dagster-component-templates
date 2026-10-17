@@ -149,3 +149,7 @@ dropped.
 - `rows_total`, `rows_sent`, `rows_failed`
 - `batches`, `mode`, `dry_run`
 - `num_records_imported` (events mode only — Mixpanel's response count)
+
+## Partitioning
+
+When `partition_type` is set, a run sends only the rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range) and `partition_static_column` selects the rows for a static/dynamic partition key. Unpartitioned runs send every row.

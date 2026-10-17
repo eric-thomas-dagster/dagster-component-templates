@@ -190,6 +190,35 @@ class StripeCustomerUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
     batch_size: int = Field(default=100, description="Max upstream rows per run (safety cap).")
 
     group_name: Optional[str] = Field(default="stripe", description="Dagster asset group name.")
+
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. A partitioned run sends only the rows in its partition.",
+    )
+    partition_start: Optional[str] = Field(
+        default=None,
+        description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+    )
+    partition_values: Optional[Union[str, List[str]]] = Field(
+        default=None,
+        description="Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'.",
+    )
+    dynamic_partition_name: Optional[str] = Field(
+        default=None,
+        description="Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+    )
+    partition_dimensions: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields.",
+    )
+    partition_date_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description="Column used to filter the rows to send to the current date partition (time partitions).",
+    )
+    partition_static_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description="Column used to filter the rows to send to the current static/dynamic partition key.",
+    )
     description: Optional[str] = Field(default=None, description="Asset description.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
     tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Catalog tags.")
@@ -207,6 +236,9 @@ class StripeCustomerUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
+        partitions_def = _build_partitions_def(
+            self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name, self.partition_dimensions
+        )
         kinds = set(self.kinds) if self.kinds else set()
         kinds.add("stripe")
 
@@ -372,6 +404,7 @@ class StripeCustomerUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
         common_kwargs = dict(
             key=dg.AssetKey.from_user_string(_self.asset_name),
+            partitions_def=partitions_def,
             group_name=_self.group_name,
             kinds=kinds,
             owners=_self.owners,
@@ -385,6 +418,7 @@ class StripeCustomerUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
             @dg.asset(required_resource_keys=required_rks, **common_kwargs)
             def _asset(context: dg.AssetExecutionContext):
                 df = _resolve_source_df(context)
+                df = _filter_df_to_partition(df, context, _self.partition_date_column, _self.partition_static_column)
                 return _run_upsert(context, df)
         else:
             @dg.asset(
@@ -393,6 +427,144 @@ class StripeCustomerUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
                 **common_kwargs,
             )
             def _asset(context: dg.AssetExecutionContext, upstream):
-                return _run_upsert(context, upstream)
+                return _run_upsert(context, _filter_df_to_partition(upstream, context, _self.partition_date_column, _self.partition_static_column))
 
         return dg.Definitions(assets=[_asset])
+
+
+# BEGIN reverse-etl partition helpers (inlined per component; keep copies identical, see tests/test_partition_port_reverse_etl.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from dagster import (  # noqa: E402,F401
+    DailyPartitionsDefinition,
+    DynamicPartitionsDefinition,
+    HourlyPartitionsDefinition,
+    MonthlyPartitionsDefinition,
+    MultiPartitionsDefinition,
+    StaticPartitionsDefinition,
+    WeeklyPartitionsDefinition,
+)
+
+
+def _build_partitions_def(
+    partition_type,
+    partition_start,
+    partition_values,
+    dynamic_partition_name,
+    partition_dimensions,
+):
+    """Construct a Dagster partitions_def from the canonical partition fields.
+
+    Strict: raises ValueError on misconfigured combinations rather than
+    silently picking a default. Specifically:
+      - time-based partition_type without partition_start
+      - partition_type=multi without partition_values
+      - partition_type=dynamic without dynamic_partition_name
+      - both partition_dimensions AND flat fields set (ambiguous intent)
+    """
+    from dagster import (
+        DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+        MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+        StaticPartitionsDefinition, MultiPartitionsDefinition,
+        DynamicPartitionsDefinition,
+    )
+
+    if partition_dimensions and partition_type:
+        raise ValueError(
+            "Set either partition_type (flat-fields shape) or "
+            "partition_dimensions (multi-axis shape), not both."
+        )
+
+    def _build_axis(spec):
+        t = spec.get("type")
+        if t in ("daily", "weekly", "monthly", "hourly") and not spec.get("start"):
+            raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
+        if t == "daily":
+            return DailyPartitionsDefinition(start_date=spec["start"])
+        if t == "weekly":
+            return WeeklyPartitionsDefinition(start_date=spec["start"])
+        if t == "monthly":
+            return MonthlyPartitionsDefinition(start_date=spec["start"])
+        if t == "hourly":
+            return HourlyPartitionsDefinition(start_date=spec["start"])
+        if t == "static":
+            vals = spec.get("values") or []
+            if isinstance(vals, str):
+                vals = [v.strip() for v in vals.split(",") if v.strip()]
+            if not vals:
+                raise ValueError("partition dimension type='static' requires non-empty 'values'")
+            return StaticPartitionsDefinition(list(vals))
+        if t == "dynamic":
+            name = spec.get("dynamic_partition_name") or spec.get("name")
+            if not name:
+                raise ValueError("partition dimension type='dynamic' requires a name")
+            return DynamicPartitionsDefinition(name=name)
+        raise ValueError(f"unknown partition type: {t!r}")
+
+    if partition_dimensions:
+        if len(partition_dimensions) == 1:
+            return _build_axis(partition_dimensions[0])
+        axes = {d["name"]: _build_axis(d) for d in partition_dimensions}
+        return MultiPartitionsDefinition(axes)
+
+    if not partition_type:
+        return None
+    if isinstance(partition_values, (list, tuple)):
+        _values = [str(v).strip() for v in partition_values if str(v).strip()]
+    else:
+        _values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
+    if partition_type in ("daily", "weekly", "monthly", "hourly") and not partition_start:
+        raise ValueError(
+            f"partition_type={partition_type!r} requires partition_start (ISO date, e.g. '2024-01-01')."
+        )
+    if partition_type == "daily":
+        return DailyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "weekly":
+        return WeeklyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "monthly":
+        return MonthlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "hourly":
+        return HourlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "static":
+        if not _values:
+            raise ValueError("partition_type='static' requires partition_values (comma-separated).")
+        return StaticPartitionsDefinition(_values)
+    if partition_type == "dynamic":
+        if not dynamic_partition_name:
+            raise ValueError(
+                "partition_type='dynamic' requires dynamic_partition_name."
+            )
+        return DynamicPartitionsDefinition(name=dynamic_partition_name)
+    if partition_type == "multi":
+        if not _values:
+            raise ValueError("partition_type='multi' requires partition_values (comma-separated).")
+        if not partition_start:
+            raise ValueError("partition_type='multi' requires partition_start (the date axis start).")
+        return MultiPartitionsDefinition({
+            "date": DailyPartitionsDefinition(start_date=partition_start),
+            "static_dim": StaticPartitionsDefinition(_values),
+        })
+    raise ValueError(f"unknown partition_type: {partition_type!r}")
+
+
+def _filter_df_to_partition(df, context, partition_date_column, partition_static_column):
+    """Keep the rows that belong to the run's partition(s). A no-op for an unpartitioned run or a non-DataFrame input.
+
+    Time partitions use `context.partition_time_window` (which spans the whole range of a backfill run) against
+    `partition_date_column`; static/dynamic/multi partitions match `partition_static_column` against
+    `context.partition_keys`. Without the relevant column the input is returned unchanged."""
+    import pandas as pd
+
+    if not hasattr(df, "columns") or not (context.has_partition_key or context.has_partition_key_range):
+        return df
+    if partition_date_column and partition_date_column in df.columns:
+        try:
+            window = context.partition_time_window
+        except Exception:
+            return df  # static/dynamic/multi partition: no time window
+        dates = pd.to_datetime(df[partition_date_column], errors="coerce", utc=True)
+        return df[(dates >= pd.Timestamp(window.start)) & (dates < pd.Timestamp(window.end))]
+    if partition_static_column and partition_static_column in df.columns:
+        keys = {str(k) for k in context.partition_keys}
+        return df[df[partition_static_column].astype(str).isin(keys)]
+    return df
+# END reverse-etl partition helpers

@@ -160,6 +160,14 @@ class IterableSinkComponent(Component, Model, Resolvable):
     partition_start: Optional[str] = Field(default=None)
     partition_values: Optional[Union[str, List[str]]] = Field(default=None)
     dynamic_partition_name: Optional[str] = Field(default=None)
+    partition_date_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description="Column used to filter the rows to send to the current date partition (time partitions).",
+    )
+    partition_static_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description="Column used to filter the rows to send to the current static/dynamic partition key.",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -202,6 +210,8 @@ class IterableSinkComponent(Component, Model, Resolvable):
         def _run(context, df: pd.DataFrame) -> MaterializeResult:
             if not isinstance(df, pd.DataFrame):
                 raise TypeError(f"upstream must be a DataFrame, got {type(df).__name__}")
+
+            df = _filter_df_to_partition(df, context, cfg.partition_date_column, cfg.partition_static_column)
             total = len(df)
             iterable = _get_resource(cfg, context)
             records = df.to_dict(orient="records")
@@ -531,3 +541,31 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
+
+
+# BEGIN partition row-filter helper (inlined per component; keep copies identical, see tests/test_partition_port_ingestion.py)
+from typing import Literal  # noqa: E402,F401
+
+
+def _filter_df_to_partition(df, context, partition_date_column, partition_static_column):
+    """Keep the rows that belong to the run's partition(s). A no-op for an unpartitioned run.
+
+    Time partitions use `context.partition_time_window` (which spans the whole range of a backfill run) against
+    `partition_date_column`; static/dynamic/multi partitions match `partition_static_column` against
+    `context.partition_keys`. Without the relevant column the frame is returned unchanged."""
+    import pandas as pd
+
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return df
+    if partition_date_column and partition_date_column in df.columns:
+        try:
+            window = context.partition_time_window
+        except Exception:
+            return df  # static/dynamic/multi partition: no time window
+        dates = pd.to_datetime(df[partition_date_column], errors="coerce", utc=True)
+        return df[(dates >= pd.Timestamp(window.start)) & (dates < pd.Timestamp(window.end))]
+    if partition_static_column and partition_static_column in df.columns:
+        keys = {str(k) for k in context.partition_keys}
+        return df[df[partition_static_column].astype(str).isin(keys)]
+    return df
+# END partition row-filter helper

@@ -123,3 +123,7 @@ attributes:
 - `freshservice_ingestion` — read side (dlt-backed REST API source).
 - `servicenow_record_upsert` — the equivalent pattern for ServiceNow (same search-then-write shape, different field model).
 - `freshdesk_contact_upsert` — the equivalent pattern for Freshdesk contacts (a *different* Freshworks product — no custom_fields nesting, has a built-in `unique_external_id` filter).
+
+## Partitioning
+
+When `partition_type` is set, a run sends only the rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range) and `partition_static_column` selects the rows for a static/dynamic partition key. Unpartitioned runs send every row.

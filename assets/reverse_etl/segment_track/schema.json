@@ -216,6 +216,20 @@
       "label": "Dynamic Partition Name",
       "type": "string",
       "required": false
+    },
+    "partition_date_column": {
+      "description": "Column used to filter the rows to send to the current date partition key.",
+      "type": "string",
+      "label": "Partition Date Column",
+      "required": false,
+      "x-dagster-widget": "column"
+    },
+    "partition_static_column": {
+      "description": "Column used to filter the rows to send to the current static partition value.",
+      "type": "string",
+      "label": "Partition Static Column",
+      "required": false,
+      "x-dagster-widget": "column"
     }
   },
   "tags": [

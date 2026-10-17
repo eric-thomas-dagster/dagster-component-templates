@@ -466,6 +466,16 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
                 max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
             )
 
+        _retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+
+            _retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+
         _asset_kwargs = dict(
             key=AssetKey.from_user_string(asset_name),
             description=description,
@@ -478,6 +488,8 @@ class DuckDBTableWriterComponent(Component, Model, Resolvable):
         )
         if _backfill_policy_obj is not None:
             _asset_kwargs["backfill_policy"] = _backfill_policy_obj
+        if _retry_policy is not None:
+            _asset_kwargs["retry_policy"] = _retry_policy
         if resource_key:
             _asset_kwargs["required_resource_keys"] = {resource_key}
         if self.automation_condition is not None:

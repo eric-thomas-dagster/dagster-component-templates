@@ -9,5 +9,87 @@
       "description": "One Dagster asset per selected item discovered in the vendor. See README for what each materialization produces."
     }
   },
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name (single key).",
+      "required": true
+    },
+    "tracking_uri_env_var": {
+      "type": "string",
+      "label": "Tracking Uri Env Var",
+      "description": "Env var holding the MLflow Tracking URI.",
+      "required": true
+    },
+    "model_name": {
+      "type": "string",
+      "label": "Model Name",
+      "description": "Registered model name to promote.",
+      "required": true
+    },
+    "target_stage": {
+      "type": "string",
+      "label": "Target Stage",
+      "description": "Stage to promote to (Production / Staging / Archived / None).",
+      "required": false,
+      "default": "Production"
+    },
+    "source_stage": {
+      "type": "string",
+      "label": "Source Stage",
+      "description": "If set, promote the LATEST version at this stage. Mutually exclusive with `model_version`.",
+      "required": false,
+      "default": null
+    },
+    "model_version": {
+      "type": "string",
+      "label": "Model Version",
+      "description": "If set, promote this specific version. Mutually exclusive with `source_stage`.",
+      "required": false,
+      "default": null
+    },
+    "archive_existing_target": {
+      "type": "boolean",
+      "label": "Archive Existing Target",
+      "description": "Whether to archive any existing model versions at `target_stage` before promoting the new one. Matches MLflow's `archive_existing_versions` flag.",
+      "required": false,
+      "default": true
+    },
+    "description_prefix": {
+      "type": "string",
+      "label": "Description Prefix",
+      "description": "Prepended to the promotion's Dagster asset description.",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name for the promotion asset.",
+      "required": false,
+      "default": "mlflow"
+    },
+    "asset_key_prefix": {
+      "type": "string",
+      "label": "Asset Key Prefix",
+      "description": "Prefix for the asset key (list of strings for hierarchical keys).",
+      "required": false,
+      "default": null
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var for HTTP-basic MLflow auth username (optional).",
+      "required": false,
+      "default": null
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var for HTTP-basic MLflow auth password (optional).",
+      "required": false,
+      "default": null
+    }
+  }
 }

@@ -3,5 +3,80 @@
   "description": "Polls an MLflow experiment for new runs and fires a Dagster RunRequest per new run. Cursor-based dedup on run_id.",
   "category": "sensor",
   "icon": "si:mlflow",
-  "attributes": {}
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique name for this sensor.",
+      "required": true
+    },
+    "tracking_uri_env_var": {
+      "type": "string",
+      "label": "Tracking Uri Env Var",
+      "description": "Env var holding the MLflow Tracking URI (e.g. MLFLOW_TRACKING_URI).",
+      "required": true
+    },
+    "experiment_name": {
+      "type": "string",
+      "label": "Experiment Name",
+      "description": "MLflow experiment name to watch. Provide this OR experiment_id.",
+      "required": false,
+      "default": null
+    },
+    "experiment_id": {
+      "type": "string",
+      "label": "Experiment Id",
+      "description": "MLflow experiment ID to watch. Provide this OR experiment_name.",
+      "required": false,
+      "default": null
+    },
+    "filter_string": {
+      "type": "string",
+      "label": "Filter String",
+      "description": "MLflow search_runs filter string. E.g. \"attributes.status = 'FINISHED'\" or \"tags.candidate = 'true'\". Passed directly to MlflowClient.search_runs.",
+      "required": false,
+      "default": null
+    },
+    "target_job": {
+      "type": "string",
+      "label": "Target Job",
+      "description": "Dagster job to trigger for each new run.",
+      "required": true
+    },
+    "minimum_interval_seconds": {
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "description": "Minimum seconds between sensor evaluations.",
+      "required": false,
+      "default": 60
+    },
+    "max_new_runs_per_tick": {
+      "type": "integer",
+      "label": "Max New Runs Per Tick",
+      "description": "Cap on RunRequests emitted per sensor tick. Guardrail against a burst backfill of historical runs on first activation.",
+      "required": false,
+      "default": 25
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var for HTTP-basic MLflow auth username (optional).",
+      "required": false,
+      "default": null
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var for HTTP-basic MLflow auth password (optional).",
+      "required": false,
+      "default": null
+    },
+    "run_config": {
+      "type": "object",
+      "label": "Run Config",
+      "description": "Extra run_config merged into the triggered job's config. Sensor injects the run metadata under `ops.config` — this field overlays anything else.",
+      "required": false,
+      "default": null
+    }
+  }
 }

@@ -3,5 +3,72 @@
   "description": "Asset check that verifies an MLflow registered model's state (exists / at required stage / within a freshness window).",
   "category": "check",
   "icon": "si:mlflow",
-  "attributes": {}
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Asset key this check attaches to (dot-separated for hierarchical keys).",
+      "required": true
+    },
+    "check_name": {
+      "type": "string",
+      "label": "Check Name",
+      "description": "Unique name for this asset check.",
+      "required": true
+    },
+    "tracking_uri_env_var": {
+      "type": "string",
+      "label": "Tracking Uri Env Var",
+      "description": "Env var holding the MLflow Tracking URI.",
+      "required": true
+    },
+    "model_name": {
+      "type": "string",
+      "label": "Model Name",
+      "description": "Registered model name to check.",
+      "required": true
+    },
+    "required_stage": {
+      "type": "string",
+      "label": "Required Stage",
+      "description": "If set, the model must have at least one version at this stage.",
+      "required": false,
+      "default": null
+    },
+    "required_version": {
+      "type": "string",
+      "label": "Required Version",
+      "description": "If set, this specific version must exist in the registry.",
+      "required": false,
+      "default": null
+    },
+    "max_age_days": {
+      "type": "integer",
+      "label": "Max Age Days",
+      "description": "If set, the latest version at required_stage (or overall) must have been created within this many days. Freshness gate — useful to catch stale production models.",
+      "required": false,
+      "default": null
+    },
+    "severity": {
+      "type": "string",
+      "label": "Severity",
+      "description": "ERROR blocks downstream materialization; WARN just flags in the UI.",
+      "required": false,
+      "default": "ERROR"
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var for HTTP-basic MLflow auth username (optional).",
+      "required": false,
+      "default": null
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var for HTTP-basic MLflow auth password (optional).",
+      "required": false,
+      "default": null
+    }
+  }
 }

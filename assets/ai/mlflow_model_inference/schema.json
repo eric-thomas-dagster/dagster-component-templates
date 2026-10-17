@@ -12,5 +12,181 @@
     }
   },
   "icon": "si:mlflow",
-  "attributes": {}
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name for the scored output.",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "description": "Asset key of the upstream DataFrame to score.",
+      "required": true
+    },
+    "tracking_uri_env_var": {
+      "type": "string",
+      "label": "Tracking Uri Env Var",
+      "description": "Env var holding the MLflow Tracking URI.",
+      "required": true
+    },
+    "model_name": {
+      "type": "string",
+      "label": "Model Name",
+      "description": "Registered model name to load from MLflow.",
+      "required": true
+    },
+    "model_stage": {
+      "type": "string",
+      "label": "Model Stage",
+      "description": "Load the latest version at this stage. Set to null and provide model_version instead to pin a specific version.",
+      "required": false,
+      "default": "Production"
+    },
+    "model_version": {
+      "type": "string",
+      "label": "Model Version",
+      "description": "Pin a specific model version to load. Overrides model_stage if both are provided.",
+      "required": false,
+      "default": null
+    },
+    "output_column": {
+      "type": "string",
+      "label": "Output Column",
+      "description": "Column name for the model's output in the returned DataFrame.",
+      "required": false,
+      "default": "prediction"
+    },
+    "keep_input_columns": {
+      "type": "boolean",
+      "label": "Keep Input Columns",
+      "description": "If true, output DataFrame is upstream + prediction column. If false, output contains only the prediction column + any explicit id columns.",
+      "required": false,
+      "default": true
+    },
+    "id_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Id Columns",
+      "description": "Columns to keep in the output even when keep_input_columns=false (e.g. customer_id, order_id). Useful for downstream joins.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "feature_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Feature Columns",
+      "description": "Columns to pass to the model. If None, uses all upstream columns except id_columns.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group name.",
+      "required": false,
+      "default": "mlflow_scoring"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None. A partitioned run sends only the rows in its partition (see partition_date_column / partition_static_column).",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date in ISO format. Required for time-based partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "description": "Column used to filter upstream rows to the current date partition (time partitions).",
+      "type": "string",
+      "label": "Partition Date Column",
+      "required": false,
+      "x-dagster-widget": "column"
+    },
+    "partition_static_column": {
+      "description": "Column used to filter upstream rows to the current static/dynamic partition key.",
+      "type": "string",
+      "label": "Partition Static Column",
+      "required": false,
+      "x-dagster-widget": "column"
+    },
+    "partition_static_dim": {
+      "type": "string",
+      "label": "Static Dimension Name",
+      "description": "Name for the static partition dimension in multi-partitioning, e.g. 'customer' or 'region'. Defaults to 'segment'.",
+      "required": false,
+      "default": null,
+      "x-dagster-widget": "column"
+    },
+    "asset_key_prefix": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Asset Key Prefix",
+      "description": "Prefix for the asset key.",
+      "required": false,
+      "default": null
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var for HTTP-basic MLflow auth username (optional).",
+      "required": false,
+      "default": null
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var for HTTP-basic MLflow auth password (optional).",
+      "required": false,
+      "default": null
+    }
+  }
 }

@@ -108,3 +108,7 @@ attributes:
 - `firestore_writer_asset` — write rows back.
 - `bigquery_query_asset` / `database_query` — SQL alternatives.
 - `mongodb_to_database_asset` — same shape, MongoDB.
+
+## Partitioning
+
+On a partitioned run the tokens `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted into `where`, `collection`, so each partition reads its own slice. Unpartitioned runs use the value as written.

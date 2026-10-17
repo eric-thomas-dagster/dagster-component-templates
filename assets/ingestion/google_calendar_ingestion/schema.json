@@ -42,14 +42,14 @@
       "label": "Time Min (RFC3339)",
       "required": false,
       "default": null,
-      "description": "Defaults to now."
+      "description": "Defaults to now. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted."
     },
     "time_max": {
       "type": "string",
       "label": "Time Max (RFC3339)",
       "required": false,
       "default": null,
-      "description": "Defaults to now + days_ahead."
+      "description": "Defaults to now + days_ahead. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted."
     },
     "days_ahead": {
       "type": "integer",

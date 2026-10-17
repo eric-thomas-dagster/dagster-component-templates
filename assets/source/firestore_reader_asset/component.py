@@ -67,7 +67,7 @@ class FirestoreReaderAssetComponent(Component, Model, Resolvable):
     project_id: Optional[str] = Field(default=None)
     database: str = Field(default="(default)", description="Firestore database id ('(default)' or named).")
 
-    collection: str = Field(description="Collection path (e.g. 'orders' or 'tenants/acme/orders').")
+    collection: str = Field(description="Collection path (e.g. 'orders' or 'tenants/acme/orders'). On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.")
     collection_group: bool = Field(
         default=False,
         description="If True, treat `collection` as a collection-group query (matches every collection of that name across the database).",
@@ -76,8 +76,7 @@ class FirestoreReaderAssetComponent(Component, Model, Resolvable):
     where: Optional[List[Dict[str, Any]]] = Field(
         default=None,
         description=(
-            "Optional list of {field, op, value} filter dicts. op is one of: "
-            "==, !=, <, <=, >, >=, in, not-in, array-contains, array-contains-any."
+            "Optional list of {field, op, value} filter dicts. op is one of: ==, !=, <, <=, >, >=, in, not-in, array-contains, array-contains-any. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted."
         ),
     )
     order_by: Optional[List[str]] = Field(
@@ -221,9 +220,9 @@ class FirestoreReaderAssetComponent(Component, Model, Resolvable):
             sa_creds = service_account.Credentials.from_service_account_info(creds_dict)
             client = firestore.Client(project=project_id, credentials=sa_creds, database=database)
 
-            ref = client.collection_group(collection.split("/")[-1]) if collection_group else client.collection(collection)
+            ref = client.collection_group(_substitute_partition(collection, _partition_vars(context)).split("/")[-1]) if collection_group else client.collection(_substitute_partition(collection, _partition_vars(context)))
             query = ref
-            for clause in where_clauses:
+            for clause in _substitute_partition(where_clauses, _partition_vars(context)):
                 field = clause["field"]; op = clause["op"]; val = clause["value"]
                 query = query.where(filter=firestore.FieldFilter(field, op, val))
             for ob in order_by:
@@ -235,7 +234,7 @@ class FirestoreReaderAssetComponent(Component, Model, Resolvable):
                 query = query.limit(limit)
 
             docs = list(query.stream())
-            context.log.info(f"Firestore returned {len(docs)} document(s) for {collection}")
+            context.log.info(f"Firestore returned {len(docs)} document(s) for {_substitute_partition(collection, _partition_vars(context))}")
 
             rows = []
             for d in docs:
@@ -248,7 +247,7 @@ class FirestoreReaderAssetComponent(Component, Model, Resolvable):
             return Output(
                 value=df,
                 metadata={
-                    "collection":    MetadataValue.text(collection),
+                    "collection":    MetadataValue.text(_substitute_partition(collection, _partition_vars(context))),
                     "is_group":      MetadataValue.bool(collection_group),
                     "doc_count":     MetadataValue.int(len(df)),
                     "preview":       MetadataValue.md(preview or ""),
@@ -272,3 +271,55 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
+
+# BEGIN partition-vars helper (inlined per component; keep copies identical, see tests/test_partition_vars.py)
+def _partition_vars(context):
+    """Tokens a partitioned run can use in its variables: {partition_key}, and for time partitions {partition_date}
+    (YYYY-MM-DD), {partition_start} and {partition_end} (ISO datetimes); for a multi-partition also
+    {partition_<dimension>}. Empty for an unpartitioned run."""
+    import re as _re
+
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return {}
+    keys = list(context.partition_keys)
+    tokens = {"partition_key": ",".join(str(k) for k in keys)}
+    try:
+        window = context.partition_time_window
+        tokens["partition_start"] = window.start.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_end"] = window.end.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_date"] = window.start.strftime("%Y-%m-%d")
+    except Exception:
+        pass  # static / dynamic partitions have no time window
+    if len(keys) == 1 and hasattr(keys[0], "keys_by_dimension"):
+        for dimension, value in keys[0].keys_by_dimension.items():
+            tokens["partition_" + _re.sub(r"\W", "_", str(dimension))] = str(value)
+    return tokens
+
+
+def _partition_env(tokens):
+    """DAGSTER_PARTITION_* environment variables for a partitioned run (empty when unpartitioned)."""
+    if not tokens:
+        return {}
+    env = {"DAGSTER_PARTITION_KEY": tokens["partition_key"]}
+    for token, name in (("partition_date", "DAGSTER_PARTITION_DATE"), ("partition_start", "DAGSTER_PARTITION_START"),
+                        ("partition_end", "DAGSTER_PARTITION_END")):
+        if token in tokens:
+            env[name] = tokens[token]
+    return env
+
+
+def _substitute_partition(value, tokens):
+    """Replace {partition_*} tokens inside strings, recursively through dicts and lists. Only known tokens are
+    replaced, so other braces (JSON, shell, templates) are left alone. A no-op for an unpartitioned run."""
+    import re as _re
+
+    if not tokens:
+        return value
+    if isinstance(value, str):
+        return _re.sub(r"\{(partition_\w+)\}", lambda m: tokens.get(m.group(1), m.group(0)), value)
+    if isinstance(value, dict):
+        return {k: _substitute_partition(v, tokens) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(_substitute_partition(v, tokens) for v in value)
+    return value
+# END partition-vars helper

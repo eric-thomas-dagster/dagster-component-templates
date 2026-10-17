@@ -108,14 +108,24 @@ FIELDS = {
     "assets/sources/dataframe_from_prometheus": ["query"],
     "assets/sources/dynatrace_metrics_query": ["timeframe"],
     "assets/sources/newrelic_nrql_query": ["query"],
+    "assets/ingestion/google_calendar_ingestion": ["time_min", "time_max"],
+    "assets/ingestion/google_drive_ingestion": ["query"],
+    "assets/ingestion/archive_fetcher": ["url"],
+    "assets/source/firestore_reader_asset": ["where", "collection"],
+    "assets/ai/bigquery_ml_predict_asset": ["input_query"],
+    "assets/ai/bigquery_ml_train_asset": ["select_query", "query_params"],
+    "assets/source/synthetic_audio_generator": ["output_dir"],
+    "assets/source/synthetic_image_generator": ["output_dir"],
+    "assets/source/synthetic_pdf_generator": ["output_dir"],
+    "assets/source/synthetic_video_generator": ["output_dir"],
 }
 class _MissingModules(importlib.abc.MetaPathFinder, importlib.abc.Loader):
     """Last-resort finder: any module that is not installed (cloud SDKs imported lazily inside the step) is fabricated."""
 
-    PREFIXES = ("azure", "google.cloud", "boto3", "botocore")
+    TOP_LEVEL = {"azure", "boto3", "botocore", "googleapiclient"}
 
     def find_spec(self, name, path=None, target=None):
-        if name == self.PREFIXES[0] or name.startswith(tuple(p + "." if p != "azure" else "azure." for p in self.PREFIXES)) or name in self.PREFIXES:
+        if name.split(".")[0] in self.TOP_LEVEL or name == "google.cloud" or name.startswith("google.cloud."):
             return importlib.machinery.ModuleSpec(name, self, is_package=True)
         return None
 
@@ -130,6 +140,8 @@ class _MissingModules(importlib.abc.MetaPathFinder, importlib.abc.Loader):
 
 
 MODE = {"assets/source/dataplex_dq_scan_results_asset": {"mode": "history"}}  # since_iso is only read in history mode
+SHAPED = {"where": [{"field": "d", "op": "==", "value": "X {partition_date} {partition_start}/{partition_end}"}],
+          "query_params": {"d": "X {partition_date} {partition_start}/{partition_end}"}}  # fields that are not plain strings
 ALIAS = {"filter_": "filter"}  # the YAML name of a field whose Python name avoids the `filter` builtin
 TEMPLATE = "X {partition_date} {partition_start}/{partition_end}"
 EXPECTED = "X 2026-01-03 2026-01-03T00:00:00/2026-01-04T00:00:00"
@@ -178,7 +190,7 @@ def _substituted(rel, monkeypatch, tmp_path, partitioned=True):
     signal.alarm(5)
     monkeypatch.setattr(sys, "meta_path", [*sys.meta_path, _MissingModules()])
     fields = FIELDS[rel]
-    extra = {ALIAS.get(f, f): TEMPLATE for f in fields} | MODE.get(rel, {})
+    extra = {ALIAS.get(f, f): SHAPED.get(f, TEMPLATE) for f in fields} | MODE.get(rel, {})
     if partitioned:
         extra.update(partition_type="daily", partition_start="2026-01-01")
     asset = _build(rel, extra, monkeypatch, tmp_path)

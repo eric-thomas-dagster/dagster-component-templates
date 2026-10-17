@@ -43,7 +43,7 @@
       "label": "Query",
       "required": false,
       "default": null,
-      "description": "Drive search query (Drive's `q` syntax). Mutually exclusive with `folder_id`."
+      "description": "Drive search query (Drive's `q` syntax). Mutually exclusive with `folder_id`. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted."
     },
     "mime_type_filter": {
       "type": "array",

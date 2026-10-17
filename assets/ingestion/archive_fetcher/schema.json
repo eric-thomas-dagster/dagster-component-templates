@@ -20,7 +20,7 @@
     "url": {
       "type": "string",
       "label": "URL",
-      "description": "URL of the archive to download (http / https / ftp)",
+      "description": "URL of the archive to download (http / https / ftp) On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.",
       "required": true
     },
     "extract_to": {

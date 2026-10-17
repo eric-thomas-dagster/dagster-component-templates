@@ -56,7 +56,7 @@
       "description": "OPTIONS clause as a dict. Must include model_type."
     },
     "select_query": {
-      "description": "SELECT statement that supplies training data. Supports {placeholder} substitution.",
+      "description": "SELECT statement that supplies training data. Supports {placeholder} substitution. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.",
       "type": "string",
       "label": "Select Query",
       "required": true,

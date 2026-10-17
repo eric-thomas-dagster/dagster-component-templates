@@ -115,3 +115,7 @@ attributes:
   max_results: 250
   group_name: calendar
 ```
+
+## Partitioning
+
+On a partitioned run the tokens `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted into `time_min`, `time_max`, so each partition reads its own slice. Unpartitioned runs use the value as written.

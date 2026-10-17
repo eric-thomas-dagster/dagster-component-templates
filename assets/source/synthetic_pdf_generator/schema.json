@@ -19,7 +19,7 @@
       "type": "string",
       "label": "Output Dir",
       "required": false,
-      "description": "Filesystem directory to write PDFs into (created if missing).",
+      "description": "Filesystem directory to write PDFs into (created if missing). On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.",
       "default": "/tmp/synthetic_pdfs"
     },
     "samples": {

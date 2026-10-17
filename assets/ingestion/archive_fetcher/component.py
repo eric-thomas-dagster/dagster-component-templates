@@ -302,7 +302,7 @@ class ArchiveFetcherComponent(Component, Model, Resolvable):
 
     asset_name: str = Field(description="Name of the asset")
 
-    url: str = Field(description="URL of the archive to download")
+    url: str = Field(description="URL of the archive to download On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.")
 
     extract_to: Optional[str] = Field(
         default=None,
@@ -495,13 +495,13 @@ class ArchiveFetcherComponent(Component, Model, Resolvable):
         )
         def _asset(context: AssetExecutionContext):
             # Resolve archive kind.
-            kind = archive_type_override or _infer_archive_type(url)
+            kind = archive_type_override or _infer_archive_type(_substitute_partition(url, _partition_vars(context)))
             if not kind:
                 raise ValueError(
-                    f"Could not infer archive_type from URL {url!r} — "
+                    f"Could not infer archive_type from URL {_substitute_partition(url, _partition_vars(context))!r} — "
                     f"please set `archive_type:` explicitly."
                 )
-            context.log.info(f"Fetching {url} (archive_type={kind})")
+            context.log.info(f"Fetching {_substitute_partition(url, _partition_vars(context))} (archive_type={kind})")
 
             # Parse headers.
             req_headers: Optional[Dict[str, str]] = None
@@ -529,7 +529,7 @@ class ArchiveFetcherComponent(Component, Model, Resolvable):
             with tempfile.NamedTemporaryFile(delete=False, suffix=f".{kind.replace('.', '_')}") as tmp:
                 archive_path = Path(tmp.name)
             try:
-                with requests.get(url, stream=True, timeout=timeout, verify=verify_ssl, headers=req_headers) as resp:
+                with requests.get(_substitute_partition(url, _partition_vars(context)), stream=True, timeout=timeout, verify=verify_ssl, headers=req_headers) as resp:
                     resp.raise_for_status()
                     bytes_downloaded = 0
                     with open(archive_path, "wb") as fh:
@@ -540,7 +540,7 @@ class ArchiveFetcherComponent(Component, Model, Resolvable):
                 context.log.info(f"Downloaded {bytes_downloaded:,} bytes to {archive_path}")
 
                 # Extract.
-                extracted = _extract(archive_path, local_extract_dir, kind, url)
+                extracted = _extract(archive_path, local_extract_dir, kind, _substitute_partition(url, _partition_vars(context)))
                 context.log.info(f"Extracted {len(extracted)} files to {local_extract_dir}")
 
                 if flatten:
@@ -593,7 +593,7 @@ class ArchiveFetcherComponent(Component, Model, Resolvable):
                 return Output(
                     value=file_map,
                     metadata={
-                        "url":         MetadataValue.url(url),
+                        "url":         MetadataValue.url(_substitute_partition(url, _partition_vars(context))),
                         "archive_type": MetadataValue.text(kind),
                         "extract_to":  MetadataValue.text(extract_to),
                         "destination": MetadataValue.text("remote (fsspec)" if is_remote else "local"),
@@ -631,3 +631,55 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
+
+# BEGIN partition-vars helper (inlined per component; keep copies identical, see tests/test_partition_vars.py)
+def _partition_vars(context):
+    """Tokens a partitioned run can use in its variables: {partition_key}, and for time partitions {partition_date}
+    (YYYY-MM-DD), {partition_start} and {partition_end} (ISO datetimes); for a multi-partition also
+    {partition_<dimension>}. Empty for an unpartitioned run."""
+    import re as _re
+
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return {}
+    keys = list(context.partition_keys)
+    tokens = {"partition_key": ",".join(str(k) for k in keys)}
+    try:
+        window = context.partition_time_window
+        tokens["partition_start"] = window.start.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_end"] = window.end.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_date"] = window.start.strftime("%Y-%m-%d")
+    except Exception:
+        pass  # static / dynamic partitions have no time window
+    if len(keys) == 1 and hasattr(keys[0], "keys_by_dimension"):
+        for dimension, value in keys[0].keys_by_dimension.items():
+            tokens["partition_" + _re.sub(r"\W", "_", str(dimension))] = str(value)
+    return tokens
+
+
+def _partition_env(tokens):
+    """DAGSTER_PARTITION_* environment variables for a partitioned run (empty when unpartitioned)."""
+    if not tokens:
+        return {}
+    env = {"DAGSTER_PARTITION_KEY": tokens["partition_key"]}
+    for token, name in (("partition_date", "DAGSTER_PARTITION_DATE"), ("partition_start", "DAGSTER_PARTITION_START"),
+                        ("partition_end", "DAGSTER_PARTITION_END")):
+        if token in tokens:
+            env[name] = tokens[token]
+    return env
+
+
+def _substitute_partition(value, tokens):
+    """Replace {partition_*} tokens inside strings, recursively through dicts and lists. Only known tokens are
+    replaced, so other braces (JSON, shell, templates) are left alone. A no-op for an unpartitioned run."""
+    import re as _re
+
+    if not tokens:
+        return value
+    if isinstance(value, str):
+        return _re.sub(r"\{(partition_\w+)\}", lambda m: tokens.get(m.group(1), m.group(0)), value)
+    if isinstance(value, dict):
+        return {k: _substitute_partition(v, tokens) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(_substitute_partition(v, tokens) for v in value)
+    return value
+# END partition-vars helper

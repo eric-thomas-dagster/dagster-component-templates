@@ -98,7 +98,7 @@ class BigQueryMLTrainAssetComponent(Component, Model, Resolvable):
         ),
     )
     select_query: str = Field(
-        description="SELECT statement that supplies training data. Supports {placeholder} substitution.",
+        description="SELECT statement that supplies training data. Supports {placeholder} substitution. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.",
     )
     query_params: Dict[str, Any] = Field(default_factory=dict)
 
@@ -247,9 +247,9 @@ class BigQueryMLTrainAssetComponent(Component, Model, Resolvable):
             client = bigquery.Client(credentials=sa_creds, project=project_id, location=location)
 
             try:
-                rendered_select = select_query.format(**query_params) if query_params else select_query
+                rendered_select = _substitute_partition(select_query, _partition_vars(context)).format(**_substitute_partition(query_params, _partition_vars(context))) if _substitute_partition(query_params, _partition_vars(context)) else _substitute_partition(select_query, _partition_vars(context))
             except KeyError as e:
-                raise ValueError(f"select_query references missing placeholder {e}; available: {list(query_params.keys())}")
+                raise ValueError(f"select_query references missing placeholder {e}; available: {list(_substitute_partition(query_params, _partition_vars(context)).keys())}")
 
             # Render OPTIONS clause. BQML expects unquoted identifiers and
             # quoted strings, e.g. OPTIONS(model_type='LINEAR_REG', max_iterations=50).
@@ -346,3 +346,55 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
+
+# BEGIN partition-vars helper (inlined per component; keep copies identical, see tests/test_partition_vars.py)
+def _partition_vars(context):
+    """Tokens a partitioned run can use in its variables: {partition_key}, and for time partitions {partition_date}
+    (YYYY-MM-DD), {partition_start} and {partition_end} (ISO datetimes); for a multi-partition also
+    {partition_<dimension>}. Empty for an unpartitioned run."""
+    import re as _re
+
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return {}
+    keys = list(context.partition_keys)
+    tokens = {"partition_key": ",".join(str(k) for k in keys)}
+    try:
+        window = context.partition_time_window
+        tokens["partition_start"] = window.start.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_end"] = window.end.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_date"] = window.start.strftime("%Y-%m-%d")
+    except Exception:
+        pass  # static / dynamic partitions have no time window
+    if len(keys) == 1 and hasattr(keys[0], "keys_by_dimension"):
+        for dimension, value in keys[0].keys_by_dimension.items():
+            tokens["partition_" + _re.sub(r"\W", "_", str(dimension))] = str(value)
+    return tokens
+
+
+def _partition_env(tokens):
+    """DAGSTER_PARTITION_* environment variables for a partitioned run (empty when unpartitioned)."""
+    if not tokens:
+        return {}
+    env = {"DAGSTER_PARTITION_KEY": tokens["partition_key"]}
+    for token, name in (("partition_date", "DAGSTER_PARTITION_DATE"), ("partition_start", "DAGSTER_PARTITION_START"),
+                        ("partition_end", "DAGSTER_PARTITION_END")):
+        if token in tokens:
+            env[name] = tokens[token]
+    return env
+
+
+def _substitute_partition(value, tokens):
+    """Replace {partition_*} tokens inside strings, recursively through dicts and lists. Only known tokens are
+    replaced, so other braces (JSON, shell, templates) are left alone. A no-op for an unpartitioned run."""
+    import re as _re
+
+    if not tokens:
+        return value
+    if isinstance(value, str):
+        return _re.sub(r"\{(partition_\w+)\}", lambda m: tokens.get(m.group(1), m.group(0)), value)
+    if isinstance(value, dict):
+        return {k: _substitute_partition(v, tokens) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(_substitute_partition(v, tokens) for v in value)
+    return value
+# END partition-vars helper

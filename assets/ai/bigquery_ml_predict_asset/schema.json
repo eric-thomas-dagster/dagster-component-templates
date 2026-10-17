@@ -62,7 +62,7 @@
       "ui:widget": "select"
     },
     "input_query": {
-      "description": "Inline SELECT producing the input rows. For ML.FORECAST set horizon-style options instead via `options` and leave this null.",
+      "description": "Inline SELECT producing the input rows. For ML.FORECAST set horizon-style options instead via `options` and leave this null. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.",
       "type": "string",
       "label": "Input Query",
       "required": false,

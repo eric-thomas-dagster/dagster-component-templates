@@ -185,3 +185,7 @@ No explicit resource wiring required — production deployments typically just h
 - [`csv_file_ingestion`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/ingestion/csv_file_ingestion) — CSV → DataFrame
 - `tsv_file_ingestion`, `excel_file_ingestion`, `json_file_ingestion`
 - Any DuckDB / SQLite component that reads files by absolute path
+
+## Partitioning
+
+On a partitioned run the tokens `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted into `url`, so each partition reads its own slice. Unpartitioned runs use the value as written.

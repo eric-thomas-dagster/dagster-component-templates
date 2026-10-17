@@ -25,6 +25,8 @@ prototypes. SQLite is **not** a shared multi-host production service; use a
 shared database or receipt API when the gateway and agent workers run on
 different hosts.
 
+The wire contract is [`SPEC.md`](SPEC.md) / [`receipt-spec.v1.json`](receipt-spec.v1.json); `ingest()` and `export_events()` speak it, and tests validate everything the store emits against the schema.
+
 ## Record a retrieval at the gateway
 
 The public `ContextReceiptStore` API can be used outside a Dagster run:

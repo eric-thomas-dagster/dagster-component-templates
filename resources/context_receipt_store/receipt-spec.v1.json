@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/eric-thomas-dagster/dagster-component-templates/resources/context_receipt_store/receipt-spec.v1.json",
+  "title": "Context receipt event, spec v1",
+  "description": "One event in the life of a context receipt. A receipt is a `retrieval` event followed by any number of `output`, `evidence` and `outcome` events that reference its receipt_id. Events carry identifiers, versions, hashes and scores only, never raw context, queries or output text.",
+  "oneOf": [
+    {"$ref": "#/$defs/retrieval"},
+    {"$ref": "#/$defs/output"},
+    {"$ref": "#/$defs/evidence"},
+    {"$ref": "#/$defs/outcome"}
+  ],
+  "$defs": {
+    "spec_version": {"const": "1"},
+    "id": {"type": "string", "minLength": 1},
+    "nullable_string": {"type": ["string", "null"]},
+    "count": {"type": ["integer", "null"], "minimum": 0},
+    "retrieved_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["item_id"],
+      "properties": {
+        "item_id": {"$ref": "#/$defs/id"},
+        "source_asset_key": {"$ref": "#/$defs/nullable_string", "description": "Dagster asset key the item was derived from, as a user string (e.g. 'support/tickets')."},
+        "source_version": {"$ref": "#/$defs/nullable_string", "description": "Should equal the source asset's dagster/data_version at retrieval time; this is how stale reads are detected."},
+        "rank": {"type": ["integer", "null"], "minimum": 0},
+        "score": {"type": ["number", "null"]},
+        "selection": {"enum": ["ranked", "explore"], "default": "ranked", "description": "'explore' marks items placed by reserved exploration traffic so analysis can discount them."}
+      }
+    },
+    "excluded_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["item_id", "reason"],
+      "properties": {
+        "item_id": {"$ref": "#/$defs/id"},
+        "reason": {"$ref": "#/$defs/id", "description": "Suggested: pii, stale, out_of_scope, over_budget, policy. Any non-empty string is valid."},
+        "source_asset_key": {"$ref": "#/$defs/nullable_string"},
+        "source_version": {"$ref": "#/$defs/nullable_string"}
+      }
+    },
+    "retrieval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spec_version", "type", "receipt_id", "context_name", "items"],
+      "properties": {
+        "spec_version": {"$ref": "#/$defs/spec_version"},
+        "type": {"const": "retrieval"},
+        "receipt_id": {"$ref": "#/$defs/id", "description": "Assigned by the writer (a ULID is recommended: time-sortable, no round trip). Re-sending an existing id is a no-op for consumers."},
+        "created_at": {"type": "string", "description": "Informational. In v1 consumers stamp their own write time."},
+        "context_name": {"$ref": "#/$defs/id"},
+        "context_version": {"$ref": "#/$defs/nullable_string"},
+        "policy_version": {"$ref": "#/$defs/nullable_string"},
+        "caller_id": {"$ref": "#/$defs/nullable_string"},
+        "purpose": {"$ref": "#/$defs/nullable_string"},
+        "query_hash": {"$ref": "#/$defs/nullable_string", "description": "One-way digest of the query, never the query."},
+        "eligible_count": {"$ref": "#/$defs/count"},
+        "excluded_count": {"$ref": "#/$defs/count", "description": "Must be >= the number of excluded items listed."},
+        "dagster_asset_key": {"$ref": "#/$defs/nullable_string"},
+        "dagster_run_id": {"$ref": "#/$defs/nullable_string"},
+        "items": {"type": "array", "items": {"$ref": "#/$defs/retrieved_item"}, "description": "item_ids must be unique within a receipt and disjoint from `excluded`."},
+        "excluded": {"type": "array", "items": {"$ref": "#/$defs/excluded_item"}, "default": []}
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spec_version", "type", "receipt_id", "output_id", "model", "output_hash"],
+      "properties": {
+        "spec_version": {"$ref": "#/$defs/spec_version"},
+        "type": {"const": "output"},
+        "receipt_id": {"$ref": "#/$defs/id"},
+        "occurred_at": {"type": "string"},
+        "output_id": {"$ref": "#/$defs/id"},
+        "model": {"$ref": "#/$defs/id"},
+        "model_version": {"$ref": "#/$defs/nullable_string"},
+        "output_hash": {"$ref": "#/$defs/id", "description": "Hash of the output, never the output."},
+        "prefect_run_id": {"$ref": "#/$defs/nullable_string"}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spec_version", "type", "receipt_id", "level", "details"],
+      "properties": {
+        "spec_version": {"$ref": "#/$defs/spec_version"},
+        "type": {"const": "evidence"},
+        "receipt_id": {"$ref": "#/$defs/id"},
+        "occurred_at": {"type": "string"},
+        "level": {"enum": ["cited", "verified", "counterfactual_tested"], "description": "What was done, not how certain the outcome is. 'retrieved' is implicit in the retrieval event."},
+        "details": {"type": "object", "description": "References and hashes only. `item_ids` (array of strings), if present, scopes this evidence to those retrieved items; otherwise it applies to all of them."}
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["spec_version", "type", "receipt_id", "signal"],
+      "properties": {
+        "spec_version": {"$ref": "#/$defs/spec_version"},
+        "type": {"const": "outcome"},
+        "receipt_id": {"$ref": "#/$defs/id"},
+        "occurred_at": {"type": "string"},
+        "signal": {"$ref": "#/$defs/id", "description": "Known: thumbs_up, thumbs_down, accepted, edited, escalated, reopened, closed_won, closed_lost. Others require `value`."},
+        "value": {"type": ["number", "null"], "minimum": -1, "maximum": 1, "description": "Quality in [-1, 1]. Defaults by signal for known signals."},
+        "source": {"$ref": "#/$defs/nullable_string"},
+        "outcome_ref": {"$ref": "#/$defs/nullable_string", "description": "Identity of the judge (user id, ticket id). A later outcome with the same outcome_ref supersedes the earlier one when scoring."}
+      }
+    }
+  }
+}

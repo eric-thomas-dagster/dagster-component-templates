@@ -43,6 +43,7 @@ OUTCOME_SIGNALS = {
 # How much a receipt's outcome is credited/blamed on an item, by strongest evidence
 # that the item was actually used. Retrieved-only is weak: it was merely in the window.
 EVIDENCE_WEIGHTS = {"retrieved": 0.5, "cited": 1.0, "verified": 1.5, "counterfactual_tested": 2.0}
+SPEC_VERSION = "1"  # receipt-spec.v1.json
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
 
@@ -681,6 +682,72 @@ class ContextReceiptStore:
             ).fetchall()
         return {row["item_id"]: dict(row) for row in rows}
 
+    def ingest(self, event: Mapping[str, Any]) -> str:
+        """Apply one spec-v1 event (see receipt-spec.v1.json); returns its receipt_id.
+
+        This is the wire format between receipt *writers* (a FastMCP gateway, an agent
+        runtime) and the store: a writer can emit these dicts over any transport and a
+        consumer applies them here. Unknown spec versions and unknown fields are
+        rejected, and a re-sent ``retrieval`` raises ``DuplicateReceiptError``.
+        """
+        if not isinstance(event, Mapping):
+            raise TypeError("event must be a mapping")
+        if event.get("spec_version") != SPEC_VERSION:
+            raise ValueError(f"unsupported spec_version {event.get('spec_version')!r}; expected {SPEC_VERSION!r}")
+        kind = event.get("type")
+        body = {k: v for k, v in event.items() if k not in ("spec_version", "type", "created_at", "occurred_at")}
+        receipt_id = body.get("receipt_id")
+        if kind == "retrieval":
+            allowed = {"receipt_id", "context_name", "context_version", "policy_version", "caller_id",
+                       "purpose", "query_hash", "eligible_count", "excluded_count", "dagster_asset_key",
+                       "dagster_run_id", "items", "excluded"}
+            handler = self.record_retrieval
+        elif kind == "output":
+            allowed = {"receipt_id", "output_id", "model", "model_version", "output_hash", "prefect_run_id"}
+            handler = self.attach_output
+        elif kind == "evidence":
+            allowed = {"receipt_id", "level", "details"}
+            handler = self.add_evidence
+        elif kind == "outcome":
+            allowed = {"receipt_id", "signal", "value", "source", "outcome_ref"}
+            handler = self.record_outcome
+        else:
+            raise ValueError(f"unknown event type {kind!r}")
+        unknown = set(body) - allowed
+        if unknown:
+            raise ValueError(f"unsupported {kind} field(s): {', '.join(sorted(unknown))}")
+        if not isinstance(receipt_id, str) or not receipt_id.strip():
+            raise ValueError("event requires a non-empty receipt_id")
+        if kind == "retrieval":
+            handler(**body)
+        else:
+            handler(body.pop("receipt_id"), **body)
+        return receipt_id
+
+    def export_events(self, receipt_id: str) -> list[dict[str, Any]]:
+        """Return a receipt as spec-v1 events (retrieval first, then appended events in order)."""
+        receipt = self.get_receipt(receipt_id)
+        if receipt is None:
+            raise KeyError(f"unknown context receipt: {receipt_id}")
+        keep = ("context_name", "context_version", "policy_version", "caller_id", "purpose", "query_hash",
+                "eligible_count", "excluded_count", "dagster_asset_key", "dagster_run_id")
+        events: list[dict[str, Any]] = [{
+            "spec_version": SPEC_VERSION, "type": "retrieval", "receipt_id": receipt_id,
+            "created_at": receipt["created_at"], **{k: receipt[k] for k in keep},
+            "items": [dict(i) for i in receipt["items"]],
+            "excluded": [dict(e) for e in receipt["excluded"]],
+        }]
+        for ev in receipt["events"]:
+            base = {"spec_version": SPEC_VERSION, "receipt_id": receipt_id, "occurred_at": ev["occurred_at"]}
+            payload = ev["payload"]
+            if ev["event_type"] == "output_attached":
+                events.append({**base, "type": "output", **payload})
+            elif ev["event_type"] == "evidence":
+                events.append({**base, "type": "evidence", **payload})
+            elif ev["event_type"] == "outcome":
+                events.append({**base, "type": "outcome", **payload})
+        return events
+
     def find_by_item(self, item_id: str) -> list[str]:
         """Return receipt IDs that retrieved a particular stable item ID."""
         with self._connect() as conn:
@@ -741,6 +808,14 @@ class AsyncReceiptWriter:
 
     def record_outcome(self, *args: Any, **kwargs: Any) -> None:
         self._queue.put(("record_outcome", args, kwargs))
+
+    def ingest(self, event: Mapping[str, Any]) -> str:
+        """Queue a spec-v1 event; assigns a receipt_id to a retrieval event that lacks one."""
+        event = dict(event)
+        if event.get("type") == "retrieval" and not event.get("receipt_id"):
+            event["receipt_id"] = new_receipt_id()
+        self._queue.put(("ingest", (event,), {}))
+        return event.get("receipt_id", "")
 
     def flush(self) -> None:
         """Block until everything queued so far has been written or dead-lettered."""

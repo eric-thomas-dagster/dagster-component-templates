@@ -280,6 +280,11 @@ class BrazeSinkComponent(Component, Model, Resolvable):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=True)
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        # freshness_max_lag_minutes / freshness_cron -> FreshnessPolicy (applied to the asset(s) below)
+        _freshness_policy_obj = (
+            _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
+            if self.freshness_max_lag_minutes is not None else None
+        )
         if bool(self.upstream_asset_key) == bool(self.source):
             raise ValueError(
                 "BrazeSinkComponent: supply exactly ONE of "
@@ -368,7 +373,7 @@ class BrazeSinkComponent(Component, Model, Resolvable):
         if cfg.upstream_asset_key:
             upstream_key = AssetKey(cfg.upstream_asset_key.split("/"))
 
-            @asset(
+            @asset(freshness_policy=_freshness_policy_obj, 
                 name=cfg.asset_name,
                 ins={"upstream": AssetIn(key=upstream_key)},
                 group_name=cfg.group_name,
@@ -388,7 +393,7 @@ class BrazeSinkComponent(Component, Model, Resolvable):
 
             return Definitions(assets=[braze_export_upstream])
 
-        @asset(
+        @asset(freshness_policy=_freshness_policy_obj, 
             name=cfg.asset_name,
             group_name=cfg.group_name,
             description=cfg.description,
@@ -912,3 +917,19 @@ def _build_items_list(
         item["id"] = str(raw_id)
         items.append(item)
     return items
+
+
+# BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)
+def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
+    """Build a FreshnessPolicy on the current Dagster API (time_window / cron) and on the older constructor."""
+    from datetime import timedelta
+
+    from dagster import FreshnessPolicy
+
+    lag = timedelta(minutes=max_lag_minutes)
+    if hasattr(FreshnessPolicy, "time_window"):
+        if cron_schedule:
+            return FreshnessPolicy.cron(deadline_cron=cron_schedule, lower_bound_delta=lag)
+        return FreshnessPolicy.time_window(fail_window=lag)
+    return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
+# END freshness-policy compat

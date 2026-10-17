@@ -172,6 +172,11 @@ class SegmentTrackComponent(Component, Model, Resolvable):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=True)
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        # freshness_max_lag_minutes / freshness_cron -> FreshnessPolicy (applied to the asset(s) below)
+        _freshness_policy_obj = (
+            _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
+            if self.freshness_max_lag_minutes is not None else None
+        )
         if bool(self.upstream_asset_key) == bool(self.source):
             raise ValueError("Supply exactly ONE of upstream_asset_key OR source:")
         if not (self.user_id_column or self.anonymous_id_column):
@@ -220,7 +225,7 @@ class SegmentTrackComponent(Component, Model, Resolvable):
 
         if cfg.upstream_asset_key:
             uk = AssetKey(cfg.upstream_asset_key.split("/"))
-            @asset(name=cfg.asset_name, ins={"upstream": AssetIn(key=uk)},
+            @asset(freshness_policy=_freshness_policy_obj, name=cfg.asset_name, ins={"upstream": AssetIn(key=uk)},
                    group_name=cfg.group_name, description=cfg.description,
                    deps=[AssetKey(d.split("/")) for d in (cfg.deps or [])],
                    owners=cfg.owners, tags=cfg.asset_tags, kinds=cfg.kinds,
@@ -230,7 +235,7 @@ class SegmentTrackComponent(Component, Model, Resolvable):
                 return _run(context, upstream)
             return Definitions(assets=[segment_export_upstream])
 
-        @asset(name=cfg.asset_name, group_name=cfg.group_name,
+        @asset(freshness_policy=_freshness_policy_obj, name=cfg.asset_name, group_name=cfg.group_name,
                description=cfg.description,
                deps=[AssetKey(d.split("/")) for d in (cfg.deps or [])],
                owners=cfg.owners, tags=cfg.asset_tags, kinds=cfg.kinds,
@@ -387,3 +392,19 @@ def _resolve_source_df(cfg: SegmentTrackComponent, exec_ctx: AssetExecutionConte
     if kind == "inline":
         return pd.DataFrame(src.get("rows") or [])
     raise ValueError(f"source kind={kind!r} not supported")
+
+
+# BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)
+def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
+    """Build a FreshnessPolicy on the current Dagster API (time_window / cron) and on the older constructor."""
+    from datetime import timedelta
+
+    from dagster import FreshnessPolicy
+
+    lag = timedelta(minutes=max_lag_minutes)
+    if hasattr(FreshnessPolicy, "time_window"):
+        if cron_schedule:
+            return FreshnessPolicy.cron(deadline_cron=cron_schedule, lower_bound_delta=lag)
+        return FreshnessPolicy.time_window(fail_window=lag)
+    return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
+# END freshness-policy compat

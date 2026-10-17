@@ -403,6 +403,11 @@ class SSHAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         return coerce_field_shapes(data, lists=('deps', 'owners', 'kinds'), csv=('partition_values',), tags=('asset_tags',))
 
     def build_defs(self, load_context: dg.ComponentLoadContext) -> dg.Definitions:
+        # freshness_max_lag_minutes / freshness_cron -> FreshnessPolicy (applied to the asset(s) below)
+        _freshness_policy_obj = (
+            _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
+            if self.freshness_max_lag_minutes is not None else None
+        )
         component = self  # capture for closure
 
         asset_deps = [dg.AssetKey(d) for d in (component.deps or [])]
@@ -455,7 +460,7 @@ class SSHAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
             )
 
-        @dg.asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
+        @dg.asset(freshness_policy=_freshness_policy_obj, retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
             name=component.asset_name,
             group_name=component.group_name,
             description=component.description,
@@ -645,3 +650,19 @@ class SSHAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                         pass
 
         return dg.Definitions(assets=[_ssh_asset])
+
+
+# BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)
+def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
+    """Build a FreshnessPolicy on the current Dagster API (time_window / cron) and on the older constructor."""
+    from datetime import timedelta
+
+    from dagster import FreshnessPolicy
+
+    lag = timedelta(minutes=max_lag_minutes)
+    if hasattr(FreshnessPolicy, "time_window"):
+        if cron_schedule:
+            return FreshnessPolicy.cron(deadline_cron=cron_schedule, lower_bound_delta=lag)
+        return FreshnessPolicy.time_window(fail_window=lag)
+    return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
+# END freshness-policy compat

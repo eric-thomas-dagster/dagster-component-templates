@@ -306,7 +306,7 @@ class RouterComponent(dg.Component, dg.Model, dg.Resolvable):
         if _self.exclusive:
             # Each row goes to exactly one — use a chained-mask helper.
             def _make_exclusive(name, condition, prior_conditions):
-                @dg.asset(
+                @dg.asset(freshness_policy=freshness_policy, 
                     name=name,
                     description=f"router branch (exclusive): {condition}",
                     group_name=_self.group_name,

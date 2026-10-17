@@ -296,6 +296,11 @@ class CloudFormationAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        # freshness_max_lag_minutes / freshness_cron -> FreshnessPolicy (applied to the asset(s) below)
+        _freshness_policy_obj = (
+            _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
+            if self.freshness_max_lag_minutes is not None else None
+        )
         _self = self
 
         # Resolve asset deps
@@ -304,7 +309,7 @@ class CloudFormationAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             for dep in _self.deps:
                 dep_specs.append(dg.AssetKey(dep.split("/")))
 
-        @dg.asset(
+        @dg.asset(freshness_policy=_freshness_policy_obj, 
             key=dg.AssetKey([_self.asset_name]),
             group_name=_self.group_name,
             description=_self.description or f"CloudFormation stack: {_self.stack_name}",
@@ -462,3 +467,19 @@ class CloudFormationAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         return dg.Definitions(assets=[cloudformation_asset])
+
+
+# BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)
+def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
+    """Build a FreshnessPolicy on the current Dagster API (time_window / cron) and on the older constructor."""
+    from datetime import timedelta
+
+    from dagster import FreshnessPolicy
+
+    lag = timedelta(minutes=max_lag_minutes)
+    if hasattr(FreshnessPolicy, "time_window"):
+        if cron_schedule:
+            return FreshnessPolicy.cron(deadline_cron=cron_schedule, lower_bound_delta=lag)
+        return FreshnessPolicy.time_window(fail_window=lag)
+    return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
+# END freshness-policy compat

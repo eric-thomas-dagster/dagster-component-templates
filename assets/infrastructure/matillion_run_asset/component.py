@@ -238,9 +238,14 @@ class MatillionRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         return coerce_field_shapes(data, lists=('deps', 'owners', 'kinds'), csv=('partition_values',), tags=('asset_tags',))
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        # freshness_max_lag_minutes / freshness_cron -> FreshnessPolicy (applied to the asset(s) below)
+        _freshness_policy_obj = (
+            _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
+            if self.freshness_max_lag_minutes is not None else None
+        )
         _self = self
 
-        @dg.asset(
+        @dg.asset(freshness_policy=_freshness_policy_obj, 
             key=dg.AssetKey(self.asset_key.split("/")),
             description=f"Run Matillion job '{self.job_name}' in project {self.project}",
             group_name=self.group_name,
@@ -313,3 +318,19 @@ class MatillionRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             raise Exception(f"Matillion run {run_id} timed out after {_self.timeout_seconds}s")
 
         return dg.Definitions(assets=[matillion_run_asset])
+
+
+# BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)
+def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
+    """Build a FreshnessPolicy on the current Dagster API (time_window / cron) and on the older constructor."""
+    from datetime import timedelta
+
+    from dagster import FreshnessPolicy
+
+    lag = timedelta(minutes=max_lag_minutes)
+    if hasattr(FreshnessPolicy, "time_window"):
+        if cron_schedule:
+            return FreshnessPolicy.cron(deadline_cron=cron_schedule, lower_bound_delta=lag)
+        return FreshnessPolicy.time_window(fail_window=lag)
+    return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
+# END freshness-policy compat

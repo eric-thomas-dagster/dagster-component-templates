@@ -135,7 +135,7 @@ class AssetReferenceComponent(Component, Model, Resolvable):
 
     freshness_max_lag_minutes: Optional[int] = Field(
         default=None,
-        description="Maximum acceptable lag in minutes before the asset is considered stale. Builds a FreshnessPolicy when set.",
+        description="Not applied by this component: it defines no assets, so set freshness on the asset itself (kept for reference only).",
     )
 
     freshness_cron: Optional[str] = Field(

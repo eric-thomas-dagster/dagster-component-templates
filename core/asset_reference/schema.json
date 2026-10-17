@@ -64,7 +64,7 @@
       "required": false
     },
     "freshness_max_lag_minutes": {
-      "description": "Maximum acceptable lag in minutes before the asset is considered stale. Builds a FreshnessPolicy when set.",
+      "description": "Not applied by this component: it defines no assets, so set freshness on the asset itself (kept for reference only).",
       "type": "integer",
       "label": "Freshness Max Lag Minutes",
       "required": false

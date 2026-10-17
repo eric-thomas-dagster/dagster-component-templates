@@ -37,7 +37,7 @@ The `AssetReferenceComponent` allows you to include existing assets from your co
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `freshness_max_lag_minutes` | `int` | — | Maximum acceptable lag in minutes before the asset is considered stale. Builds a FreshnessPolicy when set. |
+| `freshness_max_lag_minutes` | `int` | — | Not applied by this component: it defines no assets, so set freshness on the asset itself (kept for reference only). |
 | `freshness_cron` | `str` | — | Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am). |
 
 ### Partitions

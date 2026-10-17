@@ -342,7 +342,7 @@ class SyntheticDataComponent(Component, Model, Resolvable):
                     backoff=Backoff[self.retry_policy_backoff.upper()],
                 )
 
-            @asset(retry_policy=_retry_policy, partitions_def=partitions_def, key=AssetKey.from_user_string(asset_name), ins=ins, group_name=group_name, deps=[AssetKey.from_user_string(k) for k in (self.deps or [])])
+            @asset(freshness_policy=_freshness_policy, retry_policy=_retry_policy, partitions_def=partitions_def, key=AssetKey.from_user_string(asset_name), ins=ins, group_name=group_name, deps=[AssetKey.from_user_string(k) for k in (self.deps or [])])
             def _asset(
                 context: AssetExecutionContext,
                 seed_data: Any,
@@ -367,7 +367,7 @@ class SyntheticDataComponent(Component, Model, Resolvable):
 
         else:
 
-            @asset(key=AssetKey.from_user_string(asset_name), deps=[], group_name=group_name)
+            @asset(freshness_policy=_freshness_policy, key=AssetKey.from_user_string(asset_name), deps=[], group_name=group_name)
             def _asset(context: AssetExecutionContext) -> pd.DataFrame:  # type: ignore[no-redef]
                 return _generate_data(
                     context=context,

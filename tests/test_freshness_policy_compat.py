@@ -76,3 +76,34 @@ def test_a_converted_component_applies_the_policy_to_its_asset():
     component = getattr(mod, doc["type"].rsplit(".", 1)[-1])(**{**doc["attributes"], "freshness_max_lag_minutes": 30})
     asset_def = list(component.build_defs(None).assets)[0]
     assert asset_def.get_asset_spec(next(iter(asset_def.keys))).freshness_policy is not None
+
+
+def _asset_decorator_calls(tree):
+    import ast
+    for cls in (n for n in tree.body if isinstance(n, ast.ClassDef)):
+        for fn in (n for n in cls.body if isinstance(n, ast.FunctionDef) and n.name == "build_defs"):
+            for inner in ast.walk(fn):
+                if isinstance(inner, ast.FunctionDef):
+                    for d in inner.decorator_list:
+                        f = getattr(d, "func", None)
+                        if isinstance(d, ast.Call) and (
+                            (isinstance(f, ast.Name) and f.id == "asset")
+                            or (isinstance(f, ast.Attribute) and f.attr == "asset" and getattr(f.value, "id", "") in ("dg", "dagster"))
+                        ):
+                            yield d
+
+
+def test_components_that_declare_the_freshness_field_apply_it_to_every_asset():
+    """Declaring freshness_max_lag_minutes must not be a silent no-op: every @asset built in build_defs passes
+    freshness_policy (or spreads a kwargs dict that can carry it)."""
+    import ast
+    unapplied = []
+    for p in _component_files():
+        rel = str(p.relative_to(ROOT))
+        text = p.read_text()
+        if "freshness_max_lag_minutes: Optional" not in text or rel == "assets/infrastructure/data_contract/component.py":
+            continue
+        for call in _asset_decorator_calls(ast.parse(text)):
+            if not any(k.arg in ("freshness_policy", None) for k in call.keywords):
+                unapplied.append(f"{rel}:{call.lineno}")
+    assert not unapplied, unapplied[:15]

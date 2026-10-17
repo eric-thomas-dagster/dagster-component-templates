@@ -132,10 +132,7 @@ class AwsCloudTrailIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             )
         freshness = None
         if self.freshness_max_lag_minutes:
-            freshness = dg.FreshnessPolicy(
-                maximum_lag_minutes=self.freshness_max_lag_minutes,
-                cron_schedule=self.freshness_cron,
-            )
+            freshness = _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
 
         @dg.asset(
             key=dg.AssetKey.from_user_string(self.asset_name),
@@ -188,3 +185,19 @@ class AwsCloudTrailIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             return dg.MaterializeResult(value=df, metadata=metadata)
 
         return dg.Definitions(assets=[_asset])
+
+
+# BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)
+def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
+    """Build a FreshnessPolicy on the current Dagster API (time_window / cron) and on the older constructor."""
+    from datetime import timedelta
+
+    from dagster import FreshnessPolicy
+
+    lag = timedelta(minutes=max_lag_minutes)
+    if hasattr(FreshnessPolicy, "time_window"):
+        if cron_schedule:
+            return FreshnessPolicy.cron(deadline_cron=cron_schedule, lower_bound_delta=lag)
+        return FreshnessPolicy.time_window(fail_window=lag)
+    return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
+# END freshness-policy compat

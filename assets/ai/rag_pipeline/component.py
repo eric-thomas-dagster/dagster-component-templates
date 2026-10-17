@@ -1180,10 +1180,7 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
     _freshness_policy = None
     if comp.freshness_max_lag_minutes is not None:
         from dagster import FreshnessPolicy
-        _freshness_policy = FreshnessPolicy(
-            maximum_lag_minutes=comp.freshness_max_lag_minutes,
-            cron_schedule=comp.freshness_cron,
-        )
+        _freshness_policy = _freshness_policy_compat(comp.freshness_max_lag_minutes, comp.freshness_cron)
 
     _retry_policy = None
     if comp.retry_policy_max_retries is not None:
@@ -1289,3 +1286,19 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
     from dagster import build_column_schema_change_checks
     _schema_checks = build_column_schema_change_checks(assets=[_rag_ops_asset])
     return Definitions(assets=[_rag_ops_asset], asset_checks=list(_schema_checks))
+
+
+# BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)
+def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
+    """Build a FreshnessPolicy on the current Dagster API (time_window / cron) and on the older constructor."""
+    from datetime import timedelta
+
+    from dagster import FreshnessPolicy
+
+    lag = timedelta(minutes=max_lag_minutes)
+    if hasattr(FreshnessPolicy, "time_window"):
+        if cron_schedule:
+            return FreshnessPolicy.cron(deadline_cron=cron_schedule, lower_bound_delta=lag)
+        return FreshnessPolicy.time_window(fail_window=lag)
+    return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
+# END freshness-policy compat

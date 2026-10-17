@@ -378,10 +378,7 @@ class DataframeToODataComponent(Component, Model, Resolvable):
         if self.freshness_max_lag_minutes is not None:
             from dagster import FreshnessPolicy
 
-            freshness_policy = FreshnessPolicy(
-                maximum_lag_minutes=self.freshness_max_lag_minutes,
-                cron_schedule=self.freshness_cron,
-            )
+            freshness_policy = _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
 
         component = self
         asset_name = self.asset_name
@@ -511,3 +508,19 @@ class DataframeToODataComponent(Component, Model, Resolvable):
             return Output(value=None, metadata=metadata)
 
         return Definitions(assets=[dataframe_to_odata_asset])
+
+
+# BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)
+def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
+    """Build a FreshnessPolicy on the current Dagster API (time_window / cron) and on the older constructor."""
+    from datetime import timedelta
+
+    from dagster import FreshnessPolicy
+
+    lag = timedelta(minutes=max_lag_minutes)
+    if hasattr(FreshnessPolicy, "time_window"):
+        if cron_schedule:
+            return FreshnessPolicy.cron(deadline_cron=cron_schedule, lower_bound_delta=lag)
+        return FreshnessPolicy.time_window(fail_window=lag)
+    return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
+# END freshness-policy compat

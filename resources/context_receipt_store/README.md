@@ -49,6 +49,31 @@ different hosts.
 
 The wire contract is [`SPEC.md`](SPEC.md) / [`receipt-spec.v1.json`](receipt-spec.v1.json); `ingest()` and `export_events()` speak it, and tests validate everything the store emits against the schema.
 
+## Receipts in BigQuery
+
+SQLite is one file on one host. If your agents and gateways run on several hosts, or your warehouse is BigQuery and you want receipts next to your data (and readable by a SQL-mode `context_engineering_pipeline`), keep them in BigQuery:
+
+```yaml
+type: dagster_community_components.ContextReceiptStoreComponent
+attributes:
+  resource_key: context_receipts
+  backend: bigquery
+  bigquery_dataset: my-project.context        # five tables are created on first use
+  bigquery_table_prefix: prod_                # optional: several environments in one dataset
+  gcp_credentials_env_var: GCP_SA_JSON_B64    # omit for Application Default Credentials
+  async_writes: true                          # default
+```
+
+The resource has the same API as the SQLite store (`record_retrieval`, `record_outcome`, `item_feedback`, `refresh_item_scores`, `outcomes_by_code_version`, `ingest`, `enforce_retention`, ...), so `rag_pipeline`, the gateway helpers and the pipeline's `receipts:` work unchanged. A parity test runs one scenario through both backends and requires identical results.
+
+- **Writes are load jobs, not streaming inserts**, so rows stay deletable/updatable (retention, score refresh). A load job takes seconds, hence `async_writes: true`: writes are queued on a background thread and return at once; argument errors still raise at the call site, storage failures that survive retries land in `store.dead_letters`. Reads see finished writes only; call `store.flush()` for read-your-writes. Queued writes are lost if the process dies.
+- **Receipt row is written last** (it is the commit marker); a retry with the same `receipt_id` cleans up orphan items from a crashed attempt.
+- `read_since` cursors are microsecond timestamps instead of row positions.
+- `refresh_item_scores` reads all items/events and recomputes in Python (then one `MERGE`): fine for hundreds of thousands of receipts, not billions.
+- Already have receipts in SQLite? Keep them local and ship them with `ContextReceiptBigQuerySyncComponent` instead of switching backends.
+
+Verification: exercised against a fake BigQuery client that parses every statement as BigQuery (sqlglot) and runs it in DuckDB. Not run against real BigQuery.
+
 ## Record a retrieval at the gateway
 
 The public `ContextReceiptStore` API can be used outside a Dagster run:

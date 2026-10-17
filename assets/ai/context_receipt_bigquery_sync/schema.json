@@ -1,0 +1,172 @@
+{
+  "component_type": "dagster_community_components.ContextReceiptBigQuerySyncComponent",
+  "description": "Ships context receipts (retrievals, items, exclusions, and outcome/evidence/output events) from the local SQLite ContextReceiptStore into BigQuery tables. Incremental with cursors stored in BigQuery, idempotent on replay, so receipts can be joined with warehouse data and item feedback computed in SQL.",
+  "category": "ai",
+  "icon": "CloudUpload",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "description": "Reads from the receipt store and BigQuery resources (no upstream asset data)."
+    },
+    "outputs": {
+      "type": "none",
+      "description": "Writes context_receipts, context_receipt_items, context_receipt_excluded, context_receipt_events and context_sync_state in the dataset; metadata reports rows shipped, cursors before/after, lag."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": false,
+      "default": "context_receipt_bigquery_sync"
+    },
+    "store_resource_key": {
+      "type": "string",
+      "label": "Store Resource Key",
+      "description": "Resource key of the registered ContextReceiptStoreComponent resource (an object with read_since and get_receipt).",
+      "required": true
+    },
+    "bigquery_resource_key": {
+      "type": "string",
+      "label": "BigQuery Resource Key",
+      "description": "Resource key of a dagster_gcp BigQueryResource (used as `with resource.get_client() as client`).",
+      "required": true
+    },
+    "dataset": {
+      "type": "string",
+      "label": "Dataset",
+      "description": "Destination dataset, `project.dataset` (or just `dataset` to use the BigQuery client's default project). The five receipt tables and `context_sync_state` live here.",
+      "required": true
+    },
+    "table_prefix": {
+      "type": "string",
+      "label": "Table Prefix",
+      "description": "Optional prefix for every table name in the dataset (e.g. 'prod_').",
+      "required": false,
+      "default": ""
+    },
+    "sync_name": {
+      "type": "string",
+      "label": "Sync Name",
+      "description": "Name of this sync in `context_sync_state`; use different names if several stores ship into one dataset's state table (they should use different table_prefix values).",
+      "required": false,
+      "default": "default"
+    },
+    "batch_size": {
+      "type": "integer",
+      "label": "Batch Size",
+      "description": "Receipts / outcomes read from the store per batch.",
+      "required": false,
+      "default": 1000
+    },
+    "max_batches": {
+      "type": "integer",
+      "label": "Max Batches",
+      "description": "Maximum batches per run; the next run continues from the stored cursor.",
+      "required": false,
+      "default": 50
+    },
+    "reconcile_recent_receipts": {
+      "type": "integer",
+      "label": "Reconcile Recent Receipts",
+      "description": "Re-check this many of the most recent receipts already in BigQuery for late evidence/output events (which no cursor signals). 0 disables.",
+      "required": false,
+      "default": 200
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group",
+      "required": false,
+      "default": "context"
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Tags added to the asset.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "description": "Asset kinds shown in the Dagster catalog (default: bigquery).",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag (minutes)",
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "required": false
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron Schedule",
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "required": false,
+      "x-dagster-widget": "cron"
+    },
+    "cron_schedule": {
+      "type": "string",
+      "label": "Cron Schedule",
+      "description": "Optional cron expression; when set, a schedule runs this sync (e.g. '*/10 * * * *').",
+      "required": false,
+      "x-dagster-widget": "cron"
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Seconds between retries (default 1).",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "required": false,
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear"
+      ],
+      "ui:widget": "select"
+    },
+    "deps": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "required": false,
+      "ui:widget": "list"
+    }
+  }
+}

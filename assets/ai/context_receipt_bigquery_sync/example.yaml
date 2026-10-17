@@ -1,0 +1,12 @@
+type: dagster_community_components.ContextReceiptBigQuerySyncComponent
+attributes:
+  asset_name: context_receipt_bigquery_sync
+  store_resource_key: context_receipts      # the registered ContextReceiptStoreComponent resource
+  bigquery_resource_key: bigquery           # a dagster_gcp BigQueryResource
+  dataset: my-project.context_receipts      # created tables: context_receipts, context_receipt_items, ...
+  cron_schedule: "*/10 * * * *"
+  batch_size: 1000
+  max_batches: 50
+  reconcile_recent_receipts: 200
+  group_name: context
+  retry_policy_max_retries: 3

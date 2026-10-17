@@ -59,6 +59,7 @@ matching dbt's own stated philosophy that this kind of governance
 tooling should be cheap to validate, not another paid call per test.
 """
 import ast
+import contextlib
 import hashlib
 import json
 import re
@@ -1273,31 +1274,101 @@ def _content_version(df: pd.DataFrame, text_column: str, steps_cfg: List[dict]) 
 # direct answer to "data never leaves the database, where we can help
 # it" for warehouses with a native embedding/completion function.
 # validation.level: code -- there is no live warehouse credential in
-# this dev environment, so these code paths are structurally tested
-# (the emitted SQL is asserted, not executed) rather than run for real.
+# this dev environment. Every dialect's SQL is parsed with sqlglot in that
+# dialect; the BigQuery chunk/stamp/receipts statements are also executed
+# (sqlglot -> DuckDB) in tests. The AI functions themselves (embedding,
+# classification) are never run for real.
+
+# BEGIN receipt-warehouse-ddl (canonical; inlined verbatim, byte-identical, by every component that creates or reads the receipt tables -- drift-tested)
+RECEIPT_TABLE_NAMES = ("context_receipts", "context_receipt_items", "context_receipt_excluded", "context_receipt_events", "context_item_scores")
+
+
+def receipt_table(dataset: str, name: str, prefix: str = "") -> str:
+    """Fully qualified, quoted table reference. `dataset` is `project.dataset` (or just `dataset` to use the client's project)."""
+    if name not in RECEIPT_TABLE_NAMES:
+        raise ValueError(f"unknown receipt table {name!r}; valid: {RECEIPT_TABLE_NAMES}")
+    return f"`{dataset}.{prefix}{name}`"
+
+
+def receipt_table_ddl(dataset: str, prefix: str = "", dialect: str = "bigquery") -> list:
+    """CREATE TABLE IF NOT EXISTS statements for the receipt tables (the same columns as the SQLite store, per resources/context_receipt_store/SPEC.md).
+    Timestamps are TIMESTAMP (ISO-8601 UTC in, TIMESTAMP out); event payloads stay JSON text in `payload_json` (read with JSON_VALUE)."""
+    if dialect != "bigquery":
+        raise NotImplementedError(f"receipt warehouse tables are implemented for dialect='bigquery' only (got {dialect!r})")
+    t = lambda n: receipt_table(dataset, n, prefix)  # noqa: E731
+    return [
+        f"""CREATE TABLE IF NOT EXISTS {t('context_receipts')} (
+  receipt_id STRING NOT NULL, created_at TIMESTAMP NOT NULL, context_name STRING NOT NULL, context_version STRING, policy_version STRING,
+  caller_id STRING, purpose STRING, query_hash STRING, eligible_count INT64, excluded_count INT64, dagster_asset_key STRING,
+  dagster_run_id STRING, trace_id STRING, mcp_session_id STRING, mcp_request_id STRING)""",
+        f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_items')} (
+  receipt_id STRING NOT NULL, item_id STRING NOT NULL, source_asset_key STRING, source_version STRING, source_partition STRING,
+  source_code_version STRING, rank INT64, score FLOAT64, selection STRING)""",
+        f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_excluded')} (
+  receipt_id STRING NOT NULL, item_id STRING NOT NULL, reason STRING NOT NULL, source_asset_key STRING, source_version STRING,
+  source_partition STRING, source_code_version STRING)""",
+        f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_events')} (
+  event_id STRING NOT NULL, receipt_id STRING NOT NULL, event_type STRING NOT NULL, occurred_at TIMESTAMP NOT NULL, payload_json STRING NOT NULL)""",
+        f"""CREATE TABLE IF NOT EXISTS {t('context_item_scores')} (
+  item_id STRING NOT NULL, retrievals INT64 NOT NULL, outcome_weight FLOAT64 NOT NULL, outcome_sum FLOAT64 NOT NULL, prior FLOAT64 NOT NULL,
+  updated_at TIMESTAMP NOT NULL)""",
+    ]
+# END receipt-warehouse-ddl
+
+
+_SQL_DIALECTS = ("snowflake_cortex", "bigquery", "databricks")
+_IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_TABLE_RE = re.compile(r"^`?[A-Za-z0-9_\-]+`?(\.`?[A-Za-z0-9_\-]+`?){0,3}$")
+_MODEL_RE = re.compile(r"^[A-Za-z0-9_\-./:]+$")
+_SQL_RESERVED_COLUMNS = {
+    "chunk_id", "chunk_text", "chunk_index", "content_hash", "category", "embedding", "content", "source_asset_key",
+    "source_version", "source_partition", "source_code_version", "feedback_retrievals", "feedback_rated",
+    "feedback_mean_outcome", "feedback_cited", "feedback_prior", "feedback_quarantined",
+    "ml_generate_embedding_result", "ml_generate_embedding_statistics", "ml_generate_embedding_status",
+}
+
+
+def _sql_ident(value: Any, what: str) -> str:
+    if not isinstance(value, str) or not _IDENT_RE.match(value):
+        raise ValueError(f"execution_mode='sql': {what}={value!r} is not a plain identifier (letters, digits, underscore; not starting with a digit)")
+    return value
+
+
+def _sql_table(value: Any, what: str) -> str:
+    if not isinstance(value, str) or not _TABLE_RE.match(value):
+        raise ValueError(f"execution_mode='sql': {what}={value!r} is not a valid table reference (up to 4 dot-separated parts of letters, digits, _ or -)")
+    return value
+
+
+def _sql_str(value: Any) -> str:
+    """A single-quoted string literal that is safe in BigQuery, Databricks (Spark) and Snowflake (all accept backslash escapes)."""
+    s = str(value).replace("\\", "\\\\").replace("'", "\\'").replace("\n", "\\n").replace("\r", "\\r")
+    return f"'{s}'"
+
 
 def _sql_chunk_expr(dialect: str, text_expr: str, chunk_size: int, chunk_overlap: int) -> str:
-    step = max(chunk_size - chunk_overlap, 1)
+    """An expression that yields the ordered array of (non-empty) chunk strings of `text_expr`."""
+    chunk_size = int(chunk_size)
+    step = max(chunk_size - int(chunk_overlap), 1)
     if dialect == "snowflake_cortex":
-        return f"SNOWFLAKE.CORTEX.SPLIT_TEXT_RECURSIVE_CHARACTER({text_expr}, 'none', {chunk_size}, {chunk_overlap})"
+        return f"SNOWFLAKE.CORTEX.SPLIT_TEXT_RECURSIVE_CHARACTER({text_expr}, 'none', {chunk_size}, {int(chunk_overlap)})"
     if dialect == "bigquery":
-        # BigQuery has no native recursive splitter; emit a GENERATE_ARRAY
-        # of substrings at fixed stride -- coarser than Cortex's splitter,
-        # documented as such in the README.
+        # BigQuery has no native recursive splitter: fixed-stride substrings (coarser than Cortex's splitter, see README).
         return (
-            f"ARRAY(SELECT SUBSTR({text_expr}, pos, {chunk_size}) "
-            f"FROM UNNEST(GENERATE_ARRAY(1, LENGTH({text_expr}), {step})) AS pos)"
+            f"ARRAY(SELECT piece FROM (SELECT pos, SUBSTR({text_expr}, pos, {chunk_size}) AS piece "
+            f"FROM UNNEST(GENERATE_ARRAY(1, LENGTH({text_expr}), {step})) AS pos) WHERE TRIM(piece) != '' ORDER BY pos)"
         )
     if dialect == "databricks":
+        # greatest(): Spark raises on sequence(1, 0, step), which is what an empty string would give.
         return (
-            f"ARRAY(SELECT SUBSTR({text_expr}, pos, {chunk_size}) "
-            f"FROM (SELECT explode(sequence(1, LENGTH({text_expr}), {step})) AS pos))"
+            f"filter(transform(sequence(1, greatest(length({text_expr}), 1), {step}), pos -> substr({text_expr}, pos, {chunk_size})), "
+            f"piece -> length(trim(piece)) > 0)"
         )
     raise ValueError(f"unsupported sql_dialect: {dialect!r}")
 
 
 def _sql_classify_expr(dialect: str, text_expr: str, candidate_labels: List[str]) -> str:
-    labels_sql = ", ".join(f"'{label}'" for label in candidate_labels)
+    labels_sql = ", ".join(_sql_str(label) for label in candidate_labels)
     if dialect == "snowflake_cortex":
         return f"SNOWFLAKE.CORTEX.CLASSIFY_TEXT({text_expr}, ARRAY_CONSTRUCT({labels_sql}))"
     if dialect == "bigquery":
@@ -1308,64 +1379,227 @@ def _sql_classify_expr(dialect: str, text_expr: str, candidate_labels: List[str]
 
 
 def _sql_embed_expr(dialect: str, text_expr: str, model: Optional[str]) -> str:
+    """Scalar embedding expression (Snowflake, Databricks). BigQuery's ML.GENERATE_EMBEDDING is a TABLE function: see _build_sql_mode_query."""
     if dialect == "snowflake_cortex":
-        return f"SNOWFLAKE.CORTEX.EMBED_TEXT_768('{model or 'snowflake-arctic-embed-m'}', {text_expr})"
-    if dialect == "bigquery":
-        return f"ML.GENERATE_EMBEDDING(MODEL `{model or 'embedding_model'}`, {text_expr})"
+        return f"SNOWFLAKE.CORTEX.EMBED_TEXT_768({_sql_str(model or 'snowflake-arctic-embed-m')}, {text_expr})"
     if dialect == "databricks":
-        return f"ai_query('{model or 'databricks-gte-large-en'}', {text_expr})"
+        return f"ai_query({_sql_str(model or 'databricks-gte-large-en')}, {text_expr})"
+    if dialect == "bigquery":
+        raise ValueError("BigQuery embeds with the ML.GENERATE_EMBEDDING table function, not a scalar expression")
     raise ValueError(f"unsupported sql_dialect: {dialect!r}")
+
+
+def _sql_hash_expr(dialect: str, text_expr: str) -> str:
+    return f"TO_HEX(SHA256({text_expr}))" if dialect == "bigquery" else f"sha2({text_expr}, 256)"
+
+
+def _sql_version_agg(dialect: str) -> str:
+    """Aggregate over (chunk_id, content_hash) columns: the content version of the whole table (same in-statement and on read-back)."""
+    if dialect == "bigquery":
+        return "TO_HEX(MD5(STRING_AGG(content_hash, '' ORDER BY chunk_id)))"
+    if dialect == "databricks":
+        return "md5(array_join(transform(sort_array(collect_list(struct(chunk_id, content_hash))), x -> x.content_hash), ''))"
+    return "MD5(LISTAGG(content_hash, '') WITHIN GROUP (ORDER BY chunk_id))"
+
+
+def _sql_ts(iso: str) -> str:
+    dt = datetime.fromisoformat(iso)
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return "TIMESTAMP '" + dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f+00:00") + "'"
+
+
+def _sql_outcome_ctes(events: str) -> List[Tuple[str, str]]:
+    """CTEs giving each receipt's effective outcome, exactly as ContextReceiptStore counts it: the mean over its outcome_refs, a later event
+    with the same outcome_ref superseding the earlier; an outcome without a ref never supersedes anything (keyed by its own event id)."""
+    return [
+        ("outcome_events", (
+            f"SELECT receipt_id, COALESCE(NULLIF(JSON_VALUE(payload_json, '$.outcome_ref'), ''), event_id) AS outcome_key,\n"
+            f"         CAST(JSON_VALUE(payload_json, '$.value') AS FLOAT64) AS outcome_value, occurred_at, event_id\n"
+            f"  FROM {events} WHERE event_type = 'outcome'")),
+        ("receipt_outcome", (
+            "SELECT receipt_id, AVG(outcome_value) AS effective_outcome FROM (\n"
+            "    SELECT receipt_id, outcome_value,\n"
+            "           ROW_NUMBER() OVER (PARTITION BY receipt_id, outcome_key ORDER BY occurred_at DESC, event_id DESC) AS rn\n"
+            "    FROM outcome_events) WHERE rn = 1 GROUP BY receipt_id")),
+    ]
+
+
+def _sql_receipt_feedback_ctes(rcfg: Dict[str, Any], asset_name: str, recipe: Optional[str], since: str) -> List[Tuple[str, str]]:
+    """Warehouse-side ContextReceiptStore.item_feedback: retrievals / rated / mean_outcome / cited per item, as one `item_feedback` CTE."""
+    tbl = lambda n: receipt_table(rcfg["dataset"], n, rcfg.get("table_prefix", ""))  # noqa: E731
+    recipe_filter = f" AND COALESCE(i.source_code_version, 'unknown') = {_sql_str(recipe)}" if recipe is not None else ""
+    return _sql_outcome_ctes(tbl("context_receipt_events")) + [
+        ("item_hits", (
+            f"SELECT DISTINCT i.receipt_id, i.item_id FROM {tbl('context_receipt_items')} AS i\n"
+            f"  JOIN {tbl('context_receipts')} AS r ON r.receipt_id = i.receipt_id\n"
+            f"  WHERE i.source_asset_key = {_sql_str(asset_name)} AND r.created_at >= {_sql_ts(since)}{recipe_filter}")),
+        ("citing_events", (
+            f"SELECT receipt_id, payload_json,\n"
+            f"         COALESCE(STARTS_WITH(JSON_QUERY(payload_json, '$.details.item_ids'), '['), FALSE) AS is_scoped\n"
+            f"  FROM {tbl('context_receipt_events')}\n"
+            f"  WHERE event_type = 'evidence' AND JSON_VALUE(payload_json, '$.level') IN ('cited', 'verified', 'counterfactual_tested')")),
+        ("cite_scope", (
+            "SELECT receipt_id, CAST(NULL AS STRING) AS item_id FROM citing_events WHERE NOT is_scoped\n"
+            "  UNION ALL\n"
+            "  SELECT e.receipt_id, scoped_id FROM (\n"
+            "    SELECT receipt_id, CASE WHEN is_scoped THEN JSON_VALUE_ARRAY(payload_json, '$.details.item_ids') END AS ids FROM citing_events) AS e,\n"
+            "    UNNEST(e.ids) AS scoped_id")),
+        ("cited_pairs", (
+            "SELECT DISTINCT h.receipt_id, h.item_id FROM item_hits AS h\n"
+            "  JOIN cite_scope AS c ON c.receipt_id = h.receipt_id AND (c.item_id IS NULL OR c.item_id = h.item_id)")),
+        ("item_feedback", (
+            "SELECT h.item_id, COUNT(*) AS retrievals, COUNTIF(o.effective_outcome IS NOT NULL) AS rated,\n"
+            "         ROUND(AVG(o.effective_outcome), 4) AS mean_outcome, COUNTIF(c.receipt_id IS NOT NULL) AS cited\n"
+            "  FROM item_hits AS h\n"
+            "  LEFT JOIN receipt_outcome AS o ON o.receipt_id = h.receipt_id\n"
+            "  LEFT JOIN cited_pairs AS c ON c.receipt_id = h.receipt_id AND c.item_id = h.item_id\n"
+            "  GROUP BY h.item_id")),
+    ]
+
+
+def _sql_outcomes_by_code_version_query(rcfg: Dict[str, Any], asset_name: str, since: str) -> str:
+    """BigQuery SQL equivalent of ContextReceiptStore.outcomes_by_code_version. Columns: code_version, receipts, outcomes, mean_outcome."""
+    tbl = lambda n: receipt_table(rcfg["dataset"], n, rcfg.get("table_prefix", ""))  # noqa: E731
+    ctes = _sql_outcome_ctes(tbl("context_receipt_events")) + [
+        ("receipt_versions", (
+            f"SELECT DISTINCT i.receipt_id, COALESCE(i.source_code_version, 'unknown') AS code_version\n"
+            f"  FROM {tbl('context_receipt_items')} AS i JOIN {tbl('context_receipts')} AS r ON r.receipt_id = i.receipt_id\n"
+            f"  WHERE i.source_asset_key = {_sql_str(asset_name)} AND r.created_at >= {_sql_ts(since)}")),
+    ]
+    with_ = ",\n".join(f"{n} AS (\n  {b}\n)" for n, b in ctes)
+    return (f"WITH {with_}\n"
+            "SELECT v.code_version, COUNT(*) AS receipts, COUNTIF(o.effective_outcome IS NOT NULL) AS outcomes,\n"
+            "       ROUND(AVG(o.effective_outcome), 4) AS mean_outcome\n"
+            "FROM receipt_versions AS v LEFT JOIN receipt_outcome AS o ON o.receipt_id = v.receipt_id\n"
+            "GROUP BY v.code_version ORDER BY v.code_version")
 
 
 def _build_sql_mode_query(
     steps_cfg: List[dict], source_cfg: dict, dialect: str, output_table: str,
     id_column: str, text_column: str, metadata_columns: List[str],
+    *, asset_name: str = "", code_version: str = "", partition: Optional[str] = None,
+    stamp_provenance: bool = False, receipts: Optional[Dict[str, Any]] = None, since: Optional[str] = None,
 ) -> str:
-    """Build the single CREATE OR REPLACE TABLE statement implementing the
-    chunk -> classify -> embed chain natively in the warehouse. Only the
-    ops actually used matter for output shape; write_vector_store has no
-    SQL equivalent (there's no in-warehouse vector index for these
-    dialects that behaves like chromadb/pinecone/qdrant) so it's skipped
-    in this mode -- point rag_pipeline's `retrieve` op straight at
-    output_table instead (Snowflake Cortex Search / BigQuery vector
-    search / Databricks Vector Search all query a table directly)."""
+    """Build the single CREATE OR REPLACE TABLE statement implementing chunk -> (stamp, receipts feedback) -> classify -> embed natively in the
+    warehouse, in that warehouse's own SQL dialect. write_vector_store has no SQL equivalent (there's no in-warehouse vector index for these
+    dialects that behaves like chromadb/pinecone/qdrant) so it's skipped in this mode -- point rag_pipeline's `retrieve` op straight at
+    output_table instead.
+
+    Output columns: <id_column>, chunk_text, chunk_index, <metadata_columns>, chunk_id, content_hash; with stamp_provenance also
+    source_asset_key / source_version / source_partition / source_code_version; with receipts feedback_* (see _validate_receipts); then
+    category (classify) and embedding (embed)."""
+    if dialect not in _SQL_DIALECTS:
+        raise ValueError(f"unsupported sql_dialect: {dialect!r}")
     chunk_step = next(s for s in steps_cfg if s["op"] == "chunk")
     classify_step = next((s for s in steps_cfg if s["op"] == "classify"), None)
     embed_step = next((s for s in steps_cfg if s["op"] == "embed"), None)
+    out_tbl = _sql_table(output_table, "output_table")
+    id_col = _sql_ident(id_column, "id_column")
+    text_col = _sql_ident(text_column, "text_column")
+    metas = [_sql_ident(c, "metadata_columns entry") for c in metadata_columns]
+    for c in [id_col] + metas:
+        if c.lower() in _SQL_RESERVED_COLUMNS:
+            raise ValueError(f"execution_mode='sql': column {c!r} collides with a column the component writes ({sorted(_SQL_RESERVED_COLUMNS)[:6]}...); alias it in `source.sql`")
+    if len({id_col, *metas}) != len(metas) + 1:
+        raise ValueError("execution_mode='sql': id_column / metadata_columns contain duplicates")
+    if receipts is not None and dialect != "bigquery":
+        raise ValueError("receipts in execution_mode='sql' are supported for sql_dialect='bigquery' only")
 
-    chunk_size = chunk_step.get("chunk_size", 500)
-    chunk_overlap = chunk_step.get("chunk_overlap", 50)
-    chunk_expr = _sql_chunk_expr(dialect, text_column, chunk_size, chunk_overlap)
+    chunk_size = int(chunk_step.get("chunk_size", 500))
+    chunk_overlap = int(chunk_step.get("chunk_overlap", 50))
+    chunk_expr = _sql_chunk_expr(dialect, f"src.{text_col}", chunk_size, chunk_overlap)
+    meta_select = "".join(f",\n         src.{c} AS {c}" for c in metas)
+    head = f"src.{id_col} AS {id_col}"
+    if dialect == "snowflake_cortex":
+        chunk_cte = (f"SELECT {head},\n         chunk.value::string AS chunk_text,\n         chunk.index AS chunk_index{meta_select}\n"
+                     f"  FROM ({source_cfg['sql']}) AS src,\n       LATERAL FLATTEN(input => {chunk_expr}) AS chunk")
+    elif dialect == "bigquery":
+        chunk_cte = (f"SELECT {head},\n         chunk_text,\n         chunk_index{meta_select}\n"
+                     f"  FROM ({source_cfg['sql']}) AS src,\n       UNNEST({chunk_expr}) AS chunk_text WITH OFFSET AS chunk_index")
+    else:
+        chunk_cte = (f"SELECT {head},\n         chunks.chunk_text AS chunk_text,\n         chunks.chunk_index AS chunk_index{meta_select}\n"
+                     f"  FROM ({source_cfg['sql']}) AS src\n  LATERAL VIEW posexplode({chunk_expr}) chunks AS chunk_index, chunk_text")
 
-    meta_select = ", ".join(f"src.{c}" for c in metadata_columns)
-    meta_select = f", {meta_select}" if meta_select else ""
+    prefix = _sql_str(chunk_step.get("chunk_id_prefix") or "")
+    cols = [id_col, "chunk_text", "chunk_index", *metas]
+    ctes: List[Tuple[str, str]] = [("chunked", chunk_cte)]
+    cols_sql = lambda alias, cs: ", ".join(f"{alias}.{c}" for c in cs)  # noqa: E731
 
-    lines = [
-        f"CREATE OR REPLACE TABLE {output_table} AS",
-        "WITH chunked AS (",
-        f"  SELECT src.{id_column} AS {id_column},",
-        f"         chunk.value::string AS chunk_text,",
-        f"         chunk.index AS chunk_index{meta_select}",
-        f"  FROM ({source_cfg['sql']}) AS src,",
-        f"       LATERAL FLATTEN(input => {chunk_expr}) AS chunk",
-        ")",
-        "SELECT chunked.*",
-    ]
-    select_extra = []
+    ctes.append(("stamped", (
+        f"SELECT {cols_sql('chunked', cols)},\n"
+        f"         CONCAT({prefix}, CAST(chunked.{id_col} AS STRING), '_', CAST(chunked.chunk_index AS STRING)) AS chunk_id,\n"
+        f"         {_sql_hash_expr(dialect, 'chunked.chunk_text')} AS content_hash\n"
+        f"  FROM chunked")))
+    cols += ["chunk_id", "content_hash"]
+    cur = "stamped"
+
+    if receipts is not None:
+        recipe = code_version if receipts.get("scope_to_recipe", True) else None
+        ctes += _sql_receipt_feedback_ctes(receipts, asset_name, recipe, since or _receipts_since(receipts))
+        scores = receipt_table(receipts["dataset"], "context_item_scores", receipts.get("table_prefix", ""))
+        ctes.append(("feedback_joined", (
+            f"SELECT {cols_sql('stamped', cols)},\n"
+            f"         COALESCE(fb.retrievals, 0) AS feedback_retrievals, COALESCE(fb.rated, 0) AS feedback_rated,\n"
+            f"         COALESCE(fb.mean_outcome, 0.0) AS feedback_mean_outcome, COALESCE(fb.cited, 0) AS feedback_cited,\n"
+            f"         COALESCE(sc.prior, 0.0) AS feedback_prior\n"
+            f"  FROM stamped\n  LEFT JOIN item_feedback AS fb ON fb.item_id = stamped.chunk_id\n"
+            f"  LEFT JOIN {scores} AS sc ON sc.item_id = stamped.chunk_id")))
+        q = receipts.get("quarantine")
+        bad = None
+        if q:
+            bad = (f"(feedback_retrievals >= {int(receipts['min_retrievals'])} AND feedback_rated >= {int(receipts['min_outcomes'])} "
+                   f"AND feedback_mean_outcome <= {float(q['mean_outcome_below'])!r})")
+        fb_cols = list(_FEEDBACK_COLUMNS) if receipts.get("stamp", True) else []
+        select = list(cols) + fb_cols
+        where = ""
+        if bad and q["mode"] == "flag":
+            select.append(f"{bad} AS feedback_quarantined")
+        elif bad:
+            where = f"\n  WHERE NOT {bad}"
+        ctes.append(("feedback_applied", f"SELECT {', '.join(select)}\n  FROM feedback_joined{where}"))
+        cols = cols + fb_cols + (["feedback_quarantined"] if bad and q["mode"] == "flag" else [])
+        cur = "feedback_applied"
+
+    if stamp_provenance:
+        part = _sql_str(partition) if partition is not None else "CAST(NULL AS STRING)"
+        ctes.append(("versioned", (
+            f"SELECT {cols_sql(cur, cols)},\n"
+            f"         {_sql_str(asset_name)} AS source_asset_key,\n"
+            f"         (SELECT {_sql_version_agg(dialect)} FROM {cur}) AS source_version,\n"
+            f"         {part} AS source_partition,\n"
+            f"         {_sql_str(code_version)} AS source_code_version\n"
+            f"  FROM {cur}")))
+        cols += ["source_asset_key", "source_version", "source_partition", "source_code_version"]
+        cur = "versioned"
+
+    scalar_extra: List[str] = []
     if classify_step is not None:
         candidate_labels = classify_step.get("candidate_labels")
         if not candidate_labels:
             raise ValueError("classify step in execution_mode='sql' requires `candidate_labels`.")
-        classify_expr = _sql_classify_expr(dialect, "chunked.chunk_text", candidate_labels)
-        select_extra.append(f"       {classify_expr} AS category")
-    if embed_step is not None:
-        embed_expr = _sql_embed_expr(dialect, "chunked.chunk_text", embed_step.get("model"))
-        select_extra.append(f"       {embed_expr} AS embedding")
-    if select_extra:
-        lines[-1] += ","
-        lines.append(",\n".join(select_extra))
-    lines.append("FROM chunked")
-    return "\n".join(lines)
+        classify_expr = _sql_classify_expr(dialect, f"{cur}.chunk_text", candidate_labels)
+        if dialect == "bigquery" and embed_step is not None:
+            ctes.append(("classified", f"SELECT {cols_sql(cur, cols)}, {classify_expr} AS category\n  FROM {cur}"))
+            cols.append("category")
+            cur = "classified"
+        else:
+            scalar_extra.append(f"{classify_expr} AS category")
+
+    with_ = ",\n".join(f"{n} AS (\n  {b}\n)" for n, b in ctes)
+    if embed_step is not None and dialect == "bigquery":
+        model = embed_step.get("model") or "embedding_model"
+        if not isinstance(model, str) or not _MODEL_RE.match(model):
+            raise ValueError(f"execution_mode='sql': embed model {model!r} is not a valid BigQuery model reference (project.dataset.model)")
+        final = (f"SELECT {', '.join(cols)}, ml_generate_embedding_result AS embedding\n"
+                 f"FROM ML.GENERATE_EMBEDDING(MODEL `{model}`,\n"
+                 f"  (SELECT {cols_sql(cur, cols)}, {cur}.chunk_text AS content FROM {cur}),\n"
+                 f"  STRUCT(TRUE AS flatten_json_output))")
+    else:
+        if embed_step is not None:
+            scalar_extra.append(f"{_sql_embed_expr(dialect, f'{cur}.chunk_text', embed_step.get('model'))} AS embedding")
+        final = "SELECT " + ", ".join([cols_sql(cur, cols)] + scalar_extra) + f"\nFROM {cur}"
+    return f"CREATE OR REPLACE TABLE {out_tbl} AS\nWITH {with_}\n{final}"
 
 
 # ── Receipts feedback: let what was retrieved and how it turned out shape the next build ─────────────────────
@@ -1377,20 +1611,37 @@ def _build_sql_mode_query(
 # An asset check (`recipe_outcomes`) compares the current recipe's real-world outcomes with earlier recipes.
 
 _RECEIPTS_KEYS = {"resource_key", "window_days", "min_retrievals", "min_outcomes", "refresh_priors", "prior_strength",
-                  "scope_to_recipe", "stamp", "quarantine", "dead_weight_min_receipts", "regression_check"}
+                  "scope_to_recipe", "stamp", "quarantine", "dead_weight_min_receipts", "regression_check", "dataset", "table_prefix"}
 _FEEDBACK_COLUMNS = ["feedback_retrievals", "feedback_rated", "feedback_mean_outcome", "feedback_cited", "feedback_prior"]
 
 
-def _validate_receipts(cfg: Dict[str, Any], steps_cfg: List[dict], execution_mode: str) -> Dict[str, Any]:
-    if execution_mode == "sql":
-        raise ValueError("receipts is python-mode only")
+def _validate_receipts(cfg: Dict[str, Any], steps_cfg: List[dict], execution_mode: str,
+                       sql_dialect: Optional[str] = None, source_cfg: Optional[dict] = None) -> Dict[str, Any]:
     if not isinstance(cfg, dict):
         raise ValueError("receipts must be a mapping")
     unknown = set(cfg) - _RECEIPTS_KEYS
     if unknown:
         raise ValueError(f"receipts: unknown field(s) {sorted(unknown)}; valid: {sorted(_RECEIPTS_KEYS)}")
-    if not isinstance(cfg.get("resource_key"), str) or not cfg["resource_key"].strip():
-        raise ValueError("receipts.resource_key is required: the key of a registered ContextReceiptStoreComponent resource")
+    sql_mode = execution_mode == "sql"
+    if sql_mode:
+        if sql_dialect != "bigquery":
+            raise ValueError("receipts in execution_mode='sql' is supported for sql_dialect='bigquery' only "
+                             f"(got {sql_dialect!r}); use execution_mode='python' with a ContextReceiptStore resource for other warehouses")
+        dataset = cfg.get("dataset")
+        if not isinstance(dataset, str) or not re.match(r"^[A-Za-z0-9_\-]+(\.[A-Za-z0-9_\-]+)?$", dataset):
+            raise ValueError("receipts.dataset is required in execution_mode='sql': 'project.dataset' (or 'dataset') holding the receipt tables")
+        if not re.match(r"^[A-Za-z0-9_]*$", str(cfg.get("table_prefix", "") or "")):
+            raise ValueError("receipts.table_prefix may contain only letters, digits and underscore")
+        source_key = (source_cfg or {}).get("resource_key")
+        if cfg.get("resource_key") not in (None, source_key):
+            raise ValueError(f"receipts.resource_key in execution_mode='sql' must be the BigQuery resource the source uses ({source_key!r}); "
+                             "the feedback is computed by the same statement that builds the table")
+        cfg = {**cfg, "resource_key": source_key, "table_prefix": cfg.get("table_prefix") or ""}
+    else:
+        if "dataset" in cfg or "table_prefix" in cfg:
+            raise ValueError("receipts.dataset / receipts.table_prefix apply to execution_mode='sql' only (python mode reads a ContextReceiptStore resource)")
+        if not isinstance(cfg.get("resource_key"), str) or not cfg["resource_key"].strip():
+            raise ValueError("receipts.resource_key is required: the key of a registered ContextReceiptStoreComponent resource")
     out = {"window_days": 30.0, "min_retrievals": 5, "min_outcomes": 3, "refresh_priors": True, "prior_strength": 5.0,
            "scope_to_recipe": True, "stamp": True, "dead_weight_min_receipts": 50, **cfg}
     if float(out["window_days"]) <= 0:
@@ -1399,7 +1650,7 @@ def _validate_receipts(cfg: Dict[str, Any], steps_cfg: List[dict], execution_mod
         if int(out[name]) < 1:
             raise ValueError(f"receipts.{name} must be >= 1")
     writes = [s_ for s_ in steps_cfg if s_["op"] == "write_vector_store"]
-    if not writes:
+    if not writes and not sql_mode:
         raise ValueError("receipts needs a write_vector_store step (feedback is applied to the chunks it writes)")
     q = out.get("quarantine")
     if q is True:
@@ -1412,7 +1663,7 @@ def _validate_receipts(cfg: Dict[str, Any], steps_cfg: List[dict], execution_mod
             raise ValueError("receipts.quarantine.mean_outcome_below must be in [-1, 1]")
         if q["mode"] not in ("flag", "exclude"):
             raise ValueError("receipts.quarantine.mode must be 'flag' or 'exclude'")
-        if q["mode"] == "exclude" and any(w.get("provider", "chromadb") != "chromadb" for w in writes):
+        if q["mode"] == "exclude" and not sql_mode and any(w.get("provider", "chromadb") != "chromadb" for w in writes):
             raise ValueError("receipts.quarantine.mode=exclude is supported for the chromadb provider only (it deletes the chunks by id); "
                              "use mode: flag with other providers")
         out["quarantine"] = q
@@ -1511,11 +1762,17 @@ def _apply_receipt_feedback(df: pd.DataFrame, write_step: dict, cfg: Dict[str, A
     return frame, step, summary
 
 
-def _run_recipe_outcomes_check(cfg: Dict[str, Any], asset_name: str, code_version: str, context) -> AssetCheckResult:
-    """Is the recipe running now doing worse, in production, than an earlier recipe? Judged on user outcomes recorded on receipts."""
-    rc = cfg["regression_check"]
-    store = _receipts_store(cfg, context)
-    by_cv = store.outcomes_by_code_version(asset_name, _receipts_since(cfg))
+def _run_recipe_outcomes_check(cfg: Dict[str, Any], asset_name: str, code_version: str, context,
+                               outcomes_by_cv: Optional[Dict[str, Dict[str, Any]]] = None) -> AssetCheckResult:
+    """Is the recipe running now doing worse, in production, than an earlier recipe? Judged on user outcomes recorded on receipts.
+    Python mode reads them from the ContextReceiptStore resource; sql mode passes `outcomes_by_cv` computed by BigQuery SQL."""
+    if outcomes_by_cv is None:
+        outcomes_by_cv = _receipts_store(cfg, context).outcomes_by_code_version(asset_name, _receipts_since(cfg))
+    return _recipe_outcomes_result(cfg["regression_check"], code_version, outcomes_by_cv)
+
+
+def _recipe_outcomes_result(rc: Dict[str, Any], code_version: str, by_cv: Dict[str, Dict[str, Any]]) -> AssetCheckResult:
+    """The decision, shared by both execution modes (only how `by_cv` is fetched differs)."""
     rated = lambda v: v is not None and v.get("mean_outcome") is not None and v["outcomes"] >= int(rc["min_outcomes"])  # noqa: E731
     cur = by_cv.get(code_version)
     base_meta = {"code_version": code_version, "outcomes_by_code_version": MetadataValue.json(by_cv)}
@@ -1541,38 +1798,91 @@ def _run_recipe_outcomes_check(cfg: Dict[str, Any], asset_name: str, code_versio
     )
 
 
-def _run_sql_mode(
-    context, steps_cfg: List[dict], source_cfg: dict, dialect: str, output_table: str,
-    id_column: str, text_column: str, metadata_columns: List[str],
-) -> Output:
-    sql = _build_sql_mode_query(steps_cfg, source_cfg, dialect, output_table, id_column, text_column, metadata_columns)
-    resource_key = source_cfg["resource_key"]
-    resource = getattr(context.resources, resource_key)
+class _SqlSession:
+    """Runs statements through whichever interface the warehouse resource exposes: SQLAlchemy engine, DB-API connection, or a
+    BigQuery client (dagster-gcp BigQueryResource: `with resource.get_client() as client`)."""
 
-    context.log.info(f"execution_mode='sql' ({dialect}): running server-side chunk/classify/embed into {output_table}")
+    def __init__(self, execute, fetch):
+        self.execute, self.fetch = execute, fetch
+
+
+@contextlib.contextmanager
+def _sql_session(resource, resource_key: str):
     if hasattr(resource, "get_engine"):
         engine = resource.get_engine()
         with engine.begin() as conn:
-            conn.exec_driver_sql(sql)
-            row_count = conn.exec_driver_sql(f"SELECT COUNT(*) FROM {output_table}").scalar()
+            yield _SqlSession(lambda s: conn.exec_driver_sql(s), lambda s: list(conn.exec_driver_sql(s).fetchall()))
     elif hasattr(resource, "get_connection"):
         with resource.get_connection() as conn:
-            conn.execute(sql)
-            row_count = conn.execute(f"SELECT COUNT(*) FROM {output_table}").fetchone()[0]
+            def run(s):
+                if hasattr(conn, "execute"):
+                    return conn.execute(s)
+                cur = conn.cursor()  # e.g. snowflake-connector connections only have cursors
+                cur.execute(s)
+                return cur
+            yield _SqlSession(run, lambda s: list(run(s).fetchall()))
+    elif hasattr(resource, "get_client"):
+        with resource.get_client() as client:
+            yield _SqlSession(lambda s: client.query(s).result(), lambda s: list(client.query(s).result()))
     else:
-        raise ValueError(f"resource {resource_key!r} must expose .get_engine() or .get_connection().")
+        raise ValueError(f"resource {resource_key!r} must expose .get_engine(), .get_connection() or .get_client() (BigQuery).")
 
+
+def _sql_fetch_outcomes_by_code_version(context, source_cfg: dict, rcfg: Dict[str, Any], asset_name: str) -> Dict[str, Dict[str, Any]]:
+    """ContextReceiptStore.outcomes_by_code_version, computed by BigQuery SQL through the asset's own resource."""
+    sql = _sql_outcomes_by_code_version_query(rcfg, asset_name, _receipts_since(rcfg))
+    with _sql_session(getattr(context.resources, rcfg["resource_key"]), rcfg["resource_key"]) as session:
+        rows = session.fetch(sql)
+    return {r[0]: {"receipts": int(r[1]), "outcomes": int(r[2]), "mean_outcome": None if r[3] is None else float(r[3])} for r in rows}
+
+
+def _run_sql_mode(
+    context, steps_cfg: List[dict], source_cfg: dict, dialect: str, output_table: str,
+    id_column: str, text_column: str, metadata_columns: List[str],
+    *, asset_name: str = "", code_version: str = "", stamp_provenance: bool = False, emit_data_version: bool = True,
+    receipts_cfg: Optional[Dict[str, Any]] = None,
+) -> Output:
+    partition = context.partition_key if context.has_partition_key else None
+    sql = _build_sql_mode_query(steps_cfg, source_cfg, dialect, output_table, id_column, text_column, metadata_columns,
+                                asset_name=asset_name, code_version=code_version, partition=partition,
+                                stamp_provenance=stamp_provenance, receipts=receipts_cfg)
+    resource_key = source_cfg["resource_key"]
+    resource = getattr(context.resources, resource_key)
+    out_tbl = _sql_table(output_table, "output_table")
+
+    context.log.info(f"execution_mode='sql' ({dialect}): running server-side chunk/classify/embed into {output_table}")
+    q = (receipts_cfg or {}).get("quarantine")
+    with _sql_session(resource, resource_key) as session:
+        session.execute(sql)
+        row_count = int(session.fetch(f"SELECT COUNT(*) FROM {out_tbl}")[0][0])
+        # Read the content version back (same aggregate the statement stamped as source_version).
+        content_version = session.fetch(f"SELECT {_sql_version_agg(dialect)} FROM {out_tbl}")[0][0]
+        fb_counts = None
+        if receipts_cfg is not None and receipts_cfg.get("stamp", True):
+            quarantined = ", COUNTIF(feedback_quarantined)" if q and q["mode"] == "flag" else ""
+            row = session.fetch(f"SELECT COUNTIF(feedback_retrievals > 0){quarantined} FROM {out_tbl}")[0]
+            fb_counts = {"chunks_with_feedback": int(row[0]), "quarantined": int(row[1]) if quarantined else None}
+
+    metadata: Dict[str, Any] = {
+        "dagster/row_count": MetadataValue.int(row_count),
+        "execution_mode": MetadataValue.text("sql"),
+        "sql_dialect": MetadataValue.text(dialect),
+        "output_table": MetadataValue.text(output_table),
+        "generated_sql": MetadataValue.md(f"```sql\n{sql}\n```"),
+    }
+    if content_version is not None:
+        metadata["context_version"] = MetadataValue.text(str(content_version))
+    if receipts_cfg is not None:
+        metadata["receipts_scoped_to_recipe"] = MetadataValue.text(code_version if receipts_cfg.get("scope_to_recipe", True) else "all recipes")
+        metadata["receipts_quarantine_mode"] = MetadataValue.text(q["mode"] if q else "off")
+        if fb_counts:
+            metadata["receipts_chunks_with_feedback"] = MetadataValue.int(fb_counts["chunks_with_feedback"])
+            if fb_counts["quarantined"] is not None:
+                metadata["receipts_quarantined"] = MetadataValue.int(fb_counts["quarantined"])
     return Output(
-        value=None,
-        metadata={
-            "dagster/row_count": MetadataValue.int(row_count),
-            "execution_mode": MetadataValue.text("sql"),
-            "sql_dialect": MetadataValue.text(dialect),
-            "output_table": MetadataValue.text(output_table),
-            "generated_sql": MetadataValue.md(f"```sql\n{sql}\n```"),
-        },
+        value=None, metadata=metadata,
+        data_version=DataVersion(str(content_version)) if (emit_data_version and content_version is not None) else None,
     )
-
 
 
 # BEGIN upstream-asset-key normalization (inlined per component; keep copies identical — see tests/test_upstream_keys.py)
@@ -1759,7 +2069,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         description=(
             "Write source_asset_key, source_version (the emitted data version), source_partition, source_id, chunk_id, "
             "content_hash and embedding_model onto every chunk in the vector store, so a retrieval gateway can build "
-            "receipts directly from index hits. Python mode, write_vector_store step."
+            "receipts directly from index hits. Python mode: the write_vector_store step. SQL mode: columns chunk_id, content_hash, source_asset_key, source_version (content hash of the whole table), source_partition, source_code_version on the output table."
         ),
     )
 
@@ -1774,7 +2084,8 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             "rerank), chunks users keep rating badly are flagged or (mode: exclude) left out of the index until their old receipts age out "
             "of the window, and the run reports dead weight, best/worst chunks, exclusion reasons and outcomes per recipe. "
             "regression_check adds the `recipe_outcomes` asset check: is the current recipe doing worse in production than an earlier one? "
-            "Feedback is scoped to the current recipe (code_version) by default so a recipe change starts fresh. Python mode only."
+            "Feedback is scoped to the current recipe (code_version) by default so a recipe change starts fresh. Python mode reads a ContextReceiptStore resource."
+            " In execution_mode='sql' (sql_dialect='bigquery' only) the same feedback is computed inside the one CREATE TABLE statement by SQL joins against the receipt tables: {dataset: <project.dataset holding the receipt tables, required>, table_prefix: '', resource_key: <optional; defaults to source.resource_key and must be the same BigQuery resource>, plus the same window_days / min_retrievals / min_outcomes / scope_to_recipe / stamp / quarantine / regression_check}; refresh_priors and write_vector_store do not apply (feedback_prior is read from context_item_scores as written), and mode: exclude drops the rows from the output table."
         ),
     )
     retrieval_eval: Optional[Dict[str, Any]] = Field(
@@ -1913,7 +2224,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             if execution_mode == "sql":
                 raise ValueError("retrieval_eval is python-mode only")
             retrieval_eval = _validate_retrieval_eval(self.retrieval_eval, steps_cfg)
-        receipts_cfg = _validate_receipts(self.receipts, steps_cfg, execution_mode) if self.receipts else None
+        receipts_cfg = _validate_receipts(self.receipts, steps_cfg, execution_mode, sql_dialect, source_cfg) if self.receipts else None
         _inferred_kinds = self.kinds or ["ai", "context-engineering"]
         _all_tags = dict(self.asset_tags or {})
         for _kind in _inferred_kinds:
@@ -1959,7 +2270,12 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         if execution_mode == "sql":
             @asset(**asset_kwargs)
             def _sql_asset(context: AssetExecutionContext):
-                return _run_sql_mode(context, steps_cfg, source_cfg, sql_dialect, output_table, id_column, text_column, metadata_columns)
+                yield _run_sql_mode(context, steps_cfg, source_cfg, sql_dialect, output_table, id_column, text_column, metadata_columns,
+                                    asset_name=asset_name, code_version=recipe_code_version, stamp_provenance=stamp_provenance,
+                                    emit_data_version=emit_data_version, receipts_cfg=receipts_cfg)
+                if receipts_cfg is not None and receipts_cfg.get("regression_check"):
+                    by_cv = _sql_fetch_outcomes_by_code_version(context, source_cfg, receipts_cfg, asset_name)
+                    yield _run_recipe_outcomes_check(receipts_cfg, asset_name, recipe_code_version, context, outcomes_by_cv=by_cv)
             return Definitions(assets=[_sql_asset])
 
         @asset(**asset_kwargs)

@@ -29553,6 +29553,59 @@
       ]
     },
     {
+      "id": "context_receipt_bigquery_sync",
+      "name": "context_receipt_bigquery_sync",
+      "category": "ai",
+      "description": "Ships context receipts (retrievals, items, exclusions, outcome/evidence/output events) from a local SQLite ContextReceiptStore into BigQuery tables, incrementally and idempotently, so a BigQuery shop gets retrieval feedback in the warehouse (readable by a SQL-mode context_engineering_pipeline).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/context_receipt_bigquery_sync",
+      "tags": [],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "dagster-gcp",
+          "google-cloud-bigquery"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/context_receipt_bigquery_sync/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/context_receipt_bigquery_sync/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/context_receipt_bigquery_sync/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/context_receipt_bigquery_sync/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/context_receipt_bigquery_sync/requirements.txt",
+      "icon": "CloudArrowUp",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-17",
+        "evidence": "tests/ in the component dir: real ContextReceiptStore + real Dagster materialize against a fake google.cloud.bigquery (every statement parsed as BigQuery by sqlglot and run in DuckDB); idempotent replay after crash, late outcomes, batching. Not run against real BigQuery."
+      },
+      "agent_hints": {
+        "inputs": "store_resource_key (a ContextReceiptStore resource), bigquery_resource_key (a BigQueryResource), dataset.",
+        "outputs": "Rows in five BigQuery receipt tables plus a sync-state table; metadata rows shipped per table, cursors, lag.",
+        "side_effects": "Writes (load jobs, DELETE+insert per touched receipt) to the BigQuery dataset.",
+        "anti_uses": "Not needed if the store already uses backend: bigquery. Run one sync per dataset and sync_name.",
+        "requires_resources": [
+          "bigquery_resource",
+          "context_receipts"
+        ],
+        "output_type": "none",
+        "requires_pip": [
+          "dagster-gcp",
+          "google-cloud-bigquery"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "receipts",
+        "bigquery",
+        "context engineering",
+        "feedback",
+        "warehouse"
+      ]
+    },
+    {
       "id": "agent_review_queue",
       "name": "agent_review_queue",
       "category": "ai",

@@ -191,7 +191,7 @@ Right before `write_vector_store` the build reads each chunk's history from the 
 
 Feedback is scoped to the current recipe (`code_version`) by default, so a recipe change starts fresh instead of applying old ratings to different chunks
 (`scope_to_recipe: false` to opt out). Chroma merges metadata on upsert, so when a `feedback_*` key stops applying (stamping off, quarantine mode changed) the
-build writes `None` to delete it instead of leaving a stale flag behind. Python mode only. The end-to-end proof is `tests/test_closed_loop.py`: a real build,
+build writes `None` to delete it instead of leaving a stale flag behind. Python mode reads a `ContextReceiptStore` resource; `execution_mode: sql` on BigQuery computes the same feedback in the warehouse (see [Receipts in SQL mode](#receipts-in-sql-mode-bigquery)). The end-to-end proof is `tests/test_closed_loop.py`: a real build,
 real queries through `rag_pipeline` that record their own receipts, ratings, and a rebuild that stops serving the chunks users kept rating badly.
 
 ## Getting the raw text in: two ways
@@ -238,7 +238,26 @@ attributes:
       model: snowflake-arctic-embed-m
 ```
 
-This generates and runs a single `CREATE OR REPLACE TABLE ... AS ...` statement via the resource's own `.get_engine()`/`.get_connection()`, executed entirely by the warehouse. `sql_dialect` is one of `snowflake_cortex`, `bigquery`, `databricks` — whichever has a native embedding/completion function. **`write_vector_store` has no SQL-mode equivalent** — there's no in-warehouse vector index behaving like chromadb/pinecone/qdrant across these dialects, so point `rag_pipeline`'s `retrieve` op straight at `output_table` instead (Snowflake Cortex Search / BigQuery vector search / Databricks Vector Search all query a table directly).
+This generates and runs a single `CREATE OR REPLACE TABLE ... AS ...` statement, executed entirely by the warehouse, through whichever interface the resource exposes: `.get_engine()` (SQLAlchemy), `.get_connection()` (DB-API) or, for BigQuery, `.get_client()` (dagster-gcp `BigQueryResource`). `sql_dialect` is one of `snowflake_cortex`, `bigquery`, `databricks` and the statement is written in that warehouse's own SQL (BigQuery: `UNNEST(ARRAY(SELECT SUBSTR(..) FROM UNNEST(GENERATE_ARRAY(..)))) WITH OFFSET`, the `ML.GENERATE_EMBEDDING` table function, `AI.CLASSIFY`; Databricks: `LATERAL VIEW posexplode(transform(sequence(..)))`, `ai_query`, `ai_classify`; Snowflake: `LATERAL FLATTEN` over Cortex `SPLIT_TEXT_RECURSIVE_CHARACTER`, `EMBED_TEXT_768`, `CLASSIFY_TEXT`). BigQuery and Databricks have no recursive splitter, so they cut fixed-stride substrings (`chunk_size`, `chunk_overlap`) and drop empty chunks. Labels and model names are escaped and identifiers (`output_table`, `id_column`, `metadata_columns`) are validated. **`write_vector_store` has no SQL-mode equivalent** — there's no in-warehouse vector index behaving like chromadb/pinecone/qdrant across these dialects, so point `rag_pipeline`'s `retrieve` op straight at `output_table` instead (Snowflake Cortex Search / BigQuery vector search / Databricks Vector Search all query a table directly).
+
+**Output columns.** `<id_column>`, `chunk_text`, `chunk_index`, your `metadata_columns`, `chunk_id` (`{chunk_id_prefix}{id}_{chunk_index}`, the same positional id python mode uses), `content_hash` (SHA-256 of the chunk), `category` (classify) and `embedding` (embed). With `stamp_provenance` (default on) the same statement also writes `source_asset_key`, `source_version`, `source_partition` (the partition key of the run) and `source_code_version`. `source_version` is a content version computed inside the statement (an MD5 over every chunk's hash in chunk-id order); the asset reads it back after the run and emits it as the Dagster data version (`emit_data_version`) and as `context_version` metadata, so a no-op rebuild does not look like new content.
+
+### Receipts in SQL mode (BigQuery)
+
+`receipts:` works in SQL mode for `sql_dialect: bigquery` only (other dialects raise a clear error; use python mode with a receipt-store resource there). The receipts live in BigQuery tables (DDL: `receipt_table_ddl` in the block inlined in `component.py`), and the feedback is computed by joins in the same statement that builds the table:
+
+```yaml
+  execution_mode: sql
+  sql_dialect: bigquery
+  receipts:
+    dataset: my-project.context_receipts   # holds context_receipts, context_receipt_items, context_receipt_events, context_item_scores
+    table_prefix: ""                        # optional
+    window_days: 30
+    quarantine: {mean_outcome_below: -0.3, mode: flag}   # flag | exclude (exclude drops the rows from the table)
+    regression_check: {min_outcomes: 10, max_drop: 0.15} # adds the recipe_outcomes check, also computed in BigQuery
+```
+
+`resource_key` is optional here and defaults to the source's BigQuery resource (it must be that same resource). The semantics are those of `ContextReceiptStore.item_feedback` (retrievals = distinct receipts returning the chunk, rated = receipts with an outcome, mean outcome = mean of each receipt's effective outcome with a later event on the same `outcome_ref` superseding the earlier, cited = receipts with cited/verified/counterfactual_tested evidence that applies to the chunk), stamped as `feedback_retrievals`, `feedback_rated`, `feedback_mean_outcome`, `feedback_cited`, `feedback_prior` (read from `context_item_scores`) and, with `quarantine`, `feedback_quarantined`. Differences from python mode: `refresh_priors` does nothing (priors are read as written), there is no `receipts_feedback` report (counts of chunks with feedback and quarantined chunks are in the materialization metadata), and no write_vector_store step is needed.
 
 **DuckDB has no native embedding/completion function** — same limitation dbt's own package has (their `jaffle-logistics` example leaves DuckDB as a placeholder for exactly this reason). Use `execution_mode: python` with a `source: {kind: warehouse_query, resource_key: duckdb_resource, ...}` for DuckDB instead — the corpus still never has to already be a materialized Dagster asset, it just runs the chunk/classify/embed chain in Python rather than natively in the database.
 
@@ -334,5 +353,5 @@ Every field name and step shape here is meant to be as readable for a human anal
 **Mocked (no free/local backend exists for these)**:
 - `embed` `provider: litellm` and `classify` `mode: llm` — litellm's own call is mocked; the request/response handling and category-validation logic run for real.
 
-**Structural only, not executed (no live warehouse credentials in this environment)**:
-- `execution_mode: sql` — the generated SQL string is asserted for all three dialects (`snowflake_cortex`, `bigquery`, `databricks`) and for the "classify without candidate_labels" error case, but never run against a real warehouse. Flip to `validation.level: live` only once that's confirmed against a real Snowflake/BigQuery/Databricks account.
+**Parsed and partly executed, never against a real warehouse (no credentials in this environment)**:
+- `execution_mode: sql` — every dialect's statement is parsed with sqlglot in that dialect. The BigQuery chunk, provenance and receipts-feedback statements are additionally executed (sqlglot BigQuery -> DuckDB, `tests/bq_fake.py`) against real tables, and the feedback columns are asserted equal to `ContextReceiptStore.item_feedback` on the same events. The warehouse AI functions (`ML.GENERATE_EMBEDDING`, `AI.CLASSIFY`, Cortex, `ai_query`/`ai_classify`) and the Databricks/Snowflake statements are parse-only. Flip to `validation.level: live` only once that's confirmed against a real Snowflake/BigQuery/Databricks account.

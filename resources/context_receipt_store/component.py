@@ -18,7 +18,7 @@ from dataclasses import asdict, dataclass, field, fields
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import dagster as dg
 from pydantic import Field
@@ -51,6 +51,43 @@ OUTCOME_SIGNALS = {
 EVIDENCE_WEIGHTS = {"retrieved": 0.5, "cited": 1.0, "verified": 1.5, "counterfactual_tested": 2.0}
 SPEC_VERSION = "1"  # receipt-spec.v1.json
 _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+
+
+# BEGIN receipt-warehouse-ddl (canonical; inlined verbatim, byte-identical, by every component that creates or reads the receipt tables -- drift-tested)
+RECEIPT_TABLE_NAMES = ("context_receipts", "context_receipt_items", "context_receipt_excluded", "context_receipt_events", "context_item_scores")
+
+
+def receipt_table(dataset: str, name: str, prefix: str = "") -> str:
+    """Fully qualified, quoted table reference. `dataset` is `project.dataset` (or just `dataset` to use the client's project)."""
+    if name not in RECEIPT_TABLE_NAMES:
+        raise ValueError(f"unknown receipt table {name!r}; valid: {RECEIPT_TABLE_NAMES}")
+    return f"`{dataset}.{prefix}{name}`"
+
+
+def receipt_table_ddl(dataset: str, prefix: str = "", dialect: str = "bigquery") -> list:
+    """CREATE TABLE IF NOT EXISTS statements for the receipt tables (the same columns as the SQLite store, per resources/context_receipt_store/SPEC.md).
+    Timestamps are TIMESTAMP (ISO-8601 UTC in, TIMESTAMP out); event payloads stay JSON text in `payload_json` (read with JSON_VALUE)."""
+    if dialect != "bigquery":
+        raise NotImplementedError(f"receipt warehouse tables are implemented for dialect='bigquery' only (got {dialect!r})")
+    t = lambda n: receipt_table(dataset, n, prefix)  # noqa: E731
+    return [
+        f"""CREATE TABLE IF NOT EXISTS {t('context_receipts')} (
+  receipt_id STRING NOT NULL, created_at TIMESTAMP NOT NULL, context_name STRING NOT NULL, context_version STRING, policy_version STRING,
+  caller_id STRING, purpose STRING, query_hash STRING, eligible_count INT64, excluded_count INT64, dagster_asset_key STRING,
+  dagster_run_id STRING, trace_id STRING, mcp_session_id STRING, mcp_request_id STRING)""",
+        f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_items')} (
+  receipt_id STRING NOT NULL, item_id STRING NOT NULL, source_asset_key STRING, source_version STRING, source_partition STRING,
+  source_code_version STRING, rank INT64, score FLOAT64, selection STRING)""",
+        f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_excluded')} (
+  receipt_id STRING NOT NULL, item_id STRING NOT NULL, reason STRING NOT NULL, source_asset_key STRING, source_version STRING,
+  source_partition STRING, source_code_version STRING)""",
+        f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_events')} (
+  event_id STRING NOT NULL, receipt_id STRING NOT NULL, event_type STRING NOT NULL, occurred_at TIMESTAMP NOT NULL, payload_json STRING NOT NULL)""",
+        f"""CREATE TABLE IF NOT EXISTS {t('context_item_scores')} (
+  item_id STRING NOT NULL, retrievals INT64 NOT NULL, outcome_weight FLOAT64 NOT NULL, outcome_sum FLOAT64 NOT NULL, prior FLOAT64 NOT NULL,
+  updated_at TIMESTAMP NOT NULL)""",
+    ]
+# END receipt-warehouse-ddl
 
 
 class DuplicateReceiptError(ValueError):
@@ -479,6 +516,125 @@ def context_policies(source: Any) -> dict[str, ContextPolicy]:
     return policies
 
 
+def _fold_item_scores(items: Any, events: Any) -> dict[str, list[float]]:
+    """Pure aggregation behind ``refresh_item_scores``: item -> [retrievals, weight, weighted_sum] (shared by every storage backend)."""
+    outcomes: dict[str, dict[str, float]] = {}
+    evidence: dict[str, list[tuple[float, set[str] | None]]] = {}
+    for row in events:
+        payload = json.loads(row["payload_json"])
+        if row["event_type"] == "outcome":
+            key = payload.get("outcome_ref") or f"anon-{len(outcomes.get(row['receipt_id'], {}))}"
+            outcomes.setdefault(row["receipt_id"], {})[key] = payload["value"]
+        else:
+            ids = payload["details"].get("item_ids")
+            evidence.setdefault(row["receipt_id"], []).append(
+                (EVIDENCE_WEIGHTS[payload["level"]], set(ids) if isinstance(ids, list) else None)
+            )
+    stats: dict[str, list[float]] = {}  # item -> [retrievals, weight, weighted_sum]
+    for row in items:
+        entry = stats.setdefault(row["item_id"], [0, 0.0, 0.0])
+        entry[0] += 1
+        values = outcomes.get(row["receipt_id"])
+        if not values:
+            continue
+        weight = max(
+            [EVIDENCE_WEIGHTS["retrieved"]]
+            + [w for w, ids in evidence.get(row["receipt_id"], []) if ids is None or row["item_id"] in ids]
+        )
+        entry[1] += weight
+        entry[2] += weight * (sum(values.values()) / len(values))
+    return stats
+
+
+def _fold_item_feedback(item_rows: Any, excl_rows: Any, events: Any) -> dict[str, dict[str, Any]]:
+    """Pure aggregation behind ``item_feedback`` (rows are mappings: sqlite3.Row or dict); shared by every storage backend."""
+    outcomes: dict[str, dict[str, float]] = {}
+    evidence: dict[str, list[set[str] | None]] = {}
+    for ev in events:
+        payload = json.loads(ev["payload_json"])
+        if ev["event_type"] == "outcome":
+            key = payload.get("outcome_ref") or f"anon-{len(outcomes.get(ev['receipt_id'], {}))}"
+            outcomes.setdefault(ev["receipt_id"], {})[key] = payload["value"]
+        elif payload.get("level") in ("cited", "verified", "counterfactual_tested"):
+            scoped = (payload.get("details") or {}).get("item_ids")
+            evidence.setdefault(ev["receipt_id"], []).append(set(scoped) if isinstance(scoped, list) else None)
+    out: dict[str, dict[str, Any]] = {}
+    
+    def entry_for(item_id: str) -> dict[str, Any]:
+        return out.setdefault(item_id, {"retrievals": 0, "rated": 0, "_sum": 0.0, "cited": 0, "excluded": {}, "last_retrieved_at": None})
+    
+    for row in item_rows:
+        entry = entry_for(row["item_id"])
+        entry["retrievals"] += 1
+        if entry["last_retrieved_at"] is None or row["created_at"] > entry["last_retrieved_at"]:
+            entry["last_retrieved_at"] = row["created_at"]
+        values = outcomes.get(row["receipt_id"])
+        if values:
+            entry["rated"] += 1
+            entry["_sum"] += sum(values.values()) / len(values)
+        if any(scope is None or row["item_id"] in scope for scope in evidence.get(row["receipt_id"], [])):
+            entry["cited"] += 1
+    for row in excl_rows:
+        entry = entry_for(row["item_id"])
+        entry["excluded"][row["reason"]] = entry["excluded"].get(row["reason"], 0) + 1
+    for entry in out.values():
+        total = entry.pop("_sum")
+        entry["mean_outcome"] = round(total / entry["rated"], 4) if entry["rated"] else None
+    return out
+
+
+def _fold_asset_usage(rows: Any, events: Any, ids: Any) -> dict[str, Any]:
+    """Pure aggregation behind ``asset_usage_since`` (shared by every storage backend)."""
+    outcomes: dict[str, dict[str, float]] = {}
+    with_output: set[str] = set()
+    verified: set[str] = set()
+    claims: dict[str, tuple[int, int]] = {}  # receipt -> (claims_total, claims_ungrounded), latest report wins
+    for ev in events:
+        payload = json.loads(ev["payload_json"])
+        if ev["event_type"] == "outcome":
+            key = payload.get("outcome_ref") or f"anon-{len(outcomes.get(ev['receipt_id'], {}))}"
+            outcomes.setdefault(ev["receipt_id"], {})[key] = payload["value"]
+        elif ev["event_type"] == "output_attached":
+            with_output.add(ev["receipt_id"])
+        elif ev["event_type"] == "evidence":
+            if payload["level"] in ("verified", "counterfactual_tested"):
+                verified.add(ev["receipt_id"])
+            details = payload.get("details") or {}
+            if isinstance(details.get("claims_total"), int) and isinstance(details.get("claims_ungrounded"), int):
+                claims[ev["receipt_id"]] = (details["claims_total"], details["claims_ungrounded"])
+    return {
+        "claims_total": sum(t for t, _ in claims.values()),
+        "claims_ungrounded": sum(u for _, u in claims.values()),
+        "receipts": len(ids),
+        "items": [(r["source_partition"], r["source_version"]) for r in rows],
+        "outcome_means": [sum(v.values()) / len(v) for v in outcomes.values()],
+        "with_output": len(with_output),
+        "verified_outputs": len(with_output & verified),
+    }
+
+
+def _fold_outcomes_by_code_version(rows: Any, events: Any) -> dict[str, dict[str, Any]]:
+    """Pure aggregation behind ``outcomes_by_code_version`` (shared by every storage backend)."""
+    per_receipt: dict[str, dict[str, float]] = {}
+    for ev in events:
+        payload = json.loads(ev["payload_json"])
+        key = payload.get("outcome_ref") or f"anon-{len(per_receipt.get(ev['receipt_id'], {}))}"
+        per_receipt.setdefault(ev["receipt_id"], {})[key] = payload["value"]
+    stats: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        entry = stats.setdefault(row["cv"], {"receipts": 0, "outcomes": 0, "_sum": 0.0})
+        entry["receipts"] += 1
+        values = per_receipt.get(row["receipt_id"])
+        if values:
+            entry["outcomes"] += 1
+            entry["_sum"] += sum(values.values()) / len(values)
+    return {
+        cv: {"receipts": e["receipts"], "outcomes": e["outcomes"],
+             "mean_outcome": round(e["_sum"] / e["outcomes"], 4) if e["outcomes"] else None}
+        for cv, e in sorted(stats.items())
+    }
+
+
 class ContextReceiptStore:
     """Append-only retrieval receipts with source lookups for impact analysis.
 
@@ -673,32 +829,10 @@ class ContextReceiptStore:
             "source_code_version": item.get("source_code_version"),
         }
 
-    def record_retrieval(
-        self,
-        *,
-        context_name: str,
-        items: Iterable[Mapping[str, Any]],
-        excluded: Iterable[Mapping[str, Any]] = (),
-        context_version: str | None = None,
-        policy_version: str | None = None,
-        caller_id: str | None = None,
-        purpose: str | None = None,
-        query_hash: str | None = None,
-        eligible_count: int | None = None,
-        excluded_count: int | None = None,
-        dagster_asset_key: str | None = None,
-        dagster_run_id: str | None = None,
-        receipt_id: str | None = None,
-        trace_id: str | None = None,
-        mcp_session_id: str | None = None,
-        mcp_request_id: str | None = None,
-    ) -> str:
-        """Persist a retrieval fact and return its portable receipt ID.
-
-        ``query_hash`` should be a one-way digest, not the raw query. Item
-        mappings accept only IDs, source asset/version references, rank, and
-        score so content cannot be accidentally serialized into the receipt.
-        """
+    def _prepare_retrieval(
+        self, context_name: Any, items: Any, excluded: Any, eligible_count: Any, excluded_count: Any, receipt_id: Any,
+    ) -> "tuple[str, list[dict[str, Any]], list[dict[str, Any]], int | None]":
+        """Validate and normalize a retrieval; shared by every storage backend. Returns (receipt_id, items, excluded, excluded_count)."""
         if not isinstance(context_name, str) or not context_name.strip():
             raise ValueError("context_name must be a non-empty string")
         for field_name, value in (
@@ -734,6 +868,37 @@ class ContextReceiptStore:
             receipt_id = new_receipt_id()
         elif not isinstance(receipt_id, str) or not receipt_id.strip():
             raise ValueError("receipt_id must be a non-empty string")
+        return receipt_id, normalized_items, normalized_excluded, excluded_count
+
+    def record_retrieval(
+        self,
+        *,
+        context_name: str,
+        items: Iterable[Mapping[str, Any]],
+        excluded: Iterable[Mapping[str, Any]] = (),
+        context_version: str | None = None,
+        policy_version: str | None = None,
+        caller_id: str | None = None,
+        purpose: str | None = None,
+        query_hash: str | None = None,
+        eligible_count: int | None = None,
+        excluded_count: int | None = None,
+        dagster_asset_key: str | None = None,
+        dagster_run_id: str | None = None,
+        receipt_id: str | None = None,
+        trace_id: str | None = None,
+        mcp_session_id: str | None = None,
+        mcp_request_id: str | None = None,
+    ) -> str:
+        """Persist a retrieval fact and return its portable receipt ID.
+
+        ``query_hash`` should be a one-way digest, not the raw query. Item
+        mappings accept only IDs, source asset/version references, rank, and
+        score so content cannot be accidentally serialized into the receipt.
+        """
+        receipt_id, normalized_items, normalized_excluded, excluded_count = self._prepare_retrieval(
+            context_name, items, excluded, eligible_count, excluded_count, receipt_id
+        )
         created_at = self._timestamp()
         with self._connect() as conn:
             if conn.execute(
@@ -1040,31 +1205,7 @@ class ContextReceiptStore:
                 WHERE event_type IN ('outcome', 'evidence') ORDER BY rowid
                 """
             ).fetchall()
-        outcomes: dict[str, dict[str, float]] = {}
-        evidence: dict[str, list[tuple[float, set[str] | None]]] = {}
-        for row in events:
-            payload = json.loads(row["payload_json"])
-            if row["event_type"] == "outcome":
-                key = payload.get("outcome_ref") or f"anon-{len(outcomes.get(row['receipt_id'], {}))}"
-                outcomes.setdefault(row["receipt_id"], {})[key] = payload["value"]
-            else:
-                ids = payload["details"].get("item_ids")
-                evidence.setdefault(row["receipt_id"], []).append(
-                    (EVIDENCE_WEIGHTS[payload["level"]], set(ids) if isinstance(ids, list) else None)
-                )
-        stats: dict[str, list[float]] = {}  # item -> [retrievals, weight, weighted_sum]
-        for row in items:
-            entry = stats.setdefault(row["item_id"], [0, 0.0, 0.0])
-            entry[0] += 1
-            values = outcomes.get(row["receipt_id"])
-            if not values:
-                continue
-            weight = max(
-                [EVIDENCE_WEIGHTS["retrieved"]]
-                + [w for w, ids in evidence.get(row["receipt_id"], []) if ids is None or row["item_id"] in ids]
-            )
-            entry[1] += weight
-            entry[2] += weight * (sum(values.values()) / len(values))
+        stats = _fold_item_scores(items, events)
         now = self._timestamp()
         with self._connect() as conn:
             conn.executemany(
@@ -1140,39 +1281,7 @@ class ContextReceiptStore:
                     f"WHERE event_type IN ('outcome', 'evidence') AND receipt_id IN ({','.join('?' * len(batch))}) ORDER BY rowid",
                     batch,
                 ).fetchall())
-        outcomes: dict[str, dict[str, float]] = {}
-        evidence: dict[str, list[set[str] | None]] = {}
-        for ev in events:
-            payload = json.loads(ev["payload_json"])
-            if ev["event_type"] == "outcome":
-                key = payload.get("outcome_ref") or f"anon-{len(outcomes.get(ev['receipt_id'], {}))}"
-                outcomes.setdefault(ev["receipt_id"], {})[key] = payload["value"]
-            elif payload.get("level") in ("cited", "verified", "counterfactual_tested"):
-                scoped = (payload.get("details") or {}).get("item_ids")
-                evidence.setdefault(ev["receipt_id"], []).append(set(scoped) if isinstance(scoped, list) else None)
-        out: dict[str, dict[str, Any]] = {}
-
-        def entry_for(item_id: str) -> dict[str, Any]:
-            return out.setdefault(item_id, {"retrievals": 0, "rated": 0, "_sum": 0.0, "cited": 0, "excluded": {}, "last_retrieved_at": None})
-
-        for row in item_rows:
-            entry = entry_for(row["item_id"])
-            entry["retrievals"] += 1
-            if entry["last_retrieved_at"] is None or row["created_at"] > entry["last_retrieved_at"]:
-                entry["last_retrieved_at"] = row["created_at"]
-            values = outcomes.get(row["receipt_id"])
-            if values:
-                entry["rated"] += 1
-                entry["_sum"] += sum(values.values()) / len(values)
-            if any(scope is None or row["item_id"] in scope for scope in evidence.get(row["receipt_id"], [])):
-                entry["cited"] += 1
-        for row in excl_rows:
-            entry = entry_for(row["item_id"])
-            entry["excluded"][row["reason"]] = entry["excluded"].get(row["reason"], 0) + 1
-        for entry in out.values():
-            total = entry.pop("_sum")
-            entry["mean_outcome"] = round(total / entry["rated"], 4) if entry["rated"] else None
-        return out
+        return _fold_item_feedback(item_rows, excl_rows, events)
 
     def ingest(self, event: Mapping[str, Any]) -> str:
         """Apply one spec-v1 event (see receipt-spec.v1.json); returns its receipt_id.
@@ -1263,32 +1372,7 @@ class ContextReceiptStore:
                 f"WHERE receipt_id IN ({','.join('?' * len(ids))}) ORDER BY rowid",
                 ids,
             ).fetchall() if ids else []
-        outcomes: dict[str, dict[str, float]] = {}
-        with_output: set[str] = set()
-        verified: set[str] = set()
-        claims: dict[str, tuple[int, int]] = {}  # receipt -> (claims_total, claims_ungrounded), latest report wins
-        for ev in events:
-            payload = json.loads(ev["payload_json"])
-            if ev["event_type"] == "outcome":
-                key = payload.get("outcome_ref") or f"anon-{len(outcomes.get(ev['receipt_id'], {}))}"
-                outcomes.setdefault(ev["receipt_id"], {})[key] = payload["value"]
-            elif ev["event_type"] == "output_attached":
-                with_output.add(ev["receipt_id"])
-            elif ev["event_type"] == "evidence":
-                if payload["level"] in ("verified", "counterfactual_tested"):
-                    verified.add(ev["receipt_id"])
-                details = payload.get("details") or {}
-                if isinstance(details.get("claims_total"), int) and isinstance(details.get("claims_ungrounded"), int):
-                    claims[ev["receipt_id"]] = (details["claims_total"], details["claims_ungrounded"])
-        return {
-            "claims_total": sum(t for t, _ in claims.values()),
-            "claims_ungrounded": sum(u for _, u in claims.values()),
-            "receipts": len(ids),
-            "items": [(r["source_partition"], r["source_version"]) for r in rows],
-            "outcome_means": [sum(v.values()) / len(v) for v in outcomes.values()],
-            "with_output": len(with_output),
-            "verified_outputs": len(with_output & verified),
-        }
+        return _fold_asset_usage(rows, events, ids)
 
     def derive_implicit_outcomes(self, *, window_seconds: float = 120.0, since: str | None = None) -> int:
         """Write weak implicit outcomes from session behaviour; returns how many were created.
@@ -1354,24 +1438,7 @@ class ContextReceiptStore:
                 f"AND receipt_id IN ({','.join('?' * len(ids))}) ORDER BY rowid",
                 ids,
             ).fetchall() if ids else []
-        per_receipt: dict[str, dict[str, float]] = {}
-        for ev in events:
-            payload = json.loads(ev["payload_json"])
-            key = payload.get("outcome_ref") or f"anon-{len(per_receipt.get(ev['receipt_id'], {}))}"
-            per_receipt.setdefault(ev["receipt_id"], {})[key] = payload["value"]
-        stats: dict[str, dict[str, Any]] = {}
-        for row in rows:
-            entry = stats.setdefault(row["cv"], {"receipts": 0, "outcomes": 0, "_sum": 0.0})
-            entry["receipts"] += 1
-            values = per_receipt.get(row["receipt_id"])
-            if values:
-                entry["outcomes"] += 1
-                entry["_sum"] += sum(values.values()) / len(values)
-        return {
-            cv: {"receipts": e["receipts"], "outcomes": e["outcomes"],
-                 "mean_outcome": round(e["_sum"] / e["outcomes"], 4) if e["outcomes"] else None}
-            for cv, e in sorted(stats.items())
-        }
+        return _fold_outcomes_by_code_version(rows, events)
 
     def enforce_retention(self, retention_days: Mapping[str, float | None], *, now: datetime | None = None) -> dict[str, int]:
         """Delete receipts past their retention; the one deletion this append-only store performs.
@@ -1457,6 +1524,366 @@ class ContextReceiptStore:
         return [row["receipt_id"] for row in rows]
 
 
+# ── BigQuery backend ──────────────────────────────────────────────────────────────────────────────────────
+# The same receipts, in BigQuery tables (DDL: the canonical block above), for a shop whose warehouse is BigQuery and whose
+# agents/gateways run on several hosts. Same method surface and results as the SQLite store (a parity test runs one scenario
+# through both); the row folding is the shared _fold_* code, only reads/writes differ.
+#
+# Writes go through LOAD jobs, not streaming inserts: streaming-buffer rows cannot be DELETEd/UPDATEd for up to ~90 minutes,
+# which would break `enforce_retention` and score refreshes. A load job costs seconds, not milliseconds -- put an
+# AsyncReceiptWriter in front of it on any hot path (the component does so with `async_writes: true`).
+
+def _bq_iso(value: Any) -> Any:
+    """BigQuery TIMESTAMP -> the ISO-8601 UTC string the SQLite store returns."""
+    if isinstance(value, datetime):
+        return (value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)).isoformat()
+    return value
+
+
+_EPOCH = "1970-01-01T00:00:00+00:00"
+_BQ_RECEIPT_COLS = ("receipt_id", "created_at", "context_name", "context_version", "policy_version", "caller_id", "purpose", "query_hash",
+                    "eligible_count", "excluded_count", "dagster_asset_key", "dagster_run_id", "trace_id", "mcp_session_id", "mcp_request_id")
+_BQ_TYPES = {"INT64": "INTEGER", "FLOAT64": "FLOAT", "TIMESTAMP": "TIMESTAMP", "STRING": "STRING"}
+
+
+class BigQueryContextReceiptStore(ContextReceiptStore):
+    """Receipts in BigQuery. ``client_factory()`` returns a ``google.cloud.bigquery.Client`` or a context manager yielding one
+    (dagster-gcp's ``BigQueryResource.get_client``)."""
+
+    def __init__(self, dataset: str, *, client_factory: Any, table_prefix: str = "", create_tables: bool = True):
+        if not dataset or "." not in dataset.strip("`"):
+            raise ValueError("dataset must be 'project.dataset'")
+        self.dataset = dataset.strip("`")
+        self.table_prefix = table_prefix
+        self.database_path = f"bigquery://{self.dataset}/{table_prefix}"
+        self._client_factory = client_factory
+        self._create_tables = create_tables
+        self._ready = False
+        self._ready_lock = threading.Lock()
+
+    # -- plumbing ---------------------------------------------------------------------------------------------
+    def _t(self, name: str) -> str:
+        return receipt_table(self.dataset, name, self.table_prefix)
+
+    @contextmanager
+    def _client(self) -> Iterator[Any]:
+        made = self._client_factory()
+        if hasattr(made, "__enter__"):
+            with made as client:
+                yield client
+        else:
+            yield made
+
+    @staticmethod
+    def _params(bq: Any, params: Mapping[str, Any]) -> list:
+        out = []
+        for name, value in params.items():
+            if isinstance(value, (list, tuple)):
+                out.append(bq.ArrayQueryParameter(name, "STRING", [str(v) for v in value]))
+            elif isinstance(value, bool):
+                out.append(bq.ScalarQueryParameter(name, "BOOL", value))
+            elif isinstance(value, int):
+                out.append(bq.ScalarQueryParameter(name, "INT64", value))
+            elif isinstance(value, float):
+                out.append(bq.ScalarQueryParameter(name, "FLOAT64", value))
+            else:
+                out.append(bq.ScalarQueryParameter(name, "STRING", None if value is None else str(value)))
+        return out
+
+    def ensure_tables(self) -> None:
+        with self._ready_lock:
+            if self._ready:
+                return
+            with self._client() as client:
+                for ddl in receipt_table_ddl(self.dataset, self.table_prefix):
+                    client.query(ddl).result()
+            self._ready = True
+
+    def _query(self, sql: str, **params: Any) -> list:
+        from google.cloud import bigquery as bq  # imported lazily: only the BigQuery backend needs it
+
+        if self._create_tables:
+            self.ensure_tables()
+        with self._client() as client:
+            job = client.query(sql, job_config=bq.QueryJobConfig(query_parameters=self._params(bq, params)))
+            return [dict(r) for r in job.result()]
+
+    def _load(self, table: str, rows: list, columns: Sequence[tuple]) -> None:
+        """Append ``rows`` (dicts) to ``table`` with a load job. ``columns``: [(name, bigquery_type)]."""
+        if not rows:
+            return
+        from google.cloud import bigquery as bq
+
+        if self._create_tables:
+            self.ensure_tables()
+        cfg = bq.LoadJobConfig(
+            write_disposition="WRITE_APPEND",
+            schema=[bq.SchemaField(n, _BQ_TYPES[t]) for n, t in columns],
+        )
+        with self._client() as client:
+            client.load_table_from_json(rows, table.strip("`"), job_config=cfg).result()
+
+    @staticmethod
+    def _ts(value: Any) -> str:
+        return value or _EPOCH
+
+    # -- writes -----------------------------------------------------------------------------------------------
+    def record_retrieval(self, *, context_name: str, items: Iterable[Mapping[str, Any]], excluded: Iterable[Mapping[str, Any]] = (),
+                         context_version: str | None = None, policy_version: str | None = None, caller_id: str | None = None,
+                         purpose: str | None = None, query_hash: str | None = None, eligible_count: int | None = None,
+                         excluded_count: int | None = None, dagster_asset_key: str | None = None, dagster_run_id: str | None = None,
+                         receipt_id: str | None = None, trace_id: str | None = None, mcp_session_id: str | None = None,
+                         mcp_request_id: str | None = None) -> str:
+        receipt_id, norm_items, norm_excluded, excluded_count = self._prepare_retrieval(
+            context_name, items, excluded, eligible_count, excluded_count, receipt_id)
+        # One round trip on the happy path: does the receipt exist (duplicate), and did a crashed earlier attempt leave
+        # items behind (they are written before the receipt row, which is the commit marker)?
+        seen = self._query(
+            f"SELECT (SELECT COUNT(1) FROM {self._t('context_receipts')} WHERE receipt_id = @r) AS r, "
+            f"(SELECT COUNT(1) FROM {self._t('context_receipt_items')} WHERE receipt_id = @r) AS i, "
+            f"(SELECT COUNT(1) FROM {self._t('context_receipt_excluded')} WHERE receipt_id = @r) AS e", r=receipt_id)[0]
+        if seen["r"]:
+            raise DuplicateReceiptError(f"receipt already exists: {receipt_id}")
+        if seen["i"]:
+            self._query(f"DELETE FROM {self._t('context_receipt_items')} WHERE receipt_id = @r", r=receipt_id)
+        if seen["e"]:
+            self._query(f"DELETE FROM {self._t('context_receipt_excluded')} WHERE receipt_id = @r", r=receipt_id)
+        src = ("source_asset_key", "source_version", "source_partition", "source_code_version")
+        self._load(self._t("context_receipt_items"), [{"receipt_id": receipt_id, **i} for i in norm_items],
+                   [("receipt_id", "STRING"), ("item_id", "STRING"), *[(c, "STRING") for c in src], ("rank", "INT64"), ("score", "FLOAT64"), ("selection", "STRING")])
+        self._load(self._t("context_receipt_excluded"), [{"receipt_id": receipt_id, **e} for e in norm_excluded],
+                   [("receipt_id", "STRING"), ("item_id", "STRING"), ("reason", "STRING"), *[(c, "STRING") for c in src]])
+        values = dict(zip(_BQ_RECEIPT_COLS, (receipt_id, self._timestamp(), context_name, context_version, policy_version, caller_id, purpose,
+                                             query_hash, eligible_count, excluded_count, dagster_asset_key, dagster_run_id, trace_id,
+                                             mcp_session_id, mcp_request_id)))
+        self._load(self._t("context_receipts"), [values],
+                   [(c, "TIMESTAMP" if c == "created_at" else "INT64" if c.endswith("_count") else "STRING") for c in _BQ_RECEIPT_COLS])
+        return receipt_id
+
+    def _append_event(self, receipt_id: str, event_type: str, payload: Mapping[str, Any]) -> None:
+        if not self._query(f"SELECT 1 AS x FROM {self._t('context_receipts')} WHERE receipt_id = @r LIMIT 1", r=receipt_id):
+            raise KeyError(f"unknown context receipt: {receipt_id}")
+        self._load(self._t("context_receipt_events"), [{
+            "event_id": str(uuid.uuid4()), "receipt_id": receipt_id, "event_type": event_type, "occurred_at": self._timestamp(),
+            "payload_json": json.dumps(payload, sort_keys=True, separators=(",", ":")),
+        }], [("event_id", "STRING"), ("receipt_id", "STRING"), ("event_type", "STRING"), ("occurred_at", "TIMESTAMP"), ("payload_json", "STRING")])
+
+    # -- reads ------------------------------------------------------------------------------------------------
+    def get_receipt(self, receipt_id: str) -> dict[str, Any] | None:
+        rows = self._query(f"SELECT * FROM {self._t('context_receipts')} WHERE receipt_id = @r", r=receipt_id)
+        if not rows:
+            return None
+        items = self._query(
+            f"SELECT item_id, source_asset_key, source_version, source_partition, source_code_version, rank, score, selection "
+            f"FROM {self._t('context_receipt_items')} WHERE receipt_id = @r ORDER BY rank, item_id", r=receipt_id)
+        excluded = self._query(
+            f"SELECT item_id, reason, source_asset_key, source_version, source_partition, source_code_version "
+            f"FROM {self._t('context_receipt_excluded')} WHERE receipt_id = @r ORDER BY item_id", r=receipt_id)
+        events = self._query(
+            f"SELECT event_id, event_type, occurred_at, payload_json FROM {self._t('context_receipt_events')} "
+            f"WHERE receipt_id = @r ORDER BY occurred_at, event_id", r=receipt_id)
+        result = {k: (_bq_iso(v) if k == "created_at" else v) for k, v in rows[0].items()}
+        result["items"], result["excluded"] = items, excluded
+        result["events"] = [{"event_id": e["event_id"], "event_type": e["event_type"], "occurred_at": _bq_iso(e["occurred_at"]),
+                             "payload": json.loads(e["payload_json"])} for e in events]
+        return result
+
+    @staticmethod
+    def _page(rows: list, key: str, limit: int) -> list:
+        """BigQuery has no row position; cursors are microsecond timestamps. A page that ends mid-microsecond would lose the
+        rest of that microsecond on resume, so a full page drops its trailing tie group (unless it is the whole page)."""
+        if len(rows) < limit:
+            return rows
+        last = rows[-1][key]
+        kept = [r for r in rows if r[key] != last]
+        return kept or rows
+
+    def read_since(self, receipt_cursor: int = 0, event_cursor: int = 0, limit: int = 1000) -> dict[str, Any]:
+        """Same contract as the SQLite store; cursors are microseconds since the epoch of ``created_at`` / ``occurred_at``."""
+        receipts = self._page(self._query(
+            f"SELECT UNIX_MICROS(created_at) AS pos, * FROM {self._t('context_receipts')} WHERE UNIX_MICROS(created_at) > @c "
+            f"ORDER BY pos, receipt_id LIMIT @n", c=int(receipt_cursor), n=int(limit)), "pos", int(limit))
+        ids = [r["receipt_id"] for r in receipts]
+        items = self._query(f"SELECT * FROM {self._t('context_receipt_items')} WHERE receipt_id IN UNNEST(@ids)", ids=ids) if ids else []
+        excluded = self._query(f"SELECT * FROM {self._t('context_receipt_excluded')} WHERE receipt_id IN UNNEST(@ids)", ids=ids) if ids else []
+        events = self._page(self._query(
+            f"SELECT UNIX_MICROS(occurred_at) AS pos, receipt_id, payload_json FROM {self._t('context_receipt_events')} "
+            f"WHERE event_type = 'outcome' AND UNIX_MICROS(occurred_at) > @c ORDER BY pos, event_id LIMIT @n",
+            c=int(event_cursor), n=int(limit)), "pos", int(limit))
+        outcome_assets: dict[str, list[tuple[str, str | None, str | None]]] = {}
+        if events:
+            oids = sorted({e["receipt_id"] for e in events})
+            for row in self._query(
+                f"SELECT DISTINCT receipt_id, source_asset_key, source_partition, source_code_version FROM {self._t('context_receipt_items')} "
+                f"WHERE receipt_id IN UNNEST(@ids) AND source_asset_key IS NOT NULL", ids=oids):
+                outcome_assets.setdefault(row["receipt_id"], []).append((row["source_asset_key"], row["source_partition"], row["source_code_version"]))
+        by_receipt: dict[str, dict[str, Any]] = {}
+        for row in receipts:
+            record = {k: (_bq_iso(v) if k == "created_at" else v) for k, v in row.items() if k != "pos"}
+            record["items"], record["excluded"] = [], []
+            by_receipt[row["receipt_id"]] = record
+        for row in items:
+            by_receipt[row["receipt_id"]]["items"].append(row)
+        for row in excluded:
+            by_receipt[row["receipt_id"]]["excluded"].append(row)
+        outcomes = []
+        for row in events:
+            payload = json.loads(row["payload_json"])
+            payload["receipt_id"] = row["receipt_id"]
+            payload["sources"] = outcome_assets.get(row["receipt_id"], [])
+            outcomes.append(payload)
+        return {"receipts": [by_receipt[r["receipt_id"]] for r in receipts], "outcomes": outcomes,
+                "receipt_cursor": receipts[-1]["pos"] if receipts else receipt_cursor,
+                "event_cursor": events[-1]["pos"] if events else event_cursor}
+
+    def _events_for(self, ids: list, types: str) -> list:
+        out: list = []
+        for start in range(0, len(ids), 5000):
+            out.extend(self._query(
+                f"SELECT receipt_id, event_type, payload_json FROM {self._t('context_receipt_events')} "
+                f"WHERE event_type IN ({types}) AND receipt_id IN UNNEST(@ids) ORDER BY occurred_at, event_id", ids=ids[start:start + 5000]))
+        return out
+
+    def refresh_item_scores(self, prior_strength: float = 5.0) -> int:
+        if prior_strength < 0:
+            raise ValueError("prior_strength must be >= 0")
+        items = self._query(f"SELECT receipt_id, item_id FROM {self._t('context_receipt_items')}")
+        events = self._query(
+            f"SELECT receipt_id, event_type, payload_json FROM {self._t('context_receipt_events')} "
+            f"WHERE event_type IN ('outcome', 'evidence') ORDER BY occurred_at, event_id")
+        stats = _fold_item_scores(items, events)
+        now = self._timestamp()
+        rows = [{"item_id": item, "retrievals": int(n), "outcome_weight": w, "outcome_sum": total,
+                 "prior": total / (w + prior_strength) if (w + prior_strength) else 0.0, "updated_at": now}
+                for item, (n, w, total) in stats.items()]
+        if not rows:
+            return 0
+        # staging + one MERGE: readers never see a half-written score table
+        staging = receipt_table(self.dataset, "context_item_scores", self.table_prefix).replace("context_item_scores`", "context_item_scores_staging`")
+        self._query(f"CREATE TABLE IF NOT EXISTS {staging} AS SELECT * FROM {self._t('context_item_scores')} WHERE FALSE")
+        self._query(f"TRUNCATE TABLE {staging}")
+        self._load(staging, rows, [("item_id", "STRING"), ("retrievals", "INT64"), ("outcome_weight", "FLOAT64"), ("outcome_sum", "FLOAT64"),
+                                   ("prior", "FLOAT64"), ("updated_at", "TIMESTAMP")])
+        self._query(
+            f"MERGE {self._t('context_item_scores')} t USING {staging} s ON t.item_id = s.item_id "
+            f"WHEN MATCHED THEN UPDATE SET retrievals = s.retrievals, outcome_weight = s.outcome_weight, outcome_sum = s.outcome_sum, "
+            f"prior = s.prior, updated_at = s.updated_at "
+            f"WHEN NOT MATCHED THEN INSERT (item_id, retrievals, outcome_weight, outcome_sum, prior, updated_at) "
+            f"VALUES (s.item_id, s.retrievals, s.outcome_weight, s.outcome_sum, s.prior, s.updated_at)")
+        return len(stats)
+
+    def get_item_scores(self, item_ids: Iterable[str]) -> dict[str, dict[str, Any]]:
+        ids = list(item_ids)
+        if not ids:
+            return {}
+        rows = self._query(f"SELECT * FROM {self._t('context_item_scores')} WHERE item_id IN UNNEST(@ids)", ids=ids)
+        return {r["item_id"]: {**r, "updated_at": _bq_iso(r["updated_at"])} for r in rows}
+
+    def item_feedback(self, asset_key: str, *, since: str = "", code_version: str | None = None) -> dict[str, dict[str, Any]]:
+        item_where = "i.source_asset_key = @a AND r.created_at >= TIMESTAMP(@since)"
+        excl_where = "e.source_asset_key = @a AND r.created_at >= TIMESTAMP(@since)"
+        params: dict[str, Any] = {"a": asset_key, "since": self._ts(since)}
+        if code_version is not None:
+            item_where += " AND COALESCE(i.source_code_version, 'unknown') = @cv"
+            excl_where += " AND COALESCE(e.source_code_version, 'unknown') = @cv"
+            params["cv"] = code_version
+        item_rows = self._query(
+            f"SELECT DISTINCT i.receipt_id AS receipt_id, i.item_id AS item_id, r.created_at AS created_at "
+            f"FROM {self._t('context_receipt_items')} i JOIN {self._t('context_receipts')} r ON r.receipt_id = i.receipt_id WHERE {item_where}", **params)
+        for row in item_rows:
+            row["created_at"] = _bq_iso(row["created_at"])
+        excl_rows = self._query(
+            f"SELECT e.item_id AS item_id, e.reason AS reason FROM {self._t('context_receipt_excluded')} e "
+            f"JOIN {self._t('context_receipts')} r ON r.receipt_id = e.receipt_id WHERE {excl_where}", **params)
+        events = self._events_for(sorted({r["receipt_id"] for r in item_rows}), "'outcome', 'evidence'")
+        return _fold_item_feedback(item_rows, excl_rows, events)
+
+    def asset_usage_since(self, asset_key: str, since: str) -> dict[str, Any]:
+        rows = self._query(
+            f"SELECT i.receipt_id AS receipt_id, i.source_partition AS source_partition, i.source_version AS source_version "
+            f"FROM {self._t('context_receipt_items')} i JOIN {self._t('context_receipts')} r ON r.receipt_id = i.receipt_id "
+            f"WHERE i.source_asset_key = @a AND r.created_at >= TIMESTAMP(@since)", a=asset_key, since=self._ts(since))
+        ids = sorted({r["receipt_id"] for r in rows})
+        events = self._events_for(ids, "'outcome', 'output_attached', 'evidence'")
+        return _fold_asset_usage(rows, events, ids)
+
+    def outcomes_by_code_version(self, asset_key: str, since: str = "") -> dict[str, dict[str, Any]]:
+        rows = self._query(
+            f"SELECT DISTINCT i.receipt_id AS receipt_id, COALESCE(i.source_code_version, 'unknown') AS cv "
+            f"FROM {self._t('context_receipt_items')} i JOIN {self._t('context_receipts')} r ON r.receipt_id = i.receipt_id "
+            f"WHERE i.source_asset_key = @a AND r.created_at >= TIMESTAMP(@since)", a=asset_key, since=self._ts(since))
+        events = self._events_for(sorted({r["receipt_id"] for r in rows}), "'outcome'")
+        return _fold_outcomes_by_code_version(rows, events)
+
+    def derive_implicit_outcomes(self, *, window_seconds: float = 120.0, since: str | None = None) -> int:
+        rows = self._query(
+            f"SELECT receipt_id, created_at, caller_id, mcp_session_id, query_hash FROM {self._t('context_receipts')} "
+            f"WHERE mcp_session_id IS NOT NULL AND query_hash IS NOT NULL AND created_at >= TIMESTAMP(@since) ORDER BY created_at, receipt_id",
+            since=self._ts(since))
+        existing = {json.loads(r["payload_json"]).get("outcome_ref") for r in self._query(
+            f"SELECT payload_json FROM {self._t('context_receipt_events')} WHERE event_type = 'outcome'")}
+        previous: dict[tuple[str, str | None], Any] = {}
+        created = 0
+        for row in rows:
+            key = (row["mcp_session_id"], row["caller_id"])
+            prior = previous.get(key)
+            previous[key] = row
+            if prior is None or prior["query_hash"] == row["query_hash"]:
+                continue
+            gap = (_as_datetime(_bq_iso(row["created_at"])) - _as_datetime(_bq_iso(prior["created_at"]))).total_seconds()
+            ref = f"implicit:reformulated:{row['receipt_id']}"
+            if gap <= window_seconds and ref not in existing:
+                self.record_outcome(prior["receipt_id"], signal="reformulated", source="implicit", outcome_ref=ref)
+                created += 1
+        return created
+
+    def enforce_retention(self, retention_days: Mapping[str, float | None], *, now: datetime | None = None) -> dict[str, int]:
+        limits = {k: float(v) for k, v in retention_days.items() if v}
+        if not limits:
+            return {"receipts_deleted": 0}
+        now = now or datetime.now(timezone.utc)
+        cutoff = (now - timedelta(days=min(limits.values()))).isoformat()
+        candidates = self._query(f"SELECT receipt_id, created_at FROM {self._t('context_receipts')} WHERE created_at < TIMESTAMP(@c)", c=cutoff)
+        ids = [c["receipt_id"] for c in candidates]
+        assets: dict[str, set] = {}
+        for start in range(0, len(ids), 5000):
+            for row in self._query(
+                f"SELECT receipt_id, source_asset_key FROM {self._t('context_receipt_items')} WHERE receipt_id IN UNNEST(@ids) AND source_asset_key IS NOT NULL "
+                f"UNION DISTINCT SELECT receipt_id, source_asset_key FROM {self._t('context_receipt_excluded')} WHERE receipt_id IN UNNEST(@ids) AND source_asset_key IS NOT NULL",
+                ids=ids[start:start + 5000]):
+                assets.setdefault(row["receipt_id"], set()).add(row["source_asset_key"])
+        doomed = []
+        for row in candidates:
+            applicable = [limits[a] for a in assets.get(row["receipt_id"], ()) if a in limits]
+            if applicable and _as_datetime(_bq_iso(row["created_at"])) + timedelta(days=min(applicable)) <= now:
+                doomed.append(row["receipt_id"])
+        for start in range(0, len(doomed), 5000):
+            for table in ("context_receipt_events", "context_receipt_excluded", "context_receipt_items", "context_receipts"):
+                self._query(f"DELETE FROM {self._t(table)} WHERE receipt_id IN UNNEST(@ids)", ids=doomed[start:start + 5000])
+        return {"receipts_deleted": len(doomed)}
+
+    def find_by_assets(self, targets: Mapping[str, Iterable[str] | None]) -> dict[str, list[str]]:
+        exact: set[str] = set()
+        unknown: set[str] = set()
+        for asset_key, partitions in targets.items():
+            rows = self._query(f"SELECT DISTINCT receipt_id, source_partition FROM {self._t('context_receipt_items')} WHERE source_asset_key = @a", a=asset_key)
+            wanted = None if partitions is None else set(partitions)
+            for row in rows:
+                if wanted is None or row["source_partition"] in wanted:
+                    exact.add(row["receipt_id"])
+                elif row["source_partition"] is None:
+                    unknown.add(row["receipt_id"])
+        return {"receipt_ids": sorted(exact), "partition_unknown": sorted(unknown - exact)}
+
+    def find_by_item(self, item_id: str) -> list[str]:
+        return [r["receipt_id"] for r in self._query(
+            f"SELECT DISTINCT receipt_id FROM {self._t('context_receipt_items')} WHERE item_id = @i ORDER BY receipt_id", i=item_id)]
+
+    def find_by_source_asset(self, asset_key: str) -> list[str]:
+        return [r["receipt_id"] for r in self._query(
+            f"SELECT DISTINCT receipt_id FROM {self._t('context_receipt_items')} WHERE source_asset_key = @a ORDER BY receipt_id", a=asset_key)]
+
+
 class AsyncReceiptWriter:
     """Fire-and-forget receipt writes so the agent never waits on the store.
 
@@ -1528,6 +1955,45 @@ class AsyncReceiptWriter:
                     self.dead_letters.append((op, args, kwargs, exc))
                     return
                 time.sleep(self.backoff_seconds * (2**attempt))
+
+
+class AsyncBigQueryContextReceiptStore(BigQueryContextReceiptStore):
+    """BigQuery receipts with fire-and-forget writes: a load job takes seconds, so an agent must not wait on it.
+
+    Reads are synchronous and see only what the background writer has finished -- call ``flush()`` first when you need
+    read-your-writes. Argument errors still raise at the call site (validated before queueing); storage errors that survive
+    the writer's retries land in ``dead_letters``. In-process and not crash-safe (see ``AsyncReceiptWriter``)."""
+
+    def __init__(self, *args: Any, writer_max_retries: int = 5, writer_backoff_seconds: float = 0.5, **kwargs: Any):
+        super().__init__(*args, **kwargs)
+        inner = BigQueryContextReceiptStore(*args, **kwargs)
+        self._writer = AsyncReceiptWriter(inner, max_retries=writer_max_retries, backoff_seconds=writer_backoff_seconds)
+
+    @property
+    def dead_letters(self) -> list:
+        return self._writer.dead_letters
+
+    def flush(self) -> None:
+        self._writer.flush()
+
+    def record_retrieval(self, **kwargs: Any) -> str:
+        receipt_id, *_ = self._prepare_retrieval(kwargs.get("context_name"), kwargs.get("items", ()), kwargs.get("excluded", ()),
+                                                 kwargs.get("eligible_count"), kwargs.get("excluded_count"), kwargs.get("receipt_id"))
+        kwargs["items"], kwargs["excluded"] = list(kwargs.get("items", ())), list(kwargs.get("excluded", ()))
+        kwargs["receipt_id"] = receipt_id
+        return self._writer.record_retrieval(**kwargs)
+
+    def attach_output(self, *args: Any, **kwargs: Any) -> None:
+        self._writer.attach_output(*args, **kwargs)
+
+    def add_evidence(self, *args: Any, **kwargs: Any) -> None:
+        self._writer.add_evidence(*args, **kwargs)
+
+    def record_outcome(self, *args: Any, **kwargs: Any) -> None:
+        self._writer.record_outcome(*args, **kwargs)
+
+    def ingest(self, event: Mapping[str, Any]) -> str:
+        return self._writer.ingest(event)
 
 
 def impacted_receipts(
@@ -1868,9 +2334,27 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
     database_path: str = Field(
         default="./context-receipts.sqlite3",
         description=(
-            "SQLite file path for local or single-host prototypes. Use a "
-            "shared receipt service/database for multi-host production writes."
+            "SQLite file path for local or single-host prototypes (backend: sqlite). Use backend: bigquery "
+            "for receipts shared across hosts."
         ),
+    )
+    backend: str = Field(
+        default="sqlite",
+        description="Where receipts live: 'sqlite' (a local file) or 'bigquery' (tables in a BigQuery dataset, shared across hosts, queryable from SQL-mode pipelines).",
+    )
+    bigquery_dataset: Optional[str] = Field(
+        default=None,
+        description="backend: bigquery -- 'project.dataset' holding the receipt tables (created on first use if missing). The same dataset a SQL-mode context_engineering_pipeline `receipts: {dataset: ...}` reads.",
+    )
+    bigquery_table_prefix: str = Field(default="", description="backend: bigquery -- prefix for the five receipt table names (e.g. 'prod_'), to keep several environments in one dataset.")
+    bigquery_location: Optional[str] = Field(default=None, description="backend: bigquery -- BigQuery location, e.g. 'US' or 'EU'.")
+    gcp_credentials_env_var: Optional[str] = Field(
+        default=None,
+        description="backend: bigquery -- env var holding the service-account JSON (base64-encoded, as dagster-gcp expects). Omit to use Application Default Credentials.",
+    )
+    async_writes: bool = Field(
+        default=True,
+        description="backend: bigquery -- queue writes on a background thread (a load job takes seconds, so an agent should not wait on it). Reads see only finished writes; call flush() for read-your-writes. Not crash-safe.",
     )
 
     usage_sensor_enabled: bool = Field(
@@ -1928,7 +2412,24 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
     )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        store = ContextReceiptStore(os.path.expanduser(self.database_path))
+        if self.backend == "sqlite":
+            store: ContextReceiptStore = ContextReceiptStore(os.path.expanduser(self.database_path))
+        elif self.backend == "bigquery":
+            if not self.bigquery_dataset:
+                raise ValueError("backend: bigquery requires bigquery_dataset ('project.dataset')")
+            project = self.bigquery_dataset.strip("`").split(".")[0]
+            location, env_var = self.bigquery_location, self.gcp_credentials_env_var
+
+            def client_factory():
+                from dagster_gcp import BigQueryResource  # dagster-gcp is only needed for this backend
+
+                creds = dg.EnvVar(env_var).get_value() if env_var else None
+                return BigQueryResource(project=project, location=location, gcp_credentials=creds).get_client()
+
+            cls = AsyncBigQueryContextReceiptStore if self.async_writes else BigQueryContextReceiptStore
+            store = cls(self.bigquery_dataset, client_factory=client_factory, table_prefix=self.bigquery_table_prefix)
+        else:
+            raise ValueError(f"backend must be 'sqlite' or 'bigquery', got {self.backend!r}")
         sensors = []
         if self.usage_sensor_enabled:
             sensors.append(

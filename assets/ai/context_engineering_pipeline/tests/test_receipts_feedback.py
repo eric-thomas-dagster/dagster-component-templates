@@ -218,7 +218,7 @@ def test_a_quarantined_chunk_that_was_its_documents_only_chunk_is_still_removed(
     assert "solo_0" not in metas(tmp_path) and {"multi_0", "multi_1", "multi_2"} <= set(metas(tmp_path))   # sync alone would have missed it
 
 
-def test_exclude_needs_a_provider_that_can_delete_by_id_and_sql_mode_is_python_only(mod, tmp_path):
+def test_exclude_needs_a_provider_that_can_delete_by_id_and_sql_mode_receipts_are_bigquery_only(mod, tmp_path):
     steps = [{"id": "chunks", "op": "chunk"}, {"id": "embedded", "op": "embed", "provider": "litellm", "model": "m"},
              {"id": "indexed", "op": "write_vector_store", "provider": "qdrant", "collection_name": "c"}]
     comp = _component(mod, tmp_path, steps=steps, receipts={"resource_key": KEY, "quarantine": {"mode": "exclude"}})
@@ -229,7 +229,7 @@ def test_exclude_needs_a_provider_that_can_delete_by_id_and_sql_mode_is_python_o
         asset_name="kb", source={"kind": "warehouse_query", "resource_key": "wh", "sql": "select 1"}, id_column="id", text_column="body",
         execution_mode="sql", sql_dialect="snowflake_cortex", output_table="t", steps=[{"id": "c", "op": "chunk"}],
         receipts={"resource_key": KEY})
-    with pytest.raises(ValueError, match="python-mode only"):
+    with pytest.raises(ValueError, match="bigquery' only"):
         comp.build_defs(None)
 
 

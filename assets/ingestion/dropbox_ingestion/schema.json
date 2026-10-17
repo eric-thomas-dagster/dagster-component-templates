@@ -460,7 +460,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None. Set partition_date_column (time partitions) or partition_static_column (static/dynamic/multi) to filter the returned rows to the partition; the full extract is still fetched and loaded to the destination.",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None. Set partition_date_column (time partitions) or partition_static_column (static/dynamic/multi) to filter the returned rows to the partition. Without partition_window_params the full extract is still fetched and loaded on every partition; set partition_window_params to push the window into the API requests so each partition fetches only its own slice.",
       "required": false,
       "default": null,
       "enum": [

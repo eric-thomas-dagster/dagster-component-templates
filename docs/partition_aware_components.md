@@ -17,7 +17,7 @@ How a component applies a partition, by shape:
 | Shape | Behaviour on a partitioned run |
 |---|---|
 | Takes an upstream DataFrame (AI, transforms, sinks, reverse ETL) | Keeps only the rows in the partition: `partition_date_column` against the partition's time window, `partition_static_column` against the partition key(s). A backfill run covers its whole range. |
-| dlt-based ingestion | Returns only the partition's rows; the extract itself is still fetched in full and loaded to the destination. |
+| dlt-based ingestion | Returns only the partition's rows. With `partition_window_params` set, the window is also pushed into each resource's API request so only that slice is fetched and loaded; without it the extract is still fetched in full. |
 | Query-style readers (logs, metrics, SQL, KQL, PromQL, NRQL) | `{partition_key}`, `{partition_date}`, `{partition_start}`, `{partition_end}` are substituted into the query/filter/time-range fields. |
 | Infrastructure | `{partition_*}` tokens and `DAGSTER_PARTITION_*` environment variables. |
 

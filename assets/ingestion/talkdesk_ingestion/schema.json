@@ -445,7 +445,7 @@
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
-      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None. Set partition_date_column (time partitions) or partition_static_column (static/dynamic/multi) to filter the returned rows to the partition; the full extract is still fetched and loaded to the destination.",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None. Set partition_date_column (time partitions) or partition_static_column (static/dynamic/multi) to filter the returned rows to the partition. Without partition_window_params the full extract is still fetched and loaded on every partition; set partition_window_params to push the window into the API requests so each partition fetches only its own slice.",
       "required": false,
       "default": null,
       "enum": [
@@ -503,6 +503,23 @@
       "label": "Partition Static Column",
       "required": false,
       "x-dagster-widget": "column"
+    },
+    "partition_window_params": {
+      "type": "object",
+      "label": "Partition Window Params",
+      "description": "Push the partition's time window into the API requests so each partition fetches only its own slice: {start_param, end_param, format (iso | date | epoch | epoch_ms, default iso)}, e.g. {start_param: updated_since, end_param: updated_until}. Parameter names are API specific. Needs a time partition_type.",
+      "required": false,
+      "default": null
+    },
+    "partition_window_resources": {
+      "type": "array",
+      "label": "Partition Window Resources",
+      "description": "Resources that take partition_window_params (default: all). List only the resources whose endpoint filters by time.",
+      "items": {
+        "type": "string"
+      },
+      "required": false,
+      "default": null
     },
     "backfill_policy": {
       "type": "string",

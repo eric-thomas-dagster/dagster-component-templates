@@ -489,6 +489,20 @@ class DominoDataLabIngestionComponent(Component, Model, Resolvable):
         default=None,
         description="Column used to filter the returned DataFrame to the current static/dynamic partition key.",
     )
+
+    partition_window_params: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "Push the partition's time window into the API requests so each partition fetches only its own slice, instead of "
+            "the full extract: {start_param: <request param for the window start>, end_param: <request param for the window "
+            "end>, format: iso | date | epoch | epoch_ms (default iso)}, e.g. {start_param: updated_since, end_param: "
+            "updated_until}. The parameter names are API specific, so check the API's docs. Needs a time partition_type."
+        ),
+    )
+    partition_window_resources: Optional[List[str]] = Field(
+        default=None,
+        description="Resources that take partition_window_params (default: all of them). List only the resources whose endpoint filters by time.",
+    )
     backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
         default=None,
         description=(
@@ -637,6 +651,8 @@ class DominoDataLabIngestionComponent(Component, Model, Resolvable):
             _backfill_policy_obj = _BackfillPolicy.multi_run(max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1)
         partition_date_column = self.partition_date_column
         partition_static_column = self.partition_static_column
+        partition_window_params = self.partition_window_params
+        partition_window_resources = self.partition_window_resources
 
         _retry_policy = None
         if self.retry_policy_max_retries is not None:
@@ -685,6 +701,10 @@ class DominoDataLabIngestionComponent(Component, Model, Resolvable):
             )
 
             context.log.info("Creating Domino Data Lab REST API source...")
+            if partition_window_params:
+                _apply_partition_window(config, context, partition_window_params, partition_window_resources)
+            elif partition_date_column and (context.has_partition_key or context.has_partition_key_range):
+                context.log.warning("partition_date_column filters the rows this asset returns, but the extract still fetches the full source on every partition; set partition_window_params to push the window to the API.")
             source = rest_api_source(config)
 
             context.log.info("Extracting Domino Data Lab data...")
@@ -807,3 +827,54 @@ def _column_lineage_metadata(component):
         deps[str(out_col)] = refs
     return {"dagster/column_lineage": _dg.MetadataValue.column_lineage(_dg.TableColumnLineage(deps))}
 # END column-lineage helper
+
+
+# BEGIN partition window helper (inlined per component; keep copies identical, see tests/test_partition_window_ingestion.py)
+def _apply_partition_window(config, context, window_params, resources=None):
+    """Push the run's partition window into the API requests, so a partition fetches only its own slice.
+
+    `window_params` is {"start_param": ..., "end_param": ..., "format": "iso" | "date" | "epoch" | "epoch_ms"}; the window
+    of a time partition (the whole range for a backfill run) is written into each resource's `endpoint.params`
+    (all resources, or only those named in `resources`). Returns True when the window was applied."""
+    from datetime import timezone
+
+    if not window_params or not (context.has_partition_key or context.has_partition_key_range):
+        return False
+    try:
+        window = context.partition_time_window
+    except Exception:
+        return False  # static/dynamic partitions have no time window
+    start, end = (t.astimezone(timezone.utc) for t in (window.start, window.end))
+    fmt = window_params.get("format", "iso")
+    render = {
+        "iso": lambda t: t.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "date": lambda t: t.strftime("%Y-%m-%d"),
+        "epoch": lambda t: int(t.timestamp()),
+        "epoch_ms": lambda t: int(t.timestamp() * 1000),
+    }.get(fmt)
+    if render is None:
+        raise ValueError(f"partition_window_params.format must be one of iso/date/epoch/epoch_ms, got {fmt!r}")
+    values = {k: render(t) for k, t in (("start_param", start), ("end_param", end)) if window_params.get(k)}
+    if not values:
+        raise ValueError("partition_window_params needs start_param and/or end_param")
+    wanted = set(resources) if resources else None
+    applied = 0
+    for i, res in enumerate(config.get("resources", [])):
+        if isinstance(res, str):
+            if wanted is not None and res not in wanted:
+                continue
+            res = config["resources"][i] = {"name": res, "endpoint": {"path": res}}
+        if not isinstance(res, dict):
+            continue
+        name = res.get("name") or (res.get("endpoint") or {}).get("path")
+        if wanted is not None and name not in wanted:
+            continue
+        endpoint = res.setdefault("endpoint", {})
+        if isinstance(endpoint, str):
+            endpoint = res["endpoint"] = {"path": endpoint}
+        params = endpoint.setdefault("params", {})
+        for key, value in ((window_params.get(k), v) for k, v in values.items()):
+            params[key] = value
+        applied += 1
+    return applied > 0
+# END partition window helper

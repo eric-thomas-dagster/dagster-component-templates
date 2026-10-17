@@ -132,6 +132,7 @@ def _block_network(monkeypatch):
     monkeypatch.setattr(socket.socket, "connect", _no_socket)
 
 
+CAPTURED = []  # the config each connector hands to dlt's rest_api_source
 REQUIRED = {"mailchimp_ingestion": {"api_key": "abc123-us19"}, "webflow_ingestion": {"site_id": "site1"}}
 
 
@@ -147,7 +148,8 @@ def _build(folder, monkeypatch, extra):
     monkeypatch.setattr(mod.dlt, "pipeline", lambda **kw: _Pipeline(**kw))
     import dlt.sources.rest_api as _rest_api
 
-    monkeypatch.setattr(_rest_api, "rest_api_source", lambda *a, **k: _Permissive())
+    CAPTURED.clear()
+    monkeypatch.setattr(_rest_api, "rest_api_source", lambda *a, **k: (CAPTURED.append(a[0] if a else k.get("config")), _Permissive())[1])
     cls = getattr(mod, doc["type"].rsplit(".", 1)[-1])
     return cls(**{**doc["attributes"], **extra}).build_defs(None).assets[0]
 
@@ -183,3 +185,62 @@ def test_static_partition_and_unpartitioned_runs(monkeypatch):
     plain = _build(folder, monkeypatch, {})
     r = dg.materialize([plain], resources={"io_manager": dg.InMemoryIOManager()})
     assert len(r.output_for_node(plain.op.name)) == 6
+
+
+WINDOW = {"start_param": "updated_since", "end_param": "updated_until"}
+
+
+def _window_ported():
+    return [p for p in _ported() if "BEGIN partition window helper" in (p / "component.py").read_text()]
+
+
+@pytest.mark.parametrize("folder", _window_ported(), ids=lambda p: p.name)
+def test_partition_window_reaches_every_resources_request(folder, monkeypatch):
+    asset = _build(folder, monkeypatch, dict(partition_type="daily", partition_start="2024-01-01", partition_date_column="created_at",
+                                             partition_window_params=WINDOW))
+    assert dg.materialize([asset], partition_key="2024-01-02", resources={"io_manager": dg.InMemoryIOManager()}, raise_on_error=False).success
+    resources = CAPTURED[-1]["resources"]
+    assert resources
+    for res in resources:
+        params = res["endpoint"]["params"]
+        assert params["updated_since"] == "2024-01-02T00:00:00Z" and params["updated_until"] == "2024-01-03T00:00:00Z", res
+
+
+def test_window_is_only_applied_to_a_partitioned_time_run_and_in_the_chosen_format(monkeypatch):
+    folder = ROOT / "assets/ingestion/amplitude_ingestion"
+    plain = _build(folder, monkeypatch, dict(partition_window_params=WINDOW))
+    dg.materialize([plain], resources={"io_manager": dg.InMemoryIOManager()})
+    assert all("updated_since" not in (r["endpoint"].get("params") or {}) for r in CAPTURED[-1]["resources"])
+    epoch = _build(folder, monkeypatch, dict(partition_type="daily", partition_start="2024-01-01",
+                                             partition_window_params={**WINDOW, "format": "epoch"}))
+    dg.materialize([epoch], partition_key="2024-01-02", resources={"io_manager": dg.InMemoryIOManager()})
+    assert CAPTURED[-1]["resources"][0]["endpoint"]["params"]["updated_since"] == 1704153600
+    static = _build(folder, monkeypatch, dict(partition_type="static", partition_values="a,b", partition_window_params=WINDOW))
+    dg.materialize([static], partition_key="a", resources={"io_manager": dg.InMemoryIOManager()})
+    assert all("updated_since" not in (r["endpoint"].get("params") or {}) for r in CAPTURED[-1]["resources"])
+
+
+def test_resources_can_be_limited_and_the_helper_is_identical_everywhere():
+    blocks = {re.search(r"# BEGIN partition window helper.*?# END partition window helper", (p / "component.py").read_text(), re.S).group(0)
+              for p in _window_ported()}
+    assert len(blocks) == 1 and len(_window_ported()) == 108
+    ns = {}
+    exec(next(iter(blocks)), ns)
+
+    class Ctx:
+        has_partition_key = True
+        has_partition_key_range = False
+
+        class partition_time_window:
+            import datetime as _d
+            start = _d.datetime(2024, 1, 2, tzinfo=_d.timezone.utc)
+            end = _d.datetime(2024, 1, 3, tzinfo=_d.timezone.utc)
+
+    config = {"resources": ["events", {"name": "users", "endpoint": {"path": "users"}}, {"name": "static", "endpoint": "plans"}]}
+    assert ns["_apply_partition_window"](config, Ctx, {"start_param": "s"}, ["users"])
+    assert config["resources"][0] == "events" and config["resources"][1]["endpoint"]["params"] == {"s": "2024-01-02T00:00:00Z"}
+    assert ns["_apply_partition_window"](config, Ctx, {"start_param": "s", "end_param": "e", "format": "date"}, None)
+    assert config["resources"][0]["endpoint"]["params"] == {"s": "2024-01-02", "e": "2024-01-03"}
+    assert config["resources"][2]["endpoint"] == {"path": "plans", "params": {"s": "2024-01-02", "e": "2024-01-03"}}
+    with pytest.raises(ValueError):
+        ns["_apply_partition_window"](config, Ctx, {"start_param": "s", "format": "nope"})

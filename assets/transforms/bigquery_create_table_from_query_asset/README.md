@@ -13,7 +13,7 @@ attributes:
     SELECT order_id, customer_id, amount, DATE(created_at) AS order_date
     FROM `my-project.raw.orders`
     WHERE status = 'completed'
-  partition_field: order_date
+  table_partition_field: order_date
   cluster_fields: [customer_id]
   table_options:
     description: "Cleaned orders"
@@ -57,7 +57,7 @@ Required SA roles: `roles/bigquery.dataEditor` on the destination dataset + `rol
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_field` | `str` | — | Column to partition the destination table by (e.g. 'order_date'). Adds PARTITION BY. |
+| `table_partition_field` | `str` | — | BigQuery table partitioning: the column to partition the destination table by (e.g. 'order_date'). Adds PARTITION BY. |
 | `partition_type` | `str` | — | — |
 | `partition_start` | `str` | — | — |
 | `partition_values` | `str` | — | — |

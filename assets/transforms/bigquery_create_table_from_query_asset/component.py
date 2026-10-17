@@ -98,9 +98,9 @@ class BigQueryCreateTableFromQueryAssetComponent(Component, Model, Resolvable):
         default=None,
         description="OPTIONS clause k/v map (e.g. `{description: 'cleaned orders', labels: {tier: gold}}`).",
     )
-    partition_field: Optional[str] = Field(
+    table_partition_field: Optional[str] = Field(
         default=None,
-        description="Column to partition the destination table by (e.g. 'order_date'). Adds PARTITION BY.",
+        description="BigQuery table partitioning: the column to partition the destination TABLE by (e.g. 'order_date'); adds PARTITION BY. Unrelated to Dagster partitions (partition_type).",
     )
     cluster_fields: Optional[List[str]] = Field(
         default=None,
@@ -152,6 +152,29 @@ class BigQueryCreateTableFromQueryAssetComponent(Component, Model, Resolvable):
 
     @model_validator(mode="before")
     @classmethod
+    def _renamed_table_partition_fields(cls, data):
+        """`partition_field` / `partition_type` were renamed `table_partition_*`: they configure the BigQuery TABLE's own
+        partitioning, not a Dagster partition. The old names still work, with a DeprecationWarning."""
+        if not isinstance(data, dict):
+            return data
+        data = dict(data)
+        for old, new in (("partition_field", "table_partition_field"),):
+            if old in data:
+                if new in data:
+                    raise ValueError(f"set {new}, not both {old} and {new} ({old} is its old name)")
+                import warnings
+
+                warnings.warn(
+                    f"`{old}` was renamed `{new}`: it configures the BigQuery table's own partitioning, not a Dagster "
+                    "partition. The old name still works for now.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                data[new] = data.pop(old)
+        return data
+
+    @model_validator(mode="before")
+    @classmethod
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('deps', 'owners'), csv=('partition_values',), tags=('tags',))
 
@@ -197,7 +220,7 @@ class BigQueryCreateTableFromQueryAssetComponent(Component, Model, Resolvable):
         query_template = self.query
         query_params = dict(self.query_params or {})
         table_options = self.table_options
-        partition_field = self.partition_field
+        table_partition_field = self.table_partition_field
         cluster_fields = self.cluster_fields
 
         _backfill_policy_obj = None
@@ -260,8 +283,8 @@ class BigQueryCreateTableFromQueryAssetComponent(Component, Model, Resolvable):
 
             ddl_parts = [f"CREATE OR REPLACE {kw} `{destination_table_id}`"]
             if materialization in ("table", "materialized_view"):
-                if partition_field:
-                    ddl_parts.append(f"PARTITION BY {partition_field}")
+                if table_partition_field:
+                    ddl_parts.append(f"PARTITION BY {table_partition_field}")
                 if cluster_fields:
                     ddl_parts.append(f"CLUSTER BY {', '.join(cluster_fields)}")
             if table_options:

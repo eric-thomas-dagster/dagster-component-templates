@@ -12,8 +12,8 @@ attributes:
   autodetect: true
 
   # Optional: partition + cluster the destination
-  # partition_field: order_date
-  # partition_type: DAY
+  # table_partition_field: order_date
+  # table_partition_type: DAY
   # cluster_fields: [customer_id]
 
   group_name: warehouse

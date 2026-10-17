@@ -9,7 +9,7 @@ attributes:
            DATE(created_at) AS order_date
     FROM `my-project.raw.orders`
     WHERE status = 'completed'
-  partition_field: order_date
+  table_partition_field: order_date
   cluster_fields: [customer_id]
   table_options:
     description: "Cleaned orders for analytics"

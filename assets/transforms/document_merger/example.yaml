@@ -4,7 +4,7 @@ attributes:
   left_asset_key: cleaned_orders
   right_asset_key: cleaned_customers
   group_name: transforms
-  true: customer_id
+  "on": customer_id
   how: left
   suffixes:
   - _order

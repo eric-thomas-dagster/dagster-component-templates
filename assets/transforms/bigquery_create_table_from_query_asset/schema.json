@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.BigQueryCreateTableFromQueryAssetComponent",
-  "description": "CTAS as a Dagster asset — CREATE OR REPLACE TABLE / VIEW / MATERIALIZED VIEW from a SELECT statement. The transform layer of any BQ-native ELT pipeline.",
+  "description": "CTAS as a Dagster asset \u2014 CREATE OR REPLACE TABLE / VIEW / MATERIALIZED VIEW from a SELECT statement. The transform layer of any BQ-native ELT pipeline.",
   "category": "transformation",
   "icon": "si:googlebigquery",
   "x-dagster-io": {
@@ -82,10 +82,10 @@
       "required": false,
       "default": null
     },
-    "partition_field": {
-      "description": "Column to partition the destination table by (e.g. 'order_date'). Adds PARTITION BY.",
+    "table_partition_field": {
+      "description": "BigQuery table partitioning: the column to partition the destination TABLE by (e.g. 'order_date'); adds PARTITION BY. Unrelated to Dagster partitions (partition_type).",
       "type": "string",
-      "label": "Partition Field",
+      "label": "Table Partition Field",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -140,7 +140,7 @@
     },
     "partition_type": {
       "default": null,
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
       "enum": [
         "daily",
         "weekly",

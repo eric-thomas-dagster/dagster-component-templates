@@ -105,11 +105,14 @@ class BigQueryLoadFromGcsAssetComponent(Component, Model, Resolvable):
     csv_quote: Optional[str] = Field(default=None, description="CSV-only: quote char.")
     csv_allow_quoted_newlines: bool = Field(default=False)
 
-    # Partitioning + clustering on the destination
-    partition_field: Optional[str] = Field(default=None, description="Date/timestamp column for partitioning.")
-    partition_type: Optional[Literal["DAY", "HOUR", "MONTH", "YEAR"]] = Field(
+    # Partitioning + clustering on the destination TABLE (BigQuery time partitioning; not Dagster partitions)
+    table_partition_field: Optional[str] = Field(
         default=None,
-        description="Partition granularity for partition_field.",
+        description="BigQuery table partitioning: the date/timestamp column to partition the destination TABLE by. Unrelated to Dagster partitions.",
+    )
+    table_partition_type: Optional[Literal["DAY", "HOUR", "MONTH", "YEAR"]] = Field(
+        default=None,
+        description="BigQuery table partitioning: the granularity (DAY, HOUR, MONTH, YEAR) for table_partition_field.",
     )
     cluster_fields: Optional[List[str]] = Field(default=None, description="Columns to cluster on (max 4).")
 
@@ -140,6 +143,29 @@ class BigQueryLoadFromGcsAssetComponent(Component, Model, Resolvable):
         default=None,
         description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'.",
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _renamed_table_partition_fields(cls, data):
+        """`partition_field` / `partition_type` were renamed `table_partition_*`: they configure the BigQuery TABLE's own
+        partitioning, not a Dagster partition. The old names still work, with a DeprecationWarning."""
+        if not isinstance(data, dict):
+            return data
+        data = dict(data)
+        for old, new in (("partition_field", "table_partition_field"), ("partition_type", "table_partition_type")):
+            if old in data:
+                if new in data:
+                    raise ValueError(f"set {new}, not both {old} and {new} ({old} is its old name)")
+                import warnings
+
+                warnings.warn(
+                    f"`{old}` was renamed `{new}`: it configures the BigQuery table's own partitioning, not a Dagster "
+                    "partition. The old name still works for now.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
+                data[new] = data.pop(old)
+        return data
 
     @model_validator(mode="before")
     @classmethod
@@ -186,8 +212,8 @@ class BigQueryLoadFromGcsAssetComponent(Component, Model, Resolvable):
         csv_field_delimiter = self.csv_field_delimiter
         csv_quote = self.csv_quote
         csv_allow_quoted_newlines = self.csv_allow_quoted_newlines
-        partition_field = self.partition_field
-        partition_type = self.partition_type
+        table_partition_field = self.table_partition_field
+        table_partition_type = self.table_partition_type
         cluster_fields = self.cluster_fields
 
         @asset(
@@ -241,10 +267,10 @@ class BigQueryLoadFromGcsAssetComponent(Component, Model, Resolvable):
                     cfg.quote_character = csv_quote
                 if csv_allow_quoted_newlines:
                     cfg.allow_quoted_newlines = True
-            if partition_field and partition_type:
+            if table_partition_field and table_partition_type:
                 cfg.time_partitioning = bigquery.TimePartitioning(
-                    type_=partition_type,
-                    field=partition_field,
+                    type_=table_partition_type,
+                    field=table_partition_field,
                 )
             if cluster_fields:
                 cfg.clustering_fields = cluster_fields

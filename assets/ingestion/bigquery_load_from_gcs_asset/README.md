@@ -14,8 +14,8 @@ attributes:
   destination_table_id: my-project.raw.orders_landing
   format: parquet
   write_disposition: WRITE_TRUNCATE
-  partition_field: order_date
-  partition_type: DAY
+  table_partition_field: order_date
+  table_partition_type: DAY
   cluster_fields: [customer_id]
 ```
 
@@ -58,8 +58,8 @@ For DataFrame-mediated alternatives (slower but vendor-agnostic), see `gcs_to_da
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_field` | `str` | — | Date/timestamp column for partitioning. |
-| `partition_type` | `Literal['DAY', 'HOUR', 'MONTH', 'YEAR']` | — | Partition granularity for partition_field. |
+| `table_partition_field` | `str` | — | BigQuery table partitioning: the date/timestamp column to partition the destination table by. Unrelated to Dagster partitions. |
+| `table_partition_type` | `Literal['DAY', 'HOUR', 'MONTH', 'YEAR']` | — | BigQuery table partitioning: the granularity for table_partition_field. |
 
 ### Retry policy
 

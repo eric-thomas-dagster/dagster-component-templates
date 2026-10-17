@@ -21,6 +21,86 @@
     "descending":           {"description": "If true, ORDER BY DESC (keep latest). Default false (keep first).", "label": "Descending", "type": "boolean", "default": false},
     "mode":                 {"description": "'replace' or 'create_if_not_exists'", "label": "Mode", "type": "string", "enum": ["replace","create_if_not_exists"], "default": "replace"},
     "group_name":           {"description": "Dagster asset group name.", "label": "Group Name", "type": "string"},
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None. A partitioned run sends only the rows in its partition (see partition_date_column / partition_static_column).",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date in ISO format. Required for time-based partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "description": "Column holding each row's date. A time-partitioned run reads only the source rows in its window and replaces only those rows of the output, so the output must keep this column.",
+      "type": "string",
+      "label": "Partition Date Column",
+      "required": false,
+      "x-dagster-widget": "column"
+    },
+    "partition_static_column": {
+      "description": "Column holding each row's partition key (static/dynamic partitions). A run reads only its key's rows and replaces only those rows of the output.",
+      "type": "string",
+      "label": "Partition Static Column",
+      "required": false,
+      "x-dagster-widget": "column"
+    },
+    "partition_column_type": {
+      "type": "string",
+      "label": "Partition Column Type",
+      "description": "'timestamp' (default) or 'date': the type of partition_date_column, which decides how the window is compared (UTC).",
+      "enum": [
+        "timestamp",
+        "date"
+      ],
+      "required": false,
+      "default": "timestamp"
+    },
+    "partition_output_column": {
+      "type": "string",
+      "label": "Partition Output Column",
+      "description": "Column of the output table that identifies a row's partition (default: partition_date_column / partition_static_column). Set it when the transform renames or derives that column.",
+      "required": false,
+      "default": null
+    },
     "deps":                 {"description": "Lineage-only upstream asset keys (no data passed at runtime).", "label": "Deps", "type": "array", "items": {"type": "string"}},
     "owners":               {"description": "Asset owners.", "label": "Owners", "type": "array", "items": {"type": "string"}},
     "description":          {"description": "Asset description.", "label": "Description", "type": "string"},

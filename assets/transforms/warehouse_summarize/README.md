@@ -127,3 +127,13 @@ deps: [revenue_by_region]
 - `preview` (optional, set `include_preview_metadata: true`) — `SELECT … LIMIT N` from the output
 
 Note: this asset doesn't return a DataFrame. Downstream `warehouse_*` components compose by table name; downstream Python components need a sibling reader (e.g. `sql_to_database_asset` or a custom asset) to pull the data into pandas/polars.
+
+## Partitioning
+
+Set `partition_type` (`daily`/`weekly`/`monthly`/`hourly`, or `static`/`dynamic`) and `partition_date_column` (or `partition_static_column`) to run the transform one partition at a time. A partitioned run:
+
+1. reads only its slice of the source (`WHERE <column>` inside the window, or in the partition key(s); a backfill run covers its whole range),
+2. builds the result in a scratch table with the same SQL as an unpartitioned run,
+3. in one transaction creates the output table if it is missing, deletes that slice of the output and inserts the new rows, then drops the scratch table.
+
+Other partitions' rows in the output are never touched, so re-running a partition is idempotent. The output must keep the partition column (for a summarize, put it in `group_by`); if the transform renames it, set `partition_output_column`. `partition_column_type` is `timestamp` (default) or `date`, and the window is compared in UTC. For `warehouse_join` only the left table is sliced; for `warehouse_union` every input table must carry the column. `multi` partitions are not supported. Unpartitioned runs behave exactly as before.

@@ -3,8 +3,10 @@
 
 import functools
 import hashlib
+import hmac
 import inspect
 import json
+import logging
 import math
 import os
 import queue
@@ -22,6 +24,8 @@ from typing import Any, Optional
 
 import dagster as dg
 from pydantic import Field
+
+logger = logging.getLogger(__name__)
 
 _ITEM_FIELDS = {
     "item_id",
@@ -659,6 +663,81 @@ def _fold_outcomes_by_code_version(rows: Any, events: Any) -> dict[str, dict[str
     }
 
 
+def fold_maintenance_report(
+    feedback: Mapping[str, Mapping[str, Any]],
+    *,
+    receipts_in_window: int | None = None,
+    known_item_ids: Iterable[str] | None = None,
+    min_retrievals: int = 5,
+    min_outcomes: int = 3,
+    bad_below: float = -0.3,
+    dead_after_receipts: int = 50,
+    good_above: float = 0.3,
+    top_n: int = 10,
+    min_exclusions: int = 5,
+) -> dict[str, Any]:
+    """Pure fold behind ``maintenance_report`` (shared by every storage backend): turn ``item_feedback`` output into a to-do list.
+
+    - ``rewrite_candidates``: chunks retrieved >= ``min_retrievals`` times and rated >= ``min_outcomes`` times whose mean
+      outcome is <= ``bad_below``; worst first. Each entry carries retrievals / rated / mean_outcome / cited / excluded.
+    - ``dead_weight``: ids in ``known_item_ids`` that were never retrieved. Absence is only evidence when enough traffic
+      was seen, so it is judged only when ``receipts_in_window >= dead_after_receipts``; otherwise ``None`` and the reason
+      is in ``dead_weight_reason``. (Chunks only ever *excluded* count as never retrieved.)
+    - ``top_performers``: the mirror image of rewrite candidates (mean >= ``good_above``), best first, at most ``top_n``.
+    - ``noisy_exclusions``: chunks the gateway withheld >= ``min_exclusions`` times (all reasons summed; the reasons are listed).
+    """
+    def entry(item_id: str, e: Mapping[str, Any]) -> dict[str, Any]:
+        return {"item_id": item_id, "retrievals": e["retrievals"], "rated": e["rated"], "mean_outcome": e["mean_outcome"],
+                "cited": e["cited"], "excluded": dict(e["excluded"])}
+
+    judged = [(i, e) for i, e in feedback.items()
+              if e["retrievals"] >= min_retrievals and e["rated"] >= min_outcomes and e["mean_outcome"] is not None]
+    rewrite = sorted((entry(i, e) for i, e in judged if e["mean_outcome"] <= bad_below),
+                     key=lambda r: (r["mean_outcome"], -r["retrievals"], r["item_id"]))
+    top = sorted((entry(i, e) for i, e in judged if e["mean_outcome"] >= good_above),
+                 key=lambda r: (-r["mean_outcome"], -r["retrievals"], r["item_id"]))[:top_n]
+    noisy = sorted(({**entry(i, e), "excluded_total": sum(e["excluded"].values())} for i, e in feedback.items()
+                    if sum(e["excluded"].values()) >= min_exclusions),
+                   key=lambda r: (-r["excluded_total"], r["item_id"]))
+    dead: list[str] | None = None
+    reason: str | None = None
+    if known_item_ids is None:
+        reason = "known_item_ids not provided"
+    elif receipts_in_window is None or receipts_in_window < dead_after_receipts:
+        reason = f"only {receipts_in_window or 0} receipt(s) in the window; need >= {dead_after_receipts} before absence means anything"
+    else:
+        dead = sorted({str(k) for k in known_item_ids if feedback.get(str(k), {}).get("retrievals", 0) == 0})
+    return {
+        "rewrite_candidates": rewrite,
+        "dead_weight": dead,
+        "dead_weight_reason": reason,
+        "top_performers": top,
+        "noisy_exclusions": noisy,
+        "summary": {"items_seen": len(feedback), "receipts_in_window": receipts_in_window,
+                    "rewrite_candidates": len(rewrite), "dead_weight": None if dead is None else len(dead),
+                    "top_performers": len(top), "noisy_exclusions": len(noisy)},
+    }
+
+
+class _Approx:  # noqa: N801  (tiny stand-in so selftest needs no test library; equality within 1e-6)
+    def __init__(self, value: float):
+        self.value = value
+
+    def __eq__(self, other: Any) -> bool:
+        return isinstance(other, (int, float)) and abs(other - self.value) < 1e-6
+
+    def __repr__(self) -> str:
+        return f"~{self.value}"
+
+
+def _receipt_limit(assets: Iterable[str], limits: Mapping[str, float], default_days: float | None) -> float | None:
+    """Retention in days for one receipt: the shortest of its assets' limits; an asset with no declared retention uses
+    ``default_days`` (the asset's own policy always wins); a receipt that touched no asset uses ``default_days``."""
+    values = [limits[a] if a in limits else default_days for a in assets] or [default_days]
+    values = [v for v in values if v]
+    return min(values) if values else None
+
+
 class ContextReceiptStore:
     """Append-only retrieval receipts with source lookups for impact analysis.
 
@@ -853,10 +932,39 @@ class ContextReceiptStore:
             "source_code_version": item.get("source_code_version"),
         }
 
+    # -- privacy: keyed pseudonyms for caller / session ids ----------------------------------------------------
+    _pseudo_salt: Any = None
+
+    def enable_pseudonymization(self, salt: "str | bytes | Any") -> None:
+        """Store ``caller_id`` and ``mcp_session_id`` as ``h:`` + HMAC-SHA256(salt, id)[:32] instead of the raw id.
+
+        ``salt`` is a non-empty str/bytes or a zero-argument callable returning one (read on every write, so an env var that
+        is unset when the code location loads only fails when a receipt is actually written). Deterministic, so one caller or
+        session still groups (``derive_implicit_outcomes``); changing the salt breaks that continuity. Applied inside
+        ``_prepare_retrieval`` so no backend can bypass it. Existing rows are not rewritten."""
+        if not callable(salt) and not salt:
+            raise ValueError("pseudonymization needs a non-empty salt")
+        self._pseudo_salt = salt
+
+    @property
+    def pseudonymizing(self) -> bool:
+        return self._pseudo_salt is not None
+
+    def _pseudonym(self, value: Any) -> Any:
+        if value is None or self._pseudo_salt is None:
+            return value
+        salt = self._pseudo_salt() if callable(self._pseudo_salt) else self._pseudo_salt
+        if not salt:
+            raise ValueError("pseudonymize_callers is on but the pseudonym salt is empty or unset; refusing to write a raw caller id")
+        key = salt if isinstance(salt, bytes) else str(salt).encode()
+        return "h:" + hmac.new(key, str(value).encode(), hashlib.sha256).hexdigest()[:32]
+
     def _prepare_retrieval(
         self, context_name: Any, items: Any, excluded: Any, eligible_count: Any, excluded_count: Any, receipt_id: Any,
-    ) -> "tuple[str, list[dict[str, Any]], list[dict[str, Any]], int | None]":
-        """Validate and normalize a retrieval; shared by every storage backend. Returns (receipt_id, items, excluded, excluded_count)."""
+        caller_id: Any = None, mcp_session_id: Any = None,
+    ) -> "tuple[str, list[dict[str, Any]], list[dict[str, Any]], int | None, Any, Any]":
+        """Validate and normalize a retrieval; shared by every storage backend. Returns (receipt_id, items, excluded,
+        excluded_count, caller_id, mcp_session_id); the two ids come back pseudonymized when that is enabled."""
         if not isinstance(context_name, str) or not context_name.strip():
             raise ValueError("context_name must be a non-empty string")
         for field_name, value in (
@@ -892,7 +1000,7 @@ class ContextReceiptStore:
             receipt_id = new_receipt_id()
         elif not isinstance(receipt_id, str) or not receipt_id.strip():
             raise ValueError("receipt_id must be a non-empty string")
-        return receipt_id, normalized_items, normalized_excluded, excluded_count
+        return receipt_id, normalized_items, normalized_excluded, excluded_count, self._pseudonym(caller_id), self._pseudonym(mcp_session_id)
 
     def record_retrieval(
         self,
@@ -920,8 +1028,8 @@ class ContextReceiptStore:
         mappings accept only IDs, source asset/version references, rank, and
         score so content cannot be accidentally serialized into the receipt.
         """
-        receipt_id, normalized_items, normalized_excluded, excluded_count = self._prepare_retrieval(
-            context_name, items, excluded, eligible_count, excluded_count, receipt_id
+        receipt_id, normalized_items, normalized_excluded, excluded_count, caller_id, mcp_session_id = self._prepare_retrieval(
+            context_name, items, excluded, eligible_count, excluded_count, receipt_id, caller_id, mcp_session_id
         )
         created_at = self._timestamp()
         with self._connect() as conn:
@@ -1469,20 +1577,25 @@ class ContextReceiptStore:
             ).fetchall() if ids else []
         return _fold_outcomes_by_code_version(rows, events)
 
-    def enforce_retention(self, retention_days: Mapping[str, float | None], *, now: datetime | None = None) -> dict[str, int]:
+    def enforce_retention(
+        self, retention_days: Mapping[str, float | None], *, now: datetime | None = None, default_days: float | None = None,
+    ) -> dict[str, int]:
         """Delete receipts past their retention; the one deletion this append-only store performs.
 
         ``retention_days`` maps asset key to the retention declared in its policy (``None`` = keep forever). A
         receipt expires ``min(retention of the assets it used)`` days after it was created, so a receipt that
         touched a 30-day asset and a 90-day asset goes at 30 days. Receipts that touched no asset with a
-        retention are kept. Returns ``{"receipts_deleted": n}``. Aggregated item priors are statistics, not
-        receipts, and are not removed.
+        retention are kept -- unless ``default_days`` is set, which applies to every asset whose policy declares
+        no retention (and to receipts that touched no asset); an asset's own policy always wins. Returns
+        ``{"receipts_deleted": n}``. Aggregated item priors are statistics, not receipts, and are not removed.
         """
         limits = {k: float(v) for k, v in retention_days.items() if v}
-        if not limits:
+        if default_days is not None and default_days <= 0:
+            raise ValueError("default_days must be positive or None")
+        if not limits and not default_days:
             return {"receipts_deleted": 0}
         now = now or datetime.now(timezone.utc)
-        cutoff = (now - timedelta(days=min(limits.values()))).isoformat()
+        cutoff = (now - timedelta(days=min([*limits.values(), *([float(default_days)] if default_days else [])]))).isoformat()
         with self._connect() as conn:
             candidates = conn.execute(
                 "SELECT receipt_id, created_at FROM context_receipts WHERE created_at < ?", (cutoff,)
@@ -1493,15 +1606,48 @@ class ContextReceiptStore:
                     "SELECT source_asset_key FROM context_receipt_items WHERE receipt_id = ? AND source_asset_key IS NOT NULL "
                     "UNION SELECT source_asset_key FROM context_receipt_excluded WHERE receipt_id = ? AND source_asset_key IS NOT NULL",
                     (row["receipt_id"], row["receipt_id"]))}
-                applicable = [limits[a] for a in assets if a in limits]
-                if applicable and _as_datetime(row["created_at"]) + timedelta(days=min(applicable)) <= now:
+                limit = _receipt_limit(assets, limits, default_days)
+                if limit and _as_datetime(row["created_at"]) + timedelta(days=limit) <= now:
                     doomed.append(row["receipt_id"])
-            for i in range(0, len(doomed), 500):
-                batch = doomed[i:i + 500]
+        self.delete_receipts(doomed)
+        return {"receipts_deleted": len(doomed)}
+
+    def delete_receipts(self, receipt_ids: Iterable[str]) -> int:
+        """Delete these receipts and their items, exclusions and events (nothing else); returns how many receipts existed.
+        Backs ``enforce_retention`` and ``selftest`` cleanup."""
+        ids = sorted({str(i) for i in receipt_ids})
+        existed = 0
+        with self._connect() as conn:
+            for i in range(0, len(ids), 500):
+                batch = ids[i:i + 500]
                 marks = ",".join("?" * len(batch))
+                existed += conn.execute(f"SELECT COUNT(1) FROM context_receipts WHERE receipt_id IN ({marks})", batch).fetchone()[0]
                 for table in ("context_receipt_events", "context_receipt_excluded", "context_receipt_items", "context_receipts"):
                     conn.execute(f"DELETE FROM {table} WHERE receipt_id IN ({marks})", batch)
-        return {"receipts_deleted": len(doomed)}
+        return existed
+
+    def delete_item_scores(self, item_ids: Iterable[str]) -> int:
+        """Delete the learned scores of exactly these items (``selftest`` cleanup); returns how many rows existed."""
+        ids = sorted({str(i) for i in item_ids})
+        existed = 0
+        with self._connect() as conn:
+            for i in range(0, len(ids), 500):
+                batch = ids[i:i + 500]
+                marks = ",".join("?" * len(batch))
+                existed += conn.execute(f"SELECT COUNT(1) FROM context_item_scores WHERE item_id IN ({marks})", batch).fetchone()[0]
+                conn.execute(f"DELETE FROM context_item_scores WHERE item_id IN ({marks})", batch)
+        return existed
+
+    def ensure_tables(self) -> None:
+        """Create the tables if missing (the SQLite store also does this on every connection)."""
+        with self._connect():
+            pass
+
+    def _selftest_cursors(self) -> tuple[int, int]:
+        """(receipt_cursor, event_cursor) at 'now', so ``selftest`` reads only its own tail instead of the whole store."""
+        with self._connect() as conn:
+            return (conn.execute("SELECT COALESCE(MAX(rowid), 0) FROM context_receipts").fetchone()[0],
+                    conn.execute("SELECT COALESCE(MAX(rowid), 0) FROM context_receipt_events").fetchone()[0])
 
     def find_by_assets(self, targets: Mapping[str, Iterable[str] | None]) -> dict[str, list[str]]:
         """Receipts that used the given assets, optionally narrowed to partitions.
@@ -1551,6 +1697,221 @@ class ContextReceiptStore:
                 (asset_key,),
             ).fetchall()
         return [row["receipt_id"] for row in rows]
+
+    # -- maintenance report ------------------------------------------------------------------------------------
+    def maintenance_report(
+        self, asset_key: str, *, since: str = "", known_item_ids: Iterable[str] | None = None, min_retrievals: int = 5,
+        min_outcomes: int = 3, bad_below: float = -0.3, dead_after_receipts: int = 50, good_above: float = 0.3, top_n: int = 10,
+        min_exclusions: int = 5, code_version: str | None = None,
+    ) -> dict[str, Any]:
+        """What to rewrite, delete or keep in ``asset_key``'s chunks, from real usage. Backend-independent: it reads
+        ``item_feedback`` (and, only when ``known_item_ids`` is given, the receipt count) and hands both to the pure
+        ``fold_maintenance_report`` -- see that function for the definitions of each section."""
+        known = None if known_item_ids is None else list(known_item_ids)
+        feedback = self.item_feedback(asset_key, since=since, code_version=code_version)
+        receipts = self.asset_usage_since(asset_key, since)["receipts"] if known is not None else None
+        return fold_maintenance_report(
+            feedback, receipts_in_window=receipts, known_item_ids=known, min_retrievals=min_retrievals, min_outcomes=min_outcomes,
+            bad_below=bad_below, dead_after_receipts=dead_after_receipts, good_above=good_above, top_n=top_n, min_exclusions=min_exclusions)
+
+    # -- self-test ---------------------------------------------------------------------------------------------
+    def _sync_target(self) -> "ContextReceiptStore":
+        writer = getattr(self, "_writer", None)
+        return writer.store if writer is not None else self
+
+    def selftest(self, *, prior_strength: float = 5.0) -> list[dict[str, Any]]:
+        """Exercise this backend end to end with synthetic receipts and report ``[{step, ok, detail}]``.
+
+        Every id is a fresh uuid, so concurrent runs never collide and nothing real is touched. Steps: create tables, record,
+        duplicate detection, outcome/evidence/output events, get_receipt, read_since, item_feedback numbers, score refresh,
+        outcomes_by_code_version, asset_usage_since, find_by_*, maintenance_report, then cleanup of exactly the synthetic rows
+        (verified). A failing step is reported and the rest still run; cleanup always runs.
+
+        One side effect on a live store: ``refresh_item_scores`` is the normal store-wide recompute (what the usage sensor does
+        every tick), so this step reads every receipt and rewrites every item's score row (same values, new ``updated_at``).
+        Pass the ``prior_strength`` your sensor uses so the recompute is a no-op in value."""
+        run = uuid.uuid4().hex[:12]
+        pre = f"selftest-{run}"
+        r1, r2 = f"{pre}-r1", f"{pre}-r2"
+        asset, cv = f"selftest/{run}", f"{pre}-cv"
+        a, b, z, dead = (f"{pre}-{x}" for x in ("a", "b", "z", "dead"))
+        caller, session = f"{pre}-caller", f"{pre}-session"
+        results: list[dict[str, Any]] = []
+        state: dict[str, Any] = {"cursors": (0, 0)}
+        dead_before = len(getattr(self, "dead_letters", None) or [])
+
+        def check(cond: Any, message: str) -> None:
+            if not cond:
+                raise AssertionError(message)
+
+        def step(name: str, fn: Any) -> None:
+            try:
+                detail = fn()
+                results.append({"step": name, "ok": True, "detail": detail or "ok"})
+            except BaseException as exc:  # noqa: BLE001  (a broken backend must be reported, never crash the run)
+                if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+                    raise
+                results.append({"step": name, "ok": False, "detail": f"{type(exc).__name__}: {exc}"})
+
+        def flush(raise_on_dead: bool = True) -> None:
+            flusher = getattr(self, "flush", None)
+            if callable(flusher):
+                flusher()
+            dead_letters = getattr(self, "dead_letters", None) or []
+            if raise_on_dead:
+                if len(dead_letters) > dead_before:
+                    raise AssertionError(f"{len(dead_letters) - dead_before} async write(s) dead-lettered: {dead_letters[-1][3]!r}")
+
+        def item(item_id: str, rank: int) -> dict[str, Any]:
+            return {"item_id": item_id, "source_asset_key": asset, "source_version": "v1", "source_code_version": cv, "rank": rank, "score": 0.5}
+
+        def tables() -> str:
+            self.ensure_tables()
+            state["cursors"] = self._selftest_cursors()
+            return "tables ready"
+
+        def record() -> str:
+            self.record_retrieval(
+                context_name="selftest", receipt_id=r1, items=[item(a, 0), item(b, 1)], eligible_count=3,
+                excluded=[{"item_id": z, "reason": "policy", "source_asset_key": asset, "source_code_version": cv}],
+                caller_id=caller, mcp_session_id=session, query_hash="selftest", dagster_asset_key=asset)
+            self.record_retrieval(context_name="selftest", receipt_id=r2, items=[item(a, 0)], caller_id=caller, mcp_session_id=session)
+            flush()
+            return "2 receipts written"
+
+        def duplicate() -> str:
+            try:
+                self._sync_target().record_retrieval(context_name="selftest", receipt_id=r1, items=[])
+            except DuplicateReceiptError:
+                return "DuplicateReceiptError raised"
+            raise AssertionError("re-recording an existing receipt_id was accepted")
+
+        def events() -> str:
+            self.record_outcome(r1, signal="thumbs_up", outcome_ref=f"{pre}-u1")
+            self.add_evidence(r1, level="cited", details={"item_ids": [a]})
+            self.attach_output(r1, output_id=f"{pre}-o1", model="selftest", output_hash="0" * 8)
+            self.record_outcome(r2, signal="thumbs_down")
+            flush()
+            return "4 events written"
+
+        def get() -> str:
+            rec = self.get_receipt(r1)
+            check(rec is not None, "get_receipt returned None for a receipt just written")
+            check([i["item_id"] for i in rec["items"]] == [a, b], f"items {[i['item_id'] for i in rec['items']]}")
+            check([e["item_id"] for e in rec["excluded"]] == [z] and rec["excluded"][0]["reason"] == "policy", "excluded item missing")
+            check({e["event_type"] for e in rec["events"]} == {"outcome", "evidence", "output_attached"}, f"events {[e['event_type'] for e in rec['events']]}")
+            check(rec["created_at"], "created_at empty")
+            expected = self._pseudonym(caller)
+            check(rec["caller_id"] == expected, f"caller_id stored as {rec['caller_id']!r}, expected {expected!r}")
+            check(rec["mcp_session_id"] == self._pseudonym(session), "mcp_session_id not stored as expected")
+            if self.pseudonymizing:
+                check(rec["caller_id"] != caller and str(rec["caller_id"]).startswith("h:"), "raw caller_id was stored with pseudonymization on")
+            check(self.get_receipt(f"{pre}-missing") is None, "get_receipt invented a receipt")
+            return "receipt, items, exclusion and events round-trip" + ("; caller pseudonymized" if self.pseudonymizing else "")
+
+        def tail() -> str:
+            rc, ec = state["cursors"]
+            mine = {r1, r2}
+            got_receipts: dict[str, Any] = {}
+            got_events: list[Any] = []
+            got_outcomes: list[Any] = []
+            for _ in range(200):
+                page = self.read_since(rc, ec, limit=1000)
+                got_receipts.update({r["receipt_id"]: r for r in page["receipts"] if r["receipt_id"] in mine})
+                got_events += [e for e in page["events"] if e["receipt_id"] in mine]
+                got_outcomes += [o for o in page["outcomes"] if o["receipt_id"] in mine]
+                if (page["receipt_cursor"], page["event_cursor"]) == (rc, ec):
+                    break
+                rc, ec = page["receipt_cursor"], page["event_cursor"]
+            check(set(got_receipts) == mine, f"read_since returned receipts {sorted(got_receipts)}")
+            check(len(got_receipts[r1]["items"]) == 2 and len(got_receipts[r1]["excluded"]) == 1, "read_since receipt lost its items/exclusions")
+            types = sorted(e["event_type"] for e in got_events)
+            check(types == ["evidence", "outcome", "outcome", "output_attached"], f"read_since events {types}")
+            check(len(got_outcomes) == 2 and all(any(src[0] == asset for src in o["sources"]) for o in got_outcomes), "outcomes lost their sources")
+            return "2 receipts and all 3 event types read back"
+
+        def feedback() -> str:
+            fb = self.item_feedback(asset)
+            check(set(fb) == {a, b, z}, f"item_feedback items {sorted(fb)}")
+            check(fb[a]["retrievals"] == 2 and fb[a]["rated"] == 2 and fb[a]["cited"] == 1, f"a: {fb[a]}")
+            check(fb[a]["mean_outcome"] == _Approx(0.0), f"a mean {fb[a]['mean_outcome']}")
+            check(fb[b]["retrievals"] == 1 and fb[b]["rated"] == 1 and fb[b]["cited"] == 0 and fb[b]["mean_outcome"] == _Approx(1.0), f"b: {fb[b]}")
+            check(fb[z]["retrievals"] == 0 and fb[z]["excluded"] == {"policy": 1}, f"z: {fb[z]}")
+            return "retrievals / rated / cited / mean_outcome / excluded as expected"
+
+        def scores() -> str:
+            self.refresh_item_scores(prior_strength)
+            got = self.get_item_scores([a, b, f"{pre}-nope"])
+            check(set(got) == {a, b}, f"scores for {sorted(got)}")
+            check(got[a]["retrievals"] == 2 and got[a]["outcome_weight"] == _Approx(1.5) and got[a]["outcome_sum"] == _Approx(0.5), f"a: {got[a]}")
+            check(got[a]["prior"] == _Approx(0.5 / (1.5 + prior_strength)), f"a prior {got[a]['prior']}")
+            check(got[b]["retrievals"] == 1 and got[b]["outcome_weight"] == _Approx(0.5), f"b: {got[b]}")
+            return "refresh + get_item_scores match hand-computed priors"
+
+        def by_code_version() -> str:
+            got = self.outcomes_by_code_version(asset)
+            check(got == {cv: {"receipts": 2, "outcomes": 2, "mean_outcome": 0.0}}, f"outcomes_by_code_version {got}")
+            return "per-code-version outcomes as expected"
+
+        def usage() -> str:
+            u = self.asset_usage_since(asset, "")
+            check(u["receipts"] == 2 and len(u["items"]) == 3, f"usage {u['receipts']} receipts / {len(u['items'])} items")
+            check(u["with_output"] == 1 and u["verified_outputs"] == 0, f"usage outputs {u['with_output']}/{u['verified_outputs']}")
+            check(sorted(round(x, 6) for x in u["outcome_means"]) == [-1.0, 1.0], f"outcome_means {u['outcome_means']}")
+            return "asset_usage_since as expected"
+
+        def find() -> str:
+            both = sorted([r1, r2])
+            check(self.find_by_item(a) == both and self.find_by_item(b) == [r1], "find_by_item")
+            check(self.find_by_source_asset(asset) == both, "find_by_source_asset")
+            check(self.find_by_assets({asset: None})["receipt_ids"] == both, "find_by_assets")
+            return "find_by_item / find_by_source_asset / find_by_assets"
+
+        def maintenance() -> str:
+            rep = self.maintenance_report(asset, known_item_ids=[a, b, dead], min_retrievals=1, min_outcomes=1, bad_below=0.0,
+                                          dead_after_receipts=1, good_above=0.3)
+            check([r["item_id"] for r in rep["rewrite_candidates"]] == [a], f"rewrite_candidates {rep['rewrite_candidates']}")
+            check([r["item_id"] for r in rep["top_performers"]] == [b], f"top_performers {rep['top_performers']}")
+            check(rep["dead_weight"] == [dead], f"dead_weight {rep['dead_weight']}")
+            return "maintenance_report as expected"
+
+        def cleanup() -> str:
+            try:
+                flush(raise_on_dead=False)
+            except Exception:  # noqa: BLE001
+                pass
+            problems: list[str] = []
+            for label, fn, ids in (("receipts", self.delete_receipts, [r1, r2]), ("scores", self.delete_item_scores, [a, b, z, dead])):
+                for attempt in (1, 2):
+                    try:
+                        fn(ids)
+                        break
+                    except Exception as exc:  # noqa: BLE001
+                        if attempt == 2:
+                            problems.append(f"delete {label} failed: {type(exc).__name__}: {exc}")
+            try:
+                left = [i for i in (r1, r2) if self.get_receipt(i) is not None]
+                if left:
+                    problems.append(f"receipts still present: {left}")
+                if self.find_by_source_asset(asset) or self.find_by_item(a) or self.find_by_item(b):
+                    problems.append("item rows still present")
+                if self.get_item_scores([a, b, z, dead]):
+                    problems.append("synthetic item scores still present")
+            except Exception as exc:  # noqa: BLE001
+                problems.append(f"could not verify cleanup: {type(exc).__name__}: {exc}")
+            check(not problems, "; ".join(problems))
+            return "synthetic rows deleted and verified gone"
+
+        try:
+            for name, fn in (("create_tables", tables), ("record_retrieval", record), ("duplicate_detection", duplicate),
+                             ("outcome_evidence_output_events", events), ("get_receipt", get), ("read_since", tail),
+                             ("item_feedback", feedback), ("refresh_and_get_item_scores", scores),
+                             ("outcomes_by_code_version", by_code_version), ("asset_usage_since", usage), ("find_by", find),
+                             ("maintenance_report", maintenance)):
+                step(name, fn)
+        finally:
+            step("cleanup", cleanup)
+        return results
 
 
 # ── BigQuery backend ──────────────────────────────────────────────────────────────────────────────────────
@@ -1663,8 +2024,8 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
                          excluded_count: int | None = None, dagster_asset_key: str | None = None, dagster_run_id: str | None = None,
                          receipt_id: str | None = None, trace_id: str | None = None, mcp_session_id: str | None = None,
                          mcp_request_id: str | None = None) -> str:
-        receipt_id, norm_items, norm_excluded, excluded_count = self._prepare_retrieval(
-            context_name, items, excluded, eligible_count, excluded_count, receipt_id)
+        receipt_id, norm_items, norm_excluded, excluded_count, caller_id, mcp_session_id = self._prepare_retrieval(
+            context_name, items, excluded, eligible_count, excluded_count, receipt_id, caller_id, mcp_session_id)
         # One round trip on the happy path: does the receipt exist (duplicate), and did a crashed earlier attempt leave
         # items behind (they are written before the receipt row, which is the commit marker)?
         seen = self._query(
@@ -1869,12 +2230,15 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
                 created += 1
         return created
 
-    def enforce_retention(self, retention_days: Mapping[str, float | None], *, now: datetime | None = None) -> dict[str, int]:
+    def enforce_retention(self, retention_days: Mapping[str, float | None], *, now: datetime | None = None,
+                          default_days: float | None = None) -> dict[str, int]:
         limits = {k: float(v) for k, v in retention_days.items() if v}
-        if not limits:
+        if default_days is not None and default_days <= 0:
+            raise ValueError("default_days must be positive or None")
+        if not limits and not default_days:
             return {"receipts_deleted": 0}
         now = now or datetime.now(timezone.utc)
-        cutoff = (now - timedelta(days=min(limits.values()))).isoformat()
+        cutoff = (now - timedelta(days=min([*limits.values(), *([float(default_days)] if default_days else [])]))).isoformat()
         candidates = self._query(f"SELECT receipt_id, created_at FROM {self._t('context_receipts')} WHERE created_at < TIMESTAMP(@c)", c=cutoff)
         ids = [c["receipt_id"] for c in candidates]
         assets: dict[str, set] = {}
@@ -1886,13 +2250,34 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
                 assets.setdefault(row["receipt_id"], set()).add(row["source_asset_key"])
         doomed = []
         for row in candidates:
-            applicable = [limits[a] for a in assets.get(row["receipt_id"], ()) if a in limits]
-            if applicable and _as_datetime(_bq_iso(row["created_at"])) + timedelta(days=min(applicable)) <= now:
+            limit = _receipt_limit(assets.get(row["receipt_id"], ()), limits, default_days)
+            if limit and _as_datetime(_bq_iso(row["created_at"])) + timedelta(days=limit) <= now:
                 doomed.append(row["receipt_id"])
-        for start in range(0, len(doomed), 5000):
-            for table in ("context_receipt_events", "context_receipt_excluded", "context_receipt_items", "context_receipts"):
-                self._query(f"DELETE FROM {self._t(table)} WHERE receipt_id IN UNNEST(@ids)", ids=doomed[start:start + 5000])
+        self.delete_receipts(doomed)
         return {"receipts_deleted": len(doomed)}
+
+    def delete_receipts(self, receipt_ids: Iterable[str]) -> int:
+        ids = sorted({str(i) for i in receipt_ids})
+        existed = 0
+        for start in range(0, len(ids), 5000):
+            batch = ids[start:start + 5000]
+            existed += self._query(f"SELECT COUNT(1) AS n FROM {self._t('context_receipts')} WHERE receipt_id IN UNNEST(@ids)", ids=batch)[0]["n"]
+            for table in ("context_receipt_events", "context_receipt_excluded", "context_receipt_items", "context_receipts"):
+                self._query(f"DELETE FROM {self._t(table)} WHERE receipt_id IN UNNEST(@ids)", ids=batch)
+        return existed
+
+    def delete_item_scores(self, item_ids: Iterable[str]) -> int:
+        ids = sorted({str(i) for i in item_ids})
+        existed = 0
+        for start in range(0, len(ids), 5000):
+            batch = ids[start:start + 5000]
+            existed += self._query(f"SELECT COUNT(1) AS n FROM {self._t('context_item_scores')} WHERE item_id IN UNNEST(@ids)", ids=batch)[0]["n"]
+            self._query(f"DELETE FROM {self._t('context_item_scores')} WHERE item_id IN UNNEST(@ids)", ids=batch)
+        return existed
+
+    def _selftest_cursors(self) -> tuple[int, int]:
+        micros = int((datetime.now(timezone.utc) - datetime(1970, 1, 1, tzinfo=timezone.utc)) / timedelta(microseconds=1)) - 5_000_000
+        return micros, micros
 
     def find_by_assets(self, targets: Mapping[str, Iterable[str] | None]) -> dict[str, list[str]]:
         exact: set[str] = set()
@@ -2063,8 +2448,8 @@ class SqlContextReceiptStore(ContextReceiptStore):
                          mcp_request_id: str | None = None) -> str:
         import sqlalchemy as sa
 
-        receipt_id, norm_items, norm_excluded, excluded_count = self._prepare_retrieval(
-            context_name, items, excluded, eligible_count, excluded_count, receipt_id)
+        receipt_id, norm_items, norm_excluded, excluded_count, caller_id, mcp_session_id = self._prepare_retrieval(
+            context_name, items, excluded, eligible_count, excluded_count, receipt_id, caller_id, mcp_session_id)
         if self._create_tables:
             self.ensure_tables()
         created_at = self._tsv(self._timestamp())
@@ -2291,14 +2676,15 @@ class SqlContextReceiptStore(ContextReceiptStore):
                 created += 1
         return created
 
-    def enforce_retention(self, retention_days: Mapping[str, float | None], *, now: datetime | None = None) -> dict[str, int]:
-        import sqlalchemy as sa
-
+    def enforce_retention(self, retention_days: Mapping[str, float | None], *, now: datetime | None = None,
+                          default_days: float | None = None) -> dict[str, int]:
         limits = {k: float(v) for k, v in retention_days.items() if v}
-        if not limits:
+        if default_days is not None and default_days <= 0:
+            raise ValueError("default_days must be positive or None")
+        if not limits and not default_days:
             return {"receipts_deleted": 0}
         now = now or datetime.now(timezone.utc)
-        cutoff = self._tsv(now - timedelta(days=min(limits.values())))
+        cutoff = self._tsv(now - timedelta(days=min([*limits.values(), *([float(default_days)] if default_days else [])])))
         candidates = self._query(f"SELECT receipt_id, created_at FROM {self._t('context_receipts')} WHERE created_at < :c", c=cutoff)
         ids = [c["receipt_id"] for c in candidates]
         assets: dict[str, set] = {}
@@ -2310,15 +2696,42 @@ class SqlContextReceiptStore(ContextReceiptStore):
                 assets.setdefault(row["receipt_id"], set()).add(row["source_asset_key"])
         doomed = []
         for row in candidates:
-            applicable = [limits[a] for a in assets.get(row["receipt_id"], ()) if a in limits]
-            if applicable and _as_datetime(row["created_at"]) + timedelta(days=min(applicable)) <= now:
+            limit = _receipt_limit(assets.get(row["receipt_id"], ()), limits, default_days)
+            if limit and _as_datetime(row["created_at"]) + timedelta(days=limit) <= now:
                 doomed.append(row["receipt_id"])
+        self.delete_receipts(doomed)
+        return {"receipts_deleted": len(doomed)}
+
+    def delete_receipts(self, receipt_ids: Iterable[str]) -> int:
+        import sqlalchemy as sa
+
+        ids = sorted({str(i) for i in receipt_ids})
+        existed = 0
+        for chunk in self._in_chunks(ids):
+            existed += self._query(f"SELECT COUNT(1) AS n FROM {self._t('context_receipts')} WHERE receipt_id IN :ids", ids=chunk)[0]["n"]
         with self._engine.begin() as conn:
-            for chunk in self._in_chunks(doomed):
+            for chunk in self._in_chunks(ids):
                 for table in ("context_receipt_events", "context_receipt_excluded", "context_receipt_items", "context_receipts"):
                     conn.execute(sa.text(f"DELETE FROM {self._t(table)} WHERE receipt_id IN :ids").bindparams(
                         sa.bindparam("ids", expanding=True)), {"ids": chunk})
-        return {"receipts_deleted": len(doomed)}
+        return existed
+
+    def delete_item_scores(self, item_ids: Iterable[str]) -> int:
+        import sqlalchemy as sa
+
+        ids = sorted({str(i) for i in item_ids})
+        existed = 0
+        for chunk in self._in_chunks(ids):
+            existed += self._query(f"SELECT COUNT(1) AS n FROM {self._t('context_item_scores')} WHERE item_id IN :ids", ids=chunk)[0]["n"]
+        with self._engine.begin() as conn:
+            for chunk in self._in_chunks(ids):
+                conn.execute(sa.text(f"DELETE FROM {self._t('context_item_scores')} WHERE item_id IN :ids").bindparams(
+                    sa.bindparam("ids", expanding=True)), {"ids": chunk})
+        return existed
+
+    def _selftest_cursors(self) -> tuple[int, int]:
+        micros = int((datetime.now(timezone.utc) - datetime(1970, 1, 1, tzinfo=timezone.utc)) / timedelta(microseconds=1)) - 5_000_000
+        return micros, micros
 
     def find_by_assets(self, targets: Mapping[str, Iterable[str] | None]) -> dict[str, list[str]]:
         exact: set[str] = set()
@@ -2438,10 +2851,13 @@ class _AsyncWrites:
         self._writer.flush()
 
     def record_retrieval(self, **kwargs: Any) -> str:
-        receipt_id, *_ = self._prepare_retrieval(kwargs.get("context_name"), kwargs.get("items", ()), kwargs.get("excluded", ()),
-                                                 kwargs.get("eligible_count"), kwargs.get("excluded_count"), kwargs.get("receipt_id"))
+        receipt_id, _items, _excluded, _count, caller_id, session_id = self._prepare_retrieval(
+            kwargs.get("context_name"), kwargs.get("items", ()), kwargs.get("excluded", ()), kwargs.get("eligible_count"),
+            kwargs.get("excluded_count"), kwargs.get("receipt_id"), kwargs.get("caller_id"), kwargs.get("mcp_session_id"))
         kwargs["items"], kwargs["excluded"] = list(kwargs.get("items", ())), list(kwargs.get("excluded", ()))
         kwargs["receipt_id"] = receipt_id
+        if self.pseudonymizing:    # hash before queueing so raw ids never sit in the queue or dead_letters; the inner store has no salt
+            kwargs["caller_id"], kwargs["mcp_session_id"] = caller_id, session_id
         return self._writer.record_retrieval(**kwargs)
 
     def attach_output(self, *args: Any, **kwargs: Any) -> None:
@@ -2454,6 +2870,8 @@ class _AsyncWrites:
         self._writer.record_outcome(*args, **kwargs)
 
     def ingest(self, event: Mapping[str, Any]) -> str:
+        if self.pseudonymizing and event.get("type") == "retrieval":
+            event = {**event, **{k: self._pseudonym(event[k]) for k in ("caller_id", "mcp_session_id") if event.get(k) is not None}}
         return self._writer.ingest(event)
 
 
@@ -2660,6 +3078,65 @@ def build_usage_checks(
     ]
 
 
+def build_maintenance_check(
+    store: ContextReceiptStore,
+    asset_key: str,
+    *,
+    window_days: float = 30.0,
+    min_retrievals: int = 5,
+    min_outcomes: int = 3,
+    bad_below: float = -0.3,
+    known_item_ids: Any = None,
+    dead_after_receipts: int = 50,
+) -> Any:
+    """WARN-severity asset check ``context_maintenance``: counts of rewrite candidates / dead weight / noisy exclusions
+    (``maintenance_report``) in metadata, with the worst few chunk ids listed. It is not "failed" by data quality alone: it is
+    WARN, so it never fails a run. ``known_item_ids`` is an iterable or a zero-argument callable returning one; without it
+    dead weight is not judged."""
+    key = dg.AssetKey.from_user_string(asset_key)
+
+    @dg.asset_check(asset=key, name="context_maintenance", description="Chunks worth rewriting, dead weight and noisy exclusions, from real usage.")
+    def check(context):
+        known = known_item_ids() if callable(known_item_ids) else known_item_ids
+        report = store.maintenance_report(
+            asset_key, since=(datetime.now(timezone.utc) - timedelta(days=window_days)).isoformat(), known_item_ids=known,
+            min_retrievals=min_retrievals, min_outcomes=min_outcomes, bad_below=bad_below, dead_after_receipts=dead_after_receipts)
+        summary = report["summary"]
+        dead = report["dead_weight"]
+        metadata: dict[str, Any] = {
+            "rewrite_candidates": summary["rewrite_candidates"],
+            "dead_weight": summary["dead_weight"] if dead is not None else dg.MetadataValue.text(report["dead_weight_reason"] or "not judged"),
+            "top_performers": summary["top_performers"], "noisy_exclusions": summary["noisy_exclusions"],
+            "receipts_in_window": summary["receipts_in_window"] if summary["receipts_in_window"] is not None else dg.MetadataValue.text("not counted"),
+            "window_days": window_days,
+            "worst_chunks": dg.MetadataValue.json([r["item_id"] for r in report["rewrite_candidates"][:10]]),
+        }
+        needs_work = bool(report["rewrite_candidates"] or dead or report["noisy_exclusions"])
+        return dg.AssetCheckResult(passed=not needs_work, severity=dg.AssetCheckSeverity.WARN, metadata=metadata)
+
+    return check
+
+
+def build_selftest_asset(store: ContextReceiptStore, resource_key: str, *, prior_strength: float = 5.0) -> Any:
+    """Asset ``<resource_key>_selftest``: runs ``store.selftest()``; one materialization verifies the configured backend.
+    Fails (with the step table as metadata) when any step failed."""
+    columns = [dg.TableColumn("step", "string"), dg.TableColumn("ok", "bool"), dg.TableColumn("detail", "string")]
+
+    @dg.asset(name=f"{resource_key}_selftest", group_name="context_receipts",
+              description="Verifies the configured receipt backend end to end with synthetic receipts it then deletes.")
+    def selftest_asset(context: dg.AssetExecutionContext):
+        results = store.selftest(prior_strength=prior_strength)
+        table = dg.MetadataValue.table(records=[dg.TableRecord(r) for r in results], schema=dg.TableSchema(columns=columns))
+        failed = [r for r in results if not r["ok"]]
+        metadata = {"steps": table, "passed": len(results) - len(failed), "failed": len(failed), "backend": store.database_path}
+        if failed:
+            raise dg.Failure(description="receipt store self-test failed: " + "; ".join(f"{r['step']}: {r['detail']}" for r in failed),
+                             metadata=metadata)
+        return dg.MaterializeResult(metadata=metadata)
+
+    return selftest_asset
+
+
 def _current_data_version(instance: Any, asset_key: dg.AssetKey, partition: str | None = None) -> str | None:
     """Latest (partition's) materialization data version, or None when unknown (staleness not judged)."""
     record = instance.get_latest_data_version_record(asset_key, partition_key=partition)
@@ -2680,6 +3157,7 @@ def build_usage_sensor(
     implicit_signals: bool = False,
     reformulation_window_seconds: float = 120.0,
     enforce_retention: bool = False,
+    default_retention_days: float | None = None,
 ) -> dg.SensorDefinition:
     """Cold-path sensor: tail receipts, report aggregated usage, learn priors, request rebuilds.
 
@@ -2701,7 +3179,8 @@ def build_usage_sensor(
         state = json.loads(context.cursor) if context.cursor else {}
         if enforce_retention:
             policies = context_policies(context.repository_def.asset_graph)
-            deleted = store.enforce_retention({k: p.retention_days for k, p in policies.items()})["receipts_deleted"]
+            deleted = store.enforce_retention(
+                {k: p.retention_days for k, p in policies.items()}, default_days=default_retention_days)["receipts_deleted"]
             if deleted:
                 context.log.info(f"retention: deleted {deleted} receipt(s) past their policy retention")
         if implicit_signals:  # written before reading so they are scored in this same tick
@@ -2879,6 +3358,37 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
             "code location. This is the only deletion the receipt store performs."
         ),
     )
+    default_retention_days: Optional[float] = Field(
+        default=None,
+        description=(
+            "Retention in days for receipts of assets whose context policy declares none (and receipts that touched no asset). "
+            "An asset's own retention_days always wins. Applied by the usage sensor only when enforce_retention is true. "
+            "None keeps such receipts forever; nothing is deleted by default."
+        ),
+    )
+    pseudonymize_callers: bool = Field(
+        default=False,
+        description=(
+            "Store caller_id and mcp_session_id as a keyed hash (h: + HMAC-SHA256, 32 hex chars) instead of the raw id, in every "
+            "backend. Deterministic, so a caller/session still groups. Needs pseudonym_salt_env_var. Existing rows are not rewritten."
+        ),
+    )
+    pseudonym_salt_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var holding the secret salt for pseudonymize_callers (required when it is true). Changing it breaks continuity with earlier receipts.",
+    )
+    selftest_asset: bool = Field(
+        default=False,
+        description="Add an asset '<resource_key>_selftest' that exercises the configured backend with synthetic receipts (then deletes them) and fails if any step fails.",
+    )
+    maintenance_check_asset_keys: list[str] = Field(
+        default_factory=list,
+        description="Asset keys to attach a WARN-severity 'context_maintenance' check to: counts of chunks worth rewriting, dead weight and noisy exclusions. Never fails a run.",
+    )
+    maintenance_window_days: float = Field(default=30.0, description="Lookback window for the context_maintenance check.")
+    maintenance_min_retrievals: int = Field(default=5, description="A chunk needs this many retrievals before the maintenance check judges it.")
+    maintenance_min_outcomes: int = Field(default=3, description="A chunk needs this many rated retrievals before the maintenance check judges it.")
+    maintenance_bad_below: float = Field(default=-0.3, description="Chunks whose mean outcome is at or below this are rewrite candidates.")
     implicit_signals_enabled: bool = Field(
         default=False,
         description=(
@@ -2925,6 +3435,29 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
             store = cls(engine_factory, schema=self.sql_schema, table_prefix=self.sql_table_prefix)
         else:
             raise ValueError(f"backend must be 'sqlite', 'bigquery' or 'sql', got {self.backend!r}")
+        if self.pseudonymize_callers:
+            if not self.pseudonym_salt_env_var:
+                raise ValueError("pseudonymize_callers requires pseudonym_salt_env_var (the env var holding the secret salt)")
+            salt_env = self.pseudonym_salt_env_var
+
+            def salt() -> str:
+                value = dg.EnvVar(salt_env).get_value()
+                if not value:
+                    raise ValueError(f"pseudonymize_callers is on but env var {salt_env} is not set")
+                return value
+
+            store.enable_pseudonymization(salt)
+        if self.default_retention_days is not None:
+            if self.default_retention_days <= 0:
+                raise ValueError("default_retention_days must be positive")
+            if not (self.enforce_retention and self.usage_sensor_enabled):
+                logger.warning("default_retention_days is set but nothing will be deleted: it needs enforce_retention: true and usage_sensor_enabled: true")
+        retention_active = self.enforce_retention and self.usage_sensor_enabled
+        if self.backend in ("bigquery", "sql") and not retention_active and not self.pseudonymize_callers:
+            logger.warning(
+                "context_receipt_store (%s): receipts in a shared warehouse contain caller ids and session ids, and neither "
+                "retention (enforce_retention with usage_sensor_enabled) nor pseudonymize_callers is configured; consider "
+                "pseudonymize_callers: true and/or default_retention_days.", self.backend)
         sensors = []
         if self.usage_sensor_enabled:
             sensors.append(
@@ -2937,6 +3470,7 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
                     prior_strength=self.score_prior_strength,
                     implicit_signals=self.implicit_signals_enabled,
                     enforce_retention=self.enforce_retention,
+                    default_retention_days=self.default_retention_days,
                     reformulation_window_seconds=self.reformulation_window_seconds,
                 )
             )
@@ -2953,8 +3487,15 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
                 max_ungrounded_rate=self.max_ungrounded_rate,
             )
         ]
+        checks += [
+            build_maintenance_check(
+                store, key, window_days=self.maintenance_window_days, min_retrievals=self.maintenance_min_retrievals,
+                min_outcomes=self.maintenance_min_outcomes, bad_below=self.maintenance_bad_below)
+            for key in self.maintenance_check_asset_keys
+        ]
         return dg.Definitions(
             resources={self.resource_key: dg.ResourceDefinition.hardcoded_resource(store)},
+            assets=[build_selftest_asset(store, self.resource_key, prior_strength=self.score_prior_strength)] if self.selftest_asset else [],
             sensors=sensors,
             asset_checks=checks,
         )

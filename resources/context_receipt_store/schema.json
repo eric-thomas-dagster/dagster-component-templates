@@ -176,6 +176,63 @@
       "label": "Sql Table Prefix",
       "description": "backend: sql -- prefix for the five receipt table names.",
       "required": false
+    },
+    "default_retention_days": {
+      "type": "number",
+      "label": "Default Retention Days",
+      "description": "Retention in days for receipts of assets whose context policy declares none (and receipts that touched no asset). An asset's own retention_days always wins. Applied by the usage sensor only when enforce_retention is true. None keeps such receipts forever; nothing is deleted by default.",
+      "required": false
+    },
+    "pseudonymize_callers": {
+      "type": "boolean",
+      "label": "Pseudonymize Callers",
+      "description": "Store caller_id and mcp_session_id as a keyed hash (h: + HMAC-SHA256, 32 hex chars) instead of the raw id, in every backend. Deterministic, so a caller/session still groups. Needs pseudonym_salt_env_var. Existing rows are not rewritten.",
+      "required": false
+    },
+    "pseudonym_salt_env_var": {
+      "type": "string",
+      "label": "Pseudonym Salt Env Var",
+      "description": "Env var holding the secret salt for pseudonymize_callers (required when it is true). Changing it breaks continuity with earlier receipts.",
+      "required": false
+    },
+    "selftest_asset": {
+      "type": "boolean",
+      "label": "Selftest Asset",
+      "description": "Add an asset '<resource_key>_selftest' that exercises the configured backend with synthetic receipts (then deletes them) and fails if any step fails.",
+      "required": false
+    },
+    "maintenance_check_asset_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Maintenance Check Asset Keys",
+      "description": "Asset keys to attach a WARN-severity 'context_maintenance' check to: counts of chunks worth rewriting, dead weight and noisy exclusions. Never fails a run.",
+      "required": false
+    },
+    "maintenance_window_days": {
+      "type": "number",
+      "label": "Maintenance Window Days",
+      "description": "Lookback window for the context_maintenance check.",
+      "required": false
+    },
+    "maintenance_min_retrievals": {
+      "type": "integer",
+      "label": "Maintenance Min Retrievals",
+      "description": "A chunk needs this many retrievals before the maintenance check judges it.",
+      "required": false
+    },
+    "maintenance_min_outcomes": {
+      "type": "integer",
+      "label": "Maintenance Min Outcomes",
+      "description": "A chunk needs this many rated retrievals before the maintenance check judges it.",
+      "required": false
+    },
+    "maintenance_bad_below": {
+      "type": "number",
+      "label": "Maintenance Bad Below",
+      "description": "Chunks whose mean outcome is at or below this are rewrite candidates.",
+      "required": false
     }
   }
 }

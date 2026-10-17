@@ -294,7 +294,7 @@ chunk-level PII are enforced at retrieval, not from the graph.
 
 **Retention.** Set `retention_days` in a policy and `enforce_retention: true` on the component: the usage sensor deletes
 receipts past it, using the shortest retention among the assets a receipt touched; receipts that touched no asset with a
-retention are kept. `store.enforce_retention({...})` does the same on demand. It is the only deletion the store performs;
+retention are kept unless you set `default_retention_days` (see Privacy). `store.enforce_retention({...}, default_days=...)` does the same on demand. It is the only deletion the store performs;
 aggregated item priors are statistics and are kept. (Expired chunks in the index: `purge_expired` on the pipeline's
 `write_vector_store` step.)
 
@@ -353,6 +353,63 @@ receipt = receipts.get_receipt(receipt_ids[0])
 item attributed to that Dagster asset. This is a first prototype of recall and
 impact analysis; it does not yet query Dagster's asset graph automatically.
 
+## Verify your backend
+
+Pointed this at a real Snowflake, BigQuery or Postgres? Check it in one step:
+
+```yaml
+attributes:
+  selftest_asset: true      # adds the asset "<resource_key>_selftest"
+```
+
+Materialize `context_receipts_selftest` (or call `store.selftest()`). It writes synthetic receipts with fresh uuid ids (concurrent
+runs never collide), then exercises create-tables, `record_retrieval`, duplicate detection, outcome / evidence / output events,
+`get_receipt`, `read_since` (receipts and every event type), `item_feedback` numbers, `refresh_item_scores` + `get_item_scores`,
+`outcomes_by_code_version`, `asset_usage_since`, the `find_by_*` lookups and `maintenance_report`, and finally deletes exactly the
+rows it wrote and verifies they are gone (`delete_receipts` / `delete_item_scores`). Each step is reported as `{step, ok, detail}`;
+one failure does not stop the others, and cleanup runs in a `finally`. The asset shows the step table as metadata and fails the
+run if any step failed. The refresh step is the normal store-wide score recompute (a full read; rows get a new `updated_at`), so
+the asset uses your `score_prior_strength` to leave real priors unchanged in value.
+
+## Privacy: pseudonyms and retention
+
+```yaml
+attributes:
+  pseudonymize_callers: true
+  pseudonym_salt_env_var: RECEIPT_PSEUDONYM_SALT   # a secret; read at write time via dagster EnvVar
+  enforce_retention: true
+  usage_sensor_enabled: true
+  default_retention_days: 90                       # receipts of assets whose policy declares no retention
+```
+
+- `pseudonymize_callers` stores `caller_id` and `mcp_session_id` as `h:` plus the first 32 hex chars of HMAC-SHA256(salt, id),
+  in every backend (it is applied inside the shared validation, and by the async wrapper before queueing). The hash is
+  deterministic, so a caller or session still groups and implicit-outcome derivation keeps working. Losing or changing the salt breaks
+  continuity with earlier receipts; rows written before you turned it on are not rewritten. With the salt unset, writes fail rather than
+  fall back to raw ids. Other fields (`purpose`, `trace_id`, `mcp_request_id`) are not hashed.
+- `default_retention_days` is applied by the usage sensor's `enforce_retention` path to receipts of assets whose context policy
+  declares no `retention_days` (and receipts that touched no asset). An asset's own policy always wins, and the shortest applicable
+  limit still decides for a receipt that touched several assets. `None` (default) keeps everything: nothing is deleted unless you set it.
+- On a shared-warehouse backend (`bigquery`, `sql`) the component logs a load-time WARNING when neither retention nor
+  pseudonymization is configured, because those tables hold caller ids.
+
+## Maintenance report: what to rewrite, delete or keep
+
+`store.maintenance_report("support/tickets", since=..., known_item_ids=[...])` turns `item_feedback` into a to-do list; it is one pure
+function (`fold_maintenance_report`) over the feedback, so it is identical on every backend.
+
+- `rewrite_candidates`: chunks retrieved >= `min_retrievals` (5) and rated >= `min_outcomes` (3) whose mean outcome is <= `bad_below`
+  (-0.3), worst first, each with `retrievals`, `rated`, `mean_outcome`, `cited` and `excluded` reasons.
+- `dead_weight`: ids in `known_item_ids` never retrieved. Only judged when the asset had >= `dead_after_receipts` (50) receipts in the
+  window; otherwise `None` and `dead_weight_reason` says why. You supply `known_item_ids` (the current index's chunk ids).
+- `top_performers`: mean >= `good_above` (0.3), best first. `noisy_exclusions`: chunks withheld >= `min_exclusions` (5) times.
+- `summary`: the counts.
+
+`maintenance_check_asset_keys: [support/tickets]` adds a WARN-severity asset check `context_maintenance` per asset (window
+`maintenance_window_days`, thresholds `maintenance_min_retrievals` / `maintenance_min_outcomes` / `maintenance_bad_below`) that
+reports the counts and the worst chunk ids as metadata. It is WARN, so it never fails a run. The component form does not judge dead
+weight (it has no list of known ids); use `build_maintenance_check(store, key, known_item_ids=...)` for that.
+
 ## Privacy and integrity
 
 - Receipt item fields are restricted to stable item IDs, source asset/version,
@@ -360,7 +417,8 @@ impact analysis; it does not yet query Dagster's asset graph automatically.
 - Pass a one-way `query_hash`, not the raw query. Attach output hashes or
   references, not output text.
 - Treat caller IDs, purpose labels, asset keys, and item IDs as potentially
-  sensitive metadata and apply your organization's retention/access controls.
+  sensitive metadata and apply your organization's retention/access controls
+  (`pseudonymize_callers` and `default_retention_days` above).
 - The SQLite file is append-only through this API, but is not tamper-evident,
   encrypted, or a compliance-grade audit ledger.
 - Unknown receipt IDs and invalid fields raise errors; they are never silently

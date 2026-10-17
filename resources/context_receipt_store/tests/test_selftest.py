@@ -126,7 +126,7 @@ def _synthetic_ids(store):
     return [r[0] for r in sqlite3.connect(store.database_path).execute("SELECT receipt_id FROM context_receipts")]
 
 
-@pytest.mark.parametrize("kind", ["sql-sqlite", "bigquery-fake"])
+@pytest.mark.parametrize("kind", ["sql-sqlite", "dbapi-sqlite", "dbapi-duckdb", "bigquery-fake"])
 def test_selftest_on_an_async_store_flushes_and_passes(kind, mod, tmp_path, monkeypatch):
     store = make_store(kind, mod, tmp_path, monkeypatch, async_writes=True)
     results = store.selftest()

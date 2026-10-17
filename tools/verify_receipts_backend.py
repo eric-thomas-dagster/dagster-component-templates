@@ -12,6 +12,15 @@ against DuckDB/SQLite and parsed with sqlglot), so run this once against yours b
     RECEIPTS_URL='snowflake://user:pass@account/DB/SCHEMA?warehouse=WH' \\
     python3 tools/verify_receipts_backend.py sql --url-env RECEIPTS_URL --schema ANALYTICS.CONTEXT [--prefix verify_]
 
+    # Plain vendor connection, no SQLAlchemy (secrets come from environment variables, never argv)
+    SNOWFLAKE_PASSWORD=... python3 tools/verify_receipts_backend.py dbapi --kind snowflake --account acme-xy1 --user RCPT \\
+        --warehouse WH --database ANALYTICS --role R --password-env SNOWFLAKE_PASSWORD --schema ANALYTICS.CONTEXT [--prefix verify_]
+    DATABRICKS_TOKEN=... python3 tools/verify_receipts_backend.py dbapi --kind databricks --server-hostname dbc-x.cloud.databricks.com \\
+        --http-path /sql/1.0/warehouses/abc --token-env DATABRICKS_TOKEN --catalog main --schema main.context
+    PGPASSWORD=... python3 tools/verify_receipts_backend.py dbapi --kind postgres --host db --database app --user u --password-env PGPASSWORD --schema context
+    (--kind mysql is the same as postgres; snowflake also takes --private-key-env [--private-key-passphrase-env] instead of --password-env.
+     --schema is the receipt-table namespace; --catalog/--database/--warehouse etc. are connection settings.)
+
     # Local sanity check, no warehouse needed
     python3 tools/verify_receipts_backend.py sqlite --path /tmp/receipts.sqlite3
 
@@ -54,6 +63,19 @@ def build(mod, args):
             return BigQueryResource(project=project, location=args.location, gcp_credentials=creds).get_client()
 
         return mod.BigQueryContextReceiptStore(args.dataset, client_factory=factory, table_prefix=args.prefix)
+    if args.backend == "dbapi":
+        spec = {"kind": args.kind}
+        keys = {"snowflake": ("account", "user", "warehouse", "database", "role"), "databricks": ("server_hostname", "http_path", "catalog"),
+                "postgres": ("host", "port", "database", "user"), "mysql": ("host", "port", "database", "user")}[args.kind]
+        spec.update({k: getattr(args, k) for k in keys if getattr(args, k, None)})
+        for flag, key in (("password_env", "password_env_var"), ("token_env", "access_token_env_var"),
+                          ("private_key_env", "private_key_env_var"), ("private_key_passphrase_env", "private_key_passphrase_env_var")):
+            if getattr(args, flag, None):
+                spec[key] = getattr(args, flag)
+        if args.kind in ("snowflake", "databricks") and args.conn_schema:
+            spec["schema"] = args.conn_schema
+        factory, dialect = mod._build_dbapi_connection(spec)
+        return mod.SqlContextReceiptStore(connection_factory=factory, dialect=dialect, schema=args.schema, table_prefix=args.prefix)
     engine = lambda: mod._create_sql_engine(dg.EnvVar(args.url_env).get_value())  # noqa: E731
     return mod.SqlContextReceiptStore(engine, schema=args.schema, table_prefix=args.prefix)
 
@@ -70,6 +92,15 @@ def main(argv=None) -> int:
     s.add_argument("--url-env", required=True, help="env var holding the SQLAlchemy URL")
     s.add_argument("--schema", default="", help="database.schema (Snowflake), catalog.schema (Databricks), schema (Postgres), database (MySQL)")
     s.add_argument("--prefix", default="")
+    d = sub.add_parser("dbapi", help="the vendor's own Python connector, no SQLAlchemy")
+    d.add_argument("--kind", required=True, choices=["snowflake", "databricks", "postgres", "mysql"])
+    d.add_argument("--schema", default="", help="receipt-table namespace: database.schema (Snowflake), catalog.schema (Databricks), schema (Postgres), database (MySQL)")
+    d.add_argument("--conn-schema", default=None, help="Snowflake/Databricks session default schema (optional; table names are qualified by --schema anyway)")
+    d.add_argument("--prefix", default="")
+    for flag in ("account", "user", "warehouse", "database", "role", "server-hostname", "http-path", "catalog", "host", "port"):
+        d.add_argument(f"--{flag}")
+    for flag in ("password-env", "token-env", "private-key-env", "private-key-passphrase-env"):
+        d.add_argument(f"--{flag}", help="NAME of the env var holding the secret")
     q = sub.add_parser("sqlite")
     q.add_argument("--path", required=True)
     args = ap.parse_args(argv)

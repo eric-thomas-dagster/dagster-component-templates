@@ -90,6 +90,40 @@ attributes:
 
 Install the database's SQLAlchemy driver yourself (`psycopg2-binary`, `snowflake-sqlalchemy`, `databricks-sqlalchemy`, ...). The engine is built on first use, so an unset URL variable does not break loading the code location. A receipt is written in one transaction (receipt row last) where the database has transactions. Cursors for `read_since` are microsecond timestamps, as in the BigQuery backend.
 
+### Without SQLAlchemy: the vendor's own connector
+
+If you already have `dagster-snowflake` (`snowflake-connector-python`), `databricks-sql-connector`, `psycopg2` or `pymysql`, skip SQLAlchemy and its dialect packages and give `sql_connection` instead of `sql_url_env_var` (exactly one of the two is required). Secrets are read from the named environment variables when the first connection is opened; the connector is imported then too, so a missing one raises an `ImportError` naming the package to `pip install`.
+
+```yaml
+attributes:
+  backend: sql
+  sql_schema: ANALYTICS.CONTEXT
+  sql_connection:
+    kind: snowflake                     # pip install snowflake-connector-python (already there with dagster-snowflake)
+    account: acme-xy1
+    user: RECEIPTS
+    warehouse: WH
+    role: RECEIPTS_RW
+    password_env_var: SNOWFLAKE_PASSWORD        # or private_key_env_var (PEM) [+ private_key_passphrase_env_var]
+```
+
+| `kind` | keys | pip package |
+|---|---|---|
+| `snowflake` | `account`, `user`, `warehouse`, `database`, `schema`, `role`, `password_env_var` or `private_key_env_var` (+ `private_key_passphrase_env_var`), `authenticator`, `connect_args` | `snowflake-connector-python` |
+| `databricks` | `server_hostname`, `http_path`, `access_token_env_var`, `catalog`, `schema`, `connect_args` | `databricks-sql-connector` |
+| `postgres` | `host`, `port`, `database`, `user`, `password_env_var`, `connect_args` | `psycopg2-binary` |
+| `mysql` | `host`, `port`, `database`, `user`, `password_env_var`, `connect_args` | `pymysql` |
+
+In Python: `SqlContextReceiptStore(connection_factory=lambda: my_connection(), dialect="snowflake", schema="DB.SCHEMA")` accepts any zero-argument callable that returns a PEP-249 connection.
+
+How it runs on a plain connection:
+
+- **Parameters.** The store's SQL uses `:name` and `IN :ids` binds. One converter rewrites them for the driver's `paramstyle` (qmark, numeric, named, format, pyformat), expanding lists to `(%(ids_0)s, %(ids_1)s, ...)` and leaving quoted strings, quoted identifiers, comments, `::` casts and `col:field` paths alone. `paramstyle` is read from the driver module (`snowflake.connector` is pyformat, psycopg2 and pymysql pyformat, sqlite3 and duckdb qmark) or pass `paramstyle=`. For Databricks, `databricks-sql-connector` 3.x declares `named` (native `:name` parameters) and 2.x declared `pyformat` (client-side inlining); the store follows whatever the installed module declares.
+- **Transactions.** Snowflake and DuckDB connections autocommit, so a multi-statement write is wrapped in `BEGIN` ... `COMMIT` (`ROLLBACK` on error); a single statement is not wrapped. Postgres, MySQL and SQLite use the driver's implicit transaction with `commit()`/`rollback()`. Databricks has no multi-statement transactions at all: each statement stands alone, and the receipt row is written last as the commit marker, so a crashed write leaves only orphan item rows that the next attempt deletes. Override with `transaction_mode='dbapi'|'sql'|'none'`.
+- **Column names** from `cursor.description` are lowercased (Snowflake returns UPPERCASE). One connection is kept per thread and reconnected after a failed rollback.
+
+Verification of this path: the converter is unit-tested on all five paramstyles, and the whole store (every parametrized backend suite, including the self-test) runs on real `sqlite3` and real `duckdb` connections. Snowflake, Databricks, Postgres and MySQL have no real server behind them here: a Snowflake-shaped connection (pyformat, UPPERCASE names, autocommit) wrapping sqlite and stand-in vendor modules prove the conversion, name handling and connection arguments, not the services. Run `python3 tools/verify_receipts_backend.py dbapi --kind snowflake ...` against yours.
+
 Verification: SQLite and DuckDB run for real through SQLAlchemy, with a parity test against the native SQLite store. For Postgres, MySQL, Snowflake and Databricks the generated statements are only parsed with sqlglot -- no such servers were available, so treat those four as unverified until you run them against yours.
 
 ## Record a retrieval at the gateway
@@ -357,7 +391,7 @@ impact analysis; it does not yet query Dagster's asset graph automatically.
 
 ## Verify your backend
 
-Without Dagster, from a checkout of this repo, run `python3 tools/verify_receipts_backend.py bigquery --dataset my-project.context --prefix verify_` (or `sql --url-env RECEIPTS_URL --schema ...`, or `sqlite --path ...`). It runs the same self-test, prints a PASS/FAIL line per step and exits non-zero on any failure -- a one-command check against your own warehouse.
+Without Dagster, from a checkout of this repo, run `python3 tools/verify_receipts_backend.py bigquery --dataset my-project.context --prefix verify_` (or `sql --url-env RECEIPTS_URL --schema ...`, or `dbapi --kind snowflake|databricks|postgres|mysql ...` for the vendor connector, or `sqlite --path ...`). It runs the same self-test, prints a PASS/FAIL line per step and exits non-zero on any failure -- a one-command check against your own warehouse.
 
 Pointed this at a real Snowflake, BigQuery or Postgres? Check it in one step:
 

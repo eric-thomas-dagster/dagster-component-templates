@@ -102,12 +102,11 @@ def test_older_tables_are_upgraded_additively(kind, mod, tmp_path, monkeypatch):
         client.query(f"INSERT INTO {store._t('context_receipts')} (receipt_id, created_at, context_name, dagster_asset_key) "
                      f"VALUES ('old', TIMESTAMP '2020-01-01 00:00:00+00', 'rag', 'rag')").result()
     else:
-        import sqlalchemy as sa
-        with store._engine.begin() as conn:
+        with store._exec.transaction() as conn:       # SQLAlchemy or DBAPI executor
             for ddl in _old_ddl(mod, store.schema, store.table_prefix, store.dialect):
-                conn.execute(sa.text(ddl))
-            conn.execute(sa.text(f"INSERT INTO {store._t('context_receipts')} (receipt_id, created_at, context_name, dagster_asset_key) "
-                                 f"VALUES ('old', '2020-01-01T00:00:00+00:00', 'rag', 'rag')"))
+                conn.execute(ddl)
+            conn.execute(f"INSERT INTO {store._t('context_receipts')} (receipt_id, created_at, context_name, dagster_asset_key) "
+                         f"VALUES ('old', '2020-01-01T00:00:00+00:00', 'rag', 'rag')")
     store.record_retrieval(context_name="rag", receipt_id="new", items=[_item("a")], dagster_asset_key="rag", dagster_partition_key="2024-01-01")
     assert store.get_receipt("old")["dagster_partition_key"] is None        # the old row survived, reads NULL
     assert store.get_receipt("new")["dagster_partition_key"] == "2024-01-01"

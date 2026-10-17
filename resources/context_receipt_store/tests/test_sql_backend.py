@@ -25,8 +25,18 @@ def mod():
     return _load()
 
 
-@pytest.fixture(params=["sqlite", "duckdb"])
+@pytest.fixture(params=["sqlite", "duckdb", "dbapi-sqlite", "dbapi-duckdb"])
 def sql(request, mod, tmp_path):
+    if request.param.startswith("dbapi-"):      # the same suite on a plain PEP-249 connection (no SQLAlchemy)
+        import sqlite3
+        if request.param == "dbapi-duckdb":
+            duckdb = pytest.importorskip("duckdb")
+            store = mod.SqlContextReceiptStore(connection_factory=lambda: duckdb.connect(str(tmp_path / "r.duckdb")), dialect="duckdb", table_prefix="g_")
+        else:
+            store = mod.SqlContextReceiptStore(connection_factory=lambda: sqlite3.connect(str(tmp_path / "g.sqlite3")), dialect="sqlite", table_prefix="g_")
+        yield store
+        store.close()
+        return
     if request.param == "duckdb":
         pytest.importorskip("duckdb_engine")
         engine = sqlalchemy.create_engine(f"duckdb:///{tmp_path / 'r.duckdb'}")

@@ -12,6 +12,7 @@ import os
 import queue
 import random
 import sqlite3
+import sys
 import threading
 import time
 import uuid
@@ -2420,41 +2421,339 @@ _SQL_DIALECT_NAMES = {"postgresql": "postgres", "postgres": "postgres", "mysql":
                       "duckdb": "duckdb", "snowflake": "snowflake", "databricks": "databricks"}
 
 
+# -- SQL execution layer: one SQL text with `:name` / `IN :ids` binds, two ways to run it (SQLAlchemy engine, or a plain PEP-249 connection) --
+_PARAMSTYLES = ("qmark", "numeric", "named", "format", "pyformat")
+_NAME_START = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_")
+_NAME_CHARS = _NAME_START | set("0123456789")
+
+
+def _convert_sql_params(sql: str, params: Mapping[str, Any] | None, paramstyle: str) -> tuple[str, Any]:
+    """Rewrite this store's ``:name`` binds into a PEP-249 ``paramstyle`` and return ``(sql, params)`` (a list for qmark/numeric/format,
+    a dict for named/pyformat). A list value expands in place: ``IN :ids`` -> ``IN (?, ?, ?)`` / ``IN (%(ids_0)s, %(ids_1)s, ...)``; an
+    empty list becomes ``(NULL)`` (matches nothing). Left untouched: single-quoted strings, double-quoted and backtick identifiers,
+    ``--`` and ``/* */`` comments, ``::`` casts and a colon glued to a preceding word (``col:field``, Snowflake path syntax). For
+    format/pyformat a literal ``%`` in the SQL is doubled, as those drivers require. Unknown ``:name`` -> ValueError; extra params are
+    ignored. Backslash-escaped quotes inside string literals are not understood (this store's own SQL has none)."""
+    if paramstyle not in _PARAMSTYLES:
+        raise ValueError(f"unsupported paramstyle {paramstyle!r}; supported: {list(_PARAMSTYLES)}")
+    params = dict(params or {})
+    escape = paramstyle in ("format", "pyformat")
+    out: list[str] = []
+    ordered: list[Any] = []
+    named: dict[str, Any] = {}
+
+    def place(key: str, value: Any) -> str:
+        if paramstyle == "qmark":
+            ordered.append(value)
+            return "?"
+        if paramstyle == "numeric":
+            ordered.append(value)
+            return f":{len(ordered)}"
+        if paramstyle == "format":
+            ordered.append(value)
+            return "%s"
+        named[key] = value
+        return f":{key}" if paramstyle == "named" else f"%({key})s"
+
+    def lit(text: str) -> str:
+        return text.replace("%", "%%") if escape else text
+
+    i, n = 0, len(sql)
+    while i < n:
+        c = sql[i]
+        if c in "'\"`":
+            j = i + 1
+            while j < n:
+                if sql[j] == c:
+                    if j + 1 < n and sql[j + 1] == c:   # doubled quote is an escaped quote
+                        j += 2
+                        continue
+                    break
+                j += 1
+            out.append(lit(sql[i:j + 1]))
+            i = j + 1
+        elif sql.startswith("--", i):
+            j = sql.find("\n", i)
+            j = n if j < 0 else j
+            out.append(lit(sql[i:j]))
+            i = j
+        elif sql.startswith("/*", i):
+            j = sql.find("*/", i + 2)
+            j = n if j < 0 else j + 2
+            out.append(lit(sql[i:j]))
+            i = j
+        elif c == ":":
+            if sql.startswith("::", i):
+                out.append("::")
+                i += 2
+                continue
+            j = i + 1
+            while j < n and sql[j] in _NAME_CHARS:
+                j += 1
+            prev_is_word = i > 0 and sql[i - 1] in _NAME_CHARS
+            if j == i + 1 or sql[i + 1] not in _NAME_START or prev_is_word:
+                out.append(":")
+                i += 1
+                continue
+            name = sql[i + 1:j]
+            if name not in params:
+                raise ValueError(f"SQL parameter :{name} has no value (given: {sorted(params)})")
+            value = params[name]
+            if isinstance(value, (list, tuple, set, frozenset)):
+                values = list(value)
+                if not values:
+                    out.append("(NULL)")
+                else:
+                    keys = [f"{name}_{k}" for k in range(len(values))]
+                    clash = [k for k in keys if k in params]
+                    if clash:
+                        raise ValueError(f"expanded parameter names {clash} collide with existing parameters")
+                    out.append("(" + ", ".join(place(k, v) for k, v in zip(keys, values)) + ")")
+            else:
+                out.append(place(name, value))
+            i = j
+        else:
+            j = i + 1
+            while j < n and sql[j] not in "'\"`-/:":
+                j += 1
+            out.append(lit(sql[i:j]))
+            i = j
+    return "".join(out), (named if paramstyle in ("named", "pyformat") else ordered)
+
+
+class _SaTx:
+    def __init__(self, conn: Any):
+        self._conn = conn
+
+    def execute(self, sql: str, params: Mapping[str, Any] | None = None) -> list:
+        import sqlalchemy as sa
+
+        params = dict(params or {})
+        stmt = sa.text(sql)
+        lists = [k for k, v in params.items() if isinstance(v, (list, tuple))]
+        if lists:
+            stmt = stmt.bindparams(*[sa.bindparam(k, expanding=True) for k in lists])
+        result = self._conn.execute(stmt, params)
+        return [dict(r._mapping) for r in result] if result.returns_rows else []
+
+    def executemany(self, sql: str, rows: list) -> None:
+        import sqlalchemy as sa
+
+        if rows:
+            self._conn.execute(sa.text(sql), rows)
+
+
+class _SaExecutor:
+    """SQLAlchemy engine: one ``engine.begin()`` transaction per ``transaction()``."""
+
+    def __init__(self, engine_getter: Any):
+        self._get = engine_getter
+
+    @property
+    def engine(self) -> Any:
+        return self._get()
+
+    @property
+    def dialect_name(self) -> str:
+        return self.engine.dialect.name
+
+    @contextmanager
+    def transaction(self, single: bool = False) -> Iterator[_SaTx]:
+        with self.engine.begin() as conn:
+            yield _SaTx(conn)
+
+
+# How each dialect's DBAPI connection behaves, unless the caller overrides ``transaction_mode``:
+#   "dbapi": implicit transaction, ends with conn.commit()/rollback()  (sqlite3, psycopg2, pymysql)
+#   "sql":   the connection autocommits, so atomicity is BEGIN ... COMMIT/ROLLBACK statements (snowflake.connector's default is
+#            autocommit=True; duckdb autocommits and its rollback() raises when no transaction is active)
+#   "none":  no multi-statement transactions at all (Databricks SQL warehouses): every statement stands alone. record_retrieval's
+#            ordering (items, then the receipt row last as the commit marker) is what keeps a crashed write invisible.
+_TX_MODES = {"sqlite": "dbapi", "postgres": "dbapi", "mysql": "dbapi", "snowflake": "sql", "duckdb": "sql", "databricks": "none"}
+
+
+def _driver_paramstyle(conn: Any) -> str | None:
+    """``paramstyle`` of the driver module that produced ``conn`` (PEP 249 requires it at module level): try the connection class's module
+    and each parent package (``snowflake.connector.connection`` -> ``snowflake.connector``), also without a leading underscore (``_duckdb``)."""
+    parts = type(conn).__module__.split(".")
+    for end in range(len(parts), 0, -1):
+        dotted = ".".join(parts[:end])
+        for name in (dotted, dotted.lstrip("_")):
+            style = getattr(sys.modules.get(name), "paramstyle", None)
+            if style in _PARAMSTYLES:
+                return style
+    return None
+
+
+class _DbapiTx:
+    """One cursor for the whole transaction: ``duckdb``'s ``connection.cursor()`` is a separate connection with its own transaction state,
+    so BEGIN / statements / COMMIT must all go through the same cursor object."""
+
+    def __init__(self, conn: Any, paramstyle: str):
+        self._conn, self._style, self._cur = conn, paramstyle, None
+
+    def _cursor(self) -> Any:
+        if self._cur is None:
+            self._cur = self._conn.cursor()
+        return self._cur
+
+    def close(self) -> None:
+        if self._cur is not None:
+            try:
+                self._cur.close()
+            except Exception:  # noqa: BLE001
+                pass
+            self._cur = None
+
+    def execute(self, sql: str, params: Mapping[str, Any] | None = None) -> list:
+        if params:
+            sql, bound = _convert_sql_params(sql, params, self._style)
+        else:
+            _convert_sql_params(sql, {}, self._style)    # a stray :name with no value is an error, not a silent literal
+            bound = None
+        cur = self._cursor()
+        if bound is None:
+            cur.execute(sql)
+        else:
+            cur.execute(sql, bound)
+        if cur.description is None:
+            return []
+        names = [d[0].lower() for d in cur.description]       # Snowflake reports UPPERCASE
+        return [dict(zip(names, row)) for row in cur.fetchall()]
+
+    def executemany(self, sql: str, rows: list) -> None:
+        if not rows:
+            return
+        bound = [_convert_sql_params(sql, r, self._style) for r in rows]
+        self._cursor().executemany(bound[0][0], [b[1] for b in bound])
+
+
+class _DbapiExecutor:
+    """A plain PEP-249 connection: ``connect`` is a zero-argument callable returning a connection. One connection per thread (the async
+    writer thread and the caller never share one), opened on first use and dropped after a failed rollback so the next call reconnects."""
+
+    def __init__(self, connect: Any, dialect: str, paramstyle: str | None = None, transaction_mode: str | None = None):
+        if paramstyle is not None and paramstyle not in _PARAMSTYLES:
+            raise ValueError(f"unsupported paramstyle {paramstyle!r}; supported: {list(_PARAMSTYLES)}")
+        if transaction_mode is not None and transaction_mode not in ("dbapi", "sql", "none"):
+            raise ValueError("transaction_mode must be 'dbapi', 'sql' or 'none'")
+        self._connect, self.dialect_name = connect, dialect
+        self._style = paramstyle
+        self._mode = transaction_mode or _TX_MODES.get(dialect, "dbapi")
+        self._local = threading.local()
+
+    def _conn(self) -> Any:
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            conn = self._connect()
+            if self._style is None:
+                self._style = _driver_paramstyle(conn)
+                if self._style is None:
+                    raise ValueError(f"cannot tell the paramstyle of {type(conn).__module__!r}; pass paramstyle= "
+                                     f"(one of {list(_PARAMSTYLES)}; see the driver's docs)")
+            self._local.conn = conn
+        return conn
+
+    def _drop(self) -> None:
+        conn, self._local.conn = getattr(self._local, "conn", None), None
+        try:
+            if conn is not None:
+                conn.close()
+        except Exception:  # noqa: BLE001
+            pass
+
+    @contextmanager
+    def transaction(self, single: bool = False) -> Iterator[_DbapiTx]:
+        conn = self._conn()
+        tx = _DbapiTx(conn, self._style)
+        use_sql = self._mode == "sql" and not single      # a single statement autocommits: skip two round trips
+        try:
+            if use_sql:
+                tx.execute("BEGIN")
+            yield tx
+            if use_sql:
+                tx.execute("COMMIT")
+            elif self._mode == "dbapi":
+                conn.commit()
+        except BaseException:
+            try:
+                if use_sql:
+                    tx.execute("ROLLBACK")
+                elif self._mode == "dbapi":
+                    conn.rollback()
+            except Exception:  # noqa: BLE001
+                self._drop()      # state unknown: reconnect next time
+            raise
+        finally:
+            tx.close()
+
+    def close(self) -> None:
+        self._drop()
+
+
 class SqlContextReceiptStore(ContextReceiptStore):
     """Receipts in a SQL database. ``engine`` is a SQLAlchemy ``Engine`` (or a URL string); ``schema`` is the namespace the five
     tables live in (``database.schema`` for Snowflake, ``catalog.schema`` for Databricks, ``schema`` for Postgres, ``database``
     for MySQL, "" for the connection default)."""
 
-    def __init__(self, engine: Any, *, schema: str = "", table_prefix: str = "", dialect: str | None = None, create_tables: bool = True):
-        """``engine``: a SQLAlchemy Engine, a URL string, or a zero-argument callable returning an Engine (built on first use, so
-        an unset environment variable does not break loading the code location)."""
+    def __init__(self, engine: Any = None, *, schema: str = "", table_prefix: str = "", dialect: str | None = None, create_tables: bool = True,
+                 connection_factory: Any = None, paramstyle: str | None = None, transaction_mode: str | None = None):
+        """Two ways in, exactly one of:
+
+        ``engine``: a SQLAlchemy Engine, a URL string, or a zero-argument callable returning an Engine (built on first use, so an unset
+        environment variable does not break loading the code location). Needs SQLAlchemy plus the dialect's SQLAlchemy driver.
+
+        ``connection_factory``: a zero-argument callable returning a PEP-249 connection (``snowflake.connector.connect``,
+        ``databricks.sql.connect``, ``psycopg2.connect``, ``pymysql.connect``, ``sqlite3.connect``, ``duckdb.connect`` ...), no SQLAlchemy.
+        ``dialect`` is then required. ``paramstyle`` (qmark/numeric/named/format/pyformat) defaults to the driver module's own
+        ``paramstyle``; ``transaction_mode`` ('dbapi'/'sql'/'none') defaults per dialect (see ``_TX_MODES``). One connection is kept per
+        thread and opened on first use."""
+        if (engine is None) == (connection_factory is None):
+            raise ValueError("give exactly one of engine= (SQLAlchemy) or connection_factory= (a PEP-249 connection factory)")
+        if dialect is not None and dialect not in _SQL_DIALECT_NAMES:
+            raise ValueError(f"unsupported SQL dialect {dialect!r}; supported: {sorted(set(_SQL_DIALECT_NAMES))}")
         self._engine_obj: Any = None
         self._engine_factory: Any = None
-        if isinstance(engine, str):
-            self._engine_factory = lambda url=engine: _create_sql_engine(url)
-        elif callable(engine) and not hasattr(engine, "dialect"):
-            self._engine_factory = engine
+        self._dbapi: _DbapiExecutor | None = None
+        if connection_factory is not None:
+            if dialect is None:
+                raise ValueError("connection_factory= needs dialect= (one of " + ", ".join(sorted(set(_SQL_DIALECT_NAMES))) + ")")
+            self._dbapi = _DbapiExecutor(connection_factory, _SQL_DIALECT_NAMES[dialect], paramstyle, transaction_mode)
+            self._exec: Any = self._dbapi
         else:
-            self._engine_obj = engine
+            if paramstyle is not None or transaction_mode is not None:
+                raise ValueError("paramstyle= / transaction_mode= apply only to connection_factory=")
+            if isinstance(engine, str):
+                self._engine_factory = lambda url=engine: _create_sql_engine(url)
+            elif callable(engine) and not hasattr(engine, "dialect"):
+                self._engine_factory = engine
+            else:
+                self._engine_obj = engine
+            self._exec = _SaExecutor(lambda: self._engine)
         self._dialect_override = dialect
         self.schema, self.table_prefix = schema, table_prefix
         self._create_tables = create_tables
         self._ready = False
         self._ready_lock = threading.Lock()
-        if dialect is not None and dialect not in _SQL_DIALECT_NAMES:
-            raise ValueError(f"unsupported SQL dialect {dialect!r}; supported: {sorted(set(_SQL_DIALECT_NAMES))}")
-        if self._engine_obj is not None:
+        if self._engine_obj is not None or self._dbapi is not None:
             self.dialect  # fail fast on an unsupported database
 
     @property
     def _engine(self) -> Any:
+        if self._dbapi is not None:
+            raise AttributeError("this store runs on a DBAPI connection factory, not a SQLAlchemy engine")
         if self._engine_obj is None:
             self._engine_obj = self._engine_factory()
         return self._engine_obj
 
+    def close(self) -> None:
+        """Close this thread's DBAPI connection (no-op for an engine; dispose that yourself)."""
+        if self._dbapi is not None:
+            self._dbapi.close()
+
     @property
     def dialect(self) -> str:  # type: ignore[override]
-        name = self._dialect_override or self._engine.dialect.name
+        name = self._dialect_override or self._exec.dialect_name
         if name not in _SQL_DIALECT_NAMES:
             raise ValueError(f"unsupported SQL dialect {name!r}; supported: {sorted(set(_SQL_DIALECT_NAMES))}")
         return _SQL_DIALECT_NAMES[name]
@@ -2495,16 +2794,14 @@ class SqlContextReceiptStore(ContextReceiptStore):
             self._verify_columns()
 
     def _verify_columns(self) -> None:
-        import sqlalchemy as sa
-
         with self._ready_lock:
             if self._ready:
                 return
             missing, errors = [], []
             for probe, alter in receipt_column_upgrades(self.schema, self.table_prefix, self.dialect):
                 try:
-                    with self._engine.begin() as conn:
-                        conn.execute(sa.text(probe))
+                    with self._exec.transaction() as conn:
+                        conn.execute(probe)
                 except Exception as exc:  # noqa: BLE001
                     missing.append(alter)
                     errors.append(str(exc))
@@ -2513,44 +2810,35 @@ class SqlContextReceiptStore(ContextReceiptStore):
             self._ready = True
 
     def ensure_tables(self) -> None:
-        import sqlalchemy as sa
-
         with self._ready_lock:
             if self._ready:
                 return
-            with self._engine.begin() as conn:
+            with self._exec.transaction() as conn:
                 for ddl in receipt_table_ddl(self.schema, self.table_prefix, self.dialect):
-                    conn.execute(sa.text(ddl))
+                    conn.execute(ddl)
             for probe, alter in receipt_column_upgrades(self.schema, self.table_prefix, self.dialect):   # tables made by an older release
                 try:
-                    with self._engine.begin() as conn:      # its own transaction: a failed probe aborts a Postgres transaction
-                        conn.execute(sa.text(probe))
+                    with self._exec.transaction() as conn:      # its own transaction: a failed probe aborts a Postgres transaction
+                        conn.execute(probe)
                 except Exception:  # noqa: BLE001  (column missing)
-                    with self._engine.begin() as conn:
-                        conn.execute(sa.text(alter))
+                    with self._exec.transaction() as conn:
+                        conn.execute(alter)
             if self.dialect in ("postgres", "sqlite", "duckdb"):         # warehouses have no secondary indexes
                 for table, cols in (("context_receipts", "receipt_id"), ("context_receipt_items", "item_id"),
                                     ("context_receipt_items", "receipt_id"), ("context_receipt_items", "source_asset_key"),
                                     ("context_receipt_excluded", "receipt_id"), ("context_receipt_events", "receipt_id, occurred_at")):
                     index = f"idx_{self.table_prefix}{table}_{cols.split(',')[0]}".replace(" ", "")
                     try:
-                        with self._engine.begin() as conn:
-                            conn.execute(sa.text(f'CREATE INDEX IF NOT EXISTS "{index}" ON {self._t(table)} ({cols})'))
+                        with self._exec.transaction() as conn:
+                            conn.execute(f'CREATE INDEX IF NOT EXISTS "{index}" ON {self._t(table)} ({cols})')
                     except Exception:  # an index is an optimization, never a reason to fail
                         pass
             self._ready = True
 
     def _query(self, sql: str, **params: Any) -> list:
-        import sqlalchemy as sa
-
         self._prepare()
-        stmt = sa.text(sql)
-        lists = [k for k, v in params.items() if isinstance(v, (list, tuple))]
-        if lists:
-            stmt = stmt.bindparams(*[sa.bindparam(k, expanding=True) for k in lists])
-        with self._engine.begin() as conn:
-            result = conn.execute(stmt, params)
-            return [dict(r._mapping) for r in result] if result.returns_rows else []
+        with self._exec.transaction(single=True) as conn:
+            return conn.execute(sql, params)
 
     def _in_chunks(self, ids: list, size: int = 500) -> Iterator[list]:
         for start in range(0, len(ids), size):
@@ -2563,51 +2851,47 @@ class SqlContextReceiptStore(ContextReceiptStore):
                          excluded_count: int | None = None, dagster_asset_key: str | None = None, dagster_run_id: str | None = None,
                          receipt_id: str | None = None, trace_id: str | None = None, mcp_session_id: str | None = None,
                          mcp_request_id: str | None = None, dagster_partition_key: str | None = None) -> str:
-        import sqlalchemy as sa
-
         receipt_id, norm_items, norm_excluded, excluded_count, caller_id, mcp_session_id = self._prepare_retrieval(
             context_name, items, excluded, eligible_count, excluded_count, receipt_id, caller_id, mcp_session_id)
         self._prepare()
         created_at = self._tsv(self._timestamp())
-        with self._engine.begin() as conn:
-            seen = conn.execute(sa.text(
+        with self._exec.transaction() as conn:
+            seen = conn.execute(
                 f"SELECT (SELECT COUNT(1) FROM {self._t('context_receipts')} WHERE receipt_id = :r) AS r, "
                 f"(SELECT COUNT(1) FROM {self._t('context_receipt_items')} WHERE receipt_id = :r) AS i, "
-                f"(SELECT COUNT(1) FROM {self._t('context_receipt_excluded')} WHERE receipt_id = :r) AS e"), {"r": receipt_id}).one()
-            if seen.r:
+                f"(SELECT COUNT(1) FROM {self._t('context_receipt_excluded')} WHERE receipt_id = :r) AS e", {"r": receipt_id})[0]
+            if seen["r"]:
                 raise DuplicateReceiptError(f"receipt already exists: {receipt_id}")
-            if seen.i:   # leftovers of a crashed earlier attempt (databases without transactions)
-                conn.execute(sa.text(f"DELETE FROM {self._t('context_receipt_items')} WHERE receipt_id = :r"), {"r": receipt_id})
-            if seen.e:
-                conn.execute(sa.text(f"DELETE FROM {self._t('context_receipt_excluded')} WHERE receipt_id = :r"), {"r": receipt_id})
+            if seen["i"]:   # leftovers of a crashed earlier attempt (databases without transactions)
+                conn.execute(f"DELETE FROM {self._t('context_receipt_items')} WHERE receipt_id = :r", {"r": receipt_id})
+            if seen["e"]:
+                conn.execute(f"DELETE FROM {self._t('context_receipt_excluded')} WHERE receipt_id = :r", {"r": receipt_id})
             if norm_items:
-                conn.execute(sa.text(
+                conn.executemany(
                     f"INSERT INTO {self._t('context_receipt_items')} (receipt_id, item_id, source_asset_key, source_version, source_partition, "
                     f"source_code_version, {self._rank}, score, selection) VALUES (:receipt_id, :item_id, :source_asset_key, :source_version, "
-                    f":source_partition, :source_code_version, :rank, :score, :selection)"),
+                    f":source_partition, :source_code_version, :rank, :score, :selection)",
                     [{"receipt_id": receipt_id, **i} for i in norm_items])
             if norm_excluded:
-                conn.execute(sa.text(
+                conn.executemany(
                     f"INSERT INTO {self._t('context_receipt_excluded')} (receipt_id, item_id, reason, source_asset_key, source_version, "
                     f"source_partition, source_code_version) VALUES (:receipt_id, :item_id, :reason, :source_asset_key, :source_version, "
-                    f":source_partition, :source_code_version)"),
+                    f":source_partition, :source_code_version)",
                     [{"receipt_id": receipt_id, **e} for e in norm_excluded])
-            conn.execute(sa.text(   # the receipt row goes last: it is the commit marker
-                f"INSERT INTO {self._t('context_receipts')} ({', '.join(_BQ_RECEIPT_COLS)}) VALUES ({', '.join(':' + c for c in _BQ_RECEIPT_COLS)})"),
+            conn.execute(   # the receipt row goes last: it is the commit marker
+                f"INSERT INTO {self._t('context_receipts')} ({', '.join(_BQ_RECEIPT_COLS)}) VALUES ({', '.join(':' + c for c in _BQ_RECEIPT_COLS)})",
                 dict(zip(_BQ_RECEIPT_COLS, (receipt_id, created_at, context_name, context_version, policy_version, caller_id, purpose, query_hash,
                                             eligible_count, excluded_count, dagster_asset_key, dagster_run_id, trace_id, mcp_session_id,
                                             mcp_request_id, dagster_partition_key))))
         return receipt_id
 
     def _append_event(self, receipt_id: str, event_type: str, payload: Mapping[str, Any]) -> None:
-        import sqlalchemy as sa
-
         if not self._query(f"SELECT 1 AS x FROM {self._t('context_receipts')} WHERE receipt_id = :r LIMIT 1", r=receipt_id):
             raise KeyError(f"unknown context receipt: {receipt_id}")
-        with self._engine.begin() as conn:
-            conn.execute(sa.text(
+        with self._exec.transaction(single=True) as conn:
+            conn.execute(
                 f"INSERT INTO {self._t('context_receipt_events')} (event_id, receipt_id, event_type, occurred_at, payload_json) "
-                f"VALUES (:event_id, :receipt_id, :event_type, :occurred_at, :payload_json)"),
+                f"VALUES (:event_id, :receipt_id, :event_type, :occurred_at, :payload_json)",
                 {"event_id": str(uuid.uuid4()), "receipt_id": receipt_id, "event_type": event_type,
                  "occurred_at": self._tsv(self._timestamp()), "payload_json": json.dumps(payload, sort_keys=True, separators=(",", ":"))})
 
@@ -2705,8 +2989,6 @@ class SqlContextReceiptStore(ContextReceiptStore):
         return out
 
     def refresh_item_scores(self, prior_strength: float = 5.0) -> int:
-        import sqlalchemy as sa
-
         if prior_strength < 0:
             raise ValueError("prior_strength must be >= 0")
         items = self._query(f"SELECT receipt_id, item_id FROM {self._t('context_receipt_items')}")
@@ -2719,13 +3001,12 @@ class SqlContextReceiptStore(ContextReceiptStore):
                  "prior": total / (w + prior_strength) if (w + prior_strength) else 0.0, "updated_at": now}
                 for item, (n, w, total) in stats.items()]
         if rows:
-            with self._engine.begin() as conn:    # delete + insert in one transaction: readers never see a half-written table
+            with self._exec.transaction() as conn:    # delete + insert in one transaction: readers never see a half-written table
                 for chunk in self._in_chunks([r["item_id"] for r in rows]):
-                    conn.execute(sa.text(f"DELETE FROM {self._t('context_item_scores')} WHERE item_id IN :ids").bindparams(
-                        sa.bindparam("ids", expanding=True)), {"ids": chunk})
-                conn.execute(sa.text(
+                    conn.execute(f"DELETE FROM {self._t('context_item_scores')} WHERE item_id IN :ids", {"ids": chunk})
+                conn.executemany(
                     f"INSERT INTO {self._t('context_item_scores')} (item_id, retrievals, outcome_weight, outcome_sum, prior, updated_at) "
-                    f"VALUES (:item_id, :retrievals, :outcome_weight, :outcome_sum, :prior, :updated_at)"), rows)
+                    f"VALUES (:item_id, :retrievals, :outcome_weight, :outcome_sum, :prior, :updated_at)", rows)
         return len(stats)
 
     def get_item_scores(self, item_ids: Iterable[str]) -> dict[str, dict[str, Any]]:
@@ -2819,30 +3100,24 @@ class SqlContextReceiptStore(ContextReceiptStore):
         return {"receipts_deleted": len(doomed)}
 
     def delete_receipts(self, receipt_ids: Iterable[str]) -> int:
-        import sqlalchemy as sa
-
         ids = sorted({str(i) for i in receipt_ids})
         existed = 0
         for chunk in self._in_chunks(ids):
             existed += self._query(f"SELECT COUNT(1) AS n FROM {self._t('context_receipts')} WHERE receipt_id IN :ids", ids=chunk)[0]["n"]
-        with self._engine.begin() as conn:
+        with self._exec.transaction() as conn:
             for chunk in self._in_chunks(ids):
                 for table in ("context_receipt_events", "context_receipt_excluded", "context_receipt_items", "context_receipts"):
-                    conn.execute(sa.text(f"DELETE FROM {self._t(table)} WHERE receipt_id IN :ids").bindparams(
-                        sa.bindparam("ids", expanding=True)), {"ids": chunk})
+                    conn.execute(f"DELETE FROM {self._t(table)} WHERE receipt_id IN :ids", {"ids": chunk})
         return existed
 
     def delete_item_scores(self, item_ids: Iterable[str]) -> int:
-        import sqlalchemy as sa
-
         ids = sorted({str(i) for i in item_ids})
         existed = 0
         for chunk in self._in_chunks(ids):
             existed += self._query(f"SELECT COUNT(1) AS n FROM {self._t('context_item_scores')} WHERE item_id IN :ids", ids=chunk)[0]["n"]
-        with self._engine.begin() as conn:
+        with self._exec.transaction() as conn:
             for chunk in self._in_chunks(ids):
-                conn.execute(sa.text(f"DELETE FROM {self._t('context_item_scores')} WHERE item_id IN :ids").bindparams(
-                    sa.bindparam("ids", expanding=True)), {"ids": chunk})
+                conn.execute(f"DELETE FROM {self._t('context_item_scores')} WHERE item_id IN :ids", {"ids": chunk})
         return existed
 
     def _selftest_cursors(self) -> tuple[int, int]:
@@ -3402,6 +3677,86 @@ def build_usage_sensor(
     return context_receipt_usage_sensor
 
 
+_DBAPI_KINDS: dict[str, dict[str, Any]] = {
+    # kind -> dialect, the vendor package to pip install, required keys, other accepted keys
+    "snowflake": {"dialect": "snowflake", "pip": "snowflake-connector-python", "required": ("account", "user"),
+                  "optional": ("warehouse", "database", "schema", "role", "authenticator", "password_env_var", "private_key_env_var",
+                               "private_key_passphrase_env_var", "connect_args")},
+    "databricks": {"dialect": "databricks", "pip": "databricks-sql-connector", "required": ("server_hostname", "http_path", "access_token_env_var"),
+                   "optional": ("catalog", "schema", "connect_args")},
+    "postgres": {"dialect": "postgres", "pip": "psycopg2-binary", "required": ("host", "database", "user"),
+                 "optional": ("port", "password_env_var", "connect_args")},
+    "mysql": {"dialect": "mysql", "pip": "pymysql", "required": ("host", "database", "user"),
+              "optional": ("port", "password_env_var", "connect_args")},
+}
+
+
+def _env_secret(env_var: str, what: str) -> str:
+    value = dg.EnvVar(env_var).get_value()
+    if not value:
+        raise ValueError(f"sql_connection: environment variable {env_var} ({what}) is not set")
+    return value
+
+
+def _build_dbapi_connection(spec: Mapping[str, Any]) -> tuple[Any, str]:
+    """``sql_connection`` -> ``(connection_factory, dialect)``. Validates the keys now; imports the vendor connector and reads secrets
+    (``*_env_var`` keys, via ``dg.EnvVar(...).get_value()``) only when the factory is first called, so loading a code location needs neither."""
+    kind = spec.get("kind")
+    if kind not in _DBAPI_KINDS:
+        raise ValueError(f"sql_connection.kind must be one of {sorted(_DBAPI_KINDS)}, got {kind!r}")
+    info = _DBAPI_KINDS[kind]
+    unknown = sorted(set(spec) - {"kind"} - set(info["required"]) - set(info["optional"]))
+    if unknown:
+        raise ValueError(f"sql_connection (kind: {kind}) has unknown keys {unknown}; accepted: {sorted(set(info['required']) | set(info['optional']))}")
+    missing = [k for k in info["required"] if not spec.get(k)]
+    if missing:
+        raise ValueError(f"sql_connection (kind: {kind}) requires {missing}")
+    if kind == "snowflake" and bool(spec.get("password_env_var")) == bool(spec.get("private_key_env_var")) and spec.get("authenticator") is None:
+        raise ValueError("sql_connection (kind: snowflake) needs exactly one of password_env_var or private_key_env_var (or an authenticator)")
+    spec = dict(spec)
+
+    def importer(module: str) -> Any:
+        try:
+            import importlib
+
+            return importlib.import_module(module)
+        except ImportError as exc:
+            raise ImportError(f"backend: sql with sql_connection kind {kind!r} needs the vendor connector, which is not installed: "
+                              f"pip install {info['pip']}  (underlying error: {exc})") from exc
+
+    def factory() -> Any:
+        extra = dict(spec.get("connect_args") or {})
+        if kind == "snowflake":
+            connector = importer("snowflake.connector")
+            args: dict[str, Any] = {k: spec[k] for k in ("account", "user", "warehouse", "database", "schema", "role", "authenticator") if spec.get(k)}
+            if spec.get("password_env_var"):
+                args["password"] = _env_secret(spec["password_env_var"], "Snowflake password")
+            if spec.get("private_key_env_var"):
+                from cryptography.hazmat.primitives import serialization
+
+                passphrase = (_env_secret(spec["private_key_passphrase_env_var"], "private key passphrase").encode()
+                              if spec.get("private_key_passphrase_env_var") else None)
+                key = serialization.load_pem_private_key(_env_secret(spec["private_key_env_var"], "PEM private key").encode(), password=passphrase)
+                args["private_key"] = key.private_bytes(serialization.Encoding.DER, serialization.PrivateFormat.PKCS8, serialization.NoEncryption())
+            return connector.connect(**args, **extra)
+        if kind == "databricks":
+            dbsql = importer("databricks.sql")
+            args = {"server_hostname": spec["server_hostname"], "http_path": spec["http_path"],
+                    "access_token": _env_secret(spec["access_token_env_var"], "Databricks access token")}
+            args.update({k: spec[k] for k in ("catalog", "schema") if spec.get(k)})
+            return dbsql.connect(**args, **extra)
+        args = {"host": spec["host"], "user": spec["user"]}
+        if spec.get("port"):
+            args["port"] = int(spec["port"])
+        if spec.get("password_env_var"):
+            args["password"] = _env_secret(spec["password_env_var"], f"{kind} password")
+        if kind == "postgres":
+            return importer("psycopg2").connect(dbname=spec["database"], **args, **extra)
+        return importer("pymysql").connect(database=spec["database"], **args, **extra)
+
+    return factory, info["dialect"]
+
+
 class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a context receipt store for assets and agent gateways."""
 
@@ -3418,11 +3773,22 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     backend: str = Field(
         default="sqlite",
-        description="Where receipts live: 'sqlite' (a local file), 'bigquery' (tables in a BigQuery dataset), or 'sql' (any SQLAlchemy database: Postgres, MySQL, Snowflake, Databricks, DuckDB). The warehouse backends are shared across hosts and queryable from SQL-mode pipelines.",
+        description="Where receipts live: 'sqlite' (a local file), 'bigquery' (tables in a BigQuery dataset), or 'sql' (Postgres, MySQL, Snowflake, Databricks, DuckDB, through a SQLAlchemy URL or a plain vendor connection). The warehouse backends are shared across hosts and queryable from SQL-mode pipelines.",
     )
     sql_url_env_var: Optional[str] = Field(
         default=None,
         description="backend: sql -- env var holding a SQLAlchemy URL (postgresql://..., mysql+pymysql://..., snowflake://..., databricks://..., duckdb:///file.duckdb). Needs that database's SQLAlchemy driver installed.",
+    )
+    sql_connection: Optional[dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "backend: sql -- connect with the vendor's own Python connector, no SQLAlchemy needed (use this OR sql_url_env_var). "
+            "kind: snowflake {account, user, warehouse, database, schema, role, password_env_var or private_key_env_var [+ private_key_passphrase_env_var]} "
+            "(pip install snowflake-connector-python, which dagster-snowflake already brings); "
+            "kind: databricks {server_hostname, http_path, access_token_env_var, catalog, schema} (pip install databricks-sql-connector); "
+            "kind: postgres or mysql {host, port, database, user, password_env_var} (pip install psycopg2-binary or pymysql). "
+            "Secrets are read from the named environment variables. Optional connect_args: extra keyword arguments for the connector."
+        ),
     )
     sql_schema: str = Field(
         default="",
@@ -3550,15 +3916,20 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
             cls = AsyncBigQueryContextReceiptStore if self.async_writes else BigQueryContextReceiptStore
             store = cls(self.bigquery_dataset, client_factory=client_factory, table_prefix=self.bigquery_table_prefix)
         elif self.backend == "sql":
-            if not self.sql_url_env_var:
-                raise ValueError("backend: sql requires sql_url_env_var (the env var holding the SQLAlchemy URL)")
-            url_env = self.sql_url_env_var
-
-            def engine_factory():
-                return _create_sql_engine(dg.EnvVar(url_env).get_value())
-
+            if bool(self.sql_url_env_var) == bool(self.sql_connection):
+                raise ValueError("backend: sql requires exactly one of sql_url_env_var (the env var holding a SQLAlchemy URL) "
+                                 "or sql_connection (the vendor connector settings)")
             cls = AsyncSqlContextReceiptStore if self.async_writes else SqlContextReceiptStore
-            store = cls(engine_factory, schema=self.sql_schema, table_prefix=self.sql_table_prefix)
+            if self.sql_connection:
+                factory, dialect = _build_dbapi_connection(self.sql_connection)
+                store = cls(connection_factory=factory, dialect=dialect, schema=self.sql_schema, table_prefix=self.sql_table_prefix)
+            else:
+                url_env = self.sql_url_env_var
+
+                def engine_factory():
+                    return _create_sql_engine(dg.EnvVar(url_env).get_value())
+
+                store = cls(engine_factory, schema=self.sql_schema, table_prefix=self.sql_table_prefix)
         else:
             raise ValueError(f"backend must be 'sqlite', 'bigquery' or 'sql', got {self.backend!r}")
         if self.pseudonymize_callers:

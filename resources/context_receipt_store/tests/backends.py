@@ -10,7 +10,10 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent))
 from bq_fake import FakeBigQueryClient, install_fake_bigquery  # noqa: E402
 
-KINDS = ["sqlite", "sql-sqlite", "sql-duckdb", "bigquery-fake"]
+# dbapi-*: the same SqlContextReceiptStore on a plain PEP-249 connection factory (no SQLAlchemy): real sqlite3 (paramstyle qmark)
+# and real duckdb (qmark), so every parametrized suite also proves the DBAPI executor.
+KINDS = ["sqlite", "sql-sqlite", "sql-duckdb", "dbapi-sqlite", "dbapi-duckdb", "bigquery-fake"]
+DBAPI_KINDS = ["dbapi-sqlite", "dbapi-duckdb"]
 
 
 def load_module(name="context_receipt_store_new_features_under_test"):
@@ -30,6 +33,14 @@ def make_store(kind, mod, tmp_path, monkeypatch, *, async_writes=False):
         monkeypatch.setitem(sys.modules, "google.cloud.bigquery", install_fake_bigquery(client))
         cls = mod.AsyncBigQueryContextReceiptStore if async_writes else mod.BigQueryContextReceiptStore
         return cls("proj.ds", client_factory=lambda: client, table_prefix="t_")
+    cls = mod.AsyncSqlContextReceiptStore if async_writes else mod.SqlContextReceiptStore
+    if kind == "dbapi-sqlite":
+        path = str(tmp_path / "d.sqlite3")
+        return cls(connection_factory=lambda: sqlite3.connect(path), dialect="sqlite", table_prefix="g_")
+    if kind == "dbapi-duckdb":
+        duckdb = pytest.importorskip("duckdb")
+        path = str(tmp_path / "d.duckdb")
+        return cls(connection_factory=lambda: duckdb.connect(path), dialect="duckdb", table_prefix="g_")
     sa = pytest.importorskip("sqlalchemy")
     if kind == "sql-duckdb":
         pytest.importorskip("duckdb_engine")

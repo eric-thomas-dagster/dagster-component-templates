@@ -82,7 +82,7 @@ def test_ingest_path_is_pseudonymized_too(store):
     assert store.get_receipt("i1")["caller_id"].startswith("h:")
 
 
-@pytest.mark.parametrize("kind", ["sql-sqlite", "bigquery-fake"])
+@pytest.mark.parametrize("kind", ["sql-sqlite", "dbapi-sqlite", "dbapi-duckdb", "bigquery-fake"])
 def test_async_wrapper_pseudonymizes_before_queueing(kind, mod, tmp_path, monkeypatch):
     store = make_store(kind, mod, tmp_path, monkeypatch, async_writes=True)
     store.enable_pseudonymization("pepper")

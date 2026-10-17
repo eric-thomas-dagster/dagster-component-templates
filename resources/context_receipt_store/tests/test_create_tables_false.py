@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from backends import load_module, make_store  # noqa: E402
 from test_partition_key import _item, _old_ddl  # noqa: E402
 
-KINDS_WH = ["bigquery-fake", "sql-duckdb", "sql-sqlite"]
+KINDS_WH = ["bigquery-fake", "sql-duckdb", "sql-sqlite", "dbapi-sqlite", "dbapi-duckdb"]
 
 
 @pytest.fixture()
@@ -22,9 +22,8 @@ def _run(store, sql):
     if hasattr(store, "_client_factory"):
         store._client_factory().query(sql).result()
     else:
-        import sqlalchemy as sa
-        with store._engine.begin() as conn:
-            conn.execute(sa.text(sql))
+        with store._exec.transaction() as conn:     # works for the SQLAlchemy and the DBAPI executor alike
+            conn.execute(sql)
 
 
 def _ddl(mod, store, old):
@@ -42,7 +41,11 @@ def _manual(kind, mod, tmp_path, monkeypatch, old):
     if hasattr(store, "_client_factory"):
         manual = mod.BigQueryContextReceiptStore(store.dataset, client_factory=store._client_factory, table_prefix=store.table_prefix, create_tables=False)
     else:
-        manual = mod.SqlContextReceiptStore(store._engine, schema=store.schema, table_prefix=store.table_prefix, dialect=store.dialect, create_tables=False)
+        if store._dbapi is not None:
+            manual = mod.SqlContextReceiptStore(connection_factory=store._dbapi._connect, schema=store.schema, table_prefix=store.table_prefix,
+                                                dialect=store.dialect, create_tables=False)
+        else:
+            manual = mod.SqlContextReceiptStore(store._engine, schema=store.schema, table_prefix=store.table_prefix, dialect=store.dialect, create_tables=False)
     return manual, store
 
 
@@ -80,6 +83,37 @@ def test_up_to_date_table_costs_one_probe_per_instance(kind, mod, tmp_path, monk
         probes = [q for q in client.queries[before:] if re.match(r"\s*SELECT dagster_partition_key FROM .* WHERE 1 = 0", q)]
         assert len(probes) == 1
         assert not [q for q in client.queries[before:] if re.match(r"\s*(CREATE|ALTER)", q)]
+    elif manual._dbapi is not None:
+        seen = []
+        real = manual._dbapi._connect
+
+        class Spy:
+            def __init__(self, conn):
+                self._c = conn
+
+            def cursor(self):
+                outer, cur = seen, self._c.cursor()
+
+                class Cur:
+                    description = property(lambda self: cur.description)
+
+                    def execute(self, sql, *a):
+                        outer.append(sql)
+                        return cur.execute(sql, *a)
+
+                    def __getattr__(self, name):
+                        return getattr(cur, name)
+                return Cur()
+
+            def __getattr__(self, name):
+                return getattr(self._c, name)
+        manual._dbapi._connect = lambda: Spy(real())
+        manual._dbapi._style = "qmark"        # the Spy hides the driver module, so say it explicitly
+        manual.record_retrieval(context_name="rag", receipt_id="r1", items=[_item("a")])
+        manual.record_retrieval(context_name="rag", receipt_id="r2", items=[_item("a")])
+        manual.get_receipt("r1")
+        assert len([q for q in seen if "WHERE 1 = 0" in q]) == 1
+        assert not [q for q in seen if re.match(r"\s*(CREATE|ALTER)", q)]
     else:
         import sqlalchemy as sa
         seen = []

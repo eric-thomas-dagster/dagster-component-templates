@@ -1,6 +1,9 @@
 # The sqlite backend (default) needs nothing beyond dagster. Install only what the backend you use needs:
 #   backend: bigquery  ->  dagster-gcp
-#   backend: sql       ->  sqlalchemy plus ONE driver for your database:
+#   backend: sql       ->  EITHER sql_connection (the vendor's own connector, no SQLAlchemy):
+#                            snowflake: snowflake-connector-python (comes with dagster-snowflake) | databricks: databricks-sql-connector
+#                            postgres: psycopg2-binary | mysql: pymysql
+#                          OR sql_url_env_var: sqlalchemy plus ONE driver for your database:
 #                            postgres: psycopg2-binary | mysql: pymysql | snowflake: snowflake-sqlalchemy
 #                            databricks: databricks-sqlalchemy | duckdb: duckdb-engine
 # A missing driver raises an ImportError naming exactly what to pip install.

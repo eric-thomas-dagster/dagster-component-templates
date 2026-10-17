@@ -109,6 +109,62 @@ Both run against stock FastMCP (tested with 4.1.0); no fork is needed. They impo
   a `Middleware` that receipts any tool returning a `_receipt` dict, so tools
   stay receipt-agnostic.
 
+## Declare context once: `@context_asset`
+
+The decorator is the contract between the asset that builds context and the gateway that serves it.
+
+```python
+from dagster_community_components import context_asset, context_policies
+
+@context_asset(scope="account_id", sensitivity="confidential", max_age_hours=24, token_budget=4000,
+               access_tags=["support"])
+@dg.asset(partitions_def=daily)
+def account_context(): ...   # DataFrame with chunk_id, chunk_text, account_id, ...
+```
+
+Apply it after `@dg.asset`. It does three things:
+1. **Declares policy** as `context/policy` metadata plus `context/*` tags (the pipeline component's
+   `context_policy:` writes the same declaration). `context_policies(defs)` reads it back, which is how a
+   gateway discovers which assets are governed context and what applies to each.
+2. **Validates the output**: a DataFrame with unique, non-empty `chunk_id` and non-empty `chunk_text`
+   (names configurable) or the materialization fails. Non-DataFrame results pass through untouched.
+3. **Emits a content-derived data version**, so a no-op rebuild does not make receipts look stale.
+
+The gateway enforces the same declaration and the result lands on the receipt:
+
+```python
+policy = context_policies(defs)["account_context"]
+caller = CallerContext(clearance="internal", access_tags=("support",), scope_value="acme")  # from auth
+kept, excluded = policy.apply(candidates, caller)   # excluded is receipt-ready: reasons below
+store.record_retrieval(context_name="account_context", items=kept_items, excluded=excluded)
+```
+
+`evaluate` returns `out_of_scope` (tenant mismatch, or the caller has no `scope_value`: fail closed), `policy`
+(missing access tag, or asset sensitivity above the caller's clearance), `pii` (chunk tagged `sensitivity: pii`
+by the pipeline's `sensitivity` op, caller lacks `allow_pii`), or `stale` (`valid_until` passed; a bare date is valid
+through that day; or older than `max_age_hours`). `apply` also enforces `token_budget` greedily in rank order
+(`over_budget`). Caller identity must come from your auth layer, never from what the model says about itself.
+`retention_days` is declared metadata only: nothing purges receipts or chunks on it yet.
+
+## Where thumbs up/down and scoring come in
+
+MCP has no standard feedback channel, so there are four ways an outcome reaches a receipt. All of them end as an
+`outcome` event in the store; Dagster never sees the signal at write time, it reads and scores later.
+
+1. **Carry the receipt id with the answer.** The gateway returns `receipt_id` in the tool result and in `_meta`
+   (`context_receipt_id`; the middleware example does both), so the client or UI that renders the answer can post
+   feedback against it.
+2. **A feedback tool on the gateway** (`record_feedback` in the gateway example): the agent calls it with the
+   receipt id when its user reacts.
+3. **Write straight to the store from your app** (a support UI, CRM or ticketing webhook) using `record_outcome` or
+   a spec `outcome` event. No MCP involved.
+4. **Implicit signals** (`implicit_signals_enabled`, off by default): the sensor marks a retrieval `reformulated`
+   (-0.2) when the same caller re-asks in the same MCP session within `reformulation_window_seconds` with a
+   different query. A heuristic, so the weight is small; it needs `mcp_session_id` and `query_hash` on receipts.
+
+Scores then flow as described below: outcome, weighted by the evidence that an item was used, becomes a prior that
+re-ranks future retrievals and feeds the outcome-quality asset check.
+
 ## Close the loop: outcomes → scores → better context
 
 Gateway writes receipts; Dagster reads them. Dagster is never in the agent's request path.

@@ -10784,7 +10784,7 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-10-16",
-        "notes": "Receipts, excluded items, outcomes, evidence-weighted scoring, rerank/exploration, async writer, versioned spec (JSON Schema conformance), per-partition staleness and rebuilds, lineage-walking recall with partition mapping, context-health asset checks (executed for real), MCP/trace ids on receipts, and the usage sensor (real DagsterInstance) tested locally; FastMCP gateway and middleware tested against FastMCP 4.1.0."
+        "notes": "Receipts, excluded items, outcomes, evidence-weighted scoring, rerank/exploration, async writer, versioned spec (JSON Schema conformance), per-partition staleness and rebuilds, lineage-walking recall with partition mapping, context-health asset checks (executed for real), MCP/trace ids on receipts, @context_asset decorator with enforceable policy, implicit reformulation signals, and the usage sensor (real DagsterInstance) tested locally; FastMCP gateway and middleware tested against FastMCP 4.1.0."
       },
       "produces": [
         "resource"

@@ -250,6 +250,8 @@ _CLASS_PATHS: dict[str, str] = {
     "ConstantContactIngestionComponent": "assets/ingestion/constant_contact_ingestion/component.py",
     "ContextEngineeringPipelineComponent": "assets/ai/context_engineering_pipeline/component.py",
     "AsyncReceiptWriter": "resources/context_receipt_store/component.py",
+    "CallerContext": "resources/context_receipt_store/component.py",
+    "ContextPolicy": "resources/context_receipt_store/component.py",
     "ContextReceiptStore": "resources/context_receipt_store/component.py",
     "ContextReceiptStoreComponent": "resources/context_receipt_store/component.py",
     "ContractExtractorComponent": "assets/ai/contract_extractor/component.py",
@@ -1723,6 +1725,10 @@ def _make_stub(name: str) -> type:
 _HELPERS = {
     "rerank_with_priors":
         "dagster_community_components.resources.context_receipt_store.component:rerank",
+    "context_asset":
+        "dagster_community_components.resources.context_receipt_store.component:context_asset",
+    "context_policies":
+        "dagster_community_components.resources.context_receipt_store.component:context_policies",
     "receipts_impacted_by":
         "dagster_community_components.resources.context_receipt_store.component:impacted_receipts",
     "new_receipt_id":

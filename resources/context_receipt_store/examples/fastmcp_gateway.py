@@ -4,8 +4,11 @@ Run:  python fastmcp_gateway.py   (stdio)  or  fastmcp run fastmcp_gateway.py
 
 The gateway is the choke point: policy is evaluated here, so the receipt's
 `excluded` list is a fact about what was withheld, not a reconstruction. The
-Dagster side supplies the context (chunks, versions, source asset keys); swap
-CORPUS for your vector store / Dagster-materialized index.
+Dagster side supplies the context (chunks, versions, source asset keys) AND the
+policy: each context asset declares it (@context_asset, or the pipeline
+component's `context_policy`) and the gateway reads it back with
+`context_policies(defs)`. Here POLICIES stands in for that call; swap CORPUS for
+your vector store / Dagster-materialized index.
 """
 
 from __future__ import annotations
@@ -17,12 +20,23 @@ from typing import Any
 
 from fastmcp import FastMCP
 
-from dagster_community_components import AsyncReceiptWriter, ContextReceiptStore, rerank_with_priors
+from dagster_community_components import (
+    AsyncReceiptWriter,
+    CallerContext,
+    ContextPolicy,
+    ContextReceiptStore,
+    rerank_with_priors,
+)
 
 CONTEXT_NAME = "account_support_context"
 POLICY_VERSION = "support-policy-v1"
-MAX_AGE = timedelta(days=30)
 TOP_K = 3
+
+# In production: POLICIES = context_policies(defs), i.e. whatever each asset declared in Dagster.
+POLICIES: dict[str, ContextPolicy] = {
+    "support_tickets": ContextPolicy(scope="account", sensitivity="internal", max_age_hours=30 * 24, token_budget=4000),
+    "crm_accounts": ContextPolicy(scope="account", sensitivity="internal", token_budget=4000),
+}
 
 _NOW = datetime.now(timezone.utc)
 # Stand-in for a Dagster-built index: each chunk carries the version of the
@@ -51,17 +65,23 @@ def build_gateway(store: ContextReceiptStore, explore_fraction: float = 0.1) -> 
     def search_context(query: str, account: str, caller_id: str, purpose: str) -> dict:
         """Retrieve context for an account under policy; returns chunks + receipt_id."""
         keywords = {w.lower().strip("?.,") for w in query.split()}
-        retrieved, excluded = [], []
+        # The caller's identity comes from your auth layer, never from the model's own claims.
+        caller = CallerContext(clearance="internal", scope_value=account)
+        by_asset: dict[str, list[dict[str, Any]]] = {}
         for chunk in CORPUS:
-            ref = {"item_id": chunk["id"], "source_asset_key": chunk["asset"],
-                   "source_version": chunk["version"]}
-            if chunk["account"] != account:
-                excluded.append({**ref, "reason": "out_of_scope"})
-            elif chunk["pii"]:
-                excluded.append({**ref, "reason": "pii"})
-            elif _NOW - chunk["updated"] > MAX_AGE:
-                excluded.append({**ref, "reason": "stale"})
-            else:
+            by_asset.setdefault(chunk["asset"], []).append({
+                "item_id": chunk["id"], "text": chunk["text"], "chunk": chunk,
+                "source_asset_key": chunk["asset"], "source_version": chunk["version"],
+                "metadata": {"account": chunk["account"], "updated_at": chunk["updated"].isoformat(),
+                             "sensitivity": "pii" if chunk["pii"] else "none"},
+            })
+        retrieved, excluded = [], []
+        for asset_key, candidates in by_asset.items():
+            kept_cands, withheld = POLICIES[asset_key].apply(candidates, caller)
+            excluded += withheld
+            for cand in kept_cands:
+                chunk = cand["chunk"]
+                ref = {"item_id": chunk["id"], "source_asset_key": chunk["asset"], "source_version": chunk["version"]}
                 hits = len(keywords & {w.lower().strip("?.,") for w in chunk["text"].split()})
                 retrieved.append((hits, chunk, ref))
         # Rank by keyword hits adjusted by learned priors (written back by Dagster's

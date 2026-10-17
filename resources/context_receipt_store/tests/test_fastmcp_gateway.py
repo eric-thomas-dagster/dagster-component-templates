@@ -26,6 +26,8 @@ def test_gateway_receipts_retrieval_exclusions_and_output(tmp_path, monkeypatch)
     pkg.ContextReceiptStore = store_mod.ContextReceiptStore
     pkg.AsyncReceiptWriter = store_mod.AsyncReceiptWriter
     pkg.rerank_with_priors = store_mod.rerank
+    pkg.CallerContext = store_mod.CallerContext
+    pkg.ContextPolicy = store_mod.ContextPolicy
     monkeypatch.setitem(sys.modules, "dagster_community_components", pkg)
     gw = _load("ctx_gateway_example", root / "examples" / "fastmcp_gateway.py")
     store = store_mod.ContextReceiptStore(str(tmp_path / "gw.sqlite3"))
@@ -80,8 +82,9 @@ def test_middleware_receipts_opted_in_tools_only(tmp_path, monkeypatch):
 
     async def run():
         async with Client(app) as client:
-            return (await client.call_tool("lookup", {"caller_id": "agent"})).data, \
-                   (await client.call_tool("plain", {})).data
+            res = await client.call_tool("lookup", {"caller_id": "agent"})
+            assert res.meta["context_receipt_id"] == res.data["receipt_id"]  # carried for later feedback
+            return res.data, (await client.call_tool("plain", {})).data
 
     got, plain = asyncio.run(run())
     assert "_receipt" not in got and got["chunks"] == ["x"]
@@ -99,6 +102,8 @@ def test_outcomes_reorder_future_retrievals_closed_loop(tmp_path, monkeypatch):
     pkg.ContextReceiptStore = store_mod.ContextReceiptStore
     pkg.AsyncReceiptWriter = store_mod.AsyncReceiptWriter
     pkg.rerank_with_priors = store_mod.rerank
+    pkg.CallerContext = store_mod.CallerContext
+    pkg.ContextPolicy = store_mod.ContextPolicy
     monkeypatch.setitem(sys.modules, "dagster_community_components", pkg)
     gw = _load("ctx_gateway_example3", root / "examples" / "fastmcp_gateway.py")
     store = store_mod.ContextReceiptStore(str(tmp_path / "loop.sqlite3"))

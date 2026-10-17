@@ -104,7 +104,7 @@
         "type": {"const": "outcome"},
         "receipt_id": {"$ref": "#/$defs/id"},
         "occurred_at": {"type": "string"},
-        "signal": {"$ref": "#/$defs/id", "description": "Known: thumbs_up, thumbs_down, accepted, edited, escalated, reopened, closed_won, closed_lost. Others require `value`."},
+        "signal": {"$ref": "#/$defs/id", "description": "Known: thumbs_up, thumbs_down, accepted, edited, escalated, reopened, closed_won, closed_lost, reformulated (implicit, derived by the consumer from session behaviour). Others require `value`."},
         "value": {"type": ["number", "null"], "minimum": -1, "maximum": 1, "description": "Quality in [-1, 1]. Defaults by signal for known signals."},
         "source": {"$ref": "#/$defs/nullable_string"},
         "outcome_ref": {"$ref": "#/$defs/nullable_string", "description": "Identity of the judge (user id, ticket id). A later outcome with the same outcome_ref supersedes the earlier one when scoring."}

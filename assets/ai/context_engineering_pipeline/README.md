@@ -72,6 +72,14 @@ against live services; Pinecone cannot delete by filter on serverless indexes, s
 Qdrant point ids are now derived from the chunk id (they used to be the DataFrame row index, which overwrote unrelated
 chunks across runs, so re-index existing Qdrant collections).
 
+## Declaring governance policy
+
+`context_policy: {scope: customer_id, sensitivity: confidential, max_age_hours: 24, token_budget: 4000, access_tags: [support]}`
+records the policy a retrieval gateway should enforce as `context/policy` asset metadata and `context/*` tags (same
+declaration as the `@context_asset` decorator in `resources/context_receipt_store`; read back with
+`context_policies(defs)`). Pair it with the `stamp` op (`columns: {customer_id: "{customer_id}"}`, `ttl_days`) and the
+`sensitivity` op so each chunk carries the fields the policy checks.
+
 ## Receipt-ready context
 
 Two component fields make this pipeline the build side of the retrieval-receipt loop

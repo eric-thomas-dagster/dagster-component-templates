@@ -36,4 +36,6 @@ class ReceiptMiddleware(Middleware):
                 except Exception:  # not every transport exposes both ids
                     pass
         data["receipt_id"] = self.receipts.record_retrieval(**receipt_args)
-        return ToolResult(structured_content=data)
+        # `_meta` is the MCP channel a client or UI can carry alongside the answer, so a later
+        # thumbs-up/down (or any outcome) can be posted against this receipt id.
+        return ToolResult(structured_content=data, meta={"context_receipt_id": data["receipt_id"]})

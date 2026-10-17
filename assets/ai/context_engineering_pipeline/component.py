@@ -910,6 +910,29 @@ _FRAME_OPS = {
 }
 
 
+# Same declaration as resources/context_receipt_store's @context_asset (kept in sync by
+# tests/test_context_policy_contract.py): a gateway reads it back with context_policies().
+_CONTEXT_POLICY_METADATA_KEY = "context/policy"
+_CONTEXT_POLICY_FIELDS = frozenset({
+    "scope", "sensitivity", "max_age_hours", "token_budget", "retention_days", "access_tags",
+    "chars_per_token", "sensitivity_field", "valid_until_field", "updated_field",
+})
+_SENSITIVITY_LEVELS = ("public", "internal", "confidential", "restricted")
+
+
+def _validate_context_policy(policy: Dict[str, Any]) -> Dict[str, Any]:
+    unknown = set(policy) - _CONTEXT_POLICY_FIELDS
+    if unknown:
+        raise ValueError(f"context_policy: unknown field(s) {sorted(unknown)}; valid: {sorted(_CONTEXT_POLICY_FIELDS)}")
+    if policy.get("sensitivity", "internal") not in _SENSITIVITY_LEVELS:
+        raise ValueError(f"context_policy: sensitivity must be one of {_SENSITIVITY_LEVELS}, got {policy.get('sensitivity')!r}")
+    for name in ("max_age_hours", "token_budget", "retention_days"):
+        value = policy.get(name)
+        if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0):
+            raise ValueError(f"context_policy: {name} must be a positive number")
+    return dict(policy)
+
+
 def _content_version(df: pd.DataFrame, text_column: str, steps_cfg: List[dict]) -> str:
     """Content-derived version: hash of every (chunk_id, content_hash) plus the build configuration
     (everything except where it is written). Unlike Dagster's default data version, which changes on
@@ -1240,6 +1263,18 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         ),
     )
 
+    context_policy: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Declare the governance policy a retrieval gateway should enforce for this knowledge base: "
+            "{scope: <chunk metadata field naming the tenant>, sensitivity: public|internal|confidential|restricted, "
+            "max_age_hours, token_budget, retention_days, access_tags: [...]}. Recorded on the asset as "
+            "`context/policy` metadata and `context/*` tags; read back with context_policies() in "
+            "resources/context_receipt_store. Same declaration as the @context_asset decorator. "
+            "Pair with the `stamp` op (scope/valid_until columns) and `sensitivity` op so chunks carry the fields the policy checks."
+        ),
+    )
+
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     description: Optional[str] = Field(default=None, description="Asset description shown in the Dagster catalog.")
     deps: Optional[List[str]] = Field(default=None, description="Lineage-only upstream asset keys (no data passed at runtime).")
@@ -1340,11 +1375,16 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         sql_dialect = self.sql_dialect
         output_table = self.output_table
 
+        context_policy = _validate_context_policy(self.context_policy) if self.context_policy else None
         _inferred_kinds = self.kinds or ["ai", "context-engineering"]
         _all_tags = dict(self.asset_tags or {})
         for _kind in _inferred_kinds:
             _all_tags[f"dagster/kind/{_kind}"] = ""
 
+        if context_policy is not None:
+            _all_tags["context/sensitivity"] = context_policy.get("sensitivity", "internal")
+            if context_policy.get("scope"):
+                _all_tags["context/scope"] = context_policy["scope"]
         asset_kwargs: Dict[str, Any] = dict(
             key=AssetKey.from_user_string(asset_name),
             description=self.description or f"Context-engineering pipeline ({execution_mode} mode): {' → '.join(s['id'] for s in steps_cfg)}",
@@ -1356,6 +1396,8 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
+        if context_policy is not None:
+            asset_kwargs["metadata"] = {_CONTEXT_POLICY_METADATA_KEY: MetadataValue.json(context_policy)}
         if self.upstream_asset_key:
             asset_kwargs["ins"] = {"upstream": AssetIn(key=AssetKey.from_user_string(self.upstream_asset_key))}
         if source_cfg and source_cfg.get("resource_key"):

@@ -94,6 +94,20 @@
       "required": false,
       "default": 5,
       "description": "Outcomes needed before the quality check judges."
+    },
+    "implicit_signals_enabled": {
+      "type": "boolean",
+      "label": "Implicit Signals",
+      "required": false,
+      "default": false,
+      "description": "Derive weak implicit outcomes from session behaviour: a caller re-asking within reformulation_window_seconds with a different query marks the earlier receipt 'reformulated' (-0.2). A heuristic that needs mcp_session_id and query_hash on receipts; off by default."
+    },
+    "reformulation_window_seconds": {
+      "type": "number",
+      "label": "Reformulation Window (s)",
+      "required": false,
+      "default": 120.0,
+      "description": "Max gap between two retrievals to count as a reformulation."
     }
   }
 }

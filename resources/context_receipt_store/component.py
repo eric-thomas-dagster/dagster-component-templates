@@ -1,7 +1,8 @@
 """SQLite-backed context retrieval receipts and Dagster resource component."""
 
-from __future__ import annotations
 
+import functools
+import hashlib
 import json
 import math
 import os
@@ -11,7 +12,8 @@ import sqlite3
 import threading
 import time
 import uuid
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from dataclasses import asdict, dataclass, field, fields
 from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -40,6 +42,7 @@ OUTCOME_SIGNALS = {
     "reopened": -0.7,
     "closed_won": 1.0,
     "closed_lost": -0.5,
+    "reformulated": -0.2,  # implicit: the same session re-asked shortly after (see derive_implicit_outcomes)
 }
 # How much a receipt's outcome is credited/blamed on an item, by strongest evidence
 # that the item was actually used. Retrieved-only is weak: it was merely in the window.
@@ -99,6 +102,268 @@ def rerank(
 EXCLUSION_REASONS = ("pii", "stale", "out_of_scope", "over_budget", "policy")
 _EXCLUDED_FIELDS = {"item_id", "reason", "source_asset_key", "source_version", "source_partition"}
 _EVIDENCE_LEVELS = {"cited", "verified", "counterfactual_tested"}
+
+
+CONTEXT_POLICY_METADATA_KEY = "context/policy"
+SENSITIVITY_LEVELS = ("public", "internal", "confidential", "restricted")
+
+
+def _as_datetime(value: Any) -> datetime | None:
+    """Parse a datetime/ISO string; a bare date ("2026-10-31") means "through the end of that day"."""
+    if value is None or value == "":
+        return None
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    text = str(value)
+    if len(text) == 10:
+        return datetime.fromisoformat(text).replace(tzinfo=timezone.utc) + timedelta(days=1)
+    parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+@dataclass(frozen=True)
+class CallerContext:
+    """Who is asking, as the gateway knows it (from auth, never from the model's own claims)."""
+
+    clearance: str = "internal"
+    access_tags: tuple[str, ...] = ()
+    scope_value: str | None = None  # e.g. the account id this caller may see
+    allow_pii: bool = False
+    now: datetime | None = None
+
+    def __post_init__(self) -> None:
+        if self.clearance not in SENSITIVITY_LEVELS:
+            raise ValueError(f"clearance must be one of {SENSITIVITY_LEVELS}, got {self.clearance!r}")
+
+
+@dataclass(frozen=True)
+class ContextPolicy:
+    """Policy declared on a context asset (see ``context_asset``) and enforced at the gateway.
+
+    ``scope`` names the chunk-metadata field that identifies a tenant (e.g. "account_id"); callers only see
+    chunks whose value equals their ``scope_value`` (fail closed when they have none). ``access_tags`` means
+    the caller must hold at least one. ``sensitivity`` is the asset's level versus the caller's clearance;
+    chunk-level ``sensitivity_field == "pii"`` (set by the pipeline's sensitivity op) additionally needs
+    ``allow_pii``. Freshness comes from ``valid_until_field`` (a bare date is valid through that day) and
+    ``max_age_hours`` against ``updated_field``. ``token_budget`` caps what one retrieval may return.
+    ``retention_days`` is DECLARED metadata only: nothing purges receipts or chunks on it yet.
+    """
+
+    scope: str | None = None
+    sensitivity: str = "internal"
+    max_age_hours: float | None = None
+    token_budget: int | None = None
+    retention_days: int | None = None
+    access_tags: tuple[str, ...] = ()
+    chars_per_token: float = 4.0
+    sensitivity_field: str = "sensitivity"
+    valid_until_field: str = "valid_until"
+    updated_field: str = "updated_at"
+
+    def __post_init__(self) -> None:
+        if self.sensitivity not in SENSITIVITY_LEVELS:
+            raise ValueError(f"sensitivity must be one of {SENSITIVITY_LEVELS}, got {self.sensitivity!r}")
+        for name in ("max_age_hours", "token_budget", "retention_days"):
+            value = getattr(self, name)
+            if value is not None and (not isinstance(value, (int, float)) or isinstance(value, bool) or value <= 0):
+                raise ValueError(f"{name} must be a positive number or None")
+        if self.chars_per_token <= 0:
+            raise ValueError("chars_per_token must be positive")
+        object.__setattr__(self, "access_tags", tuple(self.access_tags))
+
+    def to_dict(self) -> dict[str, Any]:
+        out = asdict(self)
+        out["access_tags"] = list(self.access_tags)
+        return out
+
+    @classmethod
+    def from_dict(cls, data: Mapping[str, Any]) -> "ContextPolicy":
+        unknown = set(data) - {f.name for f in fields(cls)}
+        if unknown:
+            raise ValueError(f"unknown context policy field(s): {', '.join(sorted(unknown))}")
+        return cls(**{k: (tuple(v) if k == "access_tags" else v) for k, v in data.items()})
+
+    def evaluate(self, metadata: Mapping[str, Any], caller: CallerContext) -> str | None:
+        """Why this chunk must be withheld from ``caller`` (a receipt exclusion reason), or None to serve it.
+
+        Order: out_of_scope, policy (access tags / clearance), pii, stale."""
+        if self.scope is not None:
+            if caller.scope_value is None or str(metadata.get(self.scope)) != str(caller.scope_value):
+                return "out_of_scope"
+        if self.access_tags and not (set(self.access_tags) & set(caller.access_tags)):
+            return "policy"
+        if SENSITIVITY_LEVELS.index(self.sensitivity) > SENSITIVITY_LEVELS.index(caller.clearance):
+            return "policy"
+        if metadata.get(self.sensitivity_field) == "pii" and not caller.allow_pii:
+            return "pii"
+        now = caller.now or datetime.now(timezone.utc)
+        expires = _as_datetime(metadata.get(self.valid_until_field))
+        if expires is not None and now >= expires:
+            return "stale"
+        updated = _as_datetime(metadata.get(self.updated_field))
+        if self.max_age_hours is not None and updated is not None and now - updated > timedelta(hours=self.max_age_hours):
+            return "stale"
+        return None
+
+    def apply(
+        self, candidates: Iterable[Mapping[str, Any]], caller: CallerContext
+    ) -> tuple[list[Mapping[str, Any]], list[dict[str, Any]]]:
+        """Split ranked candidates into (kept, excluded) ready for ``record_retrieval``.
+
+        Each candidate has ``item_id``, optional ``metadata`` (the chunk's index metadata), optional ``text``
+        or ``tokens`` (for the budget) and optional ``source_asset_key`` / ``source_version`` /
+        ``source_partition``. Candidates are considered in the order given (rank order); the budget is greedy:
+        one that does not fit is excluded as ``over_budget`` and later, smaller ones may still fit."""
+        kept: list[Mapping[str, Any]] = []
+        excluded: list[dict[str, Any]] = []
+        used = 0
+        for candidate in candidates:
+            reason = self.evaluate(candidate.get("metadata") or {}, caller)
+            if reason is None and self.token_budget is not None:
+                tokens = candidate.get("tokens")
+                if tokens is None:
+                    tokens = math.ceil(len(candidate.get("text") or "") / self.chars_per_token)
+                if used + tokens > self.token_budget:
+                    reason = "over_budget"
+                else:
+                    used += tokens
+            if reason is None:
+                kept.append(candidate)
+            else:
+                excluded.append({"item_id": candidate["item_id"], "reason": reason,
+                                 **{k: candidate[k] for k in ("source_asset_key", "source_version", "source_partition")
+                                    if candidate.get(k) is not None}})
+        return kept, excluded
+
+
+def _validate_bundle(df: Any, id_column: str, text_column: str) -> None:
+    for column in (id_column, text_column):
+        if column not in df.columns:
+            raise dg.Failure(description=f"context asset must return a DataFrame with column {column!r}; got {list(df.columns)}")
+    ids = df[id_column]
+    if ids.isna().any() or (ids.astype(str).str.strip() == "").any():
+        raise dg.Failure(description=f"context asset: {id_column!r} has null/empty values")
+    if ids.duplicated().any():
+        dupes = ids[ids.duplicated()].astype(str).head(5).tolist()
+        raise dg.Failure(description=f"context asset: {id_column!r} must be unique; duplicates include {dupes}")
+    texts = df[text_column]
+    if texts.isna().any() or (texts.astype(str).str.strip() == "").any():
+        raise dg.Failure(description=f"context asset: {text_column!r} has null/empty values")
+
+
+def _bundle_version(df: Any, id_column: str, text_column: str) -> str:
+    """Content-derived version: changes only when a chunk id or its text changes."""
+    h = hashlib.sha256()
+    pairs = sorted(
+        (str(i), hashlib.sha256(str(t).encode()).hexdigest()) for i, t in zip(df[id_column], df[text_column])
+    )
+    for chunk_id, digest in pairs:
+        h.update(f"{chunk_id}:{digest}\n".encode())
+    return h.hexdigest()[:32]
+
+
+def _finalize_bundle(result: Any, id_column: str, text_column: str, emit_data_version: bool) -> Any:
+    value, metadata, data_version = result, {}, None
+    if isinstance(result, dg.Output):
+        value, metadata, data_version = result.value, dict(result.metadata or {}), result.data_version
+    if not hasattr(value, "columns"):  # not a DataFrame: nothing to validate or version
+        return result
+    _validate_bundle(value, id_column, text_column)
+    version = _bundle_version(value, id_column, text_column)
+    metadata.update({"context_version": dg.MetadataValue.text(version), "chunks": dg.MetadataValue.int(len(value))})
+    if data_version is None and emit_data_version:
+        data_version = dg.DataVersion(version)
+    return dg.Output(value=value, metadata=metadata, data_version=data_version)
+
+
+def context_asset(
+    *,
+    scope: str | None = None,
+    sensitivity: str = "internal",
+    max_age_hours: float | None = None,
+    token_budget: int | None = None,
+    retention_days: int | None = None,
+    access_tags: Sequence[str] = (),
+    id_column: str = "chunk_id",
+    text_column: str = "chunk_text",
+    emit_data_version: bool = True,
+    **policy_extras: Any,
+):
+    """Declare an asset as governed context: a policy contract plus an output contract.
+
+    Apply AFTER ``@dg.asset``. It (1) records the policy on the asset as ``context/policy`` metadata and
+    ``context/*`` tags so a gateway can discover context assets and their rules with ``context_policies``;
+    (2) validates what the asset returns (a DataFrame with unique non-empty ``id_column`` and non-empty
+    ``text_column``, else the materialization fails); and (3) emits a content-derived data version, because
+    Dagster's default changes every run and would make every recorded receipt look stale after a no-op rebuild.
+
+        @context_asset(scope="account_id", sensitivity="confidential", token_budget=4000, max_age_hours=24)
+        @dg.asset(partitions_def=daily)
+        def account_context(): ...   # returns a DataFrame with chunk_id, chunk_text, account_id, ...
+
+    The gateway then enforces the same declaration: ``context_policies(defs)["account_context"].apply(...)``.
+    """
+    policy = ContextPolicy(
+        scope=scope, sensitivity=sensitivity, max_age_hours=max_age_hours, token_budget=token_budget,
+        retention_days=retention_days, access_tags=tuple(access_tags), **policy_extras,
+    )
+
+    def decorator(target: Any) -> Any:
+        if not isinstance(target, dg.AssetsDefinition):
+            raise TypeError("@context_asset must be applied after @dg.asset (it decorates an AssetsDefinition)")
+        if len(target.keys) != 1:
+            raise ValueError("@context_asset supports single-asset definitions only")
+        key = next(iter(target.keys))
+        spec = target.get_asset_spec(key)
+        raw_fn = getattr(getattr(target.node_def, "compute_fn", None), "decorated_fn", None)
+        if raw_fn is None:
+            raise RuntimeError("@context_asset could not read the compute function from the AssetsDefinition")
+
+        @functools.wraps(raw_fn)
+        def compute(*args: Any, **kwargs: Any) -> Any:
+            return _finalize_bundle(raw_fn(*args, **kwargs), id_column, text_column, emit_data_version)
+
+        in_keys = set(target.keys_by_input_name.values())
+        tags = {**(spec.tags or {}), "context/sensitivity": policy.sensitivity}
+        if policy.scope:
+            tags["context/scope"] = policy.scope
+        kinds = set(spec.kinds or ())
+        if len(kinds) < 3:
+            kinds.add("context")
+        return dg.asset(
+            key=key,
+            description=spec.description,
+            group_name=spec.group_name,
+            owners=list(spec.owners) if spec.owners else None,
+            tags=tags,
+            metadata={**(spec.metadata or {}), CONTEXT_POLICY_METADATA_KEY: dg.MetadataValue.json(policy.to_dict())},
+            code_version=spec.code_version,
+            partitions_def=target.partitions_def,
+            automation_condition=spec.automation_condition,
+            kinds=kinds,
+            check_specs=list(target.check_specs) if getattr(target, "check_specs", None) else None,
+            ins={name: dg.AssetIn(key=dep) for name, dep in target.keys_by_input_name.items()} or None,
+            deps=[d.asset_key for d in (spec.deps or []) if d.asset_key not in in_keys] or None,
+            retry_policy=getattr(target.node_def, "retry_policy", None),
+            backfill_policy=getattr(target, "backfill_policy", None),
+        )(compute)
+
+    return decorator
+
+
+def context_policies(source: Any) -> dict[str, ContextPolicy]:
+    """Read every declared context policy: ``{asset_key: ContextPolicy}`` from ``Definitions`` or an asset graph.
+
+    This is how a gateway discovers which assets are governed context and what rules apply, from the
+    same declaration (``@context_asset`` or the pipeline component's ``context_policy``)."""
+    graph = source.resolve_asset_graph() if hasattr(source, "resolve_asset_graph") else source
+    policies: dict[str, ContextPolicy] = {}
+    for key in graph.get_all_asset_keys():
+        raw = (graph.get(key).metadata or {}).get(CONTEXT_POLICY_METADATA_KEY)
+        if raw is None:
+            continue
+        policies[key.to_user_string()] = ContextPolicy.from_dict(getattr(raw, "value", raw))
+    return policies
 
 
 class ContextReceiptStore:
@@ -817,6 +1082,47 @@ class ContextReceiptStore:
             "verified_outputs": len(with_output & verified),
         }
 
+    def derive_implicit_outcomes(self, *, window_seconds: float = 120.0, since: str | None = None) -> int:
+        """Write weak implicit outcomes from session behaviour; returns how many were created.
+
+        When one caller in one MCP session retrieves again within ``window_seconds`` with a *different*
+        ``query_hash``, the earlier receipt gets a ``reformulated`` outcome (value -0.2, source
+        ``implicit``): the first retrieval probably did not answer the question. Idempotent per
+        (earlier, later) pair via ``outcome_ref``. A heuristic: multi-part tasks look like reformulation
+        too, so keep the weight small (it is) and leave this off unless you want it. Needs
+        ``mcp_session_id`` and ``query_hash`` on receipts.
+        """
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT receipt_id, created_at, caller_id, mcp_session_id, query_hash
+                FROM context_receipts
+                WHERE mcp_session_id IS NOT NULL AND query_hash IS NOT NULL AND created_at >= ?
+                ORDER BY rowid
+                """,
+                (since or "",),
+            ).fetchall()
+            existing = {
+                json.loads(r["payload_json"]).get("outcome_ref")
+                for r in conn.execute(
+                    "SELECT payload_json FROM context_receipt_events WHERE event_type = 'outcome'"
+                )
+            }
+        previous: dict[tuple[str, str | None], Any] = {}
+        created = 0
+        for row in rows:
+            key = (row["mcp_session_id"], row["caller_id"])
+            prior = previous.get(key)
+            previous[key] = row
+            if prior is None or prior["query_hash"] == row["query_hash"]:
+                continue
+            gap = (_as_datetime(row["created_at"]) - _as_datetime(prior["created_at"])).total_seconds()
+            ref = f"implicit:reformulated:{row['receipt_id']}"
+            if gap <= window_seconds and ref not in existing:
+                self.record_outcome(prior["receipt_id"], signal="reformulated", source="implicit", outcome_ref=ref)
+                created += 1
+        return created
+
     def find_by_assets(self, targets: Mapping[str, Iterable[str] | None]) -> dict[str, list[str]]:
         """Receipts that used the given assets, optionally narrowed to partitions.
 
@@ -1083,6 +1389,8 @@ def build_usage_sensor(
     rebuild_asset_keys: list[str],
     stale_reads_threshold: int,
     prior_strength: float,
+    implicit_signals: bool = False,
+    reformulation_window_seconds: float = 120.0,
 ) -> dg.SensorDefinition:
     """Cold-path sensor: tail receipts, report aggregated usage, learn priors, request rebuilds.
 
@@ -1102,6 +1410,11 @@ def build_usage_sensor(
     )
     def context_receipt_usage_sensor(context: dg.SensorEvaluationContext):
         state = json.loads(context.cursor) if context.cursor else {}
+        if implicit_signals:  # written before reading so they are scored in this same tick
+            store.derive_implicit_outcomes(
+                window_seconds=reformulation_window_seconds,
+                since=(datetime.now(timezone.utc) - timedelta(days=1)).isoformat(),
+            )
         data = store.read_since(state.get("r", 0), state.get("e", 0))
         if not data["receipts"] and not data["outcomes"]:
             return dg.SkipReason("no new receipts or outcomes")
@@ -1230,6 +1543,15 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
     min_mean_outcome: float = Field(default=-0.2, description="Warn context_outcome_quality below this mean outcome.")
     min_verified_share: float = Field(default=0.5, description="Warn context_verified_share below this share.")
     min_checked_receipts: int = Field(default=5, description="Outcomes needed before the quality check judges.")
+    implicit_signals_enabled: bool = Field(
+        default=False,
+        description=(
+            "Derive weak implicit outcomes from session behaviour: a caller re-asking within "
+            "reformulation_window_seconds with a different query marks the earlier receipt 'reformulated' (-0.2). "
+            "A heuristic that needs mcp_session_id and query_hash on receipts; off by default."
+        ),
+    )
+    reformulation_window_seconds: float = Field(default=120.0, description="Max gap between two retrievals to count as a reformulation.")
     score_prior_strength: float = Field(
         default=5.0,
         description="Shrinkage for item quality priors: higher needs more outcome evidence to move a prior.",
@@ -1247,6 +1569,8 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
                     rebuild_asset_keys=self.rebuild_asset_keys,
                     stale_reads_threshold=self.stale_reads_threshold,
                     prior_strength=self.score_prior_strength,
+                    implicit_signals=self.implicit_signals_enabled,
+                    reformulation_window_seconds=self.reformulation_window_seconds,
                 )
             )
         checks = [

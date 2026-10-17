@@ -63,7 +63,6 @@ For Elastic Cloud, set `api_key_env_var` in addition to `elasticsearch_url_env_v
 | `asset_name` | `str` | Dagster asset key for this component. |
 | `elasticsearch_url_env_var` | `str` | Name of the environment variable containing the Elasticsearch URL (e.g. ``http://localhost:9200`` or an Elastic Cloud endpoint). |
 | `index_name` | `str` | Elasticsearch index to operate on. |
-| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of the upstream asset providing a pandas DataFrame. In ``index`` mode the DataFrame rows are indexed as ES documents. In ``query`` mode this field is still required for lineage but the upstream value is not used. |
 
 ### Connection
 
@@ -85,7 +84,7 @@ For Elastic Cloud, set `api_key_env_var` in addition to `elasticsearch_url_env_v
 | `group_name` | `str` | `"elasticsearch"` | Dagster asset group name. |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
 | `owners` | `List[str]` | — | Asset owners — team names ('team:analytics') or email addresses. |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
 | `kinds` | `List[str]` | — | Asset kinds for the catalog (e.g. ['snowflake', 'python']). Auto-inferred from component name when unset. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
@@ -105,7 +104,7 @@ For Elastic Cloud, set `api_key_env_var` in addition to `elasticsearch_url_env_v
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
-| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
 | `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
@@ -129,6 +128,8 @@ For Elastic Cloud, set `api_key_env_var` in addition to `elasticsearch_url_env_v
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Asset key of the upstream asset providing a pandas DataFrame. In ``index`` mode the DataFrame rows are indexed as ES documents. In ``query`` mode this field is optional (lineage only; the upstream value is not used). Mut… _(full docs in schema.json + component README)_ |
 | `id_field` | `str` | — | Column/field to use as the Elasticsearch document ``_id``. If omitted, Elasticsearch auto-generates IDs. |
 | `query` | `str` | `"{}"` | JSON string representing the Elasticsearch query DSL body sent in ``query`` mode. Defaults to ``{}`` which Elasticsearch treats as ``match_all``. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the data being written / produced in metadata, so builder UIs can show output shape without warehouse access. |
@@ -146,3 +147,27 @@ upstream_asset_key: raw/products   # equivalent single-key shorthand
 ```
 
 Both `deps` and `upstream_asset_key` are merged into the asset's dependency list.
+
+### Reading from a database instead of an upstream asset
+
+Instead of `upstream_asset_key`, set `source` to run a SQL query and feed its rows straight into this component -- no intermediate asset required. Set exactly one of `upstream_asset_key` or `source` (setting both or neither raises a `ValueError` at load time).
+
+`source` is `{kind: warehouse_query, sql: <query>, resource_key: <registered resource> OR database_url_env_var: <env var>}`. `resource_key` names a Dagster resource exposing `.get_engine()`, `.get_connection()` or `.get_client()` (Postgres, Snowflake, DuckDB, BigQuery, Redshift, ...); `database_url_env_var` names an env var holding a SQLAlchemy URL.
+
+`source` is only valid in `mode: index` (the DataFrame-input mode); `query` mode takes no DataFrame input.
+
+```yaml
+type: dagster_component_templates.ElasticsearchAssetComponent
+attributes:
+  asset_name: product_search_index
+  mode: index
+  elasticsearch_url_env_var: ELASTICSEARCH_URL
+  index_name: products
+  id_field: id
+  source:
+    kind: warehouse_query
+    database_url_env_var: WAREHOUSE_URL
+    sql: "SELECT id, body FROM support.tickets WHERE created_at > current_date - 7"
+```
+
+Results stay a DataFrame (this adds no database write-back); compose with a sink component to persist them.

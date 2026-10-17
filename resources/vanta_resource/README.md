@@ -23,6 +23,7 @@ Register a `VantaResource` wrapping the Vanta API v1 for use by other components
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `api_base_url` | `str` | `"https://api.vanta.com"` | Vanta API base URL (override for staging / regional tenants) |
+| `scope` | `str` | — | Optional space-separated OAuth scopes sent on the token request. Leave unset for Vanta's default grant. Write paths (e.g. vanta_evidence_upload) need write/upload scopes, e.g. 'vanta-api.all:read vanta-api.all:write vant… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 
@@ -35,6 +36,17 @@ attributes:
   client_id_env_var: VANTA_CLIENT_ID
   client_secret_env_var: VANTA_CLIENT_SECRET
 ```
+
+To request specific OAuth scopes (required for write paths such as `vanta_evidence_upload`), set `scope`:
+
+```yaml
+type: dagster_community_components.VantaResourceComponent
+attributes:
+  resource_key: vanta_resource
+  scope: "vanta-api.all:read vanta-api.all:write vanta-api.documents:upload"
+```
+
+`scope` is passed as the space-separated `scope` parameter on the token request; unset (the default) sends none and uses Vanta's default grant.
 
 ## Authentication
 

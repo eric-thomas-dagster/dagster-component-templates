@@ -129,6 +129,16 @@ class ModerationScorerComponent(Component, Model, Resolvable):
         description="Upstream asset key providing a DataFrame with content to score"
     )
 
+    flag_threshold: float = Field(
+        default=0.5,
+        description="Risk score above which content is 'flagged' (strictly greater than; 0-1). Must be >= review_threshold.",
+    )
+
+    review_threshold: float = Field(
+        default=0.3,
+        description="Risk score above which content is 'needs_review' (strictly greater than; 0-1). Must be <= flag_threshold.",
+    )
+
     description: Optional[str] = Field(
         default=None,
         description="Asset description"
@@ -262,6 +272,14 @@ class ModerationScorerComponent(Component, Model, Resolvable):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=False)
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        if not (0.0 <= self.review_threshold <= self.flag_threshold <= 1.0):
+            raise ValueError(
+                "ModerationScorerComponent: thresholds must satisfy "
+                f"0 <= review_threshold <= flag_threshold <= 1 (got review_threshold={self.review_threshold}, "
+                f"flag_threshold={self.flag_threshold})."
+            )
+        _flag_threshold = self.flag_threshold
+        _review_threshold = self.review_threshold
         # Standard catalog fields — phase 2 wiring
         _retry_policy = None
         if self.retry_policy_max_retries is not None:
@@ -374,10 +392,10 @@ class ModerationScorerComponent(Component, Model, Resolvable):
                     risk_score = min(risk_score, 1.0)
 
                     # Determine moderation decision
-                    if risk_score > 0.5:
+                    if risk_score > _flag_threshold:
                         decision = 'flagged'
                         confidence = 0.8
-                    elif risk_score > 0.3:
+                    elif risk_score > _review_threshold:
                         decision = 'needs_review'
                         confidence = 0.6
                     else:

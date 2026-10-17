@@ -20,7 +20,7 @@ A separate write path exists — creating a *custom evidence request* on an audi
 
 This component reuses the existing `vanta_resource` (`VantaResourceComponent`) — the same OAuth2 client-credentials resource that `vanta_controls_ingestion` and `vanta_evidence_response_agent` already use. No new auth handling was added.
 
-That said, writing evidence requires more than those two read-only components need: the OAuth token must carry write/upload scopes (`vanta-api.all:read vanta-api.all:write vanta-api.documents:upload`). `VantaResourceComponent` does not currently expose a `scope` YAML field, so request the extra scopes by registering the underlying `VantaResource` yourself (its `scope` attribute is passed to the token request), or use an OAuth client in Vanta whose default grant already includes them:
+That said, writing evidence requires more than those two read-only components need: the OAuth token must carry write/upload scopes. Set them on the resource's `scope` field (passed to the OAuth token request), or use an OAuth client in Vanta whose default grant already includes them:
 
 ```yaml
 type: dagster_community_components.VantaResourceComponent
@@ -28,6 +28,7 @@ attributes:
   resource_key: vanta_resource
   client_id_env_var: VANTA_CLIENT_ID
   client_secret_env_var: VANTA_CLIENT_SECRET
+  scope: "vanta-api.all:read vanta-api.all:write vanta-api.documents:upload"
 ```
 
 ## When to use

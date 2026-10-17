@@ -26,7 +26,7 @@ The Moderation Scorer component analyzes content from upstream sources and assig
 | `description` | `str` | — | Asset description |
 | `group_name` | `str` | — | Dagster asset group name. |
 | `owners` | `List[str]` | — | Asset owners — team names ('team:analytics') or email addresses. |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
 | `kinds` | `List[str]` | — | Asset kinds for the catalog (e.g. ['snowflake', 'python']). Auto-inferred from component name when unset. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
@@ -45,7 +45,7 @@ The Moderation Scorer component analyzes content from upstream sources and assig
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
-| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
 | `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
 
@@ -61,6 +61,8 @@ The Moderation Scorer component analyzes content from upstream sources and assig
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `flag_threshold` | `float` | `0.5` | Risk score above which content is 'flagged' (strictly greater than; 0-1). Must be >= review_threshold. |
+| `review_threshold` | `float` | `0.3` | Risk score above which content is 'needs_review' (strictly greater than; 0-1). Must be <= flag_threshold. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
 
@@ -72,8 +74,7 @@ The Moderation Scorer component analyzes content from upstream sources and assig
 - **Sentiment Analysis**: Detects positive and negative language patterns
 - **Risk Assessment**: Calculates risk scores (0-1 scale)
 - **Automated Decisions**: Classifies content as approved, needs_review, or flagged
-- **Fixed Thresholds**: Decision cut-offs are built into the component (not configurable)
-- **Detailed Reasoning**: Provides explanation for moderation decisions
+- **Configurable Thresholds**: `flag_threshold` (default 0.5) and `review_threshold` (default 0.3)
 
 ## Configuration
 
@@ -84,6 +85,8 @@ The Moderation Scorer component analyzes content from upstream sources and assig
 
 ### Optional Parameters
 
+- `flag_threshold`: Risk score above which content is `flagged` (default: 0.5, range 0-1; strictly greater than)
+- `review_threshold`: Risk score above which content is `needs_review` (default: 0.3, range 0-1; strictly greater than)
 - `description`: Asset description
 - `group_name`: Asset group for organization (default: "content_moderation")
 - `include_preview_metadata`: Include sample data preview (default: false)
@@ -96,33 +99,36 @@ attributes:
   asset_name: moderated_content
   upstream_asset_key: user_content
   description: "Automated content moderation scores"
+  flag_threshold: 0.7     # stricter: only flag above 0.7 (default 0.5)
+  review_threshold: 0.4   # send to a moderator above 0.4 (default 0.3)
 ```
+
+Thresholds must satisfy `0 <= review_threshold <= flag_threshold <= 1`, otherwise `build_defs` raises a `ValueError`.
 
 ## How It Works
 
 1. **Content Loading**: Reads content from upstream asset
 2. **Text Analysis**: Scans for risk keywords and sentiment indicators
-3. **Score Calculation**:
-   - Risk keywords add 0.3 points per match
-   - Negative indicators add 0.2 points per match
-   - Positive sentiment reduces score by 0.1 per match
+3. **Score Calculation** (on the `content_text` column):
+   - Each risk keyword (spam, scam, fraud, inappropriate, offensive, violence, hate) adds 0.3
+   - Very short text (< 10 chars) adds 0.1; very long text (> 1000 chars) adds 0.05
+   - The score is capped at 1.0. Sentiment is reported separately and does not change the risk score.
 4. **Decision Assignment**:
-   - Score > 0.5: **flagged** for removal
-   - Score > 0.3: **needs_review** by moderator
+   - Score > `flag_threshold` (default 0.5): **flagged** for removal
+   - Score > `review_threshold` (default 0.3): **needs_review** by moderator
    - Otherwise: **approved**
-   (these cut-offs are fixed in the component)
-5. **Reasoning**: Generates explanation based on detected patterns
 
 ## Output Schema
 
+The upstream DataFrame's columns are passed through, plus:
+
 | Field | Type | Description |
 |-------|------|-------------|
-| content_id | any | Original content identifier |
 | risk_score | float | Moderation risk score (0-1) |
-| decision | string | Moderation decision (approved/needs_review/flagged) |
-| risk_indicators | list | Detected risk keywords |
-| sentiment_indicators | list | Detected sentiment patterns |
-| reasoning | string | Explanation of the decision |
+| sentiment_score | float | Sentiment score (0-1, 0.5 neutral) |
+| moderation_decision | string | Moderation decision (approved/needs_review/flagged) |
+| confidence | float | Fixed confidence per decision (0.9 approved, 0.6 needs_review, 0.8 flagged) |
+| scored_at | timestamp | When the row was scored |
 
 ## Use Cases
 

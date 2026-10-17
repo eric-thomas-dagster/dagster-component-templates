@@ -24,8 +24,14 @@
     "upstream_asset_key": {
       "type": "string",
       "label": "Upstream Asset Key",
-      "description": "Asset key of the upstream asset providing a pandas DataFrame. In ``log_metrics`` mode, each row is logged as a W&B run step. In ``log_artifact`` mode, this field is used for lineage only.",
-      "required": true
+      "description": "Asset key of the upstream asset providing a pandas DataFrame. In ``log_metrics`` mode, each row is logged as a W&B run step. In ``log_artifact`` mode, this field is optional and used for lineage only. In ``log_metrics`` mode set exactly one of this or `source`.",
+      "required": false
+    },
+    "source": {
+      "type": "object",
+      "label": "SQL Source",
+      "description": "Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one.",
+      "required": false
     },
     "wandb_api_key_env_var": {
       "type": "string",

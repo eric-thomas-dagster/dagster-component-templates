@@ -37,6 +37,12 @@
       "description": "Vanta API base URL (override for staging / regional tenants)",
       "required": false,
       "default": "https://api.vanta.com"
+    },
+    "scope": {
+      "type": "string",
+      "label": "OAuth Scope",
+      "description": "Optional space-separated OAuth scopes sent on the token request. Leave unset for Vanta's default grant. Write paths (e.g. vanta_evidence_upload) need write/upload scopes, e.g. 'vanta-api.all:read vanta-api.all:write vanta-api.documents:upload'.",
+      "required": false
     }
   },
   "tags": [

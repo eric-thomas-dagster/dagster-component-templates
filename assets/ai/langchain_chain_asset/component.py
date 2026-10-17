@@ -130,6 +130,59 @@ def _build_partitions_def(
 
 
 
+def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
+    """Execute SQL via a Dagster resource that exposes .get_engine()
+    (SQLAlchemy), .get_connection() (DBAPI), or .get_client() (vendor
+    client -- dispatched by the client's own shape since "get_client" means
+    something different per vendor: BigQuery's .query(sql).to_dataframe(),
+    Redshift's .execute_query(sql, fetch_results=True, cursor_factory=
+    RealDictCursor)), or a bare SQLAlchemy engine built from
+    `database_url_env_var` when no Dagster resource is registered. Same
+    helper, same contract, as every other dual-ingestion component in this
+    repo (e.g. automl_asset, logistic_regression_model, churn_prediction)."""
+    import pandas as pd
+    sql = source_config["sql"]
+    resource_key = source_config.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            return pd.read_sql(sql, resource.get_engine())
+        if hasattr(resource, "get_connection"):
+            with resource.get_connection() as conn:
+                return pd.read_sql(sql, conn)
+        if hasattr(resource, "get_client"):
+            client = resource.get_client()
+            if hasattr(client, "query"):
+                job = client.query(sql)
+                if hasattr(job, "to_dataframe"):
+                    return job.to_dataframe()
+            if hasattr(client, "execute_query"):
+                try:
+                    from psycopg2.extras import RealDictCursor
+                    rows = client.execute_query(sql, fetch_results=True, cursor_factory=RealDictCursor)
+                except ImportError:
+                    rows = client.execute_query(sql, fetch_results=True)
+                return pd.DataFrame([dict(r) for r in (rows or [])])
+            raise ValueError(
+                f"resource {resource_key!r}'s get_client() returned {type(client).__name__}, "
+                "which this helper doesn't know how to query (no .query()/.to_dataframe() "
+                "or .execute_query() method found). Add a dispatch branch for it."
+            )
+        raise ValueError(
+            f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy), "
+            f".get_connection() (DBAPI), or .get_client() (vendor client); got {type(resource).__name__}"
+        )
+    env_var = source_config.get("database_url_env_var")
+    if env_var:
+        import os
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        return pd.read_sql(sql, create_engine(url))
+    raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+
+
 # BEGIN upstream-asset-key normalization (inlined per component; keep copies identical — see tests/test_upstream_keys.py)
 from typing import List, Optional, Union  # noqa: E402,F401
 from pydantic import model_validator  # noqa: E402,F401
@@ -240,7 +293,16 @@ class LangChainChainAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     asset_name: str = Field(description="Dagster asset name")
-    upstream_asset_key: Union[str, List[str]] = Field(description="Upstream asset key providing a DataFrame (must return a pandas DataFrame)")
+    source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Pull rows directly via SQL instead of from an upstream asset: "
+            "{kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. "
+            "Mutually exclusive with `upstream_asset_key` -- set exactly one."
+        ),
+    )
+    upstream_asset_key: Optional[Union[str, List[str]]] = Field(
+        default=None,description="Upstream asset key providing a DataFrame (must return a pandas DataFrame)")
 
     # LLM configuration
     llm_provider: str = Field(default="openai", description="LLM provider: openai, anthropic, azure_openai, google, ollama")
@@ -367,9 +429,11 @@ class LangChainChainAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_upstream_asset_keys(cls, data):
-        return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=False)
+        return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        if bool(self.upstream_asset_key) == bool(self.source):
+            raise ValueError("LangChainChainAssetComponent: set exactly one of `upstream_asset_key` or `source`.")
         _self = self
 
 
@@ -418,10 +482,14 @@ class LangChainChainAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             description=_self.description or f"LangChain ({_self.llm_provider}/{_self.model}): {_self.prompt_template[:50]}...",
             group_name=_self.group_name,
             kinds={"ai", "langchain"},
-            ins={"upstream": AssetIn(key=AssetKey.from_user_string(_self.upstream_asset_key))},
+            ins=({"upstream": AssetIn(key=AssetKey.from_user_string(_self.upstream_asset_key))} if _self.upstream_asset_key else None),
+            required_resource_keys=({_self.source["resource_key"]} if (_self.source and _self.source.get("resource_key")) else None),
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def langchain_chain_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
+        def langchain_chain_asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
+            upstream = kwargs.get("upstream")
+            if upstream is None:
+                upstream = _ingest_warehouse_query(_self.source, context)
             import os, json
 
             df = upstream.copy()

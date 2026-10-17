@@ -16,7 +16,7 @@ Vanta quirks worth noting:
 """
 import os
 import time
-from typing import Any
+from typing import Any, Optional
 
 import dagster as dg
 import requests
@@ -121,6 +121,7 @@ class VantaResourceComponent(dg.Component, dg.Model, dg.Resolvable):
           resource_key: vanta_resource
           client_id_env_var: VANTA_CLIENT_ID
           client_secret_env_var: VANTA_CLIENT_SECRET
+          # scope: "vanta-api.all:read vanta-api.all:write vanta-api.documents:upload"  # for write paths
         ```
     """
 
@@ -140,11 +141,20 @@ class VantaResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         default="https://api.vanta.com",
         description="Vanta API base URL (override for staging / regional tenants)",
     )
+    scope: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional space-separated OAuth scopes sent on the token request. Leave unset for Vanta's "
+            "default grant. Write paths (e.g. vanta_evidence_upload) need write/upload scopes, e.g. "
+            "'vanta-api.all:read vanta-api.all:write vanta-api.documents:upload'."
+        ),
+    )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = VantaResource(
             client_id=dg.EnvVar(self.client_id_env_var),
             client_secret=dg.EnvVar(self.client_secret_env_var),
             api_base_url=self.api_base_url,
+            scope=self.scope or "",
         )
         return dg.Definitions(resources={self.resource_key: resource})

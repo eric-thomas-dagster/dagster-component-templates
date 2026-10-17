@@ -19,7 +19,6 @@ In a typical RAG or semantic-search pipeline:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset key for this component. |
-| `upstream_asset_key` | `Union[str, List[str]]` | Asset key of the upstream asset providing a pandas DataFrame with at least the columns referenced by ``id_column`` and ``text_column``. |
 | `id_column` | `Union[str, int]` | Primary key column in the upstream DataFrame. Used as the embedding row ID. |
 | `text_column` | `Union[str, int]` | Column containing the raw text to embed. |
 | `database_url_env_var` | `str` | Env var containing a PostgreSQL connection string compatible with psycopg2 and the pgvector extension (e.g. ``postgresql://user:pass@host:5432/db``). |
@@ -38,7 +37,7 @@ In a typical RAG or semantic-search pipeline:
 | `group_name` | `str` | `"vector_store"` | Dagster asset group name. |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
 | `owners` | `List[str]` | — | Asset owners — team names ('team:analytics') or email addresses. |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
 | `kinds` | `List[str]` | — | Asset kinds for the catalog (e.g. ['snowflake', 'python']). Auto-inferred from component name when unset. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
@@ -58,7 +57,7 @@ In a typical RAG or semantic-search pipeline:
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
-| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
 | `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
@@ -80,6 +79,8 @@ In a typical RAG or semantic-search pipeline:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Asset key of the upstream asset providing a pandas DataFrame with at least the columns referenced by ``id_column`` and ``text_column``. |
 | `precomputed_embedding_column` | `Union[str, int]` | — | Column in the upstream DataFrame that already contains embedding vectors (list[float] per row). When set, the component skips the embedder entirely and just upserts the pre-computed vectors — compose with any upstream em… _(full docs in schema.json + component README)_ |
 | `embedding_model` | `str` | `"text-embedding-3-small"` | LiteLLM model string for the inline-embedding path (only used when `precomputed_embedding_column` is unset). Any LiteLLM-supported model works: `text-embedding-3-small` (OpenAI, default), `voyage/voyage-3`, `cohere/embed… _(full docs in schema.json + component README)_ |
 | `openai_api_key_env_var` | `str` | — | Env var containing the API key for the chosen embedding provider (OpenAI: OPENAI_API_KEY, Voyage: VOYAGE_API_KEY, Cohere: COHERE_API_KEY, etc.). Not required for local Ollama or when using `precomputed_embedding_column`… _(full docs in schema.json + component README)_ |
@@ -146,3 +147,25 @@ FROM product_embeddings
 ORDER BY distance
 LIMIT 10;
 ```
+
+### Reading from a database instead of an upstream asset
+
+Instead of `upstream_asset_key`, set `source` to run a SQL query and feed its rows straight into this component -- no intermediate asset required. Set exactly one of `upstream_asset_key` or `source` (setting both or neither raises a `ValueError` at load time).
+
+`source` is `{kind: warehouse_query, sql: <query>, resource_key: <registered resource> OR database_url_env_var: <env var>}`. `resource_key` names a Dagster resource exposing `.get_engine()`, `.get_connection()` or `.get_client()` (Postgres, Snowflake, DuckDB, BigQuery, Redshift, ...); `database_url_env_var` names an env var holding a SQLAlchemy URL.
+
+```yaml
+type: dagster_component_templates.PgvectorAssetComponent
+attributes:
+  asset_name: product_embeddings_asset
+  database_url_env_var: POSTGRES_URL   # destination (where target_table lives)
+  target_table: product_embeddings
+  id_column: id
+  text_column: body
+  source:
+    kind: warehouse_query
+    database_url_env_var: WAREHOUSE_URL
+    sql: "SELECT id, body FROM support.tickets WHERE created_at > current_date - 7"
+```
+
+Results stay a DataFrame (this adds no database write-back); compose with a sink component to persist them.

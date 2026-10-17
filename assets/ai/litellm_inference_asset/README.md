@@ -116,7 +116,6 @@ The enriched DataFrame is returned as the asset value; there are no destination 
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame (e.g. 'raw_orders' or 'schema/table') |
 | `prompt_template` | `str` | Python format string using column names: 'Classify: {text_column}' |
 
 ### Connection
@@ -139,7 +138,7 @@ The enriched DataFrame is returned as the asset value; there are no destination 
 | `group_name` | `str` | `"ai"` | Asset group name |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | Asset owners — team names ('team:analytics') or email addresses. |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
 | `kinds` | `List[str]` | — | Asset kinds for the catalog (e.g. ['snowflake', 'python']). Auto-inferred from component name when unset. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
@@ -159,7 +158,7 @@ The enriched DataFrame is returned as the asset value; there are no destination 
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
-| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
 | `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
@@ -181,6 +180,8 @@ The enriched DataFrame is returned as the asset value; there are no destination 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset key providing a DataFrame (e.g. 'raw_orders' or 'schema/table') |
 | `api_base_env_var` | `str` | — | Env var with custom API base URL |
 | `litellm_resource_key` | `str` | — | Key of a LiteLLMResource in resources dict |
 | `system_prompt` | `str` | — | System prompt for chat completions |
@@ -221,7 +222,24 @@ attributes:
 
 ### Reading from a database instead of an upstream asset
 
-This component only reads from an upstream asset. To enrich database rows, put a database source component (one that runs your query) upstream and point `upstream_asset_key` at it.
+Instead of `upstream_asset_key`, set `source` to run a SQL query and feed its rows straight into this component -- no intermediate asset required. Set exactly one of `upstream_asset_key` or `source` (setting both or neither raises a `ValueError` at load time).
+
+`source` is `{kind: warehouse_query, sql: <query>, resource_key: <registered resource> OR database_url_env_var: <env var>}`. `resource_key` names a Dagster resource exposing `.get_engine()`, `.get_connection()` or `.get_client()` (Postgres, Snowflake, DuckDB, BigQuery, Redshift, ...); `database_url_env_var` names an env var holding a SQLAlchemy URL.
+
+```yaml
+type: dagster_component_templates.LiteLLMInferenceAssetComponent
+attributes:
+  asset_name: enriched_tickets
+  model: gpt-4o-mini
+  api_key_env_var: OPENAI_API_KEY
+  prompt_template: "Classify this ticket: {body}"
+  source:
+    kind: warehouse_query
+    database_url_env_var: WAREHOUSE_URL
+    sql: "SELECT id, body FROM support.tickets WHERE created_at > current_date - 7"
+```
+
+Results stay a DataFrame (this adds no database write-back); compose with a sink component to persist them.
 
 ---
 

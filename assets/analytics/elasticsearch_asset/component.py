@@ -109,6 +109,59 @@ def _build_partitions_def(
 
 
 
+def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
+    """Execute SQL via a Dagster resource that exposes .get_engine()
+    (SQLAlchemy), .get_connection() (DBAPI), or .get_client() (vendor
+    client -- dispatched by the client's own shape since "get_client" means
+    something different per vendor: BigQuery's .query(sql).to_dataframe(),
+    Redshift's .execute_query(sql, fetch_results=True, cursor_factory=
+    RealDictCursor)), or a bare SQLAlchemy engine built from
+    `database_url_env_var` when no Dagster resource is registered. Same
+    helper, same contract, as every other dual-ingestion component in this
+    repo (e.g. automl_asset, logistic_regression_model, churn_prediction)."""
+    import pandas as pd
+    sql = source_config["sql"]
+    resource_key = source_config.get("resource_key")
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        if hasattr(resource, "get_engine"):
+            return pd.read_sql(sql, resource.get_engine())
+        if hasattr(resource, "get_connection"):
+            with resource.get_connection() as conn:
+                return pd.read_sql(sql, conn)
+        if hasattr(resource, "get_client"):
+            client = resource.get_client()
+            if hasattr(client, "query"):
+                job = client.query(sql)
+                if hasattr(job, "to_dataframe"):
+                    return job.to_dataframe()
+            if hasattr(client, "execute_query"):
+                try:
+                    from psycopg2.extras import RealDictCursor
+                    rows = client.execute_query(sql, fetch_results=True, cursor_factory=RealDictCursor)
+                except ImportError:
+                    rows = client.execute_query(sql, fetch_results=True)
+                return pd.DataFrame([dict(r) for r in (rows or [])])
+            raise ValueError(
+                f"resource {resource_key!r}'s get_client() returned {type(client).__name__}, "
+                "which this helper doesn't know how to query (no .query()/.to_dataframe() "
+                "or .execute_query() method found). Add a dispatch branch for it."
+            )
+        raise ValueError(
+            f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy), "
+            f".get_connection() (DBAPI), or .get_client() (vendor client); got {type(resource).__name__}"
+        )
+    env_var = source_config.get("database_url_env_var")
+    if env_var:
+        import os
+        from sqlalchemy import create_engine
+        url = os.environ.get(env_var, "")
+        if not url:
+            raise ValueError(f"database_url_env_var {env_var!r} is unset")
+        return pd.read_sql(sql, create_engine(url))
+    raise ValueError("source requires 'resource_key' OR 'database_url_env_var'")
+
+
 # BEGIN upstream-asset-key normalization (inlined per component; keep copies identical — see tests/test_upstream_keys.py)
 from typing import List, Optional, Union  # noqa: E402,F401
 from pydantic import model_validator  # noqa: E402,F401
@@ -235,12 +288,22 @@ class ElasticsearchAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     )
 
     # --- Index-mode source (upstream asset) -----------------------------------
-    upstream_asset_key: Union[str, List[str]] = Field(
+    source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Pull rows directly via SQL instead of from an upstream asset: "
+            "{kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. "
+            "Mutually exclusive with `upstream_asset_key` -- set exactly one."
+        ),
+    )
+    upstream_asset_key: Optional[Union[str, List[str]]] = Field(
+        default=None,
         description=(
             "Asset key of the upstream asset providing a pandas DataFrame. "
             "In ``index`` mode the DataFrame rows are indexed as ES documents. "
-            "In ``query`` mode this field is still required for lineage but the "
-            "upstream value is not used."
+            "In ``query`` mode this field is optional (lineage only; the "
+            "upstream value is not used). Mutually exclusive with `source` "
+            "in ``index`` mode."
         ),
     )
     id_field: Optional[str] = Field(
@@ -419,9 +482,14 @@ class ElasticsearchAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_upstream_asset_keys(cls, data):
-        return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=False)
+        return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        if self.mode == "index":
+            if bool(self.upstream_asset_key) == bool(self.source):
+                raise ValueError("ElasticsearchAssetComponent: set exactly one of `upstream_asset_key` or `source`.")
+        elif self.source:
+            raise ValueError("ElasticsearchAssetComponent: `source` is only supported in the DataFrame-input mode (mode=index).")
         # Standard catalog fields — phase 2 wiring
         _retry_policy = None
         if self.retry_policy_max_retries is not None:
@@ -488,7 +556,8 @@ class ElasticsearchAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             name=component.asset_name,
             group_name=component.group_name,
             kinds={"elasticsearch"},
-            ins={"upstream": dg.AssetIn(key=dg.AssetKey.from_user_string(component.upstream_asset_key))},
+            ins=({"upstream": dg.AssetIn(key=dg.AssetKey.from_user_string(component.upstream_asset_key))} if component.upstream_asset_key else None),
+            required_resource_keys=({component.source["resource_key"]} if (component.source and component.source.get("resource_key")) else None),
             freshness_policy=_freshness_policy,
             owners=self.owners or [],
             tags=_all_tags,
@@ -496,8 +565,11 @@ class ElasticsearchAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         def _elasticsearch_asset(
             context: dg.AssetExecutionContext,
-            upstream,
+            **kwargs,
         ) -> dg.MaterializeResult:
+            upstream = kwargs.get("upstream")
+            if upstream is None and component.source:
+                upstream = _ingest_warehouse_query(component.source, context)
             from elasticsearch import Elasticsearch  # type: ignore[import]
             from elasticsearch.helpers import bulk  # type: ignore[import]
 

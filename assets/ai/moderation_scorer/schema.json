@@ -27,6 +27,20 @@
       "description": "Upstream asset key providing a DataFrame with content to score",
       "required": true
     },
+    "flag_threshold": {
+      "type": "number",
+      "label": "Flag Threshold",
+      "description": "Risk score above which content is 'flagged' (strictly greater than; 0-1). Must be >= review_threshold.",
+      "default": 0.5,
+      "required": false
+    },
+    "review_threshold": {
+      "type": "number",
+      "label": "Review Threshold",
+      "description": "Risk score above which content is 'needs_review' (strictly greater than; 0-1). Must be <= flag_threshold.",
+      "default": 0.3,
+      "required": false
+    },
     "description": {
       "type": "string",
       "label": "Description",

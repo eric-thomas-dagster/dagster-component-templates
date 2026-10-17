@@ -25,7 +25,13 @@
       "type": "string",
       "label": "Upstream Asset Key",
       "description": "Upstream asset key providing a DataFrame (must return a pandas DataFrame)",
-      "required": true
+      "required": false
+    },
+    "source": {
+      "type": "object",
+      "label": "SQL Source",
+      "description": "Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one.",
+      "required": false
     },
     "llm_provider": {
       "type": "string",

@@ -129,3 +129,7 @@ DagsterPlusAudit_CL
 | where TimeGenerated > ago(1d)
 | summarize n = count() by event_type_s
 ```
+
+## Partitioning
+
+On a partitioned run the tokens `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted into `query`, `timespan_iso8601`, so each partition reads its own slice. Unpartitioned runs use the value as written.

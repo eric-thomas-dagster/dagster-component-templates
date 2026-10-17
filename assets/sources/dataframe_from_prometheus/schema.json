@@ -20,7 +20,7 @@
       "required": true
     },
     "query": {
-      "description": "PromQL query, e.g. 'rate(http_requests_total[5m])' or 'up{job=\"node\"}'",
+      "description": "PromQL query, e.g. 'rate(http_requests_total[5m])' or 'up{job=\"node\"}' On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.",
       "type": "string",
       "label": "Query",
       "required": true

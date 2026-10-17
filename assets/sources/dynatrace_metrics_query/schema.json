@@ -39,7 +39,7 @@
       "default": "1m"
     },
     "timeframe": {
-      "description": "Time range: relative (now-Nh / now-Nd) or absolute ISO 8601 (start_iso/end_iso)",
+      "description": "Time range: relative (now-Nh / now-Nd) or absolute ISO 8601 (start_iso/end_iso) On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.",
       "type": "string",
       "label": "Timeframe",
       "required": false,

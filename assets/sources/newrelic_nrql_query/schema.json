@@ -37,7 +37,7 @@
       ]
     },
     "query": {
-      "description": "NRQL query, e.g. 'SELECT count(*) FROM Transaction SINCE 1 hour ago FACET appName'",
+      "description": "NRQL query, e.g. 'SELECT count(*) FROM Transaction SINCE 1 hour ago FACET appName' On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.",
       "type": "string",
       "label": "Query",
       "required": true

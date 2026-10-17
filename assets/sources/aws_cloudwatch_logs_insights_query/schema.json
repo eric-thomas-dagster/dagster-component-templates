@@ -36,7 +36,7 @@
       "type": "string",
       "label": "Query String",
       "required": true,
-      "description": "Logs Insights query (e.g. 'fields @timestamp, @message | filter @message like /ERROR/ | limit 100')"
+      "description": "Logs Insights query (e.g. 'fields @timestamp, @message | filter @message like /ERROR/ | limit 100') On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted."
     },
     "range_minutes": {
       "type": "integer",

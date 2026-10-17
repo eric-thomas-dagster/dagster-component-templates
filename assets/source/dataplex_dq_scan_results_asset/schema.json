@@ -58,7 +58,7 @@
       "type": "string",
       "label": "Since Iso",
       "required": false,
-      "description": "History-mode only: ISO-8601 timestamp lower bound (e.g. '2026-01-01T00:00:00Z')."
+      "description": "History-mode only: ISO-8601 timestamp lower bound (e.g. '2026-01-01T00:00:00Z'). On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted."
     },
     "max_jobs": {
       "type": "integer",

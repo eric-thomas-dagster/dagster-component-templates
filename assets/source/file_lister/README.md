@@ -106,3 +106,7 @@ Uses fsspec's ambient credential discovery — same as `file_ingestion`. For S3 
 ## Validation
 
 `validation.level: code` — this component compiles and was verified end-to-end against a real local Dagster materialization (list + download + metadata-only modes), but has not yet been run against a real S3/GCS/ADLS account. Live-test against your actual cloud storage before trusting it in production, and flip `validation.level` to `live` in the manifest once confirmed.
+
+## Partitioning
+
+On a partitioned run the tokens `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted into `path`, so each partition reads its own slice. Unpartitioned runs use the value as written.

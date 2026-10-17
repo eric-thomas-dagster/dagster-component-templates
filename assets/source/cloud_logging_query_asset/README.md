@@ -107,3 +107,7 @@ Service account needs `roles/logging.viewer` (or `roles/logging.privateLogViewer
 ## Why this vs. Cloud Logging native sinks?
 
 Cloud Logging sinks (BigQuery / Pub/Sub / GCS) are great for high-volume retention but require pre-provisioning. This component is for **on-demand reads** in a Dagster pipeline — e.g. daily error-rate roll-ups, alerting on patterns, audit-event ingestion into a warehouse — without standing up a sink.
+
+## Partitioning
+
+On a partitioned run the tokens `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted into `filter`, so each partition reads its own slice. Unpartitioned runs use the value as written.

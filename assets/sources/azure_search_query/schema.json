@@ -40,7 +40,7 @@
       "default": "*"
     },
     "filter_query": {
-      "description": "OData $filter expression, e.g. \"category eq 'Electronics' and price gt 100\"",
+      "description": "OData $filter expression, e.g. \"category eq 'Electronics' and price gt 100\" On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.",
       "type": "string",
       "label": "Filter Query",
       "required": false,

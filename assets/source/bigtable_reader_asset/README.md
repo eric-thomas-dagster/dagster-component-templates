@@ -111,3 +111,7 @@ Service account needs `roles/bigtable.reader` on the instance.
 - `bigtable_writer_asset` — counterpart for writes
 - `firestore_reader_asset` — document NoSQL alternative
 - `spanner_query_asset` — strongly-consistent RDBMS alternative
+
+## Partitioning
+
+On a partitioned run the tokens `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted into `row_key_prefix`, `start_key`, `end_key`, so each partition reads its own slice. Unpartitioned runs use the value as written.

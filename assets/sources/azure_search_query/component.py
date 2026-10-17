@@ -73,7 +73,7 @@ class AzureSearchQueryComponent(Component, Model, Resolvable):
     )
     filter_query: Optional[str] = Field(
         default=None,
-        description="OData $filter expression, e.g. \"category eq 'Electronics' and price gt 100\"",
+        description="OData $filter expression, e.g. \"category eq 'Electronics' and price gt 100\" On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.",
     )
     select: Optional[List[str]] = Field(
         default=None,
@@ -220,8 +220,8 @@ class AzureSearchQueryComponent(Component, Model, Resolvable):
             sc = SearchClient(endpoint=cfg.endpoint, index_name=cfg.index_name, credential=cred)
 
             kwargs = {"search_text": cfg.search_text, "top": cfg.top}
-            if cfg.filter_query:
-                kwargs["filter"] = cfg.filter_query
+            if _substitute_partition(cfg.filter_query, _partition_vars(context)):
+                kwargs["filter"] = _substitute_partition(cfg.filter_query, _partition_vars(context))
             if cfg.select:
                 kwargs["select"] = cfg.select
             if cfg.order_by:
@@ -244,7 +244,7 @@ class AzureSearchQueryComponent(Component, Model, Resolvable):
                     "column_count": MetadataValue.int(len(df.columns)),
                     "index": MetadataValue.text(cfg.index_name),
                     "search_text": MetadataValue.text(cfg.search_text),
-                    "filter": MetadataValue.text(cfg.filter_query or "(none)"),
+                    "filter": MetadataValue.text(_substitute_partition(cfg.filter_query, _partition_vars(context)) or "(none)"),
                     "preview": MetadataValue.md(df.head(10).to_markdown(index=False) if len(df) > 0 else "(empty)"),
                 },
             )
@@ -266,3 +266,55 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
+
+# BEGIN partition-vars helper (inlined per component; keep copies identical, see tests/test_partition_vars.py)
+def _partition_vars(context):
+    """Tokens a partitioned run can use in its variables: {partition_key}, and for time partitions {partition_date}
+    (YYYY-MM-DD), {partition_start} and {partition_end} (ISO datetimes); for a multi-partition also
+    {partition_<dimension>}. Empty for an unpartitioned run."""
+    import re as _re
+
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return {}
+    keys = list(context.partition_keys)
+    tokens = {"partition_key": ",".join(str(k) for k in keys)}
+    try:
+        window = context.partition_time_window
+        tokens["partition_start"] = window.start.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_end"] = window.end.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_date"] = window.start.strftime("%Y-%m-%d")
+    except Exception:
+        pass  # static / dynamic partitions have no time window
+    if len(keys) == 1 and hasattr(keys[0], "keys_by_dimension"):
+        for dimension, value in keys[0].keys_by_dimension.items():
+            tokens["partition_" + _re.sub(r"\W", "_", str(dimension))] = str(value)
+    return tokens
+
+
+def _partition_env(tokens):
+    """DAGSTER_PARTITION_* environment variables for a partitioned run (empty when unpartitioned)."""
+    if not tokens:
+        return {}
+    env = {"DAGSTER_PARTITION_KEY": tokens["partition_key"]}
+    for token, name in (("partition_date", "DAGSTER_PARTITION_DATE"), ("partition_start", "DAGSTER_PARTITION_START"),
+                        ("partition_end", "DAGSTER_PARTITION_END")):
+        if token in tokens:
+            env[name] = tokens[token]
+    return env
+
+
+def _substitute_partition(value, tokens):
+    """Replace {partition_*} tokens inside strings, recursively through dicts and lists. Only known tokens are
+    replaced, so other braces (JSON, shell, templates) are left alone. A no-op for an unpartitioned run."""
+    import re as _re
+
+    if not tokens:
+        return value
+    if isinstance(value, str):
+        return _re.sub(r"\{(partition_\w+)\}", lambda m: tokens.get(m.group(1), m.group(0)), value)
+    if isinstance(value, dict):
+        return {k: _substitute_partition(v, tokens) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(_substitute_partition(v, tokens) for v in value)
+    return value
+# END partition-vars helper

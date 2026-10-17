@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent
 DAY = "2026-01-03"
 PORTED = [
     "assets/ai/audio_diarized_transcriber",
+    "assets/ai/text_chunker",
     "assets/ai/cloud_dlp_inspect_asset",
     "assets/ai/cloud_text_to_speech_asset",
     "assets/ai/document_ai_extractor",

@@ -82,3 +82,7 @@ category eq 'Electronics' and price gt 100.0
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)
+
+## Partitioning
+
+On a partitioned run the tokens `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted into `filter_query`, so each partition reads its own slice. Unpartitioned runs use the value as written.

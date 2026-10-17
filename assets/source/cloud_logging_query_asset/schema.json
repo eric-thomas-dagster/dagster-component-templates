@@ -32,11 +32,11 @@
       "required": false,
       "description": "GCP project to query. Default: project from credentials."
     },
-    "filter_": {
+    "filter": {
       "type": "string",
       "label": "Filter ",
       "required": false,
-      "description": "Cloud Logging filter expression. e.g. 'severity>=ERROR' or 'resource.type=\"cloud_run_revision\" AND severity=ERROR'."
+      "description": "Cloud Logging filter expression. e.g. 'severity>=ERROR' or 'resource.type=\"cloud_run_revision\" AND severity=ERROR'. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted."
     },
     "lookback_minutes": {
       "type": "integer",

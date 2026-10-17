@@ -21,7 +21,7 @@
     "path": {
       "type": "string",
       "label": "Path / Glob",
-      "description": "Glob pattern or fsspec URI to list, e.g. 's3://my-bucket/invoices/**/*.pdf', 'gs://my-bucket/audio/*.wav', 'abfss://container@account.dfs.core.windows.net/docs/*.png', or a local path like '/data/incoming/*.pdf'.",
+      "description": "Glob pattern or fsspec URI to list, e.g. 's3://my-bucket/invoices/**/*.pdf', 'gs://my-bucket/audio/*.wav', 'abfss://container@account.dfs.core.windows.net/docs/*.png', or a local path like '/data/incoming/*.pdf'. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.",
       "required": true
     },
     "download": {

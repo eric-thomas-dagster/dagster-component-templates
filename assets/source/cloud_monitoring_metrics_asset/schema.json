@@ -30,11 +30,11 @@
       "label": "Project Id",
       "required": false
     },
-    "filter_": {
+    "filter": {
       "type": "string",
       "label": "Filter ",
       "required": false,
-      "description": "Cloud Monitoring filter. Must include a `metric.type=...` clause. Example: 'metric.type=\"compute.googleapis.com/instance/cpu/utilization\"'."
+      "description": "Cloud Monitoring filter. Must include a `metric.type=...` clause. Example: 'metric.type=\"compute.googleapis.com/instance/cpu/utilization\"'. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted."
     },
     "lookback_minutes": {
       "type": "integer",

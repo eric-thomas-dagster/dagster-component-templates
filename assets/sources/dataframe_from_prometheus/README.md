@@ -77,3 +77,7 @@ Works against any Prometheus-compatible HTTP API:
 ## Validated
 
 Local Prometheus + pushgateway: 4 samples pushed via `dataframe_to_prometheus`, scraped, queried back with correct labels.
+
+## Partitioning
+
+On a partitioned run the tokens `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted into `query`, so each partition reads its own slice. Unpartitioned runs use the value as written.

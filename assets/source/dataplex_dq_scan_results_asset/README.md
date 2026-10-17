@@ -127,3 +127,7 @@ Service account needs `roles/dataplex.dataScanViewer` on the scan resource.
 - `great_expectations_check` — full GE suites in-Dagster (vs. Dataplex's managed approach)
 - `bigquery_query_asset` — pull DQ-style queries you wrote yourself
 - `cloud_logging_query_asset` — pull DQ-job audit logs for cross-team reporting
+
+## Partitioning
+
+On a partitioned run the tokens `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted into `since_iso`, so each partition reads its own slice. Unpartitioned runs use the value as written.

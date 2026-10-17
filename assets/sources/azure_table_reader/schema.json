@@ -32,7 +32,7 @@
       "required": true
     },
     "filter_query": {
-      "description": "OData filter expression. Examples: \"PartitionKey eq 'orders' and RowKey gt '2026'\", \"category eq 'Electronics'\". Leave empty to read all entities.",
+      "description": "OData filter expression. Examples: \"PartitionKey eq 'orders' and RowKey gt '2026'\", \"category eq 'Electronics'\". Leave empty to read all entities. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.",
       "type": "string",
       "label": "Filter Query",
       "required": false,

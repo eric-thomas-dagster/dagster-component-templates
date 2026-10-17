@@ -76,13 +76,12 @@ class AzureLogAnalyticsQueryComponent(Component, Model, Resolvable):
         description="Log Analytics workspace ID (GUID, NOT the resource ID — find it in workspace overview)"
     )
     query: str = Field(
-        description="KQL query to run. Example: 'AzureActivity | where TimeGenerated > ago(1h) | take 1000'"
+        description="KQL query to run. Example: 'AzureActivity | where TimeGenerated > ago(1h) | take 1000' On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted."
     )
     timespan_iso8601: Optional[str] = Field(
         default=None,
         description=(
-            "Optional time-range filter as ISO 8601 duration (e.g. 'PT1H' for 1h, 'P1D' for 1d, "
-            "'P30D' for 30d). Acts as a query-level timespan parameter independent of the KQL itself."
+            "Optional time-range filter as ISO 8601 duration (e.g. 'PT1H' for 1h, 'P1D' for 1d, 'P30D' for 30d). Acts as a query-level timespan parameter independent of the KQL itself. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted."
         ),
     )
 
@@ -231,12 +230,12 @@ class AzureLogAnalyticsQueryComponent(Component, Model, Resolvable):
                 cred = DefaultAzureCredential()
 
             client = LogsQueryClient(cred)
-            ts = isodate.parse_duration(timespan) if timespan else None
+            ts = isodate.parse_duration(_substitute_partition(timespan, _partition_vars(context))) if _substitute_partition(timespan, _partition_vars(context)) else None
 
             context.log.info(f"Running KQL query against workspace {workspace_id}")
             response = client.query_workspace(
                 workspace_id=workspace_id,
-                query=query,
+                query=_substitute_partition(query, _partition_vars(context)),
                 timespan=ts,
             )
 
@@ -260,7 +259,7 @@ class AzureLogAnalyticsQueryComponent(Component, Model, Resolvable):
                     "column_count": MetadataValue.int(len(df.columns)),
                     "columns": MetadataValue.text(", ".join(df.columns.tolist()) if len(df.columns) else "(no columns)"),
                     "workspace_id": MetadataValue.text(workspace_id),
-                    "query": MetadataValue.text(query[:500]),
+                    "query": MetadataValue.text(_substitute_partition(query, _partition_vars(context))[:500]),
                     "preview": MetadataValue.md(df.head(20).to_markdown(index=False) if len(df) > 0 else "(empty)"),
                 },
             )
@@ -282,3 +281,55 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
+
+# BEGIN partition-vars helper (inlined per component; keep copies identical, see tests/test_partition_vars.py)
+def _partition_vars(context):
+    """Tokens a partitioned run can use in its variables: {partition_key}, and for time partitions {partition_date}
+    (YYYY-MM-DD), {partition_start} and {partition_end} (ISO datetimes); for a multi-partition also
+    {partition_<dimension>}. Empty for an unpartitioned run."""
+    import re as _re
+
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return {}
+    keys = list(context.partition_keys)
+    tokens = {"partition_key": ",".join(str(k) for k in keys)}
+    try:
+        window = context.partition_time_window
+        tokens["partition_start"] = window.start.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_end"] = window.end.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_date"] = window.start.strftime("%Y-%m-%d")
+    except Exception:
+        pass  # static / dynamic partitions have no time window
+    if len(keys) == 1 and hasattr(keys[0], "keys_by_dimension"):
+        for dimension, value in keys[0].keys_by_dimension.items():
+            tokens["partition_" + _re.sub(r"\W", "_", str(dimension))] = str(value)
+    return tokens
+
+
+def _partition_env(tokens):
+    """DAGSTER_PARTITION_* environment variables for a partitioned run (empty when unpartitioned)."""
+    if not tokens:
+        return {}
+    env = {"DAGSTER_PARTITION_KEY": tokens["partition_key"]}
+    for token, name in (("partition_date", "DAGSTER_PARTITION_DATE"), ("partition_start", "DAGSTER_PARTITION_START"),
+                        ("partition_end", "DAGSTER_PARTITION_END")):
+        if token in tokens:
+            env[name] = tokens[token]
+    return env
+
+
+def _substitute_partition(value, tokens):
+    """Replace {partition_*} tokens inside strings, recursively through dicts and lists. Only known tokens are
+    replaced, so other braces (JSON, shell, templates) are left alone. A no-op for an unpartitioned run."""
+    import re as _re
+
+    if not tokens:
+        return value
+    if isinstance(value, str):
+        return _re.sub(r"\{(partition_\w+)\}", lambda m: tokens.get(m.group(1), m.group(0)), value)
+    if isinstance(value, dict):
+        return {k: _substitute_partition(v, tokens) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(_substitute_partition(v, tokens) for v in value)
+    return value
+# END partition-vars helper

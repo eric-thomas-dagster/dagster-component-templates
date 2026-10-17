@@ -46,19 +46,19 @@
       "type": "string",
       "label": "Row Key Prefix",
       "required": false,
-      "description": "Row-key prefix scan. Mutually exclusive with start_key/end_key."
+      "description": "Row-key prefix scan. Mutually exclusive with start_key/end_key. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted."
     },
     "start_key": {
       "type": "string",
       "label": "Start Key",
       "required": false,
-      "description": "Start of row-key range (inclusive)."
+      "description": "Start of row-key range (inclusive). On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted."
     },
     "end_key": {
       "type": "string",
       "label": "End Key",
       "required": false,
-      "description": "End of row-key range (exclusive)."
+      "description": "End of row-key range (exclusive). On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted."
     },
     "column_families": {
       "type": "array",

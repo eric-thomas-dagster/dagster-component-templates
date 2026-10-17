@@ -99,3 +99,7 @@ Service account needs `roles/spanner.databaseReader` on the database (or `roles/
 ## Note
 
 This runs a **single-use read transaction** (a Spanner snapshot). For consistent multi-statement reads or read-write, build a custom asset that uses a session pool — this component is intended for single-query reads.
+
+## Partitioning
+
+On a partitioned run the tokens `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted into `sql`, so each partition reads its own slice. Unpartitioned runs use the value as written.

@@ -26,7 +26,7 @@
       "required": true
     },
     "query": {
-      "description": "KQL query to execute",
+      "description": "KQL query to execute On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.",
       "type": "string",
       "label": "Query",
       "required": true

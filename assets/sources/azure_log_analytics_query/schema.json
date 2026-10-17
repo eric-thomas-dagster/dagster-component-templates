@@ -22,7 +22,7 @@
       "description": "Log Analytics workspace GUID"
     },
     "query": {
-      "description": "KQL query to run. Example: 'AzureActivity \\| where TimeGenerated > ago(1h) \\| take 1000'",
+      "description": "KQL query to run. Example: 'AzureActivity \\| where TimeGenerated > ago(1h) \\| take 1000' On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.",
       "type": "string",
       "label": "Query",
       "required": true,
@@ -33,7 +33,7 @@
       "label": "Timespan Iso8601",
       "required": false,
       "default": null,
-      "description": "ISO 8601 duration like 'PT1H', 'P30D'"
+      "description": "ISO 8601 duration like 'PT1H', 'P30D' On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted."
     },
     "tenant_id_env_var": {
       "type": "string",

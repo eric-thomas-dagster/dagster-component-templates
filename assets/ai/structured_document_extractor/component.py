@@ -827,14 +827,14 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
         )
 
         if direct_path:
-            @asset(**asset_kwargs)
+            @asset(description=self.description, **asset_kwargs)
             def _asset(context: AssetExecutionContext) -> pd.DataFrame:
                 context.log.info(f"Listing files matching {direct_path!r}")
                 df = _list_files_direct(direct_path, direct_max_files, direct_download, direct_download_dir)
                 context.log.info(f"Found {len(df)} file(s)")
                 return _do_extraction(context, df)
         else:
-            @asset(ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}, **asset_kwargs)
+            @asset(description=self.description, ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}, **asset_kwargs)
             def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
                 if hasattr(upstream, "value") and hasattr(upstream, "metadata"):
                     upstream = upstream.value

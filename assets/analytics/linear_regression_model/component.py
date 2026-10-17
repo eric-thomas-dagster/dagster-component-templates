@@ -799,7 +799,7 @@ class LinearRegressionModelComponent(Component, Model, Resolvable):
             _asset_kwargs["required_resource_keys"] = {source_cfg["resource_key"]}
 
         if execution_mode == "sql":
-            @asset(**_asset_kwargs)
+            @asset(description=self.description, **_asset_kwargs)
             def _sql_asset(context: AssetExecutionContext):
                 statements = _build_sql_mode_statements(
                     sql_dialect, source_cfg["sql"], output_table, model_name,
@@ -819,7 +819,7 @@ class LinearRegressionModelComponent(Component, Model, Resolvable):
                 max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
             )
         _asset_kwargs = {**_asset_kwargs, "backfill_policy": _backfill_policy_obj}
-        _deco_asset = asset(**_asset_kwargs)
+        _deco_asset = asset(description=self.description, **_asset_kwargs)
         def _asset_compute(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
             upstream = kwargs.get("upstream")
             if upstream is None:

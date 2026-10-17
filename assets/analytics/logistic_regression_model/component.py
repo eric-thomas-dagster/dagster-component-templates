@@ -684,6 +684,8 @@ class LogisticRegressionModelComponent(Component, Model, Resolvable):
 
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
+        _include_preview = self.include_preview_metadata
+        _preview_rows = self.preview_rows
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key
         source_cfg = self.source
@@ -809,7 +811,7 @@ class LogisticRegressionModelComponent(Component, Model, Resolvable):
             _asset_kwargs["required_resource_keys"] = {source_cfg["resource_key"]}
 
         if execution_mode == "sql":
-            @asset(**_asset_kwargs)
+            @asset(description=self.description, **_asset_kwargs)
             def _sql_asset(context: AssetExecutionContext):
                 statements = _build_sql_mode_statements(
                     sql_dialect, source_cfg["sql"], output_table, model_name,
@@ -829,7 +831,7 @@ class LogisticRegressionModelComponent(Component, Model, Resolvable):
                 max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
             )
         _asset_kwargs = {**_asset_kwargs, "backfill_policy": _backfill_policy_obj}
-        _deco_asset = asset(**_asset_kwargs)
+        _deco_asset = asset(description=self.description, **_asset_kwargs)
         def _asset_compute(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
             upstream = kwargs.get("upstream")
             if upstream is None:
@@ -968,7 +970,9 @@ class LogisticRegressionModelComponent(Component, Model, Resolvable):
             return df
         @_deco_asset
         def _asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
-            return _run_per_partition(context, _asset_compute, partitions_def, bool(partition_date_column or partition_static_column), [], kwargs)
+            _out = _run_per_partition(context, _asset_compute, partitions_def, bool(partition_date_column or partition_static_column), [], kwargs)
+            _emit_preview(context, _out, _include_preview, _preview_rows)
+            return _out
 
 
         from dagster import build_column_schema_change_checks
@@ -994,3 +998,23 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
+
+# BEGIN output-preview helper (inlined per component; keep copies identical, see tests/test_output_preview.py)
+def _emit_preview(context, df, enabled, n):
+    """Attach a markdown preview of up to `n` rows to the asset's output metadata when `enabled`."""
+    if not enabled or df is None or not hasattr(df, "head") or len(df) == 0:
+        return
+    try:
+        import dagster as _dg
+
+        if hasattr(df, "to_pandas"):
+            df = df.to_pandas()
+        sample = df.sample(min(n, len(df)), random_state=0) if len(df) > n * 10 else df.head(n)
+        try:
+            text = sample.to_markdown(index=False)
+        except ImportError:
+            text = "```\n" + sample.to_string(index=False) + "\n```"
+        context.add_output_metadata({"preview": _dg.MetadataValue.md(text)})
+    except Exception as exc:
+        context.log.warning(f"preview emission failed: {exc}")
+# END output-preview helper

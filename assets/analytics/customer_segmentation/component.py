@@ -571,6 +571,9 @@ class CustomerSegmentationComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build asset definitions."""
+        _column_lineage_md = _column_lineage_metadata(self)
+        _include_preview = self.include_preview_metadata
+        _preview_rows = self.preview_rows
         asset_name = self.asset_name
 
         # Require transaction data
@@ -743,7 +746,11 @@ group_name=self.group_name,
             return rfm
         @_deco_customer_segmentation_asset
         def customer_segmentation_asset(context: AssetExecutionContext, **inputs) -> pd.DataFrame:
-            return _run_per_partition(context, customer_segmentation_asset_compute, partitions_def, bool(partition_date_column or partition_static_column), [], inputs)
+            if _column_lineage_md:
+                context.add_output_metadata(_column_lineage_md)
+            _out = _run_per_partition(context, customer_segmentation_asset_compute, partitions_def, bool(partition_date_column or partition_static_column), [], inputs)
+            _emit_preview(context, _out, _include_preview, _preview_rows)
+            return _out
 
 
         return Definitions(assets=[customer_segmentation_asset])
@@ -763,3 +770,59 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
+
+# BEGIN output-preview helper (inlined per component; keep copies identical, see tests/test_output_preview.py)
+def _emit_preview(context, df, enabled, n):
+    """Attach a markdown preview of up to `n` rows to the asset's output metadata when `enabled`."""
+    if not enabled or df is None or not hasattr(df, "head") or len(df) == 0:
+        return
+    try:
+        import dagster as _dg
+
+        if hasattr(df, "to_pandas"):
+            df = df.to_pandas()
+        sample = df.sample(min(n, len(df)), random_state=0) if len(df) > n * 10 else df.head(n)
+        try:
+            text = sample.to_markdown(index=False)
+        except ImportError:
+            text = "```\n" + sample.to_string(index=False) + "\n```"
+        context.add_output_metadata({"preview": _dg.MetadataValue.md(text)})
+    except Exception as exc:
+        context.log.warning(f"preview emission failed: {exc}")
+# END output-preview helper
+
+# BEGIN column-lineage helper (inlined per component; keep copies identical, see tests/test_column_lineage.py)
+def _column_lineage_metadata(component):
+    """`dagster/column_lineage` metadata from the component's `column_lineage` mapping ({output column: [upstream columns]}).
+
+    The upstream asset is `upstream_asset_key`, or the only entry of `deps`. With several upstream assets, name each
+    column as "<asset_key>:<column>". Returns {} when the mapping is unset, or (with a warning) when no upstream asset
+    can be resolved, since lineage needs an upstream asset to point at."""
+    import warnings
+
+    import dagster as _dg
+
+    mapping = getattr(component, "column_lineage", None)
+    if not mapping:
+        return {}
+    ups = getattr(component, "upstream_asset_key", None) or getattr(component, "deps", None) or []
+    ups = [ups] if isinstance(ups, (str, _dg.AssetKey)) else list(ups)
+    ups = [u.to_user_string() if isinstance(u, _dg.AssetKey) else str(u) for u in ups]
+    deps = {}
+    for out_col, in_cols in mapping.items():
+        refs = []
+        for ic in [in_cols] if isinstance(in_cols, str) else in_cols:
+            key, _, col = str(ic).rpartition(":")
+            if key in ups and col:
+                refs.append(_dg.TableColumnDep(asset_key=_dg.AssetKey.from_user_string(key), column_name=col))
+            elif len(ups) == 1:
+                refs.append(_dg.TableColumnDep(asset_key=_dg.AssetKey.from_user_string(ups[0]), column_name=str(ic)))
+            else:
+                warnings.warn(
+                    f"column_lineage ignored: cannot tell which upstream asset {ic!r} belongs to "
+                    f"(upstream assets: {ups or 'none'}; use '<asset_key>:<column>' with several upstream assets)"
+                )
+                return {}
+        deps[str(out_col)] = refs
+    return {"dagster/column_lineage": _dg.MetadataValue.column_lineage(_dg.TableColumnLineage(deps))}
+# END column-lineage helper

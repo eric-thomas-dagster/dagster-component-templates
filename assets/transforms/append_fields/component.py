@@ -510,7 +510,7 @@ class AppendFields(Component, Model, Resolvable):
                 max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
             )
 
-        @asset(partitions_def=partitions_def, backfill_policy=_backfill_policy_obj, key=AssetKey.from_user_string(asset_name), ins=ins, required_resource_keys=_required_resource_keys, group_name=group_name, retry_policy=_retry_policy, freshness_policy=_freshness_policy, owners=self.owners or [], tags=_all_tags, deps=[AssetKey.from_user_string(k) for k in (self.deps or [])])
+        @asset(description=self.description, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj, key=AssetKey.from_user_string(asset_name), ins=ins, required_resource_keys=_required_resource_keys, group_name=group_name, retry_policy=_retry_policy, freshness_policy=_freshness_policy, owners=self.owners or [], tags=_all_tags, deps=[AssetKey.from_user_string(k) for k in (self.deps or [])])
         def _asset(context: AssetExecutionContext, source: pd.DataFrame, **kwargs) -> pd.DataFrame:
             upstream = kwargs.get("upstream")
             if upstream is None:

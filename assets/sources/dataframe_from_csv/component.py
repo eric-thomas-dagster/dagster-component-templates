@@ -457,7 +457,7 @@ class DataframeFromCsvComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
 group_name=group_name,
-            description=DataframeFromCsvComponent.get_description(),
+            description=self.description or (DataframeFromCsvComponent.get_description()),
             required_resource_keys=required_resource_keys or None,
         )
         def _asset(context: AssetExecutionContext) -> pd.DataFrame:

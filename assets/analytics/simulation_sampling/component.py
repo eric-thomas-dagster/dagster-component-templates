@@ -600,7 +600,7 @@ class SimulationSamplingComponent(Component, Model, Resolvable):
             )
         _deco_simulation_sampling_asset = asset(retry_policy=_retry_policy, 
             key=AssetKey.from_user_string(asset_name),
-            description=f"Monte Carlo simulation ({n_simulations} iterations)",
+            description=self.description or (f"Monte Carlo simulation ({n_simulations} iterations)"),
             partitions_def=partitions_def,
             backfill_policy=_backfill_policy_obj,
                         owners=owners,

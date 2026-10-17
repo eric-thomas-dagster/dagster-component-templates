@@ -396,7 +396,7 @@ class DataframeFromSqlComponent(Component, Model, Resolvable):
             tags=_all_tags,
             freshness_policy=_freshness_policy,
 group_name=group_name,
-            description=DataframeFromSqlComponent.get_description(),
+            description=self.description or (DataframeFromSqlComponent.get_description()),
         )
         def _asset(context: AssetExecutionContext) -> pd.DataFrame:
             # Log partition key for source components

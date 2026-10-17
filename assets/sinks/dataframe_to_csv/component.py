@@ -467,6 +467,7 @@ class DataframeToCsvComponent(Component, Model, Resolvable):
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         # Standard catalog fields — phase 2 wiring
+        _column_lineage_md = _column_lineage_metadata(self)
         _retry_policy = None
         if self.retry_policy_max_retries is not None:
             from dagster import Backoff, RetryPolicy
@@ -549,7 +550,7 @@ class DataframeToCsvComponent(Component, Model, Resolvable):
             tags=_all_tags,
             freshness_policy=_freshness_policy,
             group_name=group_name,
-            description=DataframeToCsvComponent.get_description(),
+            description=self.description or DataframeToCsvComponent.get_description(),
             retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
@@ -668,6 +669,8 @@ class DataframeToCsvComponent(Component, Model, Resolvable):
             # single_run/multi_run backfill range + path templated on the partition
             # key: one write per key. Otherwise one write (a non-templated path gets
             # the whole range's rows in a single file).
+            if _column_lineage_md:
+                context.add_output_metadata(_column_lineage_md)
             if (
                 context.has_partition_key_range
                 and not context.has_partition_key
@@ -696,3 +699,39 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
+
+# BEGIN column-lineage helper (inlined per component; keep copies identical, see tests/test_column_lineage.py)
+def _column_lineage_metadata(component):
+    """`dagster/column_lineage` metadata from the component's `column_lineage` mapping ({output column: [upstream columns]}).
+
+    The upstream asset is `upstream_asset_key`, or the only entry of `deps`. With several upstream assets, name each
+    column as "<asset_key>:<column>". Returns {} when the mapping is unset, or (with a warning) when no upstream asset
+    can be resolved, since lineage needs an upstream asset to point at."""
+    import warnings
+
+    import dagster as _dg
+
+    mapping = getattr(component, "column_lineage", None)
+    if not mapping:
+        return {}
+    ups = getattr(component, "upstream_asset_key", None) or getattr(component, "deps", None) or []
+    ups = [ups] if isinstance(ups, (str, _dg.AssetKey)) else list(ups)
+    ups = [u.to_user_string() if isinstance(u, _dg.AssetKey) else str(u) for u in ups]
+    deps = {}
+    for out_col, in_cols in mapping.items():
+        refs = []
+        for ic in [in_cols] if isinstance(in_cols, str) else in_cols:
+            key, _, col = str(ic).rpartition(":")
+            if key in ups and col:
+                refs.append(_dg.TableColumnDep(asset_key=_dg.AssetKey.from_user_string(key), column_name=col))
+            elif len(ups) == 1:
+                refs.append(_dg.TableColumnDep(asset_key=_dg.AssetKey.from_user_string(ups[0]), column_name=str(ic)))
+            else:
+                warnings.warn(
+                    f"column_lineage ignored: cannot tell which upstream asset {ic!r} belongs to "
+                    f"(upstream assets: {ups or 'none'}; use '<asset_key>:<column>' with several upstream assets)"
+                )
+                return {}
+        deps[str(out_col)] = refs
+    return {"dagster/column_lineage": _dg.MetadataValue.column_lineage(_dg.TableColumnLineage(deps))}
+# END column-lineage helper

@@ -426,6 +426,8 @@ class FilterComponent(Component, Model, Resolvable):
         return "Filter rows from a DataFrame using a query condition."
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
+        _include_preview = self.include_preview_metadata
+        _preview_rows = self.preview_rows
         if bool(self.upstream_asset_key) == bool(self.source):
             raise ValueError("FilterComponent: set exactly one of `upstream_asset_key` or `source`.")
         # Standard catalog fields — phase 2 wiring
@@ -518,7 +520,7 @@ class FilterComponent(Component, Model, Resolvable):
             tags=_all_tags,
             freshness_policy=_freshness_policy,
 group_name=group_name,
-            description=FilterComponent.get_description(),
+            description=self.description or (FilterComponent.get_description()),
             retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
@@ -686,6 +688,7 @@ group_name=group_name,
                     _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
                         TableColumnLineage(_lineage_deps)
                     )
+            _emit_preview(context, result, _include_preview, _preview_rows)
             context.add_output_metadata(_metadata)
             # pandas needs an index reset after .query() to renumber rows;
             # polars has no index, return as-is.
@@ -714,3 +717,23 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
+
+# BEGIN output-preview helper (inlined per component; keep copies identical, see tests/test_output_preview.py)
+def _emit_preview(context, df, enabled, n):
+    """Attach a markdown preview of up to `n` rows to the asset's output metadata when `enabled`."""
+    if not enabled or df is None or not hasattr(df, "head") or len(df) == 0:
+        return
+    try:
+        import dagster as _dg
+
+        if hasattr(df, "to_pandas"):
+            df = df.to_pandas()
+        sample = df.sample(min(n, len(df)), random_state=0) if len(df) > n * 10 else df.head(n)
+        try:
+            text = sample.to_markdown(index=False)
+        except ImportError:
+            text = "```\n" + sample.to_string(index=False) + "\n```"
+        context.add_output_metadata({"preview": _dg.MetadataValue.md(text)})
+    except Exception as exc:
+        context.log.warning(f"preview emission failed: {exc}")
+# END output-preview helper

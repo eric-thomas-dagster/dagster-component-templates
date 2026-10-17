@@ -614,7 +614,7 @@ class GeocoderComponent(Component, Model, Resolvable):
             )
         _deco_geocoder_asset = asset(retry_policy=_retry_policy, 
             key=AssetKey.from_user_string(asset_name),
-            description=f"Geocoded addresses using {provider}",
+            description=self.description or (f"Geocoded addresses using {provider}"),
             partitions_def=partitions_def,
             backfill_policy=_backfill_policy_obj,
                         owners=owners,

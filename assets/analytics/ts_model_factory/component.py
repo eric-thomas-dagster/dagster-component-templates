@@ -579,7 +579,7 @@ class TsModelFactoryComponent(Component, Model, Resolvable):
             _backfill_policy_obj = BackfillPolicy.multi_run(
                 max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
             )
-        _deco_asset = asset(retry_policy=_retry_policy, 
+        _deco_asset = asset(description=self.description, retry_policy=_retry_policy, 
             key=AssetKey.from_user_string(asset_name),
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
             partitions_def=partitions_def,

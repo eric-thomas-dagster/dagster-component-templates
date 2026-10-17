@@ -464,7 +464,7 @@ class RedisReaderComponent(Component, Model, Resolvable):
 
         @asset(retry_policy=_retry_policy, 
             key=AssetKey.from_user_string(asset_name),
-            description=f"Redis reader for pattern {key_pattern}",
+            description=self.description or (f"Redis reader for pattern {key_pattern}"),
             partitions_def=partitions_def,
                         owners=owners,
             tags=_all_tags,

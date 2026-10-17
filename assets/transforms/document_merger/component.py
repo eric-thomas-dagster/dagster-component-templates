@@ -383,7 +383,7 @@ class DocumentMergerComponent(Component, Model, Resolvable):
                 max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
             )
 
-        @asset(
+        @asset(description=self.description, 
             key=AssetKey.from_user_string(asset_name),
             ins={
                 "left": AssetIn(key=AssetKey.from_user_string(left_asset_key)),

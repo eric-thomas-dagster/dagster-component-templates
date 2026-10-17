@@ -704,7 +704,7 @@ class ZeroShotClassifierComponent(Component, Model, Resolvable):
         if source_cfg and source_cfg.get("resource_key"):
             _asset_kwargs["required_resource_keys"] = {source_cfg["resource_key"]}
 
-        @asset(**_asset_kwargs)
+        @asset(description=self.description, **_asset_kwargs)
         def _asset(context: AssetExecutionContext, **kwargs) -> pd.DataFrame:
             _keys = list(context.partition_keys) if (context.has_partition_key or context.has_partition_key_range) else [None]
             if len(_keys) == 1:

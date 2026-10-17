@@ -564,7 +564,7 @@ class SampleComponent(Component, Model, Resolvable):
             tags=_all_tags,
             freshness_policy=_freshness_policy,
 group_name=group_name,
-            description=SampleComponent.get_description(),
+            description=self.description or (SampleComponent.get_description()),
             retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )

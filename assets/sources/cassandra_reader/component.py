@@ -422,7 +422,7 @@ class CassandraReaderComponent(Component, Model, Resolvable):
 
         @asset(retry_policy=_retry_policy, 
             key=AssetKey.from_user_string(asset_name),
-            description=f"Cassandra query on keyspace {keyspace}",
+            description=self.description or (f"Cassandra query on keyspace {keyspace}"),
             partitions_def=partitions_def,
                         owners=owners,
             tags=_all_tags,

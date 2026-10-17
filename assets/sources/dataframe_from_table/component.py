@@ -406,7 +406,7 @@ class DataframeFromTableComponent(Component, Model, Resolvable):
             tags=_all_tags,
             freshness_policy=_freshness_policy,
 group_name=group_name,
-            description=DataframeFromTableComponent.get_description(),
+            description=self.description or (DataframeFromTableComponent.get_description()),
         )
         def _asset(context: AssetExecutionContext) -> pd.DataFrame:
             # Log partition key for source components

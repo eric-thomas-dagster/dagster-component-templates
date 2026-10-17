@@ -508,7 +508,7 @@ class EmailParserComponent(Component, Model, Resolvable):
                 max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
             )
 
-        @asset(
+        @asset(description=self.description, 
             key=AssetKey.from_user_string(asset_name),
             ins=({"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))} if upstream_asset_key else None),
             required_resource_keys=({self.source["resource_key"]} if (self.source and self.source.get("resource_key")) else None),

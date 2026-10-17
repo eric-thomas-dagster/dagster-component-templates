@@ -414,7 +414,7 @@ class Neo4jReaderComponent(Component, Model, Resolvable):
 
         @asset(retry_policy=_retry_policy, 
             key=AssetKey.from_user_string(asset_name),
-            description="Neo4j Cypher query results",
+            description=self.description or ("Neo4j Cypher query results"),
             partitions_def=partitions_def,
                         owners=owners,
             tags=_all_tags,

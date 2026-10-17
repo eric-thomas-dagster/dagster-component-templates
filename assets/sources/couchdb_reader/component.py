@@ -418,7 +418,7 @@ class CouchdbReaderComponent(Component, Model, Resolvable):
 
         @asset(retry_policy=_retry_policy, 
             key=AssetKey.from_user_string(asset_name),
-            description=f"CouchDB reader for database {database}",
+            description=self.description or (f"CouchDB reader for database {database}"),
             partitions_def=partitions_def,
                         owners=owners,
             tags=_all_tags,

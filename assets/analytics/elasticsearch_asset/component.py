@@ -486,6 +486,7 @@ class ElasticsearchAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        _column_lineage_md = _column_lineage_metadata(self)
         partition_date_column = self.partition_date_column
         partition_static_column = self.partition_static_column
         partition_static_dim = self.partition_static_dim
@@ -559,7 +560,7 @@ class ElasticsearchAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
 
 
-        @dg.asset(retry_policy=_retry_policy, partitions_def=partitions_def, 
+        @dg.asset(description=self.description, retry_policy=_retry_policy, partitions_def=partitions_def, 
             name=component.asset_name,
             group_name=component.group_name,
             kinds={"elasticsearch"},
@@ -574,6 +575,8 @@ class ElasticsearchAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             context: dg.AssetExecutionContext,
             **kwargs,
         ) -> dg.MaterializeResult:
+            if _column_lineage_md:
+                context.add_output_metadata(_column_lineage_md)
             upstream = kwargs.get("upstream")
             if upstream is None and component.source:
                 upstream = _ingest_warehouse_query(component.source, context)
@@ -814,3 +817,39 @@ def _substitute_partition(value, tokens):
         return type(value)(_substitute_partition(v, tokens) for v in value)
     return value
 # END partition-vars helper
+
+# BEGIN column-lineage helper (inlined per component; keep copies identical, see tests/test_column_lineage.py)
+def _column_lineage_metadata(component):
+    """`dagster/column_lineage` metadata from the component's `column_lineage` mapping ({output column: [upstream columns]}).
+
+    The upstream asset is `upstream_asset_key`, or the only entry of `deps`. With several upstream assets, name each
+    column as "<asset_key>:<column>". Returns {} when the mapping is unset, or (with a warning) when no upstream asset
+    can be resolved, since lineage needs an upstream asset to point at."""
+    import warnings
+
+    import dagster as _dg
+
+    mapping = getattr(component, "column_lineage", None)
+    if not mapping:
+        return {}
+    ups = getattr(component, "upstream_asset_key", None) or getattr(component, "deps", None) or []
+    ups = [ups] if isinstance(ups, (str, _dg.AssetKey)) else list(ups)
+    ups = [u.to_user_string() if isinstance(u, _dg.AssetKey) else str(u) for u in ups]
+    deps = {}
+    for out_col, in_cols in mapping.items():
+        refs = []
+        for ic in [in_cols] if isinstance(in_cols, str) else in_cols:
+            key, _, col = str(ic).rpartition(":")
+            if key in ups and col:
+                refs.append(_dg.TableColumnDep(asset_key=_dg.AssetKey.from_user_string(key), column_name=col))
+            elif len(ups) == 1:
+                refs.append(_dg.TableColumnDep(asset_key=_dg.AssetKey.from_user_string(ups[0]), column_name=str(ic)))
+            else:
+                warnings.warn(
+                    f"column_lineage ignored: cannot tell which upstream asset {ic!r} belongs to "
+                    f"(upstream assets: {ups or 'none'}; use '<asset_key>:<column>' with several upstream assets)"
+                )
+                return {}
+        deps[str(out_col)] = refs
+    return {"dagster/column_lineage": _dg.MetadataValue.column_lineage(_dg.TableColumnLineage(deps))}
+# END column-lineage helper

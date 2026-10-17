@@ -58,6 +58,11 @@ Op coverage (v2 = 6):
                    turns "fetch grounding data" into a first-class asset with
                    lineage + metadata; string `tool_args` support `{text}`
                    substitution against source
+- plan / best_of_n / cascade / verify / eval / decide / approve — reasoning and
+                   governance ops (plan-and-replan, verifier-selected or voted
+                   candidates, cheapest-model-first escalation, grounding check,
+                   rubric eval, named-outcome decisions, human gate with a review
+                   queue); any step also accepts `when:` and a narrowing `policy:`
 - delegate       — dynamic sibling of `route`/`agent_call`: an LLM picks the
                    best-matching agent from a DISCOVERED pool (sibling
                    AgentCardComponent instances in this project, and/or an
@@ -185,13 +190,26 @@ class _Policy:
     """One run's view of the policy. `usage` is a plain dict that lives in the pipeline state so counters
     accumulate across every step (and across per-step ops in graph mode)."""
 
-    def __init__(self, cfg: Dict[str, Any], usage: Dict[str, Any]):
+    def __init__(self, cfg: Dict[str, Any], usage: Dict[str, Any], parent: Optional["_Policy"] = None, scoped: bool = False):
         self.cfg = cfg or {}
         self.usage = usage
+        self.parent = parent  # a step-level policy narrows its parent: every check must pass BOTH
         usage.setdefault("started_at", time.time())
         for k, zero in (("llm_calls", 0), ("tool_calls", 0), ("tokens", 0), ("cost_usd", 0.0)):
             usage.setdefault(k, zero)
         usage.setdefault("violations", [])
+        # a scoped (per-step) policy budgets only what THIS step spends
+        self._base = {k: usage[k] for k in ("llm_calls", "tool_calls", "tokens", "cost_usd")} if scoped else None
+        self._t0 = time.time()
+
+    def _spent(self) -> Dict[str, Any]:
+        u = self.usage
+        if self._base is None:
+            return {**{k: u[k] for k in ("llm_calls", "tool_calls", "tokens", "cost_usd")}, "elapsed": time.time() - u["started_at"]}
+        return {**{k: u[k] - self._base[k] for k in self._base}, "elapsed": time.time() - self._t0}
+
+    def _mode(self) -> str:
+        return self.cfg.get("on_violation") or (self.parent._mode() if self.parent else "fail")
 
     def _sec(self, name: str) -> Dict[str, Any]:
         return self.cfg.get(name) or {}
@@ -199,16 +217,20 @@ class _Policy:
     def violate(self, kind: str, detail: str, *, hard: bool = True) -> None:
         """Record a violation; raise unless on_violation is 'warn' (or the caller handles refusal itself)."""
         self.usage["violations"].append({"kind": kind, "detail": detail, "at": _now_iso()})
-        if hard and self.cfg.get("on_violation", "fail") != "warn":
+        if hard and self._mode() != "warn":
             raise PolicyViolation(f"[policy:{kind}] {detail}")
         logging.getLogger(__name__).warning("[policy:%s] %s", kind, detail)
 
     # environment
     def env_allowed(self, name: str) -> bool:
+        if self.parent is not None and not self.parent.env_allowed(name):
+            return False
         allow = self._sec("env").get("allow")
         return allow is None or any(fnmatch.fnmatchcase(name, p) for p in allow)
 
     def check_env(self, name: str) -> None:
+        if self.parent is not None:
+            self.parent.check_env(name)
         if not self.env_allowed(name):
             self.violate("env", f"reading environment variable {name!r} is not allowed (policy.env.allow)")
 
@@ -223,6 +245,8 @@ class _Policy:
         return False
 
     def check_path(self, path: Any, mode: str) -> None:
+        if self.parent is not None:
+            self.parent.check_path(path, mode)
         roots = self._sec("filesystem").get(mode)
         if roots is not None and not self._under(str(path), roots):
             self.violate("filesystem", f"{mode} of {str(path)!r} is outside policy.filesystem.{mode} {list(roots)}")
@@ -234,12 +258,16 @@ class _Policy:
         return bool(host) and any(fnmatch.fnmatchcase(host, p.lower()) for p in patterns)
 
     def check_url(self, url: Any) -> None:
+        if self.parent is not None:
+            self.parent.check_url(url)
         hosts = self._sec("network").get("allow_hosts")
         if hosts is not None and not self._host_ok(str(url), hosts):
             self.violate("network", f"call to {str(url)!r} is not in policy.network.allow_hosts {list(hosts)}")
 
     # components
     def check_component(self, component_type: str) -> None:
+        if self.parent is not None:
+            self.parent.check_component(component_type)
         allow = self._sec("components").get("allow")
         name = str(component_type).rsplit(".", 1)[-1]
         if allow is not None and not any(fnmatch.fnmatchcase(name, p) for p in allow):
@@ -247,10 +275,12 @@ class _Policy:
 
     # budget
     def before_llm_call(self) -> None:
-        b, u = self._sec("budget"), self.usage
+        if self.parent is not None:
+            self.parent.before_llm_call()
+        b, u = self._sec("budget"), self._spent()
         if b.get("max_llm_calls") is not None and u["llm_calls"] >= b["max_llm_calls"]:
             self.violate("budget", f"policy.budget.max_llm_calls={b['max_llm_calls']} reached")
-        if b.get("max_seconds") is not None and time.time() - u["started_at"] > b["max_seconds"]:
+        if b.get("max_seconds") is not None and u["elapsed"] > b["max_seconds"]:
             self.violate("budget", f"policy.budget.max_seconds={b['max_seconds']} exceeded")
         if b.get("max_cost_usd") is not None and u["cost_usd"] >= b["max_cost_usd"]:
             self.violate("budget", f"policy.budget.max_cost_usd={b['max_cost_usd']} reached (spent {u['cost_usd']:.4f})")
@@ -258,10 +288,14 @@ class _Policy:
             self.violate("budget", f"policy.budget.max_tokens={b['max_tokens']} reached (used {u['tokens']})")
 
     def after_llm_call(self, cost_usd: Optional[float], tokens: Optional[int]) -> None:
-        u = self.usage
-        u["llm_calls"] += 1
-        u["tokens"] += int(tokens or 0)
-        u["cost_usd"] += float(cost_usd or 0.0)
+        if self.parent is not None:
+            self.parent.after_llm_call(cost_usd, tokens)  # the root accumulates the shared counters exactly once
+        else:
+            u0 = self.usage
+            u0["llm_calls"] += 1
+            u0["tokens"] += int(tokens or 0)
+            u0["cost_usd"] += float(cost_usd or 0.0)
+        u = self._spent()
         b = self._sec("budget")
         if b.get("max_cost_usd") is not None and u["cost_usd"] > b["max_cost_usd"]:
             self.violate("budget", f"policy.budget.max_cost_usd={b['max_cost_usd']} exceeded (spent {u['cost_usd']:.4f})")
@@ -271,6 +305,8 @@ class _Policy:
     # tools -- the model can only act through the tools the pipeline gives it
     def tool_visible(self, *names: str) -> bool:
         """Static allow/deny (no counters): used to decide which tools the model is even shown."""
+        if self.parent is not None and not self.parent.tool_visible(*names):
+            return False
         t = self._sec("tools")
         if any(fnmatch.fnmatchcase(n, p) for n in names if n for p in (t.get("deny") or [])):
             return False
@@ -280,10 +316,14 @@ class _Policy:
     def tool_refusal(self, tool: str, real_name: str, args: Any) -> Optional[str]:
         """Why this specific call must be refused, or None. Never raises: the refusal goes back to the model."""
         t = self._sec("tools")
+        if self.parent is not None:
+            inherited = self.parent.tool_refusal(tool, real_name, args)
+            if inherited:
+                return inherited
         if not self.tool_visible(tool, real_name):
             return f"tool {tool!r} is not permitted by policy.tools (allow/deny)"
         cap = t.get("max_calls_per_run")
-        if cap is not None and self.usage["tool_calls"] >= cap:
+        if cap is not None and self._spent()["tool_calls"] >= cap:
             return f"policy.tools.max_calls_per_run={cap} reached"
         args = args if isinstance(args, dict) else {}
         for rule in t.get("arg_rules") or []:
@@ -309,7 +349,7 @@ class _Policy:
         reason = self.tool_refusal(tool, real_name, args)
         if reason:
             self.violate("tools", reason, hard=False)
-            if self.cfg.get("on_violation", "fail") == "warn":
+            if self._mode() == "warn":
                 reason = None  # warn mode: record + log, but let the call through
         if reason is None:
             self.usage["tool_calls"] += 1
@@ -4520,6 +4560,627 @@ def _do_invoke_component(step: dict, state: Dict[str, Any], context) -> Dict[str
     }
 
 
+# ── Reasoning & governance ops ───────────────────────────────────────────────
+#
+#   verify     check an answer against evidence (grounding): verdict + score + unsupported claims
+#   eval       score an output against a weighted rubric (LLM-as-judge), optional reference, hard gate
+#   best_of_n  N candidates -> pick the best by a verifier (or majority vote / self-consistency)
+#   cascade    cheapest model first, escalate to stronger models until a verifier accepts
+#   plan       plan -> execute (optionally with tools) -> verify each step -> REPLAN on failure -> synthesize
+#   decide     pick one of a fixed set of NAMED outcomes with rationale + cited evidence (a decision record)
+#   approve    human gate: pending record (the review queue), wait window, safe default on timeout
+#
+# plus a generic `when:` guard on any step ("review only the exceptions") and a per-step `policy:` that narrows the
+# pipeline policy (a step can only get MORE restricted than the pipeline, never less).
+
+_PLAN_JSON_HINT = (
+    'Return ONLY JSON of the form {"steps": [{"id": "s1", "task": "what to do"}, ...]} -- no prose, no code fences.'
+)
+
+
+_JSON_META_KEYS = {"candidates", "escalations", "plan", "steps", "scores", "rationales", "unsupported_claims", "issues", "evidence"}
+
+
+def _code_version(obj: Any) -> str:
+    """Stable short hash of a config fragment -> Dagster `code_version` (so editing a step marks exactly it, and what depends on
+    it, stale) and the `pipeline_version` shown on every materialization."""
+    import hashlib
+    return hashlib.sha1(json.dumps(obj, sort_keys=True, default=str).encode()).hexdigest()[:12]
+
+
+def _parse_json_loose(text: Optional[str]) -> Any:
+    """Parse the JSON a model produced even when it wrapped it in a code fence or added a sentence around it."""
+    t = (text or "").strip()
+    if not t:
+        return None
+    fenced = re.search(r"```(?:json)?\s*(.*?)```", t, re.S | re.I)
+    if fenced:
+        t = fenced.group(1).strip()
+    try:
+        return json.loads(t)
+    except (json.JSONDecodeError, ValueError):
+        pass
+    m = re.search(r"(\{.*\}|\[.*\])", t, re.S)
+    if m:
+        try:
+            return json.loads(m.group(1))
+        except (json.JSONDecodeError, ValueError):
+            return None
+    return None
+
+
+def _llm(cfg: Dict[str, Any], system: Optional[str], user: str, *, max_tokens: Optional[int] = None,
+         temperature: Optional[float] = None, default_max_tokens: int = 1024) -> Dict[str, Any]:
+    """One model call from a step / sub-config dict (model, api_key_env_var, api_base_env_var, temperature, ...)."""
+    if not cfg.get("model"):
+        raise ValueError("this op needs a `model:` (on the step or on the sub-config that makes the call)")
+    return _completion(
+        model=cfg["model"], system_prompt=system, user_prompt=user,
+        api_key_env_var=cfg.get("api_key_env_var"), api_base_env_var=cfg.get("api_base_env_var"),
+        temperature=cfg.get("temperature", 0.0) if temperature is None else temperature,
+        max_tokens=max_tokens or cfg.get("max_tokens", default_max_tokens),
+        reasoning_effort=cfg.get("reasoning_effort"), thinking_budget=cfg.get("thinking_budget"),
+        prompt_caching=bool(cfg.get("prompt_caching", False)),
+    )
+
+
+def _base_llm_cfg(step: Dict[str, Any], sub: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """A sub-config (planner/executor/verifier/...) inherits the step's model settings unless it sets its own."""
+    base = {k: step[k] for k in ("model", "api_key_env_var", "api_base_env_var", "temperature", "max_tokens",
+                                 "reasoning_effort", "thinking_budget", "prompt_caching") if step.get(k) is not None}
+    base.update(sub or {})
+    return base
+
+
+def _agg(results: List[Dict[str, Any]]) -> Dict[str, Any]:
+    return {"cost_usd": _sum_cost(*results), "latency_ms": _sum_latency(*results),
+            "tokens_total": _sum_tokens(*results), "n_llm_calls": len(results)}
+
+
+def _clip(s: Any, n: int = 1500) -> str:
+    s = "" if s is None else str(s)
+    return s if len(s) <= n else s[:n] + f"… [+{len(s) - n} chars]"
+
+
+# ── shared verifier (best_of_n, cascade, plan) ───────────────────────────────
+
+def _run_verifier(vcfg: Dict[str, Any], candidate: str, task: str, step: Dict[str, Any]) -> Dict[str, Any]:
+    """Score one candidate. kinds: regex | json | contains | llm (default when a model is available).
+    Returns {passed, score(0..1), reason, llm_results[]}."""
+    kind = vcfg.get("kind") or ("llm" if (vcfg.get("model") or step.get("model")) else "regex")
+    text = candidate or ""
+    if kind == "regex":
+        ok = re.search(vcfg["pattern"], text, re.I | re.S) is not None
+        return {"passed": ok, "score": 1.0 if ok else 0.0, "reason": f"regex {vcfg['pattern']!r} {'matched' if ok else 'did not match'}", "llm_results": []}
+    if kind == "contains":
+        needles = vcfg["contains"] if isinstance(vcfg["contains"], list) else [vcfg["contains"]]
+        hit = [n for n in needles if str(n).lower() in text.lower()]
+        ok = len(hit) == len(needles) if vcfg.get("all", True) else bool(hit)
+        return {"passed": ok, "score": len(hit) / max(len(needles), 1), "reason": f"contains {hit} of {needles}", "llm_results": []}
+    if kind == "json":
+        obj = _parse_json_loose(text)
+        keys = vcfg.get("required_keys") or []
+        ok = obj is not None and (not keys or (isinstance(obj, dict) and all(k in obj for k in keys)))
+        return {"passed": ok, "score": 1.0 if ok else 0.0, "reason": "valid JSON" + (f" with keys {keys}" if keys and ok else "") if ok else "not valid JSON or missing required keys", "llm_results": []}
+    if kind != "llm":
+        raise ValueError(f"unknown verifier kind {kind!r}; valid: llm, regex, json, contains")
+    cfg = _base_llm_cfg(step, vcfg)
+    rubric = vcfg.get("rubric") or "The answer is correct, complete, and directly addresses the task."
+    system = (
+        "You are a strict verifier. Judge the CANDIDATE against the TASK and this rubric:\n"
+        f"{rubric}\n\n"
+        'Return ONLY JSON: {"score": <number 0 to 1>, "reason": "<one sentence>"}. 1 = fully meets the rubric, 0 = not at all.'
+    )
+    r = _llm(cfg, system, f"TASK:\n{_clip(task, 4000)}\n\nCANDIDATE:\n{_clip(text, 6000)}", max_tokens=vcfg.get("max_tokens", 300), temperature=0.0)
+    obj = _parse_json_loose(r["content"]) or {}
+    try:
+        score = max(0.0, min(1.0, float(obj.get("score"))))
+    except (TypeError, ValueError):
+        score = 0.0
+    min_score = float(vcfg.get("min_score", 0.7))
+    return {"passed": score >= min_score, "score": score, "reason": str(obj.get("reason") or "(verifier gave no reason)"), "llm_results": [r]}
+
+
+# ── verify ───────────────────────────────────────────────────────────────────
+
+def _do_verify(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
+    """Check an answer against evidence. `source` = the answer; evidence from `evidence_source: <step id | [ids]>` or
+    `inputs: {evidence: …}`. Returns text (the answer, passed through) + verdict / score / passed / unsupported_claims.
+
+    Config: model, min_score (default 0.7), on_fail: continue | fail (default continue)."""
+    materialized_at = _now_iso()
+    source_id = step.get("source", _ROOT_SOURCE_ID)
+    answer = _get_source_text(state, source_id)
+    inputs = _resolve_inputs(step, state)
+    ev_ids = step.get("evidence_source") or []
+    ev_ids = [ev_ids] if isinstance(ev_ids, str) else list(ev_ids)
+    evidence_parts = [f"[{i}]\n{_get_source_text(state, i)}" for i in ev_ids]
+    if "evidence" in inputs:
+        evidence_parts.append(inputs["evidence"])
+    if not evidence_parts:
+        raise ValueError("verify needs evidence: set `evidence_source: <step id>` (or a list) or `inputs: {evidence: {from: …}}`")
+    cfg = _base_llm_cfg(step)
+    system = step.get("system_prompt") or (
+        "You verify an ANSWER strictly against the EVIDENCE. A claim is supported only if the evidence states or clearly "
+        "implies it; anything else is unsupported. Return ONLY JSON: "
+        '{"verdict": "supported" | "partially_supported" | "unsupported", "score": <0 to 1, share of the answer that is supported>, '
+        '"unsupported_claims": ["…"], "issues": ["…"]}'
+    )
+    r = _llm(cfg, system, f"EVIDENCE:\n{_clip(chr(10).join(evidence_parts), 12000)}\n\nANSWER:\n{_clip(answer, 6000)}", default_max_tokens=800)
+    obj = _parse_json_loose(r["content"]) or {}
+    try:
+        score = max(0.0, min(1.0, float(obj.get("score"))))
+    except (TypeError, ValueError):
+        score = 0.0
+    verdict = obj.get("verdict") if obj.get("verdict") in ("supported", "partially_supported", "unsupported") else "unsupported"
+    min_score = float(step.get("min_score", 0.7))
+    passed = score >= min_score and verdict != "unsupported"
+    if not passed and step.get("on_fail", "continue") == "fail":
+        raise RuntimeError(f"[verify:{step.get('id')}] failed: verdict={verdict} score={score:.2f} (< {min_score}); "
+                           f"unsupported={obj.get('unsupported_claims')}")
+    return {
+        "text": answer, "op": "verify", "verdict": verdict, "score": round(score, 3), "passed": passed,
+        "unsupported_claims": obj.get("unsupported_claims") or [], "issues": obj.get("issues") or [],
+        "model": cfg["model"], "model_fingerprint": f"{cfg['model']}@verify", "materialized_at": materialized_at,
+        "usage": r.get("usage"), **_agg([r]),
+    }
+
+
+# ── eval ─────────────────────────────────────────────────────────────────────
+
+def _do_eval(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
+    """Score an output on a weighted rubric (LLM-as-judge).
+
+    Config: criteria: [name | {name, description, weight}], scale (default 5), reference_source (optional expected answer),
+    fail_below (hard gate on the weighted mean, in `scale` units), model."""
+    materialized_at = _now_iso()
+    source_id = step.get("source", _ROOT_SOURCE_ID)
+    output = _get_source_text(state, source_id)
+    raw = step.get("criteria") or ["overall quality"]
+    criteria: List[Dict[str, Any]] = []
+    for c in raw:
+        criteria.append({"name": c, "description": "", "weight": 1.0} if isinstance(c, str)
+                        else {"name": c["name"], "description": c.get("description", ""), "weight": float(c.get("weight", 1.0))})
+    scale = int(step.get("scale", 5))
+    ref = _get_source_text(state, step["reference_source"]) if step.get("reference_source") else None
+    cfg = _base_llm_cfg(step)
+    rubric = "\n".join(f"- {c['name']}" + (f": {c['description']}" if c["description"] else "") for c in criteria)
+    system = step.get("system_prompt") or (
+        f"You are an impartial evaluator. Score the OUTPUT on each criterion from 1 (poor) to {scale} (excellent), "
+        'with a one-sentence rationale. Return ONLY JSON: {"scores": {"<criterion>": {"score": <int>, "rationale": "…"}}}'
+        f"\n\nCriteria:\n{rubric}"
+    )
+    user = f"OUTPUT:\n{_clip(output, 8000)}" + (f"\n\nREFERENCE (expected):\n{_clip(ref, 4000)}" if ref else "")
+    r = _llm(cfg, system, user, default_max_tokens=900)
+    obj = _parse_json_loose(r["content"]) or {}
+    got = obj.get("scores") if isinstance(obj.get("scores"), dict) else {}
+    scores: Dict[str, float] = {}
+    rationales: Dict[str, str] = {}
+    for c in criteria:
+        entry = got.get(c["name"], {})
+        try:
+            scores[c["name"]] = max(1.0, min(float(scale), float(entry.get("score") if isinstance(entry, dict) else entry)))
+        except (TypeError, ValueError):
+            scores[c["name"]] = 1.0  # an unscored criterion counts against the output rather than silently passing
+        rationales[c["name"]] = str(entry.get("rationale", "")) if isinstance(entry, dict) else ""
+    total_w = sum(c["weight"] for c in criteria) or 1.0
+    overall = sum(scores[c["name"]] * c["weight"] for c in criteria) / total_w
+    fail_below = step.get("fail_below")
+    passed = fail_below is None or overall >= float(fail_below)
+    if not passed:
+        raise RuntimeError(f"[eval:{step.get('id')}] overall {overall:.2f}/{scale} is below fail_below={fail_below}: {scores}")
+    return {
+        "text": output, "op": "eval", "overall": round(overall, 3), "scale": scale, "scores": scores, "rationales": rationales,
+        "passed": passed, "model": cfg["model"], "model_fingerprint": f"{cfg['model']}@eval", "materialized_at": materialized_at,
+        "usage": r.get("usage"), **_agg([r]),
+    }
+
+
+# ── best_of_n ────────────────────────────────────────────────────────────────
+
+def _norm_answer(t: str) -> str:
+    return re.sub(r"\s+", " ", (t or "").strip().lower()).strip(" .")
+
+
+def _do_best_of_n(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
+    """Generate N candidates and keep the best. select: verifier (score each, highest wins) | vote (majority of normalised
+    answers -- self-consistency) | first_valid. Config: n, models (cycle for an ensemble), temperature (default 0.8),
+    verifier {kind: llm|regex|json|contains, …, min_score}, parallel (default true), on_none_pass: best | fail."""
+    import concurrent.futures
+    materialized_at = _now_iso()
+    source_id = step.get("source", _ROOT_SOURCE_ID)
+    src_text = _get_source_text(state, source_id) if source_id else ""
+    inputs = _resolve_inputs(step, state)
+    n = int(step.get("n", 3))
+    if n < 1:
+        raise ValueError("best_of_n needs n >= 1")
+    user = _substitute_ports(step.get("prompt_template", "{text}").replace("{text}", src_text), inputs)
+    system = step.get("system_prompt")
+    if system:
+        system = _substitute_ports(system, inputs)
+    models = step.get("models") or [step.get("model")]
+    verifier = step.get("verifier")
+    select = step.get("select") or ("verifier" if verifier else "vote")
+    if select == "verifier" and not verifier:
+        raise ValueError("best_of_n select=verifier needs a `verifier:` block")
+    temperature = step.get("temperature", 0.8)
+
+    def gen(i: int) -> Dict[str, Any]:
+        cfg = _base_llm_cfg(step, {"model": models[i % len(models)]})
+        r = _llm(cfg, system, user, temperature=temperature, default_max_tokens=2048)
+        return {"index": i, "model": cfg["model"], "text": r["content"], "result": r}
+
+    ctx = contextvars.copy_context()  # worker threads must see the active policy + reasoning trace
+    if step.get("parallel", True) and n > 1:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(n, int(step.get("max_workers", 4)))) as ex:
+            cands = list(ex.map(lambda i: ctx.copy().run(gen, i), range(n)))
+    else:
+        cands = [gen(i) for i in range(n)]
+    llm_results = [c["result"] for c in cands]
+
+    if verifier:
+        for c in cands:
+            v = _run_verifier(verifier, c["text"], user, step)
+            c.update(score=v["score"], passed=v["passed"], reason=v["reason"])
+            llm_results.extend(v["llm_results"])
+    agreement = None
+    if select == "vote":
+        groups: Dict[str, List[int]] = {}
+        for c in cands:
+            groups.setdefault(_norm_answer(c["text"]), []).append(c["index"])
+        best_key = max(groups, key=lambda k: (len(groups[k]), -groups[k][0]))
+        winner = cands[groups[best_key][0]]
+        agreement = round(len(groups[best_key]) / n, 3)
+        for c in cands:
+            c.setdefault("score", None)
+    elif select == "first_valid":
+        valid = [c for c in cands if c.get("passed")]
+        winner = valid[0] if valid else cands[0]
+    else:
+        winner = max(cands, key=lambda c: (c["score"], -c["index"]))
+    any_passed = any(c.get("passed") for c in cands) if verifier else True
+    if verifier and not any_passed and step.get("on_none_pass", "best") == "fail":
+        raise RuntimeError(f"[best_of_n:{step.get('id')}] none of {n} candidates passed the verifier; best score {winner['score']:.2f}")
+    return {
+        "text": winner["text"], "op": "best_of_n", "selected_index": winner["index"], "selected_model": winner["model"],
+        "select": select, "n": n, "any_passed": any_passed, "agreement": agreement,
+        "candidates": [{"index": c["index"], "model": c["model"], "text": _clip(c["text"], 400), "score": c.get("score"),
+                        "passed": c.get("passed"), "reason": c.get("reason")} for c in cands],
+        "model": ",".join(sorted({str(m) for m in models})), "model_fingerprint": f"{'+'.join(sorted({str(m) for m in models}))}@best_of_{n}",
+        "materialized_at": materialized_at, **_agg(llm_results),
+    }
+
+
+# ── cascade ──────────────────────────────────────────────────────────────────
+
+def _do_cascade(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
+    """Try `models` cheapest-first; escalate to the next only when the previous answer fails `accept` (a verifier) or errors.
+    The point is cost control with evidence: `escalations` records exactly which model answered and why earlier ones didn't.
+    Config: models (ordered), accept {kind: llm|regex|json|contains, …} (omit = accept any non-empty answer),
+    on_exhausted: last | fail (default last)."""
+    materialized_at = _now_iso()
+    source_id = step.get("source", _ROOT_SOURCE_ID)
+    src_text = _get_source_text(state, source_id) if source_id else ""
+    inputs = _resolve_inputs(step, state)
+    models = step.get("models") or []
+    if len(models) < 1:
+        raise ValueError("cascade needs `models: [cheapest, …, strongest]`")
+    user = _substitute_ports(step.get("prompt_template", "{text}").replace("{text}", src_text), inputs)
+    system = step.get("system_prompt")
+    if system:
+        system = _substitute_ports(system, inputs)
+    accept = step.get("accept")
+    llm_results: List[Dict[str, Any]] = []
+    escalations: List[Dict[str, Any]] = []
+    answer, used, accepted = "", None, False
+    for i, model in enumerate(models):
+        cfg = _base_llm_cfg(step, {"model": model})
+        try:
+            r = _llm(cfg, system, user, default_max_tokens=2048)
+        except PolicyViolation:
+            raise
+        except Exception as e:  # noqa: BLE001 -- a failing cheap model is exactly when to escalate
+            escalations.append({"model": model, "error": f"{type(e).__name__}: {e}", "accepted": False})
+            continue
+        llm_results.append(r)
+        answer, used = r["content"], model
+        if accept:
+            v = _run_verifier(accept, answer, user, step)
+            llm_results.extend(v["llm_results"])
+            ok, score, reason = v["passed"], v["score"], v["reason"]
+        else:
+            ok, score, reason = bool(answer.strip()), None, "non-empty answer" if answer.strip() else "empty answer"
+        escalations.append({"model": model, "accepted": ok, "score": score, "reason": reason, "cost_usd": r.get("cost_usd")})
+        if ok:
+            accepted = True
+            break
+    if not accepted and step.get("on_exhausted", "last") == "fail":
+        raise RuntimeError(f"[cascade:{step.get('id')}] no model in {models} produced an accepted answer")
+    return {
+        "text": answer, "op": "cascade", "model_used": used, "accepted": accepted, "n_escalations": max(len(escalations) - 1, 0),
+        "escalations": escalations, "model": used or models[0], "model_fingerprint": f"{'>'.join(map(str, models))}@cascade",
+        "materialized_at": materialized_at, **_agg(llm_results),
+    }
+
+
+# ── plan (plan -> execute -> verify -> replan -> synthesize) ──────────────────
+
+def _do_plan(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
+    """Plan-and-execute with replanning. A planner breaks the goal into ordered tasks; an executor (a plain LLM call, or a tool
+    loop when `executor.mcp_servers` is set) carries each out with the results so far; an optional `verifier` checks each task's
+    output and a failure triggers a REPLAN of the remaining work (up to max_replans); finally a synthesis call writes the answer.
+
+    Config: model (default for all roles), planner {…}, executor {…, mcp_servers}, verifier {…}, goal_template ('{text}'),
+    max_steps (8), max_replans (2), synthesize (true), on_fail: continue | fail (default continue)."""
+    materialized_at = _now_iso()
+    source_id = step.get("source", _ROOT_SOURCE_ID)
+    src_text = _get_source_text(state, source_id) if source_id else ""
+    inputs = _resolve_inputs(step, state)
+    goal = _substitute_ports(step.get("goal_template", "{text}").replace("{text}", src_text), inputs)
+    planner_cfg = _base_llm_cfg(step, step.get("planner"))
+    executor_cfg = _base_llm_cfg(step, step.get("executor"))
+    verifier = step.get("verifier")
+    max_steps, max_replans = int(step.get("max_steps", 8)), int(step.get("max_replans", 2))
+    llm_results: List[Dict[str, Any]] = []
+    extra_cost: List[Dict[str, Any]] = []
+
+    def plan_tasks(done: List[Dict[str, Any]], failure: Optional[Dict[str, Any]]) -> List[Dict[str, str]]:
+        if failure is None:
+            system = f"You are a careful planner. Break the goal into at most {max_steps} concrete, ordered steps. {_PLAN_JSON_HINT}"
+            user = f"GOAL:\n{goal}"
+        else:
+            system = (f"You are replanning after a step failed. Plan ONLY the remaining work (at most {max_steps - len(done)} steps), "
+                      f"taking the completed results into account and avoiding what just failed. {_PLAN_JSON_HINT}")
+            done_txt = "\n".join(f"- {d['id']}: {d['task']} -> {_clip(d['output'], 600)}" for d in done if d["ok"]) or "(none)"
+            user = (f"GOAL:\n{goal}\n\nCOMPLETED:\n{done_txt}\n\nFAILED STEP: {failure['task']}\nITS OUTPUT: {_clip(failure['output'], 800)}\n"
+                    f"WHY IT FAILED: {failure['reason']}")
+        r = _llm(planner_cfg, system, user, default_max_tokens=900)
+        llm_results.append(r)
+        obj = _parse_json_loose(r["content"])
+        steps_raw = obj.get("steps") if isinstance(obj, dict) else obj if isinstance(obj, list) else None
+        tasks = []
+        for i, s in enumerate(steps_raw or []):
+            task = s.get("task") if isinstance(s, dict) else str(s)
+            if task:
+                tasks.append({"id": (s.get("id") if isinstance(s, dict) and s.get("id") else f"s{len(done) + i + 1}"), "task": str(task)})
+        if not tasks:
+            context.log.warning(f"[plan:{step.get('id', '?')}] planner returned no parseable steps; falling back to a single step")
+            tasks = [{"id": f"s{len(done) + 1}", "task": goal}]
+        return tasks[: max(max_steps - len(done), 1)]
+
+    def execute(task: Dict[str, str], done: List[Dict[str, Any]]) -> "tuple[str, Optional[str]]":
+        ctx_txt = "\n".join(f"{d['id']} ({d['task']}): {_clip(d['output'], 800)}" for d in done if d["ok"]) or "(nothing yet)"
+        prompt = f"OVERALL GOAL:\n{goal}\n\nCOMPLETED STEPS:\n{ctx_txt}\n\nCURRENT STEP ({task['id']}):\n{task['task']}"
+        try:
+            if executor_cfg.get("mcp_servers"):
+                sub = {**executor_cfg, "id": f"{step.get('id', 'plan')}__{task['id']}", "op": "tool_use_loop", "prompt_template": "{text}"}
+                out = _do_tool_use_loop(sub, {"source": {"text": prompt}, "__ctx__": state.get("__ctx__", {})}, context)
+                extra_cost.append(out)
+                return out["text"], None
+            r = _llm(executor_cfg, executor_cfg.get("system_prompt") or (
+                "You are carrying out ONE step of a larger plan. Use the completed steps as context and respond with the result of "
+                "this step only."), prompt, default_max_tokens=2048)
+            llm_results.append(r)
+            return r["content"], None
+        except PolicyViolation:
+            raise
+        except Exception as e:  # noqa: BLE001
+            return "", f"{type(e).__name__}: {e}"
+
+    initial = plan_tasks([], None)
+    queue, done, n_replans, status = list(initial), [], 0, "completed"
+    while queue:
+        if len(done) >= max_steps:
+            status = "max_steps"
+            break
+        task = queue.pop(0)
+        out, err = execute(task, done)
+        ok, reason = err is None, err
+        if ok and verifier:
+            v = _run_verifier(verifier, out, f"{goal}\n\nSTEP: {task['task']}", step)
+            llm_results.extend(v["llm_results"])
+            ok, reason = v["passed"], v["reason"]
+        done.append({"id": task["id"], "task": task["task"], "output": out, "ok": ok, "reason": reason})
+        if not ok:
+            if n_replans >= max_replans:
+                status = "failed"
+                break
+            n_replans += 1
+            queue = plan_tasks(done, done[-1])
+            context.log.info(f"[plan:{step.get('id', '?')}] step {task['id']} failed ({reason}); replanned -> {len(queue)} step(s)")
+    good = [d for d in done if d["ok"]]
+    if step.get("synthesize", True) and good:
+        r = _llm(planner_cfg, "Compose the final answer to the GOAL from the step results. Be complete and do not invent facts "
+                 "that the results do not support.", f"GOAL:\n{goal}\n\nRESULTS:\n" + "\n\n".join(f"{d['id']} - {d['task']}:\n{_clip(d['output'], 2500)}" for d in good),
+                 default_max_tokens=2048)
+        llm_results.append(r)
+        text = r["content"]
+    else:
+        text = good[-1]["output"] if good else ""
+    if status == "failed" and step.get("on_fail", "continue") == "fail":
+        raise RuntimeError(f"[plan:{step.get('id')}] failed after {n_replans} replan(s); last: {done[-1]['reason']}")
+    agg = _agg(llm_results)
+    for o in extra_cost:  # tool-loop executors report their own totals
+        agg["cost_usd"] = round((agg["cost_usd"] or 0) + (o.get("cost_usd") or 0), 6) or None
+        agg["latency_ms"] += o.get("latency_ms") or 0
+        agg["tokens_total"] = (agg["tokens_total"] or 0) + (o.get("tokens_total") or 0) or None
+        agg["n_llm_calls"] += o.get("n_llm_calls") or 0
+    return {
+        "text": text, "op": "plan", "status": status, "n_replans": n_replans, "n_steps_executed": len(done),
+        "plan": initial, "steps": [{**d, "output": _clip(d["output"], 800)} for d in done],
+        "model": planner_cfg.get("model"), "model_fingerprint": f"{planner_cfg.get('model')}@plan", "materialized_at": materialized_at, **agg,
+    }
+
+
+# ── decide ───────────────────────────────────────────────────────────────────
+
+def _do_decide(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
+    """A decision record: choose ONE of a fixed set of named outcomes, with rationale and the evidence it rests on.
+
+    Config: outcomes: {name: "when to choose it"}, evidence_source: step id | [ids] (their text is shown to the model and the model
+    cites quotes), default_outcome (used when the model's answer is not one of the outcomes; omit to fail), model.
+    Result keys (usable by `when:` and downstream steps): outcome, reason, confidence, evidence."""
+    materialized_at = _now_iso()
+    source_id = step.get("source", _ROOT_SOURCE_ID)
+    src_text = _get_source_text(state, source_id) if source_id else ""
+    outcomes = step.get("outcomes") or {}
+    if len(outcomes) < 2:
+        raise ValueError("decide needs `outcomes:` with at least two named outcomes: {name: 'when to choose it'}")
+    ev_ids = step.get("evidence_source") or []
+    ev_ids = [ev_ids] if isinstance(ev_ids, str) else list(ev_ids)
+    evidence_txt = "\n\n".join(f"[{i}]\n{_clip(_get_source_text(state, i), 4000)}" for i in ev_ids)
+    cfg = _base_llm_cfg(step)
+    menu = "\n".join(f"- {name}: {desc}" for name, desc in outcomes.items())
+    system = step.get("system_prompt") or (
+        "You make a single decision. Choose EXACTLY ONE outcome from the list and justify it from the evidence. Return ONLY JSON: "
+        '{"outcome": "<one of the names>", "reason": "<why>", "confidence": <0 to 1>, '
+        '"evidence": [{"source": "<evidence id or input>", "quote": "<short exact quote>"}]}\n\nOutcomes:\n' + menu
+    )
+    user = f"INPUT:\n{_clip(src_text, 6000)}" + (f"\n\nEVIDENCE:\n{evidence_txt}" if evidence_txt else "")
+    r = _llm(cfg, system, user, default_max_tokens=700)
+    obj = _parse_json_loose(r["content"]) or {}
+    outcome = obj.get("outcome")
+    fell_back = False
+    if outcome not in outcomes:
+        if step.get("default_outcome") in outcomes:
+            outcome, fell_back = step["default_outcome"], True
+        else:
+            raise RuntimeError(f"[decide:{step.get('id')}] model chose {obj.get('outcome')!r}, not one of {sorted(outcomes)}")
+    try:
+        conf = max(0.0, min(1.0, float(obj.get("confidence"))))
+    except (TypeError, ValueError):
+        conf = None
+    return {
+        "text": f"{outcome}: {obj.get('reason', '')}".strip(": "), "op": "decide", "outcome": outcome, "reason": str(obj.get("reason") or ""),
+        "confidence": conf, "evidence": obj.get("evidence") or [], "used_default_outcome": fell_back,
+        "model": cfg["model"], "model_fingerprint": f"{cfg['model']}@decide", "materialized_at": materialized_at,
+        "usage": r.get("usage"), **_agg([r]),
+    }
+
+
+# ── approve ──────────────────────────────────────────────────────────────────
+
+def _do_approve(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
+    """Human gate inside the pipeline, using the SAME token contract as `human_approval_gate`:
+    `<approval_dir>/<key>.json` = {"approved": true|false, "approver": "...", "reason": "..."} -- written by anything (Slack bot,
+    Retool, a CLI, another asset).
+
+    While waiting, a pending record is written to `<approval_dir>/pending/<key>.json` (what is being approved, why, when it expires):
+    that directory IS the review queue. Pair with a `when:` guard so only exceptions reach a human.
+
+    Config: approval_dir, key (default: partition key or step id), summary (shown to the reviewer; default: a preview of the source),
+    wait_seconds (default 0 = don't block), poll_seconds (5), on_timeout: reject | approve | pending (default reject -- the safe
+    default), on_reject: stop | continue (default stop: raise, so nothing downstream runs)."""
+    materialized_at = _now_iso()
+    source_id = step.get("source", _ROOT_SOURCE_ID)
+    text = _get_source_text(state, source_id) if source_id else ""
+    approval_dir = step.get("approval_dir")
+    if not approval_dir:
+        raise ValueError("approve needs `approval_dir:` (where approval tokens + the pending review queue live)")
+    key = re.sub(r"[^A-Za-z0-9._-]+", "_", str(step.get("key") or _ctx_of(state).get("partition_key") or step["id"]))
+    token_path = os.path.join(approval_dir, f"{key}.json")
+    pending_path = os.path.join(approval_dir, "pending", f"{key}.json")
+    wait_seconds = float(step.get("wait_seconds", 0))
+    poll = max(float(step.get("poll_seconds", 5)), 0.05)
+    on_timeout = step.get("on_timeout", "reject")
+    if on_timeout not in ("reject", "approve", "pending"):
+        raise ValueError("approve on_timeout must be reject | approve | pending")
+    _pol_path(approval_dir, "read")
+    _pol_path(pending_path, "write")
+
+    def read_token() -> Optional[Dict[str, Any]]:
+        if not os.path.exists(token_path):
+            return None
+        try:
+            with open(token_path) as f:
+                tok = json.load(f)
+            return tok if isinstance(tok, dict) and "approved" in tok else None
+        except (OSError, json.JSONDecodeError):
+            return None  # half-written token: treat as not there yet
+
+    tok = read_token()
+    waited = 0.0
+    if tok is None:
+        os.makedirs(os.path.dirname(pending_path), exist_ok=True)
+        expires = time.time() + wait_seconds
+        with open(pending_path, "w") as f:
+            json.dump({
+                "step": step["id"], "key": key, "requested_at": materialized_at,
+                "expires_at": datetime.fromtimestamp(expires, tz=timezone.utc).isoformat() if wait_seconds else None,
+                "on_timeout": on_timeout, "summary": step.get("summary") or _clip(text, 600), "preview": _clip(text, 2000),
+                "approve_by_writing": {"path": token_path, "json": {"approved": True, "approver": "<you>", "reason": "<why>"}},
+            }, f, indent=2)
+        context.log.info(f"[approve:{step['id']}] pending -> {pending_path}; waiting up to {wait_seconds:g}s")
+        t0 = time.time()
+        while tok is None and time.time() - t0 < wait_seconds:
+            time.sleep(min(poll, max(wait_seconds - (time.time() - t0), 0.01)))
+            tok = read_token()
+        waited = round(time.time() - t0, 2)
+    status, approved = None, None
+    if tok is not None:
+        approved = bool(tok.get("approved"))
+        status = "approved" if approved else "rejected"
+    elif on_timeout == "approve":
+        approved, status = True, "timeout_default_approve"
+    elif on_timeout == "reject":
+        approved, status = False, "timeout_default_reject"
+    else:
+        approved, status = None, "pending"
+    if tok is not None or on_timeout != "pending":
+        try:
+            os.remove(pending_path)  # decided: leaves the review queue (the token stays as the audit record)
+        except OSError:
+            pass
+    if approved is False and step.get("on_reject", "stop") == "stop":
+        raise RuntimeError(f"[approve:{step['id']}] {status}: {(tok or {}).get('reason') or 'not approved'} -- stopping the pipeline here")
+    return {
+        "text": text if approved else "", "op": "approve", "approved": approved, "status": status,
+        "approver": (tok or {}).get("approver"), "approval_reason": (tok or {}).get("reason"), "waited_seconds": waited,
+        "approval_key": key, "materialized_at": materialized_at, "n_llm_calls": 0,
+    }
+
+
+# ── `when:` guard + per-step policy narrowing ────────────────────────────────
+
+def _when_ok(when: Dict[str, Any], state: Dict[str, Any]) -> "tuple[bool, str]":
+    """Evaluate a step's `when:` guard. {source: <step id>, field: <result key, default: its text>, <predicate>, not: bool}
+    predicates: equals | contains | regex | in: [..] | gt | gte | lt | lte | truthy | falsy. Returns (run?, why)."""
+    if not isinstance(when, dict) or "source" not in when:
+        raise ValueError("`when:` needs `source: <step id>` plus one predicate (equals/contains/regex/in/gt/gte/lt/lte/truthy/falsy)")
+    sid = when["source"]
+    if sid not in state:
+        raise ValueError(f"when.source {sid!r} is not a prior step; known: {[k for k in state if not str(k).startswith('__')]}")
+    entry = state[sid]
+    field = when.get("field")
+    val = (entry.get(field) if isinstance(entry, dict) else None) if field else (entry.get("text", "") if isinstance(entry, dict) else entry)
+    sval = "" if val is None else str(val)
+    if "equals" in when:
+        hit = sval.strip().lower() == str(when["equals"]).strip().lower()
+    elif "in" in when:
+        hit = sval.strip().lower() in [str(x).strip().lower() for x in when["in"]]
+    elif "contains" in when:
+        hit = str(when["contains"]).lower() in sval.lower()
+    elif "regex" in when:
+        hit = re.search(when["regex"], sval, re.I) is not None
+    elif "truthy" in when:
+        hit = bool(val) is bool(when["truthy"])
+    elif "falsy" in when:
+        hit = (not val) is bool(when["falsy"])
+    elif any(k in when for k in ("gt", "gte", "lt", "lte")):
+        try:
+            x = float(val)
+        except (TypeError, ValueError):
+            hit = False
+        else:
+            hit = all([("gt" not in when or x > float(when["gt"])), ("gte" not in when or x >= float(when["gte"])),
+                       ("lt" not in when or x < float(when["lt"])), ("lte" not in when or x <= float(when["lte"]))])
+    else:
+        raise ValueError("`when:` needs a predicate: equals, in, contains, regex, truthy, falsy, gt/gte/lt/lte")
+    if when.get("not"):
+        hit = not hit
+    return hit, f"when {sid}{('.' + field) if field else ''} -> {sval[:80]!r}"
+
+
 _OPS = {
     "llm_call": _do_llm_call,
     "route": _do_route,
@@ -4539,6 +5200,13 @@ _OPS = {
     "agent_call": _do_agent_call,
     "delegate": _do_delegate,
     "invoke_component": _do_invoke_component,
+    "verify": _do_verify,
+    "eval": _do_eval,
+    "best_of_n": _do_best_of_n,
+    "cascade": _do_cascade,
+    "plan": _do_plan,
+    "decide": _do_decide,
+    "approve": _do_approve,
 }
 
 
@@ -4592,6 +5260,8 @@ def _build_step_metadata(
                 "\n\n---\n\n".join(f"**{r['model']}**\n\n{r['text']}" for r in v)[:20000]
             )
         elif k in ("policy_usage", "policy_violation_detail") and v:
+            md[f"{aid}__{k}"] = dg.MetadataValue.json(v)
+        elif k in _JSON_META_KEYS and v:
             md[f"{aid}__{k}"] = dg.MetadataValue.json(v)
         elif k == "tool_call_trace" and v is not None:
             md[f"{aid}__tool_call_trace"] = dg.MetadataValue.json(v)
@@ -4712,17 +5382,34 @@ def _run_step(step: dict, state: Dict[str, Any], context) -> None:
     if personas:
         step = _resolve_persona(step, personas)
 
+    when = step.get("when")
+    if when:
+        run_it, why = _when_ok(when, state)
+        if not run_it:
+            try:
+                passthrough = _get_source_text(state, step.get("source", _ROOT_SOURCE_ID))
+            except ValueError:
+                passthrough = ""
+            context.log.info(f"[step {step_id!r}] op={op!r} SKIPPED ({why})")
+            state[step_id] = {"text": passthrough, "op": op, "skipped": True, "skip_reason": why,
+                              "n_llm_calls": 0, "materialized_at": _now_iso()}
+            return
+
     context.log.info(f"[step {step_id!r}] op={op!r}")
 
     # Agent policy (optional): installed for the duration of this step. Usage counters live in `state` (plain
     # dict) so budgets accumulate across steps -- including per-step ops, where state is passed between ops.
     policy_cfg = state.get("__policy__")
+    step_policy_cfg = step.get("policy")
     p_token = None
     n_before = 0
-    if policy_cfg:
+    if policy_cfg or step_policy_cfg:
         _active = _pol()  # an enclosing scope (ingest/sinks body) already owns the run's counters: share them
         usage = state.setdefault("__policy_usage__", _active.usage if _active is not None else {})
-        policy = _Policy(policy_cfg, usage)
+        policy = _Policy(policy_cfg, usage) if policy_cfg else None
+        if step_policy_cfg:
+            # A step can only be MORE restricted than the pipeline: every check passes the pipeline policy first.
+            policy = _Policy(_validate_policy(step_policy_cfg), usage, parent=policy, scoped=True)
         n_before = len(usage["violations"])
         p_token = _ACTIVE_POLICY.set(policy)
     r_token = _REASONING_TRACE.set([])
@@ -4737,7 +5424,7 @@ def _run_step(step: dict, state: Dict[str, Any], context) -> None:
         if trace:
             result["reasoning"] = trace
             result["reasoning_chars"] = sum(len(r["text"]) for r in trace)
-        if policy_cfg:
+        if policy_cfg or step_policy_cfg:
             u = state["__policy_usage__"]
             result["policy_violations"] = len(u["violations"]) - n_before
             result["policy_usage"] = {k: (round(u[k], 6) if k == "cost_usd" else u[k]) for k in ("llm_calls", "tool_calls", "tokens", "cost_usd")}
@@ -5095,6 +5782,10 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             if op:
                 per_asset_tags[f"dagster/kind/{op}"] = ""
             outs[f"{prefix}_{aid}"] = dg.AssetOut(
+                code_version=_code_version({
+                    "step": next((st for st in steps if st.get("id") == aid), None),
+                    "personas": self.personas, "policy": self.policy,
+                }),
                 group_name=group_name,
                 description=self.description,
                 owners=self.owners or None,
@@ -5441,8 +6132,13 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                             )
                         elif k in ("policy_usage", "policy_violation_detail") and v:
                             md[f"{aid}__{k}"] = dg.MetadataValue.json(v)
+                        elif k in _JSON_META_KEYS and v:
+                            md[f"{aid}__{k}"] = dg.MetadataValue.json(v)
                         elif isinstance(v, (str, int, float, bool)):
                             md[f"{aid}__{k}"] = dg.MetadataValue.text(str(v))
+                md[f"{aid}__pipeline_version"] = dg.MetadataValue.text(_code_version({
+                    "steps": steps, "source": source_config, "outputs": outputs, "personas": self.personas,
+                    "agents": self.agents, "policy": self.policy}))
                 yield dg.Output(value=entry, output_name=f"{prefix}_{aid}", metadata=md)
 
         @dg.multi_asset(
@@ -5623,6 +6319,9 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             for aid in asset_ids:
                 entry = state[aid]
                 md = _build_step_metadata(aid, entry, partition_key)
+                md[f"{aid}__pipeline_version"] = dg.MetadataValue.text(_code_version({
+                    "steps": steps, "source": source_config, "outputs": dict(_self.outputs), "personas": _self.personas,
+                    "agents": _self.agents, "policy": _self.policy}))
                 yield dg.Output(
                     entry, output_name=f"{prefix}_{aid}", metadata=md,
                 )

@@ -1,0 +1,69 @@
+# Governed invoice matching: agents decide HOW, the pipeline decides what must be TRUE.
+#
+#   facts      cheap local model first, escalates to a stronger one only if the JSON is unusable  (cascade)
+#   decision   one of three NAMED outcomes + reason + quoted evidence                            (decide)
+#   grounded   is the decision's reason actually supported by the extracted facts?               (verify)
+#   gate       a human is asked ONLY for the exceptions; no answer in 24h => do NOT pay          (approve + when)
+#   record     writes the audit record; runs only if the invoice was approved or auto-cleared    (llm_call + when)
+type: dagster_community_components.AgenticPipelineComponent
+attributes:
+  asset_name_prefix: invoice
+  source:
+    kind: literal
+    text: |
+      INVOICE INV-2291   Acme Industrial Supply   Total: $4,180.00   Terms: net 30
+      Lines: 12x hydraulic fittings @ $215.00; 4x seal kits @ $400.00
+      Purchase order: (blank)
+  personas:
+    cheap:  {model: ollama/qwen3:8b, api_base_env_var: OLLAMA_API_BASE, temperature: 0.0}
+    strong: {model: gpt-4o-mini, api_key_env_var: OPENAI_API_KEY, temperature: 0.0}
+  steps:
+    - id: facts
+      op: cascade
+      models: [ollama/qwen3:8b, gpt-4o-mini]
+      api_base_env_var: OLLAMA_API_BASE
+      system_prompt: >-
+        Extract the invoice facts as JSON with keys invoice_no, vendor, total, po_number (null if blank), lines.
+        Return only JSON.
+      accept: {kind: json, required_keys: [invoice_no, vendor, total, po_number]}
+    - id: decision
+      op: decide
+      persona: strong
+      source: facts
+      evidence_source: [facts]
+      outcomes:
+        auto_pay: "Every required fact is present and consistent; safe to pay without a person."
+        needs_review: "Something is missing or inconsistent (e.g. no purchase order); a person must decide before payment."
+        reject: "Clearly invalid or fraudulent; do not pay."
+      default_outcome: needs_review          # an unusable answer is never treated as auto_pay
+    - id: grounded
+      op: verify
+      persona: strong
+      source: decision
+      evidence_source: [facts]
+      min_score: 0.7
+    - id: gate
+      op: approve
+      source: decision
+      when: {source: decision, field: outcome, equals: needs_review}     # routine invoices never reach a human
+      approval_dir: ./approvals
+      key: INV-2291
+      summary: "Invoice INV-2291 ($4,180.00, Acme Industrial Supply) has no purchase order. Approve payment?"
+      wait_seconds: 0                         # raise to hold the run open for a reviewer
+      on_timeout: reject                      # the safe default: "Do not pay"
+      policy:
+        filesystem: {read: [./approvals], write: [./approvals]}     # this step can touch the approvals folder and nothing else
+        network: {allow_hosts: []}                                  # ...and cannot make any network call
+    - id: record
+      op: llm_call
+      persona: strong
+      source: decision
+      when: {source: decision, field: outcome, in: [auto_pay, needs_review]}
+      system_prompt: "Write a one-line audit record: invoice number, outcome, and who/what approved it."
+      prompt_template: "Decision: {text}"
+  outputs:
+    assets: [facts, decision, grounded, gate, record]
+  policy:
+    on_violation: fail
+    env: {allow: [OLLAMA_API_BASE, OPENAI_API_KEY]}
+    budget: {max_cost_usd: 0.25, max_llm_calls: 12, max_seconds: 300}

@@ -4,6 +4,7 @@ import json
 import logging
 import pathlib
 import sys
+import threading
 import types
 from types import SimpleNamespace
 
@@ -26,13 +27,17 @@ class FakeLiteLLM(types.ModuleType):
         self.calls = []
         self.script = []
         self.drop_params = False
+        self._lock = threading.Lock()
 
     def reply(self, content="", tool_calls=None, reasoning_content=None, tokens=10):
         self.script.append((content, tool_calls or [], reasoning_content, tokens))
 
     def completion(self, **kwargs):
-        self.calls.append(kwargs)
-        content, tool_calls, reasoning, tokens = self.script.pop(0) if self.script else ("ok", [], None, 10)
+        with self._lock:
+            self.calls.append(kwargs)
+            content, tool_calls, reasoning, tokens = self.script.pop(0) if self.script else ("ok", [], None, 10)
+        if isinstance(content, Exception):  # scripted failure (e.g. a model that is down)
+            raise content
         msg = SimpleNamespace(content=content, tool_calls=tool_calls, reasoning_content=reasoning, provider_specific_fields=None)
         usage = SimpleNamespace(total_tokens=tokens, prompt_tokens=tokens // 2, completion_tokens=tokens - tokens // 2,
                                 model_dump=lambda: {"total_tokens": tokens})

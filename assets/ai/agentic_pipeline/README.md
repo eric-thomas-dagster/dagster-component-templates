@@ -10,6 +10,7 @@ Standardize what an agentic pipeline looks like across your org. `source` + `ste
 - [`examples/document_summarization/`](examples/document_summarization/README.md) — one `delegate` step, structured output (`summary` + `action_items`), extracted verbatim from a real sample document.
 - [`examples/route_to_specialist/`](examples/route_to_specialist/README.md) — three registered specialist agents, **no** `required_capabilities` set — proves the picker LLM does genuine semantic matching (billing/technical/general question → correct specialist, verified with three different real questions).
 - [`examples/debate_best_answer/`](examples/debate_best_answer/README.md) — two debater agents (shared capability tag, distinguished by semantics) + one arbitrator (distinct tag), joined with typed `inputs:` ports into a final verdict that genuinely weighs both arguments.
+- [`examples/governed_invoice_matching/`](examples/governed_invoice_matching/README.md) — cascade → decide → verify → approve (exceptions only) → record, with a pipeline policy and a per-step policy; run end to end in tests with the model call scripted (not yet against a live model).
 - [`examples/qwen_local_agent/`](examples/qwen_local_agent/README.md) — **new, not yet run against a live Ollama**: a local-Qwen3 `tool_use_loop` confined by a `policy:` (read-only folder, no writes, env/host allowlists, budget). Enforcement is covered by the component's tests; see the README for exactly what is and isn't verified.
 - [`examples/pipeline_incident_triage/`](examples/pipeline_incident_triage/README.md) — the first `tool_use_loop` showcase: one agent, three REAL tools (a live vendor status-page check, a real `git log`, a real runbook search), iterating freely until it has enough evidence to decide "wait, don't debug" vs. actually troubleshoot. Caught Snowflake's status page actually degraded, live, mid-build.
 
@@ -296,6 +297,13 @@ See [`SyntheticPromptGeneratorComponent`](../../source/synthetic_prompt_generato
 | `agent_call` | Invoke a pre-declared agent by name | Dispatch to an agent declared in the top-level `agents:` block. Kinds: `openai_assistant` (thread + run against OpenAI Assistants API), `remote_agent` (authenticated HTTP call to your own deployed agent — sync or async polling), `handoff` (Python callable for LangGraph/AutoGen/CrewAI). One asset materializes with the agent's reply + latency + cost. |
 | `delegate` | 1 picker LLM → 1 DISCOVERED agent (MCP or HTTP) | Dynamic sibling of `route`/`agent_call`: instead of a fixed inline list, the candidate pool is discovered at build time from `AgentCardComponent` instances in the same defs folder and/or an external agent-card manifest. `required_tags`/`required_capabilities`/`input_mode` cheaply pre-filter the pool (no LLM involved) before a picker LLM matches your `task:` against each surviving candidate's declared `skills` (same forced-function-call mechanism as `route`); the pick is then invoked — over MCP (reusing this file's own `_call_mcp_tool_async`, which validates the rendered `tool_args` against the picked agent's real, server-declared `inputSchema` before calling, by default) or plain HTTP (reusing `_call_remote_agent`). Use this when the set of agents isn't known at pipeline-write time, scales to hundreds of registered agents, or changes without a YAML edit. |
 | `invoke_component` | Call an EXISTING component's real asset directly, in-process | Reuse a deterministic transform already in this repo's catalog (`FilterComponent`, `SortComponent`, `UniqueDedupComponent`, ...) mid-pipeline, between two agent steps — without reimplementing its logic and without it showing up as a new node in your asset lineage. Resolves `component_type`, instantiates it with `attributes` (same shape as its own YAML config), calls its real `build_defs()`, then calls the resulting `AssetsDefinition` directly as a function with `dagster.build_asset_context()` (a real Dagster testing utility for invoking an asset's body outside of a run) and this step's data as a DataFrame. No materialization event, no graph node — pure in-process reuse of real, already-tested logic. |
+| `plan` | planner → executor (± tools) → verifier → **replan** → synthesis | Plan-and-execute. The planner breaks the goal into ordered tasks; the executor does each (a plain call, or a tool loop when `executor.mcp_servers` is set) with the results so far; an optional `verifier` checks each task and a failure **replans the remaining work** (`max_replans`); a final call writes the answer. |
+| `best_of_n` | N candidates → verifier/vote → 1 winner | Sample N answers (optionally across `models:`), keep the best by a `verifier` (`llm` / `regex` / `json` / `contains`) or by majority vote (self-consistency). Candidates, scores and agreement land in metadata. |
+| `cascade` | models cheapest→strongest, escalate on failure | Try the cheap/local model first; escalate only when its answer fails `accept` (a verifier) or errors. `escalations` records which model answered and why earlier ones didn't. |
+| `verify` | answer + evidence → verdict | Grounding check: is the answer supported by the evidence? Returns `verdict`, `score`, `passed`, `unsupported_claims`; `on_fail: fail` makes it a hard gate. The answer passes through unchanged. |
+| `eval` | output (+ reference) → rubric scores | LLM-as-judge on a weighted `criteria:` rubric; `scores`, `rationales`, `overall`; `fail_below` is a hard gate. |
+| `decide` | input + evidence → ONE named outcome | A decision record: pick from a fixed `outcomes:` menu with reason, confidence and quoted evidence. Off-menu answers use `default_outcome` or fail — never silently pick. Feed `when:` to branch on `outcome`. |
+| `approve` | human gate with a review queue | Same token contract as `human_approval_gate` (`<approval_dir>/<key>.json`). Writes a pending record to `<approval_dir>/pending/` (the review queue), can wait `wait_seconds`, and applies a safe default on timeout (`on_timeout: reject`). Pair with `when:` so only exceptions reach a person. |
 
 ## Typed named inputs (v2 — join any op from any prior op by port name)
 
@@ -447,12 +455,29 @@ attributes:
 
 **Nested pipelines** — agents declared at the top level are inherited into `sub_pipeline` steps automatically (same as personas).
 
+### Reasoning & governance ops, `when:` and per-step `policy:`
+
+The ops above (`plan`, `best_of_n`, `cascade`, `verify`, `eval`, `decide`, `approve`) are about *whether to trust* a model's output and
+*who is accountable* for acting on it. Two step-level keys work on **any** op:
+
+- **`when:`** run the step only if a condition on an earlier step holds; otherwise it is recorded as `skipped` (text passed through, no model
+  call). `{source: <step id>, field: <result key — default: its text>, equals | in | contains | regex | gt | gte | lt | lte | truthy | falsy, not: true}`.
+  This is how you "review only the exceptions": `approve` with `when: {source: decision, field: outcome, equals: needs_review}`.
+- **`policy:`** a step-level policy that **narrows** the pipeline `policy:` — it can only be *more* restrictive, never less (every check must
+  pass the pipeline policy first). Its `budget:` counts only what that step spends. Use it to give `triage` read-only tools and `publish` none.
+
+Every emitted asset also carries a per-step Dagster `code_version` (a hash of the step, personas and policy) and a `<step>__pipeline_version`
+metadata value, so a changed prompt marks exactly that step and what depends on it stale. See
+[`examples/governed_invoice_matching/`](examples/governed_invoice_matching/README.md) for all of it in one pipeline.
+
 ### Common fields (every step)
 
 | Field | Required | Default | Description |
 |---|---|---|---|
 | `id` | ✅ | — | Step id — referenced by `source:` / `sources:` on downstream steps and by `outputs.assets:`. |
-| `op` | ✅ | — | One of `llm_call` / `route` / `debate` / `critique_loop` / `synthesize`. |
+| `op` | ✅ | — | Any op in the **Op menu** above. |
+| `when` |  | — | Run only if a condition on an earlier step holds (see *Reasoning & governance ops*). |
+| `policy` |  | — | Step-level policy that narrows the pipeline `policy:`. |
 | `source` |  | Most recent step | Prior step id whose text feeds this step. `synthesize` uses `sources:` (plural, list) instead. |
 
 ### LLM sub-config (used inside every op)
@@ -1094,7 +1119,7 @@ This is the "compose it all yourself in one YAML" alternative — the AI-side ma
 |---|---|---|---|
 | `group_name` | `str` | `"agents"` | Group name for emitted assets. |
 | `kinds` | `List[str]` | — | Asset kinds. Default: ['llm', 'agent', 'pipeline']. |
-| `tags` | `Dict[str, str]` | — | Additional tags on emitted assets. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Additional tags on emitted assets. |
 | `owners` | `List[str]` | — | Asset owners. |
 | `description` | `str` | — | Description on emitted assets. |
 
@@ -1112,6 +1137,7 @@ This is the "compose it all yourself in one YAML" alternative — the AI-side ma
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `policy` | `Dict[str, Any]` | — | Guardrails on what this pipeline will do on the agent's behalf; omitted = no restrictions. Sections (all optional): `on_violation: fail\|warn` (default fail); `env.allow: [NAME, 'PREFIX_*']` (env vars the pipeline may re… _(full docs in schema.json + component README)_ |
 | `personas` | `Dict[str, Dict[str, Any]]` | — | Named reusable LLM sub-configs. Each persona bundles `{model, api_key_env_var, api_base_env_var, system_prompt, temperature, max_tokens, reasoning_effort, thinking_budget}`. Reference from any step / sub-config via `pers… _(full docs in schema.json + component README)_ |
 | `agents` | `Dict[str, Dict[str, Any]]` | — | Named pre-built agents. Each entry declares `kind:` plus kind-specific connection config. Reference from a step via `op: agent_call, agent: <name>`. Supported kinds: `openai_assistant` (assistant_id + api_key_env_var — c… _(full docs in schema.json + component README)_ |
 | `per_step_ops` | `bool` | `false` | When True, emit as a `@dg.graph_multi_asset` with one @op per step (visible in the Runs page + finer-grained retry). State dict flows through the IO manager between ops. Default False keeps the single-op @multi_asset sha… _(full docs in schema.json + component README)_ |

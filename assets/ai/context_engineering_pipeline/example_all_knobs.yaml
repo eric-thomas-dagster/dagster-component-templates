@@ -1,0 +1,114 @@
+# Every knob of the context pipeline in one runnable example (python execution mode, YAML only).
+# Delete what you don't need: a pipeline is just `chunk` plus whichever steps you want after it.
+# tests/test_example_all_knobs.py runs this file end to end, so it stays correct.
+type: dagster_component_templates.ContextEngineeringPipelineComponent
+attributes:
+  # --- what to build and from what ---------------------------------------------------------
+  asset_name: support_kb
+  upstream_asset_key: raw_support_docs        # or `source: {kind: warehouse_query, resource_key: ..., sql: ...}`
+  id_column: doc_id
+  text_column: body
+  metadata_columns: [customer_id, title]      # carried onto every chunk and into the index metadata
+  max_source_rows: 50000                      # safety cap per run (pair with partitioning for big corpora)
+  # partition_type: daily                     # one slice per run; also needs partition_start: 2026-01-01
+
+  # --- identity and provenance (what receipts and health checks key on) ---------------------
+  code_version: kb-recipe-3                   # default: a fingerprint of the steps; bump or use a git SHA
+  emit_data_version: true                     # content-derived data version (stable across no-op rebuilds)
+  stamp_provenance: true                      # source_asset_key / version / code_version / partition on every chunk
+
+  # --- governance: declared here, enforced by the gateway (see context_policies) ------------
+  context_policy:
+    scope: customer_id                        # chunk metadata field naming the tenant
+    sensitivity: confidential                 # public | internal | confidential | restricted
+    max_age_hours: 48
+    token_budget: 4000
+    retention_days: 365
+    access_tags: [support]
+
+  # --- gate: golden questions the index must keep answering (asset check, can block) --------
+  retrieval_eval:
+    queries:
+      - {query: "How do I export a report?", expected: [export_guide]}
+      - {query: "Why was I charged twice?", expected: [billing_faq]}
+    k: 5
+    min_recall: 0.8
+    min_mrr: 0.5
+    severity: ERROR
+    blocking: true
+
+  # --- the steps, in reading order ---------------------------------------------------------
+  steps:
+    - id: chunks
+      op: chunk
+      strategy: markdown                      # fixed | recursive | markdown | code
+      length_unit: tokens                     # chars | tokens (estimated at chars_per_token, default 4)
+      chunk_size: 120
+      chunk_overlap: 10
+      parent_chunk_size: 400                  # small-to-big: embed children, keep the parent passage as parent_text
+      min_chunk_chars: 40
+      max_chunks_per_source: 200
+      chunk_id_mode: content                  # positional | content (unchanged chunks keep their id)
+      chunk_id_prefix: "support_kb:"          # needed if assets share one collection
+      header_template: "[{title}] "           # prepended to each chunk; any carried column, plus {section_path}
+
+    - id: clean
+      op: filter
+      min_chars: 40
+      max_chars: 6000
+      min_alnum_ratio: 0.5                    # drop mostly-symbol chunks
+      exclude_patterns: ["unsubscribe", "all rights reserved"]
+
+    - id: uniq
+      op: dedupe
+      mode: normalized                        # exact | normalized
+      within: [customer_id]                   # only dedupe inside one tenant
+
+    - id: pii
+      op: sensitivity
+      detectors: [email, phone, ssn, credit_card]
+      action: redact                          # tag | redact | drop
+
+    - id: gov
+      op: stamp
+      columns: {scope: "{customer_id}", access: support}
+      ttl_days: 365                           # adds valid_until
+
+    - id: enriched
+      op: enrich
+      mode: context                           # summary | keywords | questions | context
+      model: gpt-4o-mini
+      prepend: true                           # make the generated sentence part of what is embedded
+      on_error: skip
+
+    - id: labelled
+      op: classify
+      mode: llm                               # or zero_shot (local, free)
+      model: gpt-4o-mini
+      candidate_labels: [billing, technical, shipping, other]
+
+    - id: embedded
+      op: embed
+      provider: litellm                       # sentence_transformers | openai | cohere | litellm
+      model: text-embedding-3-small
+      reuse_from: {connection_string: ./kb, collection_name: support_kb}   # only embed new or changed chunks
+
+    - id: indexed
+      op: write_vector_store
+      provider: chromadb                      # chromadb | pinecone | qdrant
+      connection_string: ./kb
+      collection_name: support_kb
+      sync_mode: replace_sources              # replace_sources | upsert | replace_all
+      purge_expired: true                     # also delete chunks past valid_until
+
+  # --- ordinary asset options --------------------------------------------------------------
+  group_name: context
+  description: Support knowledge base for the support agent.
+  owners: [team:support-eng]
+  kinds: [ai, context-engineering]
+  retry_policy_max_retries: 2
+  retry_policy_delay_seconds: 30
+  retry_policy_backoff: exponential
+  freshness_max_lag_minutes: 1440
+  include_preview_metadata: true
+  preview_rows: 10

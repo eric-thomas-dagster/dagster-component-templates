@@ -40,7 +40,15 @@ Every op is free/local by default (sentence-transformers + HuggingFace zero-shot
 - **embed**: `provider: sentence_transformers` (default, local, free), `openai`, `cohere`, or `litellm` (universal gateway — one interface across every provider litellm supports: Azure, Bedrock, Vertex, Ollama, VoyageAI, Mistral, etc., via litellm's `"<provider>/<model>"` naming).
 - **write_vector_store**: `provider: chromadb` (default, local, free), `pinecone`, or `qdrant`.
 
-## Knobs (python mode)
+## Knobs (all configured in YAML)
+
+Everything below is YAML `steps` and component settings; none of it needs Python code. "Python mode" is
+`execution_mode: python` (the default), where the steps run in Python. `execution_mode: sql` instead runs chunk, classify
+and embed inside the warehouse and supports only those three ops, so `filter`, `dedupe`, `sensitivity`, `stamp`, `enrich`,
+parent-child chunking, `retrieval_eval` and the rest here need python mode.
+
+**Every knob in one runnable pipeline:** [`example_all_knobs.yaml`](example_all_knobs.yaml). It is exercised end to end by
+`tests/test_example_all_knobs.py`, so it stays correct.
 
 **`chunk`**: `strategy` (`fixed` | `recursive` | `markdown`: markdown splits at headings and records a `section_path`
 breadcrumb for citations | `code`: one chunk per top-level function or class, Python via `ast` so decorators and extents are exact,

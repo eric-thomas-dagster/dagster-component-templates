@@ -1677,7 +1677,14 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         freshness_policy = None
         if self.freshness_max_lag_minutes is not None:
             from dagster import FreshnessPolicy
-            freshness_policy = FreshnessPolicy(maximum_lag_minutes=self.freshness_max_lag_minutes, cron_schedule=self.freshness_cron)
+            lag = timedelta(minutes=self.freshness_max_lag_minutes)
+            if hasattr(FreshnessPolicy, "time_window"):  # current Dagster
+                freshness_policy = (
+                    FreshnessPolicy.cron(deadline_cron=self.freshness_cron, lower_bound_delta=lag)
+                    if self.freshness_cron else FreshnessPolicy.time_window(fail_window=lag)
+                )
+            else:  # older Dagster
+                freshness_policy = FreshnessPolicy(maximum_lag_minutes=self.freshness_max_lag_minutes, cron_schedule=self.freshness_cron)
 
         retry_policy = None
         if self.retry_policy_max_retries is not None:

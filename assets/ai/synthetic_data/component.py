@@ -281,6 +281,16 @@ class SyntheticDataComponent(Component, Model, Resolvable):
         seed_data_asset_key = self.seed_data_asset_key
         group_name = self.group_name
 
+        # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).
+        _retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+
         if seed_data_asset_key:
             ins = {"seed_data": AssetIn(key=AssetKey.from_user_string(seed_data_asset_key))}
 
@@ -332,16 +342,6 @@ class SyntheticDataComponent(Component, Model, Resolvable):
 
 
         if seed_data_asset_key:
-            # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).
-            _retry_policy = None
-            if self.retry_policy_max_retries is not None:
-                from dagster import Backoff, RetryPolicy
-                _retry_policy = RetryPolicy(
-                    max_retries=self.retry_policy_max_retries,
-                    delay=self.retry_policy_delay_seconds or 1,
-                    backoff=Backoff[self.retry_policy_backoff.upper()],
-                )
-
             @asset(freshness_policy=_freshness_policy, retry_policy=_retry_policy, partitions_def=partitions_def, key=AssetKey.from_user_string(asset_name), ins=ins, group_name=group_name, deps=[AssetKey.from_user_string(k) for k in (self.deps or [])])
             def _asset(
                 context: AssetExecutionContext,
@@ -367,7 +367,7 @@ class SyntheticDataComponent(Component, Model, Resolvable):
 
         else:
 
-            @asset(freshness_policy=_freshness_policy, key=AssetKey.from_user_string(asset_name), deps=[], group_name=group_name)
+            @asset(retry_policy=_retry_policy, freshness_policy=_freshness_policy, key=AssetKey.from_user_string(asset_name), deps=[], group_name=group_name)
             def _asset(context: AssetExecutionContext) -> pd.DataFrame:  # type: ignore[no-redef]
                 return _generate_data(
                     context=context,

@@ -243,6 +243,16 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions from BigQuery entities."""
+        # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).
+        _retry_policy = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+            _retry_policy = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
+
         client = self._create_client()
 
         assets_list = []
@@ -279,16 +289,6 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
                     }
 
                     # Scheduled queries are materializable
-                    # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).
-                    _retry_policy = None
-                    if self.retry_policy_max_retries is not None:
-                        from dagster import Backoff, RetryPolicy
-                        _retry_policy = RetryPolicy(
-                            max_retries=self.retry_policy_max_retries,
-                            delay=self.retry_policy_delay_seconds or 1,
-                            backoff=Backoff[self.retry_policy_backoff.upper()],
-                        )
-
                     _override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
                     @asset(retry_policy=_retry_policy,
@@ -362,7 +362,7 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
                         _override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
                         # Stored procedures are materializable
-                        @asset(
+                        @asset(retry_policy=_retry_policy, 
                             key=AssetKey.from_user_string(asset_key),
                             deps=_override_deps,
                             group_name=self.group_name,
@@ -426,7 +426,7 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
                         _override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
                         # Materialized views are materializable
-                        @asset(
+                        @asset(retry_policy=_retry_policy, 
                             key=AssetKey.from_user_string(asset_key),
                             deps=_override_deps,
                             group_name=self.group_name,
@@ -493,7 +493,7 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
                     _override_deps = _resolve_override_deps(self.asset_overrides, asset_key)
 
                     # Transfer jobs are materializable
-                    @asset(
+                    @asset(retry_policy=_retry_policy, 
                         key=AssetKey.from_user_string(asset_key),
                         deps=_override_deps,
                         group_name=self.group_name,

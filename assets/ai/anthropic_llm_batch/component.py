@@ -713,7 +713,7 @@ class AnthropicLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
             })
             return pd.DataFrame([{"batch_id": batch.id, "processing_status": batch.processing_status, "request_count": len(pairs)}])
 
-        @dg.asset(
+        @dg.asset(retry_policy=retry_policy, 
             key=results_key,
             description=self.description or f"Parsed results of an Anthropic Message Batch run (see {submit_key_str}).",
             group_name=self.group_name,

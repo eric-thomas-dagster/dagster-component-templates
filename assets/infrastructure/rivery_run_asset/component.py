@@ -210,13 +210,23 @@ class RiveryRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         # freshness_max_lag_minutes / freshness_cron -> FreshnessPolicy (applied to the asset(s) below)
+        # retry_policy_* settings -> RetryPolicy (applied to the asset(s) below)
+        _retry_policy_obj = None
+        if self.retry_policy_max_retries is not None:
+            from dagster import Backoff, RetryPolicy
+        
+            _retry_policy_obj = RetryPolicy(
+                max_retries=self.retry_policy_max_retries,
+                delay=self.retry_policy_delay_seconds or 1,
+                backoff=Backoff[self.retry_policy_backoff.upper()],
+            )
         _freshness_policy_obj = (
             _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
             if self.freshness_max_lag_minutes is not None else None
         )
         _self = self
 
-        @dg.asset(freshness_policy=_freshness_policy_obj, 
+        @dg.asset(retry_policy=_retry_policy_obj, freshness_policy=_freshness_policy_obj, 
             key=dg.AssetKey(self.asset_key.split("/")),
             description=f"Run Rivery river {self.river_id}",
             group_name=self.group_name,

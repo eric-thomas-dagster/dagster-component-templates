@@ -306,13 +306,16 @@ class RouterComponent(dg.Component, dg.Model, dg.Resolvable):
         if _self.exclusive:
             # Each row goes to exactly one — use a chained-mask helper.
             def _make_exclusive(name, condition, prior_conditions):
-                @dg.asset(freshness_policy=freshness_policy, 
+                @dg.asset(
                     name=name,
                     description=f"router branch (exclusive): {condition}",
                     group_name=_self.group_name,
                     kinds=set(_self.kinds or ["router"]),
                     ins=({"df": dg.AssetIn(key=dg.AssetKey.from_user_string(upstream_key))} if upstream_key else None),
                     required_resource_keys=({_self.source["resource_key"]} if (_self.source and _self.source.get("resource_key")) else None),
+                    retry_policy=retry_policy,
+                    freshness_policy=freshness_policy,
+                    partitions_def=partitions_def,
                 )
                 def _route(context: dg.AssetExecutionContext, **kwargs) -> pd.DataFrame:
                     df = kwargs.get("df")

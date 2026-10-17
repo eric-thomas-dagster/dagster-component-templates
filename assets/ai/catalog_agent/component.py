@@ -648,7 +648,7 @@ class CatalogAgentComponent(dg.Component, dg.Model, dg.Resolvable):
                 _wired: set = set()
 
                 def _make_upstream_source(name, df_value):
-                    @dg.asset(freshness_policy=_freshness_policy_obj, key=dg.AssetKey.from_user_string(name))
+                    @dg.asset(retry_policy=retry_policy, freshness_policy=_freshness_policy_obj, key=dg.AssetKey.from_user_string(name))
                     def _upstream_source():
                         return df_value
                     return _upstream_source

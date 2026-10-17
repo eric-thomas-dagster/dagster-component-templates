@@ -72,6 +72,11 @@ class _AnyResource:
     def __iter__(self):
         return iter(())
 
+    def __or__(self, other):
+        return self
+
+    __ror__ = __or__
+
     def __enter__(self):
         return self
 
@@ -118,11 +123,17 @@ FIELDS = {
     "assets/source/synthetic_image_generator": ["output_dir"],
     "assets/source/synthetic_pdf_generator": ["output_dir"],
     "assets/source/synthetic_video_generator": ["output_dir"],
+    "assets/sources/doris_query_asset": ["query"],
+    "assets/sources/victoriametrics_query_asset": ["query"],
+    "assets/sources/polars_read_database": ["query"],
+    "assets/sources/polars_scan_parquet": ["path"],
+    "assets/sources/dataframe_from_yxdb": ["file_path"],
+    "assets/analytics/cube_query_asset": ["query"],
 }
 class _MissingModules(importlib.abc.MetaPathFinder, importlib.abc.Loader):
     """Last-resort finder: any module that is not installed (cloud SDKs imported lazily inside the step) is fabricated."""
 
-    TOP_LEVEL = {"azure", "boto3", "botocore", "googleapiclient"}
+    TOP_LEVEL = {"azure", "boto3", "botocore", "googleapiclient", "pymysql", "polars"}
 
     def find_spec(self, name, path=None, target=None):
         if name.split(".")[0] in self.TOP_LEVEL or name == "google.cloud" or name.startswith("google.cloud."):
@@ -142,6 +153,7 @@ class _MissingModules(importlib.abc.MetaPathFinder, importlib.abc.Loader):
 MODE = {"assets/source/dataplex_dq_scan_results_asset": {"mode": "history"}}  # since_iso is only read in history mode
 SHAPED = {"where": [{"field": "d", "op": "==", "value": "X {partition_date} {partition_start}/{partition_end}"}],
           "query_params": {"d": "X {partition_date} {partition_start}/{partition_end}"}}  # fields that are not plain strings
+SHAPED_BY_COMPONENT = {("assets/analytics/cube_query_asset", "query"): {"measures": ["X {partition_date} {partition_start}/{partition_end}"]}}
 ALIAS = {"filter_": "filter"}  # the YAML name of a field whose Python name avoids the `filter` builtin
 TEMPLATE = "X {partition_date} {partition_start}/{partition_end}"
 EXPECTED = "X 2026-01-03 2026-01-03T00:00:00/2026-01-04T00:00:00"
@@ -190,7 +202,7 @@ def _substituted(rel, monkeypatch, tmp_path, partitioned=True):
     signal.alarm(5)
     monkeypatch.setattr(sys, "meta_path", [*sys.meta_path, _MissingModules()])
     fields = FIELDS[rel]
-    extra = {ALIAS.get(f, f): SHAPED.get(f, TEMPLATE) for f in fields} | MODE.get(rel, {})
+    extra = {ALIAS.get(f, f): SHAPED_BY_COMPONENT.get((rel, f), SHAPED.get(f, TEMPLATE)) for f in fields} | MODE.get(rel, {})
     if partitioned:
         extra.update(partition_type="daily", partition_start="2026-01-01")
     asset = _build(rel, extra, monkeypatch, tmp_path)
@@ -219,7 +231,8 @@ def test_partitioned_run_substitutes_the_tokens(rel, monkeypatch, tmp_path):
 @pytest.mark.parametrize("rel", list(FIELDS), ids=lambda r: r.split("/", 1)[1])
 def test_unpartitioned_run_leaves_the_tokens_alone(rel, monkeypatch, tmp_path):
     results = _substituted(rel, monkeypatch, tmp_path, partitioned=False)
-    assert EXPECTED not in results and TEMPLATE in results
+    wanted = [SHAPED_BY_COMPONENT.get((rel, f), SHAPED.get(f, TEMPLATE)) for f in FIELDS[rel]]
+    assert EXPECTED not in results and any(w in results for w in wanted), results
 
 
 def test_helper_copies_are_identical():

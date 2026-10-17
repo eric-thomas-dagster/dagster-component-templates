@@ -102,3 +102,7 @@ attributes:
   base_url: http://litellm:4000/v1
   api_key_env_var: LITELLM_MASTER_KEY
 ```
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range) and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

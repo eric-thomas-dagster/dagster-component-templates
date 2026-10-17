@@ -132,3 +132,7 @@ One judge call per evaluation per materialization. With `gpt-4o-mini` (~$0.15 / 
 ## Reasoning models (Qwen3, DeepSeek-R1, ...)
 
 Reasoning models inline their chain of thought as `<think>...</think>`. The component strips it from the model's reply *before* parsing/storing, so the output is the clean answer (non-reasoning models are unaffected). Set `include_reasoning: true` to keep the thinking: each `evaluations[<name>]` entry gains a `reasoning` key (`null` when the model produced none).
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range) and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

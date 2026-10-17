@@ -122,3 +122,7 @@ tabulate>=0.9.0
 - [`external_cube_metric`](../../../external_assets/external_cube_metric) — declare-only external asset for surfacing Cube metrics in the Dagster catalog without executing.
 - Pair with `langchain_chain_asset` for "natural-language question → Cube JSON → LLM summary" flows.
 - Pair with `dataframe_to_snowflake` / `dataframe_to_bigquery` etc. to land Cube metrics as warehouse tables.
+
+## Partitioning
+
+Set `partition_type` (with `partition_start` for time partitions) to partition this asset. On a partitioned run the tokens `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted into `query`, so each partition reads its own slice. Unpartitioned runs use the value as written.

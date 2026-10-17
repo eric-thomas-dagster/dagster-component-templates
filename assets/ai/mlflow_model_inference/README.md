@@ -93,3 +93,7 @@ attributes:
 
 - `mlflow_model_version_check` — gate on model existence/stage before this asset runs
 - `mlflow_model_promotion` — the CD step that promotes a version this asset then loads
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range) and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

@@ -82,3 +82,7 @@ Sink returns `None`. Metadata includes rows sent, rows skipped (missing message)
 - `sentry_issues_ingestion` — read issues FROM Sentry
 - `dagster_plus_run_events_ingestion` / `dagster_plus_asset_events_ingestion` — the natural upstreams
 - `audit_logs_to_splunk` / `audit_logs_to_datadog_logs` — same pattern for other observability platforms
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range) and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

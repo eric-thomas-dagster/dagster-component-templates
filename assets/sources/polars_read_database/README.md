@@ -81,3 +81,7 @@ If you want polars-side optimization on top of the database read, follow this wi
 ## Connection
 
 Either set `connection_uri:` literally in the YAML, or set `connection_uri_env_var:` to point at an env var holding the URI. The env-var form is preferred for production demos where the connection string contains credentials.
+
+## Partitioning
+
+Set `partition_type` (with `partition_start` for time partitions) to partition this asset. On a partitioned run the tokens `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted into `query`, so each partition reads its own slice. Unpartitioned runs use the value as written.

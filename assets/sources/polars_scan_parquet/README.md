@@ -92,3 +92,7 @@ The actual pushdown coverage depends on the predicate. Range/equality predicates
 ## Streaming
 
 `streaming: true` uses polars's streaming engine for out-of-core execution (frames larger than memory). Combine with predicate/column pushdown for the full effect — only matching pages are read, and they're consumed in batches without holding the whole frame in memory.
+
+## Partitioning
+
+Set `partition_type` (with `partition_start` for time partitions) to partition this asset. On a partitioned run the tokens `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted into `path`, so each partition reads its own slice. Unpartitioned runs use the value as written.

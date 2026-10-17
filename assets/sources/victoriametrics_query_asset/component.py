@@ -81,7 +81,7 @@ class VictoriaMetricsQueryAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     asset_name: str = Field(description="Output Dagster asset name.")
-    query: str = Field(description="PromQL query string.")
+    query: str = Field(description="PromQL query string. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.")
     query_range: bool = Field(
         default=True,
         description="If true (default), use /api/v1/query_range; else /api/v1/query (instant).",
@@ -102,6 +102,27 @@ class VictoriaMetricsQueryAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     request_timeout_seconds: int = Field(default=60, ge=1)
 
     group_name: Optional[str] = Field(default="victoriametrics", description="Dagster asset group name.")
+
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. A partitioned run sends only the rows in its partition.",
+    )
+    partition_start: Optional[str] = Field(
+        default=None,
+        description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+    )
+    partition_values: Optional[Union[str, List[str]]] = Field(
+        default=None,
+        description="Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'.",
+    )
+    dynamic_partition_name: Optional[str] = Field(
+        default=None,
+        description="Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+    )
+    partition_dimensions: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields.",
+    )
     description: Optional[str] = Field(default=None)
     owners: Optional[List[str]] = Field(default=None)
     tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None)
@@ -114,11 +135,15 @@ class VictoriaMetricsQueryAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=(), tags=('tags',))
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        partitions_def = _build_partitions_def(
+            self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name, self.partition_dimensions
+        )
+
         _self = self
         kinds = set(self.kinds) if self.kinds else set()
         kinds.add("victoriametrics")
 
-        @dg.asset(
+        @dg.asset(partitions_def=partitions_def, 
             key=dg.AssetKey.from_user_string(_self.asset_name),
             group_name=_self.group_name,
             kinds=kinds,
@@ -147,14 +172,14 @@ class VictoriaMetricsQueryAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 start = end - timedelta(minutes=_self.range_lookback_minutes)
                 url = f"{base_url.rstrip('/')}/api/v1/query_range"
                 params = {
-                    "query": _self.query,
+                    "query": _substitute_partition(_self.query, _partition_vars(context)),
                     "start": int(start.timestamp()),
                     "end": int(end.timestamp()),
                     "step": _self.step_seconds,
                 }
             else:
                 url = f"{base_url.rstrip('/')}/api/v1/query"
-                params = {"query": _self.query}
+                params = {"query": _substitute_partition(_self.query, _partition_vars(context))}
 
             context.log.info(f"VictoriaMetrics: GET {url} params={params}")
             resp = requests.get(url, params=params, headers=headers, timeout=_self.request_timeout_seconds)
@@ -185,7 +210,7 @@ class VictoriaMetricsQueryAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 "row_count": dg.MetadataValue.int(len(df)),
                 "column_count": dg.MetadataValue.int(len(df.columns)),
                 "vm/series_count": dg.MetadataValue.int(len(result)),
-                "vm/query": _self.query,
+                "vm/query": _substitute_partition(_self.query, _partition_vars(context)),
                 "vm/endpoint": dg.MetadataValue.url(url),
             }
             if len(df) > 0:
@@ -194,3 +219,170 @@ class VictoriaMetricsQueryAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             return dg.MaterializeResult(value=df, metadata=metadata)
 
         return dg.Definitions(assets=[_asset])
+
+
+# BEGIN scaffold partitions-def builder (inlined per component; keep copies identical, see tests/test_partition_port_scaffold.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from dagster import (  # noqa: E402,F401
+    DailyPartitionsDefinition,
+    DynamicPartitionsDefinition,
+    HourlyPartitionsDefinition,
+    MonthlyPartitionsDefinition,
+    MultiPartitionsDefinition,
+    StaticPartitionsDefinition,
+    WeeklyPartitionsDefinition,
+)
+
+
+def _build_partitions_def(
+    partition_type,
+    partition_start,
+    partition_values,
+    dynamic_partition_name,
+    partition_dimensions,
+):
+    """Construct a Dagster partitions_def from the canonical partition fields.
+
+    Strict: raises ValueError on misconfigured combinations rather than
+    silently picking a default. Specifically:
+      - time-based partition_type without partition_start
+      - partition_type=multi without partition_values
+      - partition_type=dynamic without dynamic_partition_name
+      - both partition_dimensions AND flat fields set (ambiguous intent)
+    """
+    from dagster import (
+        DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+        MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+        StaticPartitionsDefinition, MultiPartitionsDefinition,
+        DynamicPartitionsDefinition,
+    )
+
+    if partition_dimensions and partition_type:
+        raise ValueError(
+            "Set either partition_type (flat-fields shape) or "
+            "partition_dimensions (multi-axis shape), not both."
+        )
+
+    def _build_axis(spec):
+        t = spec.get("type")
+        if t in ("daily", "weekly", "monthly", "hourly") and not spec.get("start"):
+            raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
+        if t == "daily":
+            return DailyPartitionsDefinition(start_date=spec["start"])
+        if t == "weekly":
+            return WeeklyPartitionsDefinition(start_date=spec["start"])
+        if t == "monthly":
+            return MonthlyPartitionsDefinition(start_date=spec["start"])
+        if t == "hourly":
+            return HourlyPartitionsDefinition(start_date=spec["start"])
+        if t == "static":
+            vals = spec.get("values") or []
+            if isinstance(vals, str):
+                vals = [v.strip() for v in vals.split(",") if v.strip()]
+            if not vals:
+                raise ValueError("partition dimension type='static' requires non-empty 'values'")
+            return StaticPartitionsDefinition(list(vals))
+        if t == "dynamic":
+            name = spec.get("dynamic_partition_name") or spec.get("name")
+            if not name:
+                raise ValueError("partition dimension type='dynamic' requires a name")
+            return DynamicPartitionsDefinition(name=name)
+        raise ValueError(f"unknown partition type: {t!r}")
+
+    if partition_dimensions:
+        if len(partition_dimensions) == 1:
+            return _build_axis(partition_dimensions[0])
+        axes = {d["name"]: _build_axis(d) for d in partition_dimensions}
+        return MultiPartitionsDefinition(axes)
+
+    if not partition_type:
+        return None
+    if isinstance(partition_values, (list, tuple)):
+        _values = [str(v).strip() for v in partition_values if str(v).strip()]
+    else:
+        _values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
+    if partition_type in ("daily", "weekly", "monthly", "hourly") and not partition_start:
+        raise ValueError(
+            f"partition_type={partition_type!r} requires partition_start (ISO date, e.g. '2024-01-01')."
+        )
+    if partition_type == "daily":
+        return DailyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "weekly":
+        return WeeklyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "monthly":
+        return MonthlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "hourly":
+        return HourlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "static":
+        if not _values:
+            raise ValueError("partition_type='static' requires partition_values (comma-separated).")
+        return StaticPartitionsDefinition(_values)
+    if partition_type == "dynamic":
+        if not dynamic_partition_name:
+            raise ValueError(
+                "partition_type='dynamic' requires dynamic_partition_name."
+            )
+        return DynamicPartitionsDefinition(name=dynamic_partition_name)
+    if partition_type == "multi":
+        if not _values:
+            raise ValueError("partition_type='multi' requires partition_values (comma-separated).")
+        if not partition_start:
+            raise ValueError("partition_type='multi' requires partition_start (the date axis start).")
+        return MultiPartitionsDefinition({
+            "date": DailyPartitionsDefinition(start_date=partition_start),
+            "static_dim": StaticPartitionsDefinition(_values),
+        })
+    raise ValueError(f"unknown partition_type: {partition_type!r}")
+# END scaffold partitions-def builder
+
+# BEGIN partition-vars helper (inlined per component; keep copies identical, see tests/test_partition_vars.py)
+def _partition_vars(context):
+    """Tokens a partitioned run can use in its variables: {partition_key}, and for time partitions {partition_date}
+    (YYYY-MM-DD), {partition_start} and {partition_end} (ISO datetimes); for a multi-partition also
+    {partition_<dimension>}. Empty for an unpartitioned run."""
+    import re as _re
+
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return {}
+    keys = list(context.partition_keys)
+    tokens = {"partition_key": ",".join(str(k) for k in keys)}
+    try:
+        window = context.partition_time_window
+        tokens["partition_start"] = window.start.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_end"] = window.end.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_date"] = window.start.strftime("%Y-%m-%d")
+    except Exception:
+        pass  # static / dynamic partitions have no time window
+    if len(keys) == 1 and hasattr(keys[0], "keys_by_dimension"):
+        for dimension, value in keys[0].keys_by_dimension.items():
+            tokens["partition_" + _re.sub(r"\W", "_", str(dimension))] = str(value)
+    return tokens
+
+
+def _partition_env(tokens):
+    """DAGSTER_PARTITION_* environment variables for a partitioned run (empty when unpartitioned)."""
+    if not tokens:
+        return {}
+    env = {"DAGSTER_PARTITION_KEY": tokens["partition_key"]}
+    for token, name in (("partition_date", "DAGSTER_PARTITION_DATE"), ("partition_start", "DAGSTER_PARTITION_START"),
+                        ("partition_end", "DAGSTER_PARTITION_END")):
+        if token in tokens:
+            env[name] = tokens[token]
+    return env
+
+
+def _substitute_partition(value, tokens):
+    """Replace {partition_*} tokens inside strings, recursively through dicts and lists. Only known tokens are
+    replaced, so other braces (JSON, shell, templates) are left alone. A no-op for an unpartitioned run."""
+    import re as _re
+
+    if not tokens:
+        return value
+    if isinstance(value, str):
+        return _re.sub(r"\{(partition_\w+)\}", lambda m: tokens.get(m.group(1), m.group(0)), value)
+    if isinstance(value, dict):
+        return {k: _substitute_partition(v, tokens) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(_substitute_partition(v, tokens) for v in value)
+    return value
+# END partition-vars helper

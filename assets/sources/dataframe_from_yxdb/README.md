@@ -92,3 +92,7 @@ attributes:
 | Read Parquet | `dataframe_from_parquet` |
 | Read Excel | `dataframe_from_excel` |
 | Read directly from Snowflake / Postgres / BigQuery | `sql_transform` + the matching `*_resource` |
+
+## Partitioning
+
+Set `partition_type` (with `partition_start` for time partitions) to partition this asset. On a partitioned run the tokens `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted into `file_path`, so each partition reads its own slice. Unpartitioned runs use the value as written.

@@ -8,9 +8,9 @@
 
 The tables further down were generated at v0.10.52 and are out of date. After the partition sweep, of the 822 components under `assets/`:
 
-- **682** use the partition context (row filter, `{partition_*}` tokens, or a partition time window).
-- **140** do not. **48** of those are partition-agnostic by design: `lineage_to_*` sinks and `lineage_graph_extractor` (they emit graph metadata, not rows), infrastructure provisioning, the dbt and warehouse-task components.
-- **92** are open candidates: 21 declare `partition_type` without applying it (Google Calendar/Drive/Docs, IMAP, Monday board items, archive fetcher, Firestore reader, CloudWatch metrics, the synthetic media/data generators, `ad_spend_standardizer`, `document_text_extractor`, and a few AI SQL/report components) and 71 declare nothing (the warehouse SQL-pushdown transforms, `pyspark_*`, the LLM batch components, and various one-off readers).
+- **711** use the partition context (row filter, `{partition_*}` tokens, a partition time window, or a scratch-and-swap of the output's slice).
+- **111** do not. **48** of those are partition-agnostic by design: `lineage_to_*` sinks and `lineage_graph_extractor` (they emit graph metadata, not rows), infrastructure provisioning, and the dbt and warehouse-task components.
+- **63** are open candidates: 11 declare `partition_type` without applying it (data_remediation_asset, document_text_extractor, inference_cost_report, provider_ab_evaluator, ad_spend_standardizer, google_docs_extractor, imap_inbox_source, monday_board_items_ingestion, bigquery_vector_search_asset, parametric_data_generator, aws_cloudwatch_metrics_query) and 52 declare nothing (mostly agent/approval plumbing and database-migration components, the API-specific ingestion connectors that need per-API time parameters, the `pyspark_*` and LLM batch components, and a few one-off readers and transforms).
 
 How a component applies a partition, by shape:
 
@@ -18,6 +18,7 @@ How a component applies a partition, by shape:
 |---|---|
 | Takes an upstream DataFrame (AI, transforms, sinks, reverse ETL) | Keeps only the rows in the partition: `partition_date_column` against the partition's time window, `partition_static_column` against the partition key(s). A backfill run covers its whole range. |
 | dlt-based ingestion | Returns only the partition's rows. With `partition_window_params` set, the window is also pushed into each resource's API request so only that slice is fetched and loaded; without it the extract is still fetched in full. |
+| Warehouse SQL transforms (`warehouse_*`) | Read only the run's slice of the source, build the result in a scratch table with the unchanged SQL, then in one transaction create the output if missing, delete the output's slice and insert the new rows; other partitions are never touched. |
 | Query-style readers (logs, metrics, SQL, KQL, PromQL, NRQL) | `{partition_key}`, `{partition_date}`, `{partition_start}`, `{partition_end}` are substituted into the query/filter/time-range fields. |
 | Infrastructure | `{partition_*}` tokens and `DAGSTER_PARTITION_*` environment variables. |
 

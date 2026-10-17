@@ -126,3 +126,20 @@ def test_component_adds_the_check_per_asset(mod, tmp_path):
     names = sorted((k.asset_key.to_user_string(), k.name) for c in defs.asset_checks for k in c.check_specs)
     assert names == [("docs", "context_maintenance"), ("other", "context_maintenance")]
     assert not list(mod.ContextReceiptStoreComponent(database_path=str(tmp_path / "n.db")).build_defs(None).asset_checks or [])
+
+
+def test_dead_weight_traffic_is_counted_for_the_same_recipe_as_the_feedback(tmp_path):
+    """With code_version set, receipts of OTHER recipes must not make a new recipe look like 'enough traffic, nothing retrieved'."""
+    import importlib.util
+    from pathlib import Path
+    path = Path(__file__).resolve().parent.parent / "component.py"
+    spec = importlib.util.spec_from_file_location("crs_maint_cv", path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    store = mod.ContextReceiptStore(str(tmp_path / "m.sqlite3"))
+    for i in range(60):    # plenty of traffic, all on the OLD recipe
+        store.record_retrieval(context_name="kb", receipt_id=f"o{i}", items=[
+            {"item_id": "old1", "source_asset_key": "kb", "source_code_version": "v1", "rank": 0}])
+    rep = store.maintenance_report("kb", known_item_ids=["new1", "new2"], code_version="v2", dead_after_receipts=50)
+    assert rep["dead_weight"] is None                      # v2 has had no traffic: not judgeable, not "dead"
+    assert store.maintenance_report("kb", known_item_ids=["new1"], dead_after_receipts=50)["dead_weight"] == ["new1"]

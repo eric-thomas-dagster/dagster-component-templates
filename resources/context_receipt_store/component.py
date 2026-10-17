@@ -1709,7 +1709,12 @@ class ContextReceiptStore:
         ``fold_maintenance_report`` -- see that function for the definitions of each section."""
         known = None if known_item_ids is None else list(known_item_ids)
         feedback = self.item_feedback(asset_key, since=since, code_version=code_version)
-        receipts = self.asset_usage_since(asset_key, since)["receipts"] if known is not None else None
+        receipts = None
+        if known is not None:  # traffic is judged for the same slice the feedback covers: one recipe's receipts, not all recipes'
+            if code_version is None:
+                receipts = self.asset_usage_since(asset_key, since)["receipts"]
+            else:
+                receipts = self.outcomes_by_code_version(asset_key, since).get(code_version, {}).get("receipts", 0)
         return fold_maintenance_report(
             feedback, receipts_in_window=receipts, known_item_ids=known, min_retrievals=min_retrievals, min_outcomes=min_outcomes,
             bad_below=bad_below, dead_after_receipts=dead_after_receipts, good_above=good_above, top_n=top_n, min_exclusions=min_exclusions)

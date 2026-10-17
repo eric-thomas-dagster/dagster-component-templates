@@ -84,3 +84,7 @@ attributes:
 - `min_periods` is forwarded to `pd.DataFrame.corr()` — pairs with fewer
   observations than `min_periods` return `NaN`.
 - Non-numeric columns in `columns` raise a `TypeError` upfront.
+
+## Partitioning
+
+Set `partition_type` (with `partition_start` for time partitions) to partition this asset. Each run then processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

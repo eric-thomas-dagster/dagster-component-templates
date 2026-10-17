@@ -74,6 +74,20 @@ PORTED = [
     "assets/sinks/dataframe_to_otlp_traces",
     "assets/sinks/dataframe_to_prometheus",
     "assets/sinks/dataframe_to_servicebus",
+    "assets/analytics/pearson_correlation",
+    "assets/sinks/dataframe_to_influxdb",
+    "assets/sinks/dataframe_to_victoriametrics",
+    "assets/transforms/blob_convert",
+    "assets/transforms/drive_time",
+    "assets/transforms/geo_buffer",
+    "assets/transforms/geo_simplify",
+    "assets/transforms/per_row_http_fetcher",
+    "assets/transforms/points_from_latlon",
+    "assets/transforms/poly_build",
+    "assets/transforms/precisely_address_verify",
+    "assets/transforms/r_script",
+    "assets/transforms/spatial_info",
+    "assets/transforms/spatial_process",
 ]
 
 
@@ -213,3 +227,15 @@ def test_every_ported_component_carries_the_columns_in_component_and_schema():
         schema = json.loads((ROOT / rel / "schema.json").read_text())
         schema = schema.get("attributes") or schema.get("properties")
         assert {"partition_date_column", "partition_static_column", "partition_static_dim"} <= set(schema), rel
+
+
+def test_scaffolded_components_share_one_partitions_def_builder():
+    import re
+
+    blocks = set()
+    for rel in PORTED:
+        t = (ROOT / rel / "component.py").read_text()
+        m = re.search(r"# BEGIN scaffold partitions-def builder.*?# END scaffold partitions-def builder", t, re.S)
+        if m:
+            blocks.add(m.group(0))
+    assert len(blocks) == 1

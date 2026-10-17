@@ -118,3 +118,7 @@ attributes:
   google (`GOOGLE_MAPS_API_KEY`) or mapbox (`MAPBOX_ACCESS_TOKEN`).
 - `osrm` requires no auth — pass your self-hosted base URL via
   `osrm_base_url`.
+
+## Partitioning
+
+Set `partition_type` (with `partition_start` for time partitions) to partition this asset. Each run then processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

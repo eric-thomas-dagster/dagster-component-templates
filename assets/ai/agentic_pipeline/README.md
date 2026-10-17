@@ -1087,6 +1087,14 @@ post_processing:
         owners: ["ai-team@company.com"]
 ```
 
+### One partition per run, approvals per partition, `backfill_policy`
+
+With the first-class `partition_type` / `partition_values` / `partition_dimensions` fields, each run resolves `{partition_key}`, sink paths and `approve` keys from **one** partition, and its output is one value per partition. So:
+
+- `backfill_policy: multi_run` (one run per partition) is the supported shape; `backfill_policy_max_partitions_per_run` must be unset or `1`. `single_run` (or a cap above 1) is **rejected at load time**: a run covering several partitions has no single `partition_key`, so templates and approval keys could not be resolved. If such a run is forced anyway (for example by launching a range from the UI against a policy set elsewhere) it fails with a clear error instead of silently running as unpartitioned.
+- `approve` tokens are `<approval_dir>/<key>.json`, with the partition key as the default key, so partitions never share an approval. A key containing characters outside `A-Za-z0-9._-` gets a short hash suffix (`x/y` and `x_y` are different partitions and must not share a token); keys that are already safe are unchanged. Under partitioning, two `approve` steps without their own `key`, or a fixed `key` with no `{partition_key}` / `{partition.<name>}` in it, are rejected at load time (they would share one human decision across steps or partitions).
+- These guards apply to partitions declared with the component's own fields; partitions attached later through `post_processing` are not seen by the component.
+
 ## When to reach for this vs. the narrow AI components
 
 | You want... | Reach for |
@@ -1122,6 +1130,7 @@ This is the "compose it all yourself in one YAML" alternative — the AI-side ma
 | `tags` | `Union[Dict[str, Any], List[str]]` | — | Additional tags on emitted assets. |
 | `owners` | `List[str]` | — | Asset owners. |
 | `description` | `str` | — | Description on emitted assets. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned pipeline. 'multi_run' launches one run per partition (the only shape this pipeline supports: each run resolves {partition_key}, sink paths and approval keys for exactly one p… _(full docs in schema.json + component README)_ |
 
 ### Partitions
 
@@ -1142,5 +1151,6 @@ This is the "compose it all yourself in one YAML" alternative — the AI-side ma
 | `agents` | `Dict[str, Dict[str, Any]]` | — | Named pre-built agents. Each entry declares `kind:` plus kind-specific connection config. Reference from a step via `op: agent_call, agent: <name>`. Supported kinds: `openai_assistant` (assistant_id + api_key_env_var — c… _(full docs in schema.json + component README)_ |
 | `per_step_ops` | `bool` | `false` | When True, emit as a `@dg.graph_multi_asset` with one @op per step (visible in the Runs page + finer-grained retry). State dict flows through the IO manager between ops. Default False keeps the single-op @multi_asset sha… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only. Must be unset or 1: a run with several partitions has no single partition_key. |
 
 [//]: # (FIELDS:END)

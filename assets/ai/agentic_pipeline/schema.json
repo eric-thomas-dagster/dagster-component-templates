@@ -130,6 +130,25 @@
       "label": "Partition Key Parser",
       "description": "Optional template that inverts composite dynamic partition keys into named fields. e.g. `{owner}/{repo}#{issue_number:int}` — parses `dagster-io/dagster#30000` back into `partition.owner='dagster-io'`, `partition.repo='dagster'`, `partition.issue_number=30000`. Fields are then available as `{partition.<name>}` substitutions in tool_args, prompt_template, system_prompt, source.text, and sink paths. Optional `:int` / `:float` / `:bool` type suffixes preserve types when the substitution target is a pure single-placeholder value (needed for MCP tools that reject string types like GitHub's `get_issue.issue_number`). Pair with `PartitionedAssetLauncherJobComponent` for the config-driven-partition-key pattern."
     },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "'multi_run' launches one run per partition, the only shape this pipeline supports: each run resolves {partition_key}, sink paths and approval keys for exactly one partition. 'single_run' is rejected at load time because one run covering a partition range has no single partition_key. Leave empty for Dagster's default (one run per partition). Ignored when no partitioning is set.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only. Must be empty or 1: a run with several partitions has no single partition_key.",
+      "required": false,
+      "default": null
+    },
     "policy": {
       "type": "object",
       "label": "Policy",

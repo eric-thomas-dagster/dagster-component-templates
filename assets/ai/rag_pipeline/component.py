@@ -4,7 +4,7 @@ Complete Retrieval-Augmented Generation pipeline combining query, retrieval, and
 """
 
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
 
@@ -19,6 +19,10 @@ from dagster import (
     Resolvable,
     Model,
     MetadataValue,
+    asset_check,
+    BackfillPolicy,
+    AssetCheckResult,
+    AssetCheckSeverity,
 )
 from pydantic import Field
 
@@ -95,6 +99,65 @@ def _require_env(name: str) -> str:
         )
     return value
 
+
+
+def _filter_df_to_partition(df: pd.DataFrame, context, partition_date_column, partition_static_column,
+                            partition_static_dim=None) -> pd.DataFrame:
+    """Keep only the upstream rows that belong to the partition(s) this run is for.
+
+    `partition_date_column` / `partition_static_column` were declared (and documented as "Column used to filter upstream
+    DataFrame to the current partition") but nothing used them, so every partition answered every upstream row. The date
+    column is matched against `context.partition_time_window` (range-aware, so it is right for a one-partition run and a
+    multi-partition run alike); the static column against the run's partition key(s), or just the `partition_static_dim`
+    part of a multi-dimensional key. Both set => both apply. Neither set => unchanged (use a partitioned upstream)."""
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return df
+    out = df
+    if partition_date_column is not None and partition_date_column in out.columns:
+        try:
+            window = context.partition_time_window
+        except Exception:
+            window = None  # no time dimension (static / dynamic partitions)
+        if window is not None:
+            dates = pd.to_datetime(out[partition_date_column], errors="coerce", utc=True)
+            out = out[(dates >= pd.Timestamp(window.start)) & (dates < pd.Timestamp(window.end))]
+    if partition_static_column is not None and partition_static_column in out.columns:
+        keys = set()
+        for k in context.partition_keys:
+            by_dim = getattr(k, "keys_by_dimension", None)
+            keys.add(str(by_dim[partition_static_dim]) if by_dim and partition_static_dim in by_dim else str(k))
+        out = out[out[partition_static_column].astype(str).isin(keys)]
+    return out
+
+
+_PARTITION_PLACEHOLDERS = ("{partition_key}", "{partition.")
+
+
+def _build_backfill_policy(partitions_def, policy: Optional[str], max_per_run: Optional[int], query_prompt_template: Optional[str]):
+    """Validate `backfill_policy` / `backfill_policy_max_partitions_per_run` and return a dagster BackfillPolicy (or None).
+
+    Rows are answered independently, so one run CAN cover several partitions (single_run, or multi_run with
+    max_partitions_per_run > 1) as long as nothing in the run needs to know WHICH partition a row belongs to. The one thing
+    that does is `query_prompt_template` with `{partition_key}` / `{partition.<name>}`: those resolve from the run's single
+    partition key, so such a template is incompatible with multi-partition runs and is rejected here."""
+    where = "RAGPipelineComponent"
+    if max_per_run is not None and policy != "multi_run":
+        raise ValueError(f"{where}: backfill_policy_max_partitions_per_run only applies to backfill_policy='multi_run'")
+    if policy is None or partitions_def is None:
+        return None  # unset, or ignored because the component is not partitioned
+    if policy not in ("single_run", "multi_run"):
+        raise ValueError(f"{where}: backfill_policy must be 'single_run' or 'multi_run', got {policy!r}")
+    if max_per_run is not None and (isinstance(max_per_run, bool) or not isinstance(max_per_run, int) or max_per_run < 1):
+        raise ValueError(f"{where}: backfill_policy_max_partitions_per_run must be an integer >= 1")
+    multi_partition_run = policy == "single_run" or (max_per_run or 1) > 1
+    if multi_partition_run and query_prompt_template and any(t in query_prompt_template for t in _PARTITION_PLACEHOLDERS):
+        raise ValueError(
+            f"{where}: query_prompt_template uses {{partition_key}} / {{partition.<name>}}, which resolve from one partition per "
+            "run, so backfill_policy='single_run' (or multi_run with backfill_policy_max_partitions_per_run > 1) would answer "
+            "every row with an empty partition key; use multi_run with one partition per run, or drop the placeholders.")
+    if policy == "single_run":
+        return BackfillPolicy.single_run()
+    return BackfillPolicy.multi_run(max_partitions_per_run=max_per_run or 1)
 
 
 def _build_partitions_def(
@@ -380,6 +443,22 @@ class RAGPipelineComponent(Component, Model, Resolvable):
         default=None,
         description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
     )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'multi_run' launches one run per partition (optionally "
+            "capped via backfill_policy_max_partitions_per_run). 'single_run' answers a whole backfill range in one run (rows "
+            "are independent; the upstream is read for the whole range and filtered by partition_date_column / "
+            "partition_static_column if set) and needs an IO manager that can store a multi-partition output. Both are "
+            "rejected at load time with a query_prompt_template that uses {partition_key} / {partition.<name>} when a run "
+            "could cover several partitions. Leave unset for Dagster's default (one run per partition). Ignored when no "
+            "partitioning is set."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
     owners: Optional[List[str]] = Field(
         default=None,
         description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
@@ -497,7 +576,11 @@ class RAGPipelineComponent(Component, Model, Resolvable):
             "fetch_multiplier: 3}}`. Every row's final retrieval is recorded as a receipt (item ids and provenance "
             "only, never text) and its id is written to a `receipt_id` column. With `rerank`, retrieve / "
             "hybrid_search over-fetch top_k*fetch_multiplier candidates and reorder them by learned item priors, "
-            "reserving an exploration slot. Omit for unchanged behaviour."
+            "reserving an exploration slot. `shadow: {retriever (a candidate entry in `retrievers`), fraction (0,1], seed, "
+            "label, replaces, code_version_override, live_code_version, candidate_code_version, source_asset_key, "
+            "min_outcomes, margin, window_days}` serves that share of queries from the candidate retriever (falling back "
+            "to the live one if it fails), records those receipts with purpose 'shadow:<label>', and with both code "
+            "versions named adds the WARN check `shadow_vs_live`. Omit for unchanged behaviour."
         ),
     )
 
@@ -549,7 +632,7 @@ class RAGPipelineComponent(Component, Model, Resolvable):
                 "Define a chain of ops — at minimum `retrieve` + `generate`. "
                 "See the component README for examples."
             )
-        _validate_receipts(self.receipts, self.asset_name)
+        _validate_receipts(self.receipts, self.asset_name, self.retrievers, self.steps)
         return _build_ops_mode(self)
 
 
@@ -971,11 +1054,15 @@ def _rrf_combine(ranked_lists: List[List[Dict[str, Any]]], k: int = 60, top_k: i
 
 # ── Context receipts (optional `receipts:` block) ────────────────────
 
-_RECEIPT_KEYS = {"resource_key", "context_name", "caller_id", "purpose", "policy_version", "fail_on_error", "rerank"}
+_RECEIPT_KEYS = {"resource_key", "context_name", "caller_id", "purpose", "policy_version", "fail_on_error", "rerank", "shadow"}
+_SHADOW_KEYS = {"retriever", "replaces", "fraction", "seed", "label", "code_version_override",
+                "live_code_version", "candidate_code_version", "source_asset_key",
+                "min_outcomes", "margin", "window_days"}
 _RECEIPT_RERANK_KEYS = {"prior_weight", "explore_fraction", "fetch_multiplier"}
 
 
-def _validate_receipts(cfg: Optional[Dict[str, Any]], asset_name: str) -> None:
+def _validate_receipts(cfg: Optional[Dict[str, Any]], asset_name: str,
+                       retrievers: Optional[Dict[str, Any]] = None, steps: Optional[List[Dict[str, Any]]] = None) -> None:
     """Fail at build_defs on a malformed `receipts:` block (None = feature off)."""
     if cfg is None:
         return
@@ -993,6 +1080,7 @@ def _validate_receipts(cfg: Optional[Dict[str, Any]], asset_name: str) -> None:
             raise ValueError(f"{where}.{k} must be a non-empty string")
     if not isinstance(cfg.get("fail_on_error", False), bool):
         raise ValueError(f"{where}.fail_on_error must be a boolean")
+    _validate_shadow(cfg.get("shadow"), where, retrievers, steps)
     rr = cfg.get("rerank")
     if rr is None:
         return
@@ -1010,6 +1098,145 @@ def _validate_receipts(cfg: Optional[Dict[str, Any]], asset_name: str) -> None:
     fm = rr.get("fetch_multiplier", 3)
     if isinstance(fm, bool) or not isinstance(fm, int) or fm < 1:
         raise ValueError(f"{where}.rerank.fetch_multiplier must be an integer >= 1")
+
+
+def _shadow_replaces(shadow: Dict[str, Any], steps: Optional[List[Dict[str, Any]]]) -> Optional[str]:
+    """The live retriever the candidate replaces: `shadow.replaces`, else the only retriever the steps use."""
+    if shadow.get("replaces"):
+        return shadow["replaces"]
+    used = {st["retriever"] for st in (steps or []) if st.get("op") in ("retrieve", "hybrid_search") and st.get("retriever")}
+    return next(iter(used)) if len(used) == 1 else None
+
+
+def _validate_shadow(sh: Any, where: str, retrievers: Optional[Dict[str, Any]], steps: Optional[List[Dict[str, Any]]]) -> None:
+    """Fail at build_defs on a malformed `receipts.shadow` block (None = no traffic split)."""
+    if sh is None:
+        return
+    where = f"{where}.shadow"
+    if not isinstance(sh, dict):
+        raise ValueError(f"{where} must be a mapping")
+    unknown = set(sh) - _SHADOW_KEYS
+    if unknown:
+        raise ValueError(f"{where}: unknown key(s) {sorted(unknown)}; valid keys: {sorted(_SHADOW_KEYS)}")
+    cand = sh.get("retriever")
+    if not isinstance(cand, str) or not cand.strip():
+        raise ValueError(f"{where}.retriever is required (the name of a retriever in `retrievers` that points at the candidate index)")
+    if retrievers is not None and cand not in retrievers:
+        raise ValueError(f"{where}.retriever {cand!r} is not declared in `retrievers`; available: {sorted(retrievers)}")
+    fr = sh.get("fraction")
+    if isinstance(fr, bool) or not isinstance(fr, (int, float)) or not 0 < float(fr) <= 1:
+        raise ValueError(f"{where}.fraction is required and must be a number in (0, 1]")
+    seed = sh.get("seed")
+    if seed is not None and (isinstance(seed, bool) or not isinstance(seed, (int, str))):
+        raise ValueError(f"{where}.seed must be an int or a string")
+    for k in ("label", "replaces", "code_version_override", "live_code_version", "candidate_code_version", "source_asset_key"):
+        if sh.get(k) is not None and (not isinstance(sh[k], str) or not sh[k].strip()):
+            raise ValueError(f"{where}.{k} must be a non-empty string")
+    if steps is not None:
+        live = _shadow_replaces(sh, steps)
+        if live is None:
+            raise ValueError(f"{where}.replaces is required: the retrieve/hybrid_search steps use several retrievers (or none), "
+                             "so say which live retriever the candidate stands in for")
+        if live == cand:
+            raise ValueError(f"{where}.retriever must differ from the live retriever {live!r}")
+        if not any(st.get("op") in ("retrieve", "hybrid_search") and st.get("retriever") == live for st in steps):
+            raise ValueError(f"{where}.replaces {live!r} is not used by any retrieve/hybrid_search step")
+    cv = [sh.get("live_code_version"), sh.get("candidate_code_version")]
+    if any(cv) and not all(cv):
+        raise ValueError(f"{where}: live_code_version and candidate_code_version must be set together (they enable the shadow_vs_live check)")
+    if all(cv):
+        if cv[0] == cv[1]:
+            raise ValueError(f"{where}: live_code_version and candidate_code_version must differ")
+        if not sh.get("source_asset_key"):
+            raise ValueError(f"{where}.source_asset_key is required with the code versions: the key of the index asset whose chunks carry them")
+    for k in ("min_outcomes", "window_days"):
+        v = sh.get(k)
+        if v is not None and (isinstance(v, bool) or not isinstance(v, (int, float)) or v <= 0):
+            raise ValueError(f"{where}.{k} must be a positive number")
+    m = sh.get("margin")
+    if m is not None and (isinstance(m, bool) or not isinstance(m, (int, float)) or m < 0):
+        raise ValueError(f"{where}.margin must be a number >= 0")
+
+
+def _shadow_pick(shadow: Optional[Dict[str, Any]], raw_query: str) -> bool:
+    """Whether this query is served by the candidate. With a seed the answer is a pure function of (seed, query)."""
+    if not shadow:
+        return False
+    fraction = float(shadow["fraction"])
+    if shadow.get("seed") is None:
+        import random
+        return random.random() < fraction
+    import hashlib
+    u = int(hashlib.sha256(f"{shadow['seed']}|{raw_query}".encode("utf-8")).hexdigest()[:15], 16) / 16 ** 15
+    return u < fraction
+
+
+def _shadow_label(shadow: Dict[str, Any]) -> str:
+    return shadow.get("label") or shadow["retriever"]
+
+
+def _search_with_shadow(step: dict, state: Dict[str, Any], comp: "RAGPipelineComponent", context,
+                        query: str, k: int) -> Tuple[List[Dict[str, Any]], bool]:
+    """Embed + vector-search for a retrieve/hybrid step. For a query picked for the shadow split, and a step that uses
+    the live retriever being replaced, search the candidate retriever (with its own embedding config) instead; if the
+    candidate fails, log and fall back to the live retriever. Returns (docs, served_by_candidate)."""
+    shadow = (comp.receipts or {}).get("shadow")
+    live = _resolve_retriever(step["retriever"], comp.retrievers)
+    if shadow and state.get("__shadow__") and step["retriever"] == _shadow_replaces(shadow, comp.steps):
+        try:
+            cand = _resolve_retriever(shadow["retriever"], comp.retrievers)
+            return _vector_search(cand, _embed_query(cand.get("embedding") or {}, query), k), True
+        except Exception as exc:
+            context.log.warning(f"shadow: candidate retriever {shadow['retriever']!r} failed ({type(exc).__name__}: {exc}); "
+                                f"serving this query from the live retriever {step['retriever']!r}")
+            state["__shadow_failed__"] = state.get("__shadow_failed__", 0) + 1
+    return _vector_search(live, _embed_query(live.get("embedding") or {}, query), k), False
+
+
+def compare_recipes(by_code_version: Dict[str, Dict[str, Any]], live: str, candidate: str,
+                    min_outcomes: int = 10, margin: float = 0.05) -> Dict[str, Any]:
+    """Judge a candidate recipe against the live one from `store.outcomes_by_code_version(...)`.
+
+    Only receipts that actually received an outcome count (`outcomes`, not `receipts`). Fewer than `min_outcomes` on
+    either side is `insufficient_evidence`; otherwise the candidate must beat (or lose to) the live mean by MORE than
+    `margin` to be `candidate_better` / `live_better`, else `inconclusive`. This is a threshold on the mean outcome
+    difference, not a significance test: pick min_outcomes and margin to suit your outcome noise."""
+    def side(cv):
+        e = (by_code_version or {}).get(cv) or {}
+        return int(e.get("outcomes") or 0), e.get("mean_outcome")
+    n_live, live_mean = side(live)
+    n_cand, cand_mean = side(candidate)
+    if n_live < min_outcomes or n_cand < min_outcomes or live_mean is None or cand_mean is None:
+        verdict = "insufficient_evidence"
+    else:
+        diff = round(float(cand_mean) - float(live_mean), 9)
+        verdict = "candidate_better" if diff > margin else "live_better" if diff < -margin else "inconclusive"
+    return {"verdict": verdict, "live_mean": live_mean, "candidate_mean": cand_mean,
+            "n_live": n_live, "n_candidate": n_cand}
+
+
+def _build_shadow_check(comp: "RAGPipelineComponent", asset_key: AssetKey):
+    """Optional WARN check `shadow_vs_live` (only when both code versions are named under receipts.shadow)."""
+    sh = (comp.receipts or {}).get("shadow") or {}
+    if not (sh.get("live_code_version") and sh.get("candidate_code_version")):
+        return None
+    rk = comp.receipts["resource_key"]
+
+    @asset_check(asset=asset_key, name="shadow_vs_live", required_resource_keys={rk},
+                 description="Candidate recipe vs live recipe by real outcomes (receipt outcomes per source code version).")
+    def shadow_vs_live(context):
+        from datetime import datetime, timedelta, timezone
+        since = (datetime.now(timezone.utc) - timedelta(days=float(sh.get("window_days", 30)))).isoformat()
+        by_cv = getattr(context.resources, rk).outcomes_by_code_version(sh["source_asset_key"], since)
+        r = compare_recipes(by_cv, sh["live_code_version"], sh["candidate_code_version"],
+                            min_outcomes=int(sh.get("min_outcomes", 10)), margin=float(sh.get("margin", 0.05)))
+        md = {k: (MetadataValue.text(v) if isinstance(v, str) else MetadataValue.float(float(v)) if isinstance(v, float)
+                  else MetadataValue.int(v) if isinstance(v, int) else MetadataValue.text("n/a")) for k, v in r.items()}
+        md["live_code_version"] = MetadataValue.text(sh["live_code_version"])
+        md["candidate_code_version"] = MetadataValue.text(sh["candidate_code_version"])
+        return AssetCheckResult(passed=r["verdict"] != "live_better", severity=AssetCheckSeverity.WARN, metadata=md)
+
+    return shadow_vs_live
 
 
 # BEGIN receipt-rerank (inlined from resources/context_receipt_store; keep identical, see tests/test_receipts_parity.py)
@@ -1082,7 +1309,7 @@ def _opt_str(v: Any) -> Optional[str]:
 
 
 def _record_receipt(comp: "RAGPipelineComponent", context, query: str, docs: List[Dict[str, Any]],
-                    eligible: Optional[int]) -> Optional[str]:
+                    eligible: Optional[int], shadow: bool = False) -> Optional[str]:
     """Record one retrieval receipt for the docs that reached the final step. Returns the receipt id or None."""
     import hashlib
 
@@ -1100,7 +1327,8 @@ def _record_receipt(comp: "RAGPipelineComponent", context, query: str, docs: Lis
             "source_asset_key": _opt_str(meta.get("source_asset_key")),
             "source_version": _opt_str(meta.get("source_version")),
             "source_partition": _opt_str(meta.get("source_partition")),
-            "source_code_version": _opt_str(meta.get("source_code_version")),
+            "source_code_version": (_opt_str(cfg["shadow"].get("code_version_override")) if shadow and cfg.get("shadow") else None)
+            or _opt_str(meta.get("source_code_version")),
             "rank": len(items) + 1,
             "score": float(score) if isinstance(score, (int, float)) and not isinstance(score, bool) and score == score and abs(score) != float("inf") else None,
             "selection": "explore" if doc.get("selection") == "explore" else "ranked",
@@ -1117,7 +1345,7 @@ def _record_receipt(comp: "RAGPipelineComponent", context, query: str, docs: Lis
             context_version=versions.pop() if len(versions) == 1 else None,
             policy_version=cfg.get("policy_version"),
             caller_id=cfg.get("caller_id"),
-            purpose=cfg.get("purpose"),
+            purpose=f"shadow:{_shadow_label(cfg['shadow'])}" if shadow else cfg.get("purpose"),
             query_hash=hashlib.sha256(query.encode("utf-8")).hexdigest(),
             eligible_count=max(int(eligible), len(items)) if eligible is not None else None,
             excluded_count=0,
@@ -1166,14 +1394,13 @@ def _do_retrieve(step: dict, state: Dict[str, Any], comp: "RAGPipelineComponent"
     query = _current_query(state, step)
     if not query:
         raise ValueError("retrieve: no query available (set __query__ or query_source)")
-    emb = _embed_query(retriever.get("embedding") or {}, query)
-    docs = _vector_search(retriever, emb, _fetch_k(comp, top_k))
+    docs, served_shadow = _search_with_shadow(step, state, comp, context, query, _fetch_k(comp, top_k))
     eligible = len(docs)
     if comp.receipts:
         docs = _apply_receipt_rerank(docs, top_k, comp, context)
     context.log.info(f"[retrieve:{step['id']}] retriever={step['retriever']!r} top_k={top_k} → {len(docs)} docs")
     out = {"op": "retrieve", "query": query, "docs": docs, "top_k": top_k,
-           "retriever": step["retriever"]}
+           "retriever": step["retriever"], "shadow_served": served_shadow}
     if comp.receipts:
         out["eligible_count"] = eligible
     return out
@@ -1188,8 +1415,7 @@ def _do_hybrid_search(step: dict, state: Dict[str, Any], comp: "RAGPipelineCompo
     query = _current_query(state, step)
 
     # Vector arm — pull top_k*2 to give RRF headroom.
-    emb = _embed_query(retriever.get("embedding") or {}, query)
-    vec_hits = _vector_search(retriever, emb, _fetch_k(comp, top_k * 2))
+    vec_hits, served_shadow = _search_with_shadow(step, state, comp, context, query, _fetch_k(comp, top_k * 2))
 
     # BM25 arm — needs an in-memory corpus. Users pass a prior step id
     # whose docs form the BM25 corpus (typical pattern: retrieve → bm25
@@ -1210,7 +1436,7 @@ def _do_hybrid_search(step: dict, state: Dict[str, Any], comp: "RAGPipelineCompo
         fused = _apply_receipt_rerank(fused, top_k, comp, context)
     context.log.info(f"[hybrid_search:{step['id']}] vec={len(vec_hits)} bm25={len(bm25_hits)} → fused={len(fused)}")
     out = {"op": "hybrid_search", "query": query, "docs": fused, "top_k": top_k,
-           "retriever": step["retriever"]}
+           "retriever": step["retriever"], "shadow_served": served_shadow}
     if comp.receipts:
         out["eligible_count"] = eligible
     return out
@@ -1354,6 +1580,8 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
         comp.partition_type, comp.partition_start, comp.partition_values,
         comp.dynamic_partition_name, comp.partition_dimensions,
     )
+    _backfill_policy = _build_backfill_policy(
+        partitions_def, comp.backfill_policy, comp.backfill_policy_max_partitions_per_run, query_prompt_template)
     group_name = comp.group_name
     owners = comp.owners or []
     description = comp.description or "RAG pipeline (ops mode)"
@@ -1378,10 +1606,12 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
         )
 
     _column_lineage_md = _column_lineage_metadata(comp)
+    shadow_cfg = (comp.receipts or {}).get("shadow")
 
     @asset(
         key=AssetKey.from_user_string(asset_name),
         partitions_def=partitions_def,
+        backfill_policy=_backfill_policy,
         group_name=group_name,
         description=description,
         owners=owners,
@@ -1405,9 +1635,15 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
         df = upstream.copy()
         if query_column not in df.columns:
             raise ValueError(f"query_column {query_column!r} not in upstream columns: {list(df.columns)}")
+        df = _filter_df_to_partition(df, context, comp.partition_date_column, comp.partition_static_column,
+                                     comp.partition_static_dim).reset_index(drop=True)
 
         # Partition-key substitution values.
         subs = {"run_id": context.run_id}
+        if partitions_def is not None and not context.has_partition_key and query_prompt_template \
+                and any(t in query_prompt_template for t in _PARTITION_PLACEHOLDERS):
+            raise RuntimeError("RAGPipelineComponent: this run covers several partitions but query_prompt_template resolves "
+                               "{partition_key} per single partition; launch one partition per run.")
         if context.has_partition_key:
             pk = context.partition_key
             if hasattr(pk, "keys_by_dimension"):
@@ -1421,6 +1657,7 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
         reasonings: List[Optional[str]] = []
         sources_per_row: List[List[Dict[str, Any]]] = []
         receipt_ids: List[Optional[str]] = []
+        shadow_served = shadow_failed = 0
         totals = {"cost_usd": 0.0, "latency_ms": 0, "tokens_total": 0,
                   "cache_read_tokens": 0, "cache_creation_tokens": 0}
 
@@ -1434,6 +1671,8 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
                 for k, v in (subs.get("partition") or {}).items():
                     query = query.replace(f"{{partition.{k}}}", str(v))
             state: Dict[str, Any] = {"__query__": query}
+            if shadow_cfg:
+                state["__shadow__"] = _shadow_pick(shadow_cfg, raw_query)
 
             for step in steps_cfg:
                 op_fn = _OPS[step["op"]]
@@ -1445,11 +1684,14 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
             answers.append(last.get("answer") or last.get("content") or "")
             reasonings.append(last.get("reasoning"))
             sources_per_row.append(last.get("docs") or [])
+            row_shadow = any(isinstance(o, dict) and o.get("shadow_served") for o in state.values())
+            shadow_served += int(row_shadow)
+            shadow_failed += int(state.get("__shadow_failed__", 0) > 0)
             if comp.receipts:
                 # One receipt per row: the docs the final step consumed; eligible = candidates the last retrieval saw.
                 eligible = next((o["eligible_count"] for o in reversed(list(state.values()))
                                  if isinstance(o, dict) and "eligible_count" in o), None)
-                receipt_ids.append(_record_receipt(comp, context, query, last.get("docs") or [], eligible)
+                receipt_ids.append(_record_receipt(comp, context, query, last.get("docs") or [], eligible, shadow=row_shadow)
                                    if eligible is not None else None)
 
             for k in totals:
@@ -1478,6 +1720,9 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
                 "receipts_recorded": MetadataValue.int(sum(1 for r in receipt_ids if r)),
                 "receipts_failed": MetadataValue.int(sum(1 for r in receipt_ids if not r)),
             }
+            if shadow_cfg:
+                _receipt_meta["shadow_served"] = MetadataValue.int(shadow_served)
+                _receipt_meta["shadow_fallbacks"] = MetadataValue.int(shadow_failed)
         context.add_output_metadata({
             **_receipt_meta,
             "dagster/row_count": MetadataValue.int(len(df)),
@@ -1495,7 +1740,8 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
 
     from dagster import build_column_schema_change_checks
     _schema_checks = build_column_schema_change_checks(assets=[_rag_ops_asset])
-    return Definitions(assets=[_rag_ops_asset], asset_checks=list(_schema_checks))
+    _shadow_check = _build_shadow_check(comp, AssetKey.from_user_string(asset_name))
+    return Definitions(assets=[_rag_ops_asset], asset_checks=list(_schema_checks) + ([_shadow_check] if _shadow_check else []))
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

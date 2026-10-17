@@ -86,7 +86,7 @@ import os
 import re
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import dagster as dg
 from pydantic import Field
@@ -945,6 +945,64 @@ def _last_step_id(state: Dict[str, Any]) -> str:
         if not (isinstance(k, str) and k.startswith("__")):
             return k
     raise ValueError("no user step outputs in state")
+
+
+def _build_backfill_policy(partitions_def, policy: Optional[str], max_per_run: Optional[int]):
+    """Validate `backfill_policy` / `backfill_policy_max_partitions_per_run` and return a dagster BackfillPolicy (or None).
+
+    This pipeline resolves `{partition_key}` / `{partition.<name>}` in its source, steps, sinks and approval keys from the
+    ONE partition a run was launched for, and its output is one value per partition. A run that covers several partitions
+    (single_run, or multi_run with max_partitions_per_run > 1) has no single partition key, so those substitutions and the
+    per-partition approval tokens would silently collapse. Only one partition per run is therefore supported."""
+    where = "AgenticPipelineComponent"
+    if max_per_run is not None and policy != "multi_run":
+        raise ValueError(f"{where}: backfill_policy_max_partitions_per_run only applies to backfill_policy='multi_run'")
+    if policy is None:
+        return None
+    if policy not in ("single_run", "multi_run"):
+        raise ValueError(f"{where}: backfill_policy must be 'single_run' or 'multi_run', got {policy!r}")
+    if partitions_def is None:
+        return None  # ignored when the component is not partitioned, same as the other components
+    if policy == "single_run":
+        raise ValueError(
+            f"{where}: backfill_policy='single_run' is not supported. A single run covering a whole partition range has no "
+            "single partition_key, so {partition_key} templates, per-partition approval keys and sink paths cannot be resolved; "
+            "use backfill_policy='multi_run' (one partition per run, optionally a cap on concurrent runs is set in the "
+            "backfill itself).")
+    if max_per_run is not None and (isinstance(max_per_run, bool) or not isinstance(max_per_run, int) or max_per_run < 1):
+        raise ValueError(f"{where}: backfill_policy_max_partitions_per_run must be an integer >= 1")
+    if max_per_run not in (None, 1):
+        raise ValueError(
+            f"{where}: backfill_policy_max_partitions_per_run={max_per_run} is not supported: a run with several partitions has "
+            "no single partition_key (see backfill_policy='single_run'). Leave it unset or use 1.")
+    return dg.BackfillPolicy.multi_run(max_partitions_per_run=1)
+
+
+def _validate_approve_partitioning(steps: List[Dict[str, Any]], partitioned: bool) -> None:
+    """Approval tokens live at `<approval_dir>/<key>.json`, so under partitioning every `approve` step needs a key that is
+    unique per partition AND per step, or one human decision silently approves other partitions / other gates."""
+    if not partitioned:
+        return
+    approves = [st for st in steps if st.get("op") == "approve"]
+    for st in approves:
+        k = st.get("key")
+        if k and "{partition" not in str(k):
+            raise ValueError(
+                f"approve step {st.get('id')!r}: key {k!r} is the same for every partition, so one approval would clear all of them; "
+                "include {partition_key} (or a {partition.<name>}) in the key, or omit `key` to use the partition key")
+    if sum(1 for st in approves if not st.get("key")) > 1:
+        raise ValueError(
+            "several approve steps without an explicit `key` under partitioning would share one token per partition (the "
+            "default key is the partition key); give each a key such as '{partition_key}-<step id>'")
+
+
+def _require_one_partition(context, partitioned: bool) -> None:
+    """A partitioned run must be for exactly one partition; otherwise partition_key would be None and every
+    `{partition_key}` template / approval key would silently resolve as if unpartitioned."""
+    if partitioned and not context.has_partition_key:
+        raise RuntimeError(
+            "AgenticPipelineComponent: this run covers several partitions (or none), but the pipeline resolves "
+            "{partition_key}, sink paths and approval keys per single partition. Launch one partition per run.")
 
 
 def _build_partitions_def(
@@ -5110,6 +5168,17 @@ class _ApprovalStore:
             pass
 
 
+def _approval_key(raw: Any) -> str:
+    """Filename-safe approval key. Sanitizing alone is lossy ("a/b" and "a_b" would both become "a_b" and so share one
+    approval token), so a key that had to be changed carries a short hash of the original; an already-safe key is unchanged."""
+    raw = str(raw)
+    safe = re.sub(r"[^A-Za-z0-9._-]+", "_", raw)
+    if safe != raw:
+        import hashlib
+        safe = f"{safe}-{hashlib.sha1(raw.encode('utf-8')).hexdigest()[:8]}"
+    return safe
+
+
 def _do_approve(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     """Human gate inside the pipeline, using the SAME token contract as `human_approval_gate`:
     `<approval_dir>/<key>.json` = {"approved": true|false, "approver": "...", "reason": "..."} -- written by anything (Slack bot,
@@ -5127,7 +5196,7 @@ def _do_approve(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     approval_dir = step.get("approval_dir")
     if not approval_dir:
         raise ValueError("approve needs `approval_dir:` (where approval tokens + the pending review queue live)")
-    key = re.sub(r"[^A-Za-z0-9._-]+", "_", str(step.get("key") or _ctx_of(state).get("partition_key") or step["id"]))
+    key = _approval_key(step.get("key") or _ctx_of(state).get("partition_key") or step["id"])
     store = _ApprovalStore(approval_dir)
     token_path = store.path(f"{key}.json")
     pending_path = store.path("pending", f"{key}.json")
@@ -5755,6 +5824,19 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "multi-dimensional partitioning."
         ),
     )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned pipeline. 'multi_run' launches one run per partition (the only "
+            "shape this pipeline supports: each run resolves {partition_key}, sink paths and approval keys for exactly one "
+            "partition). 'single_run' is REJECTED at load time because one run covering a partition range has no single "
+            "partition_key. Leave unset for Dagster's default (one run per partition). Ignored when no partitioning is set."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only. Must be unset or 1: a run with several partitions has no single partition_key.",
+    )
     partition_key_parser: Optional[str] = Field(
         default=None,
         description=(
@@ -5946,6 +6028,10 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             self.partition_dimensions,
         )
 
+        _backfill_policy = _build_backfill_policy(
+            _partitions_def, self.backfill_policy, self.backfill_policy_max_partitions_per_run)
+        _validate_approve_partitioning(steps, _partitions_def is not None)
+
         # ── Branch: per_step_ops selects the emitted shape ────────────
         # (True → graph_multi_asset with N+2 ops; False → single multi_asset)
         if self.per_step_ops:
@@ -5956,6 +6042,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 partitions_def=_partitions_def,
                 partition_key_parser=partition_key_parser,
                 discovered_sibling_cards=discovered_sibling_cards,
+                backfill_policy=_backfill_policy,
             )
 
         # ── Step-dep DAG for can_subset resume ──
@@ -5993,6 +6080,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             return [s["id"] for s in steps if s.get("id") in need]
 
         def _pipeline_impl(context: dg.AssetExecutionContext, **kwargs):
+            _require_one_partition(context, _partitions_def is not None)
             partition_key = context.partition_key if context.has_partition_key else None
             if partition_key:
                 context.log.info(f"partition-aware materialization: partition_key={partition_key!r}")
@@ -6195,6 +6283,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             ins=ins or None,
             internal_asset_deps=internal_asset_deps or None,
             partitions_def=_partitions_def,
+            backfill_policy=_backfill_policy,
             can_subset=True,
         )
         def _pipeline(context: dg.AssetExecutionContext, **kwargs):
@@ -6229,6 +6318,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         partitions_def,
         partition_key_parser: Optional[str],
         discovered_sibling_cards: Optional[List[Dict[str, Any]]] = None,
+        backfill_policy=None,
     ) -> dg.Definitions:
         _self = self  # captured for closure use in ops
         discovered_sibling_cards = discovered_sibling_cards or []
@@ -6246,6 +6336,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
 
             @dg.op(name=f"{prefix}_ingest", ins={"source": dg.In(dagster_type=Any)})
             def _ingest_op(context: dg.OpExecutionContext, source):
+                _require_one_partition(context, partitions_def is not None)
                 partition_key = context.partition_key if context.has_partition_key else None
                 partition_fields = _parse_partition_key(partition_key, partition_key_parser)
                 if isinstance(source, dict) and "text" in source:
@@ -6273,6 +6364,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         else:
             @dg.op(name=f"{prefix}_ingest")
             def _ingest_op(context: dg.OpExecutionContext):
+                _require_one_partition(context, partitions_def is not None)
                 partition_key = context.partition_key if context.has_partition_key else None
                 partition_fields = _parse_partition_key(partition_key, partition_key_parser)
                 _usage: Dict[str, Any] = {}
@@ -6384,6 +6476,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             name=f"{prefix}_pipeline",
             ins=ins or None,
             partitions_def=partitions_def,
+            backfill_policy=backfill_policy,
             can_subset=True,
         )
         def _pipeline_graph(**kwargs):

@@ -18,7 +18,7 @@
     "receipts": {
       "type": "object",
       "label": "Context Receipts",
-      "description": "Optional closed-loop context receipts. {resource_key (required, a ContextReceiptStoreComponent resource), context_name, caller_id, purpose, policy_version, fail_on_error, rerank: {prior_weight, explore_fraction, fetch_multiplier}}. Records every row's final retrieval as a receipt (ids + provenance, never text), writes a receipt_id column, and with rerank reorders retrieve/hybrid_search results by learned item priors. Omit for unchanged behaviour.",
+      "description": "Optional closed-loop context receipts. {resource_key (required, a ContextReceiptStoreComponent resource), context_name, caller_id, purpose, policy_version, fail_on_error, rerank: {prior_weight, explore_fraction, fetch_multiplier}, shadow: {retriever, fraction, seed, label, replaces, code_version_override, live_code_version, candidate_code_version, source_asset_key, min_outcomes, margin, window_days}}. shadow serves a fraction of queries from a candidate retriever (receipts get purpose 'shadow:<label>' and the candidate's code version) and, with both code versions set, adds the shadow_vs_live WARN check. Records every row's final retrieval as a receipt (ids + provenance, never text), writes a receipt_id column, and with rerank reorders retrieve/hybrid_search results by learned item priors. Omit for unchanged behaviour.",
       "required": false
     },
     "include_reasoning": {
@@ -166,6 +166,25 @@
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
+    },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "'multi_run' launches one run per partition (optionally capped via Backfill Max Partitions Per Run). 'single_run' answers a whole backfill range in one run (rows are independent; the upstream is filtered by Partition Date Column / Static Partition Column if set) and needs an IO manager that can store a multi-partition output. Either is rejected at load time when query_prompt_template uses {partition_key}/{partition.<name>} and a run could cover several partitions. Leave empty for Dagster's default (one run per partition). Ignored when no partitioning is set.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
+      "required": false,
+      "default": null
     },
     "owners": {
       "type": "array",

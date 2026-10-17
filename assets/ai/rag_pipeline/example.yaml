@@ -51,3 +51,17 @@ attributes:
       system_prompt: >
         You are a helpful product docs assistant. Answer using ONLY the
         provided context. If the answer isn't in the context, say so.
+
+  # Try a candidate index on 10% of live queries and judge it by real outcomes (see README, "receipts.shadow"):
+  #   retrievers:
+  #     docs_vs_next: {kind: chromadb, collection_name: product_docs_v2, path: ./chroma_db,
+  #                    embedding: {provider: voyage, model: voyage-3.5, input_type: query, api_key_env_var: VOYAGE_API_KEY}}
+  #   receipts:
+  #     resource_key: context_receipts
+  #     shadow:
+  #       retriever: docs_vs_next
+  #       fraction: 0.1
+  #       seed: 42
+  #       live_code_version: recipe-7
+  #       candidate_code_version: recipe-8
+  #       source_asset_key: product_docs

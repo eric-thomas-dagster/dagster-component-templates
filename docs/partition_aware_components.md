@@ -4,6 +4,25 @@
 
 **Why this matters**: `post_processing.attributes.partitions_def` declares an asset as partitioned in the Dagster catalog, but the *compute* path has to know how to scope work to a single partition (`context.partition_key`). If the component's compute ignores partition context, every partition materializes the same data — a silent correctness bug.
 
+## Current state (supersedes the counts below)
+
+The tables further down were generated at v0.10.52 and are out of date. After the partition sweep, of the 822 components under `assets/`:
+
+- **682** use the partition context (row filter, `{partition_*}` tokens, or a partition time window).
+- **140** do not. **48** of those are partition-agnostic by design: `lineage_to_*` sinks and `lineage_graph_extractor` (they emit graph metadata, not rows), infrastructure provisioning, the dbt and warehouse-task components.
+- **92** are open candidates: 21 declare `partition_type` without applying it (Google Calendar/Drive/Docs, IMAP, Monday board items, archive fetcher, Firestore reader, CloudWatch metrics, the synthetic media/data generators, `ad_spend_standardizer`, `document_text_extractor`, and a few AI SQL/report components) and 71 declare nothing (the warehouse SQL-pushdown transforms, `pyspark_*`, the LLM batch components, and various one-off readers).
+
+How a component applies a partition, by shape:
+
+| Shape | Behaviour on a partitioned run |
+|---|---|
+| Takes an upstream DataFrame (AI, transforms, sinks, reverse ETL) | Keeps only the rows in the partition: `partition_date_column` against the partition's time window, `partition_static_column` against the partition key(s). A backfill run covers its whole range. |
+| dlt-based ingestion | Returns only the partition's rows; the extract itself is still fetched in full and loaded to the destination. |
+| Query-style readers (logs, metrics, SQL, KQL, PromQL, NRQL) | `{partition_key}`, `{partition_date}`, `{partition_start}`, `{partition_end}` are substituted into the query/filter/time-range fields. |
+| Infrastructure | `{partition_*}` tokens and `DAGSTER_PARTITION_*` environment variables. |
+
+---
+
 ## Summary
 
 - **✅ Safe** (compute is partition-aware): **305** components

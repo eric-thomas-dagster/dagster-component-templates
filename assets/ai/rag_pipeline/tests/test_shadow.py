@@ -279,42 +279,153 @@ def test_no_shadow_block_changes_nothing(mod, index, tmp_path):
 
 # --- compare_recipes ---------------------------------------------------------------------------
 
-def _bcv(live=(20, 0.2), cand=(20, 0.5)):
-    out = {}
-    for k, v in (("L", live), ("C", cand)):
-        if v is not None:
-            out[k] = {"receipts": v[0] + 5, "outcomes": v[0], "mean_outcome": v[1]}
-    return out
+import random as _random
 
 
-@pytest.mark.parametrize("by, kw, verdict", [
-    (_bcv(), {}, "candidate_better"),
-    (_bcv(cand=(20, -0.2)), {}, "live_better"),
-    (_bcv(cand=(20, 0.22)), {}, "inconclusive"),
-    (_bcv(cand=(20, 0.25)), {}, "inconclusive"),                  # exactly the margin is not "more than" the margin
-    (_bcv(cand=(20, 0.2501)), {}, "candidate_better"),
-    (_bcv(cand=(20, 0.15)), {}, "inconclusive"),
-    (_bcv(cand=(20, 0.1499)), {}, "live_better"),
-    (_bcv(cand=(9, 0.9)), {}, "insufficient_evidence"),            # candidate under min_outcomes
-    (_bcv(live=(9, 0.9)), {}, "insufficient_evidence"),            # live under min_outcomes
-    (_bcv(cand=None), {}, "insufficient_evidence"),                # candidate has no receipts at all
-    (_bcv(live=None), {}, "insufficient_evidence"),
-    ({}, {}, "insufficient_evidence"),
-    (_bcv(live=(9, 0.2), cand=(9, 0.9)), {"min_outcomes": 9}, "candidate_better"),
-    (_bcv(cand=(20, 0.3)), {"margin": 0.2}, "inconclusive"),
-    (_bcv(cand=(20, 0.5)), {"margin": 0.2}, "candidate_better"),
-])
-def test_compare_recipes_verdicts(mod, by, kw, verdict):
-    assert mod.compare_recipes(by, "L", "C", **kw)["verdict"] == verdict
+def _normal(mean, sd, n, seed):
+    r = _random.Random(seed)
+    return [r.gauss(mean, sd) for _ in range(n)]
 
 
-def test_compare_recipes_reports_means_and_counts_and_ignores_unanswered_receipts(mod):
-    by = {"L": {"receipts": 500, "outcomes": 12, "mean_outcome": 0.1}, "C": {"receipts": 40, "outcomes": 11, "mean_outcome": None}}
-    r = mod.compare_recipes(by, "L", "C")
-    assert r == {"verdict": "insufficient_evidence", "live_mean": 0.1, "candidate_mean": None, "n_live": 12, "n_candidate": 11}
-    by["C"] = {"receipts": 500, "outcomes": 10, "mean_outcome": 0.4}
-    r = mod.compare_recipes(by, "L", "C")
-    assert (r["verdict"], r["live_mean"], r["candidate_mean"], r["n_live"], r["n_candidate"]) == ("candidate_better", 0.1, 0.4, 12, 10)
+def _smp(live, cand):
+    return {"L": live, "C": cand}
+
+
+def test_clearly_better_worse_and_identical(mod):
+    live = _normal(0.0, 0.3, 60, 1)
+    better = mod.compare_recipes(_smp(live, _normal(0.5, 0.3, 60, 2)), "L", "C")
+    assert better["verdict"] == "candidate_better" and better["ci_low"] > 0.05 and better["p_candidate_better"] > 0.99
+    worse = mod.compare_recipes(_smp(live, _normal(-0.5, 0.3, 60, 3)), "L", "C")
+    assert worse["verdict"] == "live_better" and worse["ci_high"] < -0.05 and worse["p_candidate_better"] < 0.01
+    same = mod.compare_recipes(_smp(live, list(live)), "L", "C")
+    assert same["verdict"] == "inconclusive" and same["diff"] == 0 and same["ci_low"] < 0 < same["ci_high"]
+
+
+def test_noisy_gap_above_margin_is_not_called(mod):
+    # diff exceeds the margin but the data are far too noisy for n=12: the old threshold would have said candidate_better
+    live = _normal(0.0, 1.0, 12, 4)
+    cand = [x + 0.0 for x in _normal(0.0, 1.0, 12, 5)]
+    r = mod.compare_recipes(_smp(live, cand), "L", "C", min_outcomes=10, margin=0.05)
+    assert abs(r["diff"]) > 0.05 and r["verdict"] == "inconclusive"
+
+
+def test_significant_but_smaller_than_margin_is_inconclusive(mod):
+    live = [0.0, 0.01] * 40
+    cand = [0.1, 0.11] * 40                      # +0.1 with no noise: CI excludes zero
+    assert mod.compare_recipes(_smp(live, cand), "L", "C", margin=0.05)["verdict"] == "candidate_better"
+    r = mod.compare_recipes(_smp(live, cand), "L", "C", margin=0.3)
+    assert r["ci_low"] > 0 and r["verdict"] == "inconclusive"       # the margin is honoured
+    r = mod.compare_recipes(_smp(cand, live), "L", "C", margin=0.3)
+    assert r["ci_high"] < 0 and r["verdict"] == "inconclusive"
+
+
+def test_tiny_sample_missing_side_and_missing_samples_are_insufficient(mod):
+    assert mod.compare_recipes(_smp([0.0] * 9, [1.0] * 20), "L", "C")["verdict"] == "insufficient_evidence"
+    assert mod.compare_recipes(_smp([0.0] * 20, [1.0] * 9), "L", "C")["verdict"] == "insufficient_evidence"
+    assert mod.compare_recipes(_smp([0.0] * 20, []), "L", "C")["verdict"] == "insufficient_evidence"
+    assert mod.compare_recipes({"L": [0.0] * 20}, "L", "C")["verdict"] == "insufficient_evidence"
+    assert mod.compare_recipes({}, "L", "C")["verdict"] == "insufficient_evidence"
+    assert mod.compare_recipes(None, "L", "C")["verdict"] == "insufficient_evidence"
+    r = mod.compare_recipes(_smp([0.0] * 9, [1.0] * 9), "L", "C", min_outcomes=9)
+    assert r["verdict"] == "candidate_better" and r["n_live"] == r["n_candidate"] == 9
+
+
+def test_zero_variance(mod):
+    r = mod.compare_recipes(_smp([0.2] * 20, [0.5] * 20), "L", "C")
+    assert (r["verdict"], r["ci_low"], r["ci_high"], r["diff"]) == ("candidate_better", 0.3, 0.3, 0.3)
+    r = mod.compare_recipes(_smp([0.2] * 20, [0.2] * 20), "L", "C", margin=0.0)
+    assert r["verdict"] == "inconclusive" and r["ci_low"] == r["ci_high"] == 0
+    r = mod.compare_recipes(_smp([0.5] * 20, [0.2] * 20), "L", "C")
+    assert r["verdict"] == "live_better"
+
+
+def test_margin_boundary_is_strict(mod):
+    r = mod.compare_recipes(_smp([0.2] * 20, [0.25] * 20), "L", "C", margin=0.05)
+    assert r["diff"] == 0.05 and r["verdict"] == "inconclusive"
+
+
+def test_deterministic_and_seed_sensitive(mod):
+    s = _smp(_normal(0, 1, 30, 7), _normal(0.3, 1, 30, 8))
+    a = mod.compare_recipes(s, "L", "C", seed=11)
+    assert a == mod.compare_recipes(s, "L", "C", seed=11)
+    b = mod.compare_recipes(s, "L", "C", seed=12)
+    assert (a["ci_low"], a["ci_high"]) != (b["ci_low"], b["ci_high"])
+    assert mod.compare_recipes(s, "L", "C", seed="x") == mod.compare_recipes(s, "L", "C", seed="x")
+
+
+def test_result_reports_everything(mod):
+    r = mod.compare_recipes(_smp(_normal(0, 1, 30, 1), _normal(1, 1, 25, 2)), "L", "C", confidence=0.9, resamples=500)
+    assert set(r) == {"verdict", "live_mean", "candidate_mean", "n_live", "n_candidate", "diff", "ci_low", "ci_high",
+                      "p_candidate_better", "confidence", "resamples", "ready_to_promote"}
+    assert (r["n_live"], r["n_candidate"], r["confidence"], r["resamples"], r["ready_to_promote"]) == (30, 25, 0.9, 500, None)
+    assert r["ci_low"] < r["diff"] < r["ci_high"]
+
+
+def test_confidence_widens_the_interval(mod):
+    s = _smp(_normal(0, 1, 40, 1), _normal(0.2, 1, 40, 2))
+    n = mod.compare_recipes(s, "L", "C", confidence=0.80)
+    w = mod.compare_recipes(s, "L", "C", confidence=0.99)
+    assert w["ci_low"] < n["ci_low"] and w["ci_high"] > n["ci_high"]
+
+
+def test_false_positive_rate_with_no_true_difference(mod):
+    # same true mean on both sides: a "candidate_better" verdict is a false positive; one-sided at 95% two-sided CI ~2.5%
+    rng = _random.Random(2024)
+    runs, fp = 300, 0
+    for i in range(runs):
+        live = [rng.gauss(0, 1) for _ in range(30)]
+        cand = [rng.gauss(0, 1) for _ in range(30)]
+        v = mod.compare_recipes(_smp(live, cand), "L", "C", margin=0.0, resamples=400, seed=i)["verdict"]
+        fp += v in ("candidate_better", "live_better")
+    assert fp / runs <= (1 - 0.95) + 0.04, fp / runs
+
+
+def test_power_with_a_real_difference(mod):
+    rng = _random.Random(99)
+    hits = sum(mod.compare_recipes(_smp([rng.gauss(0, 1) for _ in range(40)], [rng.gauss(1, 1) for _ in range(40)]),
+                                   "L", "C", resamples=400, seed=i)["verdict"] == "candidate_better" for i in range(60))
+    assert hits >= 55
+
+
+def test_promote_when_is_only_a_reported_boolean(mod):
+    s = _smp(_normal(0, 0.3, 40, 1), _normal(0.6, 0.3, 40, 2))
+    assert mod.compare_recipes(s, "L", "C")["ready_to_promote"] is None
+    assert mod.compare_recipes(s, "L", "C", promote_when={"confidence": 0.99, "min_outcomes": 30})["ready_to_promote"] is True
+    assert mod.compare_recipes(s, "L", "C", promote_when={"confidence": 0.99, "min_outcomes": 50})["ready_to_promote"] is False
+    close = _smp(_normal(0, 1, 40, 1), _normal(0.35, 1, 40, 2))
+    r = mod.compare_recipes(close, "L", "C", confidence=0.80, promote_when={"confidence": 0.9999, "min_outcomes": 10})
+    assert r["ready_to_promote"] is False
+    r = mod.compare_recipes(_smp([0.0] * 5, [1.0] * 5), "L", "C", min_outcomes=3, promote_when={"min_outcomes": 30})
+    assert r["verdict"] == "candidate_better" and r["ready_to_promote"] is False
+
+
+def test_the_rule_needs_both_the_interval_and_the_margin(mod, monkeypatch):
+    """Mutation guards: bounds and margin each flip a verdict, so swapping the bound or dropping the margin is caught."""
+    s = _smp(_normal(0, 0.3, 120, 1), _normal(0.2, 0.3, 120, 2))
+    base = mod.compare_recipes(s, "L", "C", margin=0.05)
+    assert base["verdict"] == "candidate_better" and 0 < base["ci_low"] < base["diff"] < base["ci_high"]
+    assert mod.compare_recipes(s, "L", "C", margin=base["diff"] + 0.01)["verdict"] == "inconclusive"       # margin matters
+    # interval matters: a gap above the margin whose interval spans zero is not a win, whichever side it is on
+    noisy = _smp(_normal(0, 2, 12, 3), _normal(0.5, 2, 12, 4))
+    r = mod.compare_recipes(noisy, "L", "C", margin=0.0)
+    assert r["ci_low"] < 0 < r["ci_high"] and r["verdict"] == "inconclusive"
+    # a negative gap uses the UPPER bound: ci_high < 0 is required for live_better
+    r2 = mod.compare_recipes(_smp(noisy["C"], noisy["L"]), "L", "C", margin=0.0)
+    assert r2["ci_high"] > 0 and r2["verdict"] == "inconclusive"
+
+
+@pytest.mark.parametrize("key, bad", [("resamples", 10), ("resamples", 2.5), ("confidence", 1.0), ("confidence", 0),
+                                      ("bootstrap_seed", 1.5), ("promote_when", {"confidence": 2}),
+                                      ("promote_when", {"nope": 1}), ("promote_when", {"min_outcomes": 0})])
+def test_bootstrap_fields_are_validated(mod, index, candidate_index, key, bad):
+    sh = {"retriever": "cand", "fraction": 0.5, **CV, key: bad}
+    with pytest.raises(ValueError):
+        _shadow_comp(mod, index, candidate_index, sh).build_defs(None)
+
+
+def test_promote_when_needs_the_check_fields(mod, index, candidate_index):
+    with pytest.raises(ValueError, match="promote_when"):
+        _shadow_comp(mod, index, candidate_index, {"retriever": "cand", "fraction": 0.5, "promote_when": {"confidence": 0.9}}).build_defs(None)
 
 
 # --- the shadow_vs_live check ------------------------------------------------------------------
@@ -375,6 +486,9 @@ def test_check_reads_real_outcomes_and_warns_only_when_live_is_better(mod, index
     assert ev.severity == dg.AssetCheckSeverity.WARN
     assert ev.metadata["verdict"].value == verdict
     assert ev.metadata["n_live"].value >= 5 and ev.metadata["n_candidate"].value >= 5
+    for k in ("diff", "ci_low", "ci_high", "p_candidate_better", "confidence", "resamples"):
+        assert k in ev.metadata
+    assert "ready_to_promote" in ev.metadata and ev.metadata["ready_to_promote"].value == "n/a"      # no promote_when -> not asserted
 
 
 def test_check_passes_with_insufficient_evidence(mod, index, candidate_index, tmp_path):
@@ -382,3 +496,37 @@ def test_check_passes_with_insufficient_evidence(mod, index, candidate_index, tm
     comp = _shadow_comp(mod, index, candidate_index, {"retriever": "cand", "fraction": 0.5, "seed": 5, **CV})
     (ev,) = _eval(mod, comp, store)                       # the run itself records one receipt, no outcomes yet
     assert ev.passed and ev.metadata["verdict"].value == "insufficient_evidence"
+
+
+def test_check_reports_ready_to_promote_but_takes_no_action(mod, index, candidate_index, tmp_path):
+    _, store = _store(tmp_path)
+    _seed(store, mod, index, candidate_index, 0.0, 0.8)
+    sh = {"retriever": "cand", "fraction": 0.5, "seed": 5, **CV, "promote_when": {"confidence": 0.99, "min_outcomes": 5}}
+    (ev,) = _eval(mod, _shadow_comp(mod, index, candidate_index, sh), store)
+    assert ev.metadata["verdict"].value == "candidate_better" and ev.metadata["ready_to_promote"].value is True
+    sh["promote_when"]["min_outcomes"] = 500
+    (ev,) = _eval(mod, _shadow_comp(mod, index, candidate_index, sh), store)
+    assert ev.metadata["verdict"].value == "candidate_better" and ev.metadata["ready_to_promote"].value is False
+
+
+def test_check_without_the_new_store_method_degrades_with_a_clear_reason(mod, index, candidate_index, tmp_path):
+    _, store = _store(tmp_path)
+
+    class Old:
+        def __getattr__(self, n):
+            if n == "outcome_samples_by_code_version":
+                raise AttributeError(n)
+            return getattr(store, n)
+    comp = _shadow_comp(mod, index, candidate_index, {"retriever": "cand", "fraction": 0.5, "seed": 5, **CV})
+    (ev,) = _eval(mod, comp, Old())
+    assert ev.passed and ev.metadata["verdict"].value == "insufficient_evidence"
+    assert "outcome_samples_by_code_version" in ev.metadata["reason"].value
+
+
+def test_check_is_reproducible_run_to_run(mod, index, candidate_index, tmp_path):
+    _, store = _store(tmp_path)
+    _seed(store, mod, index, candidate_index, 0.1, 0.4)
+    comp = _shadow_comp(mod, index, candidate_index, {"retriever": "cand", "fraction": 0.5, "seed": 5, **CV})
+    (a,) = _eval(mod, comp, store)
+    (b,) = _eval(mod, comp, store)
+    assert a.metadata["ci_low"].value == b.metadata["ci_low"].value and a.metadata["ci_high"].value == b.metadata["ci_high"].value

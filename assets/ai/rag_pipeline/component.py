@@ -1057,7 +1057,7 @@ def _rrf_combine(ranked_lists: List[List[Dict[str, Any]]], k: int = 60, top_k: i
 _RECEIPT_KEYS = {"resource_key", "context_name", "caller_id", "purpose", "policy_version", "fail_on_error", "rerank", "shadow"}
 _SHADOW_KEYS = {"retriever", "replaces", "fraction", "seed", "label", "code_version_override",
                 "live_code_version", "candidate_code_version", "source_asset_key",
-                "min_outcomes", "margin", "window_days"}
+                "min_outcomes", "margin", "window_days", "resamples", "confidence", "bootstrap_seed", "promote_when"}
 _RECEIPT_RERANK_KEYS = {"prior_weight", "explore_fraction", "fetch_multiplier"}
 
 
@@ -1153,6 +1153,26 @@ def _validate_shadow(sh: Any, where: str, retrievers: Optional[Dict[str, Any]], 
         v = sh.get(k)
         if v is not None and (isinstance(v, bool) or not isinstance(v, (int, float)) or v <= 0):
             raise ValueError(f"{where}.{k} must be a positive number")
+    rs = sh.get("resamples")
+    if rs is not None and (isinstance(rs, bool) or not isinstance(rs, int) or rs < 100):
+        raise ValueError(f"{where}.resamples must be an integer >= 100")
+    cf = sh.get("confidence")
+    if cf is not None and (isinstance(cf, bool) or not isinstance(cf, (int, float)) or not 0 < float(cf) < 1):
+        raise ValueError(f"{where}.confidence must be a number strictly between 0 and 1")
+    bs = sh.get("bootstrap_seed")
+    if bs is not None and (isinstance(bs, bool) or not isinstance(bs, (int, str))):
+        raise ValueError(f"{where}.bootstrap_seed must be an int or a string")
+    pw = sh.get("promote_when")
+    if pw is not None:
+        if not isinstance(pw, dict) or set(pw) - {"confidence", "min_outcomes"}:
+            raise ValueError(f"{where}.promote_when must be a mapping with only confidence / min_outcomes")
+        pc, pm = pw.get("confidence"), pw.get("min_outcomes")
+        if pc is not None and (isinstance(pc, bool) or not isinstance(pc, (int, float)) or not 0 < float(pc) < 1):
+            raise ValueError(f"{where}.promote_when.confidence must be a number strictly between 0 and 1")
+        if pm is not None and (isinstance(pm, bool) or not isinstance(pm, (int, float)) or pm <= 0):
+            raise ValueError(f"{where}.promote_when.min_outcomes must be a positive number")
+        if not (sh.get("live_code_version") and sh.get("candidate_code_version")):
+            raise ValueError(f"{where}.promote_when needs live_code_version / candidate_code_version (it is a field of the shadow_vs_live check)")
     m = sh.get("margin")
     if m is not None and (isinstance(m, bool) or not isinstance(m, (int, float)) or m < 0):
         raise ValueError(f"{where}.margin must be a number >= 0")
@@ -1193,26 +1213,70 @@ def _search_with_shadow(step: dict, state: Dict[str, Any], comp: "RAGPipelineCom
     return _vector_search(live, _embed_query(live.get("embedding") or {}, query), k), False
 
 
-def compare_recipes(by_code_version: Dict[str, Dict[str, Any]], live: str, candidate: str,
-                    min_outcomes: int = 10, margin: float = 0.05) -> Dict[str, Any]:
-    """Judge a candidate recipe against the live one from `store.outcomes_by_code_version(...)`.
+def _bootstrap_diffs(live: List[float], cand: List[float], resamples: int, seed: Any) -> List[float]:
+    """Sorted bootstrap distribution of mean(candidate) - mean(live): each side resampled independently with replacement."""
+    import random
+    rng = random.Random(seed)
+    nl, nc = len(live), len(cand)
+    diffs = [sum(rng.choices(cand, k=nc)) / nc - sum(rng.choices(live, k=nl)) / nl for _ in range(resamples)]
+    diffs.sort()
+    return diffs
 
-    Only receipts that actually received an outcome count (`outcomes`, not `receipts`). Fewer than `min_outcomes` on
-    either side is `insufficient_evidence`; otherwise the candidate must beat (or lose to) the live mean by MORE than
-    `margin` to be `candidate_better` / `live_better`, else `inconclusive`. This is a threshold on the mean outcome
-    difference, not a significance test: pick min_outcomes and margin to suit your outcome noise."""
-    def side(cv):
-        e = (by_code_version or {}).get(cv) or {}
-        return int(e.get("outcomes") or 0), e.get("mean_outcome")
-    n_live, live_mean = side(live)
-    n_cand, cand_mean = side(candidate)
-    if n_live < min_outcomes or n_cand < min_outcomes or live_mean is None or cand_mean is None:
-        verdict = "insufficient_evidence"
-    else:
-        diff = round(float(cand_mean) - float(live_mean), 9)
-        verdict = "candidate_better" if diff > margin else "live_better" if diff < -margin else "inconclusive"
-    return {"verdict": verdict, "live_mean": live_mean, "candidate_mean": cand_mean,
-            "n_live": n_live, "n_candidate": n_cand}
+
+def _percentile_ci(diffs: List[float], confidence: float) -> Tuple[float, float]:
+    """Two-sided percentile interval of an already sorted bootstrap distribution."""
+    import math
+    n = len(diffs)
+    tail = (1.0 - confidence) / 2.0
+    lo = min(n - 1, max(0, int(math.floor(tail * n))))
+    hi = min(n - 1, max(0, int(math.ceil((1.0 - tail) * n)) - 1))
+    return diffs[lo], diffs[hi]
+
+
+def compare_recipes(samples: Optional[Dict[str, List[float]]], live: str, candidate: str,
+                    min_outcomes: int = 10, margin: float = 0.05, *, resamples: int = 2000, confidence: float = 0.95,
+                    seed: Any = 0, promote_when: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Judge a candidate recipe against the live one from `store.outcome_samples_by_code_version(...)`.
+
+    `samples` maps code version -> one effective outcome per answered receipt. Fewer than `min_outcomes` on either side
+    is `insufficient_evidence`. Otherwise a percentile bootstrap (`resamples` draws, each side resampled independently,
+    RNG seeded by `seed` so the result is reproducible) gives a `confidence` interval [ci_low, ci_high] for
+    diff = mean(candidate) - mean(live), and:
+
+    - `candidate_better`: the interval excludes zero on the positive side (ci_low > 0) AND diff > margin.
+    - `live_better`:      ci_high < 0 AND diff < -margin.
+    - `inconclusive`:     anything else (a noisy gap, or a significant gap smaller than the margin).
+
+    So `margin` is the smallest difference worth acting on and the interval says whether the difference is distinguishable
+    from noise; both must hold. Zero-variance samples give a degenerate interval [diff, diff] (take that as "no observed
+    noise", not proof). `p_candidate_better` is the share of resamples where the candidate mean exceeds the live mean.
+    `ready_to_promote` is only reported (never acted on): with `promote_when={confidence, min_outcomes}` it is true when,
+    at that confidence and per-side count, the rule above gives `candidate_better`; without it, None."""
+    def clean(cv):
+        return [float(x) for x in ((samples or {}).get(cv) or []) if x is not None]
+    lv, cd = clean(live), clean(candidate)
+    out: Dict[str, Any] = {
+        "verdict": "insufficient_evidence", "live_mean": sum(lv) / len(lv) if lv else None,
+        "candidate_mean": sum(cd) / len(cd) if cd else None, "n_live": len(lv), "n_candidate": len(cd),
+        "diff": None, "ci_low": None, "ci_high": None, "p_candidate_better": None,
+        "confidence": float(confidence), "resamples": int(resamples), "ready_to_promote": None if not promote_when else False}
+    if samples is None or len(lv) < min_outcomes or len(cd) < min_outcomes or not lv or not cd:
+        return out
+    diffs = _bootstrap_diffs(lv, cd, int(resamples), seed)
+    diff = round(out["candidate_mean"] - out["live_mean"], 9)
+
+    def rule(conf: float) -> Tuple[str, float, float]:
+        lo, hi = _percentile_ci(diffs, conf)
+        v = "candidate_better" if lo > 0 and diff > margin else "live_better" if hi < 0 and diff < -margin else "inconclusive"
+        return v, lo, hi
+    verdict, lo, hi = rule(float(confidence))
+    out.update(verdict=verdict, diff=diff, ci_low=round(lo, 9), ci_high=round(hi, 9),
+               p_candidate_better=sum(1 for d in diffs if d > 0) / len(diffs))
+    if promote_when:
+        pc = float(promote_when.get("confidence", confidence))
+        pm = int(promote_when.get("min_outcomes", min_outcomes))
+        out["ready_to_promote"] = bool(len(lv) >= pm and len(cd) >= pm and rule(pc)[0] == "candidate_better")
+    return out
 
 
 def _build_shadow_check(comp: "RAGPipelineComponent", asset_key: AssetKey):
@@ -1223,17 +1287,29 @@ def _build_shadow_check(comp: "RAGPipelineComponent", asset_key: AssetKey):
     rk = comp.receipts["resource_key"]
 
     @asset_check(asset=asset_key, name="shadow_vs_live", required_resource_keys={rk},
-                 description="Candidate recipe vs live recipe by real outcomes (receipt outcomes per source code version).")
+                 description="Candidate recipe vs live recipe by real outcomes: bootstrap confidence interval on the difference "
+                             "of mean outcomes per source code version. Reports only; never promotes.")
     def shadow_vs_live(context):
         from datetime import datetime, timedelta, timezone
         since = (datetime.now(timezone.utc) - timedelta(days=float(sh.get("window_days", 30)))).isoformat()
-        by_cv = getattr(context.resources, rk).outcomes_by_code_version(sh["source_asset_key"], since)
-        r = compare_recipes(by_cv, sh["live_code_version"], sh["candidate_code_version"],
-                            min_outcomes=int(sh.get("min_outcomes", 10)), margin=float(sh.get("margin", 0.05)))
-        md = {k: (MetadataValue.text(v) if isinstance(v, str) else MetadataValue.float(float(v)) if isinstance(v, float)
-                  else MetadataValue.int(v) if isinstance(v, int) else MetadataValue.text("n/a")) for k, v in r.items()}
-        md["live_code_version"] = MetadataValue.text(sh["live_code_version"])
-        md["candidate_code_version"] = MetadataValue.text(sh["candidate_code_version"])
+        store = getattr(context.resources, rk)
+        md: Dict[str, Any] = {"live_code_version": MetadataValue.text(sh["live_code_version"]),
+                              "candidate_code_version": MetadataValue.text(sh["candidate_code_version"])}
+        if not hasattr(store, "outcome_samples_by_code_version"):
+            md["verdict"] = MetadataValue.text("insufficient_evidence")
+            md["reason"] = MetadataValue.text(
+                f"the {rk!r} store has no outcome_samples_by_code_version (needed for the bootstrap interval); "
+                "upgrade resources/context_receipt_store -- no verdict was computed")
+            return AssetCheckResult(passed=True, severity=AssetCheckSeverity.WARN, metadata=md)
+        samples = store.outcome_samples_by_code_version(sh["source_asset_key"], since)
+        r = compare_recipes(samples, sh["live_code_version"], sh["candidate_code_version"],
+                            min_outcomes=int(sh.get("min_outcomes", 10)), margin=float(sh.get("margin", 0.05)),
+                            resamples=int(sh.get("resamples", 2000)), confidence=float(sh.get("confidence", 0.95)),
+                            seed=sh.get("bootstrap_seed", 0), promote_when=sh.get("promote_when"))
+        for k, v in r.items():
+            md[k] = (MetadataValue.bool(v) if isinstance(v, bool) else MetadataValue.text(v) if isinstance(v, str)
+                     else MetadataValue.float(float(v)) if isinstance(v, float)
+                     else MetadataValue.int(v) if isinstance(v, int) else MetadataValue.text("n/a"))
         return AssetCheckResult(passed=r["verdict"] != "live_better", severity=AssetCheckSeverity.WARN, metadata=md)
 
     return shadow_vs_live

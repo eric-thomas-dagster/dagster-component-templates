@@ -286,7 +286,11 @@ another entry under `retrievers`, and serve a slice of queries from it. Judge it
       candidate_code_version: recipe-8
       source_asset_key: support_kb      # the index asset whose chunks carry those code versions
       min_outcomes: 10                  # per side, before any verdict
-      margin: 0.05                      # mean-outcome difference needed to call a winner
+      margin: 0.05                      # smallest mean-outcome difference worth acting on
+      confidence: 0.95                  # bootstrap interval level (default 0.95)
+      resamples: 2000                   # bootstrap draws (default 2000, min 100)
+      bootstrap_seed: 0                 # RNG seed: same outcomes -> same interval (default 0)
+      # promote_when: {confidence: 0.99, min_outcomes: 30}   # only sets the reported `ready_to_promote`; nothing is ever promoted automatically
 ```
 
 - **Which queries.** For each row, with probability `fraction` (or deterministically from `seed` + the query) every `retrieve` /
@@ -297,8 +301,20 @@ another entry under `retrievers`, and serve a slice of queries from it. Judge it
   splits live and candidate with no extra work. If both builds carry the same code version, set `code_version_override` so shadow receipts are stamped with a distinct one.
 - **Never fails the query.** A candidate that errors (collection missing, embedder down) logs a warning and that query is served, and recorded, from the live retriever. The materialization metadata has `shadow_served` and `shadow_fallbacks`.
 - **Verdict.** With `live_code_version` + `candidate_code_version` + `source_asset_key`, the WARN check `shadow_vs_live` reads
-  `store.outcomes_by_code_version` over `window_days` (default 30) and applies `compare_recipes(by_code_version, live, candidate, min_outcomes=10, margin=0.05)`:
-  `insufficient_evidence` (fewer than `min_outcomes` answered receipts on either side), `candidate_better` / `live_better` (mean outcome differs by more than `margin`), else `inconclusive`. The check fails (WARN) only on `live_better`. It is a threshold on mean outcome, not a significance test: raise `min_outcomes` / `margin` for noisy outcomes.
+  `store.outcome_samples_by_code_version` (one effective outcome per answered receipt, per code version) over `window_days`
+  (default 30) and applies `compare_recipes(samples, live, candidate, ...)`:
+  - `insufficient_evidence`: fewer than `min_outcomes` answered receipts on either side.
+  - Otherwise a percentile bootstrap (`resamples` draws, each side resampled independently, seeded by `bootstrap_seed`, pure python)
+    gives a `confidence` interval `[ci_low, ci_high]` for `diff = mean(candidate) - mean(live)`.
+  - `candidate_better`: `ci_low > 0` **and** `diff > margin`. `live_better`: `ci_high < 0` **and** `diff < -margin`. Else `inconclusive`.
+    So the interval says the gap is distinguishable from noise and `margin` says it is big enough to matter; both are required.
+  - Zero-variance samples give a degenerate interval `[diff, diff]`; read that as "no observed noise", not proof. With tiny
+    `min_outcomes` the percentile bootstrap is optimistic, so keep it at 30+ for real decisions.
+  The check fails (WARN) only on `live_better`. Metadata: `verdict`, `live_mean`, `candidate_mean`, `n_live`, `n_candidate`, `diff`,
+  `ci_low`, `ci_high`, `p_candidate_better` (share of resamples where the candidate mean beats live), `confidence`, `resamples`, `ready_to_promote`.
+  `promote_when: {confidence, min_outcomes}` makes `ready_to_promote` true when the same rule, at that confidence and per-side count,
+  says `candidate_better`; it is a reported boolean only, never an action. If the receipt store predates
+  `outcome_samples_by_code_version` the check reports `insufficient_evidence` with a `reason` instead of a verdict.
 - **Caveats.** With `rerank`, learned priors are keyed by `chunk_id`: if live and candidate chunks share ids they also share priors (give the candidate distinct ids for a clean comparison). A `bm25_corpus_source` from an earlier live step still feeds BM25 in a shadow `hybrid_search`.
 
 ### Partitions and backfills

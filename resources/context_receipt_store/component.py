@@ -659,26 +659,42 @@ def _fold_asset_usage(rows: Any, events: Any, ids: Any) -> dict[str, Any]:
     }
 
 
-def _fold_outcomes_by_code_version(rows: Any, events: Any) -> dict[str, dict[str, Any]]:
-    """Pure aggregation behind ``outcomes_by_code_version`` (shared by every storage backend)."""
+def _fold_code_version_outcomes(rows: Any, events: Any) -> tuple[dict[str, int], dict[str, list[float]]]:
+    """The single fold behind ``outcomes_by_code_version`` and ``outcome_samples_by_code_version`` (every backend).
+
+    Returns ``(receipts_per_cv, samples_per_cv)``. A receipt's effective outcome is the mean of its outcome events, where a
+    later event with the same ``outcome_ref`` supersedes an earlier one; receipts with no outcome contribute to the count
+    only. Samples are ordered by receipt id so the result is deterministic.
+    """
     per_receipt: dict[str, dict[str, float]] = {}
     for ev in events:
         payload = json.loads(ev["payload_json"])
         key = payload.get("outcome_ref") or f"anon-{len(per_receipt.get(ev['receipt_id'], {}))}"
         per_receipt.setdefault(ev["receipt_id"], {})[key] = payload["value"]
-    stats: dict[str, dict[str, Any]] = {}
-    for row in rows:
-        entry = stats.setdefault(row["cv"], {"receipts": 0, "outcomes": 0, "_sum": 0.0})
-        entry["receipts"] += 1
+    receipts: dict[str, int] = {}
+    pairs: dict[str, list[tuple[str, float]]] = {}
+    for row in sorted(rows, key=lambda r: (r["cv"], r["receipt_id"])):
+        receipts[row["cv"]] = receipts.get(row["cv"], 0) + 1
+        pairs.setdefault(row["cv"], [])
         values = per_receipt.get(row["receipt_id"])
         if values:
-            entry["outcomes"] += 1
-            entry["_sum"] += sum(values.values()) / len(values)
+            pairs[row["cv"]].append((row["receipt_id"], sum(values.values()) / len(values)))
+    return receipts, {cv: [float(v) for _, v in sorted(p)] for cv, p in sorted(pairs.items())}
+
+
+def _fold_outcomes_by_code_version(rows: Any, events: Any) -> dict[str, dict[str, Any]]:
+    """Pure aggregation behind ``outcomes_by_code_version`` (derived from the same fold as the samples, so they cannot disagree)."""
+    receipts, samples = _fold_code_version_outcomes(rows, events)
     return {
-        cv: {"receipts": e["receipts"], "outcomes": e["outcomes"],
-             "mean_outcome": round(e["_sum"] / e["outcomes"], 4) if e["outcomes"] else None}
-        for cv, e in sorted(stats.items())
+        cv: {"receipts": receipts[cv], "outcomes": len(samples[cv]),
+             "mean_outcome": round(sum(samples[cv]) / len(samples[cv]), 4) if samples[cv] else None}
+        for cv in sorted(receipts)
     }
+
+
+def _fold_outcome_samples_by_code_version(rows: Any, events: Any) -> dict[str, list[float]]:
+    """Pure fold behind ``outcome_samples_by_code_version``: per code version, one effective outcome per answered receipt."""
+    return _fold_code_version_outcomes(rows, events)[1]
 
 
 def fold_maintenance_report(
@@ -1578,14 +1594,16 @@ class ContextReceiptStore:
                 created += 1
         return created
 
-    def outcomes_by_code_version(self, asset_key: str, since: str = "") -> dict[str, dict[str, Any]]:
-        """How answers built from ``asset_key`` turned out, per code version (recipe) of the asset.
+    def outcome_samples_by_code_version(self, asset_key: str, since: str = "") -> dict[str, list[float]]:
+        """The raw material behind ``outcomes_by_code_version``: ``{code_version: [effective outcome per answered receipt]}``.
 
-        ``{code_version: {"receipts": n, "outcomes": m, "mean_outcome": x | None}}``. Receipts whose items did
-        not record a code version are grouped under ``"unknown"``. A receipt that mixes several code versions of
-        the asset counts toward each. This is how a recipe change (chunk size, embedding model, filters) is judged
-        by what users actually thought, not by a guess.
+        Same effective-outcome semantics (mean of a receipt's outcomes; a later ``outcome_ref`` supersedes an earlier one),
+        same grouping and window, one float per receipt that received any outcome -- so a caller can bootstrap or test the
+        difference between two recipes instead of trusting a bare difference of means.
         """
+        return _fold_outcome_samples_by_code_version(*self._code_version_rows_events(asset_key, since))
+
+    def _code_version_rows_events(self, asset_key: str, since: str = "") -> tuple[Any, Any]:
         with self._connect() as conn:
             rows = conn.execute(
                 """
@@ -1601,7 +1619,17 @@ class ContextReceiptStore:
                 f"AND receipt_id IN ({','.join('?' * len(ids))}) ORDER BY rowid",
                 ids,
             ).fetchall() if ids else []
-        return _fold_outcomes_by_code_version(rows, events)
+        return rows, events
+
+    def outcomes_by_code_version(self, asset_key: str, since: str = "") -> dict[str, dict[str, Any]]:
+        """How answers built from ``asset_key`` turned out, per code version (recipe) of the asset.
+
+        ``{code_version: {"receipts": n, "outcomes": m, "mean_outcome": x | None}}``. Receipts whose items did
+        not record a code version are grouped under ``"unknown"``. A receipt that mixes several code versions of
+        the asset counts toward each. This is how a recipe change (chunk size, embedding model, filters) is judged
+        by what users actually thought, not by a guess.
+        """
+        return _fold_outcomes_by_code_version(*self._code_version_rows_events(asset_key, since))
 
     def enforce_retention(
         self, retention_days: Mapping[str, float | None], *, now: datetime | None = None, default_days: float | None = None,
@@ -2281,13 +2309,18 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
         events = self._events_for(ids, "'outcome', 'output_attached', 'evidence'")
         return _fold_asset_usage(rows, events, ids)
 
-    def outcomes_by_code_version(self, asset_key: str, since: str = "") -> dict[str, dict[str, Any]]:
+    def _code_version_rows_events(self, asset_key: str, since: str = "") -> tuple[Any, Any]:
         rows = self._query(
             f"SELECT DISTINCT i.receipt_id AS receipt_id, COALESCE(i.source_code_version, 'unknown') AS cv "
             f"FROM {self._t('context_receipt_items')} i JOIN {self._t('context_receipts')} r ON r.receipt_id = i.receipt_id "
             f"WHERE i.source_asset_key = @a AND r.created_at >= TIMESTAMP(@since)", a=asset_key, since=self._ts(since))
-        events = self._events_for(sorted({r["receipt_id"] for r in rows}), "'outcome'")
-        return _fold_outcomes_by_code_version(rows, events)
+        return rows, self._events_for(sorted({r["receipt_id"] for r in rows}), "'outcome'")
+
+    def outcome_samples_by_code_version(self, asset_key: str, since: str = "") -> dict[str, list[float]]:
+        return _fold_outcome_samples_by_code_version(*self._code_version_rows_events(asset_key, since))
+
+    def outcomes_by_code_version(self, asset_key: str, since: str = "") -> dict[str, dict[str, Any]]:
+        return _fold_outcomes_by_code_version(*self._code_version_rows_events(asset_key, since))
 
     def derive_implicit_outcomes(self, *, window_seconds: float = 120.0, since: str | None = None) -> int:
         rows = self._query(
@@ -3044,12 +3077,18 @@ class SqlContextReceiptStore(ContextReceiptStore):
         ids = sorted({r["receipt_id"] for r in rows})
         return _fold_asset_usage(rows, self._events_for(ids, "'outcome', 'output_attached', 'evidence'"), ids)
 
-    def outcomes_by_code_version(self, asset_key: str, since: str = "") -> dict[str, dict[str, Any]]:
+    def _code_version_rows_events(self, asset_key: str, since: str = "") -> tuple[Any, Any]:
         rows = self._query(
             f"SELECT DISTINCT i.receipt_id AS receipt_id, COALESCE(i.source_code_version, 'unknown') AS cv "
             f"FROM {self._t('context_receipt_items')} i JOIN {self._t('context_receipts')} r ON r.receipt_id = i.receipt_id "
             f"WHERE i.source_asset_key = :a AND r.created_at >= :since", a=asset_key, since=self._tsv(since or _EPOCH))
-        return _fold_outcomes_by_code_version(rows, self._events_for(sorted({r["receipt_id"] for r in rows}), "'outcome'"))
+        return rows, self._events_for(sorted({r["receipt_id"] for r in rows}), "'outcome'")
+
+    def outcome_samples_by_code_version(self, asset_key: str, since: str = "") -> dict[str, list[float]]:
+        return _fold_outcome_samples_by_code_version(*self._code_version_rows_events(asset_key, since))
+
+    def outcomes_by_code_version(self, asset_key: str, since: str = "") -> dict[str, dict[str, Any]]:
+        return _fold_outcomes_by_code_version(*self._code_version_rows_events(asset_key, since))
 
     def derive_implicit_outcomes(self, *, window_seconds: float = 120.0, since: str | None = None) -> int:
         rows = self._query(

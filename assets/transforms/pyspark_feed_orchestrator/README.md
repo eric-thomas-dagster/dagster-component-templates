@@ -132,3 +132,22 @@ Then drop your feed files under `feeds/` — the asset catalog picks them up aut
 - **`kind: table` vs `kind: path`**: table names cross-wire automatically; path-based sinks derive a key from the last path segment, which won't cross-wire unless another feed reads it via the same derived name.
 - **Missing feeds folder**: `dg check` before you've authored the folder logs a warning + emits zero assets, no error.
 - **Spark session per multi_asset**: each feed spawns its own `SparkSession` (via `pyspark_pipeline`) so you get parallel materialization across feeds. If you want a single session across all feeds, use one big feed with the `steps:` shape instead.
+
+## Partitioning
+
+A feed file can opt in to partitions with a `partitions:` block. Only that feed's asset is partitioned (feeds without the block behave exactly as before):
+
+```yaml
+name: daily_events
+schedule: "0 6 * * *"
+partitions: {type: daily, start: "2026-01-01"}     # type: daily | weekly | monthly | hourly | static | dynamic
+steps:
+  - id: events
+    source: {kind: parquet, path: "lake/events/dt={partition_date}"}
+    operations:
+      - {op: filter, predicate: "ts >= '{partition_start}' AND ts < '{partition_end}'"}
+sinks:
+  - {from: events, asset_key: events_daily, kind: parquet, path: "lake/out/dt={partition_date}", mode: overwrite}
+```
+
+On a partitioned run `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted everywhere in that feed's steps, sinks and `variables`. Three things are checked when the feed is loaded, because each would otherwise produce a feed that looks partitioned but isn't: the feed must use at least one `{partition_*}` token; a sink whose path contains a token needs an explicit `asset_key:` (the path cannot name the asset); and a `schedule` needs a time partition. A scheduled partitioned feed runs the latest completed partition on each tick.

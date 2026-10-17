@@ -1308,8 +1308,59 @@ def _opt_str(v: Any) -> Optional[str]:
     return None if v is None or v == "" else str(v)
 
 
+def _receipt_partition_key(comp: "RAGPipelineComponent", context, row=None) -> Optional[str]:
+    """The partition of THIS asset's run a receipt belongs to (``dagster_partition_key``; multi-dimension keys are 'a|b').
+
+    Single-partition run: its key. Several-partition (range) run: the one partition the row's own filter columns
+    (`partition_date_column` / `partition_static_column`, the same ones `_filter_df_to_partition` applies) place it in, when exactly
+    one of the run's partitions matches; otherwise the run's range as Dagster's "start...end" string (the row's partition is not
+    knowable). Unpartitioned: None. Not the chunk's `source_partition` (that is the partition of the SOURCE asset)."""
+    try:
+        if context.has_partition_key:
+            return str(context.partition_key)
+        if not context.has_partition_key_range:
+            return None
+        keys = list(context.partition_keys)
+        if len(keys) == 1:
+            return str(keys[0])
+        rng = context.partition_key_range
+        fallback = f"{rng.start}...{rng.end}"
+        if row is None:
+            return fallback
+        date_col, static_col = comp.partition_date_column, comp.partition_static_column
+        use_date = date_col is not None and date_col in row.index
+        use_static = static_col is not None and static_col in row.index
+        if not (use_date or use_static):
+            return fallback
+        pdef = context.assets_def.partitions_def
+        time_def, time_dim = pdef, None
+        if hasattr(pdef, "time_window_dimension"):          # multi-dimensional: the daily/weekly axis
+            time_dim = pdef.time_window_dimension
+            time_def = time_dim.partitions_def
+        row_date = pd.to_datetime(row[date_col], errors="coerce", utc=True) if use_date else None
+        matches = []
+        for k in keys:
+            by_dim = getattr(k, "keys_by_dimension", None)
+            if use_static:
+                sd = comp.partition_static_dim
+                want = str(by_dim[sd]) if by_dim and sd in by_dim else str(k)
+                if str(row[static_col]) != want:
+                    continue
+            if use_date:
+                if row_date is None or pd.isna(row_date):
+                    continue
+                tkey = by_dim[time_dim.name] if (by_dim and time_dim is not None) else str(k)
+                window = time_def.time_window_for_partition_key(tkey)
+                if not (pd.Timestamp(window.start) <= row_date < pd.Timestamp(window.end)):
+                    continue
+            matches.append(str(k))
+        return matches[0] if len(matches) == 1 else fallback
+    except Exception:
+        return None  # a partition key is metadata: never lose the receipt over it
+
+
 def _record_receipt(comp: "RAGPipelineComponent", context, query: str, docs: List[Dict[str, Any]],
-                    eligible: Optional[int], shadow: bool = False) -> Optional[str]:
+                    eligible: Optional[int], shadow: bool = False, row=None) -> Optional[str]:
     """Record one retrieval receipt for the docs that reached the final step. Returns the receipt id or None."""
     import hashlib
 
@@ -1351,6 +1402,7 @@ def _record_receipt(comp: "RAGPipelineComponent", context, query: str, docs: Lis
             excluded_count=0,
             dagster_asset_key=asset_key,
             dagster_run_id=context.run_id,
+            dagster_partition_key=_receipt_partition_key(comp, context, row),
         )
     except Exception as exc:
         _receipt_failed(comp, context, "recording the retrieval", exc)
@@ -1691,7 +1743,7 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
                 # One receipt per row: the docs the final step consumed; eligible = candidates the last retrieval saw.
                 eligible = next((o["eligible_count"] for o in reversed(list(state.values()))
                                  if isinstance(o, dict) and "eligible_count" in o), None)
-                receipt_ids.append(_record_receipt(comp, context, query, last.get("docs") or [], eligible, shadow=row_shadow)
+                receipt_ids.append(_record_receipt(comp, context, query, last.get("docs") or [], eligible, shadow=row_shadow, row=row)
                                    if eligible is not None else None)
 
             for k in totals:

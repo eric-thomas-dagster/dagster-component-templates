@@ -227,3 +227,53 @@ def test_a_row_exactly_at_midnight_belongs_to_the_later_partition_only(mod, inde
     c = comp(mod, index, receipts=False, partition_date_column="day")
     assert run(mod, c, DAY1, upstream=questions_asset(rows)).output_for_node("answers")["query"].tolist() == ["last second of day1"]
     assert run(mod, c, DAY2, upstream=questions_asset(rows)).output_for_node("answers")["query"].tolist() == ["midnight"]
+
+
+# --- receipts record the PRODUCING asset's partition (dagster_partition_key) --------------------
+
+def test_receipts_carry_the_partition_of_the_run_that_produced_them(mod, index, tmp_path):
+    _, store = _store(tmp_path)
+    c = comp(mod, index, partition_date_column="day")
+    o1, o2 = _out(run(mod, c, DAY1, store)), _out(run(mod, c, DAY2, store))
+    assert {store.get_receipt(r)["dagster_partition_key"] for r in o1["receipt_id"]} == {DAY1}
+    assert {store.get_receipt(r)["dagster_partition_key"] for r in o2["receipt_id"]} == {DAY2}
+    assert sorted(store.receipts_for_partition("answers", DAY1)) == sorted(o1["receipt_id"])
+    assert sorted(store.receipts_for_partition("answers", DAY2)) == sorted(o2["receipt_id"])
+
+
+def test_unpartitioned_run_records_no_partition_key(mod, index, tmp_path):
+    _, store = _store(tmp_path)
+    c = comp(mod, index, partition_type=None, partition_start=None)
+    rid = _out(run(mod, c, None, store))["receipt_id"][0]
+    assert store.get_receipt(rid)["dagster_partition_key"] is None
+
+
+def test_multi_dimension_key_is_recorded_as_a_pipe_string(mod, index, tmp_path):
+    _, store = _store(tmp_path)
+    dims = [{"name": "date", "type": "daily", "start": DAY1}, {"name": "customer", "type": "static", "values": ["acme", "globex"]}]
+    c = comp(mod, index, partition_type=None, partition_start=None, partition_dimensions=dims,
+             partition_date_column="day", partition_static_column="customer", partition_static_dim="customer")
+    rid = _out(run(mod, c, dg.MultiPartitionKey({"date": DAY1, "customer": "globex"}), store))["receipt_id"][0]
+    got = store.get_receipt(rid)["dagster_partition_key"]
+    assert got == str(dg.MultiPartitionKey({"date": DAY1, "customer": "globex"})) and "|" in got
+    assert store.receipts_for_partition("answers", got) == [rid]
+
+
+def test_range_run_records_each_rows_own_partition_when_the_filter_makes_it_knowable(mod, index, tmp_path):
+    from dagster._core.storage.tags import ASSET_PARTITION_RANGE_END_TAG, ASSET_PARTITION_RANGE_START_TAG
+    _, store = _store(tmp_path)
+    c = comp(mod, index, backfill_policy="single_run", partition_date_column="day")
+    io = _RangeIO()
+    run(mod, c, None, store, io=io, tags={ASSET_PARTITION_RANGE_START_TAG: DAY1, ASSET_PARTITION_RANGE_END_TAG: DAY2})
+    out = io.vals["answers"]
+    assert [store.get_receipt(r)["dagster_partition_key"] for r in out["receipt_id"]] == [DAY1, DAY1, DAY2]
+
+
+def test_range_run_without_a_filter_column_records_the_range_string(mod, index, tmp_path):
+    from dagster._core.storage.tags import ASSET_PARTITION_RANGE_END_TAG, ASSET_PARTITION_RANGE_START_TAG
+    _, store = _store(tmp_path)
+    c = comp(mod, index, backfill_policy="single_run")
+    io = _RangeIO()
+    run(mod, c, None, store, io=io, tags={ASSET_PARTITION_RANGE_START_TAG: DAY1, ASSET_PARTITION_RANGE_END_TAG: DAY2})
+    got = {store.get_receipt(r)["dagster_partition_key"] for r in io.vals["answers"]["receipt_id"]}
+    assert got == {f"{DAY1}...{DAY2}"}      # the row's partition is not knowable: the run's range, never a guess

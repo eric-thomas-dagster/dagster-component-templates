@@ -38,7 +38,8 @@ def seed(store, n=3, prefix="r"):
             context_name="kb", items=[{"item_id": f"{prefix}{i}-a", "source_asset_key": "docs", "source_version": "v1", "rank": 0, "score": 0.9},
                                       {"item_id": f"{prefix}{i}-b", "source_asset_key": "docs", "source_partition": "p1", "rank": 1, "score": 0.5}],
             excluded=[{"item_id": f"{prefix}{i}-x", "reason": "pii", "source_asset_key": "docs"}],
-            caller_id="u1", purpose="support", query_hash=f"h{i}", eligible_count=3, dagster_asset_key="docs", trace_id=f"t{i}"))
+            caller_id="u1", purpose="support", query_hash=f"h{i}", eligible_count=3, dagster_asset_key="docs", trace_id=f"t{i}",
+            dagster_partition_key=("2024-01-01" if i % 2 == 0 else None)))
     return ids
 
 
@@ -324,3 +325,26 @@ def test_ddl_block_is_verbatim_the_store_components_block(comp):
     mine = re.search(pat, (pathlib.Path(__file__).resolve().parent.parent / "component.py").read_text(), re.S)
     ref = re.search(pat, (root / "resources/context_receipt_store/component.py").read_text(), re.S)
     assert mine and ref and mine.group(0) == ref.group(0)
+
+
+def test_sync_ships_dagster_partition_key(comp, store, bq):
+    bq, _ = bq
+    ids = seed(store, 3)
+    run_asset(comp, store, bq)
+    got = dict(bq.con.execute("SELECT receipt_id, dagster_partition_key FROM ctx.context_receipts").fetchall())
+    assert got == {ids[0]: "2024-01-01", ids[1]: None, ids[2]: "2024-01-01"}
+    assert_mirrors(store, bq)
+
+
+def test_sync_adds_the_column_to_an_older_destination_table(comp, store, bq):
+    bq, _ = bq
+    ids = seed(store, 2)
+    bq.con.execute("CREATE SCHEMA IF NOT EXISTS ctx")
+    bq.con.execute("""CREATE TABLE ctx.context_receipts (receipt_id VARCHAR NOT NULL, created_at TIMESTAMPTZ NOT NULL, context_name VARCHAR NOT NULL,
+      context_version VARCHAR, policy_version VARCHAR, caller_id VARCHAR, purpose VARCHAR, query_hash VARCHAR, eligible_count BIGINT,
+      excluded_count BIGINT, dagster_asset_key VARCHAR, dagster_run_id VARCHAR, trace_id VARCHAR, mcp_session_id VARCHAR, mcp_request_id VARCHAR)""")
+    bq.con.execute("INSERT INTO ctx.context_receipts (receipt_id, created_at, context_name) VALUES ('old', now(), 'kb')")
+    run_asset(comp, store, bq)
+    got = dict(bq.con.execute("SELECT receipt_id, dagster_partition_key FROM ctx.context_receipts").fetchall())
+    assert got["old"] is None and got[ids[0]] == "2024-01-01" and got[ids[1]] is None   # the old row survived; new ones carry the key
+    run_asset(comp, store, bq)   # a second run finds the column and does not ALTER again

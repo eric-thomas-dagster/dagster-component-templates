@@ -1483,7 +1483,7 @@ def receipt_table_ddl(dataset: str, prefix: str = "", dialect: str = "bigquery")
         f"""CREATE TABLE IF NOT EXISTS {t('context_receipts')} (
   receipt_id {S} NOT NULL, created_at {T} NOT NULL, context_name {S} NOT NULL, context_version {S}, policy_version {S},
   caller_id {S}, purpose {S}, query_hash {S}, eligible_count {I}, excluded_count {I}, dagster_asset_key {S},
-  dagster_run_id {S}, trace_id {S}, mcp_session_id {S}, mcp_request_id {S})""",
+  dagster_run_id {S}, trace_id {S}, mcp_session_id {S}, mcp_request_id {S}, dagster_partition_key {S})""",
         f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_items')} (
   receipt_id {S} NOT NULL, item_id {S} NOT NULL, source_asset_key {S}, source_version {S}, source_partition {S},
   source_code_version {S}, {K} {I}, score {F}, selection {S})""",
@@ -1496,6 +1496,23 @@ def receipt_table_ddl(dataset: str, prefix: str = "", dialect: str = "bigquery")
   item_id {S} NOT NULL, retrievals {I} NOT NULL, outcome_weight {F} NOT NULL, outcome_sum {F} NOT NULL, prior {F} NOT NULL,
   updated_at {T} NOT NULL)""",
     ]
+
+
+# Columns added after the first release: (table, column, kind). A deployed table created from an older DDL lacks them, so
+# creators probe each one and run the ALTER only when the probe fails (never a destructive step; existing rows read NULL).
+RECEIPT_ADDED_COLUMNS = (("context_receipts", "dagster_partition_key", "string"),)
+
+
+def receipt_column_upgrades(dataset: str, prefix: str = "", dialect: str = "bigquery") -> list:
+    """``[(probe_sql, alter_sql)]`` per late-added column: run ``probe_sql``; if it raises (column missing), run ``alter_sql``."""
+    if dialect not in RECEIPT_DIALECTS:
+        raise ValueError(f"unknown dialect {dialect!r}; valid: {RECEIPT_DIALECTS}")
+    S, L, I, F, T = _RECEIPT_TYPES[dialect]
+    out = []
+    for table, column, kind in RECEIPT_ADDED_COLUMNS:
+        ref = receipt_table(dataset, table, prefix, dialect)
+        out.append((f"SELECT {column} FROM {ref} WHERE 1 = 0", f"ALTER TABLE {ref} ADD COLUMN {column} {S if kind == 'string' else L}"))
+    return out
 # END receipt-warehouse-ddl
 
 

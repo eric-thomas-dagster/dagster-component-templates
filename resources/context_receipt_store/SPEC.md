@@ -24,7 +24,8 @@ reference its `receipt_id`. Appended events never rewrite the retrieval.
 
 - `retrieval`: `context_name`, `items[]` (`item_id`, `source_asset_key`, `source_version`,
   `source_partition`, `source_code_version`, `rank`, `score`, `selection`), `excluded[]` (`item_id`, `reason`), plus caller, purpose,
-  policy and context versions, `query_hash`, counts.
+  policy and context versions, `query_hash`, counts, and `dagster_partition_key` (the partition of the *producing* asset's
+  run: the rag/agentic asset that answered; a multi-dimension key is `a|b`; null when unpartitioned).
 - `output`: `output_id`, `model`, `model_version`, `output_hash`, `prefect_run_id`.
 - `evidence`: `level` in `cited | verified | counterfactual_tested`, `details`
   (`details.item_ids` scopes it to specific items; a claim-level verifier reports `details.claims_total` and
@@ -44,6 +45,10 @@ Every event carries `spec_version: "1"` and `type`.
    **`source_partition` = its partition key** when the asset is partitioned. **`source_code_version` = its `dagster/code_version`** (the recipe that built it) is optional and lets outcomes be compared across recipe versions. Together they make
    stale reads and recall exact per partition. If `source_partition` is absent on a partitioned
    asset, impact analysis must assume the item may be from any partition.
+   **Two different partitions.** `source_partition` (per item) is the partition of the *source* asset a chunk came from; recall
+   (`find_by_assets`, `impacted_receipts`) is keyed on it. `dagster_partition_key` (per receipt) is the partition of the *producing*
+   asset's run that answered; `receipts_for_partition(dagster_asset_key, partition_key)` is keyed on it. A producing asset that
+   serves a range of partitions in one run records the one partition it knows (e.g. from a row-level filter), else the run's key string.
 4. **Retrieved is fact, used is evidence.** `evidence.level` says what was done, not how
    certain the conclusion is. Treat "used" as an estimate.
 5. **`selection: "explore"`** marks reserved exploration traffic so scoring can discount it.

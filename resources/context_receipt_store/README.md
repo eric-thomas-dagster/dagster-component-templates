@@ -325,6 +325,8 @@ context it was served, what was withheld and why, and the lineage behind it.
 
 Stamp each retrieved item with `source_asset_key`, `source_version` (the asset's
 `dagster/data_version`) and, for partitioned assets, `source_partition`. Then:
+(`source_partition` is where a chunk came from. Separately, a receipt's `dagster_partition_key` is the partition of the
+*producing* asset's run that answered; query it with `store.receipts_for_partition(asset_key, partition_key)`.)
 
 ```python
 from dagster_community_components import receipts_impacted_by

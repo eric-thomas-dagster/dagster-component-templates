@@ -64,6 +64,7 @@
         "trace_id": {"$ref": "#/$defs/nullable_string", "description": "Distributed trace id (e.g. W3C/OpenTelemetry) so a receipt can be joined to the rest of an agent's trace."},
         "mcp_session_id": {"$ref": "#/$defs/nullable_string", "description": "MCP session the retrieval happened in."},
         "mcp_request_id": {"$ref": "#/$defs/nullable_string", "description": "MCP request id of the tool call that produced this retrieval."},
+        "dagster_partition_key": {"$ref": "#/$defs/nullable_string", "description": "Partition key of the run of the PRODUCING asset (the rag/agentic asset that answered), as Dagster's partition key string; a multi-dimension key is 'a|b'. Distinct from each item's source_partition (the partition of the SOURCE asset a chunk came from). Null when the asset is unpartitioned or the writer does not know."},
         "items": {"type": "array", "items": {"$ref": "#/$defs/retrieved_item"}, "description": "item_ids must be unique within a receipt and disjoint from `excluded`."},
         "excluded": {"type": "array", "items": {"$ref": "#/$defs/excluded_item"}, "default": []}
       }

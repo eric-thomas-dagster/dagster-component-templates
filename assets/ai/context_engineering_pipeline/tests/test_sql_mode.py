@@ -474,3 +474,20 @@ def test_bigquery_example_yaml_builds_and_its_sql_parses(mod):
     sql = mod._build_sql_mode_query(attrs["steps"], attrs["source"], "bigquery", attrs["output_table"], "ticket_id", "body", ["customer_id"],
                                     asset_name="support_kb_bq", code_version="v1", stamp_provenance=True, receipts=rc)
     sqlglot.parse_one(sql, read="bigquery")
+
+
+def test_feedback_sql_works_on_receipt_tables_created_before_dagster_partition_key(mod, tmp_path):
+    """The feedback SQL names its columns, so a warehouse whose receipts table predates `dagster_partition_key` (created from the
+    previous DDL, never altered because this component only READS receipts) must give the same feedback as one that has the column."""
+    store, _ = build_scenario_store(tmp_path)
+    with store._connect() as conn:
+        conn.execute("UPDATE context_receipts SET dagster_partition_key = '2024-01-01' WHERE receipt_id IN ('r1', 'r4')")
+    results = []
+    for old in (False, True):
+        client = make_client()
+        dump_store_to_warehouse(mod, store, client)
+        if old:   # drop the column the previous release never had (the table keeps every other column and row)
+            client.query(f"ALTER TABLE {mod.receipt_table('proj.rcpt', 'context_receipts')} DROP COLUMN dagster_partition_key")
+            assert "dagster_partition_key" not in [d[0] for d in client.con.execute("SELECT * FROM rcpt.context_receipts").description]
+        results.append(feedback_rows(mod, SimpleNamespace(store=store, client=client), scope_to_recipe=True)[0])
+    assert results[0] == results[1] and any(r["feedback_retrievals"] for r in results[0])

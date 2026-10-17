@@ -102,7 +102,7 @@ def receipt_table_ddl(dataset: str, prefix: str = "", dialect: str = "bigquery")
         f"""CREATE TABLE IF NOT EXISTS {t('context_receipts')} (
   receipt_id {S} NOT NULL, created_at {T} NOT NULL, context_name {S} NOT NULL, context_version {S}, policy_version {S},
   caller_id {S}, purpose {S}, query_hash {S}, eligible_count {I}, excluded_count {I}, dagster_asset_key {S},
-  dagster_run_id {S}, trace_id {S}, mcp_session_id {S}, mcp_request_id {S})""",
+  dagster_run_id {S}, trace_id {S}, mcp_session_id {S}, mcp_request_id {S}, dagster_partition_key {S})""",
         f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_items')} (
   receipt_id {S} NOT NULL, item_id {S} NOT NULL, source_asset_key {S}, source_version {S}, source_partition {S},
   source_code_version {S}, {K} {I}, score {F}, selection {S})""",
@@ -115,6 +115,23 @@ def receipt_table_ddl(dataset: str, prefix: str = "", dialect: str = "bigquery")
   item_id {S} NOT NULL, retrievals {I} NOT NULL, outcome_weight {F} NOT NULL, outcome_sum {F} NOT NULL, prior {F} NOT NULL,
   updated_at {T} NOT NULL)""",
     ]
+
+
+# Columns added after the first release: (table, column, kind). A deployed table created from an older DDL lacks them, so
+# creators probe each one and run the ALTER only when the probe fails (never a destructive step; existing rows read NULL).
+RECEIPT_ADDED_COLUMNS = (("context_receipts", "dagster_partition_key", "string"),)
+
+
+def receipt_column_upgrades(dataset: str, prefix: str = "", dialect: str = "bigquery") -> list:
+    """``[(probe_sql, alter_sql)]`` per late-added column: run ``probe_sql``; if it raises (column missing), run ``alter_sql``."""
+    if dialect not in RECEIPT_DIALECTS:
+        raise ValueError(f"unknown dialect {dialect!r}; valid: {RECEIPT_DIALECTS}")
+    S, L, I, F, T = _RECEIPT_TYPES[dialect]
+    out = []
+    for table, column, kind in RECEIPT_ADDED_COLUMNS:
+        ref = receipt_table(dataset, table, prefix, dialect)
+        out.append((f"SELECT {column} FROM {ref} WHERE 1 = 0", f"ALTER TABLE {ref} ADD COLUMN {column} {S if kind == 'string' else L}"))
+    return out
 # END receipt-warehouse-ddl
 
 
@@ -779,7 +796,8 @@ class ContextReceiptStore:
                     dagster_run_id TEXT,
                     trace_id TEXT,
                     mcp_session_id TEXT,
-                    mcp_request_id TEXT
+                    mcp_request_id TEXT,
+                    dagster_partition_key TEXT
                 );
                 CREATE TABLE IF NOT EXISTS context_receipt_items (
                     receipt_id TEXT NOT NULL REFERENCES context_receipts(receipt_id),
@@ -833,6 +851,7 @@ class ContextReceiptStore:
                 ("context_receipts", "trace_id", "TEXT"),
                 ("context_receipts", "mcp_session_id", "TEXT"),
                 ("context_receipts", "mcp_request_id", "TEXT"),
+                ("context_receipts", "dagster_partition_key", "TEXT"),
                 ("context_receipt_items", "selection", "TEXT NOT NULL DEFAULT 'ranked'"),
                 ("context_receipt_items", "source_partition", "TEXT"),
                 ("context_receipt_excluded", "source_partition", "TEXT"),
@@ -1021,8 +1040,12 @@ class ContextReceiptStore:
         trace_id: str | None = None,
         mcp_session_id: str | None = None,
         mcp_request_id: str | None = None,
+        dagster_partition_key: str | None = None,
     ) -> str:
         """Persist a retrieval fact and return its portable receipt ID.
+
+        ``dagster_partition_key`` is the partition of the *producing* asset's run (the rag/agentic asset that answered; a
+        multi-dimension key is Dagster's ``a|b`` string), as opposed to each item's ``source_partition``.
 
         ``query_hash`` should be a one-way digest, not the raw query. Item
         mappings accept only IDs, source asset/version references, rank, and
@@ -1043,8 +1066,8 @@ class ContextReceiptStore:
                     receipt_id, created_at, context_name, context_version,
                     policy_version, caller_id, purpose, query_hash,
                     eligible_count, excluded_count, dagster_asset_key, dagster_run_id,
-                    trace_id, mcp_session_id, mcp_request_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    trace_id, mcp_session_id, mcp_request_id, dagster_partition_key
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     receipt_id,
@@ -1062,6 +1085,7 @@ class ContextReceiptStore:
                     trace_id,
                     mcp_session_id,
                     mcp_request_id,
+                    dagster_partition_key,
                 ),
             )
             conn.executemany(
@@ -1438,7 +1462,8 @@ class ContextReceiptStore:
         if kind == "retrieval":
             allowed = {"receipt_id", "context_name", "context_version", "policy_version", "caller_id",
                        "purpose", "query_hash", "eligible_count", "excluded_count", "dagster_asset_key",
-                       "dagster_run_id", "items", "excluded", "trace_id", "mcp_session_id", "mcp_request_id"}
+                       "dagster_run_id", "items", "excluded", "trace_id", "mcp_session_id", "mcp_request_id",
+                       "dagster_partition_key"}
             handler = self.record_retrieval
         elif kind == "output":
             allowed = {"receipt_id", "output_id", "model", "model_version", "output_hash", "prefect_run_id"}
@@ -1469,7 +1494,7 @@ class ContextReceiptStore:
             raise KeyError(f"unknown context receipt: {receipt_id}")
         keep = ("context_name", "context_version", "policy_version", "caller_id", "purpose", "query_hash",
                 "eligible_count", "excluded_count", "dagster_asset_key", "dagster_run_id",
-                "trace_id", "mcp_session_id", "mcp_request_id")
+                "trace_id", "mcp_session_id", "mcp_request_id", "dagster_partition_key")
         events: list[dict[str, Any]] = [{
             "spec_version": SPEC_VERSION, "type": "retrieval", "receipt_id": receipt_id,
             "created_at": receipt["created_at"], **{k: receipt[k] for k in keep},
@@ -1652,6 +1677,11 @@ class ContextReceiptStore:
     def find_by_assets(self, targets: Mapping[str, Iterable[str] | None]) -> dict[str, list[str]]:
         """Receipts that used the given assets, optionally narrowed to partitions.
 
+        Partition semantics: ``targets`` names *source* assets and *source* partitions (an item's ``source_asset_key`` /
+        ``source_partition``: where a retrieved chunk came from). It says nothing about which partition of the *producing*
+        asset (the rag/agentic asset that answered) a receipt belongs to; that is the receipt's ``dagster_partition_key``,
+        queried with ``receipts_for_partition``.
+
         ``targets`` maps an asset key to a set of partition keys, or ``None`` for "any
         partition". Returns ``{"receipt_ids": [...], "partition_unknown": [...]}``;
         receipts whose matching item recorded no ``source_partition`` for a partitioned
@@ -1695,6 +1725,18 @@ class ContextReceiptStore:
                 WHERE source_asset_key = ? ORDER BY receipt_id
                 """,
                 (asset_key,),
+            ).fetchall()
+        return [row["receipt_id"] for row in rows]
+
+    def receipts_for_partition(self, dagster_asset_key: str, partition_key: str | None) -> list[str]:
+        """Receipt IDs answered by ``dagster_asset_key``'s run for ``partition_key`` (the *producing* asset's partition,
+        ``receipt.dagster_partition_key``; multi-dimension keys are ``a|b``). ``None`` matches receipts recorded without a
+        partition key. Not to be confused with an item's ``source_partition`` (see ``find_by_assets``)."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT receipt_id FROM context_receipts WHERE dagster_asset_key = ? AND "
+                + ("dagster_partition_key IS NULL" if partition_key is None else "dagster_partition_key = ?") + " ORDER BY receipt_id",
+                (dagster_asset_key,) if partition_key is None else (dagster_asset_key, partition_key),
             ).fetchall()
         return [row["receipt_id"] for row in rows]
 
@@ -1937,7 +1979,8 @@ def _bq_iso(value: Any) -> Any:
 
 _EPOCH = "1970-01-01T00:00:00+00:00"
 _BQ_RECEIPT_COLS = ("receipt_id", "created_at", "context_name", "context_version", "policy_version", "caller_id", "purpose", "query_hash",
-                    "eligible_count", "excluded_count", "dagster_asset_key", "dagster_run_id", "trace_id", "mcp_session_id", "mcp_request_id")
+                    "eligible_count", "excluded_count", "dagster_asset_key", "dagster_run_id", "trace_id", "mcp_session_id", "mcp_request_id",
+                    "dagster_partition_key")
 _BQ_TYPES = {"INT64": "INTEGER", "FLOAT64": "FLOAT", "TIMESTAMP": "TIMESTAMP", "STRING": "STRING"}
 
 
@@ -1992,6 +2035,11 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
             with self._client() as client:
                 for ddl in receipt_table_ddl(self.dataset, self.table_prefix):
                     client.query(ddl).result()
+                for probe, alter in receipt_column_upgrades(self.dataset, self.table_prefix):   # tables made by an older release
+                    try:
+                        client.query(probe).result()
+                    except Exception:  # noqa: BLE001  (column missing: the probe's SELECT fails)
+                        client.query(alter).result()
             self._ready = True
 
     def _query(self, sql: str, **params: Any) -> list:
@@ -2028,7 +2076,7 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
                          purpose: str | None = None, query_hash: str | None = None, eligible_count: int | None = None,
                          excluded_count: int | None = None, dagster_asset_key: str | None = None, dagster_run_id: str | None = None,
                          receipt_id: str | None = None, trace_id: str | None = None, mcp_session_id: str | None = None,
-                         mcp_request_id: str | None = None) -> str:
+                         mcp_request_id: str | None = None, dagster_partition_key: str | None = None) -> str:
         receipt_id, norm_items, norm_excluded, excluded_count, caller_id, mcp_session_id = self._prepare_retrieval(
             context_name, items, excluded, eligible_count, excluded_count, receipt_id, caller_id, mcp_session_id)
         # One round trip on the happy path: does the receipt exist (duplicate), and did a crashed earlier attempt leave
@@ -2050,7 +2098,7 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
                    [("receipt_id", "STRING"), ("item_id", "STRING"), ("reason", "STRING"), *[(c, "STRING") for c in src]])
         values = dict(zip(_BQ_RECEIPT_COLS, (receipt_id, self._timestamp(), context_name, context_version, policy_version, caller_id, purpose,
                                              query_hash, eligible_count, excluded_count, dagster_asset_key, dagster_run_id, trace_id,
-                                             mcp_session_id, mcp_request_id)))
+                                             mcp_session_id, mcp_request_id, dagster_partition_key)))
         self._load(self._t("context_receipts"), [values],
                    [(c, "TIMESTAMP" if c == "created_at" else "INT64" if c.endswith("_count") else "STRING") for c in _BQ_RECEIPT_COLS])
         return receipt_id
@@ -2305,6 +2353,12 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
         return [r["receipt_id"] for r in self._query(
             f"SELECT DISTINCT receipt_id FROM {self._t('context_receipt_items')} WHERE source_asset_key = @a ORDER BY receipt_id", a=asset_key)]
 
+    def receipts_for_partition(self, dagster_asset_key: str, partition_key: str | None) -> list[str]:
+        where = "dagster_partition_key IS NULL" if partition_key is None else "dagster_partition_key = @p"
+        params = {"a": dagster_asset_key} if partition_key is None else {"a": dagster_asset_key, "p": partition_key}
+        return [r["receipt_id"] for r in self._query(
+            f"SELECT receipt_id FROM {self._t('context_receipts')} WHERE dagster_asset_key = @a AND {where} ORDER BY receipt_id", **params)]
+
 
 # ── Generic SQL backend (SQLAlchemy) ─────────────────────────────────────────────────────────────────────
 # The same receipts in any database SQLAlchemy can reach: Postgres, MySQL/MariaDB, Snowflake, Databricks, DuckDB, SQLite, ...
@@ -2415,6 +2469,13 @@ class SqlContextReceiptStore(ContextReceiptStore):
             with self._engine.begin() as conn:
                 for ddl in receipt_table_ddl(self.schema, self.table_prefix, self.dialect):
                     conn.execute(sa.text(ddl))
+            for probe, alter in receipt_column_upgrades(self.schema, self.table_prefix, self.dialect):   # tables made by an older release
+                try:
+                    with self._engine.begin() as conn:      # its own transaction: a failed probe aborts a Postgres transaction
+                        conn.execute(sa.text(probe))
+                except Exception:  # noqa: BLE001  (column missing)
+                    with self._engine.begin() as conn:
+                        conn.execute(sa.text(alter))
             if self.dialect in ("postgres", "sqlite", "duckdb"):         # warehouses have no secondary indexes
                 for table, cols in (("context_receipts", "receipt_id"), ("context_receipt_items", "item_id"),
                                     ("context_receipt_items", "receipt_id"), ("context_receipt_items", "source_asset_key"),
@@ -2450,7 +2511,7 @@ class SqlContextReceiptStore(ContextReceiptStore):
                          purpose: str | None = None, query_hash: str | None = None, eligible_count: int | None = None,
                          excluded_count: int | None = None, dagster_asset_key: str | None = None, dagster_run_id: str | None = None,
                          receipt_id: str | None = None, trace_id: str | None = None, mcp_session_id: str | None = None,
-                         mcp_request_id: str | None = None) -> str:
+                         mcp_request_id: str | None = None, dagster_partition_key: str | None = None) -> str:
         import sqlalchemy as sa
 
         receipt_id, norm_items, norm_excluded, excluded_count, caller_id, mcp_session_id = self._prepare_retrieval(
@@ -2485,7 +2546,7 @@ class SqlContextReceiptStore(ContextReceiptStore):
                 f"INSERT INTO {self._t('context_receipts')} ({', '.join(_BQ_RECEIPT_COLS)}) VALUES ({', '.join(':' + c for c in _BQ_RECEIPT_COLS)})"),
                 dict(zip(_BQ_RECEIPT_COLS, (receipt_id, created_at, context_name, context_version, policy_version, caller_id, purpose, query_hash,
                                             eligible_count, excluded_count, dagster_asset_key, dagster_run_id, trace_id, mcp_session_id,
-                                            mcp_request_id))))
+                                            mcp_request_id, dagster_partition_key))))
         return receipt_id
 
     def _append_event(self, receipt_id: str, event_type: str, payload: Mapping[str, Any]) -> None:
@@ -2759,6 +2820,12 @@ class SqlContextReceiptStore(ContextReceiptStore):
         return [r["receipt_id"] for r in self._query(
             f"SELECT DISTINCT receipt_id FROM {self._t('context_receipt_items')} WHERE source_asset_key = :a ORDER BY receipt_id", a=asset_key)]
 
+    def receipts_for_partition(self, dagster_asset_key: str, partition_key: str | None) -> list[str]:
+        where = "dagster_partition_key IS NULL" if partition_key is None else "dagster_partition_key = :p"
+        params = {"a": dagster_asset_key} if partition_key is None else {"a": dagster_asset_key, "p": partition_key}
+        return [r["receipt_id"] for r in self._query(
+            f"SELECT receipt_id FROM {self._t('context_receipts')} WHERE dagster_asset_key = :a AND {where} ORDER BY receipt_id", **params)]
+
 
 class AsyncReceiptWriter:
     """Fire-and-forget receipt writes so the agent never waits on the store.
@@ -2907,6 +2974,10 @@ def impacted_receipts(
     then looks up receipts whose items came from any affected asset/partition. Returns
     ``{"affected": {asset_key: [partitions] | None}, "receipt_ids": [...], "partition_unknown": [...]}``
     where ``None`` means every partition. Assets outside the graph are simply not expanded.
+
+    Partition semantics: ``partitions`` and ``affected`` are *source* partitions, matched against each receipt item's
+    ``source_partition`` (where a retrieved chunk came from). A receipt's own ``dagster_partition_key`` (the partition of the
+    producing rag/agentic asset's run) is separate; look those up with ``store.receipts_for_partition(asset_key, partition)``.
     """
     root = dg.AssetKey.from_user_string(asset_key)
     if not asset_graph.has(root):

@@ -1359,6 +1359,26 @@ def _receipt_partition_key(comp: "RAGPipelineComponent", context, row=None) -> O
         return None  # a partition key is metadata: never lose the receipt over it
 
 
+def _require_range_capable_io_manager(context, partitions_def) -> None:
+    """A range run (``backfill_policy: single_run``) hands the IO manager ONE output for several partitions. Dagster's path-based
+    managers (``FilesystemIOManager``, S3/GCS/ADLS pickle managers: everything built on ``UPathIOManager``) refuse that, but only at
+    the very end, after every retrieval, LLM call and receipt of the run has already been paid for. Fail before any of that."""
+    if partitions_def is None or context.has_partition_key or not context.has_partition_key_range or len(list(context.partition_keys)) < 2:
+        return
+    try:
+        from dagster import UPathIOManager
+        io = context.resources.io_manager
+    except Exception:  # noqa: BLE001  (cannot inspect it: let Dagster's own check speak at write time)
+        return
+    if isinstance(io, UPathIOManager):
+        raise RuntimeError(
+            f"RAGPipelineComponent: this run covers {len(list(context.partition_keys))} partitions in one run (backfill_policy: single_run), "
+            f"but the IO manager {type(io).__name__} stores one file per partition and cannot persist a multi-partition output. "
+            "Either launch the backfill with backfill_policy: multi_run (the default), or give the asset a range-capable IO manager "
+            "(one whose handle_output accepts a multi-partition output, e.g. a warehouse IO manager or a custom one), or run only "
+            "one partition at a time.")
+
+
 def _record_receipt(comp: "RAGPipelineComponent", context, query: str, docs: List[Dict[str, Any]],
                     eligible: Optional[int], shadow: bool = False, row=None) -> Optional[str]:
     """Record one retrieval receipt for the docs that reached the final step. Returns the receipt id or None."""
@@ -1672,7 +1692,7 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
         retry_policy=_retry_policy,
         ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
         deps=[AssetKey.from_user_string(k) for k in (comp.deps or [])],
-        **({"required_resource_keys": {comp.receipts["resource_key"]}} if comp.receipts else {}),
+        required_resource_keys={"io_manager"} | ({comp.receipts["resource_key"]} if comp.receipts else set()),   # io_manager: the single_run pre-check
     )
     def _rag_ops_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
         if _column_lineage_md:
@@ -1684,6 +1704,7 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
             _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
             upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
 
+        _require_range_capable_io_manager(context, partitions_def)
         df = upstream.copy()
         if query_column not in df.columns:
             raise ValueError(f"query_column {query_column!r} not in upstream columns: {list(df.columns)}")

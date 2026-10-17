@@ -277,3 +277,68 @@ def test_range_run_without_a_filter_column_records_the_range_string(mod, index, 
     run(mod, c, None, store, io=io, tags={ASSET_PARTITION_RANGE_START_TAG: DAY1, ASSET_PARTITION_RANGE_END_TAG: DAY2})
     got = {store.get_receipt(r)["dagster_partition_key"] for r in io.vals["answers"]["receipt_id"]}
     assert got == {f"{DAY1}...{DAY2}"}      # the row's partition is not knowable: the run's range, never a guess
+
+
+# --- row-level narrowing of a multi-dimension RANGE run -------------------------------------------
+
+DIMS = [{"name": "date", "type": "daily", "start": DAY1}, {"name": "customer", "type": "static", "values": ["acme", "globex"]}]
+
+
+def _multi_range_run(mod, index, store, **kw):
+    from dagster._core.storage.tags import ASSET_PARTITION_RANGE_END_TAG, ASSET_PARTITION_RANGE_START_TAG
+    c = comp(mod, index, partition_type=None, partition_start=None, partition_dimensions=DIMS, backfill_policy="single_run",
+             partition_static_dim="customer", **kw)
+    io = _RangeIO()
+    mk = lambda d, cu: dg.MultiPartitionKey({"date": d, "customer": cu})   # noqa: E731
+    res = run(mod, c, None, store, io=io, raise_on_error=False,
+              tags={ASSET_PARTITION_RANGE_START_TAG: str(mk(DAY1, "acme")), ASSET_PARTITION_RANGE_END_TAG: str(mk(DAY2, "globex"))})
+    return res, io
+
+
+def test_multi_dimension_range_run_gives_each_row_its_own_date_and_static_key(mod, index, tmp_path):
+    _, store = _store(tmp_path)
+    res, io = _multi_range_run(mod, index, store, partition_date_column="day", partition_static_column="customer")
+    assert res.success
+    out = io.vals["answers"]
+    got = [store.get_receipt(r)["dagster_partition_key"] for r in out["receipt_id"]]
+    mk = lambda d, cu: str(dg.MultiPartitionKey({"date": d, "customer": cu}))   # noqa: E731
+    assert got == [mk(DAY1, "acme"), mk(DAY1, "globex"), mk(DAY2, "acme")] and all("|" in g for g in got)
+    assert store.receipts_for_partition("answers", mk(DAY1, "globex")) == [out["receipt_id"].iloc[1]]
+
+
+def test_multi_dimension_range_run_whose_rows_do_not_narrow_records_the_range_string(mod, index, tmp_path):
+    _, store = _store(tmp_path)
+    # only the date column: each row fits two partitions (acme and globex), so its own partition is not knowable
+    res, io = _multi_range_run(mod, index, store, partition_date_column="day")
+    assert res.success
+    got = {store.get_receipt(r)["dagster_partition_key"] for r in io.vals["answers"]["receipt_id"]}
+    assert len(got) == 1 and next(iter(got)).count("...") == 1
+    # no filter columns at all: same
+    res, io = _multi_range_run(mod, index, store)
+    assert {store.get_receipt(r)["dagster_partition_key"] for r in io.vals["answers"]["receipt_id"]} == got
+
+
+# --- single_run needs a range-capable IO manager: fail before the work, not after it ---------------
+
+def _range_tags():
+    from dagster._core.storage.tags import ASSET_PARTITION_RANGE_END_TAG, ASSET_PARTITION_RANGE_START_TAG
+    return {ASSET_PARTITION_RANGE_START_TAG: DAY1, ASSET_PARTITION_RANGE_END_TAG: DAY2}
+
+
+def test_single_run_with_a_path_based_io_manager_fails_up_front_with_an_actionable_message(mod, index, tmp_path):
+    _, store = _store(tmp_path)
+    c = comp(mod, index, backfill_policy="single_run", partition_date_column="day", query_prompt_template="Q: {query}")
+    with patch("litellm.completion", side_effect=_fake_completion) as llm:     # the run must not get as far as generating
+        res = run(mod, c, None, store, io=dg.FilesystemIOManager(base_dir=str(tmp_path / "fs")), raise_on_error=False, tags=_range_tags())
+        assert not res.success
+    msgs = " ".join(e.event_specific_data.error.message + (e.event_specific_data.error.cause.message if e.event_specific_data.error.cause else "")
+                    for e in res.get_step_failure_events())
+    assert "FilesystemIOManager" in msgs and "multi_run" in msgs and "range-capable IO manager" in msgs, msgs
+    assert store.receipts_for_partition("answers", f"{DAY1}...{DAY2}") == [] and store.read_since(0, 0, 10)["receipts"] == []   # no receipt was written
+
+
+def test_single_run_with_a_range_capable_io_manager_is_unaffected(mod, index, tmp_path):
+    c = comp(mod, index, receipts=False, backfill_policy="single_run", partition_date_column="day", query_prompt_template="Q: {query}")
+    assert run(mod, c, None, io=_RangeIO(), tags=_range_tags()).success
+    assert run(mod, c, None, io=dg.InMemoryIOManager(), tags=_range_tags()).success       # the in-memory manager keeps one value per key
+    assert run(mod, c, DAY1, io=dg.FilesystemIOManager(base_dir=str(tmp_path / "fs2"))).success   # single partition on a fs manager: fine

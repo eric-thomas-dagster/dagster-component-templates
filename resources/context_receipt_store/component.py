@@ -1984,6 +1984,12 @@ _BQ_RECEIPT_COLS = ("receipt_id", "created_at", "context_name", "context_version
 _BQ_TYPES = {"INT64": "INTEGER", "FLOAT64": "FLOAT", "TIMESTAMP": "TIMESTAMP", "STRING": "STRING"}
 
 
+def _missing_columns_message(alters: list, errors: list) -> str:
+    return ("create_tables=False, so the receipt tables are yours to manage, but they are missing a column this release writes. "
+            "Run these statements once, then retry:\n  " + ";\n  ".join(alters) + ";\n"
+            f"(the existence probe failed with: {errors[0][:200]!r}; if the table itself does not exist, create it first or set create_tables=True)")
+
+
 class BigQueryContextReceiptStore(ContextReceiptStore):
     """Receipts in BigQuery. ``client_factory()`` returns a ``google.cloud.bigquery.Client`` or a context manager yielding one
     (dagster-gcp's ``BigQueryResource.get_client``)."""
@@ -2028,6 +2034,29 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
                 out.append(bq.ScalarQueryParameter(name, "STRING", None if value is None else str(value)))
         return out
 
+    def _prepare(self) -> None:
+        """``create_tables=True``: create/upgrade the tables. ``create_tables=False`` (you manage them): run only the column probe, once."""
+        if self._create_tables:
+            self.ensure_tables()
+        else:
+            self._verify_columns()
+
+    def _verify_columns(self) -> None:
+        with self._ready_lock:
+            if self._ready:
+                return
+            missing, errors = [], []
+            with self._client() as client:
+                for probe, alter in receipt_column_upgrades(self.dataset, self.table_prefix):
+                    try:
+                        client.query(probe).result()
+                    except Exception as exc:  # noqa: BLE001
+                        missing.append(alter)
+                        errors.append(str(exc))
+            if missing:
+                raise RuntimeError(_missing_columns_message(missing, errors))
+            self._ready = True
+
     def ensure_tables(self) -> None:
         with self._ready_lock:
             if self._ready:
@@ -2045,8 +2074,7 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
     def _query(self, sql: str, **params: Any) -> list:
         from google.cloud import bigquery as bq  # imported lazily: only the BigQuery backend needs it
 
-        if self._create_tables:
-            self.ensure_tables()
+        self._prepare()
         with self._client() as client:
             job = client.query(sql, job_config=bq.QueryJobConfig(query_parameters=self._params(bq, params)))
             return [dict(r) for r in job.result()]
@@ -2057,8 +2085,7 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
             return
         from google.cloud import bigquery as bq
 
-        if self._create_tables:
-            self.ensure_tables()
+        self._prepare()
         cfg = bq.LoadJobConfig(
             write_disposition="WRITE_APPEND",
             schema=[bq.SchemaField(n, _BQ_TYPES[t]) for n, t in columns],
@@ -2460,6 +2487,31 @@ class SqlContextReceiptStore(ContextReceiptStore):
     def _iso(value: Any) -> Any:
         return _bq_iso(_as_datetime(value)) if value is not None else None
 
+    def _prepare(self) -> None:
+        """``create_tables=True``: create/upgrade the tables. ``create_tables=False`` (you manage them): run only the column probe, once."""
+        if self._create_tables:
+            self.ensure_tables()
+        else:
+            self._verify_columns()
+
+    def _verify_columns(self) -> None:
+        import sqlalchemy as sa
+
+        with self._ready_lock:
+            if self._ready:
+                return
+            missing, errors = [], []
+            for probe, alter in receipt_column_upgrades(self.schema, self.table_prefix, self.dialect):
+                try:
+                    with self._engine.begin() as conn:
+                        conn.execute(sa.text(probe))
+                except Exception as exc:  # noqa: BLE001
+                    missing.append(alter)
+                    errors.append(str(exc))
+            if missing:
+                raise RuntimeError(_missing_columns_message(missing, errors))
+            self._ready = True
+
     def ensure_tables(self) -> None:
         import sqlalchemy as sa
 
@@ -2491,8 +2543,7 @@ class SqlContextReceiptStore(ContextReceiptStore):
     def _query(self, sql: str, **params: Any) -> list:
         import sqlalchemy as sa
 
-        if self._create_tables:
-            self.ensure_tables()
+        self._prepare()
         stmt = sa.text(sql)
         lists = [k for k, v in params.items() if isinstance(v, (list, tuple))]
         if lists:
@@ -2516,8 +2567,7 @@ class SqlContextReceiptStore(ContextReceiptStore):
 
         receipt_id, norm_items, norm_excluded, excluded_count, caller_id, mcp_session_id = self._prepare_retrieval(
             context_name, items, excluded, eligible_count, excluded_count, receipt_id, caller_id, mcp_session_id)
-        if self._create_tables:
-            self.ensure_tables()
+        self._prepare()
         created_at = self._tsv(self._timestamp())
         with self._engine.begin() as conn:
             seen = conn.execute(sa.text(

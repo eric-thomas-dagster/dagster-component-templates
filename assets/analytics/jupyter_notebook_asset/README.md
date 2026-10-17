@@ -248,3 +248,7 @@ Dagster will not materialize `enriched_revenue_report` until both upstream asset
 | `group_name` | `str` | `"notebooks"` | Dagster asset group |
 | `description` | `str` | `None` | Asset description shown in the UI |
 | `deps` | `list[str]` | `None` | Upstream asset keys |
+
+## Partitioning
+
+Tokens `{partition_key}`, `{partition_date}`, `{partition_start}`, `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted in string values in `parameters` on a partitioned run. The tokens are also passed to the notebook as parameters.

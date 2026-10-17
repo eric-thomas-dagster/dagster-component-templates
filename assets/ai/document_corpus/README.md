@@ -93,3 +93,7 @@ Materialize a directory of documents as a versioned Dagster asset. Every materia
 | `file_glob` | text | The glob used |
 
 Downstream components (see `vector_index_snapshot`, `rag_eval`) read `corpus_hash` from upstream metadata to establish provenance.
+
+## Partitioning
+
+Tokens `{partition_key}`, `{partition_date}`, `{partition_start}`, `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted in `source_dir` and `file_glob` (e.g. `source_dir: /data/{partition_date}`) on a partitioned run.

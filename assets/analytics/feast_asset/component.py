@@ -369,7 +369,17 @@ class FeastAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
             end_date = datetime.utcnow() - timedelta(days=component.end_date_offset_days)
 
-            if component.incremental:
+            _partitioned = context.has_partition_key or context.has_partition_key_range
+            if _partitioned:
+                try:
+                    _window = context.partition_time_window
+                except Exception:
+                    raise ValueError("feast_asset needs a time-window partition (daily/hourly/weekly/monthly) to bound materialization.")
+                end_date = _window.end
+                context.log.info(f"Materializing partition window {_window.start.isoformat()} to {_window.end.isoformat()}")
+                store.materialize(start_date=_window.start, end_date=_window.end, feature_views=component.feature_views)
+                mode = "partition"
+            elif component.incremental:
                 context.log.info(
                     f"Running incremental materialization up to {end_date.isoformat()}"
                 )

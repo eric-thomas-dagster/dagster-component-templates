@@ -276,3 +276,7 @@ The `OllamaResource` also exposes a `generate(prompt, system)` method you can us
 - **Output format**: model responses are stored as raw strings. For structured output (JSON, labels, etc.), use a concise `system_prompt` and parse `response_column` in a downstream asset.
 - **Streaming**: this component uses `stream: false` for simplicity. For very large outputs, increasing `timeout_seconds` is preferable to enabling streaming.
 - **GPU acceleration**: Ollama automatically uses GPU if available (Metal on macOS, CUDA on Linux). No configuration change is needed in this component.
+
+## Partitioning
+
+When `partition_type` is set, each run reads only the upstream rows that fall in its partition (by `partition_date_column` / `partition_static_column`); unpartitioned runs read everything.

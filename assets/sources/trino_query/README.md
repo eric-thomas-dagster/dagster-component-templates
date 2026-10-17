@@ -76,3 +76,7 @@ See `schema.json` for full attribute reference.
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)
+
+## Partitioning
+
+Tokens `{partition_key}`, `{partition_date}`, `{partition_start}`, `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted in `query` on a partitioned run.

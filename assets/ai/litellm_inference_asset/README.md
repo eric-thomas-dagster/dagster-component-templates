@@ -281,3 +281,7 @@ Then in your component YAML:
 ## Reasoning models (Qwen3, DeepSeek-R1, ...)
 
 Reasoning models inline their chain of thought as `<think>...</think>`. The component strips it from the model's reply *before* parsing/storing, so the output is the clean answer (non-reasoning models are unaffected). Set `include_reasoning: true` to keep the thinking: adds a `<response_column>_reasoning` column (null when the model produced none). `LiteLLMResource.complete()` also returns the stripped answer.
+
+## Partitioning
+
+When `partition_type` is set, each run reads only the upstream rows that fall in its partition (by `partition_date_column` / `partition_static_column`); unpartitioned runs read everything.

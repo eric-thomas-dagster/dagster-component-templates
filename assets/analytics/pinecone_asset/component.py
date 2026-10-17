@@ -450,6 +450,10 @@ class PineconeAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         # Standard catalog fields — phase 2 wiring
+        partition_date_column = self.partition_date_column
+        partition_static_column = self.partition_static_column
+        partition_static_dim = self.partition_static_dim
+
         _retry_policy = None
         if self.retry_policy_max_retries is not None:
             from dagster import Backoff, RetryPolicy
@@ -522,6 +526,33 @@ class PineconeAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             context: dg.AssetExecutionContext,
             upstream,
         ) -> dg.MaterializeResult:
+            # Filter to current partition if partitioned
+            if context.has_partition_key or context.has_partition_key_range:
+                import pandas as pd
+                # One filter pass per partition key: a normal tick gives exactly one,
+                # a single_run backfill gives the whole range. Rows are selected by
+                # position so keys that match overlapping rows never duplicate them.
+                _pk_base = upstream
+                _pk_pos = _pk_base.reset_index(drop=True) if hasattr(_pk_base, 'reset_index') else _pk_base
+                _pk_keep = set()
+                _pk_filtered = False
+                for _pk_iter in context.partition_keys:
+                    upstream = _pk_pos
+                    _pk = _pk_iter
+                    _is_multi = hasattr(_pk, "keys_by_dimension")
+                    _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                    _static_key = next((_pk.keys_by_dimension[_d] for _d in (partition_static_dim, "static_dim", "segment") if _d and _d in _pk.keys_by_dimension), "") if _is_multi else None
+                    if partition_date_column and partition_date_column in upstream.columns and _date_key:
+                        _col_dates = pd.to_datetime(upstream[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
+                        upstream = upstream[_col_dates == _date_key]
+                    if partition_static_column and partition_static_column in upstream.columns and _static_key:
+                        upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
+                    elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
+                        upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+                    if upstream is not _pk_pos:
+                        _pk_filtered = True
+                        _pk_keep.update(upstream.index)
+                upstream = _pk_base.iloc[sorted(_pk_keep)] if _pk_filtered else _pk_base
             from pinecone import Pinecone  # type: ignore[import]
 
             api_key = os.environ.get(component.api_key_env_var)

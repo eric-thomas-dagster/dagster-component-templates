@@ -144,3 +144,7 @@ offline: false   # only refresh the online store
 | `asset_name` | `str` | `"tecton_features"` | Dagster asset key |
 | `group_name` | `str` | `"feature_store"` | Dagster asset group |
 | `deps` | `list[str]` | `None` | Upstream asset keys |
+
+## Partitioning
+
+On a partitioned run (time-window partitions) the materialization job is bounded to the partition's `start_time`/`end_time`; unpartitioned runs are unchanged.

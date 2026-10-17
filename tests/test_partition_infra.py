@@ -317,7 +317,7 @@ def test_partition_vars_helper_copies_are_identical_and_behave():
         text = p.read_text()
         if begin in text:
             blocks.setdefault(text[text.index(begin): text.index(end) + len(end)], []).append(str(p.relative_to(ROOT)))
-    assert len(blocks) == 1 and sum(len(v) for v in blocks.values()) == 11, {k[:40]: v for k, v in blocks.items()}
+    assert len(blocks) == 1 and sum(len(v) for v in blocks.values()) == 15, {k[:40]: v for k, v in blocks.items()}
     ns = {}
     exec(next(iter(blocks)), ns)
     sub = ns["_substitute_partition"]

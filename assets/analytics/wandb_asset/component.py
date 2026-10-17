@@ -482,6 +482,10 @@ class WandbAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        partition_date_column = self.partition_date_column
+        partition_static_column = self.partition_static_column
+        partition_static_dim = self.partition_static_dim
+
         if self.mode == "log_metrics":
             if bool(self.upstream_asset_key) == bool(self.source):
                 raise ValueError("WandbAssetComponent: set exactly one of `upstream_asset_key` or `source`.")
@@ -567,6 +571,33 @@ class WandbAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             upstream = kwargs.get("upstream")
             if upstream is None and component.source:
                 upstream = _ingest_warehouse_query(component.source, context)
+            # Filter to current partition if partitioned
+            if upstream is not None and (context.has_partition_key or context.has_partition_key_range):
+                import pandas as pd
+                # One filter pass per partition key: a normal tick gives exactly one,
+                # a single_run backfill gives the whole range. Rows are selected by
+                # position so keys that match overlapping rows never duplicate them.
+                _pk_base = upstream
+                _pk_pos = _pk_base.reset_index(drop=True) if hasattr(_pk_base, 'reset_index') else _pk_base
+                _pk_keep = set()
+                _pk_filtered = False
+                for _pk_iter in context.partition_keys:
+                    upstream = _pk_pos
+                    _pk = _pk_iter
+                    _is_multi = hasattr(_pk, "keys_by_dimension")
+                    _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                    _static_key = next((_pk.keys_by_dimension[_d] for _d in (partition_static_dim, "static_dim", "segment") if _d and _d in _pk.keys_by_dimension), "") if _is_multi else None
+                    if partition_date_column and partition_date_column in upstream.columns and _date_key:
+                        _col_dates = pd.to_datetime(upstream[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
+                        upstream = upstream[_col_dates == _date_key]
+                    if partition_static_column and partition_static_column in upstream.columns and _static_key:
+                        upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
+                    elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
+                        upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+                    if upstream is not _pk_pos:
+                        _pk_filtered = True
+                        _pk_keep.update(upstream.index)
+                upstream = _pk_base.iloc[sorted(_pk_keep)] if _pk_filtered else _pk_base
             import os
             import wandb
 

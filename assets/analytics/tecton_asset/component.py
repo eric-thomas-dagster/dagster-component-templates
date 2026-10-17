@@ -395,12 +395,20 @@ class TectonAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 f"{fv_names}"
             )
 
+            _window_kwargs = {}
+            if context.has_partition_key or context.has_partition_key_range:
+                try:
+                    _w = context.partition_time_window
+                except Exception:
+                    raise ValueError("tecton_asset needs a time-window partition to bound materialization.")
+                _window_kwargs = {"start_time": _w.start, "end_time": _w.end}
             triggered_jobs = []
             for fv_name in fv_names:
                 fv = ws.get_feature_view(fv_name)
                 job = fv.run_materialization_job(
                     online=component.online,
                     offline=component.offline,
+                    **_window_kwargs,
                 )
                 context.log.info(
                     f"Triggered materialization job {job.id} for feature view '{fv_name}'"

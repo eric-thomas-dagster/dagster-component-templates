@@ -324,7 +324,8 @@ class ElasticsearchAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description=(
             "JSON string representing the Elasticsearch query DSL body sent in "
             "``query`` mode. Defaults to ``{}`` which Elasticsearch treats as "
-            "``match_all``."
+            "``match_all``. In a partitioned asset, {partition_key}, {partition_date}, {partition_start} and "
+            "{partition_end} are replaced with the partition's values (for example a range filter on its dates)."
         ),
     )
     database_url_env_var: Optional[str] = Field(
@@ -485,6 +486,15 @@ class ElasticsearchAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        partition_date_column = self.partition_date_column
+        partition_static_column = self.partition_static_column
+        partition_static_dim = self.partition_static_dim
+        if self.partition_type and self.mode == "query" and self.if_exists == "replace":
+            raise ValueError(
+                "if_exists='replace' would delete the other partitions' rows from the destination table on every partitioned "
+                "query run; use 'append' (or leave the asset unpartitioned)."
+            )
+
         if self.mode == "index":
             if bool(self.upstream_asset_key) == bool(self.source):
                 raise ValueError("ElasticsearchAssetComponent: set exactly one of `upstream_asset_key` or `source`.")
@@ -567,6 +577,33 @@ class ElasticsearchAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             upstream = kwargs.get("upstream")
             if upstream is None and component.source:
                 upstream = _ingest_warehouse_query(component.source, context)
+            # Filter to current partition if partitioned
+            if upstream is not None and (context.has_partition_key or context.has_partition_key_range):
+                import pandas as pd
+                # One filter pass per partition key: a normal tick gives exactly one,
+                # a single_run backfill gives the whole range. Rows are selected by
+                # position so keys that match overlapping rows never duplicate them.
+                _pk_base = upstream
+                _pk_pos = _pk_base.reset_index(drop=True) if hasattr(_pk_base, 'reset_index') else _pk_base
+                _pk_keep = set()
+                _pk_filtered = False
+                for _pk_iter in context.partition_keys:
+                    upstream = _pk_pos
+                    _pk = _pk_iter
+                    _is_multi = hasattr(_pk, "keys_by_dimension")
+                    _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                    _static_key = next((_pk.keys_by_dimension[_d] for _d in (partition_static_dim, "static_dim", "segment") if _d and _d in _pk.keys_by_dimension), "") if _is_multi else None
+                    if partition_date_column and partition_date_column in upstream.columns and _date_key:
+                        _col_dates = pd.to_datetime(upstream[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
+                        upstream = upstream[_col_dates == _date_key]
+                    if partition_static_column and partition_static_column in upstream.columns and _static_key:
+                        upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
+                    elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
+                        upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+                    if upstream is not _pk_pos:
+                        _pk_filtered = True
+                        _pk_keep.update(upstream.index)
+                upstream = _pk_base.iloc[sorted(_pk_keep)] if _pk_filtered else _pk_base
             from elasticsearch import Elasticsearch  # type: ignore[import]
             from elasticsearch.helpers import bulk  # type: ignore[import]
 
@@ -655,7 +692,8 @@ class ElasticsearchAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                         "'table_name' must be set in 'query' mode."
                     )
 
-                query_body = json.loads(component.query) if component.query else {}
+                # {partition_*} tokens in the query (e.g. a range on the partition's dates) scope a partitioned run
+                query_body = json.loads(_substitute_partition(component.query, _partition_vars(context))) if component.query else {}
                 if not query_body:
                     query_body = {"query": {"match_all": {}}}
                 elif "query" not in query_body:
@@ -723,3 +761,56 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
+
+
+# BEGIN partition-vars helper (inlined per component; keep copies identical, see tests/test_partition_vars.py)
+def _partition_vars(context):
+    """Tokens a partitioned run can use in its variables: {partition_key}, and for time partitions {partition_date}
+    (YYYY-MM-DD), {partition_start} and {partition_end} (ISO datetimes); for a multi-partition also
+    {partition_<dimension>}. Empty for an unpartitioned run."""
+    import re as _re
+
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return {}
+    keys = list(context.partition_keys)
+    tokens = {"partition_key": ",".join(str(k) for k in keys)}
+    try:
+        window = context.partition_time_window
+        tokens["partition_start"] = window.start.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_end"] = window.end.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_date"] = window.start.strftime("%Y-%m-%d")
+    except Exception:
+        pass  # static / dynamic partitions have no time window
+    if len(keys) == 1 and hasattr(keys[0], "keys_by_dimension"):
+        for dimension, value in keys[0].keys_by_dimension.items():
+            tokens["partition_" + _re.sub(r"\W", "_", str(dimension))] = str(value)
+    return tokens
+
+
+def _partition_env(tokens):
+    """DAGSTER_PARTITION_* environment variables for a partitioned run (empty when unpartitioned)."""
+    if not tokens:
+        return {}
+    env = {"DAGSTER_PARTITION_KEY": tokens["partition_key"]}
+    for token, name in (("partition_date", "DAGSTER_PARTITION_DATE"), ("partition_start", "DAGSTER_PARTITION_START"),
+                        ("partition_end", "DAGSTER_PARTITION_END")):
+        if token in tokens:
+            env[name] = tokens[token]
+    return env
+
+
+def _substitute_partition(value, tokens):
+    """Replace {partition_*} tokens inside strings, recursively through dicts and lists. Only known tokens are
+    replaced, so other braces (JSON, shell, templates) are left alone. A no-op for an unpartitioned run."""
+    import re as _re
+
+    if not tokens:
+        return value
+    if isinstance(value, str):
+        return _re.sub(r"\{(partition_\w+)\}", lambda m: tokens.get(m.group(1), m.group(0)), value)
+    if isinstance(value, dict):
+        return {k: _substitute_partition(v, tokens) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(_substitute_partition(v, tokens) for v in value)
+    return value
+# END partition-vars helper

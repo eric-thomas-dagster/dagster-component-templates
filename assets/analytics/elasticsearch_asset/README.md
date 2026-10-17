@@ -171,3 +171,7 @@ attributes:
 ```
 
 Results stay a DataFrame (this adds no database write-back); compose with a sink component to persist them.
+
+## Partitioning
+
+When `partition_type` is set, each run reads only the upstream rows that fall in its partition (by `partition_date_column` / `partition_static_column`); unpartitioned runs read everything. In query mode the tokens below are substituted into `query`, and `if_exists: replace` is rejected with a partition. Tokens `{partition_key}`, `{partition_date}`, `{partition_start}`, `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted in `query` on a partitioned run.

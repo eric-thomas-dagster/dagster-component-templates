@@ -279,3 +279,7 @@ deps:
 | `group_name` | `str` | `"vector_store"` | Dagster asset group |
 | `description` | `str` | `None` | Asset description |
 | `deps` | `list[str]` | `None` | Upstream asset keys |
+
+## Partitioning
+
+When `partition_type` is set, each run reads only the upstream rows that fall in its partition (by `partition_date_column` / `partition_static_column`); unpartitioned runs read everything.

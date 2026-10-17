@@ -82,7 +82,7 @@
     "query": {
       "type": "string",
       "label": "Query",
-      "description": "JSON string representing the Elasticsearch query DSL body sent in ``query`` mode. Defaults to ``{}`` which Elasticsearch treats as ``match_all``.",
+      "description": "JSON string representing the Elasticsearch query DSL body sent in ``query`` mode. Defaults to ``{}`` which Elasticsearch treats as ``match_all``. In a partitioned asset, {partition_key}, {partition_date}, {partition_start} and {partition_end} are replaced with the partition's values (for example a range filter on its dates).",
       "required": false,
       "default": "{}",
       "ui:widget": "code"

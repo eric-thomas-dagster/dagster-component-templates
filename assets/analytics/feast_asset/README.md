@@ -119,3 +119,7 @@ For non-incremental runs, set `start_date_env_var` to the name of an environment
 | `end_date_offset_days` | `int` | `0` | Days before now for end_date |
 | `group_name` | `str` | `"feature_store"` | Dagster asset group |
 | `deps` | `list[str]` | `None` | Upstream asset keys |
+
+## Partitioning
+
+On a partitioned run (time-window partitions) Feast materializes exactly the partition's window via `store.materialize(start, end)`; unpartitioned runs keep the incremental/full behavior.

@@ -169,3 +169,7 @@ attributes:
 ```
 
 Results stay a DataFrame (this adds no database write-back); compose with a sink component to persist them.
+
+## Partitioning
+
+When `partition_type` is set, each run reads only the upstream rows that fall in its partition (by `partition_date_column` / `partition_static_column`); unpartitioned runs read everything. `if_exists: replace` is rejected with a partition (it would wipe other partitions); use append.

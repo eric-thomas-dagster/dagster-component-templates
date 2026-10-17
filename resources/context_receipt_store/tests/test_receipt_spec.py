@@ -29,7 +29,8 @@ def _full_receipt_events(rid="01RECEIPT"):
     return [
         {"spec_version": "1", "type": "retrieval", "receipt_id": rid, "context_name": "support",
          "context_version": "mat-1", "policy_version": "p1", "caller_id": "agent", "purpose": "answer",
-         "query_hash": "abc", "eligible_count": 5, "excluded_count": 1,
+         "query_hash": "abc", "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736",
+         "mcp_session_id": "sess-1", "mcp_request_id": "req-7", "eligible_count": 5, "excluded_count": 1,
          "items": [{"item_id": "a", "source_asset_key": "docs", "source_version": "v1", "rank": 0,
                     "score": 0.9, "selection": "ranked"},
                    {"item_id": "b", "rank": 1, "selection": "explore"}],
@@ -102,3 +103,12 @@ def test_async_writer_ingest_is_idempotent_on_resend(mod, tmp_path):
     w.flush()
     assert not w.dead_letters
     assert len(s.export_events("01ASYNC")) == 4
+
+
+def test_trace_ids_round_trip(mod, tmp_path):
+    a = mod.ContextReceiptStore(str(tmp_path / "t.db"))
+    a.ingest(_full_receipt_events("01TRACE")[0])
+    r = a.get_receipt("01TRACE")
+    assert (r["trace_id"], r["mcp_session_id"], r["mcp_request_id"]) == (
+        "4bf92f3577b34da6a3ce929d0e0e4736", "sess-1", "req-7")
+    _valid(a.export_events("01TRACE")[0])

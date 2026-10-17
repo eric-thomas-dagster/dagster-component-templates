@@ -52,6 +52,48 @@
       "required": false,
       "default": 5.0,
       "description": "Shrinkage for item quality priors: higher needs more outcome evidence to move a prior."
+    },
+    "check_asset_keys": {
+      "type": "array",
+      "label": "Check Asset Keys",
+      "required": false,
+      "default": [],
+      "description": "Asset keys to attach context-health asset checks to (staleness, outcome quality, verified share). The assets must be defined in the same code location."
+    },
+    "check_window_hours": {
+      "type": "number",
+      "label": "Check Window (h)",
+      "required": false,
+      "default": 24.0,
+      "description": "Lookback window for the checks."
+    },
+    "max_stale_share": {
+      "type": "number",
+      "label": "Max Stale Share",
+      "required": false,
+      "default": 0.1,
+      "description": "Fail context_staleness above this share of stale reads."
+    },
+    "min_mean_outcome": {
+      "type": "number",
+      "label": "Min Mean Outcome",
+      "required": false,
+      "default": -0.2,
+      "description": "Warn context_outcome_quality below this mean outcome."
+    },
+    "min_verified_share": {
+      "type": "number",
+      "label": "Min Verified Share",
+      "required": false,
+      "default": 0.5,
+      "description": "Warn context_verified_share below this share."
+    },
+    "min_checked_receipts": {
+      "type": "integer",
+      "label": "Min Outcomes To Judge",
+      "required": false,
+      "default": 5,
+      "description": "Outcomes needed before the quality check judges."
     }
   }
 }

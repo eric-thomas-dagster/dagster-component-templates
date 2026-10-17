@@ -148,6 +148,24 @@ not reinforcement learning. Limits: priors are only as good as the outcome signa
 credit is per item (not a causal estimate); no inverse-propensity correction for
 exploration yet; scoring recomputes from scratch each tick (fine for prototype scale).
 
+## Context health as asset checks
+
+`check_asset_keys: [support/tickets]` attaches three checks to each asset, evaluated over a
+rolling window (`check_window_hours`): **`context_staleness`** (ERROR: share of retrieved
+items served from an out-of-date data version, per partition), **`context_outcome_quality`**
+(WARN: mean outcome of answers built from the asset; needs `min_checked_receipts`
+outcomes before it judges), and **`context_verified_share`** (WARN: share of outputs whose
+receipt reached `verified` or `counterfactual_tested` evidence; `cited` does not count,
+it is the model's own claim). They turn context debt into red/green on the asset. There is
+no ungrounded-claim-rate check yet because nothing computes claim-level grounding.
+
+## Trace an MCP call to its context
+
+Retrieval events accept `trace_id` (e.g. an OpenTelemetry trace id), `mcp_session_id` and
+`mcp_request_id`; the FastMCP middleware example fills the MCP ids from the request
+context. Given a tool call you can find its receipt, the exact versioned, partitioned
+context it was served, what was withheld and why, and the lineage behind it.
+
 ## Recall across lineage and partitions
 
 Stamp each retrieved item with `source_asset_key`, `source_version` (the asset's

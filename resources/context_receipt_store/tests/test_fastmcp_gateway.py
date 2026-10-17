@@ -87,6 +87,7 @@ def test_middleware_receipts_opted_in_tools_only(tmp_path, monkeypatch):
     assert "_receipt" not in got and got["chunks"] == ["x"]
     receipt = store.get_receipt(got["receipt_id"])
     assert receipt["caller_id"] == "agent" and receipt["excluded"][0]["reason"] == "pii"
+    assert receipt["mcp_request_id"] and receipt["mcp_session_id"]  # tool call is traceable to its context
     assert plain == {"v": 1}
 
 

@@ -13,7 +13,7 @@ import time
 import uuid
 from collections.abc import Iterable, Iterator, Mapping
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -139,7 +139,10 @@ class ContextReceiptStore:
                     eligible_count INTEGER,
                     excluded_count INTEGER,
                     dagster_asset_key TEXT,
-                    dagster_run_id TEXT
+                    dagster_run_id TEXT,
+                    trace_id TEXT,
+                    mcp_session_id TEXT,
+                    mcp_request_id TEXT
                 );
                 CREATE TABLE IF NOT EXISTS context_receipt_items (
                     receipt_id TEXT NOT NULL REFERENCES context_receipts(receipt_id),
@@ -188,6 +191,9 @@ class ContextReceiptStore:
             )
             # databases created before a column existed
             for table, column, ddl in (
+                ("context_receipts", "trace_id", "TEXT"),
+                ("context_receipts", "mcp_session_id", "TEXT"),
+                ("context_receipts", "mcp_request_id", "TEXT"),
                 ("context_receipt_items", "selection", "TEXT NOT NULL DEFAULT 'ranked'"),
                 ("context_receipt_items", "source_partition", "TEXT"),
                 ("context_receipt_excluded", "source_partition", "TEXT"),
@@ -299,6 +305,9 @@ class ContextReceiptStore:
         dagster_asset_key: str | None = None,
         dagster_run_id: str | None = None,
         receipt_id: str | None = None,
+        trace_id: str | None = None,
+        mcp_session_id: str | None = None,
+        mcp_request_id: str | None = None,
     ) -> str:
         """Persist a retrieval fact and return its portable receipt ID.
 
@@ -352,8 +361,9 @@ class ContextReceiptStore:
                 INSERT INTO context_receipts (
                     receipt_id, created_at, context_name, context_version,
                     policy_version, caller_id, purpose, query_hash,
-                    eligible_count, excluded_count, dagster_asset_key, dagster_run_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    eligible_count, excluded_count, dagster_asset_key, dagster_run_id,
+                    trace_id, mcp_session_id, mcp_request_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     receipt_id,
@@ -368,6 +378,9 @@ class ContextReceiptStore:
                     excluded_count,
                     dagster_asset_key,
                     dagster_run_id,
+                    trace_id,
+                    mcp_session_id,
+                    mcp_request_id,
                 ),
             )
             conn.executemany(
@@ -713,7 +726,7 @@ class ContextReceiptStore:
         if kind == "retrieval":
             allowed = {"receipt_id", "context_name", "context_version", "policy_version", "caller_id",
                        "purpose", "query_hash", "eligible_count", "excluded_count", "dagster_asset_key",
-                       "dagster_run_id", "items", "excluded"}
+                       "dagster_run_id", "items", "excluded", "trace_id", "mcp_session_id", "mcp_request_id"}
             handler = self.record_retrieval
         elif kind == "output":
             allowed = {"receipt_id", "output_id", "model", "model_version", "output_hash", "prefect_run_id"}
@@ -743,7 +756,8 @@ class ContextReceiptStore:
         if receipt is None:
             raise KeyError(f"unknown context receipt: {receipt_id}")
         keep = ("context_name", "context_version", "policy_version", "caller_id", "purpose", "query_hash",
-                "eligible_count", "excluded_count", "dagster_asset_key", "dagster_run_id")
+                "eligible_count", "excluded_count", "dagster_asset_key", "dagster_run_id",
+                "trace_id", "mcp_session_id", "mcp_request_id")
         events: list[dict[str, Any]] = [{
             "spec_version": SPEC_VERSION, "type": "retrieval", "receipt_id": receipt_id,
             "created_at": receipt["created_at"], **{k: receipt[k] for k in keep},
@@ -760,6 +774,48 @@ class ContextReceiptStore:
             elif ev["event_type"] == "outcome":
                 events.append({**base, "type": "outcome", **payload})
         return events
+
+    def asset_usage_since(self, asset_key: str, since: str) -> dict[str, Any]:
+        """Window statistics for receipts that used ``asset_key`` (``since`` is an ISO-8601 UTC time).
+
+        Returns the retrieved ``items`` as ``(source_partition, source_version)`` pairs, the
+        per-receipt effective outcome (mean of outcomes, later ``outcome_ref`` superseding
+        earlier), and how many receipts have an attached output / verified evidence.
+        """
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT i.receipt_id, i.source_partition, i.source_version
+                FROM context_receipt_items i JOIN context_receipts r ON r.receipt_id = i.receipt_id
+                WHERE i.source_asset_key = ? AND r.created_at >= ?
+                """,
+                (asset_key, since),
+            ).fetchall()
+            ids = sorted({r["receipt_id"] for r in rows})
+            events = conn.execute(
+                f"SELECT receipt_id, event_type, payload_json FROM context_receipt_events "
+                f"WHERE receipt_id IN ({','.join('?' * len(ids))}) ORDER BY rowid",
+                ids,
+            ).fetchall() if ids else []
+        outcomes: dict[str, dict[str, float]] = {}
+        with_output: set[str] = set()
+        verified: set[str] = set()
+        for ev in events:
+            payload = json.loads(ev["payload_json"])
+            if ev["event_type"] == "outcome":
+                key = payload.get("outcome_ref") or f"anon-{len(outcomes.get(ev['receipt_id'], {}))}"
+                outcomes.setdefault(ev["receipt_id"], {})[key] = payload["value"]
+            elif ev["event_type"] == "output_attached":
+                with_output.add(ev["receipt_id"])
+            elif ev["event_type"] == "evidence" and payload["level"] in ("verified", "counterfactual_tested"):
+                verified.add(ev["receipt_id"])
+        return {
+            "receipts": len(ids),
+            "items": [(r["source_partition"], r["source_version"]) for r in rows],
+            "outcome_means": [sum(v.values()) / len(v) for v in outcomes.values()],
+            "with_output": len(with_output),
+            "verified_outputs": len(with_output & verified),
+        }
 
     def find_by_assets(self, targets: Mapping[str, Iterable[str] | None]) -> dict[str, list[str]]:
         """Receipts that used the given assets, optionally narrowed to partitions.
@@ -937,6 +993,79 @@ def impacted_receipts(
     }
 
 
+def build_usage_checks(
+    store: ContextReceiptStore,
+    asset_key: str,
+    *,
+    window_hours: float,
+    max_stale_share: float,
+    min_mean_outcome: float,
+    min_verified_share: float,
+    min_checked_receipts: int,
+) -> list[Any]:
+    """Asset checks over receipt data so context debt is a red/green signal on the asset.
+
+    - ``context_staleness`` (ERROR): share of retrieved items served from an out-of-date
+      data version in the window must be <= ``max_stale_share``. Items whose current
+      version is unknown are not judged.
+    - ``context_outcome_quality`` (WARN): mean outcome across receipts must be >=
+      ``min_mean_outcome``; passes with a note below ``min_checked_receipts`` samples.
+    - ``context_verified_share`` (WARN): share of outputs whose receipt reached verified or
+      counterfactual evidence must be >= ``min_verified_share``; passes when there are no outputs.
+    """
+    key = dg.AssetKey.from_user_string(asset_key)
+
+    def window() -> str:
+        return (datetime.now(timezone.utc) - timedelta(hours=window_hours)).isoformat()
+
+    @dg.asset_check(asset=key, name="context_staleness", description="Share of context served from an out-of-date version.")
+    def staleness(context):
+        usage = store.asset_usage_since(asset_key, window())
+        judged = stale = 0
+        current: dict[str | None, str | None] = {}
+        for partition, version in usage["items"]:
+            if partition not in current:
+                current[partition] = _current_data_version(context.instance, key, partition)
+            if current[partition] is None or version is None:
+                continue
+            judged += 1
+            stale += version != current[partition]
+        share = stale / judged if judged else 0.0
+        return dg.AssetCheckResult(
+            passed=share <= max_stale_share,
+            severity=dg.AssetCheckSeverity.ERROR,
+            metadata={"stale_share": round(share, 4), "stale_items": stale, "judged_items": judged,
+                      "receipts": usage["receipts"], "window_hours": window_hours},
+        )
+
+    @dg.asset_check(asset=key, name="context_outcome_quality", description="Mean outcome of answers built from this asset.")
+    def outcome_quality(context):
+        usage = store.asset_usage_since(asset_key, window())
+        means = usage["outcome_means"]
+        if len(means) < min_checked_receipts:
+            return dg.AssetCheckResult(
+                passed=True, severity=dg.AssetCheckSeverity.WARN,
+                metadata={"note": "insufficient outcomes to judge", "outcomes": len(means)},
+            )
+        mean = sum(means) / len(means)
+        return dg.AssetCheckResult(
+            passed=mean >= min_mean_outcome, severity=dg.AssetCheckSeverity.WARN,
+            metadata={"mean_outcome": round(mean, 4), "outcomes": len(means), "window_hours": window_hours},
+        )
+
+    @dg.asset_check(asset=key, name="context_verified_share", description="Share of outputs whose context reached verified evidence.")
+    def verified_share(context):
+        usage = store.asset_usage_since(asset_key, window())
+        outputs = usage["with_output"]
+        share = usage["verified_outputs"] / outputs if outputs else 1.0
+        return dg.AssetCheckResult(
+            passed=share >= min_verified_share, severity=dg.AssetCheckSeverity.WARN,
+            metadata={"verified_share": round(share, 4), "outputs": outputs, "window_hours": window_hours},
+        )
+
+    return [staleness, outcome_quality, verified_share]
+
+
 def _current_data_version(instance: Any, asset_key: dg.AssetKey, partition: str | None = None) -> str | None:
     """Latest (partition's) materialization data version, or None when unknown (staleness not judged)."""
     record = instance.get_latest_data_version_record(asset_key, partition_key=partition)
@@ -1089,6 +1218,18 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
         default=25,
         description="Receipt items served from an out-of-date data version before a rebuild is requested.",
     )
+    check_asset_keys: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Asset keys to attach context-health asset checks to (staleness, outcome quality, "
+            "verified share). The assets must be defined in the same code location."
+        ),
+    )
+    check_window_hours: float = Field(default=24.0, description="Lookback window for the checks.")
+    max_stale_share: float = Field(default=0.1, description="Fail context_staleness above this share of stale reads.")
+    min_mean_outcome: float = Field(default=-0.2, description="Warn context_outcome_quality below this mean outcome.")
+    min_verified_share: float = Field(default=0.5, description="Warn context_verified_share below this share.")
+    min_checked_receipts: int = Field(default=5, description="Outcomes needed before the quality check judges.")
     score_prior_strength: float = Field(
         default=5.0,
         description="Shrinkage for item quality priors: higher needs more outcome evidence to move a prior.",
@@ -1108,7 +1249,20 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
                     prior_strength=self.score_prior_strength,
                 )
             )
+        checks = [
+            check
+            for key in self.check_asset_keys
+            for check in build_usage_checks(
+                store, key,
+                window_hours=self.check_window_hours,
+                max_stale_share=self.max_stale_share,
+                min_mean_outcome=self.min_mean_outcome,
+                min_verified_share=self.min_verified_share,
+                min_checked_receipts=self.min_checked_receipts,
+            )
+        ]
         return dg.Definitions(
             resources={self.resource_key: dg.ResourceDefinition.hardcoded_resource(store)},
             sensors=sensors,
+            asset_checks=checks,
         )

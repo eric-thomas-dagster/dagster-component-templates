@@ -27,5 +27,13 @@ class ReceiptMiddleware(Middleware):
         data = dict(data)
         receipt_args = dict(data.pop("_receipt"))
         receipt_args.setdefault("caller_id", (context.message.arguments or {}).get("caller_id"))
+        # Tie the receipt to the MCP call so the tool call can be traced to its context.
+        fctx = context.fastmcp_context
+        if fctx is not None:
+            for field, attr in (("mcp_request_id", "request_id"), ("mcp_session_id", "session_id")):
+                try:
+                    receipt_args.setdefault(field, getattr(fctx, attr))
+                except Exception:  # not every transport exposes both ids
+                    pass
         data["receipt_id"] = self.receipts.record_retrieval(**receipt_args)
         return ToolResult(structured_content=data)

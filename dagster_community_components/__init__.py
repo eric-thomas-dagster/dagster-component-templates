@@ -113,6 +113,8 @@ _CLASS_PATHS: dict[str, str] = {
     "AssetReferenceComponent": "core/asset_reference/component.py",
     "AssetToJobTriggerSensorComponent": "sensors/asset_to_job_trigger_sensor/component.py",
     "AsyncBigQueryContextReceiptStore": "resources/context_receipt_store/component.py",
+    "SqlContextReceiptStore": "resources/context_receipt_store/component.py",
+    "AsyncSqlContextReceiptStore": "resources/context_receipt_store/component.py",
     "AsyncReceiptWriter": "resources/context_receipt_store/component.py",
     "AthenaIOManagerComponent": "io_managers/athena_io_manager/component.py",
     "AttentiveIngestionComponent": "assets/ingestion/attentive_ingestion/component.py",

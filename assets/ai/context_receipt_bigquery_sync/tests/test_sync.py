@@ -129,25 +129,55 @@ def test_incremental_second_run_ships_only_new(comp, store, bq):
 def test_late_outcome_for_old_receipt_is_shipped(comp, store, bq):
     client, _ = bq
     ids = seed(store, 2)
-    run_asset(comp, store, client, reconcile_recent_receipts=0)
+    run_asset(comp, store, client)
     store.record_outcome(ids[0], signal="thumbs_up", outcome_ref="late")
-    md = run_asset(comp, store, client, reconcile_recent_receipts=0)
+    md = run_asset(comp, store, client)
     assert md["rows_context_receipts"].value == 0 and md["rows_context_receipt_events"].value == 1
     assert_mirrors(store, client)
 
 
-def test_late_evidence_without_outcome_is_picked_up_by_reconcile(comp, store, bq):
+def test_late_evidence_and_output_without_outcome_is_shipped_with_no_reconcile_window(comp, store, bq):
     client, _ = bq
     ids = seed(store, 2)
     run_asset(comp, store, client)
-    store.add_evidence(ids[1], level="verified", details={})
-    md = run_asset(comp, store, client)  # no new receipt/outcome: no cursor signals this
+    store.add_evidence(ids[1], level="verified", details={})  # no new receipt, no outcome
+    md = run_asset(comp, store, client)
+    assert md["rows_context_receipt_events"].value == 1 and md["rows_context_receipts"].value == 0
+    store.attach_output(ids[0], output_id="o9", model="m", output_hash="zz")
+    md = run_asset(comp, store, client)
     assert md["rows_context_receipt_events"].value == 1
     assert_mirrors(store, client)
-    # and without reconcile it is (documented) not picked up
-    store.add_evidence(ids[1], level="cited", details={})
-    md = run_asset(comp, store, client, reconcile_recent_receipts=0)
-    assert md["rows_context_receipt_events"].value == 0
+
+
+def test_events_come_from_read_since_without_get_receipt(comp, store, bq):
+    client, mod = bq
+    ids = seed(store, 2)
+    store.add_evidence(ids[0], level="cited", details={})
+    class NoGetReceipt:
+        read_since = staticmethod(store.read_since)
+        def get_receipt(self, *a, **k):
+            raise AssertionError("sync must not re-fetch receipts for events")
+    comp.sync_receipts(NoGetReceipt(), client, mod, dataset=DS)
+    assert_mirrors(store, client)
+
+
+def test_deprecated_reconcile_field_is_accepted_and_ignored(comp, store, bq):
+    client, _ = bq
+    seed(store, 1)
+    with pytest.warns(DeprecationWarning):
+        md = run_asset(comp, store, client, reconcile_recent_receipts=200)
+    assert md["rows_context_receipts"].value == 1
+    assert component(comp).reconcile_recent_receipts == 0
+
+
+def test_events_paging_over_non_outcome_events_drains(comp, store, bq):
+    client, _ = bq
+    ids = seed(store, 1)
+    for i in range(5):
+        store.add_evidence(ids[0], level="cited", details={"n": i})
+    md = run_asset(comp, store, client, batch_size=2, max_batches=50)
+    assert md["drained"].value is True and md["batches"].value == 3
+    assert_mirrors(store, client)
 
 
 def test_empty_store(comp, store, bq):
@@ -287,11 +317,10 @@ def test_config_options_apply(comp):
         component(comp, batch_size=0).build_defs(None)
 
 
-def test_ddl_block_is_verbatim_canonical(comp):
+def test_ddl_block_is_verbatim_the_store_components_block(comp):
     import pathlib, re
-    canon = pathlib.Path("/private/tmp/claude-501/scratch/receipt_contract/receipt_warehouse_block.py")
-    if not canon.exists():
-        pytest.skip("canonical block lives outside the repo")
-    src = (pathlib.Path(__file__).resolve().parent.parent / "component.py").read_text()
-    m = re.search(r"# BEGIN receipt-warehouse-ddl.*?# END receipt-warehouse-ddl", src, re.S)
-    assert m and m.group(0) == canon.read_text().strip()
+    root = pathlib.Path(__file__).resolve().parents[4]
+    pat = r"# BEGIN receipt-warehouse-ddl.*?# END receipt-warehouse-ddl"
+    mine = re.search(pat, (pathlib.Path(__file__).resolve().parent.parent / "component.py").read_text(), re.S)
+    ref = re.search(pat, (root / "resources/context_receipt_store/component.py").read_text(), re.S)
+    assert mine and ref and mine.group(0) == ref.group(0)

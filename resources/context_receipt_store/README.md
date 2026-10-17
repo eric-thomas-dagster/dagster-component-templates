@@ -74,6 +74,24 @@ The resource has the same API as the SQLite store (`record_retrieval`, `record_o
 
 Verification: exercised against a fake BigQuery client that parses every statement as BigQuery (sqlglot) and runs it in DuckDB. Not run against real BigQuery.
 
+## Receipts in Postgres, MySQL, Snowflake, Databricks, DuckDB
+
+`backend: sql` keeps receipts in any database SQLAlchemy can reach, with the same API and the same results as the other backends:
+
+```yaml
+type: dagster_community_components.ContextReceiptStoreComponent
+attributes:
+  backend: sql
+  sql_url_env_var: RECEIPTS_DB_URL      # postgresql://..., mysql+pymysql://..., snowflake://..., databricks://..., duckdb:///receipts.duckdb
+  sql_schema: ANALYTICS.CONTEXT         # database.schema (Snowflake), catalog.schema (Databricks), schema (Postgres), database (MySQL)
+  sql_table_prefix: prod_
+  async_writes: false                   # true for slow warehouses
+```
+
+Install the database's SQLAlchemy driver yourself (`psycopg2-binary`, `snowflake-sqlalchemy`, `databricks-sqlalchemy`, ...). The engine is built on first use, so an unset URL variable does not break loading the code location. A receipt is written in one transaction (receipt row last) where the database has transactions. Cursors for `read_since` are microsecond timestamps, as in the BigQuery backend.
+
+Verification: SQLite and DuckDB run for real through SQLAlchemy, with a parity test against the native SQLite store. For Postgres, MySQL, Snowflake and Databricks the generated statements are only parsed with sqlglot -- no such servers were available, so treat those four as unverified until you run them against yours.
+
 ## Record a retrieval at the gateway
 
 The public `ContextReceiptStore` API can be used outside a Dagster run:

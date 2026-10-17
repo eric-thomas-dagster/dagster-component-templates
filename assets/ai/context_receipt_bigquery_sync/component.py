@@ -7,13 +7,10 @@ with the rest of its data, and to compute item feedback by SQL). This asset tail
 Incremental: the cursors live in BigQuery itself (`context_sync_state`), so the sync works from any host or an ephemeral runner.
 Idempotent: a crash between loading rows and advancing the cursor replays the batch without duplicating anything.
 
-Which events are shipped (the part worth reading): `ContextReceiptStore.read_since` returns receipts (+items, excluded) and OUTCOME events
-only, and those outcomes carry neither `event_id` nor `occurred_at`. Item feedback and prior scores also need `evidence` events (the evidence
-level that an item was used) and `output_attached` events, so shipping read_since's outcomes alone would produce a lossy events table.
-So `read_since` is used for what it is good at -- the monotonic cursors, the new receipts, and *which receipts have a new outcome* -- and the
-complete, faithful event rows (real `event_id`, `event_type`, `occurred_at`, `payload_json`) are then fetched with `store.get_receipt(id)` for
-every receipt touched in the batch. Events are deduplicated in BigQuery by `event_id`. A late evidence/output event on an old receipt
-that gets no outcome is not signalled by any cursor, so each run also re-checks the `reconcile_recent_receipts` most recent receipts already in BigQuery.
+Which events are shipped: `ContextReceiptStore.read_since` returns, per page, the new receipts (+items, excluded) and `events` -- EVERY event
+(outcome, evidence, output_attached) with its real `event_id`, `occurred_at` and raw `payload_json` -- and `event_cursor` advances over all of them.
+So the events table is shipped straight from the page: no per-receipt re-fetch, and a late evidence/output event on an old receipt is picked up
+by the event cursor like any other event (no reconcile window). Events are deduplicated in BigQuery by `event_id`.
 """
 
 import json
@@ -56,37 +53,61 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 
 # BEGIN receipt-warehouse-ddl (canonical; inlined verbatim, byte-identical, by every component that creates or reads the receipt tables -- drift-tested)
 RECEIPT_TABLE_NAMES = ("context_receipts", "context_receipt_items", "context_receipt_excluded", "context_receipt_events", "context_item_scores")
+RECEIPT_DIALECTS = ("bigquery", "snowflake", "databricks", "postgres", "mysql", "duckdb", "sqlite")
 
 
-def receipt_table(dataset: str, name: str, prefix: str = "") -> str:
-    """Fully qualified, quoted table reference. `dataset` is `project.dataset` (or just `dataset` to use the client's project)."""
+def receipt_table(dataset: str, name: str, prefix: str = "", dialect: str = "bigquery") -> str:
+    """Table reference for a receipt table. `dataset` is the namespace: `project.dataset` (bigquery), `database.schema` (snowflake),
+    `catalog.schema` (databricks), `schema` (postgres/duckdb), `database` (mysql); "" for sqlite or the connection default."""
     if name not in RECEIPT_TABLE_NAMES:
         raise ValueError(f"unknown receipt table {name!r}; valid: {RECEIPT_TABLE_NAMES}")
-    return f"`{dataset}.{prefix}{name}`"
+    if dialect not in RECEIPT_DIALECTS:
+        raise ValueError(f"unknown dialect {dialect!r}; valid: {RECEIPT_DIALECTS}")
+    parts = [p for p in dataset.strip("`").split(".") if p] + [f"{prefix}{name}"]
+    if dialect == "bigquery":
+        return "`" + ".".join(parts) + "`"          # BigQuery reads `a.b.c` as one path
+    if dialect in ("databricks", "mysql"):
+        return ".".join(f"`{p}`" for p in parts)
+    if dialect in ("postgres", "duckdb", "sqlite"):
+        return ".".join(f'"{p}"' for p in parts)
+    return ".".join(parts)                          # snowflake: unquoted, case-insensitive
+
+
+_RECEIPT_TYPES = {  # (string, long string, integer, float, timestamp)
+    "bigquery": ("STRING", "STRING", "INT64", "FLOAT64", "TIMESTAMP"),
+    "snowflake": ("VARCHAR", "VARCHAR", "BIGINT", "DOUBLE", "TIMESTAMP_TZ"),
+    "databricks": ("STRING", "STRING", "BIGINT", "DOUBLE", "TIMESTAMP"),
+    "postgres": ("TEXT", "TEXT", "BIGINT", "DOUBLE PRECISION", "TIMESTAMPTZ"),
+    "mysql": ("VARCHAR(255)", "LONGTEXT", "BIGINT", "DOUBLE", "DATETIME(6)"),   # UTC by convention
+    "duckdb": ("VARCHAR", "VARCHAR", "BIGINT", "DOUBLE", "TIMESTAMPTZ"),
+    "sqlite": ("TEXT", "TEXT", "INTEGER", "REAL", "TEXT"),                       # ISO-8601 UTC strings
+}
 
 
 def receipt_table_ddl(dataset: str, prefix: str = "", dialect: str = "bigquery") -> list:
-    """CREATE TABLE IF NOT EXISTS statements for the receipt tables (the same columns as the SQLite store, per resources/context_receipt_store/SPEC.md).
-    Timestamps are TIMESTAMP (ISO-8601 UTC in, TIMESTAMP out); event payloads stay JSON text in `payload_json` (read with JSON_VALUE)."""
-    if dialect != "bigquery":
-        raise NotImplementedError(f"receipt warehouse tables are implemented for dialect='bigquery' only (got {dialect!r})")
-    t = lambda n: receipt_table(dataset, n, prefix)  # noqa: E731
+    """CREATE TABLE IF NOT EXISTS statements for the receipt tables (same columns as the SQLite store, per resources/context_receipt_store/SPEC.md).
+    Event payloads stay JSON text in `payload_json`; priors and feedback are computed from them (SQL: JSON_VALUE and friends, or in Python)."""
+    if dialect not in RECEIPT_DIALECTS:
+        raise ValueError(f"unknown dialect {dialect!r}; valid: {RECEIPT_DIALECTS}")
+    S, L, I, F, T = _RECEIPT_TYPES[dialect]
+    K = "`rank`" if dialect == "mysql" else "rank"        # RANK is reserved in MySQL 8
+    t = lambda n: receipt_table(dataset, n, prefix, dialect)  # noqa: E731
     return [
         f"""CREATE TABLE IF NOT EXISTS {t('context_receipts')} (
-  receipt_id STRING NOT NULL, created_at TIMESTAMP NOT NULL, context_name STRING NOT NULL, context_version STRING, policy_version STRING,
-  caller_id STRING, purpose STRING, query_hash STRING, eligible_count INT64, excluded_count INT64, dagster_asset_key STRING,
-  dagster_run_id STRING, trace_id STRING, mcp_session_id STRING, mcp_request_id STRING)""",
+  receipt_id {S} NOT NULL, created_at {T} NOT NULL, context_name {S} NOT NULL, context_version {S}, policy_version {S},
+  caller_id {S}, purpose {S}, query_hash {S}, eligible_count {I}, excluded_count {I}, dagster_asset_key {S},
+  dagster_run_id {S}, trace_id {S}, mcp_session_id {S}, mcp_request_id {S})""",
         f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_items')} (
-  receipt_id STRING NOT NULL, item_id STRING NOT NULL, source_asset_key STRING, source_version STRING, source_partition STRING,
-  source_code_version STRING, rank INT64, score FLOAT64, selection STRING)""",
+  receipt_id {S} NOT NULL, item_id {S} NOT NULL, source_asset_key {S}, source_version {S}, source_partition {S},
+  source_code_version {S}, {K} {I}, score {F}, selection {S})""",
         f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_excluded')} (
-  receipt_id STRING NOT NULL, item_id STRING NOT NULL, reason STRING NOT NULL, source_asset_key STRING, source_version STRING,
-  source_partition STRING, source_code_version STRING)""",
+  receipt_id {S} NOT NULL, item_id {S} NOT NULL, reason {S} NOT NULL, source_asset_key {S}, source_version {S},
+  source_partition {S}, source_code_version {S})""",
         f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_events')} (
-  event_id STRING NOT NULL, receipt_id STRING NOT NULL, event_type STRING NOT NULL, occurred_at TIMESTAMP NOT NULL, payload_json STRING NOT NULL)""",
+  event_id {S} NOT NULL, receipt_id {S} NOT NULL, event_type {S} NOT NULL, occurred_at {T} NOT NULL, payload_json {L} NOT NULL)""",
         f"""CREATE TABLE IF NOT EXISTS {t('context_item_scores')} (
-  item_id STRING NOT NULL, retrievals INT64 NOT NULL, outcome_weight FLOAT64 NOT NULL, outcome_sum FLOAT64 NOT NULL, prior FLOAT64 NOT NULL,
-  updated_at TIMESTAMP NOT NULL)""",
+  item_id {S} NOT NULL, retrievals {I} NOT NULL, outcome_weight {F} NOT NULL, outcome_sum {F} NOT NULL, prior {F} NOT NULL,
+  updated_at {T} NOT NULL)""",
     ]
 # END receipt-warehouse-ddl
 
@@ -96,6 +117,7 @@ _RECEIPT_COLS = ("receipt_id", "created_at", "context_name", "context_version", 
                  "eligible_count", "excluded_count", "dagster_asset_key", "dagster_run_id", "trace_id", "mcp_session_id", "mcp_request_id")
 _ITEM_COLS = ("receipt_id", "item_id", "source_asset_key", "source_version", "source_partition", "source_code_version", "rank", "score", "selection")
 _EXCLUDED_COLS = ("receipt_id", "item_id", "reason", "source_asset_key", "source_version", "source_partition", "source_code_version")
+_EVENT_COLS = ("event_id", "receipt_id", "event_type", "occurred_at", "payload_json")
 _ID_BATCH = 5000  # ids per DELETE / SELECT ... UNNEST(@ids) statement
 
 
@@ -153,13 +175,12 @@ def _row(src: Any, cols) -> Dict[str, Any]:
     return {c: src.get(c) for c in cols}
 
 
-def _sync_batch(client: Any, bq: Any, store: Any, dataset: str, prefix: str, batch: Dict[str, Any], extra_event_receipts: List[str]) -> Dict[str, Any]:
-    """Load one read_since() batch (+ complete events of every touched receipt). Re-runnable: receipts/items/excluded are replaced per
-    receipt_id (DELETE then LOAD), events are inserted only when their event_id is not already in the table."""
+def _sync_batch(client: Any, bq: Any, dataset: str, prefix: str, batch: Dict[str, Any]) -> Dict[str, Any]:
+    """Load one read_since() page. Re-runnable: receipts/items/excluded are replaced per receipt_id (DELETE then LOAD), events are inserted
+    only when their event_id is not already in the table."""
     t = lambda n: receipt_table(dataset, n, prefix)  # noqa: E731
     receipts = batch["receipts"]
     receipt_ids = [r["receipt_id"] for r in receipts]
-    touched = sorted(set(receipt_ids) | {o["receipt_id"] for o in batch["outcomes"]} | set(extra_event_receipts))
 
     for chunk in _chunks(receipt_ids):
         for name in ("context_receipts", "context_receipt_items", "context_receipt_excluded"):
@@ -170,18 +191,10 @@ def _sync_batch(client: Any, bq: Any, store: Any, dataset: str, prefix: str, bat
         "context_receipt_excluded": _load(client, bq, t("context_receipt_excluded"), [_row(e, _EXCLUDED_COLS) for r in receipts for e in r.get("excluded", [])]),
     }
 
-    # events: the store's real rows, every type, for every touched receipt
-    events: List[Dict[str, Any]] = []
-    for rid in touched:
-        full = store.get_receipt(rid)
-        if full is None:  # receipt pruned by retention between read_since and now
-            continue
-        for ev in full["events"]:
-            events.append({"event_id": ev["event_id"], "receipt_id": rid, "event_type": ev["event_type"], "occurred_at": ev["occurred_at"],
-                           "payload_json": json.dumps(ev["payload"], sort_keys=True, separators=(",", ":"))})  # the store's own serialization
+    events = list({e["event_id"]: {c: e[c] for c in _EVENT_COLS} for e in batch.get("events", [])}.values())  # the store's own rows, as-is
     existing = set()
-    for chunk in _chunks(touched):
-        existing |= {r["event_id"] for r in _query(client, bq, f"SELECT event_id FROM {t('context_receipt_events')} WHERE receipt_id IN UNNEST(@ids)", ids=chunk)}
+    for chunk in _chunks([e["event_id"] for e in events]):
+        existing |= {r["event_id"] for r in _query(client, bq, f"SELECT event_id FROM {t('context_receipt_events')} WHERE event_id IN UNNEST(@ids)", ids=chunk)}
     new_events = [e for e in events if e["event_id"] not in existing]
     shipped["context_receipt_events"] = _load(client, bq, t("context_receipt_events"), new_events)
     newest = [r["created_at"] for r in receipts] + [e["occurred_at"] for e in new_events]
@@ -190,7 +203,7 @@ def _sync_batch(client: Any, bq: Any, store: Any, dataset: str, prefix: str, bat
 
 def sync_receipts(
     store: Any, client: Any, bq: Any, *, dataset: str, table_prefix: str = "", component_name: str = "context_receipt_bigquery_sync",
-    batch_size: int = 1000, max_batches: int = 50, reconcile_recent_receipts: int = 200,
+    batch_size: int = 1000, max_batches: int = 50,
 ) -> Dict[str, Any]:
     """Tail `store` into BigQuery until drained or `max_batches`; cursors persist in BigQuery after every batch."""
     if "." not in dataset:
@@ -202,23 +215,12 @@ def sync_receipts(
     totals = {n: 0 for n in RECEIPT_TABLE_NAMES if n != "context_item_scores"}
     newest: List[str] = []
     batches, drained = 0, False
-    reconcile: List[str] = []
-    if reconcile_recent_receipts > 0:
-        rows = _query(client, bq, f"SELECT receipt_id FROM {receipt_table(dataset, 'context_receipts', table_prefix)} ORDER BY created_at DESC LIMIT @n", n=int(reconcile_recent_receipts))
-        reconcile = [r["receipt_id"] for r in rows]
     while batches < max_batches:
         batch = store.read_since(rc, ec, batch_size)
-        if not batch["receipts"] and not batch["outcomes"]:
+        if not batch["receipts"] and not batch["events"]:
             drained = True
-            if reconcile:  # nothing new from the cursors: still pick up late non-outcome events on recent receipts
-                res = _sync_batch(client, bq, store, dataset, table_prefix, batch, reconcile)
-                for k, v in res["shipped"].items():
-                    totals[k] += v
-                if res["newest"]:
-                    newest.append(res["newest"])
             break
-        res = _sync_batch(client, bq, store, dataset, table_prefix, batch, reconcile)
-        reconcile = []  # only needs to ride along once
+        res = _sync_batch(client, bq, dataset, table_prefix, batch)
         for k, v in res["shipped"].items():
             totals[k] += v
         if res["newest"]:
@@ -226,7 +228,7 @@ def sync_receipts(
         rc, ec = int(batch["receipt_cursor"]), int(batch["event_cursor"])
         _write_state(client, bq, dataset, table_prefix, component_name, rc, ec)  # AFTER the load: crash before this line replays the batch idempotently
         batches += 1
-        if len(batch["receipts"]) < batch_size and len(batch["outcomes"]) < batch_size:
+        if len(batch["receipts"]) < batch_size and len(batch["events"]) < batch_size:
             drained = True
             break
     lag = None
@@ -244,7 +246,7 @@ class ContextReceiptBigQuerySyncComponent(dg.Component, dg.Model, dg.Resolvable)
 
     asset_name: str = Field(default="context_receipt_bigquery_sync", description="Dagster asset name")
     store_resource_key: str = Field(
-        description="Resource key of the registered ContextReceiptStoreComponent resource (an object with read_since and get_receipt).",
+        description="Resource key of the registered ContextReceiptStoreComponent resource (an object with read_since, returning receipts and all events).",
     )
     bigquery_resource_key: str = Field(
         description="Resource key of a dagster_gcp BigQueryResource (used as `with resource.get_client() as client`).",
@@ -257,11 +259,11 @@ class ContextReceiptBigQuerySyncComponent(dg.Component, dg.Model, dg.Resolvable)
         default="default",
         description="Name of this sync in `context_sync_state`; use different names if several stores ship into one dataset's state table (they should use different table_prefix values).",
     )
-    batch_size: int = Field(default=1000, description="Receipts / outcomes read from the store per batch.")
+    batch_size: int = Field(default=1000, description="Receipts / events read from the store per batch.")
     max_batches: int = Field(default=50, description="Maximum batches per run; the next run continues from the stored cursor.")
     reconcile_recent_receipts: int = Field(
-        default=200,
-        description="Re-check this many of the most recent receipts already in BigQuery for late evidence/output events (which no cursor signals). 0 disables.",
+        default=0,
+        description="Deprecated, ignored (kept so existing configs still load). Late evidence/output events are now shipped by the event cursor, so no reconcile window is needed.",
     )
     group_name: Optional[str] = Field(default="context", description="Asset group")
     description: Optional[str] = Field(default=None, description="Asset description")
@@ -286,6 +288,9 @@ class ContextReceiptBigQuerySyncComponent(dg.Component, dg.Model, dg.Resolvable)
             raise ValueError("batch_size and max_batches must be >= 1")
         if self.retry_policy_backoff.lower() not in ("linear", "exponential"):
             raise ValueError("retry_policy_backoff must be 'linear' or 'exponential'")
+        if self.reconcile_recent_receipts:
+            import warnings
+            warnings.warn("reconcile_recent_receipts is deprecated and ignored: late events are shipped by the event cursor", DeprecationWarning, stacklevel=2)
         comp = self
         asset_key = dg.AssetKey.from_user_string(self.asset_name)
         tags = {**(self.asset_tags or {}), **{f"dagster/kind/{k}": "" for k in (self.kinds or ["bigquery"])}}
@@ -311,7 +316,7 @@ class ContextReceiptBigQuerySyncComponent(dg.Component, dg.Model, dg.Resolvable)
             with getattr(context.resources, comp.bigquery_resource_key).get_client() as client:
                 result = sync_receipts(
                     store, client, bq, dataset=comp.dataset, table_prefix=comp.table_prefix, component_name=comp.sync_name,
-                    batch_size=comp.batch_size, max_batches=comp.max_batches, reconcile_recent_receipts=comp.reconcile_recent_receipts,
+                    batch_size=comp.batch_size, max_batches=comp.max_batches,
                 )
             md: Dict[str, Any] = {f"rows_{k}": dg.MetadataValue.int(v) for k, v in result["rows_shipped"].items()}
             md.update({

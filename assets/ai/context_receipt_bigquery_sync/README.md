@@ -26,10 +26,12 @@ Timestamps are `TIMESTAMP`. Use `table_prefix` to namespace.
   `receipt_id` (`DELETE ... IN UNNEST(@ids)` then a load job); events are inserted only if their `event_id` is not already present.
   Loads use load jobs, not streaming inserts (streamed rows cannot be deleted for ~90 minutes). A reader can briefly see a receipt without its items
   while a batch is being replaced. Run one sync per dataset/`sync_name` at a time.
-- **Events are complete.** `store.read_since` returns receipts and *outcome* events only (without `event_id`/`occurred_at`), but item feedback also needs
-  `evidence` and `output_attached` events. So `read_since` provides the cursors, the new receipts and the receipts with a new outcome, and the exact event rows
-  come from `store.get_receipt(id)` for every touched receipt. Late `evidence`/`output_attached` events on an old receipt with no new outcome are not
-  signalled by any cursor; `reconcile_recent_receipts` (default 200) re-checks the most recent receipts on every run. Older than that, they are missed.
+- **Events are complete, straight from the cursor.** `store.read_since` returns each page's receipts (+items, excluded) and *every* event
+  (`outcome`, `evidence`, `output_attached`) with its real `event_id`, `occurred_at` and `payload_json`; `event_cursor` advances over all of them. The
+  sync ships those rows as-is (no per-receipt re-fetch), so a late `evidence`/`output_attached` event on an old receipt is picked up on the next run
+  like any other event. This needs a store whose `read_since` includes `events`.
+- `reconcile_recent_receipts` is **deprecated and ignored** (default 0): it was a workaround for `read_since` not carrying non-outcome events. The field is
+  still accepted so existing configs load (a non-zero value emits a DeprecationWarning).
 - Output metadata: rows shipped per table, cursors before/after, batches, `drained`, `lag_seconds` (now minus newest shipped timestamp).
 
 Standard fields: `group_name`, `kinds`, `owners`, `asset_tags`, `deps`, `freshness_max_lag_minutes`/`freshness_cron`, `retry_policy_*`, `cron_schedule`.

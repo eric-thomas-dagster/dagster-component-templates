@@ -55,37 +55,61 @@ _CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
 # BEGIN receipt-warehouse-ddl (canonical; inlined verbatim, byte-identical, by every component that creates or reads the receipt tables -- drift-tested)
 RECEIPT_TABLE_NAMES = ("context_receipts", "context_receipt_items", "context_receipt_excluded", "context_receipt_events", "context_item_scores")
+RECEIPT_DIALECTS = ("bigquery", "snowflake", "databricks", "postgres", "mysql", "duckdb", "sqlite")
 
 
-def receipt_table(dataset: str, name: str, prefix: str = "") -> str:
-    """Fully qualified, quoted table reference. `dataset` is `project.dataset` (or just `dataset` to use the client's project)."""
+def receipt_table(dataset: str, name: str, prefix: str = "", dialect: str = "bigquery") -> str:
+    """Table reference for a receipt table. `dataset` is the namespace: `project.dataset` (bigquery), `database.schema` (snowflake),
+    `catalog.schema` (databricks), `schema` (postgres/duckdb), `database` (mysql); "" for sqlite or the connection default."""
     if name not in RECEIPT_TABLE_NAMES:
         raise ValueError(f"unknown receipt table {name!r}; valid: {RECEIPT_TABLE_NAMES}")
-    return f"`{dataset}.{prefix}{name}`"
+    if dialect not in RECEIPT_DIALECTS:
+        raise ValueError(f"unknown dialect {dialect!r}; valid: {RECEIPT_DIALECTS}")
+    parts = [p for p in dataset.strip("`").split(".") if p] + [f"{prefix}{name}"]
+    if dialect == "bigquery":
+        return "`" + ".".join(parts) + "`"          # BigQuery reads `a.b.c` as one path
+    if dialect in ("databricks", "mysql"):
+        return ".".join(f"`{p}`" for p in parts)
+    if dialect in ("postgres", "duckdb", "sqlite"):
+        return ".".join(f'"{p}"' for p in parts)
+    return ".".join(parts)                          # snowflake: unquoted, case-insensitive
+
+
+_RECEIPT_TYPES = {  # (string, long string, integer, float, timestamp)
+    "bigquery": ("STRING", "STRING", "INT64", "FLOAT64", "TIMESTAMP"),
+    "snowflake": ("VARCHAR", "VARCHAR", "BIGINT", "DOUBLE", "TIMESTAMP_TZ"),
+    "databricks": ("STRING", "STRING", "BIGINT", "DOUBLE", "TIMESTAMP"),
+    "postgres": ("TEXT", "TEXT", "BIGINT", "DOUBLE PRECISION", "TIMESTAMPTZ"),
+    "mysql": ("VARCHAR(255)", "LONGTEXT", "BIGINT", "DOUBLE", "DATETIME(6)"),   # UTC by convention
+    "duckdb": ("VARCHAR", "VARCHAR", "BIGINT", "DOUBLE", "TIMESTAMPTZ"),
+    "sqlite": ("TEXT", "TEXT", "INTEGER", "REAL", "TEXT"),                       # ISO-8601 UTC strings
+}
 
 
 def receipt_table_ddl(dataset: str, prefix: str = "", dialect: str = "bigquery") -> list:
-    """CREATE TABLE IF NOT EXISTS statements for the receipt tables (the same columns as the SQLite store, per resources/context_receipt_store/SPEC.md).
-    Timestamps are TIMESTAMP (ISO-8601 UTC in, TIMESTAMP out); event payloads stay JSON text in `payload_json` (read with JSON_VALUE)."""
-    if dialect != "bigquery":
-        raise NotImplementedError(f"receipt warehouse tables are implemented for dialect='bigquery' only (got {dialect!r})")
-    t = lambda n: receipt_table(dataset, n, prefix)  # noqa: E731
+    """CREATE TABLE IF NOT EXISTS statements for the receipt tables (same columns as the SQLite store, per resources/context_receipt_store/SPEC.md).
+    Event payloads stay JSON text in `payload_json`; priors and feedback are computed from them (SQL: JSON_VALUE and friends, or in Python)."""
+    if dialect not in RECEIPT_DIALECTS:
+        raise ValueError(f"unknown dialect {dialect!r}; valid: {RECEIPT_DIALECTS}")
+    S, L, I, F, T = _RECEIPT_TYPES[dialect]
+    K = "`rank`" if dialect == "mysql" else "rank"        # RANK is reserved in MySQL 8
+    t = lambda n: receipt_table(dataset, n, prefix, dialect)  # noqa: E731
     return [
         f"""CREATE TABLE IF NOT EXISTS {t('context_receipts')} (
-  receipt_id STRING NOT NULL, created_at TIMESTAMP NOT NULL, context_name STRING NOT NULL, context_version STRING, policy_version STRING,
-  caller_id STRING, purpose STRING, query_hash STRING, eligible_count INT64, excluded_count INT64, dagster_asset_key STRING,
-  dagster_run_id STRING, trace_id STRING, mcp_session_id STRING, mcp_request_id STRING)""",
+  receipt_id {S} NOT NULL, created_at {T} NOT NULL, context_name {S} NOT NULL, context_version {S}, policy_version {S},
+  caller_id {S}, purpose {S}, query_hash {S}, eligible_count {I}, excluded_count {I}, dagster_asset_key {S},
+  dagster_run_id {S}, trace_id {S}, mcp_session_id {S}, mcp_request_id {S})""",
         f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_items')} (
-  receipt_id STRING NOT NULL, item_id STRING NOT NULL, source_asset_key STRING, source_version STRING, source_partition STRING,
-  source_code_version STRING, rank INT64, score FLOAT64, selection STRING)""",
+  receipt_id {S} NOT NULL, item_id {S} NOT NULL, source_asset_key {S}, source_version {S}, source_partition {S},
+  source_code_version {S}, {K} {I}, score {F}, selection {S})""",
         f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_excluded')} (
-  receipt_id STRING NOT NULL, item_id STRING NOT NULL, reason STRING NOT NULL, source_asset_key STRING, source_version STRING,
-  source_partition STRING, source_code_version STRING)""",
+  receipt_id {S} NOT NULL, item_id {S} NOT NULL, reason {S} NOT NULL, source_asset_key {S}, source_version {S},
+  source_partition {S}, source_code_version {S})""",
         f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_events')} (
-  event_id STRING NOT NULL, receipt_id STRING NOT NULL, event_type STRING NOT NULL, occurred_at TIMESTAMP NOT NULL, payload_json STRING NOT NULL)""",
+  event_id {S} NOT NULL, receipt_id {S} NOT NULL, event_type {S} NOT NULL, occurred_at {T} NOT NULL, payload_json {L} NOT NULL)""",
         f"""CREATE TABLE IF NOT EXISTS {t('context_item_scores')} (
-  item_id STRING NOT NULL, retrievals INT64 NOT NULL, outcome_weight FLOAT64 NOT NULL, outcome_sum FLOAT64 NOT NULL, prior FLOAT64 NOT NULL,
-  updated_at TIMESTAMP NOT NULL)""",
+  item_id {S} NOT NULL, retrievals {I} NOT NULL, outcome_weight {F} NOT NULL, outcome_sum {F} NOT NULL, prior {F} NOT NULL,
+  updated_at {T} NOT NULL)""",
     ]
 # END receipt-warehouse-ddl
 
@@ -1124,11 +1148,13 @@ class ContextReceiptStore:
     def read_since(
         self, receipt_cursor: int = 0, event_cursor: int = 0, limit: int = 1000
     ) -> dict[str, Any]:
-        """Cold-path tail: new receipts and new outcomes since the given cursors.
+        """Cold-path tail: new receipts and new events since the given cursors.
 
         Cursors are monotonically increasing row positions, so a consumer (such as
-        the Dagster sensor) can resume exactly where it stopped. Late outcomes for
-        old receipts arrive through ``event_cursor``.
+        the Dagster sensor) can resume exactly where it stopped. Late events for
+        old receipts arrive through ``event_cursor``: ``events`` carries every event
+        (outcome, evidence, output_attached) with its id, time and raw payload, and
+        ``outcomes`` is the outcome subset, enriched with the receipt's sources.
         """
         with self._connect() as conn:
             receipts = conn.execute(
@@ -1145,14 +1171,14 @@ class ContextReceiptStore:
             ).fetchall() if ids else []
             events = conn.execute(
                 """
-                SELECT rowid AS pos, receipt_id, payload_json FROM context_receipt_events
-                WHERE event_type = 'outcome' AND rowid > ? ORDER BY rowid LIMIT ?
+                SELECT rowid AS pos, event_id, receipt_id, event_type, occurred_at, payload_json FROM context_receipt_events
+                WHERE rowid > ? ORDER BY rowid LIMIT ?
                 """,
                 (event_cursor, limit),
             ).fetchall()
             outcome_assets: dict[str, list[tuple[str, str | None, str | None]]] = {}
-            if events:
-                oids = sorted({e["receipt_id"] for e in events})
+            if any(e["event_type"] == "outcome" for e in events):
+                oids = sorted({e["receipt_id"] for e in events if e["event_type"] == "outcome"})
                 omarks = ",".join("?" * len(oids))
                 for row in conn.execute(
                     f"SELECT DISTINCT receipt_id, source_asset_key, source_partition, source_code_version FROM context_receipt_items "
@@ -1173,6 +1199,8 @@ class ContextReceiptStore:
             by_receipt[row["receipt_id"]]["excluded"].append(dict(row))
         outcomes = []
         for row in events:
+            if row["event_type"] != "outcome":
+                continue
             payload = json.loads(row["payload_json"])
             payload["receipt_id"] = row["receipt_id"]
             payload["sources"] = outcome_assets.get(row["receipt_id"], [])  # (asset_key, partition|None, code_version|None)
@@ -1180,6 +1208,7 @@ class ContextReceiptStore:
         return {
             "receipts": [by_receipt[r["receipt_id"]] for r in receipts],
             "outcomes": outcomes,
+            "events": [{k: row[k] for k in ("event_id", "receipt_id", "event_type", "occurred_at", "payload_json")} for row in events],
             "receipt_cursor": receipts[-1]["pos"] if receipts else receipt_cursor,
             "event_cursor": events[-1]["pos"] if events else event_cursor,
         }
@@ -1707,12 +1736,12 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
         items = self._query(f"SELECT * FROM {self._t('context_receipt_items')} WHERE receipt_id IN UNNEST(@ids)", ids=ids) if ids else []
         excluded = self._query(f"SELECT * FROM {self._t('context_receipt_excluded')} WHERE receipt_id IN UNNEST(@ids)", ids=ids) if ids else []
         events = self._page(self._query(
-            f"SELECT UNIX_MICROS(occurred_at) AS pos, receipt_id, payload_json FROM {self._t('context_receipt_events')} "
-            f"WHERE event_type = 'outcome' AND UNIX_MICROS(occurred_at) > @c ORDER BY pos, event_id LIMIT @n",
+            f"SELECT UNIX_MICROS(occurred_at) AS pos, event_id, receipt_id, event_type, occurred_at, payload_json "
+            f"FROM {self._t('context_receipt_events')} WHERE UNIX_MICROS(occurred_at) > @c ORDER BY pos, event_id LIMIT @n",
             c=int(event_cursor), n=int(limit)), "pos", int(limit))
         outcome_assets: dict[str, list[tuple[str, str | None, str | None]]] = {}
-        if events:
-            oids = sorted({e["receipt_id"] for e in events})
+        if any(e["event_type"] == "outcome" for e in events):
+            oids = sorted({e["receipt_id"] for e in events if e["event_type"] == "outcome"})
             for row in self._query(
                 f"SELECT DISTINCT receipt_id, source_asset_key, source_partition, source_code_version FROM {self._t('context_receipt_items')} "
                 f"WHERE receipt_id IN UNNEST(@ids) AND source_asset_key IS NOT NULL", ids=oids):
@@ -1728,11 +1757,14 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
             by_receipt[row["receipt_id"]]["excluded"].append(row)
         outcomes = []
         for row in events:
+            if row["event_type"] != "outcome":
+                continue
             payload = json.loads(row["payload_json"])
             payload["receipt_id"] = row["receipt_id"]
             payload["sources"] = outcome_assets.get(row["receipt_id"], [])
             outcomes.append(payload)
         return {"receipts": [by_receipt[r["receipt_id"]] for r in receipts], "outcomes": outcomes,
+                "events": [{**{k: row[k] for k in ("event_id", "receipt_id", "event_type", "payload_json")}, "occurred_at": _bq_iso(row["occurred_at"])} for row in events],
                 "receipt_cursor": receipts[-1]["pos"] if receipts else receipt_cursor,
                 "event_cursor": events[-1]["pos"] if events else event_cursor}
 
@@ -1884,6 +1916,409 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
             f"SELECT DISTINCT receipt_id FROM {self._t('context_receipt_items')} WHERE source_asset_key = @a ORDER BY receipt_id", a=asset_key)]
 
 
+# ── Generic SQL backend (SQLAlchemy) ─────────────────────────────────────────────────────────────────────
+# The same receipts in any database SQLAlchemy can reach: Postgres, MySQL/MariaDB, Snowflake, Databricks, DuckDB, SQLite, ...
+# One class, portable SQL (bound parameters, expanding IN lists, no vendor functions); the dialect decides table quoting and
+# column types via the canonical block above. The row folding is the shared _fold_* code, so results match the other stores
+# (a parity test runs one scenario through each). Writes use one transaction per call where the database has them.
+
+_SQL_DIALECT_NAMES = {"postgresql": "postgres", "postgres": "postgres", "mysql": "mysql", "mariadb": "mysql", "sqlite": "sqlite",
+                      "duckdb": "duckdb", "snowflake": "snowflake", "databricks": "databricks"}
+
+
+class SqlContextReceiptStore(ContextReceiptStore):
+    """Receipts in a SQL database. ``engine`` is a SQLAlchemy ``Engine`` (or a URL string); ``schema`` is the namespace the five
+    tables live in (``database.schema`` for Snowflake, ``catalog.schema`` for Databricks, ``schema`` for Postgres, ``database``
+    for MySQL, "" for the connection default)."""
+
+    def __init__(self, engine: Any, *, schema: str = "", table_prefix: str = "", dialect: str | None = None, create_tables: bool = True):
+        """``engine``: a SQLAlchemy Engine, a URL string, or a zero-argument callable returning an Engine (built on first use, so
+        an unset environment variable does not break loading the code location)."""
+        self._engine_obj: Any = None
+        self._engine_factory: Any = None
+        if isinstance(engine, str):
+            self._engine_factory = lambda url=engine: __import__("sqlalchemy").create_engine(url)
+        elif callable(engine) and not hasattr(engine, "dialect"):
+            self._engine_factory = engine
+        else:
+            self._engine_obj = engine
+        self._dialect_override = dialect
+        self.schema, self.table_prefix = schema, table_prefix
+        self._create_tables = create_tables
+        self._ready = False
+        self._ready_lock = threading.Lock()
+        if dialect is not None and dialect not in _SQL_DIALECT_NAMES:
+            raise ValueError(f"unsupported SQL dialect {dialect!r}; supported: {sorted(set(_SQL_DIALECT_NAMES))}")
+        if self._engine_obj is not None:
+            self.dialect  # fail fast on an unsupported database
+
+    @property
+    def _engine(self) -> Any:
+        if self._engine_obj is None:
+            self._engine_obj = self._engine_factory()
+        return self._engine_obj
+
+    @property
+    def dialect(self) -> str:  # type: ignore[override]
+        name = self._dialect_override or self._engine.dialect.name
+        if name not in _SQL_DIALECT_NAMES:
+            raise ValueError(f"unsupported SQL dialect {name!r}; supported: {sorted(set(_SQL_DIALECT_NAMES))}")
+        return _SQL_DIALECT_NAMES[name]
+
+    @property
+    def database_path(self) -> str:  # type: ignore[override]
+        return f"sql://{self.schema}/{self.table_prefix}"
+
+    @property
+    def _rank(self) -> str:
+        return "`rank`" if self.dialect == "mysql" else "rank"     # RANK is reserved in MySQL 8
+
+    # -- plumbing ---------------------------------------------------------------------------------------------
+    def _t(self, name: str) -> str:
+        return receipt_table(self.schema, name, self.table_prefix, self.dialect)
+
+    def _tsv(self, value: Any) -> Any:
+        """A timestamp as this database wants to be handed one."""
+        dt = _as_datetime(value)
+        if dt is None:
+            return None
+        dt = dt.astimezone(timezone.utc)
+        if self.dialect == "sqlite":
+            return dt.strftime("%Y-%m-%dT%H:%M:%S.%f+00:00")             # fixed width: text order == time order
+        if self.dialect == "mysql":
+            return dt.replace(tzinfo=None)                               # DATETIME(6), UTC by convention
+        return dt
+
+    @staticmethod
+    def _iso(value: Any) -> Any:
+        return _bq_iso(_as_datetime(value)) if value is not None else None
+
+    def ensure_tables(self) -> None:
+        import sqlalchemy as sa
+
+        with self._ready_lock:
+            if self._ready:
+                return
+            with self._engine.begin() as conn:
+                for ddl in receipt_table_ddl(self.schema, self.table_prefix, self.dialect):
+                    conn.execute(sa.text(ddl))
+            if self.dialect in ("postgres", "sqlite", "duckdb"):         # warehouses have no secondary indexes
+                for table, cols in (("context_receipts", "receipt_id"), ("context_receipt_items", "item_id"),
+                                    ("context_receipt_items", "receipt_id"), ("context_receipt_items", "source_asset_key"),
+                                    ("context_receipt_excluded", "receipt_id"), ("context_receipt_events", "receipt_id, occurred_at")):
+                    index = f"idx_{self.table_prefix}{table}_{cols.split(',')[0]}".replace(" ", "")
+                    try:
+                        with self._engine.begin() as conn:
+                            conn.execute(sa.text(f'CREATE INDEX IF NOT EXISTS "{index}" ON {self._t(table)} ({cols})'))
+                    except Exception:  # an index is an optimization, never a reason to fail
+                        pass
+            self._ready = True
+
+    def _query(self, sql: str, **params: Any) -> list:
+        import sqlalchemy as sa
+
+        if self._create_tables:
+            self.ensure_tables()
+        stmt = sa.text(sql)
+        lists = [k for k, v in params.items() if isinstance(v, (list, tuple))]
+        if lists:
+            stmt = stmt.bindparams(*[sa.bindparam(k, expanding=True) for k in lists])
+        with self._engine.begin() as conn:
+            result = conn.execute(stmt, params)
+            return [dict(r._mapping) for r in result] if result.returns_rows else []
+
+    def _in_chunks(self, ids: list, size: int = 500) -> Iterator[list]:
+        for start in range(0, len(ids), size):
+            yield ids[start:start + size]
+
+    # -- writes -----------------------------------------------------------------------------------------------
+    def record_retrieval(self, *, context_name: str, items: Iterable[Mapping[str, Any]], excluded: Iterable[Mapping[str, Any]] = (),
+                         context_version: str | None = None, policy_version: str | None = None, caller_id: str | None = None,
+                         purpose: str | None = None, query_hash: str | None = None, eligible_count: int | None = None,
+                         excluded_count: int | None = None, dagster_asset_key: str | None = None, dagster_run_id: str | None = None,
+                         receipt_id: str | None = None, trace_id: str | None = None, mcp_session_id: str | None = None,
+                         mcp_request_id: str | None = None) -> str:
+        import sqlalchemy as sa
+
+        receipt_id, norm_items, norm_excluded, excluded_count = self._prepare_retrieval(
+            context_name, items, excluded, eligible_count, excluded_count, receipt_id)
+        if self._create_tables:
+            self.ensure_tables()
+        created_at = self._tsv(self._timestamp())
+        with self._engine.begin() as conn:
+            seen = conn.execute(sa.text(
+                f"SELECT (SELECT COUNT(1) FROM {self._t('context_receipts')} WHERE receipt_id = :r) AS r, "
+                f"(SELECT COUNT(1) FROM {self._t('context_receipt_items')} WHERE receipt_id = :r) AS i, "
+                f"(SELECT COUNT(1) FROM {self._t('context_receipt_excluded')} WHERE receipt_id = :r) AS e"), {"r": receipt_id}).one()
+            if seen.r:
+                raise DuplicateReceiptError(f"receipt already exists: {receipt_id}")
+            if seen.i:   # leftovers of a crashed earlier attempt (databases without transactions)
+                conn.execute(sa.text(f"DELETE FROM {self._t('context_receipt_items')} WHERE receipt_id = :r"), {"r": receipt_id})
+            if seen.e:
+                conn.execute(sa.text(f"DELETE FROM {self._t('context_receipt_excluded')} WHERE receipt_id = :r"), {"r": receipt_id})
+            if norm_items:
+                conn.execute(sa.text(
+                    f"INSERT INTO {self._t('context_receipt_items')} (receipt_id, item_id, source_asset_key, source_version, source_partition, "
+                    f"source_code_version, {self._rank}, score, selection) VALUES (:receipt_id, :item_id, :source_asset_key, :source_version, "
+                    f":source_partition, :source_code_version, :rank, :score, :selection)"),
+                    [{"receipt_id": receipt_id, **i} for i in norm_items])
+            if norm_excluded:
+                conn.execute(sa.text(
+                    f"INSERT INTO {self._t('context_receipt_excluded')} (receipt_id, item_id, reason, source_asset_key, source_version, "
+                    f"source_partition, source_code_version) VALUES (:receipt_id, :item_id, :reason, :source_asset_key, :source_version, "
+                    f":source_partition, :source_code_version)"),
+                    [{"receipt_id": receipt_id, **e} for e in norm_excluded])
+            conn.execute(sa.text(   # the receipt row goes last: it is the commit marker
+                f"INSERT INTO {self._t('context_receipts')} ({', '.join(_BQ_RECEIPT_COLS)}) VALUES ({', '.join(':' + c for c in _BQ_RECEIPT_COLS)})"),
+                dict(zip(_BQ_RECEIPT_COLS, (receipt_id, created_at, context_name, context_version, policy_version, caller_id, purpose, query_hash,
+                                            eligible_count, excluded_count, dagster_asset_key, dagster_run_id, trace_id, mcp_session_id,
+                                            mcp_request_id))))
+        return receipt_id
+
+    def _append_event(self, receipt_id: str, event_type: str, payload: Mapping[str, Any]) -> None:
+        import sqlalchemy as sa
+
+        if not self._query(f"SELECT 1 AS x FROM {self._t('context_receipts')} WHERE receipt_id = :r LIMIT 1", r=receipt_id):
+            raise KeyError(f"unknown context receipt: {receipt_id}")
+        with self._engine.begin() as conn:
+            conn.execute(sa.text(
+                f"INSERT INTO {self._t('context_receipt_events')} (event_id, receipt_id, event_type, occurred_at, payload_json) "
+                f"VALUES (:event_id, :receipt_id, :event_type, :occurred_at, :payload_json)"),
+                {"event_id": str(uuid.uuid4()), "receipt_id": receipt_id, "event_type": event_type,
+                 "occurred_at": self._tsv(self._timestamp()), "payload_json": json.dumps(payload, sort_keys=True, separators=(",", ":"))})
+
+    # -- reads ------------------------------------------------------------------------------------------------
+    def get_receipt(self, receipt_id: str) -> dict[str, Any] | None:
+        rows = self._query(f"SELECT * FROM {self._t('context_receipts')} WHERE receipt_id = :r", r=receipt_id)
+        if not rows:
+            return None
+        items = self._query(
+            f"SELECT item_id, source_asset_key, source_version, source_partition, source_code_version, {self._rank} AS rank, score, selection "
+            f"FROM {self._t('context_receipt_items')} WHERE receipt_id = :r ORDER BY {self._rank}, item_id", r=receipt_id)
+        excluded = self._query(
+            f"SELECT item_id, reason, source_asset_key, source_version, source_partition, source_code_version "
+            f"FROM {self._t('context_receipt_excluded')} WHERE receipt_id = :r ORDER BY item_id", r=receipt_id)
+        events = self._query(
+            f"SELECT event_id, event_type, occurred_at, payload_json FROM {self._t('context_receipt_events')} "
+            f"WHERE receipt_id = :r ORDER BY occurred_at, event_id", r=receipt_id)
+        result = {k: (self._iso(v) if k == "created_at" else v) for k, v in rows[0].items()}
+        result["items"], result["excluded"] = items, excluded
+        result["events"] = [{"event_id": e["event_id"], "event_type": e["event_type"], "occurred_at": self._iso(e["occurred_at"]),
+                             "payload": json.loads(e["payload_json"])} for e in events]
+        return result
+
+    @staticmethod
+    def _micros(value: Any) -> int:
+        return (_as_datetime(value) - datetime(1970, 1, 1, tzinfo=timezone.utc)) // timedelta(microseconds=1)
+
+    def _from_micros(self, micros: int) -> Any:
+        return self._tsv(datetime(1970, 1, 1, tzinfo=timezone.utc) + timedelta(microseconds=int(micros)))
+
+    def read_since(self, receipt_cursor: int = 0, event_cursor: int = 0, limit: int = 1000) -> dict[str, Any]:
+        """Same contract as the SQLite store; cursors are microseconds since the epoch of ``created_at`` / ``occurred_at``."""
+        receipts = self._page(self._query(
+            f"SELECT * FROM {self._t('context_receipts')} WHERE created_at > :c ORDER BY created_at, receipt_id LIMIT :n",
+            c=self._from_micros(receipt_cursor), n=int(limit)), "created_at", int(limit))
+        for row in receipts:
+            row["pos"] = self._micros(row["created_at"])
+        ids = [r["receipt_id"] for r in receipts]
+        items: list = []
+        excluded: list = []
+        for chunk in self._in_chunks(ids):
+            items += self._query(f"SELECT * FROM {self._t('context_receipt_items')} WHERE receipt_id IN :ids", ids=chunk)
+            excluded += self._query(f"SELECT * FROM {self._t('context_receipt_excluded')} WHERE receipt_id IN :ids", ids=chunk)
+        events = self._page(self._query(
+            f"SELECT event_id, receipt_id, event_type, occurred_at, payload_json FROM {self._t('context_receipt_events')} "
+            f"WHERE occurred_at > :c ORDER BY occurred_at, event_id LIMIT :n", c=self._from_micros(event_cursor), n=int(limit)),
+            "occurred_at", int(limit))
+        for row in events:
+            row["pos"] = self._micros(row["occurred_at"])
+        outcome_assets: dict[str, list[tuple[str, str | None, str | None]]] = {}
+        oids = sorted({e["receipt_id"] for e in events if e["event_type"] == "outcome"})
+        for chunk in self._in_chunks(oids):
+            for row in self._query(
+                f"SELECT DISTINCT receipt_id, source_asset_key, source_partition, source_code_version FROM {self._t('context_receipt_items')} "
+                f"WHERE receipt_id IN :ids AND source_asset_key IS NOT NULL", ids=chunk):
+                outcome_assets.setdefault(row["receipt_id"], []).append((row["source_asset_key"], row["source_partition"], row["source_code_version"]))
+        by_receipt: dict[str, dict[str, Any]] = {}
+        for row in receipts:
+            record = {k: (self._iso(v) if k == "created_at" else v) for k, v in row.items() if k != "pos"}
+            record["items"], record["excluded"] = [], []
+            by_receipt[row["receipt_id"]] = record
+        for row in items:
+            by_receipt[row["receipt_id"]]["items"].append(row)
+        for row in excluded:
+            by_receipt[row["receipt_id"]]["excluded"].append(row)
+        outcomes = []
+        for row in events:
+            if row["event_type"] != "outcome":
+                continue
+            payload = json.loads(row["payload_json"])
+            payload["receipt_id"] = row["receipt_id"]
+            payload["sources"] = outcome_assets.get(row["receipt_id"], [])
+            outcomes.append(payload)
+        return {"receipts": [by_receipt[r["receipt_id"]] for r in receipts], "outcomes": outcomes,
+                "events": [{**{k: row[k] for k in ("event_id", "receipt_id", "event_type", "payload_json")}, "occurred_at": self._iso(row["occurred_at"])}
+                           for row in events],
+                "receipt_cursor": receipts[-1]["pos"] if receipts else receipt_cursor,
+                "event_cursor": events[-1]["pos"] if events else event_cursor}
+
+    @staticmethod
+    def _page(rows: list, key: str, limit: int) -> list:
+        """Cursors are microsecond timestamps; a full page drops its trailing tie group so no row is lost on resume."""
+        if len(rows) < limit:
+            return rows
+        last = rows[-1][key]
+        kept = [r for r in rows if r[key] != last]
+        return kept or rows
+
+    def _events_for(self, ids: list, types: str) -> list:
+        out: list = []
+        for chunk in self._in_chunks(ids):
+            out.extend(self._query(
+                f"SELECT receipt_id, event_type, payload_json FROM {self._t('context_receipt_events')} "
+                f"WHERE event_type IN ({types}) AND receipt_id IN :ids ORDER BY occurred_at, event_id", ids=chunk))
+        return out
+
+    def refresh_item_scores(self, prior_strength: float = 5.0) -> int:
+        import sqlalchemy as sa
+
+        if prior_strength < 0:
+            raise ValueError("prior_strength must be >= 0")
+        items = self._query(f"SELECT receipt_id, item_id FROM {self._t('context_receipt_items')}")
+        events = self._query(
+            f"SELECT receipt_id, event_type, payload_json FROM {self._t('context_receipt_events')} "
+            f"WHERE event_type IN ('outcome', 'evidence') ORDER BY occurred_at, event_id")
+        stats = _fold_item_scores(items, events)
+        now = self._tsv(self._timestamp())
+        rows = [{"item_id": item, "retrievals": int(n), "outcome_weight": w, "outcome_sum": total,
+                 "prior": total / (w + prior_strength) if (w + prior_strength) else 0.0, "updated_at": now}
+                for item, (n, w, total) in stats.items()]
+        if rows:
+            with self._engine.begin() as conn:    # delete + insert in one transaction: readers never see a half-written table
+                for chunk in self._in_chunks([r["item_id"] for r in rows]):
+                    conn.execute(sa.text(f"DELETE FROM {self._t('context_item_scores')} WHERE item_id IN :ids").bindparams(
+                        sa.bindparam("ids", expanding=True)), {"ids": chunk})
+                conn.execute(sa.text(
+                    f"INSERT INTO {self._t('context_item_scores')} (item_id, retrievals, outcome_weight, outcome_sum, prior, updated_at) "
+                    f"VALUES (:item_id, :retrievals, :outcome_weight, :outcome_sum, :prior, :updated_at)"), rows)
+        return len(stats)
+
+    def get_item_scores(self, item_ids: Iterable[str]) -> dict[str, dict[str, Any]]:
+        ids = list(item_ids)
+        out: dict[str, dict[str, Any]] = {}
+        for chunk in self._in_chunks(ids):
+            for r in self._query(f"SELECT * FROM {self._t('context_item_scores')} WHERE item_id IN :ids", ids=chunk):
+                out[r["item_id"]] = {**r, "updated_at": self._iso(r["updated_at"])}
+        return out
+
+    def item_feedback(self, asset_key: str, *, since: str = "", code_version: str | None = None) -> dict[str, dict[str, Any]]:
+        item_where = "i.source_asset_key = :a AND r.created_at >= :since"
+        excl_where = "e.source_asset_key = :a AND r.created_at >= :since"
+        params: dict[str, Any] = {"a": asset_key, "since": self._tsv(since or _EPOCH)}
+        if code_version is not None:
+            item_where += " AND COALESCE(i.source_code_version, 'unknown') = :cv"
+            excl_where += " AND COALESCE(e.source_code_version, 'unknown') = :cv"
+            params["cv"] = code_version
+        item_rows = self._query(
+            f"SELECT DISTINCT i.receipt_id AS receipt_id, i.item_id AS item_id, r.created_at AS created_at "
+            f"FROM {self._t('context_receipt_items')} i JOIN {self._t('context_receipts')} r ON r.receipt_id = i.receipt_id WHERE {item_where}", **params)
+        for row in item_rows:
+            row["created_at"] = self._iso(row["created_at"])
+        excl_rows = self._query(
+            f"SELECT e.item_id AS item_id, e.reason AS reason FROM {self._t('context_receipt_excluded')} e "
+            f"JOIN {self._t('context_receipts')} r ON r.receipt_id = e.receipt_id WHERE {excl_where}", **params)
+        events = self._events_for(sorted({r["receipt_id"] for r in item_rows}), "'outcome', 'evidence'")
+        return _fold_item_feedback(item_rows, excl_rows, events)
+
+    def asset_usage_since(self, asset_key: str, since: str) -> dict[str, Any]:
+        rows = self._query(
+            f"SELECT i.receipt_id AS receipt_id, i.source_partition AS source_partition, i.source_version AS source_version "
+            f"FROM {self._t('context_receipt_items')} i JOIN {self._t('context_receipts')} r ON r.receipt_id = i.receipt_id "
+            f"WHERE i.source_asset_key = :a AND r.created_at >= :since", a=asset_key, since=self._tsv(since or _EPOCH))
+        ids = sorted({r["receipt_id"] for r in rows})
+        return _fold_asset_usage(rows, self._events_for(ids, "'outcome', 'output_attached', 'evidence'"), ids)
+
+    def outcomes_by_code_version(self, asset_key: str, since: str = "") -> dict[str, dict[str, Any]]:
+        rows = self._query(
+            f"SELECT DISTINCT i.receipt_id AS receipt_id, COALESCE(i.source_code_version, 'unknown') AS cv "
+            f"FROM {self._t('context_receipt_items')} i JOIN {self._t('context_receipts')} r ON r.receipt_id = i.receipt_id "
+            f"WHERE i.source_asset_key = :a AND r.created_at >= :since", a=asset_key, since=self._tsv(since or _EPOCH))
+        return _fold_outcomes_by_code_version(rows, self._events_for(sorted({r["receipt_id"] for r in rows}), "'outcome'"))
+
+    def derive_implicit_outcomes(self, *, window_seconds: float = 120.0, since: str | None = None) -> int:
+        rows = self._query(
+            f"SELECT receipt_id, created_at, caller_id, mcp_session_id, query_hash FROM {self._t('context_receipts')} "
+            f"WHERE mcp_session_id IS NOT NULL AND query_hash IS NOT NULL AND created_at >= :since ORDER BY created_at, receipt_id",
+            since=self._tsv(since or _EPOCH))
+        existing = {json.loads(r["payload_json"]).get("outcome_ref") for r in self._query(
+            f"SELECT payload_json FROM {self._t('context_receipt_events')} WHERE event_type = 'outcome'")}
+        previous: dict[tuple[str, str | None], Any] = {}
+        created = 0
+        for row in rows:
+            key = (row["mcp_session_id"], row["caller_id"])
+            prior = previous.get(key)
+            previous[key] = row
+            if prior is None or prior["query_hash"] == row["query_hash"]:
+                continue
+            gap = (_as_datetime(row["created_at"]) - _as_datetime(prior["created_at"])).total_seconds()
+            ref = f"implicit:reformulated:{row['receipt_id']}"
+            if gap <= window_seconds and ref not in existing:
+                self.record_outcome(prior["receipt_id"], signal="reformulated", source="implicit", outcome_ref=ref)
+                created += 1
+        return created
+
+    def enforce_retention(self, retention_days: Mapping[str, float | None], *, now: datetime | None = None) -> dict[str, int]:
+        import sqlalchemy as sa
+
+        limits = {k: float(v) for k, v in retention_days.items() if v}
+        if not limits:
+            return {"receipts_deleted": 0}
+        now = now or datetime.now(timezone.utc)
+        cutoff = self._tsv(now - timedelta(days=min(limits.values())))
+        candidates = self._query(f"SELECT receipt_id, created_at FROM {self._t('context_receipts')} WHERE created_at < :c", c=cutoff)
+        ids = [c["receipt_id"] for c in candidates]
+        assets: dict[str, set] = {}
+        for chunk in self._in_chunks(ids):
+            for row in self._query(
+                f"SELECT receipt_id, source_asset_key FROM {self._t('context_receipt_items')} WHERE receipt_id IN :ids AND source_asset_key IS NOT NULL "
+                f"UNION SELECT receipt_id, source_asset_key FROM {self._t('context_receipt_excluded')} WHERE receipt_id IN :ids AND source_asset_key IS NOT NULL",
+                ids=chunk):
+                assets.setdefault(row["receipt_id"], set()).add(row["source_asset_key"])
+        doomed = []
+        for row in candidates:
+            applicable = [limits[a] for a in assets.get(row["receipt_id"], ()) if a in limits]
+            if applicable and _as_datetime(row["created_at"]) + timedelta(days=min(applicable)) <= now:
+                doomed.append(row["receipt_id"])
+        with self._engine.begin() as conn:
+            for chunk in self._in_chunks(doomed):
+                for table in ("context_receipt_events", "context_receipt_excluded", "context_receipt_items", "context_receipts"):
+                    conn.execute(sa.text(f"DELETE FROM {self._t(table)} WHERE receipt_id IN :ids").bindparams(
+                        sa.bindparam("ids", expanding=True)), {"ids": chunk})
+        return {"receipts_deleted": len(doomed)}
+
+    def find_by_assets(self, targets: Mapping[str, Iterable[str] | None]) -> dict[str, list[str]]:
+        exact: set[str] = set()
+        unknown: set[str] = set()
+        for asset_key, partitions in targets.items():
+            rows = self._query(f"SELECT DISTINCT receipt_id, source_partition FROM {self._t('context_receipt_items')} WHERE source_asset_key = :a", a=asset_key)
+            wanted = None if partitions is None else set(partitions)
+            for row in rows:
+                if wanted is None or row["source_partition"] in wanted:
+                    exact.add(row["receipt_id"])
+                elif row["source_partition"] is None:
+                    unknown.add(row["receipt_id"])
+        return {"receipt_ids": sorted(exact), "partition_unknown": sorted(unknown - exact)}
+
+    def find_by_item(self, item_id: str) -> list[str]:
+        return [r["receipt_id"] for r in self._query(
+            f"SELECT DISTINCT receipt_id FROM {self._t('context_receipt_items')} WHERE item_id = :i ORDER BY receipt_id", i=item_id)]
+
+    def find_by_source_asset(self, asset_key: str) -> list[str]:
+        return [r["receipt_id"] for r in self._query(
+            f"SELECT DISTINCT receipt_id FROM {self._t('context_receipt_items')} WHERE source_asset_key = :a ORDER BY receipt_id", a=asset_key)]
+
+
 class AsyncReceiptWriter:
     """Fire-and-forget receipt writes so the agent never waits on the store.
 
@@ -1957,17 +2392,20 @@ class AsyncReceiptWriter:
                 time.sleep(self.backoff_seconds * (2**attempt))
 
 
-class AsyncBigQueryContextReceiptStore(BigQueryContextReceiptStore):
-    """BigQuery receipts with fire-and-forget writes: a load job takes seconds, so an agent must not wait on it.
+class _AsyncWrites:
+    """Mixin: fire-and-forget writes for a store whose writes take long (a warehouse load job takes seconds, so an agent must
+    not wait on it).
 
     Reads are synchronous and see only what the background writer has finished -- call ``flush()`` first when you need
     read-your-writes. Argument errors still raise at the call site (validated before queueing); storage errors that survive
     the writer's retries land in ``dead_letters``. In-process and not crash-safe (see ``AsyncReceiptWriter``)."""
 
+    _sync_cls: Any = None
+
     def __init__(self, *args: Any, writer_max_retries: int = 5, writer_backoff_seconds: float = 0.5, **kwargs: Any):
         super().__init__(*args, **kwargs)
-        inner = BigQueryContextReceiptStore(*args, **kwargs)
-        self._writer = AsyncReceiptWriter(inner, max_retries=writer_max_retries, backoff_seconds=writer_backoff_seconds)
+        self._writer = AsyncReceiptWriter(self._sync_cls(*args, **kwargs), max_retries=writer_max_retries,
+                                          backoff_seconds=writer_backoff_seconds)
 
     @property
     def dead_letters(self) -> list:
@@ -1994,6 +2432,18 @@ class AsyncBigQueryContextReceiptStore(BigQueryContextReceiptStore):
 
     def ingest(self, event: Mapping[str, Any]) -> str:
         return self._writer.ingest(event)
+
+
+class AsyncBigQueryContextReceiptStore(_AsyncWrites, BigQueryContextReceiptStore):
+    """BigQuery receipts with fire-and-forget writes."""
+
+    _sync_cls = BigQueryContextReceiptStore
+
+
+class AsyncSqlContextReceiptStore(_AsyncWrites, SqlContextReceiptStore):
+    """SQL-database receipts with fire-and-forget writes (worth it for Snowflake/Databricks; unnecessary for a local Postgres)."""
+
+    _sync_cls = SqlContextReceiptStore
 
 
 def impacted_receipts(
@@ -2340,8 +2790,17 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     backend: str = Field(
         default="sqlite",
-        description="Where receipts live: 'sqlite' (a local file) or 'bigquery' (tables in a BigQuery dataset, shared across hosts, queryable from SQL-mode pipelines).",
+        description="Where receipts live: 'sqlite' (a local file), 'bigquery' (tables in a BigQuery dataset), or 'sql' (any SQLAlchemy database: Postgres, MySQL, Snowflake, Databricks, DuckDB). The warehouse backends are shared across hosts and queryable from SQL-mode pipelines.",
     )
+    sql_url_env_var: Optional[str] = Field(
+        default=None,
+        description="backend: sql -- env var holding a SQLAlchemy URL (postgresql://..., mysql+pymysql://..., snowflake://..., databricks://..., duckdb:///file.duckdb). Needs that database's SQLAlchemy driver installed.",
+    )
+    sql_schema: str = Field(
+        default="",
+        description="backend: sql -- namespace holding the five receipt tables: 'database.schema' for Snowflake, 'catalog.schema' for Databricks, 'schema' for Postgres, 'database' for MySQL; empty for the connection default.",
+    )
+    sql_table_prefix: str = Field(default="", description="backend: sql -- prefix for the five receipt table names.")
     bigquery_dataset: Optional[str] = Field(
         default=None,
         description="backend: bigquery -- 'project.dataset' holding the receipt tables (created on first use if missing). The same dataset a SQL-mode context_engineering_pipeline `receipts: {dataset: ...}` reads.",
@@ -2354,7 +2813,7 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     async_writes: bool = Field(
         default=True,
-        description="backend: bigquery -- queue writes on a background thread (a load job takes seconds, so an agent should not wait on it). Reads see only finished writes; call flush() for read-your-writes. Not crash-safe.",
+        description="backend: bigquery or sql -- queue writes on a background thread (a load job takes seconds, so an agent should not wait on it). Reads see only finished writes; call flush() for read-your-writes. Not crash-safe.",
     )
 
     usage_sensor_enabled: bool = Field(
@@ -2428,8 +2887,20 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
 
             cls = AsyncBigQueryContextReceiptStore if self.async_writes else BigQueryContextReceiptStore
             store = cls(self.bigquery_dataset, client_factory=client_factory, table_prefix=self.bigquery_table_prefix)
+        elif self.backend == "sql":
+            if not self.sql_url_env_var:
+                raise ValueError("backend: sql requires sql_url_env_var (the env var holding the SQLAlchemy URL)")
+            url_env = self.sql_url_env_var
+
+            def engine_factory():
+                import sqlalchemy
+
+                return sqlalchemy.create_engine(dg.EnvVar(url_env).get_value())
+
+            cls = AsyncSqlContextReceiptStore if self.async_writes else SqlContextReceiptStore
+            store = cls(engine_factory, schema=self.sql_schema, table_prefix=self.sql_table_prefix)
         else:
-            raise ValueError(f"backend must be 'sqlite' or 'bigquery', got {self.backend!r}")
+            raise ValueError(f"backend must be 'sqlite', 'bigquery' or 'sql', got {self.backend!r}")
         sensors = []
         if self.usage_sensor_enabled:
             sensors.append(

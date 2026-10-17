@@ -7,6 +7,5 @@ attributes:
   cron_schedule: "*/10 * * * *"
   batch_size: 1000
   max_batches: 50
-  reconcile_recent_receipts: 200
   group_name: context
   retry_policy_max_retries: 3

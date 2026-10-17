@@ -9,8 +9,10 @@ Usage:
     monkeypatch.setitem(sys.modules, "google.cloud.bigquery", install_fake_bigquery(client))   # also registers google / google.cloud
     # a dagster-gcp style resource: FakeBigQueryResource(client) with .get_client() as a context manager
 """
+import atexit
 import contextlib
 import re
+import weakref
 import sys
 import types
 from typing import Any, Dict, List
@@ -102,10 +104,20 @@ def _sha2_is_already_hex(stmt):
     return stmt
 
 
+_OPEN: "weakref.WeakSet" = weakref.WeakSet()
+
+
+@atexit.register
+def _close_all():  # close DuckDB connections before interpreter teardown (avoids native-thread / mutex races at exit)
+    for c in list(_OPEN):
+        c.close()
+
+
 class FakeBigQueryClient:
     def __init__(self, project: str = "proj", location=None):
         self.project, self.location = project, location
         self.con = duckdb.connect()
+        _OPEN.add(self)
         self.queries: List[str] = []
 
     # -- SQL ----------------------------------------------------------------------------------------------
@@ -155,7 +167,8 @@ class FakeBigQueryClient:
         self.con.execute(f"CREATE SCHEMA IF NOT EXISTS {str(dataset).split('.')[-1]}")
 
     def close(self):
-        pass
+        with contextlib.suppress(Exception):
+            self.con.close()
 
 
 class FakeBigQueryResource:

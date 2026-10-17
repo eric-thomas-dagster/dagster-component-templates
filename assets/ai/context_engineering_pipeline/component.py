@@ -1275,43 +1275,67 @@ def _content_version(df: pd.DataFrame, text_column: str, steps_cfg: List[dict]) 
 # it" for warehouses with a native embedding/completion function.
 # validation.level: code -- there is no live warehouse credential in
 # this dev environment. Every dialect's SQL is parsed with sqlglot in that
-# dialect; the BigQuery chunk/stamp/receipts statements are also executed
+# dialect; the chunk/stamp/receipts statements of all three dialects are also executed
 # (sqlglot -> DuckDB) in tests. The AI functions themselves (embedding,
 # classification) are never run for real.
 
 # BEGIN receipt-warehouse-ddl (canonical; inlined verbatim, byte-identical, by every component that creates or reads the receipt tables -- drift-tested)
 RECEIPT_TABLE_NAMES = ("context_receipts", "context_receipt_items", "context_receipt_excluded", "context_receipt_events", "context_item_scores")
+RECEIPT_DIALECTS = ("bigquery", "snowflake", "databricks", "postgres", "mysql", "duckdb", "sqlite")
 
 
-def receipt_table(dataset: str, name: str, prefix: str = "") -> str:
-    """Fully qualified, quoted table reference. `dataset` is `project.dataset` (or just `dataset` to use the client's project)."""
+def receipt_table(dataset: str, name: str, prefix: str = "", dialect: str = "bigquery") -> str:
+    """Table reference for a receipt table. `dataset` is the namespace: `project.dataset` (bigquery), `database.schema` (snowflake),
+    `catalog.schema` (databricks), `schema` (postgres/duckdb), `database` (mysql); "" for sqlite or the connection default."""
     if name not in RECEIPT_TABLE_NAMES:
         raise ValueError(f"unknown receipt table {name!r}; valid: {RECEIPT_TABLE_NAMES}")
-    return f"`{dataset}.{prefix}{name}`"
+    if dialect not in RECEIPT_DIALECTS:
+        raise ValueError(f"unknown dialect {dialect!r}; valid: {RECEIPT_DIALECTS}")
+    parts = [p for p in dataset.strip("`").split(".") if p] + [f"{prefix}{name}"]
+    if dialect == "bigquery":
+        return "`" + ".".join(parts) + "`"          # BigQuery reads `a.b.c` as one path
+    if dialect in ("databricks", "mysql"):
+        return ".".join(f"`{p}`" for p in parts)
+    if dialect in ("postgres", "duckdb", "sqlite"):
+        return ".".join(f'"{p}"' for p in parts)
+    return ".".join(parts)                          # snowflake: unquoted, case-insensitive
+
+
+_RECEIPT_TYPES = {  # (string, long string, integer, float, timestamp)
+    "bigquery": ("STRING", "STRING", "INT64", "FLOAT64", "TIMESTAMP"),
+    "snowflake": ("VARCHAR", "VARCHAR", "BIGINT", "DOUBLE", "TIMESTAMP_TZ"),
+    "databricks": ("STRING", "STRING", "BIGINT", "DOUBLE", "TIMESTAMP"),
+    "postgres": ("TEXT", "TEXT", "BIGINT", "DOUBLE PRECISION", "TIMESTAMPTZ"),
+    "mysql": ("VARCHAR(255)", "LONGTEXT", "BIGINT", "DOUBLE", "DATETIME(6)"),   # UTC by convention
+    "duckdb": ("VARCHAR", "VARCHAR", "BIGINT", "DOUBLE", "TIMESTAMPTZ"),
+    "sqlite": ("TEXT", "TEXT", "INTEGER", "REAL", "TEXT"),                       # ISO-8601 UTC strings
+}
 
 
 def receipt_table_ddl(dataset: str, prefix: str = "", dialect: str = "bigquery") -> list:
-    """CREATE TABLE IF NOT EXISTS statements for the receipt tables (the same columns as the SQLite store, per resources/context_receipt_store/SPEC.md).
-    Timestamps are TIMESTAMP (ISO-8601 UTC in, TIMESTAMP out); event payloads stay JSON text in `payload_json` (read with JSON_VALUE)."""
-    if dialect != "bigquery":
-        raise NotImplementedError(f"receipt warehouse tables are implemented for dialect='bigquery' only (got {dialect!r})")
-    t = lambda n: receipt_table(dataset, n, prefix)  # noqa: E731
+    """CREATE TABLE IF NOT EXISTS statements for the receipt tables (same columns as the SQLite store, per resources/context_receipt_store/SPEC.md).
+    Event payloads stay JSON text in `payload_json`; priors and feedback are computed from them (SQL: JSON_VALUE and friends, or in Python)."""
+    if dialect not in RECEIPT_DIALECTS:
+        raise ValueError(f"unknown dialect {dialect!r}; valid: {RECEIPT_DIALECTS}")
+    S, L, I, F, T = _RECEIPT_TYPES[dialect]
+    K = "`rank`" if dialect == "mysql" else "rank"        # RANK is reserved in MySQL 8
+    t = lambda n: receipt_table(dataset, n, prefix, dialect)  # noqa: E731
     return [
         f"""CREATE TABLE IF NOT EXISTS {t('context_receipts')} (
-  receipt_id STRING NOT NULL, created_at TIMESTAMP NOT NULL, context_name STRING NOT NULL, context_version STRING, policy_version STRING,
-  caller_id STRING, purpose STRING, query_hash STRING, eligible_count INT64, excluded_count INT64, dagster_asset_key STRING,
-  dagster_run_id STRING, trace_id STRING, mcp_session_id STRING, mcp_request_id STRING)""",
+  receipt_id {S} NOT NULL, created_at {T} NOT NULL, context_name {S} NOT NULL, context_version {S}, policy_version {S},
+  caller_id {S}, purpose {S}, query_hash {S}, eligible_count {I}, excluded_count {I}, dagster_asset_key {S},
+  dagster_run_id {S}, trace_id {S}, mcp_session_id {S}, mcp_request_id {S})""",
         f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_items')} (
-  receipt_id STRING NOT NULL, item_id STRING NOT NULL, source_asset_key STRING, source_version STRING, source_partition STRING,
-  source_code_version STRING, rank INT64, score FLOAT64, selection STRING)""",
+  receipt_id {S} NOT NULL, item_id {S} NOT NULL, source_asset_key {S}, source_version {S}, source_partition {S},
+  source_code_version {S}, {K} {I}, score {F}, selection {S})""",
         f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_excluded')} (
-  receipt_id STRING NOT NULL, item_id STRING NOT NULL, reason STRING NOT NULL, source_asset_key STRING, source_version STRING,
-  source_partition STRING, source_code_version STRING)""",
+  receipt_id {S} NOT NULL, item_id {S} NOT NULL, reason {S} NOT NULL, source_asset_key {S}, source_version {S},
+  source_partition {S}, source_code_version {S})""",
         f"""CREATE TABLE IF NOT EXISTS {t('context_receipt_events')} (
-  event_id STRING NOT NULL, receipt_id STRING NOT NULL, event_type STRING NOT NULL, occurred_at TIMESTAMP NOT NULL, payload_json STRING NOT NULL)""",
+  event_id {S} NOT NULL, receipt_id {S} NOT NULL, event_type {S} NOT NULL, occurred_at {T} NOT NULL, payload_json {L} NOT NULL)""",
         f"""CREATE TABLE IF NOT EXISTS {t('context_item_scores')} (
-  item_id STRING NOT NULL, retrievals INT64 NOT NULL, outcome_weight FLOAT64 NOT NULL, outcome_sum FLOAT64 NOT NULL, prior FLOAT64 NOT NULL,
-  updated_at TIMESTAMP NOT NULL)""",
+  item_id {S} NOT NULL, retrievals {I} NOT NULL, outcome_weight {F} NOT NULL, outcome_sum {F} NOT NULL, prior {F} NOT NULL,
+  updated_at {T} NOT NULL)""",
     ]
 # END receipt-warehouse-ddl
 
@@ -1402,55 +1426,106 @@ def _sql_version_agg(dialect: str) -> str:
     return "MD5(LISTAGG(content_hash, '') WITHIN GROUP (ORDER BY chunk_id))"
 
 
-def _sql_ts(iso: str) -> str:
+_RECEIPT_DIALECT_OF = {"bigquery": "bigquery", "snowflake_cortex": "snowflake", "databricks": "databricks"}
+
+
+def _sql_ts(iso: str, dialect: str = "bigquery") -> str:
     dt = datetime.fromisoformat(iso)
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
-    return "TIMESTAMP '" + dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f+00:00") + "'"
+    text = dt.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f+00:00")
+    if dialect == "snowflake_cortex":
+        # a bare TIMESTAMP '...' is TIMESTAMP_NTZ in Snowflake (offset dropped, session-zone semantics); receipts' created_at is TIMESTAMP_TZ
+        return f"CAST('{text}' AS TIMESTAMP_TZ)"
+    return f"TIMESTAMP '{text}'"
 
 
-def _sql_outcome_ctes(events: str) -> List[Tuple[str, str]]:
+def _sql_json_value(dialect: str, path: str, as_type: Optional[str] = None) -> str:
+    """Scalar at `$.a.b` of the JSON text column payload_json, as a string (or CAST to `as_type`: 'FLOAT')."""
+    if dialect == "snowflake_cortex":
+        keys = path[2:]  # '$.a.b' -> 'a.b'
+        return f"PARSE_JSON(payload_json):{keys}::{'FLOAT' if as_type else 'STRING'}"
+    if dialect == "databricks":
+        raw = f"get_json_object(payload_json, '{path}')"
+        return f"CAST({raw} AS DOUBLE)" if as_type else raw
+    raw = f"JSON_VALUE(payload_json, '{path}')"
+    return f"CAST({raw} AS FLOAT64)" if as_type else raw
+
+
+def _sql_count_if(dialect: str, cond: str) -> str:
+    return f"COUNTIF({cond})" if dialect == "bigquery" else f"COUNT_IF({cond})"
+
+
+def _sql_outcome_ctes(events: str, dialect: str = "bigquery") -> List[Tuple[str, str]]:
     """CTEs giving each receipt's effective outcome, exactly as ContextReceiptStore counts it: the mean over its outcome_refs, a later event
     with the same outcome_ref superseding the earlier; an outcome without a ref never supersedes anything (keyed by its own event id)."""
     return [
         ("outcome_events", (
-            f"SELECT receipt_id, COALESCE(NULLIF(JSON_VALUE(payload_json, '$.outcome_ref'), ''), event_id) AS outcome_key,\n"
-            f"         CAST(JSON_VALUE(payload_json, '$.value') AS FLOAT64) AS outcome_value, occurred_at, event_id\n"
+            f"SELECT receipt_id, COALESCE(NULLIF({_sql_json_value(dialect, '$.outcome_ref')}, ''), event_id) AS outcome_key,\n"
+            f"         {_sql_json_value(dialect, '$.value', 'float')} AS outcome_value, occurred_at, event_id\n"
             f"  FROM {events} WHERE event_type = 'outcome'")),
         ("receipt_outcome", (
             "SELECT receipt_id, AVG(outcome_value) AS effective_outcome FROM (\n"
             "    SELECT receipt_id, outcome_value,\n"
             "           ROW_NUMBER() OVER (PARTITION BY receipt_id, outcome_key ORDER BY occurred_at DESC, event_id DESC) AS rn\n"
-            "    FROM outcome_events) WHERE rn = 1 GROUP BY receipt_id")),
+            "    FROM outcome_events) AS ranked WHERE rn = 1 GROUP BY receipt_id")),
     ]
 
 
-def _sql_receipt_feedback_ctes(rcfg: Dict[str, Any], asset_name: str, recipe: Optional[str], since: str) -> List[Tuple[str, str]]:
+def _sql_citing_ctes(events: str, dialect: str) -> List[Tuple[str, str]]:
+    """`citing_events`: one row per cited/verified/counterfactual_tested evidence event with `is_scoped` (details.item_ids is a JSON array)
+    and, when scoped, `scoped_ids` (the array; possibly empty = scoped to nothing)."""
+    where = f"event_type = 'evidence' AND {_sql_json_value(dialect, '$.level')} IN ('cited', 'verified', 'counterfactual_tested')"
+    if dialect == "snowflake_cortex":
+        return [
+            ("citing_raw", f"SELECT receipt_id, PARSE_JSON(payload_json):details.item_ids AS ids\n  FROM {events}\n  WHERE {where}"),
+            ("citing_events", ("SELECT receipt_id, COALESCE(IS_ARRAY(ids), FALSE) AS is_scoped,\n"
+                               "         IFF(COALESCE(IS_ARRAY(ids), FALSE), TO_ARRAY(ids), ARRAY_CONSTRUCT()) AS scoped_ids\n  FROM citing_raw")),
+        ]
+    if dialect == "databricks":
+        return [
+            ("citing_raw", f"SELECT receipt_id, get_json_object(payload_json, '$.details.item_ids') AS ids\n  FROM {events}\n  WHERE {where}"),
+            ("citing_events", ("SELECT receipt_id, COALESCE(left(ids, 1) = '[', FALSE) AS is_scoped,\n"
+                               "         CASE WHEN COALESCE(left(ids, 1) = '[', FALSE) THEN from_json(ids, 'array<string>') END AS scoped_ids\n  FROM citing_raw")),
+        ]
+    return [("citing_events", (
+        f"SELECT receipt_id, payload_json,\n"
+        f"         COALESCE(STARTS_WITH(JSON_QUERY(payload_json, '$.details.item_ids'), '['), FALSE) AS is_scoped\n"
+        f"  FROM {events}\n  WHERE {where}"))]
+
+
+def _sql_receipt_feedback_ctes(rcfg: Dict[str, Any], asset_name: str, recipe: Optional[str], since: str,
+                               dialect: str = "bigquery") -> List[Tuple[str, str]]:
     """Warehouse-side ContextReceiptStore.item_feedback: retrievals / rated / mean_outcome / cited per item, as one `item_feedback` CTE."""
-    tbl = lambda n: receipt_table(rcfg["dataset"], n, rcfg.get("table_prefix", ""))  # noqa: E731
+    rd = _RECEIPT_DIALECT_OF[dialect]
+    tbl = lambda n: receipt_table(rcfg["dataset"], n, rcfg.get("table_prefix", ""), rd)  # noqa: E731
     recipe_filter = f" AND COALESCE(i.source_code_version, 'unknown') = {_sql_str(recipe)}" if recipe is not None else ""
-    return _sql_outcome_ctes(tbl("context_receipt_events")) + [
+    if dialect == "bigquery":
+        cite = [
+            ("cite_scope", (
+                "SELECT receipt_id, CAST(NULL AS STRING) AS item_id FROM citing_events WHERE NOT is_scoped\n"
+                "  UNION ALL\n"
+                "  SELECT e.receipt_id, scoped_id FROM (\n"
+                "    SELECT receipt_id, CASE WHEN is_scoped THEN JSON_VALUE_ARRAY(payload_json, '$.details.item_ids') END AS ids FROM citing_events) AS e,\n"
+                "    UNNEST(e.ids) AS scoped_id")),
+            ("cited_pairs", (
+                "SELECT DISTINCT h.receipt_id, h.item_id FROM item_hits AS h\n"
+                "  JOIN cite_scope AS c ON c.receipt_id = h.receipt_id AND (c.item_id IS NULL OR c.item_id = h.item_id)")),
+        ]
+    else:
+        contains = "ARRAY_CONTAINS(h.item_id::VARIANT, c.scoped_ids)" if dialect == "snowflake_cortex" else "array_contains(c.scoped_ids, h.item_id)"
+        cite = [("cited_pairs", (
+            "SELECT DISTINCT h.receipt_id, h.item_id FROM item_hits AS h\n"
+            f"  JOIN citing_events AS c ON c.receipt_id = h.receipt_id AND (NOT c.is_scoped OR {contains})"))]
+    return _sql_outcome_ctes(tbl("context_receipt_events"), dialect) + [
         ("item_hits", (
             f"SELECT DISTINCT i.receipt_id, i.item_id FROM {tbl('context_receipt_items')} AS i\n"
             f"  JOIN {tbl('context_receipts')} AS r ON r.receipt_id = i.receipt_id\n"
-            f"  WHERE i.source_asset_key = {_sql_str(asset_name)} AND r.created_at >= {_sql_ts(since)}{recipe_filter}")),
-        ("citing_events", (
-            f"SELECT receipt_id, payload_json,\n"
-            f"         COALESCE(STARTS_WITH(JSON_QUERY(payload_json, '$.details.item_ids'), '['), FALSE) AS is_scoped\n"
-            f"  FROM {tbl('context_receipt_events')}\n"
-            f"  WHERE event_type = 'evidence' AND JSON_VALUE(payload_json, '$.level') IN ('cited', 'verified', 'counterfactual_tested')")),
-        ("cite_scope", (
-            "SELECT receipt_id, CAST(NULL AS STRING) AS item_id FROM citing_events WHERE NOT is_scoped\n"
-            "  UNION ALL\n"
-            "  SELECT e.receipt_id, scoped_id FROM (\n"
-            "    SELECT receipt_id, CASE WHEN is_scoped THEN JSON_VALUE_ARRAY(payload_json, '$.details.item_ids') END AS ids FROM citing_events) AS e,\n"
-            "    UNNEST(e.ids) AS scoped_id")),
-        ("cited_pairs", (
-            "SELECT DISTINCT h.receipt_id, h.item_id FROM item_hits AS h\n"
-            "  JOIN cite_scope AS c ON c.receipt_id = h.receipt_id AND (c.item_id IS NULL OR c.item_id = h.item_id)")),
+            f"  WHERE i.source_asset_key = {_sql_str(asset_name)} AND r.created_at >= {_sql_ts(since, dialect)}{recipe_filter}")),
+    ] + _sql_citing_ctes(tbl("context_receipt_events"), dialect) + cite + [
         ("item_feedback", (
-            "SELECT h.item_id, COUNT(*) AS retrievals, COUNTIF(o.effective_outcome IS NOT NULL) AS rated,\n"
-            "         ROUND(AVG(o.effective_outcome), 4) AS mean_outcome, COUNTIF(c.receipt_id IS NOT NULL) AS cited\n"
+            f"SELECT h.item_id, COUNT(*) AS retrievals, {_sql_count_if(dialect, 'o.effective_outcome IS NOT NULL')} AS rated,\n"
+            f"         ROUND(AVG(o.effective_outcome), 4) AS mean_outcome, {_sql_count_if(dialect, 'c.receipt_id IS NOT NULL')} AS cited\n"
             "  FROM item_hits AS h\n"
             "  LEFT JOIN receipt_outcome AS o ON o.receipt_id = h.receipt_id\n"
             "  LEFT JOIN cited_pairs AS c ON c.receipt_id = h.receipt_id AND c.item_id = h.item_id\n"
@@ -1458,18 +1533,20 @@ def _sql_receipt_feedback_ctes(rcfg: Dict[str, Any], asset_name: str, recipe: Op
     ]
 
 
-def _sql_outcomes_by_code_version_query(rcfg: Dict[str, Any], asset_name: str, since: str) -> str:
-    """BigQuery SQL equivalent of ContextReceiptStore.outcomes_by_code_version. Columns: code_version, receipts, outcomes, mean_outcome."""
-    tbl = lambda n: receipt_table(rcfg["dataset"], n, rcfg.get("table_prefix", ""))  # noqa: E731
-    ctes = _sql_outcome_ctes(tbl("context_receipt_events")) + [
+def _sql_outcomes_by_code_version_query(rcfg: Dict[str, Any], asset_name: str, since: str, dialect: Optional[str] = None) -> str:
+    """SQL equivalent of ContextReceiptStore.outcomes_by_code_version (in the receipts' warehouse dialect: rcfg['sql_dialect'], default
+    bigquery). Columns: code_version, receipts, outcomes, mean_outcome."""
+    dialect = dialect or rcfg.get("sql_dialect", "bigquery")
+    tbl = lambda n: receipt_table(rcfg["dataset"], n, rcfg.get("table_prefix", ""), _RECEIPT_DIALECT_OF[dialect])  # noqa: E731
+    ctes = _sql_outcome_ctes(tbl("context_receipt_events"), dialect) + [
         ("receipt_versions", (
             f"SELECT DISTINCT i.receipt_id, COALESCE(i.source_code_version, 'unknown') AS code_version\n"
             f"  FROM {tbl('context_receipt_items')} AS i JOIN {tbl('context_receipts')} AS r ON r.receipt_id = i.receipt_id\n"
-            f"  WHERE i.source_asset_key = {_sql_str(asset_name)} AND r.created_at >= {_sql_ts(since)}")),
+            f"  WHERE i.source_asset_key = {_sql_str(asset_name)} AND r.created_at >= {_sql_ts(since, dialect)}")),
     ]
     with_ = ",\n".join(f"{n} AS (\n  {b}\n)" for n, b in ctes)
     return (f"WITH {with_}\n"
-            "SELECT v.code_version, COUNT(*) AS receipts, COUNTIF(o.effective_outcome IS NOT NULL) AS outcomes,\n"
+            f"SELECT v.code_version, COUNT(*) AS receipts, {_sql_count_if(dialect, 'o.effective_outcome IS NOT NULL')} AS outcomes,\n"
             "       ROUND(AVG(o.effective_outcome), 4) AS mean_outcome\n"
             "FROM receipt_versions AS v LEFT JOIN receipt_outcome AS o ON o.receipt_id = v.receipt_id\n"
             "GROUP BY v.code_version ORDER BY v.code_version")
@@ -1503,8 +1580,6 @@ def _build_sql_mode_query(
             raise ValueError(f"execution_mode='sql': column {c!r} collides with a column the component writes ({sorted(_SQL_RESERVED_COLUMNS)[:6]}...); alias it in `source.sql`")
     if len({id_col, *metas}) != len(metas) + 1:
         raise ValueError("execution_mode='sql': id_column / metadata_columns contain duplicates")
-    if receipts is not None and dialect != "bigquery":
-        raise ValueError("receipts in execution_mode='sql' are supported for sql_dialect='bigquery' only")
 
     chunk_size = int(chunk_step.get("chunk_size", 500))
     chunk_overlap = int(chunk_step.get("chunk_overlap", 50))
@@ -1536,8 +1611,8 @@ def _build_sql_mode_query(
 
     if receipts is not None:
         recipe = code_version if receipts.get("scope_to_recipe", True) else None
-        ctes += _sql_receipt_feedback_ctes(receipts, asset_name, recipe, since or _receipts_since(receipts))
-        scores = receipt_table(receipts["dataset"], "context_item_scores", receipts.get("table_prefix", ""))
+        ctes += _sql_receipt_feedback_ctes(receipts, asset_name, recipe, since or _receipts_since(receipts), dialect)
+        scores = receipt_table(receipts["dataset"], "context_item_scores", receipts.get("table_prefix", ""), _RECEIPT_DIALECT_OF[dialect])
         ctes.append(("feedback_joined", (
             f"SELECT {cols_sql('stamped', cols)},\n"
             f"         COALESCE(fb.retrievals, 0) AS feedback_retrievals, COALESCE(fb.rated, 0) AS feedback_rated,\n"
@@ -1624,19 +1699,21 @@ def _validate_receipts(cfg: Dict[str, Any], steps_cfg: List[dict], execution_mod
         raise ValueError(f"receipts: unknown field(s) {sorted(unknown)}; valid: {sorted(_RECEIPTS_KEYS)}")
     sql_mode = execution_mode == "sql"
     if sql_mode:
-        if sql_dialect != "bigquery":
-            raise ValueError("receipts in execution_mode='sql' is supported for sql_dialect='bigquery' only "
+        if sql_dialect not in _RECEIPT_DIALECT_OF:
+            raise ValueError("receipts in execution_mode='sql' is supported for sql_dialect bigquery / snowflake_cortex / databricks only "
                              f"(got {sql_dialect!r}); use execution_mode='python' with a ContextReceiptStore resource for other warehouses")
         dataset = cfg.get("dataset")
+        shape = {"bigquery": "'project.dataset' (or 'dataset')", "snowflake_cortex": "'DATABASE.SCHEMA' (or 'SCHEMA')",
+                 "databricks": "'catalog.schema' (or 'schema')"}[sql_dialect]
         if not isinstance(dataset, str) or not re.match(r"^[A-Za-z0-9_\-]+(\.[A-Za-z0-9_\-]+)?$", dataset):
-            raise ValueError("receipts.dataset is required in execution_mode='sql': 'project.dataset' (or 'dataset') holding the receipt tables")
+            raise ValueError(f"receipts.dataset is required in execution_mode='sql': {shape} holding the receipt tables")
         if not re.match(r"^[A-Za-z0-9_]*$", str(cfg.get("table_prefix", "") or "")):
             raise ValueError("receipts.table_prefix may contain only letters, digits and underscore")
         source_key = (source_cfg or {}).get("resource_key")
         if cfg.get("resource_key") not in (None, source_key):
-            raise ValueError(f"receipts.resource_key in execution_mode='sql' must be the BigQuery resource the source uses ({source_key!r}); "
+            raise ValueError(f"receipts.resource_key in execution_mode='sql' must be the warehouse resource the source uses ({source_key!r}); "
                              "the feedback is computed by the same statement that builds the table")
-        cfg = {**cfg, "resource_key": source_key, "table_prefix": cfg.get("table_prefix") or ""}
+        cfg = {**cfg, "resource_key": source_key, "table_prefix": cfg.get("table_prefix") or "", "sql_dialect": sql_dialect}
     else:
         if "dataset" in cfg or "table_prefix" in cfg:
             raise ValueError("receipts.dataset / receipts.table_prefix apply to execution_mode='sql' only (python mode reads a ContextReceiptStore resource)")
@@ -1829,7 +1906,7 @@ def _sql_session(resource, resource_key: str):
 
 
 def _sql_fetch_outcomes_by_code_version(context, source_cfg: dict, rcfg: Dict[str, Any], asset_name: str) -> Dict[str, Dict[str, Any]]:
-    """ContextReceiptStore.outcomes_by_code_version, computed by BigQuery SQL through the asset's own resource."""
+    """ContextReceiptStore.outcomes_by_code_version, computed by warehouse SQL through the asset's own resource."""
     sql = _sql_outcomes_by_code_version_query(rcfg, asset_name, _receipts_since(rcfg))
     with _sql_session(getattr(context.resources, rcfg["resource_key"]), rcfg["resource_key"]) as session:
         rows = session.fetch(sql)
@@ -1859,8 +1936,8 @@ def _run_sql_mode(
         content_version = session.fetch(f"SELECT {_sql_version_agg(dialect)} FROM {out_tbl}")[0][0]
         fb_counts = None
         if receipts_cfg is not None and receipts_cfg.get("stamp", True):
-            quarantined = ", COUNTIF(feedback_quarantined)" if q and q["mode"] == "flag" else ""
-            row = session.fetch(f"SELECT COUNTIF(feedback_retrievals > 0){quarantined} FROM {out_tbl}")[0]
+            quarantined = f", {_sql_count_if(dialect, 'feedback_quarantined')}" if q and q["mode"] == "flag" else ""
+            row = session.fetch(f"SELECT {_sql_count_if(dialect, 'feedback_retrievals > 0')}{quarantined} FROM {out_tbl}")[0]
             fb_counts = {"chunks_with_feedback": int(row[0]), "quarantined": int(row[1]) if quarantined else None}
 
     metadata: Dict[str, Any] = {
@@ -2085,7 +2162,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             "of the window, and the run reports dead weight, best/worst chunks, exclusion reasons and outcomes per recipe. "
             "regression_check adds the `recipe_outcomes` asset check: is the current recipe doing worse in production than an earlier one? "
             "Feedback is scoped to the current recipe (code_version) by default so a recipe change starts fresh. Python mode reads a ContextReceiptStore resource."
-            " In execution_mode='sql' (sql_dialect='bigquery' only) the same feedback is computed inside the one CREATE TABLE statement by SQL joins against the receipt tables: {dataset: <project.dataset holding the receipt tables, required>, table_prefix: '', resource_key: <optional; defaults to source.resource_key and must be the same BigQuery resource>, plus the same window_days / min_retrievals / min_outcomes / scope_to_recipe / stamp / quarantine / regression_check}; refresh_priors and write_vector_store do not apply (feedback_prior is read from context_item_scores as written), and mode: exclude drops the rows from the output table."
+            " In execution_mode='sql' (sql_dialect bigquery / snowflake_cortex / databricks) the same feedback is computed inside the one CREATE TABLE statement by SQL joins against the receipt tables: {dataset: <where the receipt tables live, required: 'project.dataset' on BigQuery, 'DATABASE.SCHEMA' on Snowflake, 'catalog.schema' on Databricks>, table_prefix: '', resource_key: <optional; defaults to source.resource_key and must be the same BigQuery resource>, plus the same window_days / min_retrievals / min_outcomes / scope_to_recipe / stamp / quarantine / regression_check}; refresh_priors and write_vector_store do not apply (feedback_prior is read from context_item_scores as written), and mode: exclude drops the rows from the output table."
         ),
     )
     retrieval_eval: Optional[Dict[str, Any]] = Field(

@@ -158,6 +158,24 @@
       "label": "Async Writes",
       "description": "backend: bigquery -- queue writes on a background thread (a load job takes seconds, so an agent should not wait on it). Reads see only finished writes; call flush() for read-your-writes. Not crash-safe.",
       "required": false
+    },
+    "sql_url_env_var": {
+      "type": "string",
+      "label": "Sql Url Env Var",
+      "description": "backend: sql -- env var holding a SQLAlchemy URL (postgresql://..., mysql+pymysql://..., snowflake://..., databricks://..., duckdb:///file.duckdb). Needs that database's SQLAlchemy driver installed.",
+      "required": false
+    },
+    "sql_schema": {
+      "type": "string",
+      "label": "Sql Schema",
+      "description": "backend: sql -- namespace holding the five receipt tables: 'database.schema' for Snowflake, 'catalog.schema' for Databricks, 'schema' for Postgres, 'database' for MySQL; empty for the connection default.",
+      "required": false
+    },
+    "sql_table_prefix": {
+      "type": "string",
+      "label": "Sql Table Prefix",
+      "description": "backend: sql -- prefix for the five receipt table names.",
+      "required": false
     }
   }
 }

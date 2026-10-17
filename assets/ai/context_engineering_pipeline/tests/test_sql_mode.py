@@ -2,7 +2,7 @@
 
 What is executed vs only parsed:
 - every dialect's statement is PARSED with sqlglot in its own dialect (snowflake_cortex -> snowflake);
-- BigQuery chunk + stamp + receipts statements are EXECUTED (parsed as BigQuery, transpiled, run in DuckDB via bq_fake) against real tables;
+- BigQuery chunk + stamp + receipts statements are EXECUTED here (Snowflake / Databricks: test_sql_mode_dialects.py) (parsed as BigQuery, transpiled, run in DuckDB via bq_fake) against real tables;
 - the warehouse AI functions (ML.GENERATE_EMBEDDING, AI.CLASSIFY, Cortex, ai_query) cannot run anywhere here: those statements are parse-only.
 Feedback correctness is asserted against the real ContextReceiptStore.item_feedback / outcomes_by_code_version on the SAME events."""
 import importlib.util
@@ -107,8 +107,11 @@ def test_receipts_validation(mod):
     sql_comp = lambda **r: mod._validate_receipts(r, base, "sql", r.pop("_d", "bigquery"), {"resource_key": "bq"})  # noqa: E731
     out = sql_comp(dataset="proj.rcpt")
     assert out["resource_key"] == "bq" and out["table_prefix"] == "" and out["dataset"] == "proj.rcpt"
-    with pytest.raises(ValueError, match="bigquery' only"):
-        mod._validate_receipts({"dataset": "d"}, base, "sql", "databricks", {"resource_key": "r"})
+    with pytest.raises(ValueError, match="bigquery / snowflake_cortex / databricks only"):
+        mod._validate_receipts({"dataset": "d"}, base, "sql", "postgres", {"resource_key": "r"})
+    with pytest.raises(ValueError, match="bigquery / snowflake_cortex / databricks only"):
+        mod._validate_receipts({"dataset": "d"}, base, "sql", None, {"resource_key": "r"})
+    assert mod._validate_receipts({"dataset": "DB.SCH"}, base, "sql", "snowflake_cortex", {"resource_key": "r"})["sql_dialect"] == "snowflake_cortex"
     with pytest.raises(ValueError, match="dataset is required"):
         sql_comp(window_days=3)
     with pytest.raises(ValueError, match="dataset is required"):
@@ -225,9 +228,8 @@ def item(i, cv="v1", asset="kb"):
     return {"item_id": i, "source_asset_key": asset, "source_code_version": cv, "source_version": "x"}
 
 
-@pytest.fixture()
-def scenario(mod, tmp_path):
-    """Real events in a real store, then mirrored into the warehouse tables."""
+def build_scenario_store(tmp_path):
+    """Real events in a real SQLite ContextReceiptStore (shared by the BigQuery / Snowflake / Databricks tests)."""
     store = load_store(tmp_path / "r.sqlite3")
     ids = ["kb:d1_0", "kb:d1_1", "kb:d1_2", "kb:d2_0"]
     rec = lambda items, rid=None: store.record_retrieval(context_name="kb", items=items, receipt_id=rid)  # noqa: E731
@@ -256,6 +258,13 @@ def scenario(mod, tmp_path):
     with store._connect() as conn:
         conn.execute("UPDATE context_receipts SET created_at = ? WHERE receipt_id = 'r8'", (old,))
     store.refresh_item_scores(prior_strength=5.0)
+    return store, ids
+
+
+@pytest.fixture()
+def scenario(mod, tmp_path):
+    """The store scenario, mirrored into the BigQuery-shaped warehouse tables."""
+    store, ids = build_scenario_store(tmp_path)
     client = make_client()
     dump_store_to_warehouse(mod, store, client)
     return SimpleNamespace(store=store, client=client, ids=ids)

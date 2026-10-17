@@ -58,8 +58,11 @@ zero-shot + ChromaDB) -- no API key required to run this end to end,
 matching dbt's own stated philosophy that this kind of governance
 tooling should be cheap to validate, not another paid call per test.
 """
+import hashlib
+import json
 import re
-from typing import Any, Dict, List, Optional, Union
+import uuid
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -68,6 +71,7 @@ from dagster import (
     AssetIn,
     AssetKey,
     Component,
+    DataVersion,
     ComponentLoadContext,
     Definitions,
     MetadataValue,
@@ -210,36 +214,323 @@ def _chunk_fixed(text: str, chunk_size: int, chunk_overlap: int, preserve_senten
     return chunks
 
 
+_RECURSIVE_SEPARATORS = ["\n\n", "\n", ". ", " "]
+_HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$", re.MULTILINE)
+
+
+def _sha256(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _to_chars(value: float, unit: str, chars_per_token: float) -> int:
+    """chunk_size/overlap are in characters, or in estimated tokens (chars_per_token, default 4)."""
+    if unit not in ("chars", "tokens"):
+        raise ValueError(f"chunk op: length_unit must be 'chars' or 'tokens', got {unit!r}")
+    return int(value * chars_per_token) if unit == "tokens" else int(value)
+
+
+def _chunk_recursive(text: str, size: int, overlap: int, separators: Optional[List[str]] = None) -> List[str]:
+    """Split on the coarsest separator that works (paragraph, line, sentence, word), pack pieces up
+    to ``size`` characters, and carry trailing whole pieces (<= ``overlap`` chars) into the next chunk."""
+    separators = _RECURSIVE_SEPARATORS if separators is None else separators
+    text = text.strip()
+    if not text:
+        return []
+    if len(text) <= size:
+        return [text]
+    sep = next((sp for sp in separators if sp in text), None)
+    if sep is None:
+        return _chunk_fixed(text, size, overlap, False)
+    rest = separators[separators.index(sep) + 1:]
+    atoms: List[str] = []
+    for part in text.split(sep):
+        if not part.strip():
+            continue
+        atoms.extend([part] if len(part) <= size else _chunk_recursive(part, size, overlap, rest))
+    chunks: List[str] = []
+    current: List[str] = []
+    length = 0
+    for atom in atoms:
+        added = len(atom) + (len(sep) if current else 0)
+        if current and length + added > size:
+            chunks.append(sep.join(current).strip())
+            tail: List[str] = []
+            tail_len = 0
+            for prev in reversed(current):
+                if tail_len + len(prev) + len(sep) > overlap:
+                    break
+                tail.insert(0, prev)
+                tail_len += len(prev) + len(sep)
+            current, length = tail, sum(len(a) for a in tail) + len(sep) * max(len(tail) - 1, 0)
+            added = len(atom) + (len(sep) if current else 0)
+        current.append(atom)
+        length += added
+    if current:
+        chunks.append(sep.join(current).strip())
+    return [c for c in chunks if c]
+
+
+def _chunk_markdown(text: str, size: int, overlap: int) -> List[Tuple[str, str]]:
+    """Section-aware chunking: split at markdown headings, chunk each section recursively, and
+    return (chunk, "H1 > H2 > H3" breadcrumb) so every chunk can cite where in the document it lives."""
+    sections: List[Tuple[str, str]] = []
+    stack: List[Tuple[int, str]] = []
+    cursor = 0
+    path = ""
+    for match in _HEADING_RE.finditer(text):
+        sections.append((path, text[cursor:match.start()]))
+        level, title = len(match.group(1)), match.group(2)
+        while stack and stack[-1][0] >= level:
+            stack.pop()
+        stack.append((level, title))
+        path = " > ".join(t for _, t in stack)
+        cursor = match.end()
+    sections.append((path, text[cursor:]))
+    out: List[Tuple[str, str]] = []
+    for section_path, body in sections:
+        for chunk in _chunk_recursive(body, size, overlap):
+            out.append((chunk, section_path))
+    return out
+
+
+class _SafeFormat(dict):
+    def __missing__(self, key):
+        return ""
+
+
 def _do_chunk(df: pd.DataFrame, step: dict, id_column: str, text_column: str, metadata_columns: List[str], context) -> pd.DataFrame:
-    chunk_size = step.get("chunk_size", 500)
-    chunk_overlap = step.get("chunk_overlap", 50)
+    """Knobs: strategy (fixed|recursive|markdown), chunk_size/chunk_overlap with length_unit
+    (chars|tokens, tokens estimated via chars_per_token), preserve_sentences (fixed only),
+    min_chunk_chars, max_chunks_per_source, chunk_id_mode (positional|content), header_template
+    (prepended to each chunk's text, may use any carried column and {section_path})."""
+    strategy = step.get("strategy", "fixed")
+    if strategy not in ("fixed", "recursive", "markdown"):
+        raise ValueError(f"chunk op: strategy must be fixed, recursive or markdown, got {strategy!r}")
+    unit = step.get("length_unit", "chars")
+    cpt = float(step.get("chars_per_token", 4.0))
+    chunk_size = max(1, _to_chars(step.get("chunk_size", 500), unit, cpt))
+    chunk_overlap = _to_chars(step.get("chunk_overlap", 50), unit, cpt)
+    if chunk_overlap >= chunk_size:
+        raise ValueError("chunk op: chunk_overlap must be smaller than chunk_size")
     preserve_sentences = step.get("preserve_sentences", True)
     out_text_col = step.get("output_column", "chunk_text")
+    min_chars = int(step.get("min_chunk_chars", 0))
+    max_chunks = step.get("max_chunks_per_source")
+    id_mode = step.get("chunk_id_mode", "positional")
+    if id_mode not in ("positional", "content"):
+        raise ValueError(f"chunk op: chunk_id_mode must be 'positional' or 'content', got {id_mode!r}")
+    header_template = step.get("header_template")
 
     rows: List[Dict[str, Any]] = []
-    skipped = 0
+    skipped = dropped_small = capped = 0
     for _, row in df.iterrows():
         source_id = row[id_column]
         text = str(row[text_column]) if pd.notna(row[text_column]) else ""
         if not text.strip():
             skipped += 1
             continue
-        chunks = _chunk_fixed(text, chunk_size, chunk_overlap, preserve_sentences)
-        for i, chunk_text in enumerate(chunks):
-            record: Dict[str, Any] = {
-                id_column: source_id,
-                "chunk_id": f"{source_id}_{i}",
-                "chunk_index": i,
-                "total_chunks": len(chunks),
-                out_text_col: chunk_text,
-            }
+        if strategy == "fixed":
+            pieces = [(c, "") for c in _chunk_fixed(text, chunk_size, chunk_overlap, preserve_sentences)]
+        elif strategy == "recursive":
+            pieces = [(c, "") for c in _chunk_recursive(text, chunk_size, chunk_overlap)]
+        else:
+            pieces = _chunk_markdown(text, chunk_size, chunk_overlap)
+        kept = [(c, sp) for c, sp in pieces if len(c) >= min_chars]
+        dropped_small += len(pieces) - len(kept)
+        if max_chunks is not None and len(kept) > int(max_chunks):
+            capped += len(kept) - int(max_chunks)
+            kept = kept[: int(max_chunks)]
+        seen_ids: set = set()
+        for i, (body, section_path) in enumerate(kept):
+            record: Dict[str, Any] = {id_column: source_id}
             for col in metadata_columns:
                 if col in df.columns:
                     record[col] = row[col]
+            chunk_text = body
+            if header_template:
+                fields = _SafeFormat({**{k: ("" if pd.isna(v) else v) for k, v in row.items() if k != text_column}, "section_path": section_path})
+                chunk_text = header_template.format_map(fields) + body
+            digest = _sha256(chunk_text)
+            chunk_id = f"{source_id}_{digest[:12]}" if id_mode == "content" else f"{source_id}_{i}"
+            if chunk_id in seen_ids:  # identical text twice in one source (content ids): keep both
+                chunk_id = f"{chunk_id}-{i}"
+            seen_ids.add(chunk_id)
+            record.update({
+                "chunk_id": chunk_id,
+                "chunk_index": i,
+                "total_chunks": len(kept),
+                out_text_col: chunk_text,
+                "content_hash": digest,
+            })
+            if strategy == "markdown":
+                record["section_path"] = section_path
             rows.append(record)
     if skipped:
         context.log.warning(f"chunk: skipped {skipped} row(s) with empty {text_column!r}")
-    return pd.DataFrame(rows)
+    if dropped_small:
+        context.log.info(f"chunk: dropped {dropped_small} chunk(s) shorter than min_chunk_chars={min_chars}")
+    if capped:
+        context.log.warning(f"chunk: max_chunks_per_source={max_chunks} dropped {capped} chunk(s)")
+    out = pd.DataFrame(rows)
+    out.attrs["stats"] = {"dropped_small": dropped_small, "capped": capped}
+    return out
+
+
+# ── filter / dedupe / sensitivity / stamp ops (python mode) ─────────────
+
+def _text_column(df: pd.DataFrame, step: dict) -> str:
+    col = step.get("text_column", "chunk_text")
+    if col not in df.columns:
+        raise ValueError(f"{step.get('op', 'op')} op: text_column={col!r} not in upstream columns: {list(df.columns)}")
+    return col
+
+
+def _rehash(df: pd.DataFrame, text_col: str) -> pd.DataFrame:
+    if "content_hash" in df.columns:
+        df = df.copy()
+        df["content_hash"] = df[text_col].astype(str).map(_sha256)
+    return df
+
+
+def _do_filter(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
+    """Drop low-quality chunks. Knobs: min_chars, max_chars, min_alnum_ratio (drop mostly-symbol
+    chunks), exclude_patterns (regexes, e.g. boilerplate/footers/signatures)."""
+    col = _text_column(df, step)
+    texts = df[col].astype(str)
+    keep = pd.Series(True, index=df.index)
+    reasons: Dict[str, int] = {}
+
+    def apply(name: str, mask: pd.Series) -> None:
+        nonlocal keep
+        newly = keep & ~mask
+        if newly.any():
+            reasons[name] = int(newly.sum())
+        keep = keep & mask
+
+    if step.get("min_chars") is not None:
+        apply("min_chars", texts.str.len() >= int(step["min_chars"]))
+    if step.get("max_chars") is not None:
+        apply("max_chars", texts.str.len() <= int(step["max_chars"]))
+    if step.get("min_alnum_ratio") is not None:
+        ratio = texts.map(lambda t: (sum(ch.isalnum() for ch in t) / len(t)) if t else 0.0)
+        apply("min_alnum_ratio", ratio >= float(step["min_alnum_ratio"]))
+    for pattern in step.get("exclude_patterns") or []:
+        compiled = re.compile(pattern, re.IGNORECASE | re.MULTILINE)
+        apply(f"exclude:{pattern}", ~texts.map(lambda t, c=compiled: bool(c.search(t))))
+    out = df[keep].reset_index(drop=True)
+    out.attrs["stats"] = {"dropped": int((~keep).sum()), "reasons": reasons}
+    context.log.info(f"filter: dropped {int((~keep).sum())} of {len(df)} chunks {reasons}")
+    return out
+
+
+def _normalize_for_dedupe(text: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", "", text.lower())).strip()
+
+
+def _do_dedupe(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
+    """Drop duplicate chunks (first wins). mode: exact (byte-identical) or normalized (case,
+    punctuation and whitespace-insensitive). within: optional columns -- only dedupe inside the
+    same value of these (e.g. per customer) so one tenant's chunk never suppresses another's."""
+    col = _text_column(df, step)
+    mode = step.get("mode", "normalized")
+    if mode not in ("exact", "normalized"):
+        raise ValueError(f"dedupe op: mode must be 'exact' or 'normalized', got {mode!r}")
+    key = df[col].astype(str) if mode == "exact" else df[col].astype(str).map(_normalize_for_dedupe)
+    key = key.map(_sha256)
+    subset = pd.DataFrame({"_k": key})
+    for extra in step.get("within") or []:
+        if extra not in df.columns:
+            raise ValueError(f"dedupe op: within column {extra!r} not in upstream columns: {list(df.columns)}")
+        subset[extra] = df[extra].astype(str)
+    dup = subset.duplicated(keep="first")
+    out = df[~dup.values].reset_index(drop=True)
+    out.attrs["stats"] = {"duplicates_dropped": int(dup.sum())}
+    context.log.info(f"dedupe ({mode}): dropped {int(dup.sum())} duplicate chunk(s)")
+    return out
+
+
+def _luhn_ok(digits: str) -> bool:
+    total = 0
+    for i, ch in enumerate(reversed(digits)):
+        d = int(ch)
+        if i % 2 == 1:
+            d = d * 2 - 9 if d * 2 > 9 else d * 2
+        total += d
+    return total % 10 == 0
+
+
+_PII_DETECTORS: Dict[str, "re.Pattern"] = {
+    "email": re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"),
+    "ssn": re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
+    "phone": re.compile(r"(?<!\d)(?:\+?1[\s.-]?)?(?:\(\d{3}\)|\d{3})[\s.-]\d{3}[\s.-]\d{4}(?!\d)"),
+    "credit_card": re.compile(r"\b(?:\d[ -]?){13,19}\b"),
+    "ipv4": re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b"),
+}
+
+
+def _find_pii(text: str, detectors: List[str]) -> List[Tuple[str, int, int]]:
+    hits: List[Tuple[str, int, int]] = []
+    for name in detectors:
+        for m in _PII_DETECTORS[name].finditer(text):
+            if name == "credit_card":
+                digits = re.sub(r"\D", "", m.group(0))
+                if not (13 <= len(digits) <= 19 and _luhn_ok(digits)):
+                    continue
+            hits.append((name, m.start(), m.end()))
+    return hits
+
+
+def _do_sensitivity(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
+    """Detect PII with regexes (email, phone, ssn, credit_card [Luhn-checked], ipv4). action:
+    tag (default) adds `sensitivity` ('pii'|'none') and `pii_types`; redact also replaces matches with
+    [EMAIL]/[PHONE]/...; drop removes affected chunks. The `sensitivity` column is what a gateway
+    policy keys on to withhold chunks (receipt exclusion reason 'pii'). Regex detection, not NER:
+    it misses names and free-form identifiers, so treat it as a floor, not a guarantee."""
+    col = _text_column(df, step)
+    detectors = step.get("detectors") or list(_PII_DETECTORS)
+    unknown = [d for d in detectors if d not in _PII_DETECTORS]
+    if unknown:
+        raise ValueError(f"sensitivity op: unknown detector(s) {unknown}; valid: {sorted(_PII_DETECTORS)}")
+    action = step.get("action", "tag")
+    if action not in ("tag", "redact", "drop"):
+        raise ValueError(f"sensitivity op: action must be tag, redact or drop, got {action!r}")
+    out_col = step.get("output_column", "sensitivity")
+    types_col = step.get("types_column", "pii_types")
+    out = df.copy()
+    flags, types, texts = [], [], []
+    for text in out[col].astype(str):
+        hits = _find_pii(text, detectors)
+        flags.append("pii" if hits else "none")
+        types.append(",".join(sorted({h[0] for h in hits})))
+        if action == "redact" and hits:
+            for name, a, b in sorted(hits, key=lambda h: -h[1]):
+                text = text[:a] + f"[{name.upper()}]" + text[b:]
+        texts.append(text)
+    out[out_col] = flags
+    out[types_col] = types
+    if action == "redact":
+        out[col] = texts
+        out = _rehash(out, col)
+    if action == "drop":
+        out = out[out[out_col] == "none"].reset_index(drop=True)
+    flagged = sum(f == "pii" for f in flags)
+    out.attrs["stats"] = {"pii_chunks": flagged}
+    context.log.info(f"sensitivity ({action}): {flagged} of {len(df)} chunks contain PII")
+    return out
+
+
+def _do_stamp(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
+    """Add governance columns that travel to the vector store as filterable metadata, so a gateway can
+    enforce policy at query time. columns: {name: literal-or-"{column}" template} (e.g. scope:
+    "{customer_id}", access_tags: "support"). ttl_days adds valid_until_column (default valid_until,
+    ISO date) so a gateway can withhold chunks past their date (receipt reason 'stale')."""
+    out = df.copy()
+    for name, template in (step.get("columns") or {}).items():
+        out[name] = [str(template).format_map(_SafeFormat({k: v for k, v in row.items()})) for row in out.to_dict("records")]
+    if step.get("ttl_days") is not None:
+        from datetime import datetime, timedelta, timezone
+        out[step.get("valid_until_column", "valid_until")] = (datetime.now(timezone.utc) + timedelta(days=float(step["ttl_days"]))).date().isoformat()
+    return out
 
 
 # ── classify op ───────────────────────────────────────────────────────
@@ -344,7 +635,7 @@ def _do_classify(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
 
 # ── embed op ────────────────────────────────────────────────────────────
 
-def _do_embed(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
+def _do_embed_raw(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
     provider = step.get("provider", "sentence_transformers")
     text_column = step.get("text_column", "chunk_text")
     output_column = step.get("output_column", "embedding")
@@ -422,22 +713,108 @@ def _do_embed(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
         raise ValueError(f"embed op: unsupported provider {provider!r}. Valid: sentence_transformers, openai, cohere, litellm.")
 
     out[output_column] = embeddings
+    out["embedding_model"] = model_name
+    return out
+
+
+def _reuse_embeddings(df: pd.DataFrame, step: dict, output_column: str, context) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Split df into (already-embedded, still-needs-embedding) using an existing ChromaDB collection:
+    a chunk is reused when the collection holds the same chunk_id with the same content_hash AND the
+    same embedding_model, so only new or changed chunks pay for an embedding call."""
+    cfg = step["reuse_from"]
+    if cfg.get("provider", "chromadb") != "chromadb":
+        raise ValueError("embed op reuse_from: only provider='chromadb' is supported")
+    for needed in ("chunk_id", "content_hash"):
+        if needed not in df.columns:
+            raise ValueError(f"embed op reuse_from needs column {needed!r} (produced by the chunk op)")
+    import chromadb
+    model_name = step.get("model") or {"sentence_transformers": "all-MiniLM-L6-v2", "openai": "text-embedding-3-small",
+                                         "cohere": "embed-english-v3.0", "litellm": "text-embedding-3-small"}.get(step.get("provider", "sentence_transformers"))
+    client = chromadb.PersistentClient(path=cfg.get("connection_string") or "./chroma_db")
+    try:
+        collection = client.get_collection(name=cfg.get("collection_name", "context_engineering_kb"))
+    except Exception:
+        return df.iloc[0:0], df  # nothing indexed yet
+    existing: Dict[str, Tuple[str, str, Any]] = {}
+    ids = df["chunk_id"].astype(str).tolist()
+    for i in range(0, len(ids), 500):
+        got = collection.get(ids=ids[i:i + 500], include=["metadatas", "embeddings"])
+        for cid, meta, emb in zip(got["ids"], got["metadatas"], got["embeddings"]):
+            existing[cid] = ((meta or {}).get("content_hash"), (meta or {}).get("embedding_model"), emb)
+    reusable = []
+    for cid, digest in zip(ids, df["content_hash"].astype(str)):
+        hit = existing.get(cid)
+        reusable.append(bool(hit and hit[0] == digest and hit[1] == model_name and hit[2] is not None))
+    mask = pd.Series(reusable, index=df.index)
+    reused = df[mask].copy()
+    reused[output_column] = [list(map(float, existing[c][2])) for c in reused["chunk_id"].astype(str)]
+    reused["embedding_model"] = model_name
+    return reused, df[~mask]
+
+
+def _do_embed(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
+    """Embed chunks. Knob `reuse_from: {provider: chromadb, connection_string, collection_name}` skips
+    chunks whose chunk_id + content_hash + embedding model already exist in the index (re-embedding only
+    what changed); the stats report how many were reused."""
+    output_column = step.get("output_column", "embedding")
+    if not step.get("reuse_from"):
+        return _do_embed_raw(df, step, context)
+    reused, todo = _reuse_embeddings(df, step, output_column, context)
+    computed = _do_embed_raw(todo, step, context) if len(todo) else todo.assign(**{output_column: [], "embedding_model": []})
+    out = pd.concat([reused, computed]).sort_index().reset_index(drop=True)
+    out.attrs["stats"] = {"embeddings_reused": len(reused), "embeddings_computed": len(todo)}
+    context.log.info(f"embed: reused {len(reused)} embedding(s), computed {len(todo)}")
     return out
 
 
 # ── write_vector_store op ────────────────────────────────────────────────
 
-def _do_write_vector_store(df: pd.DataFrame, step: dict, id_column: str, context) -> pd.DataFrame:
+def _delete_in_batches(delete_fn, ids: List[str], size: int = 500) -> None:
+    for i in range(0, len(ids), size):
+        delete_fn(ids[i:i + size])
+
+
+def _do_write_vector_store(df: pd.DataFrame, step: dict, id_column: str, context, stamp: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
+    """Index chunks. Knobs: provider (chromadb|pinecone|qdrant), sync_mode (replace_sources default |
+    upsert | replace_all), batch_size, metadata_columns. `stamp` (see the component's stamp_provenance)
+    writes source_asset_key / source_version / source_partition / chunk_id / content_hash /
+    embedding_model / source_id onto every chunk so a retrieval gateway can build receipts straight from
+    index hits. sync_mode=replace_sources deletes chunks of the source rows in this run that no longer
+    exist (a shrunk document no longer leaves stale chunks behind); replace_all makes the collection
+    exactly this run (refused for partitioned assets). chromadb is exercised by tests; qdrant and
+    pinecone are not exercised against live services; pinecone cannot delete by filter so it
+    falls back to upsert with a warning."""
     provider = step.get("provider", "chromadb")
     text_column = step.get("text_column", "chunk_text")
     embedding_column = step.get("embedding_column", "embedding")
     chunk_id_column = step.get("id_column", "chunk_id" if "chunk_id" in df.columns else id_column)
     metadata_columns = step.get("metadata_columns") or [c for c in df.columns if c not in (text_column, embedding_column, chunk_id_column)]
     batch_size = step.get("batch_size", 100)
+    sync_mode = step.get("sync_mode", "replace_sources")
+    if sync_mode not in ("replace_sources", "upsert", "replace_all"):
+        raise ValueError(f"write_vector_store op: sync_mode must be replace_sources, upsert or replace_all, got {sync_mode!r}")
+    if sync_mode == "replace_all" and stamp and stamp.get("source_partition") is not None:
+        raise ValueError("write_vector_store op: sync_mode='replace_all' would delete other partitions' chunks; use replace_sources")
 
     for required in (text_column, embedding_column, chunk_id_column):
         if required not in df.columns:
             raise ValueError(f"write_vector_store op: column {required!r} not in upstream columns: {list(df.columns)}")
+
+    meta_df = df[[c for c in metadata_columns if c in df.columns]].astype(str).copy()
+    # Always present so sync/orphan logic never depends on user-chosen metadata_columns.
+    meta_df["source_id"] = df[id_column].astype(str).values
+    meta_df["chunk_id"] = df[chunk_id_column].astype(str).values
+    meta_df["content_hash"] = df[text_column].astype(str).map(_sha256).values
+    if "embedding_model" in df.columns:
+        meta_df["embedding_model"] = df["embedding_model"].astype(str).values
+    for key, value in (stamp or {}).items():
+        if value is not None:
+            meta_df[key] = str(value)
+    metadatas = meta_df.to_dict("records")
+    ids = df[chunk_id_column].astype(str).tolist()
+    new_ids = set(ids)
+    source_ids = sorted(set(meta_df["source_id"]))
+    stats: Dict[str, Any] = {"upserted": len(df), "orphans_deleted": 0}
 
     if provider == "chromadb":
         import chromadb
@@ -445,21 +822,21 @@ def _do_write_vector_store(df: pd.DataFrame, step: dict, id_column: str, context
         collection_name = step.get("collection_name", "context_engineering_kb")
         client = chromadb.PersistentClient(path=connection_string)
         collection = client.get_or_create_collection(name=collection_name)
-
-        ids = df[chunk_id_column].astype(str).tolist()
         embeddings = df[embedding_column].tolist()
         documents = df[text_column].astype(str).tolist()
-        metadatas = df[[c for c in metadata_columns if c in df.columns]].astype(str).to_dict("records") if metadata_columns else None
-
         for i in range(0, len(df), batch_size):
             j = min(i + batch_size, len(df))
-            collection.upsert(
-                ids=ids[i:j],
-                embeddings=embeddings[i:j],
-                documents=documents[i:j],
-                metadatas=metadatas[i:j] if metadatas else None,
-            )
-        context.log.info(f"write_vector_store: upserted {len(df)} chunks into chromadb collection {collection_name!r} at {connection_string!r}")
+            collection.upsert(ids=ids[i:j], embeddings=embeddings[i:j], documents=documents[i:j], metadatas=metadatas[i:j])
+        orphans: List[str] = []
+        if sync_mode == "replace_sources":
+            for i in range(0, len(source_ids), 500):
+                got = collection.get(where={"source_id": {"$in": source_ids[i:i + 500]}}, include=[])
+                orphans.extend(cid for cid in got["ids"] if cid not in new_ids)
+        elif sync_mode == "replace_all":
+            orphans = [cid for cid in collection.get(include=[])["ids"] if cid not in new_ids]
+        _delete_in_batches(lambda batch: collection.delete(ids=batch), orphans)
+        stats["orphans_deleted"] = len(orphans)
+        context.log.info(f"write_vector_store: upserted {len(df)} chunks into chromadb collection {collection_name!r} at {connection_string!r}; removed {len(orphans)} stale chunk(s) ({sync_mode})")
 
     elif provider == "pinecone":
         try:
@@ -471,42 +848,84 @@ def _do_write_vector_store(df: pd.DataFrame, step: dict, id_column: str, context
         pc = Pinecone(api_key=os.environ.get(api_key_env_var))
         index = pc.Index(step["collection_name"])
         vectors = []
-        for _, row in df.iterrows():
-            meta = {c: str(row[c]) for c in metadata_columns if c in df.columns}
-            meta[text_column] = str(row[text_column])
-            vectors.append({"id": str(row[chunk_id_column]), "values": row[embedding_column], "metadata": meta})
+        for pos, row in enumerate(df.itertuples(index=False)):
+            meta = dict(metadatas[pos])
+            meta[text_column] = str(df[text_column].iloc[pos])
+            vectors.append({"id": ids[pos], "values": df[embedding_column].iloc[pos], "metadata": meta})
         for i in range(0, len(vectors), batch_size):
             index.upsert(vectors=vectors[i:i + batch_size])
+        if sync_mode != "upsert":
+            context.log.warning("write_vector_store: pinecone cannot delete by metadata filter on serverless indexes; stale chunks of changed documents are NOT removed (behaves as sync_mode='upsert').")
         context.log.info(f"write_vector_store: upserted {len(df)} chunks into pinecone index {step['collection_name']!r}")
 
     elif provider == "qdrant":
         try:
             from qdrant_client import QdrantClient
-            from qdrant_client.models import PointStruct
+            from qdrant_client.models import FieldCondition, Filter, FilterSelector, MatchAny, PointStruct
         except ImportError:
             raise ImportError("write_vector_store op provider='qdrant' requires: pip install qdrant-client")
         import os
         api_key_env_var = step.get("api_key_env_var")
         client = QdrantClient(url=step.get("connection_string") or "localhost", api_key=os.environ.get(api_key_env_var) if api_key_env_var else None)
         points = []
-        for idx, row in df.iterrows():
-            meta = {c: str(row[c]) for c in metadata_columns if c in df.columns}
-            meta[text_column] = str(row[text_column])
-            meta[chunk_id_column] = str(row[chunk_id_column])
-            points.append(PointStruct(id=idx, vector=row[embedding_column], payload=meta))
+        for pos in range(len(df)):
+            payload = dict(metadatas[pos])
+            payload[text_column] = str(df[text_column].iloc[pos])
+            # Deterministic id from the chunk id: the row index would overwrite unrelated chunks across runs.
+            points.append(PointStruct(id=str(uuid.uuid5(uuid.NAMESPACE_URL, ids[pos])), vector=df[embedding_column].iloc[pos], payload=payload))
         for i in range(0, len(points), batch_size):
             client.upsert(collection_name=step["collection_name"], points=points[i:i + batch_size])
-        context.log.info(f"write_vector_store: upserted {len(df)} chunks into qdrant collection {step['collection_name']!r}")
+        if sync_mode == "replace_sources":
+            for i in range(0, len(source_ids), 500):
+                client.delete(
+                    collection_name=step["collection_name"],
+                    points_selector=FilterSelector(filter=Filter(
+                        must=[FieldCondition(key="source_id", match=MatchAny(any=source_ids[i:i + 500]))],
+                        must_not=[FieldCondition(key="chunk_id", match=MatchAny(any=list(new_ids)))],
+                    )),
+                )
+        elif sync_mode == "replace_all":
+            client.delete(
+                collection_name=step["collection_name"],
+                points_selector=FilterSelector(filter=Filter(
+                    must_not=[FieldCondition(key="chunk_id", match=MatchAny(any=list(new_ids)))],
+                )),
+            )
+        context.log.info(f"write_vector_store: upserted {len(df)} chunks into qdrant collection {step['collection_name']!r} ({sync_mode})")
     else:
         raise ValueError(f"write_vector_store op: unsupported provider {provider!r}. Valid: chromadb, pinecone, qdrant.")
 
-    return df
+    out = df.copy()
+    out.attrs["stats"] = stats
+    return out
 
 
 _FRAME_OPS = {
     "classify": lambda df, step, ctx: _do_classify(df, step, ctx),
     "embed": lambda df, step, ctx: _do_embed(df, step, ctx),
+    "filter": lambda df, step, ctx: _do_filter(df, step, ctx),
+    "dedupe": lambda df, step, ctx: _do_dedupe(df, step, ctx),
+    "sensitivity": lambda df, step, ctx: _do_sensitivity(df, step, ctx),
+    "stamp": lambda df, step, ctx: _do_stamp(df, step, ctx),
 }
+
+
+def _content_version(df: pd.DataFrame, text_column: str, steps_cfg: List[dict]) -> str:
+    """Content-derived version: hash of every (chunk_id, content_hash) plus the build configuration
+    (everything except where it is written). Unlike Dagster's default data version, which changes on
+    every materialization, this only changes when the knowledge base content or recipe changes, so a
+    no-op rebuild does not make receipts look stale."""
+    h = hashlib.sha256()
+    ids = df["chunk_id"].astype(str) if "chunk_id" in df.columns else pd.Series(range(len(df))).astype(str)
+    digests = df["content_hash"].astype(str) if "content_hash" in df.columns else df[text_column].astype(str).map(_sha256)
+    for cid, digest in sorted(zip(ids, digests)):
+        h.update(f"{cid}:{digest}\n".encode())
+    recipe = [
+        {k: v for k, v in step.items() if k not in ("id", "source", "connection_string", "api_key_env_var", "batch_size", "reuse_from", "sync_mode")}
+        for step in steps_cfg if step.get("op") != "write_vector_store"
+    ]
+    h.update(json.dumps(recipe, sort_keys=True, default=str).encode())
+    return h.hexdigest()[:32]
 
 
 # ── execution_mode='sql' ────────────────────────────────────────────────
@@ -799,8 +1218,26 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             "Ordered list of {id, op, ...op-specific fields} dicts. Each step's `source:` "
             "names a prior step's id to read from; if omitted, defaults to the immediately "
             "preceding step (so you don't have to repeat `source:` on every line). "
-            "Valid ops: 'chunk' (must be first), 'classify', 'embed', 'write_vector_store'."
+            "Valid ops: 'chunk' (must be first), 'filter', 'dedupe', 'sensitivity', 'stamp', 'classify', 'embed', "
+            "'write_vector_store'. filter/dedupe/sensitivity/stamp are python-mode only."
         )
+    )
+
+    emit_data_version: bool = Field(
+        default=True,
+        description=(
+            "Emit a content-derived Dagster data version (hash of every chunk id + content hash + the build recipe). "
+            "Dagster's default data version changes on every materialization, so without this a no-op rebuild makes "
+            "anything that recorded the old version (such as context receipts) look stale."
+        ),
+    )
+    stamp_provenance: bool = Field(
+        default=True,
+        description=(
+            "Write source_asset_key, source_version (the emitted data version), source_partition, source_id, chunk_id, "
+            "content_hash and embedding_model onto every chunk in the vector store, so a retrieval gateway can build "
+            "receipts directly from index hits. Python mode, write_vector_store step."
+        ),
     )
 
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
@@ -841,7 +1278,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             raise ValueError("context_engineering_pipeline requires at least one step in `steps:`.")
         if steps_cfg[0]["op"] != "chunk":
             raise ValueError("context_engineering_pipeline: the first step must be op='chunk'.")
-        valid_ops = {"chunk", "classify", "embed", "write_vector_store"}
+        valid_ops = {"chunk", "classify", "embed", "write_vector_store", "filter", "dedupe", "sensitivity", "stamp"}
         for s in steps_cfg:
             if "id" not in s or "op" not in s:
                 raise ValueError(f"every step needs {{id, op}}; got: {s}")
@@ -849,6 +1286,10 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                 raise ValueError(f"step {s['id']!r} op={s['op']!r} unsupported. Valid: {sorted(valid_ops)}")
 
         execution_mode = self.execution_mode
+        if execution_mode == "sql":
+            python_only = sorted({s["op"] for s in steps_cfg} - {"chunk", "classify", "embed"})
+            if python_only:
+                raise ValueError(f"execution_mode='sql' supports only chunk/classify/embed steps; python-mode-only op(s): {python_only}")
         if execution_mode not in ("python", "sql"):
             raise ValueError(f"execution_mode must be 'python' or 'sql', got {execution_mode!r}.")
         if execution_mode == "sql":
@@ -891,6 +1332,8 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         text_column = self.text_column
         metadata_columns = self.metadata_columns or []
         max_source_rows = self.max_source_rows
+        emit_data_version = self.emit_data_version
+        stamp_provenance = self.stamp_provenance
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
         source_cfg = self.source
@@ -953,6 +1396,8 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             state: Dict[str, pd.DataFrame] = {}
             step_metadata: Dict[str, Dict[str, Any]] = {}
             last_frame_id: Optional[str] = None
+            content_version: Optional[str] = None
+            partition = context.partition_key if context.has_partition_key else None
 
             for step in steps_cfg:
                 import time as _time
@@ -966,7 +1411,14 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                 elif op == "write_vector_store":
                     if source_id is None:
                         raise ValueError(f"step {step_id!r} (op=write_vector_store) has no source and is not preceded by another step.")
-                    df = _do_write_vector_store(state[source_id], step, id_column, context)
+                    write_input = state[source_id]
+                    content_version = _content_version(write_input, step.get("text_column", "chunk_text"), steps_cfg)
+                    stamp = {
+                        "source_asset_key": asset_name,
+                        "source_version": content_version,
+                        "source_partition": partition,
+                    } if stamp_provenance else None
+                    df = _do_write_vector_store(write_input, step, id_column, context, stamp)
                 else:
                     if source_id is None:
                         raise ValueError(f"step {step_id!r} (op={op!r}) has no source and is not preceded by another step.")
@@ -975,10 +1427,12 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                 state[step_id] = df
                 last_frame_id = step_id
                 elapsed = _time.time() - t0
-                step_metadata[step_id] = {"op": op, "rows": len(df), "elapsed_seconds": round(elapsed, 3)}
+                step_metadata[step_id] = {"op": op, "rows": len(df), "elapsed_seconds": round(elapsed, 3), **(df.attrs.get("stats") or {})}
                 context.log.info(f"step {step_id!r} ({op}) → {len(df)} rows in {elapsed:.2f}s")
 
             final_df = state[steps_cfg[-1]["id"]]
+            if content_version is None and "chunk_id" in final_df.columns:
+                content_version = _content_version(final_df, "chunk_text" if "chunk_text" in final_df.columns else final_df.columns[0], steps_cfg)
 
             metadata: Dict[str, Any] = {
                 "dagster/row_count": MetadataValue.int(len(final_df)),
@@ -988,6 +1442,8 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                 "step_chain": MetadataValue.text(" → ".join(s["id"] for s in steps_cfg)),
                 "step_metadata": MetadataValue.json(step_metadata),
             }
+            if content_version is not None:
+                metadata["context_version"] = MetadataValue.text(content_version)
             if include_preview and len(final_df) > 0:
                 try:
                     _prev_cols = [c for c in final_df.columns if c != "embedding"]
@@ -996,6 +1452,10 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                     metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False) or "")
                 except Exception as e:
                     context.log.warning(f"preview emission failed: {e}")
-            return Output(value=final_df, metadata=metadata)
+            return Output(
+                value=final_df,
+                metadata=metadata,
+                data_version=DataVersion(content_version) if (emit_data_version and content_version) else None,
+            )
 
         return Definitions(assets=[_asset])

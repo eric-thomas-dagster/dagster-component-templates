@@ -11,6 +11,11 @@ traffic in Dagster's event log. The receipt store is an ordinary Dagster
 resource and a standalone Python API that a FastMCP tool or Prefect flow can
 also call.
 
+`context_engineering_pipeline` is the build side of this loop: its `emit_data_version` and `stamp_provenance`
+settings (on by default) write the asset key, content-derived version, partition, chunk id and content hash onto
+every indexed chunk, so a gateway can build receipt items straight from index hits and a no-op rebuild does not
+make receipts look stale. Any other pipeline works too if it stamps the same fields.
+
 ## Configure the Dagster resource
 
 ```yaml

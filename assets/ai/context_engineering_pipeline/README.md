@@ -40,6 +40,50 @@ Every op is free/local by default (sentence-transformers + HuggingFace zero-shot
 - **embed**: `provider: sentence_transformers` (default, local, free), `openai`, `cohere`, or `litellm` (universal gateway — one interface across every provider litellm supports: Azure, Bedrock, Vertex, Ollama, VoyageAI, Mistral, etc., via litellm's `"<provider>/<model>"` naming).
 - **write_vector_store**: `provider: chromadb` (default, local, free), `pinecone`, or `qdrant`.
 
+## Knobs (python mode)
+
+**`chunk`**: `strategy` (`fixed` | `recursive` | `markdown`: markdown splits at headings and records a `section_path`
+breadcrumb for citations), `chunk_size` / `chunk_overlap` with `length_unit: chars | tokens` (tokens are estimated as
+`chars_per_token`, default 4), `min_chunk_chars`, `max_chunks_per_source`, `chunk_id_mode: positional | content`
+(content ids are `source_<hash>`: an unchanged chunk keeps its id and a changed one gets a new id, so learned
+retrieval priors do not carry over to different text), `header_template` (e.g. `"[{title}] "`, prepended to each chunk
+and included in its hash). Every chunk gets a `content_hash`.
+
+**`filter`**: drop by `min_chars`, `max_chars`, `min_alnum_ratio`, `exclude_patterns` (regexes for boilerplate, footers,
+signatures); reasons are counted in the step metadata.
+
+**`dedupe`**: `mode: exact | normalized`, `within: [columns]` so one tenant's chunk never suppresses another's.
+
+**`sensitivity`**: regex PII detection (email, phone, ssn, Luhn-checked credit_card, ipv4); `action: tag | redact | drop`.
+`tag` adds `sensitivity` (`pii`/`none`) and `pii_types` columns that a gateway can withhold on (receipt exclusion reason
+`pii`). Regex only, not NER: it misses names and free-form identifiers, so treat it as a floor.
+
+**`stamp`**: governance columns that become filterable vector-store metadata: `columns: {scope: "{customer_id}"}`,
+`ttl_days` (adds `valid_until` so a gateway can withhold expired chunks, receipt reason `stale`).
+
+**`embed`**: `reuse_from: {connection_string, collection_name}` (chromadb) skips chunks whose `chunk_id`, `content_hash`
+and embedding model already exist in the index, so only new or changed chunks pay for an embedding call. Every embedded
+row records its `embedding_model`.
+
+**`write_vector_store`**: `sync_mode: replace_sources` (default; deletes chunks of the source rows in this run that no
+longer exist, so a shrunk document leaves no stale chunks) | `upsert` (never deletes) | `replace_all` (collection becomes
+exactly this run; refused for partitioned assets). chromadb is exercised by tests. Qdrant and Pinecone are not tested
+against live services; Pinecone cannot delete by filter on serverless indexes, so it behaves as `upsert` with a warning.
+Qdrant point ids are now derived from the chunk id (they used to be the DataFrame row index, which overwrote unrelated
+chunks across runs, so re-index existing Qdrant collections).
+
+## Receipt-ready context
+
+Two component fields make this pipeline the build side of the retrieval-receipt loop
+(`resources/context_receipt_store`):
+
+- **`emit_data_version`** (default on) emits a content-derived data version: a hash of every chunk id + content hash
+  plus the build recipe. Dagster's default data version changes on every materialization, so a no-op rebuild would make
+  every recorded receipt look stale.
+- **`stamp_provenance`** (default on) writes `source_asset_key`, `source_version` (that same data version),
+  `source_partition`, `source_id`, `chunk_id`, `content_hash` and `embedding_model` onto every chunk. A gateway builds a
+  receipt item straight from a hit's metadata: `{item_id: chunk_id, source_asset_key, source_version, source_partition}`.
+
 ## Getting the raw text in: two ways
 
 - **`upstream_asset_key`**: the usual Dagster way — point at any asset producing a DataFrame with `id_column`/`text_column`.

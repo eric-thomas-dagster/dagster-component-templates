@@ -109,3 +109,7 @@ Aggregations in `group_by`: `sum / mean / avg / min / max / count / countDistinc
 ## Local vs cluster
 
 For local development, set `spark.master: "local[*]"`. For a real cluster, point `spark.master` at the cluster URL (`spark://`, `yarn`, `k8s://...`) and add cluster-specific configs to `spark_config:`.
+
+## Partitioning
+
+Set `partition_type` (with `partition_start` for time partitions) to run the pipeline one partition at a time. On a partitioned run `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted everywhere in the pipeline: source paths and tables, SQL, sink paths and `variables`, e.g. `path: s3://lake/events/dt={partition_date}` and a sink to `s3://lake/out/dt={partition_date}`.

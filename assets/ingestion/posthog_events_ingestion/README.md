@@ -58,3 +58,7 @@ DataFrame with columns from PostHog events (id, event, distinct_id, timestamp, p
 - `posthog_persons_ingestion` — persons (identified users + traits)
 - `sentry_issues_ingestion` — pair with Sentry for error-vs-behavior correlation
 - `dataframe_to_snowflake` / `dataframe_to_bigquery` — persist events to your warehouse
+
+## Partitioning
+
+Set `partition_type` (with `partition_start`) to fetch one time window per run: a partitioned run asks PostHog for events `after` the window start and `before` its end (the whole range for a backfill run) instead of using `since_days`.

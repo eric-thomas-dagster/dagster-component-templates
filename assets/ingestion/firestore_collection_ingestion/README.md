@@ -122,3 +122,7 @@ Grant the service account one of:
 - `roles/datastore.viewer` — read-only access
 - `roles/datastore.user` — read + write (only needed if other components in
   the same project write back to Firestore)
+
+## Partitioning
+
+When `partition_type` is set, set `partition_date_column` (time partitions) or `partition_static_column` (static/dynamic partitions) and each run returns only the documents in its partition; a backfill run covers its whole range. The source is still read in full, so this scopes what downstream assets receive.

@@ -6,11 +6,20 @@
 
 ## Current state (supersedes the counts below)
 
-The tables further down were generated at v0.10.52 and are out of date. After the partition sweep, of the 822 components under `assets/`:
+The tables further down were generated at v0.10.52 and are out of date. After the partition sweep, of the 823 components under `assets/`:
 
-- **711** use the partition context (row filter, `{partition_*}` tokens, a partition time window, or a scratch-and-swap of the output's slice).
-- **111** do not. **48** of those are partition-agnostic by design: `lineage_to_*` sinks and `lineage_graph_extractor` (they emit graph metadata, not rows), infrastructure provisioning, and the dbt and warehouse-task components.
-- **63** are open candidates: 11 declare `partition_type` without applying it (data_remediation_asset, document_text_extractor, inference_cost_report, provider_ab_evaluator, ad_spend_standardizer, google_docs_extractor, imap_inbox_source, monday_board_items_ingestion, bigquery_vector_search_asset, parametric_data_generator, aws_cloudwatch_metrics_query) and 52 declare nothing (mostly agent/approval plumbing and database-migration components, the API-specific ingestion connectors that need per-API time parameters, the `pyspark_*` and LLM batch components, and a few one-off readers and transforms).
+- **728** use the partition context (row filter, `{partition_*}` tokens, a partition time window, or a scratch-and-swap of the output's slice).
+- **95** do not. **92** of those are partition-agnostic by design:
+  - **Emit graph metadata, not rows** (10): lineage_to_alation, lineage_to_castordoc, lineage_to_collibra, lineage_to_data360, lineage_to_datahub, lineage_to_file, lineage_to_openmetadata, lineage_to_purview, lineage_to_webhook, lineage_graph_extractor
+  - **Provision or trigger infrastructure** (33): argo_workflow_trigger, arm_template_asset, automation_condition_applicator, autosys_asset, bicep_asset, budget_asset, cloud_functions_invoke_asset, cloud_run_job_trigger_asset, community_component_installer, dagstermill_notebook_asset, data_contract, docker_container_asset, dry_run_asset, gcp_deployment_manager_asset, hooks_asset, k8s_job_asset, lifecycle_wap, log_prints_asset, precisely_connect_job_trigger, profile_asset, rivery_run_asset, rpa_queue_concurrency_lock, sensitive_asset, shadow_asset, shell_command_asset, snapshot_asset, spark_k8s_operator_asset, step_functions_asset, supabase_edge_function_trigger, task_asset, terraform_cloud_asset, throttle_asset, warm_scheduled_job
+  - **dbt and warehouse tasks (they run their own scheduling)** (5): snowflake_dynamic_table_refresh_asset, snowflake_stored_procedure_call_asset, snowflake_task_execute_asset, enriched_dbt_cloud_workspace, enriched_dbt_project
+  - **Agent, approval and receipt plumbing** (9): agent_card, agent_card_workspace, agent_review_queue, approval_audit_asset, context_receipt_bigquery_sync, planned_catalog_agent, receipt_outcome_ingestion, rejection_feedback_loop, vanta_evidence_response_agent
+  - **Calls driven by config, with no upstream rows (prompts, literal texts, downloads, searches)** (9): huggingface_chat_completion, huggingface_dataset_asset, huggingface_inference_endpoint, huggingface_model_asset, huggingface_pipeline, huggingface_text_to_image, supabase_vector_search_asset, text_embedding_asset, bigquery_vector_search_asset
+  - **Evaluation, reporting, single-file and plan-driven** (5): data_remediation_asset, document_text_extractor, inference_cost_report, provider_ab_evaluator, google_docs_extractor
+  - **Whole-database or whole-table operations** (12): dataiku_asset, warehouse_schema_assets, bigquery_load_from_gcs_asset, database_constraints_migration, database_replication, database_tables_migration, database_view_migration, database_views_migration, streaming_consumer, polytomic_asset, database_migration_assessment, database_schema_inventory
+  - **State snapshots, metrics and static data with no time dimension** (8): cognos_report_data_ingestion, jde_orchestration_output_ingestion, qlik_compose_workflow_metrics_ingestion, qlik_replicate_task_metrics_ingestion, vanta_controls_ingestion, inline_dataframe, dynamic_fanout_asset, rpa_output_parser
+  - **Insert-only history modelling** (1): data_vault_hub_link_satellite
+- **3** are genuinely open: anthropic_llm_batch, openai_llm_batch, pyspark_feed_orchestrator. The two LLM batch components keep crash-recovery state per asset, so partitioning them needs per-partition state first. `pyspark_feed_orchestrator` emits one asset per feed file, so a partition scheme needs a per-feed decision.
 
 How a component applies a partition, by shape:
 

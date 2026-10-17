@@ -532,7 +532,7 @@ class ParametricDataGeneratorComponent(Component, Model, Resolvable):
     row_count: int = Field(default=100, description="Number of rows to generate.")
     random_state: Optional[int] = Field(
         default=None,
-        description="Seed for reproducibility. None = nondeterministic.",
+        description="Seed for reproducibility. None = nondeterministic. On a partitioned run the seed also mixes in the partition key(s), so each partition gets its own reproducible data.",
     )
 
     columns: Dict[str, Dict[str, Any]] = Field(
@@ -663,13 +663,19 @@ class ParametricDataGeneratorComponent(Component, Model, Resolvable):
             # with "Asset returned Output, expected DataFrame". Dropping
             # the annotation lets Dagster infer from the returned value,
             # which correctly unwraps `Output(value=df, ...)` to `df`.
-            rng = random.Random(random_state)
+            # each partition gets its own reproducible data: the seed mixes the configured random_state with the partition key(s)
+            _seed = random_state
+            if random_state is not None and (context.has_partition_key or context.has_partition_key_range):
+                import zlib
+
+                _seed = (int(random_state) * 1_000_003 + zlib.crc32(",".join(str(k) for k in context.partition_keys).encode())) % (2**31)
+            rng = random.Random(_seed)
             # For `type: faker` columns, thread the component seed through so
             # Faker seeding matches the base rng — reproducibility for the
             # whole run when random_state is set.
             for _spec in columns.values():
                 if isinstance(_spec, dict) and _spec.get("type") == "faker":
-                    _spec.setdefault("_seed", random_state)
+                    _spec.setdefault("_seed", _seed)
             rows: List[Dict[str, Any]] = []
             for i in range(row_count):
                 row: Dict[str, Any] = {}

@@ -60,7 +60,7 @@
       "type": "string",
       "label": "Search Criteria",
       "required": false,
-      "description": "IMAP search expression. Examples: 'UNSEEN', 'ALL', '(FROM \"alerts@\")', 'SINCE 01-Jan-2025', 'SUBJECT \"invoice\"'.",
+      "description": "IMAP search expression. Examples: 'UNSEEN', 'ALL', '(FROM \"alerts@\")', 'SINCE 01-Jan-2025', 'SUBJECT \"invoice\"'. IMAP dates are dd-Mon-yyyy, so a partitioned run also fills {partition_imap_since} (the window's first day) and {partition_imap_before} (the first day after it), e.g. 'SINCE {partition_imap_since} BEFORE {partition_imap_before}'.",
       "default": "UNSEEN"
     },
     "max_messages": {

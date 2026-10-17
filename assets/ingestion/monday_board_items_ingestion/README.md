@@ -96,3 +96,7 @@ One row per Item:
 - Pagination is cursor-based, but **the cursor field changes between the first and subsequent requests**: the first page comes from `boards(ids: [...]) { items_page { cursor, items } }`; every page after that comes from the independent top-level `next_items_page(cursor: ..., limit: ...)` field — NOT another `boards` query. This component handles that switch internally.
 - Each cursor is valid for 60 minutes from the *initial* request, not from the last page fetched — don't let a backfill of many boards run long enough to let an in-flight cursor expire.
 - `items_page`/`next_items_page` return at most 500 items per call; `page_size` is capped accordingly.
+
+## Partitioning
+
+When `partition_type` is set, set `partition_date_column` (time partitions) or `partition_static_column` (static/dynamic partitions) and each run returns only the items in its partition; a backfill run covers its whole range. The source is still read in full, so this scopes what downstream assets receive.

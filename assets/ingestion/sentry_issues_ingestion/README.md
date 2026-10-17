@@ -59,3 +59,7 @@ DataFrame with columns like `id, shortId, title, culprit, level, status, count, 
 - `dataframe_to_sentry` — send events / metrics TO Sentry
 - `posthog_events_ingestion` — pair with PostHog for error-vs-behavior correlation
 - `dataframe_to_snowflake` / `dataframe_to_bigquery` — persist issues to your warehouse for long-term trends
+
+## Partitioning
+
+Set `partition_type` (with `partition_start` for time partitions) to partition this asset. On a partitioned run the tokens `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted into `query`, so each partition reads its own slice. Unpartitioned runs use the value as written.

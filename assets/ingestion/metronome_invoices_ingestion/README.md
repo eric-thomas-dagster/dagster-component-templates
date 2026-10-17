@@ -83,3 +83,7 @@ One row per invoice, with Metronome's header-level invoice fields (`id`, `status
 
 - **`metronome_resource`** -- static Bearer API key auth (required).
 - **`metronome_usage_event_send`** -- the reverse-ETL sibling that sends the usage events these invoices are generated from.
+
+## Partitioning
+
+Set `partition_type` (with `partition_start` for time partitions) to partition this asset. On a partitioned run the tokens `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted into `starting_on`, `ending_before`, so each partition reads its own slice. Unpartitioned runs use the value as written.

@@ -22,7 +22,9 @@ BEGIN, END = "# BEGIN partition row-filter helper", "# END partition row-filter 
 
 
 def _ported():
-    return [p.parent for p in sorted(ROOT.glob("assets/ingestion/*/component.py")) if BEGIN in p.read_text()]
+    """The dlt connectors that filter `combined_df` (other ingestion components share the helper but have their own tests)."""
+    return [p.parent for p in sorted(ROOT.glob("assets/ingestion/*/component.py"))
+            if BEGIN in p.read_text() and "combined_df = _filter_df_to_partition(" in p.read_text()]
 
 
 class _Permissive:

@@ -198,3 +198,7 @@ some_col:
 - [`dataframe_to_csv`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/sinks/dataframe_to_csv) / `_parquet` / `_json` / `_excel` — write to disk
 - [`create_points`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/transforms) → [`spatial_join`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/transforms) — geospatial pipelines
 - Any downstream component that accepts a DataFrame upstream
+
+## Partitioning
+
+On a partitioned run the seed mixes the configured `random_state` with the partition key(s): each partition gets its own data, and re-running a partition reproduces it.

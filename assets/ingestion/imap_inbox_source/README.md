@@ -148,3 +148,7 @@ The next run only sees newly-arrived messages.
 - Attachments are counted, not extracted. For attachment extraction add a downstream transform that re-parses `body_text` against the message — or use Microsoft Graph / Gmail API instead.
 - The IMAP protocol doesn't provide great pagination; for very large mailboxes prefer `search_criteria` with a `SINCE` window plus periodic runs.
 - BODY-PEEK semantics aren't used by default — Python's `imaplib.fetch(RFC822)` may set `\Seen` on some servers regardless of `mark_read`. If you need strict "don't touch flags," use a server that supports `BODY.PEEK[]`.
+
+## Partitioning
+
+Set `partition_type` (with `partition_start`) to read one window of mail per run, e.g. `search_criteria: SINCE {partition_imap_since} BEFORE {partition_imap_before}`. The standard `{partition_date}`, `{partition_start}`, `{partition_end}` tokens work too.

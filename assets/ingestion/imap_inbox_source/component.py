@@ -178,8 +178,7 @@ class ImapInboxSourceComponent(Component, Model, Resolvable):
     search_criteria: str = Field(
         default="UNSEEN",
         description=(
-            "IMAP search expression. Examples: 'UNSEEN', 'ALL', "
-            "'(FROM \"alerts@\")', 'SINCE 01-Jan-2025', 'SUBJECT \"invoice\"'."
+            "IMAP search expression. Examples: 'UNSEEN', 'ALL', '(FROM \"alerts@\")', 'SINCE 01-Jan-2025', 'SUBJECT \"invoice\"'. IMAP dates are dd-Mon-yyyy, so a partitioned run also fills {partition_imap_since} (the window's first day) and {partition_imap_before} (the first day after it), e.g. 'SINCE {partition_imap_since} BEFORE {partition_imap_before}'."
         ),
     )
 
@@ -347,7 +346,7 @@ class ImapInboxSourceComponent(Component, Model, Resolvable):
             try:
                 conn.login(username, password)
                 conn.select(mailbox)
-                typ, msgnums = conn.search(None, criteria)
+                typ, msgnums = conn.search(None, _imap_partition_dates(_substitute_partition(criteria, _partition_vars(context)), context))
                 if typ != "OK":
                     raise RuntimeError(f"IMAP search failed: {typ}")
                 ids = msgnums[0].split() if msgnums and msgnums[0] else []
@@ -355,7 +354,7 @@ class ImapInboxSourceComponent(Component, Model, Resolvable):
                 ids = list(reversed(ids))[:cap]
                 context.log.info(
                     f"Found {len(ids)} matching messages in {host}/{mailbox} "
-                    f"(criteria={criteria!r}, cap={cap})"
+                    f"(criteria={_imap_partition_dates(_substitute_partition(criteria, _partition_vars(context)), context)!r}, cap={cap})"
                 )
 
                 rows: List[Dict[str, Any]] = []
@@ -428,7 +427,7 @@ class ImapInboxSourceComponent(Component, Model, Resolvable):
                 metadata={
                     "message_count": MetadataValue.int(len(df)),
                     "mailbox":       MetadataValue.text(mailbox),
-                    "search":        MetadataValue.text(criteria),
+                    "search":        MetadataValue.text(_imap_partition_dates(_substitute_partition(criteria, _partition_vars(context)), context)),
                     "marked_read":   MetadataValue.bool(mark_read),
                     "preview":       MetadataValue.md(preview),
                 },
@@ -451,3 +450,69 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
+
+# BEGIN partition-vars helper (inlined per component; keep copies identical, see tests/test_partition_vars.py)
+def _partition_vars(context):
+    """Tokens a partitioned run can use in its variables: {partition_key}, and for time partitions {partition_date}
+    (YYYY-MM-DD), {partition_start} and {partition_end} (ISO datetimes); for a multi-partition also
+    {partition_<dimension>}. Empty for an unpartitioned run."""
+    import re as _re
+
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return {}
+    keys = list(context.partition_keys)
+    tokens = {"partition_key": ",".join(str(k) for k in keys)}
+    try:
+        window = context.partition_time_window
+        tokens["partition_start"] = window.start.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_end"] = window.end.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_date"] = window.start.strftime("%Y-%m-%d")
+    except Exception:
+        pass  # static / dynamic partitions have no time window
+    if len(keys) == 1 and hasattr(keys[0], "keys_by_dimension"):
+        for dimension, value in keys[0].keys_by_dimension.items():
+            tokens["partition_" + _re.sub(r"\W", "_", str(dimension))] = str(value)
+    return tokens
+
+
+def _partition_env(tokens):
+    """DAGSTER_PARTITION_* environment variables for a partitioned run (empty when unpartitioned)."""
+    if not tokens:
+        return {}
+    env = {"DAGSTER_PARTITION_KEY": tokens["partition_key"]}
+    for token, name in (("partition_date", "DAGSTER_PARTITION_DATE"), ("partition_start", "DAGSTER_PARTITION_START"),
+                        ("partition_end", "DAGSTER_PARTITION_END")):
+        if token in tokens:
+            env[name] = tokens[token]
+    return env
+
+
+def _substitute_partition(value, tokens):
+    """Replace {partition_*} tokens inside strings, recursively through dicts and lists. Only known tokens are
+    replaced, so other braces (JSON, shell, templates) are left alone. A no-op for an unpartitioned run."""
+    import re as _re
+
+    if not tokens:
+        return value
+    if isinstance(value, str):
+        return _re.sub(r"\{(partition_\w+)\}", lambda m: tokens.get(m.group(1), m.group(0)), value)
+    if isinstance(value, dict):
+        return {k: _substitute_partition(v, tokens) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(_substitute_partition(v, tokens) for v in value)
+    return value
+# END partition-vars helper
+
+
+def _imap_partition_dates(criteria, context):
+    """IMAP searches take dates as dd-Mon-yyyy: {partition_imap_since} is the window's first day and {partition_imap_before} the
+    first day after it (IMAP BEFORE is exclusive), e.g. 'SINCE {partition_imap_since} BEFORE {partition_imap_before}'."""
+    if not isinstance(criteria, str) or not (context.has_partition_key or context.has_partition_key_range):
+        return criteria
+    try:
+        window = context.partition_time_window
+    except Exception:
+        return criteria
+    months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    fmt = lambda t: f"{t.day:02d}-{months[t.month - 1]}-{t.year}"
+    return criteria.replace("{partition_imap_since}", fmt(window.start)).replace("{partition_imap_before}", fmt(window.end))

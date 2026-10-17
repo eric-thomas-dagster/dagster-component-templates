@@ -129,6 +129,10 @@ FIELDS = {
     "assets/sources/polars_scan_parquet": ["path"],
     "assets/sources/dataframe_from_yxdb": ["file_path"],
     "assets/analytics/cube_query_asset": ["query"],
+    "assets/ingestion/sentry_issues_ingestion": ["query"],
+    "assets/ingestion/metronome_invoices_ingestion": ["starting_on", "ending_before"],
+    "assets/ingestion/figment_staking_rewards_ingestion": ["start", "end"],
+    "assets/ingestion/tm1_cube_data_ingestion": ["filters"],
 }
 class _MissingModules(importlib.abc.MetaPathFinder, importlib.abc.Loader):
     """Last-resort finder: any module that is not installed (cloud SDKs imported lazily inside the step) is fabricated."""
@@ -150,8 +154,31 @@ class _MissingModules(importlib.abc.MetaPathFinder, importlib.abc.Loader):
         pass
 
 
-MODE = {"assets/source/dataplex_dq_scan_results_asset": {"mode": "history"}}  # since_iso is only read in history mode
-SHAPED = {"where": [{"field": "d", "op": "==", "value": "X {partition_date} {partition_start}/{partition_end}"}],
+class _EmptyPageClient:
+    """A paginating REST client whose every call returns one empty, final page."""
+
+    def get(self, *a, **k):
+        return self
+
+    def raise_for_status(self):
+        pass
+
+    def json(self):
+        return {"data": [], "next_page": None}
+
+
+class _EmptyPageResource:
+    base_url = "https://example.invalid/v1"
+
+    def get_client(self):
+        return _EmptyPageClient()
+
+
+RESOURCES = {"assets/ingestion/metronome_invoices_ingestion": _EmptyPageResource()}
+MODE = {"assets/ingestion/metronome_invoices_ingestion": {"customer_ids": ["c1"]},
+        "assets/source/dataplex_dq_scan_results_asset": {"mode": "history"}}  # since_iso is only read in history mode
+SHAPED = {"filters": {"Year": "X {partition_date} {partition_start}/{partition_end}"},
+          "where": [{"field": "d", "op": "==", "value": "X {partition_date} {partition_start}/{partition_end}"}],
           "query_params": {"d": "X {partition_date} {partition_start}/{partition_end}"}}  # fields that are not plain strings
 SHAPED_BY_COMPONENT = {("assets/analytics/cube_query_asset", "query"): {"measures": ["X {partition_date} {partition_start}/{partition_end}"]}}
 ALIAS = {"filter_": "filter"}  # the YAML name of a field whose Python name avoids the `filter` builtin
@@ -206,7 +233,7 @@ def _substituted(rel, monkeypatch, tmp_path, partitioned=True):
     if partitioned:
         extra.update(partition_type="daily", partition_start="2026-01-01")
     asset = _build(rel, extra, monkeypatch, tmp_path)
-    resources = {k: dg.ResourceDefinition.hardcoded_resource(_AnyResource()) for k in asset.required_resource_keys if k != "io_manager"}
+    resources = {k: dg.ResourceDefinition.hardcoded_resource(RESOURCES.get(rel, _AnyResource())) for k in asset.required_resource_keys if k != "io_manager"}
     results = []
 
     def prof(frame, event, arg):

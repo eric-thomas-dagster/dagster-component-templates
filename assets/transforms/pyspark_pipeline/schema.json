@@ -26,6 +26,54 @@
                            "description": "Multi-step form. Each sink: {from: <step_id>, kind: parquet|csv|json|delta|table|jdbc|none, path/table/url, mode}."},
 
     "group_name":         {"description": "Dagster asset group name.", "label": "Group Name", "type": "string"},
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None. A partitioned run sends only the rows in its partition (see partition_date_column / partition_static_column).",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date in ISO format. Required for time-based partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec.",
+      "required": false,
+      "default": null
+    },
     "description":        {"description": "Asset description.", "label": "Description", "type": "string"},
     "asset_tags":         {"description": "Additional key-value tags applied to the asset in the Dagster catalog.", "label": "Asset Tags", "type": "object"},
     "kinds":              {"description": "Asset kinds for the Dagster catalog.", "label": "Kinds", "type": "array", "items": {"type": "string"}},

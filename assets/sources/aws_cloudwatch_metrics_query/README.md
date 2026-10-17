@@ -64,3 +64,7 @@ See schema.json for full attribute reference.
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)
+
+## Partitioning
+
+Set `partition_type` (with `partition_start`) to query one time window per run: a partitioned run asks CloudWatch for exactly its partition's window (the whole range for a backfill run) instead of the last `range_minutes`.

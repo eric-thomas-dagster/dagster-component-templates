@@ -44,7 +44,7 @@
       "default": "SENTRY_AUTH_TOKEN"
     },
     "query": {
-      "description": "Sentry search query. Examples: 'is:unresolved', 'is:resolved age:-24h', 'level:error'. See https://docs.sentry.io/product/sentry-basics/search/",
+      "description": "Sentry search query. Examples: 'is:unresolved', 'is:resolved age:-24h', 'level:error'. See https://docs.sentry.io/product/sentry-basics/search/ On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.",
       "label": "Query",
       "type": "string",
       "required": false,
@@ -78,6 +78,54 @@
       "type": "string",
       "required": false,
       "default": "sentry"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None. A partitioned run sends only the rows in its partition (see partition_date_column / partition_static_column).",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date in ISO format. Required for time-based partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec.",
+      "required": false,
+      "default": null
     },
     "include_preview_metadata": {
       "type": "boolean",

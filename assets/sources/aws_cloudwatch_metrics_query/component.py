@@ -69,7 +69,7 @@ class AwsCloudwatchMetricsQueryComponent(Component, Model, Resolvable):
     metric_name: str = Field(description="Metric name, e.g. 'Invocations', 'CPUUtilization'")
     statistic: str = Field(default="Average", description="'Average' | 'Sum' | 'Maximum' | 'Minimum' | 'SampleCount'")
     period_seconds: int = Field(default=300, description="Aggregation period (must be >= 60)")
-    range_minutes: int = Field(default=60, description="How far back to query")
+    range_minutes: int = Field(default=60, description="How far back to query Ignored on a partitioned time run, which queries exactly its partition's window.")
     dimensions: Optional[Dict[str, str]] = Field(default=None, description="Dimension filters as {Name: Value}")
     aws_access_key_id_env_var: Optional[str] = Field(default=None, description="If unset, uses default boto3 chain (IAM role / env vars / aws config)")
     aws_secret_access_key_env_var: Optional[str] = Field(default=None)
@@ -200,6 +200,17 @@ class AwsCloudwatchMetricsQueryComponent(Component, Model, Resolvable):
 
             end = datetime.utcnow()
             start = end - timedelta(minutes=cfg.range_minutes)
+            if context.has_partition_key or context.has_partition_key_range:
+                # a time partition queries exactly its own window (range_minutes only applies to unpartitioned runs)
+                try:
+                    _window = context.partition_time_window
+                except Exception:
+                    _window = None
+                if _window is not None:
+                    from datetime import timezone as _tz
+
+                    start = _window.start.astimezone(_tz.utc).replace(tzinfo=None)
+                    end = _window.end.astimezone(_tz.utc).replace(tzinfo=None)
             dims = [{"Name": k, "Value": v} for k, v in (cfg.dimensions or {}).items()]
 
             resp = client.get_metric_data(

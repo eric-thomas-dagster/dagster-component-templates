@@ -157,3 +157,7 @@ attributes:
 `deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
 
 Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).
+
+## Partitioning
+
+When `partition_type` is set, each platform's input frame is filtered to the run's partition before standardizing: `partition_date_column` (default: `date_column_name`) selects the rows whose date falls in a time partition's window, and `partition_static_column` selects the rows for a static/dynamic partition key. Unpartitioned runs use every row.

@@ -488,6 +488,8 @@ group_name=group_name,
             # Upstream DataFrames arrive via Dagster's IO manager (see ins= above).
             google_ads_df = kwargs.get("google_ads")
             if google_ads_df is not None:
+                google_ads_df = _filter_df_to_partition(google_ads_df, context, partition_date_column or date_column_name, partition_static_column)
+            if google_ads_df is not None:
                 try:
                     context.log.info(f"Loaded Google Ads data: {len(google_ads_df)} rows")
                     standardized_google = self._standardize_google_ads(
@@ -500,6 +502,8 @@ group_name=group_name,
 
             facebook_ads_df = kwargs.get("facebook_ads")
             if facebook_ads_df is not None:
+                facebook_ads_df = _filter_df_to_partition(facebook_ads_df, context, partition_date_column or date_column_name, partition_static_column)
+            if facebook_ads_df is not None:
                 try:
                     context.log.info(f"Loaded Facebook Ads data: {len(facebook_ads_df)} rows")
                     standardized_facebook = self._standardize_facebook_ads(
@@ -511,6 +515,8 @@ group_name=group_name,
                     context.log.warning(f"Could not process Facebook Ads data: {e}")
 
             other_ads_df = kwargs.get("other_ads")
+            if other_ads_df is not None:
+                other_ads_df = _filter_df_to_partition(other_ads_df, context, partition_date_column or date_column_name, partition_static_column)
             if other_ads_df is not None:
                 try:
                     context.log.info(f"Loaded other ad platform data: {len(other_ads_df)} rows")
@@ -832,3 +838,31 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
+
+
+# BEGIN partition row-filter helper (inlined per component; keep copies identical, see tests/test_partition_port_ingestion.py)
+from typing import Literal  # noqa: E402,F401
+
+
+def _filter_df_to_partition(df, context, partition_date_column, partition_static_column):
+    """Keep the rows that belong to the run's partition(s). A no-op for an unpartitioned run.
+
+    Time partitions use `context.partition_time_window` (which spans the whole range of a backfill run) against
+    `partition_date_column`; static/dynamic/multi partitions match `partition_static_column` against
+    `context.partition_keys`. Without the relevant column the frame is returned unchanged."""
+    import pandas as pd
+
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return df
+    if partition_date_column and partition_date_column in df.columns:
+        try:
+            window = context.partition_time_window
+        except Exception:
+            return df  # static/dynamic/multi partition: no time window
+        dates = pd.to_datetime(df[partition_date_column], errors="coerce", utc=True)
+        return df[(dates >= pd.Timestamp(window.start)) & (dates < pd.Timestamp(window.end))]
+    if partition_static_column and partition_static_column in df.columns:
+        keys = {str(k) for k in context.partition_keys}
+        return df[df[partition_static_column].astype(str).isin(keys)]
+    return df
+# END partition row-filter helper

@@ -20,6 +20,10 @@ DAY = "2026-01-03"
 PORTED = [
     "assets/ai/audio_diarized_transcriber",
     "assets/ai/llm_evaluator",
+    "assets/transforms/address_standardize",
+    "assets/transforms/dynamic_rename",
+    "assets/transforms/jupyter_notebook",
+    "assets/sinks/pdf_report",
     "assets/ai/mlflow_model_inference",
     "assets/ai/gong_call_summary_asset",
     "assets/sinks/dataframe_to_sentry",
@@ -244,3 +248,41 @@ def test_scaffolded_components_share_one_partitions_def_builder():
         if m:
             blocks.add(m.group(0))
     assert len(blocks) == 1
+
+
+def test_geo_overlay_slices_the_left_frame_and_leaves_the_overlay_layer_whole(monkeypatch, tmp_path):
+    """Two inputs: only the left (the rows being processed) is partitioned; the right layer is the reference geometry."""
+    left_df, right_df = _frame(), _frame().assign(v=1.0)
+    asset_cls = None
+    folder = ROOT / "assets/transforms/geo_overlay"
+    spec = importlib.util.spec_from_file_location("fr_geo_overlay", folder / "component.py")
+    mod = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, spec.name, mod)
+    spec.loader.exec_module(mod)
+    comp = mod.GeoOverlayComponent(asset_name="geo", left_asset_key="lsrc", right_asset_key="rsrc", partition_type="daily",
+                                   partition_start="2026-01-01", partition_date_column="ts")
+    asset = next(a for a in comp.build_defs(None).assets if hasattr(a, "node_def"))
+    code = asset.op.compute_fn.decorated_fn.__code__
+    seen = {}
+
+    def prof(frame, event, arg):
+        if event == "return" and frame.f_code is code:
+            seen["left"], seen["right"] = frame.f_locals.get("left"), frame.f_locals.get("right")
+
+    @dg.asset(name="lsrc")
+    def lsrc():
+        return left_df
+
+    @dg.asset(name="rsrc")
+    def rsrc():
+        return right_df
+
+    instance = dg.DagsterInstance.ephemeral()
+    dg.materialize([lsrc, rsrc], instance=instance)
+    sys.setprofile(prof)
+    try:
+        dg.materialize([asset, lsrc, rsrc], instance=instance, selection=[asset.key], partition_key=DAY, raise_on_error=False)
+    finally:
+        sys.setprofile(None)
+    assert len(seen["left"]) == 20 and set(pd.to_datetime(seen["left"]["ts"]).dt.strftime("%Y-%m-%d")) == {DAY}
+    assert len(seen["right"]) == 40

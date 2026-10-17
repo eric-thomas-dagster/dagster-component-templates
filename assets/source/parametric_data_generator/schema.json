@@ -26,7 +26,7 @@
       "type": "integer",
       "label": "Random State",
       "required": false,
-      "description": "Seed for reproducibility. None = nondeterministic."
+      "description": "Seed for reproducibility. None = nondeterministic. On a partitioned run the seed also mixes in the partition key(s), so each partition gets its own reproducible data."
     },
     "columns": {
       "type": "object",

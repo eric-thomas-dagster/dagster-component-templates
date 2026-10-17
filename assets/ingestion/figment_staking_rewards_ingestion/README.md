@@ -92,3 +92,7 @@ attributes:
 ## Pairs with
 
 - **`figment_resource`** — static `x-api-key` auth (required).
+
+## Partitioning
+
+Set `partition_type` (with `partition_start` for time partitions) to partition this asset. On a partitioned run the tokens `{partition_key}`, `{partition_date}`, `{partition_start}` and `{partition_end}` (and `{partition_<dimension>}` for multi-partitions) are substituted into `start`, `end`, so each partition reads its own slice. Unpartitioned runs use the value as written.

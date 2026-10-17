@@ -57,7 +57,7 @@
       "type": "integer",
       "label": "Range Minutes",
       "required": false,
-      "description": "How far back to query",
+      "description": "How far back to query Ignored on a partitioned time run, which queries exactly its partition's window.",
       "default": 60
     },
     "dimensions": {

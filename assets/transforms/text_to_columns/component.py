@@ -229,6 +229,39 @@ def coerce_upstream_input(data, *, component: str, mode: str, optional: bool = T
 # END upstream-asset-key normalization
 
 
+# BEGIN output-columns normalization (inlined per component; keep copies identical — see tests/test_output_columns.py)
+def normalize_output_columns(v):
+    """Accept the shapes people (and LLMs) naturally write for a list of column names:
+    a real list, a comma-separated string, or -- the common mistake -- a string holding
+    a Python list's own repr (``"['a', 'b']"``) instead of a real YAML/JSON list.
+
+    Numeric items pass through unchanged (these fields allow int column labels).
+    String items are stripped of whitespace and any stray `[`, `]`, `'`, `"`
+    characters left over from a misrendered list literal; empties are dropped.
+    """
+    if v is None:
+        return v
+    if isinstance(v, str):
+        v = v.split(",")
+    if not isinstance(v, (list, tuple)):
+        return v
+    out = []
+    for item in v:
+        if isinstance(item, str):
+            item = item.strip().strip("[]").strip("'\"").strip()
+            if not item:
+                continue
+        out.append(item)
+    return out
+
+
+def coerce_output_columns(data, *, field: str = "output_columns"):
+    if not isinstance(data, dict) or field not in data:
+        return data
+    return {**data, field: normalize_output_columns(data[field])}
+# END output-columns normalization
+
+
 
 # BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
 from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
@@ -425,6 +458,11 @@ class TextToColumns(Component, Model, Resolvable):
     def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=True)
 
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_output_columns(cls, data):
+        return coerce_output_columns(data)
+
     @classmethod
     def get_description(cls) -> str:
         return "Split a text column into multiple columns or rows by a separator."
@@ -444,7 +482,10 @@ class TextToColumns(Component, Model, Resolvable):
         _freshness_policy = None
         if self.freshness_max_lag_minutes is not None:
             from dagster import FreshnessPolicy
-            _freshness_policy = _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
+            _freshness_policy = FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
         _all_tags = dict(self.asset_tags or {})
         for _k in (self.kinds or []):
             _all_tags[f"dagster/kind/{_k}"] = ""
@@ -504,7 +545,10 @@ class TextToColumns(Component, Model, Resolvable):
         _freshness_policy = None
         if self.freshness_max_lag_minutes is not None:
             from dagster import FreshnessPolicy
-            _freshness_policy = _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
+            _freshness_policy = FreshnessPolicy(
+                maximum_lag_minutes=self.freshness_max_lag_minutes,
+                cron_schedule=self.freshness_cron,
+            )
 
         owners = self.owners or []
         column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
@@ -662,19 +706,3 @@ group_name=group_name,
 
 
         return Definitions(assets=[_asset], asset_checks=list(_schema_checks))
-
-
-# BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)
-def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
-    """Build a FreshnessPolicy on the current Dagster API (time_window / cron) and on the older constructor."""
-    from datetime import timedelta
-
-    from dagster import FreshnessPolicy
-
-    lag = timedelta(minutes=max_lag_minutes)
-    if hasattr(FreshnessPolicy, "time_window"):
-        if cron_schedule:
-            return FreshnessPolicy.cron(deadline_cron=cron_schedule, lower_bound_delta=lag)
-        return FreshnessPolicy.time_window(fail_window=lag)
-    return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
-# END freshness-policy compat

@@ -23,7 +23,7 @@ A receipt is one `retrieval` event followed by any number of appended events tha
 reference its `receipt_id`. Appended events never rewrite the retrieval.
 
 - `retrieval`: `context_name`, `items[]` (`item_id`, `source_asset_key`, `source_version`,
-  `source_partition`, `rank`, `score`, `selection`), `excluded[]` (`item_id`, `reason`), plus caller, purpose,
+  `source_partition`, `source_code_version`, `rank`, `score`, `selection`), `excluded[]` (`item_id`, `reason`), plus caller, purpose,
   policy and context versions, `query_hash`, counts.
 - `output`: `output_id`, `model`, `model_version`, `output_hash`, `prefect_run_id`.
 - `evidence`: `level` in `cited | verified | counterfactual_tested`, `details`
@@ -40,7 +40,7 @@ Every event carries `spec_version: "1"` and `type`.
    no round trip). Re-sending a `retrieval` with an existing id is a no-op for consumers,
    so delivery can be at-least-once.
 3. **`source_version` = the source asset's `dagster/data_version`** at retrieval time, and
-   **`source_partition` = its partition key** when the asset is partitioned. Together they make
+   **`source_partition` = its partition key** when the asset is partitioned. **`source_code_version` = its `dagster/code_version`** (the recipe that built it) is optional and lets outcomes be compared across recipe versions. Together they make
    stale reads and recall exact per partition. If `source_partition` is absent on a partitioned
    asset, impact analysis must assume the item may be from any partition.
 4. **Retrieved is fact, used is evidence.** `evidence.level` says what was done, not how

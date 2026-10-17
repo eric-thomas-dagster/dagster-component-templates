@@ -30,6 +30,7 @@ _ITEM_FIELDS = {
     "score",
     "selection",
     "source_partition",
+    "source_code_version",
 }
 SELECTIONS = ("ranked", "explore")
 # Outcome signals -> default value in [-1, 1]. Unknown signals need an explicit value.
@@ -100,7 +101,7 @@ def rerank(
     return chosen
 # Suggested exclusion reasons; any non-empty string is accepted.
 EXCLUSION_REASONS = ("pii", "stale", "out_of_scope", "over_budget", "policy")
-_EXCLUDED_FIELDS = {"item_id", "reason", "source_asset_key", "source_version", "source_partition"}
+_EXCLUDED_FIELDS = {"item_id", "reason", "source_asset_key", "source_version", "source_partition", "source_code_version"}
 _EVIDENCE_LEVELS = {"cited", "verified", "counterfactual_tested"}
 
 
@@ -231,7 +232,7 @@ class ContextPolicy:
                 kept.append(candidate)
             else:
                 excluded.append({"item_id": candidate["item_id"], "reason": reason,
-                                 **{k: candidate[k] for k in ("source_asset_key", "source_version", "source_partition")
+                                 **{k: candidate[k] for k in ("source_asset_key", "source_version", "source_partition", "source_code_version")
                                     if candidate.get(k) is not None}})
         return kept, excluded
 
@@ -287,6 +288,7 @@ def context_asset(
     id_column: str = "chunk_id",
     text_column: str = "chunk_text",
     emit_data_version: bool = True,
+    code_version: str | None = None,
     **policy_extras: Any,
 ):
     """Declare an asset as governed context: a policy contract plus an output contract.
@@ -295,7 +297,10 @@ def context_asset(
     ``context/*`` tags so a gateway can discover context assets and their rules with ``context_policies``;
     (2) validates what the asset returns (a DataFrame with unique non-empty ``id_column`` and non-empty
     ``text_column``, else the materialization fails); and (3) emits a content-derived data version, because
-    Dagster's default changes every run and would make every recorded receipt look stale after a no-op rebuild.
+    Dagster's default changes every run when the asset or its inputs carry no explicit versions, which would make
+    every recorded receipt look stale after a no-op rebuild. Set ``code_version`` (or ``@dg.asset(code_version=...)``)
+    to name the recipe: Dagster then marks the asset stale when it changes, and a gateway that stamps it as
+    ``source_code_version`` can compare outcomes across recipe versions (``outcomes_by_code_version``).
 
         @context_asset(scope="account_id", sensitivity="confidential", token_budget=4000, max_age_hours=24)
         @dg.asset(partitions_def=daily)
@@ -337,7 +342,7 @@ def context_asset(
             owners=list(spec.owners) if spec.owners else None,
             tags=tags,
             metadata={**(spec.metadata or {}), CONTEXT_POLICY_METADATA_KEY: dg.MetadataValue.json(policy.to_dict())},
-            code_version=spec.code_version,
+            code_version=code_version or spec.code_version,
             partitions_def=target.partitions_def,
             automation_condition=spec.automation_condition,
             kinds=kinds,
@@ -415,6 +420,7 @@ class ContextReceiptStore:
                     source_asset_key TEXT,
                     source_version TEXT,
                     source_partition TEXT,
+                    source_code_version TEXT,
                     rank INTEGER,
                     score REAL,
                     selection TEXT NOT NULL DEFAULT 'ranked',
@@ -435,6 +441,7 @@ class ContextReceiptStore:
                     source_asset_key TEXT,
                     source_version TEXT,
                     source_partition TEXT,
+                    source_code_version TEXT,
                     PRIMARY KEY (receipt_id, item_id)
                 );
                 CREATE INDEX IF NOT EXISTS idx_context_receipt_excluded_item
@@ -462,6 +469,8 @@ class ContextReceiptStore:
                 ("context_receipt_items", "selection", "TEXT NOT NULL DEFAULT 'ranked'"),
                 ("context_receipt_items", "source_partition", "TEXT"),
                 ("context_receipt_excluded", "source_partition", "TEXT"),
+                ("context_receipt_items", "source_code_version", "TEXT"),
+                ("context_receipt_excluded", "source_code_version", "TEXT"),
             ):
                 if column not in {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}:
                     conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
@@ -509,7 +518,7 @@ class ContextReceiptStore:
             not isinstance(rank, int) or isinstance(rank, bool) or rank < 0
         ):
             raise ValueError("item rank must be a non-negative integer")
-        for field_name in ("source_asset_key", "source_version", "source_partition"):
+        for field_name in ("source_asset_key", "source_version", "source_partition", "source_code_version"):
             value = item.get(field_name)
             if value is not None and not isinstance(value, str):
                 raise TypeError(f"item {field_name} must be a string or None")
@@ -526,6 +535,7 @@ class ContextReceiptStore:
             "source_asset_key": item.get("source_asset_key"),
             "source_version": item.get("source_version"),
             "source_partition": item.get("source_partition"),
+            "source_code_version": item.get("source_code_version"),
             "rank": rank,
             "score": score,
             "selection": selection,
@@ -542,7 +552,7 @@ class ContextReceiptStore:
             value = item.get(field_name)
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"each excluded item requires a non-empty {field_name}")
-        for field_name in ("source_asset_key", "source_version", "source_partition"):
+        for field_name in ("source_asset_key", "source_version", "source_partition", "source_code_version"):
             value = item.get(field_name)
             if value is not None and not isinstance(value, str):
                 raise TypeError(f"excluded {field_name} must be a string or None")
@@ -552,6 +562,7 @@ class ContextReceiptStore:
             "source_asset_key": item.get("source_asset_key"),
             "source_version": item.get("source_version"),
             "source_partition": item.get("source_partition"),
+            "source_code_version": item.get("source_code_version"),
         }
 
     def record_retrieval(
@@ -652,8 +663,8 @@ class ContextReceiptStore:
                 """
                 INSERT INTO context_receipt_items (
                     receipt_id, item_id, source_asset_key, source_version, source_partition,
-                    rank, score, selection
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    source_code_version, rank, score, selection
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -662,6 +673,7 @@ class ContextReceiptStore:
                         item["source_asset_key"],
                         item["source_version"],
                         item["source_partition"],
+                        item["source_code_version"],
                         item["rank"],
                         item["score"],
                         item["selection"],
@@ -672,8 +684,9 @@ class ContextReceiptStore:
             conn.executemany(
                 """
                 INSERT INTO context_receipt_excluded (
-                    receipt_id, item_id, reason, source_asset_key, source_version, source_partition
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    receipt_id, item_id, reason, source_asset_key, source_version, source_partition,
+                    source_code_version
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -683,6 +696,7 @@ class ContextReceiptStore:
                         item["source_asset_key"],
                         item["source_version"],
                         item["source_partition"],
+                        item["source_code_version"],
                     )
                     for item in normalized_excluded
                 ],
@@ -759,7 +773,8 @@ class ContextReceiptStore:
                 return None
             items = conn.execute(
                 """
-                SELECT item_id, source_asset_key, source_version, source_partition, rank, score, selection
+                SELECT item_id, source_asset_key, source_version, source_partition, source_code_version,
+                       rank, score, selection
                 FROM context_receipt_items
                 WHERE receipt_id = ?
                 ORDER BY rank, item_id
@@ -768,7 +783,7 @@ class ContextReceiptStore:
             ).fetchall()
             excluded = conn.execute(
                 """
-                SELECT item_id, reason, source_asset_key, source_version, source_partition
+                SELECT item_id, reason, source_asset_key, source_version, source_partition, source_code_version
                 FROM context_receipt_excluded
                 WHERE receipt_id = ?
                 ORDER BY item_id
@@ -862,17 +877,17 @@ class ContextReceiptStore:
                 """,
                 (event_cursor, limit),
             ).fetchall()
-            outcome_assets: dict[str, list[tuple[str, str | None]]] = {}
+            outcome_assets: dict[str, list[tuple[str, str | None, str | None]]] = {}
             if events:
                 oids = sorted({e["receipt_id"] for e in events})
                 omarks = ",".join("?" * len(oids))
                 for row in conn.execute(
-                    f"SELECT DISTINCT receipt_id, source_asset_key, source_partition FROM context_receipt_items "
+                    f"SELECT DISTINCT receipt_id, source_asset_key, source_partition, source_code_version FROM context_receipt_items "
                     f"WHERE receipt_id IN ({omarks}) AND source_asset_key IS NOT NULL",
                     oids,
                 ):
                     outcome_assets.setdefault(row["receipt_id"], []).append(
-                        (row["source_asset_key"], row["source_partition"])
+                        (row["source_asset_key"], row["source_partition"], row["source_code_version"])
                     )
         by_receipt: dict[str, dict[str, Any]] = {}
         for row in receipts:
@@ -887,7 +902,7 @@ class ContextReceiptStore:
         for row in events:
             payload = json.loads(row["payload_json"])
             payload["receipt_id"] = row["receipt_id"]
-            payload["sources"] = outcome_assets.get(row["receipt_id"], [])  # (asset_key, partition|None)
+            payload["sources"] = outcome_assets.get(row["receipt_id"], [])  # (asset_key, partition|None, code_version|None)
             outcomes.append(payload)
         return {
             "receipts": [by_receipt[r["receipt_id"]] for r in receipts],
@@ -1122,6 +1137,48 @@ class ContextReceiptStore:
                 self.record_outcome(prior["receipt_id"], signal="reformulated", source="implicit", outcome_ref=ref)
                 created += 1
         return created
+
+    def outcomes_by_code_version(self, asset_key: str, since: str = "") -> dict[str, dict[str, Any]]:
+        """How answers built from ``asset_key`` turned out, per code version (recipe) of the asset.
+
+        ``{code_version: {"receipts": n, "outcomes": m, "mean_outcome": x | None}}``. Receipts whose items did
+        not record a code version are grouped under ``"unknown"``. A receipt that mixes several code versions of
+        the asset counts toward each. This is how a recipe change (chunk size, embedding model, filters) is judged
+        by what users actually thought, not by a guess.
+        """
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT DISTINCT i.receipt_id, COALESCE(i.source_code_version, 'unknown') AS cv
+                FROM context_receipt_items i JOIN context_receipts r ON r.receipt_id = i.receipt_id
+                WHERE i.source_asset_key = ? AND r.created_at >= ?
+                """,
+                (asset_key, since),
+            ).fetchall()
+            ids = sorted({r["receipt_id"] for r in rows})
+            events = conn.execute(
+                f"SELECT receipt_id, payload_json FROM context_receipt_events WHERE event_type = 'outcome' "
+                f"AND receipt_id IN ({','.join('?' * len(ids))}) ORDER BY rowid",
+                ids,
+            ).fetchall() if ids else []
+        per_receipt: dict[str, dict[str, float]] = {}
+        for ev in events:
+            payload = json.loads(ev["payload_json"])
+            key = payload.get("outcome_ref") or f"anon-{len(per_receipt.get(ev['receipt_id'], {}))}"
+            per_receipt.setdefault(ev["receipt_id"], {})[key] = payload["value"]
+        stats: dict[str, dict[str, Any]] = {}
+        for row in rows:
+            entry = stats.setdefault(row["cv"], {"receipts": 0, "outcomes": 0, "_sum": 0.0})
+            entry["receipts"] += 1
+            values = per_receipt.get(row["receipt_id"])
+            if values:
+                entry["outcomes"] += 1
+                entry["_sum"] += sum(values.values()) / len(values)
+        return {
+            cv: {"receipts": e["receipts"], "outcomes": e["outcomes"],
+                 "mean_outcome": round(e["_sum"] / e["outcomes"], 4) if e["outcomes"] else None}
+            for cv, e in sorted(stats.items())
+        }
 
     def find_by_assets(self, targets: Mapping[str, Iterable[str] | None]) -> dict[str, list[str]]:
         """Receipts that used the given assets, optionally narrowed to partitions.
@@ -1425,7 +1482,7 @@ def build_usage_sensor(
             return usage.setdefault(
                 (key, partition),
                 {"retrievals": 0, "receipts": set(), "explored": 0, "excluded": {}, "stale": 0,
-                 "outcomes": 0, "outcome_sum": 0.0, "versions": {}},
+                 "outcomes": 0, "outcome_sum": 0.0, "versions": {}, "by_code_version": {}},
             )
 
         current: dict[tuple[str, str | None], str | None] = {}
@@ -1451,10 +1508,13 @@ def build_usage_sensor(
                     reasons = bucket(item["source_asset_key"], item.get("source_partition"))["excluded"]
                     reasons[item["reason"]] = reasons.get(item["reason"], 0) + 1
         for outcome in data["outcomes"]:
-            for key, part in outcome["sources"]:
+            for key, part, code_version in outcome["sources"]:
                 b = bucket(key, part)
                 b["outcomes"] += 1
                 b["outcome_sum"] += outcome["value"]
+                cv = b["by_code_version"].setdefault(code_version or "unknown", [0, 0.0])
+                cv[0] += 1
+                cv[1] += outcome["value"]
 
         stale_state = state.get("stale", {})
         events, run_requests = [], []
@@ -1475,6 +1535,9 @@ def build_usage_sensor(
             }
             if b["outcomes"]:
                 metadata["context_receipts/mean_outcome"] = round(b["outcome_sum"] / b["outcomes"], 4)
+                metadata["context_receipts/outcomes_by_code_version"] = {
+                    cv: {"outcomes": n, "mean_outcome": round(total / n, 4)} for cv, (n, total) in b["by_code_version"].items()
+                }
             if version is not None:
                 metadata["context_receipts/current_data_version"] = version
             asset_key = dg.AssetKey.from_user_string(key)

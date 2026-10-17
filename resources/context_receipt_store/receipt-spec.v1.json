@@ -22,6 +22,7 @@
         "item_id": {"$ref": "#/$defs/id"},
         "source_asset_key": {"$ref": "#/$defs/nullable_string", "description": "Dagster asset key the item was derived from, as a user string (e.g. 'support/tickets')."},
         "source_version": {"$ref": "#/$defs/nullable_string", "description": "Should equal the source asset's dagster/data_version at retrieval time; this is how stale reads are detected."},
+        "source_code_version": {"$ref": "#/$defs/nullable_string", "description": "The source asset's dagster/code_version at retrieval time: the recipe (chunking, filters, embedding model) that built the item. Optional; lets outcomes be compared across recipe versions."},
         "source_partition": {"$ref": "#/$defs/nullable_string", "description": "Partition key of the source asset the item came from, when that asset is partitioned (for multi-partitions, Dagster's pipe-delimited key). Optional; when absent on a partitioned asset, impact analysis must treat the item as possibly from any partition."},
         "rank": {"type": ["integer", "null"], "minimum": 0},
         "score": {"type": ["number", "null"]},
@@ -37,7 +38,8 @@
         "reason": {"$ref": "#/$defs/id", "description": "Suggested: pii, stale, out_of_scope, over_budget, policy. Any non-empty string is valid."},
         "source_asset_key": {"$ref": "#/$defs/nullable_string"},
         "source_version": {"$ref": "#/$defs/nullable_string"},
-        "source_partition": {"$ref": "#/$defs/nullable_string"}
+        "source_partition": {"$ref": "#/$defs/nullable_string"},
+        "source_code_version": {"$ref": "#/$defs/nullable_string"}
       }
     },
     "retrieval": {

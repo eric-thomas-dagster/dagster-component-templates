@@ -114,8 +114,14 @@ Two component fields make this pipeline the build side of the retrieval-receipt 
 (`resources/context_receipt_store`):
 
 - **`emit_data_version`** (default on) emits a content-derived data version: a hash of every chunk id + content hash
-  plus the build recipe. Dagster's default data version changes on every materialization, so a no-op rebuild would make
-  every recorded receipt look stale.
+  plus the build recipe. Dagster's default data version derives from the asset's code version and its inputs' data
+  versions, so it changes every run when an upstream asset has no explicit version (a typical raw table); without this a
+  no-op rebuild would make every recorded receipt look stale.
+- **`code_version`** (defaults to a fingerprint of the recipe: chunking, filters, embedding model, everything except where it
+  is written) is set as the asset's Dagster `code_version` and stamped on every chunk as `source_code_version`. Changing
+  the recipe marks the asset stale in Dagster (usable with `AutomationCondition.code_version_changed()`), and receipts can
+  then be compared across recipe versions with `outcomes_by_code_version`. Set it explicitly to use something else, such
+  as a git SHA.
 - **`stamp_provenance`** (default on) writes `source_asset_key`, `source_version` (that same data version),
   `source_partition`, `source_id`, `chunk_id`, `content_hash` and `embedding_model` onto every chunk. A gateway builds a
   receipt item straight from a hit's metadata: `{item_id: chunk_id, source_asset_key, source_version, source_partition}`.

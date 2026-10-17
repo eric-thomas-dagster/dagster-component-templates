@@ -1061,21 +1061,28 @@ def _validate_context_policy(policy: Dict[str, Any]) -> Dict[str, Any]:
     return dict(policy)
 
 
+def _recipe_fingerprint(steps_cfg: List[dict]) -> str:
+    """Hash of the build recipe: every step except where it is written (ids, locations, credentials, batch
+    sizes and sync mode do not change what is built). Used as the asset's Dagster ``code_version``."""
+    recipe = [
+        {k: v for k, v in step.items() if k not in ("id", "source", "connection_string", "api_key_env_var", "batch_size", "reuse_from", "sync_mode")}
+        for step in steps_cfg if step.get("op") != "write_vector_store"
+    ]
+    return hashlib.sha256(json.dumps(recipe, sort_keys=True, default=str).encode()).hexdigest()[:16]
+
+
 def _content_version(df: pd.DataFrame, text_column: str, steps_cfg: List[dict]) -> str:
     """Content-derived version: hash of every (chunk_id, content_hash) plus the build configuration
-    (everything except where it is written). Unlike Dagster's default data version, which changes on
-    every materialization, this only changes when the knowledge base content or recipe changes, so a
+    (everything except where it is written). Dagster's default data version derives from the asset's
+    code version and its inputs' data versions, so it changes every run when an upstream asset carries no explicit
+    version (a typical raw table). This only changes when the knowledge base content or recipe changes, so a
     no-op rebuild does not make receipts look stale."""
     h = hashlib.sha256()
     ids = df["chunk_id"].astype(str) if "chunk_id" in df.columns else pd.Series(range(len(df))).astype(str)
     digests = df["content_hash"].astype(str) if "content_hash" in df.columns else df[text_column].astype(str).map(_sha256)
     for cid, digest in sorted(zip(ids, digests)):
         h.update(f"{cid}:{digest}\n".encode())
-    recipe = [
-        {k: v for k, v in step.items() if k not in ("id", "source", "connection_string", "api_key_env_var", "batch_size", "reuse_from", "sync_mode")}
-        for step in steps_cfg if step.get("op") != "write_vector_store"
-    ]
-    h.update(json.dumps(recipe, sort_keys=True, default=str).encode())
+    h.update(_recipe_fingerprint(steps_cfg).encode())
     return h.hexdigest()[:32]
 
 
@@ -1374,12 +1381,23 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         )
     )
 
+    code_version: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster code_version for the asset: the identity of the recipe that builds this context. Defaults to a "
+            "fingerprint of the steps (chunking, filters, embedding model...), so changing the recipe marks the asset "
+            "stale in Dagster (AutomationCondition.code_version_changed) and every chunk is stamped with it "
+            "(`source_code_version`), letting outcomes be compared across recipe versions. Set it explicitly to tie it "
+            "to something else, such as a git SHA of this config."
+        ),
+    )
     emit_data_version: bool = Field(
         default=True,
         description=(
             "Emit a content-derived Dagster data version (hash of every chunk id + content hash + the build recipe). "
-            "Dagster's default data version changes on every materialization, so without this a no-op rebuild makes "
-            "anything that recorded the old version (such as context receipts) look stale."
+            "Dagster's default data version derives from the asset's code version and its inputs' data versions, so it "
+            "changes on every run when an upstream asset has no explicit version (a typical raw table); without this a "
+            "no-op rebuild would make anything that recorded the old version (such as context receipts) look stale."
         ),
     )
     stamp_provenance: bool = Field(
@@ -1495,6 +1513,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         text_column = self.text_column
         metadata_columns = self.metadata_columns or []
         max_source_rows = self.max_source_rows
+        recipe_code_version = self.code_version or _recipe_fingerprint(steps_cfg)
         emit_data_version = self.emit_data_version
         stamp_provenance = self.stamp_provenance
         include_preview = self.include_preview_metadata
@@ -1515,6 +1534,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                 _all_tags["context/scope"] = context_policy["scope"]
         asset_kwargs: Dict[str, Any] = dict(
             key=AssetKey.from_user_string(asset_name),
+            code_version=recipe_code_version,
             description=self.description or f"Context-engineering pipeline ({execution_mode} mode): {' → '.join(s['id'] for s in steps_cfg)}",
             group_name=self.group_name,
             tags=_all_tags,
@@ -1587,6 +1607,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                         "source_asset_key": asset_name,
                         "source_version": content_version,
                         "source_partition": partition,
+                        "source_code_version": recipe_code_version,
                     } if stamp_provenance else None
                     df = _do_write_vector_store(write_input, step, id_column, context, stamp)
                 else:

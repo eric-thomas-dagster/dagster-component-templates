@@ -209,6 +209,21 @@ not reinforcement learning. Limits: priors are only as good as the outcome signa
 credit is per item (not a causal estimate); no inverse-propensity correction for
 exploration yet; scoring recomputes from scratch each tick (fine for prototype scale).
 
+## Data version and code version
+
+Dagster gives every materialization two versions, and they answer different questions:
+
+- **Data version** (`dagster/data_version`): what the output *is*. Receipts record it as `source_version`; an item whose
+  version differs from the asset's current one is a stale read. For context, make it content-derived (the pipeline and
+  `@context_asset` do). Dagster's own default derives from the asset's code version and its inputs' data versions, so it
+  is stable across no-op rebuilds only if you set `code_version` *and* every input is explicitly versioned; an
+  upstream asset with no explicit version (a typical raw table) changes it on every run, and every receipt looks stale.
+- **Code version** (`dagster/code_version`): the *recipe* that built it (chunking, filters, embedding model). Set it with
+  `@dg.asset(code_version=...)`, `@context_asset(code_version=...)`, or let the pipeline fingerprint its steps. Dagster
+  marks the asset stale when it changes (`AutomationCondition.code_version_changed()`), and if the gateway stamps it as
+  `source_code_version`, `store.outcomes_by_code_version("support_kb")` answers "did the new chunking help?" from what users
+  actually thought. The usage sensor reports the same split as `context_receipts/outcomes_by_code_version`.
+
 ## Context health as asset checks
 
 `check_asset_keys: [support/tickets]` attaches three checks to each asset, evaluated over a

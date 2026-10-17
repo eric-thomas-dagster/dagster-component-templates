@@ -16683,7 +16683,7 @@
       "name": "DataFrame Transformer",
       "category": "transformation",
       "description": "Component for transforming DataFrames from upstream assets.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "author": "Dagster Community",
       "path": "assets/transforms/dataframe_transformer",
       "tags": [

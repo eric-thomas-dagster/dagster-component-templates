@@ -240,6 +240,27 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+def _normalize_into(value, *, multi: bool = False):
+    """Accept an `*_ops` entry's `into` as a real list or a comma-separated
+    string -- the shapes people (and LLMs) naturally write a column name (or
+    names) in. Without this, a list landed on `str(value).split(",")`, which
+    turns `["first_name", "last_name"]` into the literal, no-error column
+    names `"['first_name'"` and `"'last_name']"`.
+
+    Single-destination ops (multi=False, the default) return the first
+    non-empty name as a plain string (or None). `split_ops`, whose `into`
+    names one column per split part, passes multi=True and gets the full
+    list back.
+    """
+    if value is None:
+        return [] if multi else None
+    if isinstance(value, (list, tuple)):
+        items = [str(v).strip() for v in value if str(v).strip()]
+    else:
+        items = [v.strip() for v in str(value).split(",") if v.strip()]
+    return items if multi else (items[0] if items else None)
+
+
 class DataFrameTransformerComponent(Component, Model, Resolvable):
     """Component for transforming DataFrames from upstream assets.
 
@@ -1052,9 +1073,8 @@ group_name=group_name,
                     for op in split_ops:
                         col = op.get('column')
                         delim = op.get('delimiter')
-                        into = op.get('into')
-                        if col in df.columns and delim and into:
-                            targets = [t.strip() for t in str(into).split(',') if t.strip()]
+                        targets = _normalize_into(op.get('into'), multi=True)
+                        if col in df.columns and delim and targets:
                             parts = df[col].astype(str).str.split(delim, expand=True)
                             for idx, t in enumerate(targets):
                                 df[t] = parts[idx] if idx in parts.columns else None
@@ -1069,7 +1089,7 @@ group_name=group_name,
                     numeric_ops = json.loads(numeric_ops_str)
                     for op in numeric_ops:
                         col = op.get('column')
-                        into = op.get('into')
+                        into = _normalize_into(op.get('into'))
                         kind = str(op.get('op', 'round')).lower()
                         digits = int(op.get('digits', 0))
                         if col in df.columns and into:
@@ -1094,7 +1114,7 @@ group_name=group_name,
                     for op in date_extract_ops:
                         col = op.get('column')
                         part = str(op.get('part', 'year')).lower()
-                        into = op.get('into')
+                        into = _normalize_into(op.get('into'))
                         if col in df.columns and into:
                             dt = pd.to_datetime(df[col], errors='coerce')
                             if part == 'month':
@@ -1123,7 +1143,7 @@ group_name=group_name,
                     substring_ops = json.loads(substring_ops_str)
                     for op in substring_ops:
                         col = op.get('column')
-                        into = op.get('into')
+                        into = _normalize_into(op.get('into'))
                         start = int(op.get('start', 1))
                         length = op.get('length')
                         if col in df.columns and into:
@@ -1155,7 +1175,7 @@ group_name=group_name,
                         cols = [c.strip() for c in str(op.get('columns', '')).split(',') if c.strip()]
                         cols = [c for c in cols if c in df.columns]
                         sep = str(op.get('separator', ''))
-                        into = op.get('into')
+                        into = _normalize_into(op.get('into'))
                         if cols and into:
                             df[into] = df[cols].astype(str).apply(lambda row: sep.join(row), axis=1)
                     context.log.info(f"Applied {len(concat_ops)} concat op(s)")
@@ -1168,7 +1188,7 @@ group_name=group_name,
                 try:
                     case_when_ops = json.loads(case_when_ops_str)
                     for op in case_when_ops:
-                        into = op.get('into')
+                        into = _normalize_into(op.get('into'))
                         branches = op.get('branches') or []
                         else_val = op.get('else')
                         if not into or not branches:
@@ -1207,7 +1227,7 @@ group_name=group_name,
                     bin_ops = json.loads(bin_ops_str)
                     for op in bin_ops:
                         col = op.get('column')
-                        into = op.get('into')
+                        into = _normalize_into(op.get('into'))
                         bounds_str = op.get('boundaries', '')
                         labels_str = op.get('labels', '')
                         if col not in df.columns or not into or not bounds_str:
@@ -1246,7 +1266,7 @@ group_name=group_name,
                     cumsum_ops = json.loads(cumsum_ops_str)
                     for op in cumsum_ops:
                         col = op.get('column')
-                        into = op.get('into')
+                        into = _normalize_into(op.get('into'))
                         order_by = op.get('orderBy') or op.get('order_by')
                         partition_by = op.get('partitionBy') or op.get('partition_by') or ''
                         order_asc = bool(op.get('orderAsc', op.get('order_asc', True)))
@@ -1298,7 +1318,7 @@ group_name=group_name,
                     for op in window_ops:
                         kind = str(op.get('kind', 'rank')).lower()
                         order_by = op.get('orderBy') or op.get('order_by')
-                        into = op.get('into')
+                        into = _normalize_into(op.get('into'))
                         partition_by = op.get('partitionBy') or op.get('partition_by') or ''
                         order_asc = bool(op.get('orderAsc', op.get('order_asc', True)))
                         if not order_by or not into or order_by not in df.columns:
@@ -1329,7 +1349,7 @@ group_name=group_name,
                         col = op.get('column')
                         operator = str(op.get('operator', 'equals'))
                         val = op.get('value')
-                        into = op.get('into')
+                        into = _normalize_into(op.get('into'))
                         if col not in df.columns or not into or val is None or str(val).strip() == '':
                             continue
                         if operator == 'not_equals':

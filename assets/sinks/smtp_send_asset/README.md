@@ -157,3 +157,7 @@ In `summary` mode, attachments are deduplicated across all rows.
 ## Not a replacement for Dagster+ notifications
 
 For *run-level* alerts (job failed, asset materialization failed, freshness violated, etc.) use Dagster+'s built-in alerting. This component is for **data-row-driven** outbound mail (one email per record in your upstream).
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

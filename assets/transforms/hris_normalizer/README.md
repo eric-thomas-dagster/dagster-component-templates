@@ -143,3 +143,7 @@ The defaults already cover most common conventions (`active / inactive / termina
 - `merge_dev_hris_ingestion` — pulls from Merge.dev's unified HRIS API (50+ vendors via one client).
 - `hr_metrics` — pre-built HR KPIs: headcount by department, tenure distribution, turnover rate, span of control.
 - Vendor-specific ingestion components (planned): `workday_hris_ingestion`, `bamboo_hr_ingestion`, etc.
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

@@ -148,3 +148,7 @@ Get a key at https://mammouth.ai/app/account/settings/api
 - `openai_llm`, `anthropic_llm`, `gemini_llm`, `groq_llm`, `mistral_llm`, `perplexity_llm` -- native single-vendor peers.
 - `openrouter_llm` -- the other multi-vendor-routing gateway in this repo; same architecture (one key, one OpenAI-compatible endpoint, bare model id passthrough), different routing surface (slash-namespaced ids + provider-preference controls vs Mammouth's bare ids + a managed "recommended" alias).
 - `litellm_inference_asset` -- generic local multi-vendor router (no hosted gateway).
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

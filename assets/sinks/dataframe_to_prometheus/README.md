@@ -88,3 +88,7 @@ No dedicated Prometheus transform needed — exposition format is simple enough 
 ## Validated
 
 Local Prometheus + pushgateway: 4 samples pushed (orders_total{region, category}), Prometheus scraped, query returned all 4 with correct values.
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

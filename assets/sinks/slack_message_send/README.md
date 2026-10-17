@@ -160,3 +160,7 @@ about the same entity.
 ## Not a replacement for Dagster+ notifications
 
 See "Scope" above. For *run-level* alerts (job failed, asset materialization failed, freshness violated, etc.) use Dagster+'s built-in alerting, or a run-status sensor/hook paired with `slack_resource`. This component is for **data-row-driven** outbound Slack messages (one message per record in your upstream, or a digest).
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

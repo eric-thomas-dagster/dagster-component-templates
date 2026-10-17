@@ -127,3 +127,7 @@ ACORD XML is the lingua franca between US/UK/AU/CA carriers and their distributi
 ## Carrier-specific extensions
 
 Carriers commonly extend ACORD with their own elements under custom namespaces (e.g. `<TravelersExt>...</TravelersExt>`). The generic walker preserves these by not failing on them, but doesn't extract them into named columns. For carrier-specific extraction, write a thin transform downstream that picks fields out of the raw XML by XPath.
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

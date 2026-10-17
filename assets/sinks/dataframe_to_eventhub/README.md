@@ -103,3 +103,7 @@ semantics). The same shape exists for other queues:
 Generic configurations for all-of-the-above don't compose well because
 each backend is structurally different — keeping per-backend components
 focused beats a single fat component with conditional auth/config.
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

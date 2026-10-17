@@ -115,3 +115,7 @@ Any non-resource column on the upstream row is carried into the output (e.g. `in
 - `hl7_v2_parser` — older healthcare standard (pipe-delimited)
 - `synthetic_data_generator` `fhir_patients` schema — common upstream for demos
 - `dataframe_to_bigquery` / `dataframe_to_gcs` — common downstream sink
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

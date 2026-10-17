@@ -108,3 +108,7 @@ Service account needs `roles/cloudtasks.enqueuer` on the queue (or `roles/cloudt
 - `pubsub_publish_asset` — fan-out via Pub/Sub instead (no built-in retries, but lower latency and higher throughput)
 - `cloud_run_job_trigger_asset` — kick off a Cloud Run **Job** (not a service) once
 - `cloud_functions_invoke_asset` — synchronous Cloud Function invocation
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

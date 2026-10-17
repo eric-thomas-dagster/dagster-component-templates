@@ -128,3 +128,7 @@ Pick `ocr_extractor` for simple, high-volume, already-single-image inputs where 
 - `ocr_extractor` — local Tesseract OCR, images only.
 - `mistral_llm` — Mistral chat completions (summarization, classification, etc. on the markdown this component produces).
 - `document_summarization` — pairs well downstream of this component's markdown output.
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

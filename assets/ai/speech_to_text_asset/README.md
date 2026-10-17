@@ -134,3 +134,7 @@ Writes a list of `{speaker, start_seconds, end_seconds, text}` dicts per row -- 
 ## Notes
 
 Synchronous `recognize` works for clips up to 60s. For longer audio, point `audio_column` at a `gs://` URI — the component routes through Speech v2's batch_recognize automatically. Files <60s can use either.
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

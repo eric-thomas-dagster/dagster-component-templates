@@ -129,3 +129,7 @@ This component reads or writes local filesystem paths. Behavior across deploymen
 Fixed this session, verified live against real ffmpeg-generated videos with audio tracks: two videos sharing a filename (e.g. `clip.mp4` from two different source directories) in the same batch used to silently overwrite each other's extracted audio file on disk, since the default output filename depended only on `video_basename`. Fixed by including `{row_index}` (the row's position in the batch, always unique) in the default filename fallback. A custom `output_filename_template` that omits `{row_index}` re-introduces this risk -- documented on the field itself.
 
 Also added committed test coverage for this component for the first time this session -- see `tests/`: real audio-track extraction, a missing source file recorded as a per-row error rather than crashing the run, the basename-collision fix, and `sample_rate`/`channels` actually applied to the real output file.
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

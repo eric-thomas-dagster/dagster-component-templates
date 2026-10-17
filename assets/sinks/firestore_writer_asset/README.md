@@ -104,3 +104,7 @@ attributes:
 
 - `firestore_reader_asset` — read it back.
 - `bigquery_export_to_gcs_asset` + `bigquery_load_from_gcs_asset` — warehouse-to-warehouse alternative.
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

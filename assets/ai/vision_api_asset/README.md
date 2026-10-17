@@ -113,3 +113,7 @@ For form / table / structured-document parsing, use **`document_ai_extractor`** 
 - `gemini_image_generation` — generate images.
 - `vision_model` — multi-vendor wrapper (OpenAI / Anthropic / Vertex via LiteLLM).
 - `vertex_ai_text_embeddings_asset` — text embeddings (could chain after Vision OCR for RAG).
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

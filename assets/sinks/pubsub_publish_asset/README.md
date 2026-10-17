@@ -90,3 +90,7 @@ If `auto_create_topic: true`, also `roles/pubsub.editor` (for topics.create).
 - `pubsub_monitor` (sensor) — emit Dagster RunRequests when new messages land on a subscription.
 - `pubsub_to_database_asset` — read from a subscription into a warehouse.
 - `kafka_to_database_asset` / `sqs_to_database_asset` / etc. — same pattern, different streaming systems.
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

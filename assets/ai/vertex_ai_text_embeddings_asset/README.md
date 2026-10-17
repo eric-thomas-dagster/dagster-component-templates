@@ -126,3 +126,7 @@ For RAG: index docs with `RETRIEVAL_DOCUMENT`, query with `RETRIEVAL_QUERY` — 
 - `embeddings_generator` — provider-agnostic via LiteLLM.
 - `openai_llm` / `anthropic_llm` / `gemini_llm` — text generation peers (same SA + auth pattern).
 - `vector_store_query` / `pinecone_asset` / `pgvector_asset` / `chromadb_asset` — load embeddings into a vector store downstream.
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

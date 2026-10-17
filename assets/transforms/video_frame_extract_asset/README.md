@@ -129,3 +129,7 @@ Fixed this session, verified live against real ffmpeg-generated videos (a corrup
 - **Real data-corruption bug**: two videos sharing a filename (e.g. `clip.mp4` from two different source directories) in the same batch would silently overwrite each other's extracted frame files on disk, since the output filename only depended on `video_basename` -- confirmed live that the second video's frame file overwrote the first's, corrupting the first row's already-recorded `file_path`. Fixed by adding `{video_row_index}` (the row's position in the batch, always unique) to both the internal extraction pattern and the default `output_filename_template`. A custom template that omits `{video_row_index}` re-introduces this risk -- documented on the field itself.
 
 See `tests/` for the committed regression tests covering both fixes.
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

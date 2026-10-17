@@ -138,3 +138,7 @@ Per the toggles, the component adds:
 - `vision_api_asset` — flat OCR for image content.
 - `gemini_image_generation` — generate images.
 - `vertex_ai_text_embeddings_asset` — embed the extracted `doc_text` for RAG.
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

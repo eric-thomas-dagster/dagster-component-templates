@@ -169,3 +169,7 @@ Get a key at https://www.perplexity.ai/account/api/keys
 - `openai_llm`, `anthropic_llm`, `gemini_llm`, `groq_llm`, `mistral_llm`, `openrouter_llm` — native peers.
 - `litellm_inference_asset` — generic multi-vendor router.
 - `rag_grounding_check` — faithfulness/hallucination checks for RAG pipelines over your own corpus (complementary, not overlapping: that component checks groundedness against retrieved docs you supply, this one grounds against the live web).
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

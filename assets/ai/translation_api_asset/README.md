@@ -106,3 +106,7 @@ If `source_language:` is unset, Translation auto-detects the source language **p
 
 - `vision_api_asset` (TEXT_DETECTION feature) — OCR an image first, then translate the result with this.
 - `gemini_llm` / `openai_llm` — LLM-based translation (often higher quality for nuanced text but costlier and slower).
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

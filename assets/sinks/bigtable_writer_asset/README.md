@@ -108,3 +108,7 @@ Service account needs `roles/bigtable.user` on the instance.
 - `bigtable_reader_asset` — counterpart for reads
 - `firestore_writer_asset` — document NoSQL alternative
 - `dataframe_to_bigquery` — analytical alternative
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

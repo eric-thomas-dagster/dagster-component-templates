@@ -136,3 +136,7 @@ Get a key at https://console.mistral.ai/api-keys
 - `openai_llm`, `anthropic_llm`, `gemini_llm`, `groq_llm`, `openrouter_llm`, `perplexity_llm` — native peers.
 - `litellm_inference_asset` — generic multi-vendor router.
 - `litellm_structured_output` — JSON-mode wrapper; works with Mistral via `litellm` too.
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

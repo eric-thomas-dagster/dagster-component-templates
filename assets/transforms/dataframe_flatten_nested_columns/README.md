@@ -110,3 +110,7 @@ If your target schema has `RECORD` / `STRUCT` / `JSON` columns and you want them
 - `dataframe_to_bigquery` — common downstream
 - `dataframe_to_gcs` — same fix when writing parquet with nested cells
 - `dataframe_to_csv` — CSV can't represent nested at all; this is the standard pre-CSV step
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

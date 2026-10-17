@@ -81,3 +81,7 @@ Push a DataFrame to a Kusto table on an ADX cluster. Queued ingestion (durable) 
 ## Companion
 
 - `dataframe_from_kusto` — query ADX → DataFrame
+
+## Partitioning
+
+When `partition_type` is set, each run processes only the upstream rows in its partition: `partition_date_column` selects the rows whose date falls in a time partition's window (a backfill run covers its whole range), and `partition_static_column` (with `partition_static_dim` for multi-partitions) selects the rows for a static/dynamic partition key. Unpartitioned runs process every row.

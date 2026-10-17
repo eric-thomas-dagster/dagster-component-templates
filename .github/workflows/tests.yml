@@ -62,7 +62,10 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install "dagster>=1.10.0" pandas pytest pyyaml chromadb duckdb duckdb-engine sqlalchemy sqlglot \
-                      jsonschema tabulate pyarrow litellm requests fsspec
+          # sqlglot and duckdb are PINNED to the versions the fake-warehouse tests (bq_fake.py / sql_fake.py) were written against:
+          # they patch sqlglot's BigQuery/Snowflake/Databricks -> DuckDB translation, which differs between releases.
+          pip install "dagster>=1.10.0" pandas pytest pyyaml chromadb "duckdb==1.5.6" "duckdb-engine==0.17.0" "sqlalchemy>=2" \
+                      "sqlglot==28.0.0" jsonschema tabulate pyarrow litellm requests fsspec \
+                      dlt cryptography scikit-learn geopandas
       - name: Run tests
         run: python -m pytest $TEST_DIRS -q -p no:cacheprovider -W ignore

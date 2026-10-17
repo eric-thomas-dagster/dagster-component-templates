@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import dagster as dg
+import pandas as pd
 import pytest
 
 from .conftest import load_agentic_module, load_component_module
@@ -86,7 +87,7 @@ def test_queue_shows_why_approval_was_requested_again(mod, agentic, tmp_path):
     ask(agentic, tmp_path, "ONCE", "Pay?", reuse="once")              # same input again -> consumed
     r = materialize(component(mod, [tmp_path]))
     df = queue_df(r).set_index("key")
-    assert df.loc["NEW", "state"] == "new" and df.loc["NEW", "reason"] is None
+    assert df.loc["NEW", "state"] == "new" and pd.isna(df.loc["NEW", "reason"])
     assert df.loc["CHG", "state"] == "stale" and df.loc["CHG", "reason"] == "input changed since approval"
     assert df.loc["OLD", "state"] == "expired" and df.loc["OLD", "reason"].startswith("approval expired")
     assert df.loc["ONCE", "state"] == "consumed" and df.loc["ONCE", "reason"].startswith("consumed")

@@ -87,3 +87,30 @@ def test_materialization_carries_the_lineage():
     md = r.asset_materializations_for_node("top")[0].metadata
     assert set(md["dagster/column_lineage"].value.deps_by_column) >= {"id", "score"}
     assert _cols({"dagster/column_lineage": md["dagster/column_lineage"]})["id"] == [("ranked_customers", "id")]
+
+
+def test_source_to_target_lineage_survives_the_event_log(tmp_path):
+    """External source asset -> real ingestion component. The lineage names the source asset and its columns, the
+    source is a real parent in the asset graph, and the metadata is what a persisted instance (what the UI reads) returns."""
+    from dagster._serdes import deserialize_value, serialize_value
+
+    csv = tmp_path / "customers.csv"
+    csv.write_text("id,full_name,spend\n1,Ann,10\n2,Bo,20\n")
+    mod = _load("assets/ingestion/file_ingestion")
+    comp = mod.FileIngestionComponent(
+        asset_name="customers", format="csv", file_path=str(csv), deps=["raw/customers_export"],
+        column_lineage={"id": ["id"], "full_name": ["full_name"], "spend": ["spend"]})
+    source = dg.AssetSpec("raw/customers_export", description="the system the file was exported from")
+    defs = dg.Definitions(assets=[source, *comp.build_defs(None).assets])
+    graph = defs.resolve_asset_graph()
+    assert dg.AssetKey(["raw", "customers_export"]) in graph.get(dg.AssetKey("customers")).parent_keys
+
+    (tmp_path / "home").mkdir()
+    with dg.instance_for_test(temp_dir=str(tmp_path / "home")) as instance:
+        assert dg.materialize([a for a in defs.assets if not isinstance(a, dg.AssetSpec)], instance=instance).success
+        event = instance.get_latest_materialization_event(dg.AssetKey("customers"))
+        raw = event.asset_materialization.metadata["dagster/column_lineage"]
+        lineage = deserialize_value(serialize_value(raw)).value
+    deps = lineage.deps_by_column
+    assert set(deps) == {"id", "full_name", "spend"}
+    assert [(d.asset_key.to_user_string(), d.column_name) for d in deps["full_name"]] == [("raw/customers_export", "full_name")]

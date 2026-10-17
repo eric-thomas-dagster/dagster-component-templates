@@ -151,7 +151,7 @@ class DocumentCorpusComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None, description="Cron schedule string for the freshness policy."
     )
     column_lineage: Optional[Dict[str, List[str]]] = Field(
-        default=None, description="Column-level lineage (output col → list of upstream cols)."
+        default=None, description="Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is `upstream_asset_key`, or the only entry of `deps`; with several upstream assets, name each column '<asset_key>:<column>'. Ignored with a warning when no upstream asset can be resolved."
     )
 
     # Preview metadata

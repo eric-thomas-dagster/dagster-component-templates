@@ -466,7 +466,7 @@
       "type": "object",
       "label": "Column Lineage",
       "required": false,
-      "description": "Column-level lineage: output column \u2192 list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}."
+      "description": "Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is `upstream_asset_key`, or the only entry of `deps`; with several upstream assets, name each column '<asset_key>:<column>'. Ignored with a warning when no upstream asset can be resolved."
     },
     "partition_date_column": {
       "description": "Column used to filter the upstream DataFrame to the current date partition key.",

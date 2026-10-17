@@ -72,8 +72,7 @@ row records its `embedding_model`.
 longer exist, so a shrunk document leaves no stale chunks) | `upsert` (never deletes) | `replace_all` (collection becomes
 exactly this run; refused for partitioned assets). chromadb is exercised by tests. Qdrant and Pinecone are not tested
 against live services; Pinecone cannot delete by filter on serverless indexes, so it behaves as `upsert` with a warning.
-Qdrant point ids are now derived from the chunk id (they used to be the DataFrame row index, which overwrote unrelated
-chunks across runs, so re-index existing Qdrant collections).
+Qdrant point ids are derived from the chunk id; re-index collections written by earlier versions.
 
 ## Several kinds of context: tickets, docs, code
 
@@ -94,10 +93,8 @@ checks and rebuilds stay per source.
    steps: [{id: c, op: chunk, strategy: code, path_column: path, chunk_id_prefix: "code:"}, ...]}
 ```
 
-Separate collections are the simplest. Assets may share one collection if each sets a distinct `chunk_id_prefix`: without
-provenance-scoped sync and a collision guard, one asset's rebuild could delete or overwrite another's chunks that happen
-to share a source id, so a chunk id that already belongs to a different asset now raises, and stale-chunk cleanup only
-touches the writing asset's own chunks. Getting the raw rows in (from a ticketing export, a docs site, a git checkout) is
+Separate collections are the simplest. Assets may share one collection if each sets a distinct `chunk_id_prefix`; a chunk id that already belongs to a
+different asset raises, and stale-chunk cleanup only touches the writing asset's own chunks. Getting the raw rows in (from a ticketing export, a docs site, a git checkout) is
 the job of the upstream ingestion assets.
 
 ## Declaring governance policy

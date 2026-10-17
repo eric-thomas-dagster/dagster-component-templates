@@ -1,0 +1,4 @@
+type: dagster_community_components.ContextReceiptStoreComponent
+attributes:
+  resource_key: context_receipts
+  database_path: ./var/context-receipts.sqlite3

@@ -248,6 +248,8 @@ _CLASS_PATHS: dict[str, str] = {
     "ConfluenceResourceComponent": "resources/confluence_resource/component.py",
     "ConstantContactIngestionComponent": "assets/ingestion/constant_contact_ingestion/component.py",
     "ContextEngineeringPipelineComponent": "assets/ai/context_engineering_pipeline/component.py",
+    "ContextReceiptStore": "resources/context_receipt_store/component.py",
+    "ContextReceiptStoreComponent": "resources/context_receipt_store/component.py",
     "ContractExtractorComponent": "assets/ai/contract_extractor/component.py",
     "ControlMIntegrationComponent": "integrations/controlm_integration/component.py",
     "ConversationMemoryComponent": "assets/ai/conversation_memory/component.py",

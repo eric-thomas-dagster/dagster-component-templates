@@ -1,0 +1,22 @@
+{
+  "component_type": "dagster_community_components.ContextReceiptStoreComponent",
+  "name": "Context Receipt Store",
+  "description": "Register an append-only SQLite receipt store for context retrievals, output references, and impact lookups.",
+  "category": "resource",
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "context_receipts",
+      "description": "Dagster resource key for the ContextReceiptStore."
+    },
+    "database_path": {
+      "type": "string",
+      "label": "Database Path",
+      "required": false,
+      "default": "./context-receipts.sqlite3",
+      "description": "SQLite file path for local or single-host prototypes. Use a shared receipt service/database for multi-host production writes."
+    }
+  }
+}

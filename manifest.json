@@ -10758,6 +10758,54 @@
       ]
     },
     {
+      "id": "context_receipt_store",
+      "name": "Context Receipt Store",
+      "category": "resource",
+      "description": "Append-only SQLite prototype store for context retrieval receipts, output references, and source-impact lookups. Exposes a standalone Python API for FastMCP gateways and Prefect flows without writing online receipts to Dagster's event log.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "resources/context_receipt_store",
+      "tags": [
+        "resource",
+        "context",
+        "receipts",
+        "ai",
+        "provenance"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/context_receipt_store/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/context_receipt_store/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/context_receipt_store/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/context_receipt_store/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/context_receipt_store/requirements.txt",
+      "icon": "Receipt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-16",
+        "notes": "SQLite persistence, receipt/output event round-trips, source-impact lookup, input validation, and Dagster resource registration tested locally."
+      },
+      "produces": [
+        "resource"
+      ],
+      "consumes": [],
+      "agent_hints": {
+        "when_to_use": "Record serving-time context retrievals and attach output references without modifying Dagster internals.",
+        "outputs": "ContextReceiptStore resource and standalone Python API for immutable retrieval records, append-only output/evidence events, and source-impact lookups.",
+        "side_effects": "Creates and writes a SQLite file on the first receipt operation.",
+        "anti_uses": "SQLite is for local or single-host prototypes, not a multi-host production receipt backend. Do not store raw queries, context text, or model outputs in receipts."
+      },
+      "keywords": [
+        "context engineering",
+        "retrieval receipt",
+        "provenance",
+        "impact analysis",
+        "fastmcp",
+        "prefect"
+      ]
+    },
+    {
       "id": "contract_extractor",
       "name": "Contract Extractor",
       "category": "ai",

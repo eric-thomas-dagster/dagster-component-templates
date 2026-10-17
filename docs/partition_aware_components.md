@@ -21,6 +21,12 @@ The tables further down were generated at v0.10.52 and are out of date. After th
   - **Insert-only history modelling** (1): data_vault_hub_link_satellite
 - **None** are open: every component either uses the partition context or is listed above with the reason it does not.
 
+## Freshness and retry on partitioned assets
+
+- **Retry** is per run, and a partitioned run is one partition (unless you opt in to `backfill_policy: single_run`). A failed partition retries only itself, up to `retry_policy_max_retries`, waiting `retry_policy_delay_seconds` (default 1) with a `linear` or `exponential` backoff. It never loops forever: after the last retry the run fails.
+- **Freshness** (`freshness_max_lag_minutes`, optionally `freshness_cron`) is evaluated by Dagster from the asset's *latest materialization record, whatever the partition*. On a partitioned asset it therefore means "some partition was materialized within the window", not "every partition is current". Use the asset's partition status, or an automation condition, to see whether specific partitions are missing.
+- Both settings, the partitions and `backfill_policy` are checked on every emitted asset of every component by `tests/test_policies_take_effect.py`, which compares the actual policy objects (retries, delay, backoff, freshness window and cron, partitions definition) and constructs a job over the result.
+
 How a component applies a partition, by shape:
 
 | Shape | Behaviour on a partitioned run |

@@ -246,3 +246,34 @@ def test_resources_can_be_limited_and_the_helper_is_identical_everywhere():
     assert config["resources"][2]["endpoint"] == {"path": "plans", "params": {"s": "2024-01-02", "e": "2024-01-03"}}
     with pytest.raises(ValueError):
         ns["_apply_partition_window"](config, Ctx, {"start_param": "s", "format": "nope"})
+
+
+class _AnyPartitionIO(dg.IOManager):
+    """Stores one value per asset and ignores partitions, so a run spanning several partitions can be inspected."""
+
+    def __init__(self):
+        self.values = {}
+
+    def handle_output(self, context, obj):
+        self.values[context.asset_key] = obj
+
+    def load_input(self, context):
+        return self.values[context.asset_key]
+
+
+def _range_tags(first, last):
+    return {"dagster/asset_partition_range_start": first, "dagster/asset_partition_range_end": last}
+
+
+@pytest.mark.parametrize("folder", _ported(), ids=lambda p: p.name)
+def test_single_run_backfill_covers_the_whole_range_in_one_run(folder, monkeypatch):
+    """An opt-in single_run backfill is ONE run for several partitions: it must return every partition's rows."""
+    asset = _build(folder, monkeypatch, dict(partition_type="daily", partition_start="2024-01-01", partition_date_column="created_at",
+                                             backfill_policy="single_run"))
+    assert asset.backfill_policy == dg.BackfillPolicy.single_run()
+    io = _AnyPartitionIO()
+    r = dg.materialize([asset], resources={"io_manager": io}, tags=_range_tags("2024-01-02", "2024-01-03"), raise_on_error=False)
+    assert r.success, r
+    df = io.values[asset.key]
+    assert set(df["id"]) == {0, 1, 2}                       # 2024-01-02 (ids 0, 1) and 2024-01-03 (id 2); not 2024-01-04
+    assert not df["created_at"].str.startswith("2024-01-04").any()

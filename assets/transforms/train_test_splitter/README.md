@@ -11,7 +11,7 @@ Unlike most transforms, this component emits **two or three downstream assets** 
 
 | Strategy | How It Works | Use When |
 |---|---|---|
-| `random` | Deterministic random split (`seed` controls it). Optionally stratified by class label or grouped by an ID column | Default ML workflow; classification tasks where class balance matters |
+| `random` | Deterministic random split (`random_state` controls it). Optionally stratified by class label or grouped by an ID column | Default ML workflow; classification tasks where class balance matters |
 | `time` | Sort by `time_column`; oldest rows → train, newest → test | Time-series modeling; prevents temporal leakage where future leaks into past |
 | `hash` | Stable hash of `group_column` (or row index) → bucket | Reproducibility across schema/seed changes; multi-table consistent splits (use the same `group_column` everywhere) |
 
@@ -119,7 +119,7 @@ attributes:
   strategy: random
   test_size: 0.2
   val_size: 0.1
-  seed: 42
+  random_state: 42
   stratify_column: churned
   group_name: ml_datasets
 ```
@@ -146,10 +146,10 @@ attributes:
   strategy: hash
   group_column: user_id
   test_size: 0.2
-  seed: 42
+  random_state: 42
 ```
 
-The same `group_column` + `seed` produces the same split every run, even if rows are added or reordered.
+The same `group_column` + `random_state` produces the same split every run, even if rows are added or reordered.
 
 ## Output Metadata
 
@@ -162,5 +162,5 @@ Each emitted asset records:
 
 ## Caveats
 
-- Each output asset re-runs the split internally on the upstream DataFrame. With deterministic strategies (`time`, `hash`, fixed `seed` for `random`), this is consistent. If you replace `seed` between materializations, train/test/val will diverge.
+- Each output asset re-runs the split internally on the upstream DataFrame. With deterministic strategies (`time`, `hash`, fixed `random_state` for `random`), this is consistent. If you change `random_state` between materializations, train/test/val will diverge.
 - For very large DataFrames where re-splitting is expensive, consider materializing the upstream into a partitioned format and using `strategy: hash` so each split asset only filters in-place.

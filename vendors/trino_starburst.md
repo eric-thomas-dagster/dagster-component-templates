@@ -70,15 +70,17 @@ Trino's superpower is **federated query** — one SQL statement spanning multipl
    # sql_transform reads from a Trino-federated query, writes back to S3 Iceberg
    type: dagster_community_components.SqlTransformComponent
    attributes:
-     query: |
+     asset_name: customer_360
+     connection_url_env_var: TRINO_URL
+     destination_table: iceberg.lake.customer_360
+     sql: |
        SELECT
-         pg.customers.id,
-         snowflake.warehouse.orders.total,
-         iceberg.lake.events.click_count
-       FROM postgres.public.customers AS pg.customers
-         LEFT JOIN snowflake.warehouse.orders ...
-       USING (customer_id)
-     connection_env_var: TRINO_URL
+         c.id AS customer_id,
+         o.total AS order_total,
+         e.click_count
+       FROM postgres.public.customers AS c
+         LEFT JOIN snowflake.warehouse.orders AS o ON o.customer_id = c.id
+         LEFT JOIN iceberg.lake.events AS e ON e.customer_id = c.id
    ```
 2. **Iceberg table writes via Trino instead of pyiceberg** — when you want server-side commit semantics + Trino-managed manifest files.
 

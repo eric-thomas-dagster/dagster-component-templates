@@ -102,7 +102,7 @@ type: dagster_component_templates.DataframeToCsvComponent
 attributes:
   asset_name: oracle_migration_plan_csv
   upstream_asset_key: oracle_migration_inventory
-  output_path: /artifacts/oracle_migration_plan.csv
+  file_path: /artifacts/oracle_migration_plan.csv
 ```
 
 ## Common pattern: filter to "what's left after replication"
@@ -114,7 +114,7 @@ type: dagster_component_templates.FilterComponent
 attributes:
   asset_name: oracle_manual_migration_work
   upstream_asset_key: oracle_migration_inventory
-  query: "object_type != 'table'"
+  condition: "object_type != 'table'"
 ```
 
 This is the rebuild-by-hand checklist for the migration team.

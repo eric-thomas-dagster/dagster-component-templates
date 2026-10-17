@@ -230,16 +230,19 @@ Prefect's Automations UI is a first-class surface where any trigger → any acti
 ```yaml
 type: dagster_community_components.EventAutomationComponent
 attributes:
-  name: <automation_name>
+  name: notify_on_prod_failure
   description: "Free-form description shown in the UI"
   default_status: STOPPED   # or RUNNING
   when:
-    - type: <trigger_type>
-      # ... trigger-specific fields
+    - type: run_status               # trigger type (see the trigger catalog)
+      status: FAILURE                # ...plus trigger-specific fields
   then:
-    - type: <action_type>
-      # ... action-specific fields
+    - type: slack                    # action type (see the action catalog)
+      webhook_url_env_var: SLACK_URL # ...plus action-specific fields
+      message: "Run failed: {job_name}"
 ```
+
+Swap `type:` on either side for any other trigger / action type documented below.
 
 **Composition semantics:**
 
@@ -1217,9 +1220,11 @@ The registry has ~50 dedicated sensor components (`kafka_monitor`, `s3_monitor`,
 # The dedicated sensor materializes an asset when new S3 objects appear.
 type: dagster_community_components.S3MonitorSensorComponent
 attributes:
-  bucket: my-bucket
+  sensor_name: s3_incoming_sensor
+  bucket_name: my-bucket
   prefix: incoming/
-  materialize_assets: [new_s3_object]
+  job_name: process_new_object
+  source_asset_key: new_s3_object   # emits a materialization for this asset per new object
 ---
 # EventAutomation reacts to the materialization + fans out to alerts + jobs.
 type: dagster_community_components.EventAutomationComponent

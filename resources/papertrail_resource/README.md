@@ -27,9 +27,9 @@ Wraps the official `dagster-papertrail` package.
 ```yaml
 type: dagster_component_templates.PapertrailResourceComponent
 attributes:
-  papertrail_hostname: <fill in>
-  papertrail_port: <fill in>
-  resource_key: <fill in>
+  papertrail_hostname: logs1.papertrailapp.com
+  papertrail_port: 12345
+  resource_key: papertrail
 ```
 
 ## Requirements

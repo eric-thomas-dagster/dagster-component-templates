@@ -2,7 +2,7 @@
 
 > **🟢 No external API key.** This component talks to a local Ollama server (default http://localhost:11434). Make sure Ollama is running and the requested model has been pulled (`ollama pull llama3`).
 
-A Dagster component that reads rows from an upstream asset or database table, enriches each row by running it through a locally-hosted Ollama model, and writes the results to a destination database table.
+A Dagster component that reads rows from an upstream asset, enriches each row by running it through a locally-hosted Ollama model, and returns the enriched DataFrame as the asset value.
 
 **No API key or internet connection required.** Ollama runs open-source LLMs entirely on your own hardware, making this component ideal for sensitive data, air-gapped environments, cost-sensitive workloads, or local development and testing.
 
@@ -10,12 +10,12 @@ A Dagster component that reads rows from an upstream asset or database table, en
 
 ## What It Does
 
-1. Loads a DataFrame either from an upstream Dagster asset or directly from a source database table via SQLAlchemy.
+1. Loads a DataFrame from the upstream Dagster asset (`upstream_asset_key`).
 2. For each row, formats your `prompt_template` string using the row's column values.
 3. Sends the formatted prompt (plus an optional `system_prompt`) to the Ollama `/api/generate` endpoint.
 4. Appends the model response to a new column (`response_column`) in the DataFrame.
-5. Writes the enriched DataFrame to a destination database table via SQLAlchemy.
-6. Emits Dagster materialization metadata: row count, model used, Ollama host, response column, and destination table.
+5. Returns the enriched DataFrame as the asset value (persist it with an IO manager or a downstream sink).
+6. Emits Dagster materialization metadata: row count, model used, Ollama host, response column.
 
 ---
 
@@ -71,14 +71,11 @@ No provider SDK or API credentials are needed beyond a running Ollama server.
 
 ## Component Fields
 
-### Source (pick one)
+### Source
 
 | Field | Type | Required | Description |
 |---|---|---|---|
-| `upstream_asset_key` | `str` | No | Dagster asset key to load as a DataFrame (e.g. `raw_feedback` or `schema/table`) |
-| `source_database_url_env_var` | `str` | No | Env var containing a SQLAlchemy connection URL for the source database |
-| `source_table` | `str` | No | Table name to read when using `source_database_url_env_var` |
-| `source_query` | `str` | No | Custom SQL query; overrides `source_table` when set |
+| `upstream_asset_key` | `str` or list | Yes | Dagster asset key to load as a DataFrame (e.g. `raw_feedback` or `schema/table`) |
 
 ### Ollama Configuration
 
@@ -99,15 +96,13 @@ No provider SDK or API credentials are needed beyond a running Ollama server.
 | `batch_size` | `int` | No | `10` | Number of rows between progress log messages |
 | `max_rows` | `int` | No | — | Cap on rows processed; useful for testing before a full run |
 
-### Destination
+### Output
 
 | Field | Type | Required | Default | Description |
 |---|---|---|---|---|
-| `database_url_env_var` | `str` | Yes | — | Env var containing the destination SQLAlchemy connection URL |
-| `table_name` | `str` | Yes | — | Destination table name |
-| `schema_name` | `str` | No | — | Destination schema (e.g. `analytics`) |
-| `if_exists` | `str` | No | `replace` | Behavior when table exists: `replace`, `append`, or `fail` |
 | `response_column` | `str` | No | `llm_response` | Name of the column added to store model responses |
+
+The enriched DataFrame is returned as the asset value; there are no destination database fields. To write it to a table, add a downstream sink component or use a database IO manager.
 
 ### Asset Metadata
 
@@ -210,25 +205,11 @@ attributes:
   prompt_template: "Categorize this customer feedback into one of [bug, feature, praise, question]: {feedback_text}"
   system_prompt: "You are a feedback classifier. Respond with only one word: bug, feature, praise, or question."
   response_column: category
-  database_url_env_var: DATABASE_URL
-  table_name: categorized_feedback
 ```
 
 ### Reading from a database instead of an upstream asset
 
-```yaml
-type: dagster_component_templates.OllamaInferenceAssetComponent
-attributes:
-  asset_name: summarized_articles
-  source_database_url_env_var: SOURCE_DB_URL
-  source_query: "SELECT id, title, body FROM articles WHERE summary IS NULL"
-  model: mistral
-  prompt_template: "Write a two-sentence summary of this article titled '{title}': {body}"
-  response_column: summary
-  database_url_env_var: DATABASE_URL
-  table_name: summarized_articles
-  if_exists: append
-```
+This component only reads from an upstream asset. To enrich database rows, put a database source component (one that runs your query) upstream and point `upstream_asset_key` at it.
 
 ### Using a larger model with a remote Ollama server
 

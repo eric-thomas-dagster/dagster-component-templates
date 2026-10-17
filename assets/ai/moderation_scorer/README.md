@@ -72,7 +72,7 @@ The Moderation Scorer component analyzes content from upstream sources and assig
 - **Sentiment Analysis**: Detects positive and negative language patterns
 - **Risk Assessment**: Calculates risk scores (0-1 scale)
 - **Automated Decisions**: Classifies content as approved, needs_review, or flagged
-- **Flexible Thresholds**: Customizable scoring thresholds
+- **Fixed Thresholds**: Decision cut-offs are built into the component (not configurable)
 - **Detailed Reasoning**: Provides explanation for moderation decisions
 
 ## Configuration
@@ -80,15 +80,13 @@ The Moderation Scorer component analyzes content from upstream sources and assig
 ### Required Parameters
 
 - `asset_name`: Name of the moderation results asset
+- `upstream_asset_key`: Upstream content asset (DataFrame with a `content_text` column)
 
 ### Optional Parameters
 
-- `source_asset`: Upstream content asset (set via lineage)
-- `risk_threshold`: Score threshold for flagging (default: 0.7, range 0-1)
-- `review_threshold`: Score threshold for manual review (default: 0.4, range 0-1)
 - `description`: Asset description
 - `group_name`: Asset group for organization (default: "content_moderation")
-- `include_preview_metadata`: Include sample data preview (default: true)
+- `include_preview_metadata`: Include sample data preview (default: false)
 
 ## Usage
 
@@ -96,9 +94,7 @@ The Moderation Scorer component analyzes content from upstream sources and assig
 type: dagster_component_templates.ModerationScorerComponent
 attributes:
   asset_name: moderated_content
-  source_asset: user_content
-  risk_threshold: 0.7
-  review_threshold: 0.4
+  upstream_asset_key: user_content
   description: "Automated content moderation scores"
 ```
 
@@ -111,9 +107,10 @@ attributes:
    - Negative indicators add 0.2 points per match
    - Positive sentiment reduces score by 0.1 per match
 4. **Decision Assignment**:
-   - Score ≥ risk_threshold (0.7): **flagged** for removal
-   - Score ≥ review_threshold (0.4): **needs_review** by moderator
-   - Score < review_threshold: **approved**
+   - Score > 0.5: **flagged** for removal
+   - Score > 0.3: **needs_review** by moderator
+   - Otherwise: **approved**
+   (these cut-offs are fixed in the component)
 5. **Reasoning**: Generates explanation based on detected patterns
 
 ## Output Schema

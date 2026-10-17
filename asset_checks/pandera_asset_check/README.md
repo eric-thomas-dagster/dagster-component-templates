@@ -34,11 +34,11 @@ Wraps the official `dagster-pandera` package.
 ```yaml
 type: dagster_component_templates.PanderaAssetCheckComponent
 attributes:
-  asset_key: <fill in>
-  schema_module: <fill in>
-  schema_name: <fill in>
-  blocking: <fill in>
-  description: <fill in>
+  asset_key: customers
+  schema_module: my_project.schemas
+  schema_name: CustomerSchema
+  blocking: true
+  description: Validate the customers table against its Pandera schema
 ```
 
 ## Requirements

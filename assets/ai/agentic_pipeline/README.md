@@ -623,8 +623,7 @@ def run_research_crew(topic: str, **_) -> dict:
 ```yaml
 type: dagster_community_components.AgenticPipelineComponent
 attributes:
-  asset_name: research_brief
-  group_name: research
+  asset_name_prefix: research_brief
 
   source:
     kind: literal
@@ -647,14 +646,12 @@ attributes:
     - id: critique
       op: critique_loop
       source: crew_research
-      model: gpt-4o-mini
-      api_key_env_var: OPENAI_API_KEY
-      max_rounds: 1
-      critique_prompt: |
-        Flag any claim that isn't sourced or that hedges without a citation.
-        Return the tightened brief.
+      drafter: {model: gpt-4o-mini, api_key_env_var: OPENAI_API_KEY}
+      critic:  {model: gpt-4o-mini, api_key_env_var: OPENAI_API_KEY}
+      iterations: 1
 
   outputs:
+    assets: [crew_research, critique]
     text_sinks:
       - {from: critique, path: "output/research_brief_{partition_key}.md"}
 ```
@@ -1005,7 +1002,17 @@ Declare partitions via `post_processing:`:
 
 ```yaml
 type: dagster_community_components.AgenticPipelineComponent
-attributes: {...}
+attributes:
+  asset_name_prefix: daily_brief
+  source: {kind: literal, text: "Summarise {partition_key}"}
+  steps:
+    - id: brief
+      op: llm_call
+      prompt_template: "{text}"
+      model: gpt-4o-mini
+      api_key_env_var: OPENAI_API_KEY
+  outputs:
+    assets: [brief]
 
 post_processing:
   assets:

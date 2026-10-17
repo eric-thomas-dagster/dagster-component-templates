@@ -2,17 +2,17 @@
 
 > **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
 
-Run a LangChain chain over every row of a DataFrame and write the enriched output to a database table.
+Run a LangChain chain over every row of a DataFrame and write the enriched DataFrame as the asset's output (persist it downstream with an IO manager or a sink component).
 
 ## What It Does
 
-This component reads tabular data from either an upstream Dagster asset (returning a pandas DataFrame) or a source database table, then runs each row through a configurable LangChain chain composed of:
+This component reads tabular data from an upstream Dagster asset (returning a pandas DataFrame), then runs each row through a configurable LangChain chain composed of:
 
 1. A **prompt template** — column values are substituted as `{column_name}` placeholders.
 2. An **LLM** — any supported LangChain chat model.
 3. A **StrOutputParser** — extracts the string response.
 
-The LLM response is appended to the DataFrame as a new column (`response_column`) and the full enriched DataFrame is written to a destination database table via SQLAlchemy.
+The LLM response is appended to the DataFrame as a new column (`response_column`) and the full enriched DataFrame is returned as the asset value (this component does not write to a database itself).
 
 Typical use cases include summarization, classification, entity extraction, sentiment analysis, and any other row-level LLM enrichment pattern.
 
@@ -44,12 +44,9 @@ sqlalchemy>=2.0.0
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `asset_name` | str | required | Dagster asset name for this component |
-| `upstream_asset_key` | str | None | Upstream Dagster asset key whose materialized value (a DataFrame) is used as input |
-| `source_database_url_env_var` | str | None | Env var holding a SQLAlchemy connection URL for source data (alternative to `upstream_asset_key`) |
-| `source_table` | str | None | Source table name when using `source_database_url_env_var` |
-| `source_query` | str | None | Custom SQL query for source data (overrides `source_table`) |
+| `upstream_asset_key` | str or list | required | Upstream Dagster asset key whose materialized value (a DataFrame) is used as input |
 
-Either `upstream_asset_key` or `source_database_url_env_var` must be set.
+`upstream_asset_key` is required. To feed the chain from a database table, put a database source component upstream and point `upstream_asset_key` at it.
 
 ### LLM Configuration
 
@@ -79,14 +76,9 @@ Either `upstream_asset_key` or `source_database_url_env_var` must be set.
 | `max_rows` | int | None | Cap the number of rows processed — useful for smoke-testing |
 | `max_concurrency` | int | `1` | Concurrent LLM calls. Increase carefully to avoid rate limits |
 
-### Destination
+### Output
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `database_url_env_var` | str | required | Env var holding the destination SQLAlchemy connection URL |
-| `table_name` | str | required | Destination table name |
-| `schema_name` | str | None | Destination schema (optional) |
-| `if_exists` | str | `replace` | Pandas `to_sql` behavior: `fail`, `replace`, or `append` |
+The enriched DataFrame is returned as the asset value; there are no destination fields. To write it to a table, add a downstream sink component (e.g. a `DataframeTo...` sink) or use a database IO manager.
 
 ### Asset Metadata
 
@@ -197,8 +189,6 @@ attributes:
     {content}
   system_message: "You are a concise summarizer. Respond with plain text only."
   response_column: summary
-  database_url_env_var: DATABASE_URL
-  table_name: summarized_articles
 ```
 
 ## Structured Output with `parse_json`
@@ -237,8 +227,7 @@ The Dagster asset graph will show all declared dependencies and enforce their ma
 type: dagster_component_templates.LangChainChainAssetComponent
 attributes:
   asset_name: classified_tickets
-  source_database_url_env_var: SOURCE_DB_URL
-  source_table: support_tickets
+  upstream_asset_key: support_tickets
   llm_provider: anthropic
   model: claude-3-5-haiku-20241022
   api_key_env_var: ANTHROPIC_API_KEY
@@ -248,9 +237,6 @@ attributes:
 
     Ticket: {body}
   response_column: category
-  database_url_env_var: DATABASE_URL
-  table_name: classified_tickets
-  if_exists: append
 ```
 
 ## Ollama (Local) Example
@@ -265,8 +251,6 @@ attributes:
   api_base_env_var: OLLAMA_BASE_URL   # e.g. http://localhost:11434
   prompt_template: "Summarize: {text}"
   response_column: summary
-  database_url_env_var: DATABASE_URL
-  table_name: local_summaries
   temperature: 0.2
   max_rows: 50
 ```

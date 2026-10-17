@@ -79,8 +79,9 @@ Same shape for `data_mart_selector`. Omit → include everything.
 ```yaml
 type: dagster_community_components.QlikComposeWorkspaceComponent
 attributes:
-  base_url_env_var: QLIK_COMPOSE_URL
-  api_token_env_var: QLIK_COMPOSE_TOKEN
+  workspace:
+    base_url: "{{ env.QLIK_COMPOSE_URL }}"
+    api_token: "{{ env.QLIK_COMPOSE_TOKEN }}"
   projects: [FinanceDW, SalesDW]
   workflow_selector:
     by_pattern: ["FullBuild*", "Incremental*"]
@@ -94,10 +95,10 @@ attributes:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `base_url_env_var` | str | — | Env var with Compose base URL. |
-| `api_token_env_var` | str | — | Env var with API token. |
-| `username_env_var` / `password_env_var` | str | — | Session-based auth (dev). |
-| `verify_ssl` | bool | `true` | TLS verification. |
+| `workspace.base_url` | str | — | Compose base URL (typically `"{{ env.QLIK_COMPOSE_URL }}"`). |
+| `workspace.api_token` | str | — | API token (typically via `{{ env.XXX }}`). |
+| `workspace.username` / `workspace.password` | str | — | Session-based auth (dev). |
+| `workspace.verify_ssl` | bool | `true` | TLS verification. |
 | `projects` | list[str] | all | Whitelist of Compose projects. |
 | `workflow_selector` | object | — | Filter workflows. Fivetran-shape. |
 | `data_mart_selector` | object | — | Filter data marts. Fivetran-shape. |

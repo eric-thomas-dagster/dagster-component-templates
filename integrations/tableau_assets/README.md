@@ -27,11 +27,11 @@ Wraps `dagster-tableau`'s workspace clients to materialize Tableau workbooks, da
 ```yaml
 type: dagster_component_templates.TableauAssetsComponent
 attributes:
-  server_url: <fill in>
-  site_name: <fill in>
-  token_name_env_var: <fill in>
-  token_value_env_var: <fill in>
-  online: <fill in>
+  server_url: https://10ay.online.tableau.com
+  site_name: my-site
+  token_name_env_var: TABLEAU_TOKEN_NAME
+  token_value_env_var: TABLEAU_TOKEN_VALUE
+  online: true
 ```
 
 ## Requirements

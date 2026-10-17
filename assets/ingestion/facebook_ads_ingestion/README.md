@@ -40,7 +40,9 @@ By default this asset runs an in-memory DuckDB pipeline and returns a pandas Dat
 type: dagster_component_templates.FacebookAdsIngestionComponent
 attributes:
   asset_name: facebook_ads_data
-  # ... source config ...
+  account_id: "act_123456789"
+  access_token: "${FACEBOOK_ACCESS_TOKEN}"
+  # (or reference a registered resource instead: resource_key: <name>)
   destination: bigquery          # or bigquery, postgres, filesystem, ...
   dataset_name: facebook_ads_raw
   persist_only: true

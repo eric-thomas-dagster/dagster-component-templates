@@ -25,7 +25,8 @@ Perfect for:
 type: dagster_component_templates.DocumentTextExtractorComponent
 attributes:
   asset_name: document_text
-  file_path: /path/to/document.pdf
+  # file path is supplied at run time (RunConfig: ops.document_text.config.file_path, e.g. /path/to/document.pdf),
+  # or by an upstream asset -- it is not a YAML field
 ```
 
 ### 2. Chunk the Text
@@ -174,7 +175,8 @@ That's it! The IO manager automatically passes the text.
 type: dagster_component_templates.DocumentTextExtractorComponent
 attributes:
   asset_name: document_text
-  file_path: /path/to/document.pdf
+  # file path is supplied at run time (RunConfig: ops.document_text.config.file_path, e.g. /path/to/document.pdf),
+  # or by an upstream asset -- it is not a YAML field
 
 # Step 2: Chunk the text
 type: dagster_component_templates.TextChunkerComponent

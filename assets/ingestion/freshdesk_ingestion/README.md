@@ -33,7 +33,9 @@ By default this asset runs an in-memory DuckDB pipeline and returns a pandas Dat
 type: dagster_component_templates.FreshdeskIngestionComponent
 attributes:
   asset_name: freshdesk_data
-  # ... source config ...
+  api_key: "${FRESHDESK_API_KEY}"
+  domain: "yourcompany.freshdesk.com"
+  # (or reference a registered resource instead: resource_key: <name>)
   destination: postgres          # or bigquery, postgres, filesystem, ...
   dataset_name: freshdesk_raw
   persist_only: true

@@ -86,8 +86,9 @@ Most customers should start with `qlik_replicate_workspace` — it's the shortes
 ```yaml
 type: dagster_community_components.QlikReplicateWorkspaceComponent
 attributes:
-  base_url_env_var: QLIK_EM_URL
-  api_token_env_var: QLIK_EM_API_TOKEN
+  workspace:
+    base_url: "{{ env.QLIK_EM_URL }}"
+    api_token: "{{ env.QLIK_EM_API_TOKEN }}"
   servers: [prod-replicate-01]
   group_name: qlik_replicate
   action: run
@@ -101,10 +102,10 @@ attributes:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `base_url_env_var` | str | — | Env var with EM base URL (no trailing slash, no API path). |
-| `api_token_env_var` | str | — | Env var with EM API token. Preferred for production. |
-| `username_env_var` / `password_env_var` | str | — | Session-based auth (dev). Required unless api_token is set. |
-| `verify_ssl` | bool | `true` | TLS verification. Set false for self-signed dev servers. |
+| `workspace.base_url` | str | — | EM base URL (no trailing slash, no API path); typically `"{{ env.QLIK_EM_URL }}"`. |
+| `workspace.api_token` | str | — | EM API token. Preferred for production. |
+| `workspace.username` / `workspace.password` | str | — | Session-based auth (dev). Required unless api_token is set. |
+| `workspace.verify_ssl` | bool | `true` | TLS verification. Set false for self-signed dev servers. |
 | `servers` | list[str] | all | Whitelist of Replicate servers to include. |
 | `task_selector` | object | — | Task filter. Mirrors Fivetran's `connector_selector`. See below. |
 | `group_name` | str | — | Dagster asset group name. |

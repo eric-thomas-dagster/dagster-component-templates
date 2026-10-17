@@ -32,7 +32,8 @@ By default this asset runs an in-memory DuckDB pipeline and returns a pandas Dat
 type: dagster_component_templates.AsanaIngestionComponent
 attributes:
   asset_name: asana_data
-  # ... source config ...
+  access_token: "${ASANA_ACCESS_TOKEN}"
+  # (or reference a registered resource instead: resource_key: <name>)
   destination: snowflake          # or bigquery, postgres, filesystem, ...
   dataset_name: asana_raw
   persist_only: true

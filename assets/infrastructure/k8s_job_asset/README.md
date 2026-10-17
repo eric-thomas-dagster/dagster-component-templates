@@ -38,15 +38,17 @@ Wraps the official `dagster-k8s` package.
 ```yaml
 type: dagster_component_templates.K8sJobAssetComponent
 attributes:
-  asset_name: <fill in>
-  image: <fill in>
-  command: <fill in>
-  namespace: <fill in>
-  env_vars: <fill in>
-  cpu_limit: <fill in>
-  memory_limit: <fill in>
-  group_name: <fill in>
-  deps: <fill in>
+  asset_name: model_training_job
+  image: my-registry/trainer:2.1.0
+  command: ["python", "train.py"]
+  namespace: ml-jobs
+  env_vars:
+    EPOCHS: "10"
+  cpu_limit: 1000m
+  memory_limit: 2Gi
+  group_name: k8s
+  deps:
+    - raw/training_data
 ```
 
 ## Requirements

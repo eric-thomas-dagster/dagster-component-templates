@@ -290,7 +290,16 @@ Declare partitions via `post_processing:`:
 
 ```yaml
 type: dagster_community_components.MLPipelineComponent
-attributes: {...}
+attributes:
+  asset_name_prefix: churn
+  source: {kind: warehouse_query, resource_key: snowflake, sql: "SELECT * FROM analytics.customer_features"}
+  target_column: churned
+  feature_columns: [tenure_months, monthly_charges, support_tickets]
+  steps:
+    - {id: split,   op: split, test_size: 0.2, stratify_column: churned, random_state: 42}
+    - {id: trained, op: train, sklearn_class: "sklearn.ensemble.RandomForestClassifier", task_type: classification}
+  outputs:
+    assets: [trained]
 
 post_processing:
   assets:

@@ -24,7 +24,8 @@ Perfect for sentiment analysis, topic classification, and content moderation.
 type: dagster_component_templates.DocumentTextExtractorComponent
 attributes:
   asset_name: feedback_text
-  file_path: /path/to/feedback.txt
+  # file path is supplied at run time (RunConfig: ops.feedback_text.config.file_path, e.g. /path/to/feedback.txt),
+  # or by an upstream asset -- it is not a YAML field
 ```
 
 ### 2. Classify the Text
@@ -176,7 +177,8 @@ That's it! The IO manager automatically passes the text.
 type: dagster_component_templates.DocumentTextExtractorComponent
 attributes:
   asset_name: feedback_text
-  file_path: /path/to/feedback.txt
+  # file path is supplied at run time (RunConfig: ops.feedback_text.config.file_path, e.g. /path/to/feedback.txt),
+  # or by an upstream asset -- it is not a YAML field
 
 # Step 2: Classify the sentiment
 type: dagster_component_templates.TextClassifierComponent
@@ -203,7 +205,8 @@ feedback_text → sentiment
 type: dagster_component_templates.DocumentTextExtractorComponent
 attributes:
   asset_name: report_text
-  file_path: /path/to/report.pdf
+  # file path is supplied at run time (RunConfig: ops.report_text.config.file_path, e.g. /path/to/report.pdf),
+  # or by an upstream asset -- it is not a YAML field
 
 # Step 2: Summarize
 type: dagster_component_templates.DocumentSummarizerComponent

@@ -80,9 +80,10 @@ Same shape for `process_selector` and `chore_selector`. Omit a selector → incl
 ```yaml
 type: dagster_community_components.TM1WorkspaceComponent
 attributes:
-  base_url_env_var: TM1_URL
-  username_env_var: TM1_USER
-  password_env_var: TM1_PASSWORD
+  workspace:
+    base_url: "{{ env.TM1_URL }}"
+    username: "{{ env.TM1_USER }}"
+    password: "{{ env.TM1_PASSWORD }}"
   cube_selector:
     by_name: [Sales, Finance]
   process_selector:
@@ -97,10 +98,10 @@ attributes:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `base_url_env_var` | str | — | Env var with TM1 base URL (include port). |
-| `username_env_var` / `password_env_var` | str | — | Native auth. |
-| `cam_namespace_env_var` | str | — | CAM SSO namespace. |
-| `verify_ssl` | bool | `true` | TLS verification. |
+| `workspace.base_url` | str | — | TM1 base URL (include port); typically `"{{ env.TM1_URL }}"`. |
+| `workspace.username` / `workspace.password` | str | — | Native auth. |
+| `workspace.cam_namespace` | str | — | CAM SSO namespace. |
+| `workspace.verify_ssl` | bool | `true` | TLS verification. |
 | `cube_selector` | object | — | Filter cubes. |
 | `process_selector` | object | — | Filter TI processes. |
 | `chore_selector` | object | — | Filter chores. |

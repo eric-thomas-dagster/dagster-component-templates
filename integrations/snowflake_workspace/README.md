@@ -131,9 +131,9 @@ The `workspace:` block IS a `dagster_snowflake.SnowflakeResource` — same shape
 type: dagster_community_components.SnowflakeWorkspaceComponent
 attributes:
   workspace:
-    account: {env: SNOWFLAKE_ACCOUNT}
-    user: {env: SNOWFLAKE_USER}
-    password: {env: SNOWFLAKE_PASSWORD}
+    account: "{{ env.SNOWFLAKE_ACCOUNT }}"
+    user: "{{ env.SNOWFLAKE_USER }}"
+    password: "{{ env.SNOWFLAKE_PASSWORD }}"
     warehouse: COMPUTE_WH
     database: ANALYTICS
     schema: PUBLIC
@@ -147,8 +147,8 @@ attributes:
 type: dagster_community_components.SnowflakeWorkspaceComponent
 attributes:
   workspace:
-    account: {env: SNOWFLAKE_ACCOUNT}
-    user: {env: SNOWFLAKE_USER}
+    account: "{{ env.SNOWFLAKE_ACCOUNT }}"
+    user: "{{ env.SNOWFLAKE_USER }}"
     authenticator: externalbrowser        # pops a browser
     warehouse: COMPUTE_WH
     database: ANALYTICS
@@ -162,11 +162,11 @@ attributes:
 type: dagster_community_components.SnowflakeWorkspaceComponent
 attributes:
   workspace:
-    account: {env: SNOWFLAKE_ACCOUNT}
-    user: {env: SNOWFLAKE_USER}
+    account: "{{ env.SNOWFLAKE_ACCOUNT }}"
+    user: "{{ env.SNOWFLAKE_USER }}"
     authenticator: SNOWFLAKE_JWT
-    private_key_path: {env: SNOWFLAKE_PRIVATE_KEY_PATH}
-    private_key_password: {env: SNOWFLAKE_PRIVATE_KEY_PASSWORD}   # if encrypted
+    private_key_path: "{{ env.SNOWFLAKE_PRIVATE_KEY_PATH }}"
+    private_key_password: "{{ env.SNOWFLAKE_PRIVATE_KEY_PASSWORD }}"   # if encrypted
     warehouse: COMPUTE_WH
     database: ANALYTICS
     schema: PUBLIC
@@ -180,9 +180,9 @@ attributes:
 type: dagster_community_components.SnowflakeWorkspaceComponent
 attributes:
   workspace:
-    account: {env: SNOWFLAKE_ACCOUNT}
-    user: {env: SNOWFLAKE_USER}
-    password: {env: SNOWFLAKE_PASSWORD}
+    account: "{{ env.SNOWFLAKE_ACCOUNT }}"
+    user: "{{ env.SNOWFLAKE_USER }}"
+    password: "{{ env.SNOWFLAKE_PASSWORD }}"
     warehouse: COMPUTE_WH
     database: ANALYTICS
     schema: PUBLIC

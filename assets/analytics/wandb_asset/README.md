@@ -1,6 +1,6 @@
 # Weights & Biases Asset Component
 
-Logs metrics from a database table or uploads file/directory artifacts to [Weights & Biases](https://wandb.ai), creating a tracked W&B run for every Dagster materialization.
+Logs metrics from an upstream asset's DataFrame or uploads file/directory artifacts to [Weights & Biases](https://wandb.ai), creating a tracked W&B run for every Dagster materialization.
 
 ---
 
@@ -10,7 +10,7 @@ Supports two modes, selected by the `mode` field:
 
 | Mode | Description |
 |------|-------------|
-| `log_metrics` | Reads rows from a source database table via SQLAlchemy and logs each row as a step in a W&B run using `run.log({...})`. |
+| `log_metrics` | Reads rows from the upstream asset's DataFrame (`upstream_asset_key`) and logs each row as a step in a W&B run using `run.log({...})`. |
 | `log_artifact` | Uploads a local file or directory as a W&B artifact using `wandb.Artifact` and `run.log_artifact(...)`. |
 
 ---
@@ -21,12 +21,11 @@ Supports two modes, selected by the `mode` field:
 |---------|----------------|---------|
 | `dagster` | 1.8.0 | Orchestration framework |
 | `wandb` | 0.17.0 | W&B Python SDK |
-| `sqlalchemy` | 2.0.0 | Database connectivity (log_metrics mode) |
 
 Install with:
 
 ```bash
-pip install wandb>=0.17.0 sqlalchemy>=2.0.0
+pip install wandb>=0.17.0
 ```
 
 You will also need the appropriate SQLAlchemy dialect driver for your source database (e.g. `psycopg2` for PostgreSQL, `pymysql` for MySQL).
@@ -43,8 +42,7 @@ You will also need the appropriate SQLAlchemy dialect driver for your source dat
 | `run_name` | `str \| null` | `null` | W&B run name. Auto-generated when null. |
 | `mode` | `str` | `log_metrics` | `"log_metrics"` or `"log_artifact"`. |
 | `wandb_api_key_env_var` | `str` | `WANDB_API_KEY` | Env var holding the W&B API key. |
-| `database_url_env_var` | `str \| null` | `null` | Env var with SQLAlchemy DB URL. Required for `log_metrics`. |
-| `source_table` | `str \| null` | `null` | Table to read metrics from. Required for `log_metrics`. |
+| `upstream_asset_key` | `str` | — | Upstream asset providing the DataFrame of metrics (required; used by `log_metrics`). |
 | `metrics_columns` | `list \| null` | `null` | Columns to log. `null` logs all numeric columns. |
 | `step_column` | `str \| null` | `null` | Column to use as the W&B step/epoch number. |
 | `artifact_path` | `str \| null` | `null` | Local file or directory path. Required for `log_artifact`. |
@@ -144,8 +142,7 @@ attributes:
   entity: my-team
   mode: log_metrics
   wandb_api_key_env_var: WANDB_API_KEY
-  database_url_env_var: DATABASE_URL
-  source_table: model_training_results
+  upstream_asset_key: model_training_results
   metrics_columns:
     - train_loss
     - val_loss
@@ -184,7 +181,6 @@ attributes:
 | Variable | Description |
 |----------|-------------|
 | `WANDB_API_KEY` (or custom) | W&B API key from https://wandb.ai/settings |
-| `DATABASE_URL` (or custom) | SQLAlchemy connection URL for the source database (log_metrics mode only) |
 
 ---
 

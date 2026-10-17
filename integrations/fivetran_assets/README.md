@@ -37,11 +37,12 @@ Wraps `dagster-fivetran`'s `FivetranWorkspace` to materialize one Dagster asset 
 ```yaml
 type: dagster_component_templates.FivetranAssetsComponent
 attributes:
-  account_id: <fill in>
-  api_key_env_var: <fill in>
-  api_secret_env_var: <fill in>
-  connector_filter: <fill in>
-  group_name: <fill in>
+  account_id: my_fivetran_account
+  api_key_env_var: FIVETRAN_API_KEY
+  api_secret_env_var: FIVETRAN_API_SECRET
+  connector_filter:
+    - connector_id_one
+  group_name: fivetran
 ```
 
 ## Requirements

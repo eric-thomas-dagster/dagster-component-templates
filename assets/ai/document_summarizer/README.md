@@ -23,7 +23,8 @@ Perfect for report generation, content digestion, and document analysis.
 type: dagster_component_templates.DocumentTextExtractorComponent
 attributes:
   asset_name: report_text
-  file_path: /path/to/report.pdf
+  # file path is supplied at run time (RunConfig: ops.report_text.config.file_path, e.g. /path/to/report.pdf),
+  # or by an upstream asset -- it is not a YAML field
 ```
 
 ### 2. Summarize the Text
@@ -170,7 +171,8 @@ That's it! The IO manager automatically passes the text.
 type: dagster_component_templates.DocumentTextExtractorComponent
 attributes:
   asset_name: report_text
-  file_path: /path/to/report.pdf
+  # file path is supplied at run time (RunConfig: ops.report_text.config.file_path, e.g. /path/to/report.pdf),
+  # or by an upstream asset -- it is not a YAML field
 
 # Step 2: Summarize the document
 type: dagster_component_templates.DocumentSummarizerComponent

@@ -79,7 +79,6 @@ Standardized e-commerce data with unified fields:
 - **`filter_status`** (string): Filter by status (comma-separated)
 - **`filter_date_from`** (string): Start date filter (YYYY-MM-DD)
 - **`filter_date_to`** (string): End date filter (YYYY-MM-DD)
-- **`convert_currency`** (string): Convert all amounts to this currency
 - **`description`** (string): Asset description
 - **`group_name`** (string): Asset group (default: `ecommerce`)
 - **`include_preview_metadata`** (boolean): Include data preview (default: true)
@@ -181,8 +180,7 @@ attributes:
   platform: stripe
   resource_type: orders
   filter_status: "succeeded"
-  convert_currency: "USD"
-  description: Successful Stripe charges in USD
+  description: Successful Stripe charges
 ```
 
 ### Multi-Platform Orders
@@ -194,7 +192,6 @@ attributes:
   asset_name: std_shopify_orders
   platform: shopify
   resource_type: orders
-  convert_currency: "USD"
 
 ---
 # stripe_orders.yaml
@@ -203,7 +200,6 @@ attributes:
   asset_name: std_stripe_orders
   platform: stripe
   resource_type: orders
-  convert_currency: "USD"
 
 ---
 # Combine downstream
@@ -250,7 +246,7 @@ attributes:
 2. **Field Mapping**: Maps platform-specific fields to standardized schema
 3. **Amount Conversion**: Converts amounts (Stripe uses cents, others use decimal)
 4. **Status Normalization**: Standardizes status values across platforms
-5. **Currency Handling**: Optionally converts all amounts to single currency
+5. **Currency Handling**: Preserves each record's `currency` code (no currency conversion is performed)
 6. **Platform Tagging**: Adds source platform for tracking
 
 ## Revenue Metrics
@@ -289,8 +285,8 @@ ORDER BY 1
 ## Best Practices
 
 ### Currency Normalization
-- Convert all amounts to single currency (e.g., USD)
-- Use exchange rates for the transaction date
+- The component does not convert currencies; it keeps the `currency` column as-is
+- Convert to a single currency (e.g., USD) in a downstream transform, using exchange rates for the transaction date
 - Document currency conversion methodology
 
 ### Status Standardization
@@ -349,7 +345,7 @@ Standardized Products + Orders → Sales Analysis → Best Sellers Report
 
 ## Notes
 
-- **Currency Conversion**: Requires exchange rate data for multi-currency conversion
+- **Currency Conversion**: Not performed by this component; convert downstream with exchange-rate data
 - **Order States**: Different platforms have different order lifecycle states
 - **Refunds**: Handle refunds as separate transactions or negative orders
 - **Performance**: Handles millions of transactions efficiently

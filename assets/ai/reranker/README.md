@@ -146,7 +146,7 @@ Improve document retrieval for LLM context:
 type: dagster_component_templates.RerankerComponent
 attributes:
   asset_name: rag_reranked_chunks
-  source_asset: vector_search_results
+  upstream_asset_key: vector_search_results
   method: cohere
   model: rerank-english-v2.0
   query_column: question
@@ -161,7 +161,7 @@ Boost search relevance for customer-facing search:
 type: dagster_component_templates.RerankerComponent
 attributes:
   asset_name: product_search_reranked
-  source_asset: product_vector_search
+  upstream_asset_key: product_vector_search
   method: cross_encoder
   model: cross-encoder/ms-marco-MiniLM-L-12-v2
   query_column: search_query
@@ -176,7 +176,7 @@ Combine semantic and lexical signals:
 type: dagster_component_templates.RerankerComponent
 attributes:
   asset_name: hybrid_search_results
-  source_asset: vector_search_results
+  upstream_asset_key: vector_search_results
   method: bm25
   query_column: query
   text_column: document
@@ -191,7 +191,7 @@ Find best answer from candidate passages:
 type: dagster_component_templates.RerankerComponent
 attributes:
   asset_name: qa_reranked_passages
-  source_asset: candidate_passages
+  upstream_asset_key: candidate_passages
   method: cross_encoder
   model: cross-encoder/quora-distilroberta-base
   query_column: question
@@ -208,7 +208,7 @@ attributes:
 type: dagster_component_templates.RerankerComponent
 attributes:
   asset_name: reranked_results
-  source_asset: search_results
+  upstream_asset_key: search_results
   method: cohere
   query_column: query
   text_column: document
@@ -222,7 +222,7 @@ type: dagster_component_templates.RerankerComponent
 attributes:
   # Required
   asset_name: reranked_results
-  source_asset: search_results
+  upstream_asset_key: search_results
   method: cohere  # cohere | cross_encoder | bm25
   
   # Method-Specific
@@ -436,7 +436,7 @@ Rerank results for multiple queries in one batch:
 type: dagster_component_templates.RerankerComponent
 attributes:
   asset_name: batch_reranked
-  source_asset: batch_search_results  # Multiple queries
+  upstream_asset_key: batch_search_results  # Multiple queries
   method: cohere
   query_column: query  # Can have different values per row
   text_column: document
@@ -449,7 +449,7 @@ Blend rerank scores with original similarity scores:
 type: dagster_component_templates.RerankerComponent
 attributes:
   asset_name: blended_results
-  source_asset: vector_results
+  upstream_asset_key: vector_results
   method: cross_encoder
   score_column: cosine_similarity
   normalize_scores: true
@@ -463,7 +463,7 @@ Remove low-relevance results:
 type: dagster_component_templates.RerankerComponent
 attributes:
   asset_name: filtered_results
-  source_asset: search_results
+  upstream_asset_key: search_results
   method: cohere
   rerank_threshold: 0.5  # Only keep scores >= 0.5
   top_n: null  # Return all above threshold

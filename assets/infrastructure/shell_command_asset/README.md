@@ -34,13 +34,15 @@ Wraps `dagster-shell`'s `execute_shell_command` so a shell command (or script) i
 ```yaml
 type: dagster_component_templates.ShellCommandAssetComponent
 attributes:
-  asset_name: <fill in>
-  command: <fill in>
-  cwd: <fill in>
-  env_vars: <fill in>
-  group_name: <fill in>
-  description: <fill in>
-  deps: <fill in>
+  asset_name: refresh_reports
+  command: ./scripts/refresh_reports.sh
+  cwd: /opt/reports
+  env_vars:
+    REPORT_ENV: production
+  group_name: shell
+  description: Rebuild the nightly report files
+  deps:
+    - raw/orders
 ```
 
 ## Requirements

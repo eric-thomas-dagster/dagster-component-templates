@@ -36,13 +36,13 @@ Wraps the official `dagster-clickhouse-pandas` package.
 ```yaml
 type: dagster_component_templates.ClickhouseIOManagerComponent
 attributes:
-  resource_key: <fill in>
-  host: <fill in>
-  port: <fill in>
-  username_env_var: <fill in>
-  password_env_var: <fill in>
-  database: <fill in>
-  secure: <fill in>
+  resource_key: io_manager
+  host: my-instance.clickhouse.cloud
+  port: 8443
+  username_env_var: CLICKHOUSE_USER
+  password_env_var: CLICKHOUSE_PASSWORD
+  database: default
+  secure: true
 ```
 
 ## Requirements

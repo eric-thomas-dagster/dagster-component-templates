@@ -34,7 +34,10 @@ By default this asset runs an in-memory DuckDB pipeline and returns a pandas Dat
 type: dagster_component_templates.SalesforceIngestionComponent
 attributes:
   asset_name: salesforce_data
-  # ... source config ...
+  username: "${SALESFORCE_USERNAME}"
+  password: "${SALESFORCE_PASSWORD}"
+  security_token: "${SALESFORCE_SECURITY_TOKEN}"
+  # (or reference a registered resource instead: resource_key: <name>)
   destination: snowflake          # or bigquery, postgres, filesystem, ...
   dataset_name: salesforce_raw
   persist_only: true

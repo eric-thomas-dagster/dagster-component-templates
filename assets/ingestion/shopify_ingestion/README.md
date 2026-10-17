@@ -35,7 +35,9 @@ By default this asset runs an in-memory DuckDB pipeline and returns a pandas Dat
 type: dagster_component_templates.ShopifyIngestionComponent
 attributes:
   asset_name: shopify_data
-  # ... source config ...
+  shop_url: "mystore.myshopify.com"
+  private_app_password: "${SHOPIFY_PRIVATE_APP_PASSWORD}"
+  # (or reference a registered resource instead: resource_key: <name>)
   destination: snowflake          # or bigquery, postgres, filesystem, ...
   dataset_name: shopify_raw
   persist_only: true

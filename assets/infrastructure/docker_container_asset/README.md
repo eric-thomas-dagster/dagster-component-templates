@@ -36,13 +36,15 @@ Wraps the official `dagster-docker` package.
 ```yaml
 type: dagster_component_templates.DockerContainerAssetComponent
 attributes:
-  asset_name: <fill in>
-  image: <fill in>
-  command: <fill in>
-  env_vars: <fill in>
-  network: <fill in>
-  group_name: <fill in>
-  deps: <fill in>
+  asset_name: nightly_export
+  image: my-registry/exporter:1.4.0
+  command: ["python", "export.py", "--full"]
+  env_vars:
+    TARGET_BUCKET: s3://my-exports
+  network: bridge
+  group_name: docker
+  deps:
+    - raw/orders
 ```
 
 ## Requirements

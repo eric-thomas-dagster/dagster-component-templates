@@ -25,7 +25,7 @@ Perfect for:
 - **Schema Validation**: Validate JSON against schema
 - **Code Block Extraction**: Extract code from markdown
 - **Markdown Stripping**: Clean markdown formatting
-- **Multiple Outputs**: Dictionary, list, or DataFrame
+- **Multiple Outputs**: Dictionary, list, or list of row dictionaries per parsed cell
 - **Error Handling**: Graceful handling of parse failures
 
 ## Input and Output
@@ -40,15 +40,16 @@ The parser processes the text and extracts structured data according to the `par
 
 ### Output Format
 
-The component outputs parsed data in the specified format:
-- **dict** (default): Python dictionary (for JSON, key-value parsers)
-- **list**: Python list (for list parser, CSV rows)
-- **dataframe**: Pandas DataFrame (for CSV, markdown tables)
+The component returns the upstream DataFrame with one extra column (`output_column`, default `parsed_output`) holding the parsed value for each row. The value's Python type depends on `parser_type`:
+- **json** / **key_value**: Python dictionary
+- **list**: Python list
+- **csv** / **markdown_table**: list of row dictionaries (one per table row)
 
 ## Configuration
 
 ### Required
 - **asset_name** (string) - Name of the asset
+- **upstream_asset_key** (string) - Upstream asset (DataFrame with the LLM text in `input_column`)
 - **parser_type** (string) - Type of parser: `"json"`, `"csv"`, `"list"`, `"key_value"`, `"markdown_table"`, `"custom"`
 
 ### Optional
@@ -56,7 +57,7 @@ The component outputs parsed data in the specified format:
 - **custom_regex** (string) - Custom regex pattern (for custom parser)
 - **extract_code_blocks** (boolean) - Extract code from markdown (default: `false`)
 - **strip_markdown** (boolean) - Clean markdown formatting (default: `true`)
-- **output_format** (string) - `"dict"`, `"list"`, `"dataframe"` (default: `"dict"`)
+- **input_column** / **output_column** (string) - Column holding the raw LLM text (default `llm_response`) and the column the parsed result is written to (default `parsed_output`)
 - **strict_validation** (boolean) - Raise error on failure (default: `false`)
 - **description** (string) - Asset description
 - **group_name** (string) - Asset group
@@ -141,6 +142,7 @@ The component outputs parsed data in the specified format:
 type: dagster_component_templates.LLMOutputParserComponent
 attributes:
   asset_name: parsed_json
+  upstream_asset_key: llm_response_text
   parser_type: json
   validation_schema: '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "number"}}}'
 ```
@@ -150,8 +152,8 @@ attributes:
 type: dagster_component_templates.LLMOutputParserComponent
 attributes:
   asset_name: bullet_list
+  upstream_asset_key: llm_response_text
   parser_type: list
-  output_format: list
 ```
 
 ### Parse CSV
@@ -159,8 +161,8 @@ attributes:
 type: dagster_component_templates.LLMOutputParserComponent
 attributes:
   asset_name: csv_data
+  upstream_asset_key: llm_response_text
   parser_type: csv
-  output_format: dataframe
 ```
 
 ### Custom Regex
@@ -168,6 +170,7 @@ attributes:
 type: dagster_component_templates.LLMOutputParserComponent
 attributes:
   asset_name: custom_extraction
+  upstream_asset_key: llm_response_text
   parser_type: custom
   custom_regex: 'Price: \$(\d+\.?\d*)'
 ```
@@ -191,10 +194,10 @@ attributes:
 type: dagster_component_templates.LLMOutputParserComponent
 attributes:
   asset_name: parsed_customer_data
+  upstream_asset_key: llm_raw_response
   parser_type: json
   validation_schema: '{"type": "object", "properties": {"name": {"type": "string"}, "age": {"type": "number"}, "email": {"type": "string", "format": "email"}}, "required": ["name", "email"]}'
   strict_validation: true
-  output_format: dict
 ```
 
 **Visual Connection:**
@@ -202,7 +205,7 @@ attributes:
 llm_raw_response → parsed_customer_data
 ```
 
-**Output format:**
+**Parsed value per row (`parsed_output`):**
 ```python
 {
   "name": "John Doe",
@@ -227,8 +230,8 @@ attributes:
 type: dagster_component_templates.LLMOutputParserComponent
 attributes:
   asset_name: recommendations_list
+  upstream_asset_key: recommendations_text
   parser_type: list
-  output_format: list
 ```
 
 **Visual Connection:**
@@ -236,7 +239,7 @@ attributes:
 recommendations_text → recommendations_list
 ```
 
-**Output format:**
+**Parsed value per row (`parsed_output`):**
 ```python
 [
   "Use version control for data pipelines",
@@ -269,8 +272,8 @@ attributes:
 type: dagster_component_templates.LLMOutputParserComponent
 attributes:
   asset_name: invoice_dataframe
+  upstream_asset_key: extracted_items
   parser_type: csv
-  output_format: dataframe
 ```
 
 **Visual Connections:**
@@ -278,7 +281,7 @@ attributes:
 invoice_text → extracted_items → invoice_dataframe
 ```
 
-**Output format:** Pandas DataFrame
+**Parsed value per row (`parsed_output`), shown as a table:**
 ```
        item  quantity  price
 0   Widget         10   5.99
@@ -303,8 +306,8 @@ attributes:
 type: dagster_component_templates.LLMOutputParserComponent
 attributes:
   asset_name: language_comparison_df
+  upstream_asset_key: comparison_table
   parser_type: markdown_table
-  output_format: dataframe
 ```
 
 **Visual Connection:**
@@ -329,6 +332,7 @@ attributes:
 type: dagster_component_templates.LLMOutputParserComponent
 attributes:
   asset_name: clean_code
+  upstream_asset_key: generated_code
   parser_type: custom
   extract_code_blocks: true
   strip_markdown: true
@@ -366,9 +370,9 @@ attributes:
 type: dagster_component_templates.LLMOutputParserComponent
 attributes:
   asset_name: sentiment_structured
+  upstream_asset_key: review_analysis
   parser_type: json
   validation_schema: '{"type": "object", "additionalProperties": {"type": "object", "properties": {"sentiment": {"type": "string"}, "count": {"type": "number"}}}}'
-  output_format: dict
 ```
 
 **Visual Connections:**
@@ -392,8 +396,8 @@ attributes:
 type: dagster_component_templates.LLMOutputParserComponent
 attributes:
   asset_name: metadata_dict
+  upstream_asset_key: document_metadata
   parser_type: key_value
-  output_format: dict
 ```
 
 **Visual Connection:**
@@ -401,7 +405,7 @@ attributes:
 document_metadata → metadata_dict
 ```
 
-**Output format:**
+**Parsed value per row (`parsed_output`):**
 ```python
 {
   "Author": "Jane Smith",

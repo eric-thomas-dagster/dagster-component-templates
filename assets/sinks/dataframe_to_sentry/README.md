@@ -11,7 +11,9 @@ Chain `dagster_plus_run_events_ingestion` (or `dagster_plus_asset_events_ingesti
 type: dagster_community_components.DagsterPlusRunEventsIngestionComponent
 attributes:
   asset_name: dagster_run_events
-  since_hours: 24
+  endpoint_url: https://my-org.dagster.cloud/prod/graphql
+  user_token_env: DAGSTER_PLUS_USER_TOKEN
+  lookback_minutes: 1440   # last 24 hours
 
 # Filter to failures only
 ---

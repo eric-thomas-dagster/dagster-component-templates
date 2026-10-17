@@ -90,7 +90,8 @@ attributes:
   left_asset_key: orders
   right_asset_key: customers
   how: left
-  on:
+  # NOTE: `on` must be quoted -- YAML 1.1 parses a bare `on` key as boolean True.
+  "on":
     - customer_id
   left_on: null
   right_on: null

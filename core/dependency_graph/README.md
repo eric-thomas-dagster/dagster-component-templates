@@ -328,10 +328,10 @@ attributes:
     - source: upstream  # ✅ Valid
       target: downstream
 
-    - invalid_edge  # ❌ Error: must have 'source' and 'target'
-
-    - source: 123  # ❌ Error: must be strings
-      target: 456
+    # These would each be rejected at load time:
+    # - invalid_edge        # ❌ Error: must have 'source' and 'target'
+    # - source: 123         # ❌ Error: must be strings
+    #   target: 456
 ```
 
 ## UI Integration
@@ -402,6 +402,10 @@ type: dagster_component_templates.DependencyGraphComponent
 attributes:
   edges:
     # All dependencies in one place
+    - source: raw_customers
+      target: customer_summary
+    - source: raw_orders
+      target: customer_summary
 ```
 
 ### 3. Use with AssetReferenceComponent

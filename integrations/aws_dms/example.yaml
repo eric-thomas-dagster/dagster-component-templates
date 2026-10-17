@@ -8,17 +8,16 @@ attributes:
   group_name: dms_prod
 
 ---
-# Advanced configuration - imports all entity types
+# Advanced configuration - imports replication tasks and zero-ETL integrations
 type: dagster_component_templates.AWSDMSComponent
 attributes:
   aws_region: us-east-1
   aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
   aws_secret_access_key: "{{ env('AWS_SECRET_ACCESS_KEY') }}"
 
-  # Import all entity types
+  # Import entity types
   import_replication_tasks: true
-  import_endpoints: true
-  import_replication_instances: true
+  import_zero_etl_integrations: true
 
   # Filtering
   filter_by_name_pattern: ^prod_.*
@@ -41,7 +40,6 @@ type: dagster_component_templates.AWSDMSComponent
 attributes:
   aws_region: us-east-1
   import_replication_tasks: true
-  import_endpoints: true
   group_name: dms_iam_role
 
 ---

@@ -35,7 +35,8 @@ By default this asset runs an in-memory DuckDB pipeline and returns a pandas Dat
 type: dagster_component_templates.StripeIngestionComponent
 attributes:
   asset_name: stripe_data
-  # ... source config ...
+  api_key: "${STRIPE_API_KEY}"
+  # (or reference a registered resource instead: resource_key: <name>)
   destination: snowflake          # or bigquery, postgres, filesystem, ...
   dataset_name: stripe_raw
   persist_only: true

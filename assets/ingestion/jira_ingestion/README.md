@@ -34,7 +34,10 @@ By default this asset runs an in-memory DuckDB pipeline and returns a pandas Dat
 type: dagster_component_templates.JiraIngestionComponent
 attributes:
   asset_name: jira_data
-  # ... source config ...
+  domain: "your-company.atlassian.net"
+  email: "${JIRA_EMAIL}"
+  api_token: "${JIRA_API_TOKEN}"
+  # (or reference a registered resource instead: resource_key: <name>)
   destination: postgres          # or bigquery, postgres, filesystem, ...
   dataset_name: jira_raw
   persist_only: true

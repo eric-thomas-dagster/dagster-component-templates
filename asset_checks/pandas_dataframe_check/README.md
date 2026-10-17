@@ -38,10 +38,12 @@ Wraps the official `pandas` package.
 ```yaml
 type: dagster_component_templates.PandasDataframeCheckComponent
 attributes:
-  asset_key: <fill in>
-  required_columns: <fill in>
-  column_types: <fill in>
-  blocking: <fill in>
+  asset_key: customers
+  required_columns: [customer_id, email, created_at]
+  column_types:
+    customer_id: int64
+    email: object
+  blocking: true
 ```
 
 ## Requirements

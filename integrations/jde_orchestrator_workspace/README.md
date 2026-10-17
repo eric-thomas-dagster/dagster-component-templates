@@ -47,9 +47,10 @@ The workspace-shape peer of the `jde_orchestrator_*` low-level components.
 ```yaml
 type: dagster_community_components.JDEOrchestratorWorkspaceComponent
 attributes:
-  base_url_env_var: JDE_AIS_URL
-  username_env_var: JDE_USER
-  password_env_var: JDE_PASSWORD
+  workspace:
+    base_url: "{{ env.JDE_AIS_URL }}"
+    username: "{{ env.JDE_USER }}"
+    password: "{{ env.JDE_PASSWORD }}"
   orchestration_selector:
     by_pattern: ["JDE_*"]
     exclude_by_pattern: ["*_deprecated"]

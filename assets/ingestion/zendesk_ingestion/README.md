@@ -34,7 +34,10 @@ By default this asset runs an in-memory DuckDB pipeline and returns a pandas Dat
 type: dagster_component_templates.ZendeskIngestionComponent
 attributes:
   asset_name: zendesk_data
-  # ... source config ...
+  subdomain: "mycompany"
+  email: "admin@company.com"
+  api_token: "${ZENDESK_API_TOKEN}"
+  # (or reference a registered resource instead: resource_key: <name>)
   destination: snowflake          # or bigquery, postgres, filesystem, ...
   dataset_name: zendesk_raw
   persist_only: true

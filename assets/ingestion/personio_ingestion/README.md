@@ -33,7 +33,9 @@ By default this asset runs an in-memory DuckDB pipeline and returns a pandas Dat
 type: dagster_component_templates.PersonioIngestionComponent
 attributes:
   asset_name: personio_data
-  # ... source config ...
+  client_id: "${PERSONIO_CLIENT_ID}"
+  client_secret: "${PERSONIO_CLIENT_SECRET}"
+  # (or reference a registered resource instead: resource_key: <name>)
   destination: postgres          # or bigquery, postgres, filesystem, ...
   dataset_name: personio_raw
   persist_only: true

@@ -30,9 +30,9 @@ Wraps `dagster-msteams`'s `MSTeamsResource` so any asset / op can post messages 
 ```yaml
 type: dagster_component_templates.MSTeamsResourceComponent
 attributes:
-  webhook_url_env_var: <fill in>
-  timeout_seconds: <fill in>
-  resource_key: <fill in>
+  webhook_url_env_var: MSTEAMS_WEBHOOK_URL
+  timeout_seconds: 60
+  resource_key: msteams
 ```
 
 ## Requirements

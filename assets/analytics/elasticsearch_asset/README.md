@@ -6,7 +6,7 @@ Index data into [Elasticsearch](https://www.elastic.co/elasticsearch) or query a
 
 ### `index` (default)
 
-Reads rows from a relational database source table (via SQLAlchemy) and bulk-indexes them as documents into an Elasticsearch index using `elasticsearch.helpers.bulk()`.
+Takes the DataFrame from the upstream asset (`upstream_asset_key`) and bulk-indexes its rows as documents into an Elasticsearch index using `elasticsearch.helpers.bulk()`.
 
 ```yaml
 type: dagster_component_templates.ElasticsearchAssetComponent
@@ -15,16 +15,13 @@ attributes:
   elasticsearch_url_env_var: ELASTICSEARCH_URL
   index_name: products
   mode: index
-  source_database_url_env_var: DATABASE_URL
-  source_table_name: products
+  upstream_asset_key: raw/products
   id_field: product_id
   chunk_size: 500
   group_name: search
-  deps:
-    - raw/products
 ```
 
-Materialization metadata: `index`, `num_docs`, `source_table`, `chunk_size`, `id_field`.
+Materialization metadata: `index`, `num_docs`, `chunk_size`, `id_field`.
 
 ### `query`
 
@@ -37,6 +34,7 @@ attributes:
   elasticsearch_url_env_var: ELASTICSEARCH_URL
   index_name: products
   mode: query
+  upstream_asset_key: raw/products   # required for lineage only; value is unused in query mode
   query: '{"query": {"term": {"category": "electronics"}}}'
   database_url_env_var: DATABASE_URL
   table_name: electronics_hits

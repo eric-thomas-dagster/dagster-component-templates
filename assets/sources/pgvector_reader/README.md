@@ -115,7 +115,7 @@ type: dagster_component_templates.PgvectorReaderComponent
 attributes:
   asset_name: similar_products
   table_name: product_embeddings
-  query_embedding: [0.1, 0.2, ...]
+  query_embedding: [0.012, -0.034, 0.101]   # must match the table's embedding dimension
   n_results: 10
 ```
 

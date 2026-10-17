@@ -32,7 +32,8 @@ By default this asset runs an in-memory DuckDB pipeline and returns a pandas Dat
 type: dagster_component_templates.PipedriveIngestionComponent
 attributes:
   asset_name: pipedrive_data
-  # ... source config ...
+  api_token: "${PIPEDRIVE_API_TOKEN}"
+  # (or reference a registered resource instead: resource_key: <name>)
   destination: postgres          # or bigquery, postgres, filesystem, ...
   dataset_name: pipedrive_raw
   persist_only: true

@@ -33,7 +33,7 @@ attributes:
   resource_key: dbt_cloud_resource  # key other components use
   # Required
   auth_token_env_var: MY_AUTH_TOKEN_ENV_VAR  # env var name
-  account_id: <account_id>
+  account_id: 12345   # numeric dbt Cloud account ID
 ```
 
 ## Usage in other components

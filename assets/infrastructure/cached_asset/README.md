@@ -105,9 +105,11 @@ For YAML users who don't want to write Python, the package ships one built-in ca
 type: dagster_community_components.CachedAssetComponent
 attributes:
   asset_name: expensive_computation
+  compute:
+    kind: python
+    python: "my_project.reports:build_expensive"
   cache_dir: s3://my-cache/computed/
   key_fn: "dagster_community_components:input_hash_cache_key_fn"
-  # ...
 ```
 
 Reference the fully-qualified name (`dagster_community_components:input_hash_cache_key_fn`) and the cache key will include a stable hash of the upstream inputs — no per-project cache_key.py needed. For custom hashing (e.g., DataFrame content hash instead of `repr()`), write your own callable and reference it via `module:function` — the built-in is the "just works" default.

@@ -41,10 +41,12 @@ On the 2025-01-15 partition, writes to `gs://exports/2025-01-15/data_*.parquet`.
 ```yaml
 type: dagster_community_components.DataframeToSnowflakeBulkComponent
 attributes:
+  asset_name: orders_snowflake
+  upstream_asset_key: orders_daily
   table: orders                          # single table
   partition_column: partition_date       # each row gets this column with the partition key
-  partition_type: daily
-  partition_start: "2025-01-01"
+  # Partitioning is inherited from the upstream asset (this sink has no partition_type field);
+  # the column is only appended when the asset is partitioned.
 ```
 
 Materializing partition `2025-01-15` appends rows into `orders` with `partition_date='2025-01-15'`. Downstream `WHERE partition_date = ...` filters cleanly.
@@ -67,7 +69,10 @@ attributes:
   # Neither {partition_key} in the destination nor partition_column set.
   # Sink just appends what it's given. Dagster still tracks which partitions
   # materialized when in the run history.
-  event_hub_name: orders-events
+  asset_name: orders_eventhub
+  upstream_asset_key: orders_daily
+  connection_string_env_var: EVENTHUB_CONNECTION_STRING
+  eventhub_name: orders-events
   partition_type: daily
   partition_start: "2025-01-01"
 ```

@@ -145,8 +145,8 @@ The component outputs a dictionary with complete conversation memory:
 type: dagster_component_templates.ConversationMemoryComponent
 attributes:
   asset_name: chat_memory
+  upstream_asset_key: incoming_messages   # DataFrame with a `user_message` column
   memory_file: ./conversation.json
-  user_message: "Hello, how are you?"
   max_messages: 10
 ```
 
@@ -155,6 +155,7 @@ attributes:
 type: dagster_component_templates.ConversationMemoryComponent
 attributes:
   asset_name: support_memory
+  upstream_asset_key: support_messages
   memory_file: ./support_chat.json
   system_prompt: "You are a helpful customer support assistant."
   max_messages: 20

@@ -17,6 +17,7 @@ attributes:
   database_url_env_var: DATABASE_URL
   table_name: raw_events
   partition_type: daily
+  partition_start: "2024-01-01"
 ```
 
 ## Component Library
@@ -225,8 +226,6 @@ attributes:
     - raw/other_table
   model: claude-3-5-sonnet-20241022
   prompt_template: "Classify: {body}"
-  database_url_env_var: DATABASE_URL
-  table_name: enriched_tickets
 ```
 
 **`upstream_asset_key`** — for components that *load* upstream data (LiteLLM, Ollama, LangChain, SQL): draws a lineage edge **and** loads the asset value at runtime.
@@ -342,8 +341,7 @@ cp -r assets/s3_to_database_asset/ my_project/defs/components/
 type: dagster_component_templates.S3ToDatabaseAssetComponent
 attributes:
   asset_name: raw_orders
-  bucket_env_var: DATA_BUCKET
-  database_url_env_var: DATABASE_URL
+  database_url: ${DATABASE_URL}
   table_name: raw_orders
 ```
 

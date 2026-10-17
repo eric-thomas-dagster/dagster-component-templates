@@ -34,7 +34,8 @@ By default this asset runs an in-memory DuckDB pipeline and returns a pandas Dat
 type: dagster_component_templates.HubSpotIngestionComponent
 attributes:
   asset_name: hubspot_data
-  # ... source config ...
+  api_key: "${HUBSPOT_API_KEY}"
+  # (or reference a registered resource instead: resource_key: <name>)
   destination: snowflake          # or bigquery, postgres, filesystem, ...
   dataset_name: hubspot_raw
   persist_only: true

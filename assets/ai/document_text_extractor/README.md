@@ -251,13 +251,16 @@ Returns extracted text in the specified output format:
 
 ## Usage Examples
 
+The document path is not a YAML field: pass `file_path` in the run config (`ops.<asset_name>.config.file_path`) or return it from an upstream asset (a string, or a dict with a `file_path` key). The examples below show only the YAML attributes.
+
 ### Extract PDF
 
 ```yaml
 type: dagster_component_templates.DocumentTextExtractorComponent
 attributes:
   asset_name: report_text
-  file_path: /data/reports/q4_report.pdf
+  # file path is supplied at run time (RunConfig: ops.report_text.config.file_path, e.g. /data/reports/q4_report.pdf),
+  # or by an upstream asset -- it is not a YAML field
   extraction_method: pypdf
   extract_metadata: true
 ```
@@ -268,7 +271,8 @@ attributes:
 type: dagster_component_templates.DocumentTextExtractorComponent
 attributes:
   asset_name: scanned_contract
-  file_path: /data/scanned/contract.pdf
+  # file path is supplied at run time (RunConfig: ops.scanned_contract.config.file_path, e.g. /data/scanned/contract.pdf),
+  # or by an upstream asset -- it is not a YAML field
   ocr_enabled: true
   extraction_method: pytesseract
 ```
@@ -279,7 +283,8 @@ attributes:
 type: dagster_component_templates.DocumentTextExtractorComponent
 attributes:
   asset_name: executive_summary
-  file_path: /data/report.pdf
+  # file path is supplied at run time (RunConfig: ops.executive_summary.config.file_path, e.g. /data/report.pdf),
+  # or by an upstream asset -- it is not a YAML field
   page_range: "1-3"
   output_format: markdown
 ```
@@ -290,7 +295,8 @@ attributes:
 type: dagster_component_templates.DocumentTextExtractorComponent
 attributes:
   asset_name: proposal_text
-  file_path: /data/proposal.docx
+  # file path is supplied at run time (RunConfig: ops.proposal_text.config.file_path, e.g. /data/proposal.docx),
+  # or by an upstream asset -- it is not a YAML field
   extraction_method: docx
   preserve_formatting: true
   output_format: json

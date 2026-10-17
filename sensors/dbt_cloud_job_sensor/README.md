@@ -44,10 +44,10 @@ On each tick, the sensor:
 type: dagster_component_templates.DbtCloudJobSensorComponent
 attributes:
   sensor_name: my_sensor_name
-  account_id: my_account_id
-  job_id: my_job_id
-  api_token_env_var: API_TOKEN_ENV_VAR
-  job_name: my_job_name
+  account_id: 12345        # numeric dbt Cloud account ID
+  job_id: 67890            # numeric dbt Cloud job ID
+  api_token_env_var: DBT_CLOUD_API_TOKEN
+  job_name: my_downstream_job
   # minimum_interval_seconds: 60  # optional
   # default_status: "running"  # optional
   # resource_key: None  # optional

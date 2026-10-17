@@ -32,9 +32,9 @@ Wraps the official `dagster-prometheus` package.
 ```yaml
 type: dagster_component_templates.PrometheusResourceComponent
 attributes:
-  gateway: <fill in>
-  timeout: <fill in>
-  resource_key: <fill in>
+  gateway: http://prometheus-pushgateway:9091
+  timeout: 30
+  resource_key: prometheus
 ```
 
 ## Requirements

@@ -52,7 +52,8 @@ Auto-emit Dagster assets for both **MLflow experiments** (recent runs + metrics 
 ```yaml
 type: dagster_community_components.MLflowWorkspaceComponent
 attributes:
-  tracking_uri_env_var: MLFLOW_TRACKING_URI
+  workspace:
+    tracking_uri: "{{ env.MLFLOW_TRACKING_URI }}"
   experiment_selector:
     by_pattern: ["prod_*"]
   model_selector:
@@ -62,7 +63,7 @@ attributes:
 
 ## Auth
 
-MLflow Tracking servers commonly use basic auth. Set `username_env_var` + `password_env_var` if your server enforces it. Databricks-hosted MLflow uses a personal access token — set `username_env_var: token` (literal string) and `password_env_var: DATABRICKS_TOKEN`.
+MLflow Tracking servers commonly use basic auth. Set `workspace.username` + `workspace.password` (e.g. `"{{ env.MLFLOW_USER }}"` / `"{{ env.MLFLOW_PASSWORD }}"`) if your server enforces it. Databricks-hosted MLflow uses a personal access token — set `workspace.username: token` (literal string) and `workspace.password: "{{ env.DATABRICKS_TOKEN }}"`.
 
 ## Related
 

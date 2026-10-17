@@ -148,6 +148,27 @@ not reinforcement learning. Limits: priors are only as good as the outcome signa
 credit is per item (not a causal estimate); no inverse-propensity correction for
 exploration yet; scoring recomputes from scratch each tick (fine for prototype scale).
 
+## Recall across lineage and partitions
+
+Stamp each retrieved item with `source_asset_key`, `source_version` (the asset's
+`dagster/data_version`) and, for partitioned assets, `source_partition`. Then:
+
+```python
+from dagster_community_components import receipts_impacted_by
+
+# "ticket partition 2026-10-08 was wrong: which answers used it, or anything built from it?"
+out = receipts_impacted_by(store, defs.resolve_asset_graph(), "tickets", ["2026-10-08"])
+out["affected"]          # {"tickets": [...], "ticket_chunks": [...], "account_summary": None, ...}
+out["receipt_ids"]       # receipts that used an affected asset/partition
+out["partition_unknown"] # used an affected asset but recorded no partition: can't be ruled out
+```
+
+It walks child assets through the graph and translates partitions across each edge's real
+partition mapping (identity, daily→weekly, all-to-one for an unpartitioned child, and so on).
+The usage sensor judges staleness and requests rebuilds per `(asset, partition)`.
+Limits: it follows asset dependencies only, not what a downstream *context* was
+built from outside Dagster, and it reports affected receipts rather than notifying anyone.
+
 ## Look up impact
 
 ```python

@@ -1723,6 +1723,8 @@ def _make_stub(name: str) -> type:
 _HELPERS = {
     "rerank_with_priors":
         "dagster_community_components.resources.context_receipt_store.component:rerank",
+    "receipts_impacted_by":
+        "dagster_community_components.resources.context_receipt_store.component:impacted_receipts",
     "new_receipt_id":
         "dagster_community_components.resources.context_receipt_store.component:new_receipt_id",
     "apply_rules":

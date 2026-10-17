@@ -27,6 +27,7 @@ _ITEM_FIELDS = {
     "rank",
     "score",
     "selection",
+    "source_partition",
 }
 SELECTIONS = ("ranked", "explore")
 # Outcome signals -> default value in [-1, 1]. Unknown signals need an explicit value.
@@ -96,7 +97,7 @@ def rerank(
     return chosen
 # Suggested exclusion reasons; any non-empty string is accepted.
 EXCLUSION_REASONS = ("pii", "stale", "out_of_scope", "over_budget", "policy")
-_EXCLUDED_FIELDS = {"item_id", "reason", "source_asset_key", "source_version"}
+_EXCLUDED_FIELDS = {"item_id", "reason", "source_asset_key", "source_version", "source_partition"}
 _EVIDENCE_LEVELS = {"cited", "verified", "counterfactual_tested"}
 
 
@@ -145,6 +146,7 @@ class ContextReceiptStore:
                     item_id TEXT NOT NULL,
                     source_asset_key TEXT,
                     source_version TEXT,
+                    source_partition TEXT,
                     rank INTEGER,
                     score REAL,
                     selection TEXT NOT NULL DEFAULT 'ranked',
@@ -164,6 +166,7 @@ class ContextReceiptStore:
                     reason TEXT NOT NULL,
                     source_asset_key TEXT,
                     source_version TEXT,
+                    source_partition TEXT,
                     PRIMARY KEY (receipt_id, item_id)
                 );
                 CREATE INDEX IF NOT EXISTS idx_context_receipt_excluded_item
@@ -183,11 +186,14 @@ class ContextReceiptStore:
                     ON context_receipt_events(receipt_id, occurred_at);
                 """
             )
-            columns = {row[1] for row in conn.execute("PRAGMA table_info(context_receipt_items)")}
-            if "selection" not in columns:  # databases created before exploration tracking
-                conn.execute(
-                    "ALTER TABLE context_receipt_items ADD COLUMN selection TEXT NOT NULL DEFAULT 'ranked'"
-                )
+            # databases created before a column existed
+            for table, column, ddl in (
+                ("context_receipt_items", "selection", "TEXT NOT NULL DEFAULT 'ranked'"),
+                ("context_receipt_items", "source_partition", "TEXT"),
+                ("context_receipt_excluded", "source_partition", "TEXT"),
+            ):
+                if column not in {row[1] for row in conn.execute(f"PRAGMA table_info({table})")}:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
             yield conn
             conn.commit()
         except BaseException:
@@ -232,7 +238,7 @@ class ContextReceiptStore:
             not isinstance(rank, int) or isinstance(rank, bool) or rank < 0
         ):
             raise ValueError("item rank must be a non-negative integer")
-        for field_name in ("source_asset_key", "source_version"):
+        for field_name in ("source_asset_key", "source_version", "source_partition"):
             value = item.get(field_name)
             if value is not None and not isinstance(value, str):
                 raise TypeError(f"item {field_name} must be a string or None")
@@ -248,6 +254,7 @@ class ContextReceiptStore:
             "item_id": item_id,
             "source_asset_key": item.get("source_asset_key"),
             "source_version": item.get("source_version"),
+            "source_partition": item.get("source_partition"),
             "rank": rank,
             "score": score,
             "selection": selection,
@@ -264,7 +271,7 @@ class ContextReceiptStore:
             value = item.get(field_name)
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"each excluded item requires a non-empty {field_name}")
-        for field_name in ("source_asset_key", "source_version"):
+        for field_name in ("source_asset_key", "source_version", "source_partition"):
             value = item.get(field_name)
             if value is not None and not isinstance(value, str):
                 raise TypeError(f"excluded {field_name} must be a string or None")
@@ -273,6 +280,7 @@ class ContextReceiptStore:
             "reason": item["reason"],
             "source_asset_key": item.get("source_asset_key"),
             "source_version": item.get("source_version"),
+            "source_partition": item.get("source_partition"),
         }
 
     def record_retrieval(
@@ -365,8 +373,9 @@ class ContextReceiptStore:
             conn.executemany(
                 """
                 INSERT INTO context_receipt_items (
-                    receipt_id, item_id, source_asset_key, source_version, rank, score, selection
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    receipt_id, item_id, source_asset_key, source_version, source_partition,
+                    rank, score, selection
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -374,6 +383,7 @@ class ContextReceiptStore:
                         item["item_id"],
                         item["source_asset_key"],
                         item["source_version"],
+                        item["source_partition"],
                         item["rank"],
                         item["score"],
                         item["selection"],
@@ -384,8 +394,8 @@ class ContextReceiptStore:
             conn.executemany(
                 """
                 INSERT INTO context_receipt_excluded (
-                    receipt_id, item_id, reason, source_asset_key, source_version
-                ) VALUES (?, ?, ?, ?, ?)
+                    receipt_id, item_id, reason, source_asset_key, source_version, source_partition
+                ) VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -394,6 +404,7 @@ class ContextReceiptStore:
                         item["reason"],
                         item["source_asset_key"],
                         item["source_version"],
+                        item["source_partition"],
                     )
                     for item in normalized_excluded
                 ],
@@ -470,7 +481,7 @@ class ContextReceiptStore:
                 return None
             items = conn.execute(
                 """
-                SELECT item_id, source_asset_key, source_version, rank, score, selection
+                SELECT item_id, source_asset_key, source_version, source_partition, rank, score, selection
                 FROM context_receipt_items
                 WHERE receipt_id = ?
                 ORDER BY rank, item_id
@@ -479,7 +490,7 @@ class ContextReceiptStore:
             ).fetchall()
             excluded = conn.execute(
                 """
-                SELECT item_id, reason, source_asset_key, source_version
+                SELECT item_id, reason, source_asset_key, source_version, source_partition
                 FROM context_receipt_excluded
                 WHERE receipt_id = ?
                 ORDER BY item_id
@@ -573,16 +584,18 @@ class ContextReceiptStore:
                 """,
                 (event_cursor, limit),
             ).fetchall()
-            outcome_assets: dict[str, list[str]] = {}
+            outcome_assets: dict[str, list[tuple[str, str | None]]] = {}
             if events:
                 oids = sorted({e["receipt_id"] for e in events})
                 omarks = ",".join("?" * len(oids))
                 for row in conn.execute(
-                    f"SELECT DISTINCT receipt_id, source_asset_key FROM context_receipt_items "
+                    f"SELECT DISTINCT receipt_id, source_asset_key, source_partition FROM context_receipt_items "
                     f"WHERE receipt_id IN ({omarks}) AND source_asset_key IS NOT NULL",
                     oids,
                 ):
-                    outcome_assets.setdefault(row["receipt_id"], []).append(row["source_asset_key"])
+                    outcome_assets.setdefault(row["receipt_id"], []).append(
+                        (row["source_asset_key"], row["source_partition"])
+                    )
         by_receipt: dict[str, dict[str, Any]] = {}
         for row in receipts:
             record = {k: row[k] for k in row.keys() if k != "pos"}
@@ -596,7 +609,7 @@ class ContextReceiptStore:
         for row in events:
             payload = json.loads(row["payload_json"])
             payload["receipt_id"] = row["receipt_id"]
-            payload["source_asset_keys"] = outcome_assets.get(row["receipt_id"], [])
+            payload["sources"] = outcome_assets.get(row["receipt_id"], [])  # (asset_key, partition|None)
             outcomes.append(payload)
         return {
             "receipts": [by_receipt[r["receipt_id"]] for r in receipts],
@@ -748,6 +761,31 @@ class ContextReceiptStore:
                 events.append({**base, "type": "outcome", **payload})
         return events
 
+    def find_by_assets(self, targets: Mapping[str, Iterable[str] | None]) -> dict[str, list[str]]:
+        """Receipts that used the given assets, optionally narrowed to partitions.
+
+        ``targets`` maps an asset key to a set of partition keys, or ``None`` for "any
+        partition". Returns ``{"receipt_ids": [...], "partition_unknown": [...]}``;
+        receipts whose matching item recorded no ``source_partition`` for a partitioned
+        target cannot be ruled out, so they are reported separately rather than dropped.
+        """
+        exact: set[str] = set()
+        unknown: set[str] = set()
+        with self._connect() as conn:
+            for asset_key, partitions in targets.items():
+                rows = conn.execute(
+                    "SELECT DISTINCT receipt_id, source_partition FROM context_receipt_items "
+                    "WHERE source_asset_key = ?",
+                    (asset_key,),
+                ).fetchall()
+                wanted = None if partitions is None else set(partitions)
+                for row in rows:
+                    if wanted is None or row["source_partition"] in wanted:
+                        exact.add(row["receipt_id"])
+                    elif row["source_partition"] is None:
+                        unknown.add(row["receipt_id"])
+        return {"receipt_ids": sorted(exact), "partition_unknown": sorted(unknown - exact)}
+
     def find_by_item(self, item_id: str) -> list[str]:
         """Return receipt IDs that retrieved a particular stable item ID."""
         with self._connect() as conn:
@@ -846,9 +884,62 @@ class AsyncReceiptWriter:
                 time.sleep(self.backoff_seconds * (2**attempt))
 
 
-def _current_data_version(instance: Any, asset_key: dg.AssetKey) -> str | None:
-    """Latest materialization's data version, or None when unknown (staleness then not judged)."""
-    record = instance.get_latest_data_version_record(asset_key)
+def impacted_receipts(
+    store: ContextReceiptStore,
+    asset_graph: Any,
+    asset_key: str,
+    partitions: Iterable[str] | None = None,
+    *,
+    current_time: datetime | None = None,
+) -> dict[str, Any]:
+    """Recall: receipts that used a bad asset (or partitions of it) or anything downstream.
+
+    ``asset_graph`` is ``defs.resolve_asset_graph()``. Walks child assets, translating the bad
+    partitions through each edge's real partition mapping (identity, time-window, all-to-one...),
+    then looks up receipts whose items came from any affected asset/partition. Returns
+    ``{"affected": {asset_key: [partitions] | None}, "receipt_ids": [...], "partition_unknown": [...]}``
+    where ``None`` means every partition. Assets outside the graph are simply not expanded.
+    """
+    root = dg.AssetKey.from_user_string(asset_key)
+    if not asset_graph.has(root):
+        raise KeyError(f"asset not in graph: {asset_key}")
+    affected: dict[dg.AssetKey, set[str] | None] = {root: None if partitions is None else set(partitions)}
+    frontier = [root]
+    while frontier:
+        parent = frontier.pop()
+        parent_node = asset_graph.get(parent)
+        parent_parts = affected[parent]
+        for child in parent_node.child_keys:
+            child_node = asset_graph.get(child)
+            if child_node.partitions_def is None or parent_parts is None or parent_node.partitions_def is None:
+                new: set[str] | None = None  # unpartitioned on either side: whole child is affected
+            else:
+                mapping = asset_graph.get_partition_mapping(child, parent)
+                subset = parent_node.partitions_def.empty_subset().with_partition_keys(parent_parts)
+                new = set(
+                    mapping.get_downstream_partitions_for_partitions(
+                        subset, parent_node.partitions_def, child_node.partitions_def, current_time=current_time
+                    ).get_partition_keys()
+                )
+            if child in affected:
+                old = affected[child]
+                merged = None if (old is None or new is None) else old | new
+                if merged == old:
+                    continue
+                affected[child] = merged
+            else:
+                affected[child] = new
+            frontier.append(child)
+    found = store.find_by_assets({k.to_user_string(): v for k, v in affected.items()})
+    return {
+        "affected": {k.to_user_string(): (None if v is None else sorted(v)) for k, v in affected.items()},
+        **found,
+    }
+
+
+def _current_data_version(instance: Any, asset_key: dg.AssetKey, partition: str | None = None) -> str | None:
+    """Latest (partition's) materialization data version, or None when unknown (staleness not judged)."""
+    record = instance.get_latest_data_version_record(asset_key, partition_key=partition)
     materialization = getattr(record, "asset_materialization", None) if record else None
     if materialization is None:
         return None
@@ -867,7 +958,8 @@ def build_usage_sensor(
     """Cold-path sensor: tail receipts, report aggregated usage, learn priors, request rebuilds.
 
     Emits one AssetObservation per source asset per tick (aggregated, never one event
-    per receipt). ``source_version`` on receipt items is compared with the asset's latest
+    per receipt, or per (asset, partition) for partitioned sources). ``source_version`` on
+    receipt items is compared with the asset's (or that partition's) latest
     ``dagster/data_version``; reads of an older version are *stale reads*. Only assets
     listed in ``rebuild_asset_keys`` can be re-materialized by this sensor.
     """
@@ -885,47 +977,51 @@ def build_usage_sensor(
         if not data["receipts"] and not data["outcomes"]:
             return dg.SkipReason("no new receipts or outcomes")
 
-        usage: dict[str, dict[str, Any]] = {}
+        usage: dict[tuple[str, str | None], dict[str, Any]] = {}
 
-        def bucket(key: str) -> dict[str, Any]:
+        def bucket(key: str, partition: str | None) -> dict[str, Any]:
             return usage.setdefault(
-                key,
+                (key, partition),
                 {"retrievals": 0, "receipts": set(), "explored": 0, "excluded": {}, "stale": 0,
                  "outcomes": 0, "outcome_sum": 0.0, "versions": {}},
             )
 
-        current: dict[str, str | None] = {}
+        current: dict[tuple[str, str | None], str | None] = {}
         for receipt in data["receipts"]:
             for item in receipt["items"]:
                 key = item["source_asset_key"]
                 if not key:
                     continue
-                if key not in current:
-                    current[key] = _current_data_version(context.instance, dg.AssetKey.from_user_string(key))
-                b = bucket(key)
+                part = item.get("source_partition")
+                if (key, part) not in current:
+                    current[(key, part)] = _current_data_version(
+                        context.instance, dg.AssetKey.from_user_string(key), part
+                    )
+                b = bucket(key, part)
                 b["retrievals"] += 1
                 b["receipts"].add(receipt["receipt_id"])
                 b["explored"] += item["selection"] == "explore"
                 version = item["source_version"]
-                if current[key] is not None and version is not None and version != current[key]:
+                if current[(key, part)] is not None and version is not None and version != current[(key, part)]:
                     b["stale"] += 1
             for item in receipt["excluded"]:
                 if item["source_asset_key"]:
-                    reasons = bucket(item["source_asset_key"])["excluded"]
+                    reasons = bucket(item["source_asset_key"], item.get("source_partition"))["excluded"]
                     reasons[item["reason"]] = reasons.get(item["reason"], 0) + 1
         for outcome in data["outcomes"]:
-            for key in outcome["source_asset_keys"]:
-                b = bucket(key)
+            for key, part in outcome["sources"]:
+                b = bucket(key, part)
                 b["outcomes"] += 1
                 b["outcome_sum"] += outcome["value"]
 
         stale_state = state.get("stale", {})
         events, run_requests = [], []
-        for key, b in sorted(usage.items()):
-            version = current.get(key)
-            prior = stale_state.get(key, {})
+        for (key, part), b in sorted(usage.items(), key=lambda kv: (kv[0][0], kv[0][1] or "")):
+            version = current.get((key, part))
+            state_key = f"{key}|{part or ''}"
+            prior = stale_state.get(state_key, {})
             running = (prior.get("n", 0) if prior.get("v") == version else 0) + b["stale"]
-            stale_state[key] = {"v": version, "n": running}
+            stale_state[state_key] = {"v": version, "n": running}
             metadata: dict[str, Any] = {
                 "context_receipts/retrievals": b["retrievals"],
                 "context_receipts/receipts": len(b["receipts"]),
@@ -939,11 +1035,15 @@ def build_usage_sensor(
                 metadata["context_receipts/mean_outcome"] = round(b["outcome_sum"] / b["outcomes"], 4)
             if version is not None:
                 metadata["context_receipts/current_data_version"] = version
-            events.append(dg.AssetObservation(asset_key=dg.AssetKey.from_user_string(key), metadata=metadata))
             asset_key = dg.AssetKey.from_user_string(key)
+            events.append(dg.AssetObservation(asset_key=asset_key, partition=part, metadata=metadata))
             if asset_key in rebuild_keys and running >= stale_reads_threshold:
                 run_requests.append(
-                    dg.RunRequest(run_key=f"context-rebuild:{key}:{version}", asset_selection=[asset_key])
+                    dg.RunRequest(
+                        run_key=f"context-rebuild:{key}:{part}:{version}",
+                        asset_selection=[asset_key],
+                        partition_key=part,
+                    )
                 )
 
         store.refresh_item_scores(prior_strength)

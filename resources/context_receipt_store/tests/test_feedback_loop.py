@@ -187,7 +187,7 @@ def test_sensor_requests_rebuild_only_for_allowed_assets_past_threshold(mod, tmp
     _stale_receipt(store, "v1")  # third stale read crosses the threshold (accumulated via cursor)
     second = sensor(dg.build_sensor_context(instance=instance, cursor=first.cursor))
     assert [r.asset_selection for r in second.run_requests] == [[dg.AssetKey("docs")]]
-    assert second.run_requests[0].run_key == "context-rebuild:docs:v2"
+    assert second.run_requests[0].run_key == "context-rebuild:docs:None:v2"
     # not listed in rebuild_asset_keys -> observe only
     store2, inst2, sensor2 = _usage_setup(mod, tmp_path / "x", rebuild=[], threshold=1)
     _stale_receipt(store2, "v1")

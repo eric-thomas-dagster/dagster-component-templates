@@ -29550,6 +29550,57 @@
       ]
     },
     {
+      "id": "agent_review_queue",
+      "name": "agent_review_queue",
+      "category": "ai",
+      "description": "The review queue for agentic pipelines: aggregates the pending human-review records written by agentic_pipeline's `approve` op (local or s3:// gs:// abfs:// approval dirs) into a DataFrame asset, with an asset check that flags overdue reviews and an optional refresh schedule. Read-only.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/agent_review_queue",
+      "tags": [],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "tabulate"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_review_queue/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_review_queue/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_review_queue/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_review_queue/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_review_queue/requirements.txt",
+      "icon": "UserCircle",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-16",
+        "evidence": "tests/ in the component dir: real pending records written by agentic_pipeline's approve op (local + fsspec memory://), overdue detection, asset check; not run against a live cloud bucket."
+      },
+      "agent_hints": {
+        "inputs": "approval_dirs -- the approval_dir values of your agentic_pipeline `approve` steps (local path or s3:// gs:// abfs:// URI).",
+        "outputs": "DataFrame: approval_dir, key, step, summary, requested_at, expires_at, age_minutes, overdue, on_timeout, approve_path; metadata pending_count / overdue_count / oldest_age_minutes.",
+        "side_effects": "Read-only: lists <approval_dir>/pending/*.json. Never approves or rejects anything. Optional schedule re-materializes it.",
+        "anti_uses": "Not an approval gate (use human_approval_gate or agentic_pipeline's approve op). Not a notifier -- pair the overdue asset check with an alert policy.",
+        "requires_resources": [],
+        "output_type": "dataframe",
+        "requires_pip": [
+          "pandas"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "human in the loop",
+        "review queue",
+        "approval",
+        "agentic",
+        "agent governance",
+        "hitl",
+        "pending approvals"
+      ]
+    },
+    {
       "id": "hvr_hub_workspace",
       "name": "hvr_hub_workspace",
       "component_type": "dagster_community_components.HvrHubWorkspaceComponent",

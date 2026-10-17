@@ -1,0 +1,93 @@
+{
+  "component_type": "dagster_community_components.AgentReviewQueueComponent",
+  "description": "The review queue for agentic pipelines: aggregates the pending human-review records written by agentic_pipeline's `approve` op (local or s3:// gs:// abfs:// approval dirs) into a DataFrame asset, with an asset check that flags overdue reviews and an optional refresh schedule. Read-only.",
+  "category": "ai",
+  "icon": "UserCircle",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "One row per pending review: approval_dir, key, step, summary, requested_at, expires_at, age_minutes, overdue, on_timeout, approve_path."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": false
+    },
+    "approval_dirs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Approval Dirs",
+      "description": "Approval directories to scan -- the same `approval_dir:` values your `approve` steps use. Local paths or fsspec URIs (s3://, gs://, abfs://). Pending records live in `<dir>/pending/*.json`.",
+      "required": true
+    },
+    "overdue_after_minutes": {
+      "type": "number",
+      "label": "Overdue After Minutes",
+      "description": "A pending review older than this is overdue (it is also overdue once its own `expires_at` has passed).",
+      "required": false
+    },
+    "overdue_severity": {
+      "type": "string",
+      "label": "Overdue Severity",
+      "description": "Asset check severity when reviews are overdue: 'WARN' or 'ERROR'.",
+      "required": false
+    },
+    "cron_schedule": {
+      "type": "string",
+      "label": "Cron Schedule",
+      "description": "Optional cron expression; when set, a schedule re-materializes this asset so the queue stays current (e.g. '*/5 * * * *').",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    }
+  },
+  "tags": [
+    "agents",
+    "human in the loop",
+    "review queue",
+    "approval"
+  ],
+  "name": "agent_review_queue"
+}

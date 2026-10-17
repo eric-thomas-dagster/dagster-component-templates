@@ -1,0 +1,9 @@
+type: dagster_community_components.AgentReviewQueueComponent
+attributes:
+  asset_name: agent_review_queue
+  approval_dirs:
+    - ./approvals              # the approval_dir of your `approve` steps (local path or s3:// gs:// abfs://)
+  overdue_after_minutes: 60
+  overdue_severity: WARN
+  cron_schedule: "*/5 * * * *"   # keep the queue fresh
+  group_name: agents

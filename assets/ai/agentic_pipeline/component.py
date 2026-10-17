@@ -5060,6 +5060,56 @@ def _do_decide(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
 
 # ── approve ──────────────────────────────────────────────────────────────────
 
+class _ApprovalStore:
+    """Read/write approval tokens + review-queue records on a local directory OR any fsspec URI (s3://, gs://, abfs://,
+    memory://). Remote storage is what makes approvals usable where the worker filesystem is ephemeral (Dagster+ Serverless,
+    containers): the reviewer writes the token to a bucket, the next run reads it. Install the driver you need (s3fs/gcsfs/adlfs)."""
+
+    def __init__(self, root: str):
+        self.is_uri = "://" in root
+        if self.is_uri:
+            import fsspec
+            self.fs, self.root = fsspec.core.url_to_fs(root)
+            self.root = self.root.rstrip("/")
+        else:
+            self.fs, self.root = None, os.path.abspath(os.path.expanduser(root))
+        self.display = root.rstrip("/")
+
+    def path(self, *parts: str) -> str:
+        return "/".join([self.root, *parts]) if self.is_uri else os.path.join(self.root, *parts)
+
+    def shown(self, *parts: str) -> str:
+        """The path/URI a person would actually write to."""
+        return "/".join([self.display, *parts]) if self.is_uri else self.path(*parts)
+
+    def exists(self, p: str) -> bool:
+        return self.fs.exists(p) if self.is_uri else os.path.exists(p)
+
+    def read_text(self, p: str) -> str:
+        if self.is_uri:
+            with self.fs.open(p, "r") as f:
+                return f.read()
+        with open(p) as f:
+            return f.read()
+
+    def write_text(self, p: str, text: str) -> None:
+        parent = p.rsplit("/", 1)[0] if self.is_uri else os.path.dirname(p)
+        if self.is_uri:
+            self.fs.makedirs(parent, exist_ok=True)
+            with self.fs.open(p, "w") as f:
+                f.write(text)
+        else:
+            os.makedirs(parent, exist_ok=True)
+            with open(p, "w") as f:
+                f.write(text)
+
+    def remove(self, p: str) -> None:
+        try:
+            self.fs.rm(p) if self.is_uri else os.remove(p)
+        except (OSError, FileNotFoundError):
+            pass
+
+
 def _do_approve(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     """Human gate inside the pipeline, using the SAME token contract as `human_approval_gate`:
     `<approval_dir>/<key>.json` = {"approved": true|false, "approver": "...", "reason": "..."} -- written by anything (Slack bot,
@@ -5078,22 +5128,25 @@ def _do_approve(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     if not approval_dir:
         raise ValueError("approve needs `approval_dir:` (where approval tokens + the pending review queue live)")
     key = re.sub(r"[^A-Za-z0-9._-]+", "_", str(step.get("key") or _ctx_of(state).get("partition_key") or step["id"]))
-    token_path = os.path.join(approval_dir, f"{key}.json")
-    pending_path = os.path.join(approval_dir, "pending", f"{key}.json")
+    store = _ApprovalStore(approval_dir)
+    token_path = store.path(f"{key}.json")
+    pending_path = store.path("pending", f"{key}.json")
     wait_seconds = float(step.get("wait_seconds", 0))
     poll = max(float(step.get("poll_seconds", 5)), 0.05)
     on_timeout = step.get("on_timeout", "reject")
     if on_timeout not in ("reject", "approve", "pending"):
         raise ValueError("approve on_timeout must be reject | approve | pending")
-    _pol_path(approval_dir, "read")
-    _pol_path(pending_path, "write")
+    if store.is_uri:
+        _pol_url(approval_dir)  # remote approvals are governed by policy.network.allow_hosts (the bucket name is the host)
+    else:
+        _pol_path(approval_dir, "read")
+        _pol_path(pending_path, "write")
 
     def read_token() -> Optional[Dict[str, Any]]:
-        if not os.path.exists(token_path):
+        if not store.exists(token_path):
             return None
         try:
-            with open(token_path) as f:
-                tok = json.load(f)
+            tok = json.loads(store.read_text(token_path))
             return tok if isinstance(tok, dict) and "approved" in tok else None
         except (OSError, json.JSONDecodeError):
             return None  # half-written token: treat as not there yet
@@ -5101,16 +5154,14 @@ def _do_approve(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     tok = read_token()
     waited = 0.0
     if tok is None:
-        os.makedirs(os.path.dirname(pending_path), exist_ok=True)
         expires = time.time() + wait_seconds
-        with open(pending_path, "w") as f:
-            json.dump({
-                "step": step["id"], "key": key, "requested_at": materialized_at,
-                "expires_at": datetime.fromtimestamp(expires, tz=timezone.utc).isoformat() if wait_seconds else None,
-                "on_timeout": on_timeout, "summary": step.get("summary") or _clip(text, 600), "preview": _clip(text, 2000),
-                "approve_by_writing": {"path": token_path, "json": {"approved": True, "approver": "<you>", "reason": "<why>"}},
-            }, f, indent=2)
-        context.log.info(f"[approve:{step['id']}] pending -> {pending_path}; waiting up to {wait_seconds:g}s")
+        store.write_text(pending_path, json.dumps({
+            "step": step["id"], "key": key, "requested_at": materialized_at,
+            "expires_at": datetime.fromtimestamp(expires, tz=timezone.utc).isoformat() if wait_seconds else None,
+            "on_timeout": on_timeout, "summary": step.get("summary") or _clip(text, 600), "preview": _clip(text, 2000),
+            "approve_by_writing": {"path": store.shown(f"{key}.json"), "json": {"approved": True, "approver": "<you>", "reason": "<why>"}},
+        }, indent=2))
+        context.log.info(f"[approve:{step['id']}] pending -> {store.shown('pending', key + '.json')}; waiting up to {wait_seconds:g}s")
         t0 = time.time()
         while tok is None and time.time() - t0 < wait_seconds:
             time.sleep(min(poll, max(wait_seconds - (time.time() - t0), 0.01)))
@@ -5127,10 +5178,7 @@ def _do_approve(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     else:
         approved, status = None, "pending"
     if tok is not None or on_timeout != "pending":
-        try:
-            os.remove(pending_path)  # decided: leaves the review queue (the token stays as the audit record)
-        except OSError:
-            pass
+        store.remove(pending_path)  # decided: leaves the review queue (the token stays as the audit record)
     if approved is False and step.get("on_reject", "stop") == "stop":
         raise RuntimeError(f"[approve:{step['id']}] {status}: {(tok or {}).get('reason') or 'not approved'} -- stopping the pipeline here")
     return {

@@ -408,3 +408,27 @@ def test_pipeline_version_is_on_every_materialization(mod, fake_litellm):
     versions = {e.materialization.metadata["a__pipeline_version"].value for e in result.get_asset_materialization_events()
                 if "a__pipeline_version" in e.materialization.metadata}
     assert len(versions) == 1 and len(next(iter(versions))) == 12
+
+
+# ── approve on remote storage (fsspec URIs: s3://, gs://, abfs://; memory:// here) ───────────────────────────
+
+def test_approve_reads_a_token_and_writes_the_queue_on_remote_storage(mod, ctx):
+    import fsspec
+    fs = fsspec.filesystem("memory")
+    base = "memory://approvals-remote-1"
+    step = {"id": "gate", "op": "approve", "source": "draft", "approval_dir": base, "key": "t1", "on_timeout": "pending"}
+    out, _ = run(mod, ctx, dict(step), state_with_draft())
+    assert out["status"] == "pending"
+    pending = json.loads(fs.cat_file("/approvals-remote-1/pending/t1.json"))                     # queue entry on the remote store
+    assert pending["approve_by_writing"]["path"] == f"{base}/t1.json"                            # the URI a reviewer should write to
+    fs.pipe_file("/approvals-remote-1/t1.json", json.dumps({"approved": True, "approver": "bucket-reviewer"}).encode())
+    out, _ = run(mod, ctx, dict(step), state_with_draft())
+    assert out["approved"] is True and out["approver"] == "bucket-reviewer" and out["text"] == "Refund $120 to customer 9"
+    assert not fs.exists("/approvals-remote-1/pending/t1.json")                                  # decided -> out of the queue
+
+
+def test_remote_approval_location_is_governed_by_network_policy(mod, ctx):
+    state = state_with_draft(policy={"network": {"allow_hosts": ["my-approvals-bucket"]}})
+    run(mod, ctx, {"id": "ok", "op": "approve", "source": "draft", "approval_dir": "memory://my-approvals-bucket/q", "key": "a", "on_timeout": "pending"}, state)
+    with pytest.raises(mod.PolicyViolation, match="allow_hosts"):
+        run(mod, ctx, {"id": "bad", "op": "approve", "source": "draft", "approval_dir": "memory://someone-elses-bucket/q", "key": "a", "on_timeout": "pending"}, state)

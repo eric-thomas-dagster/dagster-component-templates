@@ -7,6 +7,13 @@
     "outputs": {"type": "text", "description": "One asset per provider (`{prefix}_{alias}`) containing response text + cost/latency/token metadata."}
   },
   "attributes": {
+    "include_reasoning": {
+      "type": "boolean",
+      "label": "Include Reasoning",
+      "description": "Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped from the stored text/content; when true it is also exposed as a 'reasoning' key on each provider's output dict.",
+      "required": false,
+      "default": false
+    },
     "asset_name_prefix":  {"type": "string", "required": true, "label": "Asset Name Prefix",
                            "description": "Prefix for the emitted assets. Each provider produces `{prefix}_{alias}`."},
 

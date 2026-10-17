@@ -128,3 +128,7 @@ One judge call per evaluation per materialization. With `gpt-4o-mini` (~$0.15 / 
   - 1 evaluation ≈ $0.00005
   - 3 evaluations (recommended starter set) ≈ $0.00015
   - Daily at 1 run/day × 3 evals × 365 days ≈ $0.05/year per asset
+
+## Reasoning models (Qwen3, DeepSeek-R1, ...)
+
+Reasoning models inline their chain of thought as `<think>...</think>`. The component strips it from the model's reply *before* parsing/storing, so the output is the clean answer (non-reasoning models are unaffected). Set `include_reasoning: true` to keep the thinking: each `evaluations[<name>]` entry gains a `reasoning` key (`null` when the model produced none).

@@ -113,3 +113,7 @@ attributes:
   baseline_alias: gpt_4o_mini
   min_winner_score: 70
 ```
+
+## Reasoning models (Qwen3, DeepSeek-R1, ...)
+
+Reasoning models inline their chain of thought as `<think>...</think>`. The component strips it from the model's reply *before* parsing/storing, so the output is the clean answer (non-reasoning models are unaffected). Set `include_reasoning: true` to keep the thinking: the output dict gains a `judge_reasoning` key (the judge model's thinking; `null` if none), distinct from the per-candidate `reasoning` strings inside `scores`. For `ollama/...` judges the call is routed to `ollama_chat/`, `tool_choice` is downgraded from `required` to `auto`, and a `<tool_call>{...}</tool_call>` emitted as text is recovered.

@@ -212,3 +212,7 @@ attributes:
 - **Slow inference**: Increase `batch_size`, use a smaller model, or enable GPU
 - **ImportError**: Run `pip install transformers torch`
 - **Low confidence**: Try rephrasing candidate labels to be more descriptive
+
+## Reasoning models (Qwen3, DeepSeek-R1, ...)
+
+Reasoning models inline their chain of thought as `<think>...</think>`. The component strips it from the model's reply *before* parsing/storing, so the output is the clean answer (non-reasoning models are unaffected). Set `include_reasoning: true` to keep the thinking: (mode `llm` only) adds an `<output_column>_reasoning` column (null when the model produced none).

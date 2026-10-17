@@ -142,3 +142,7 @@ attributes:
   temperature: 0.0
   max_tokens: 200
 ```
+
+## Reasoning models (Qwen3, DeepSeek-R1, ...)
+
+Reasoning models inline their chain of thought as `<think>...</think>`. The component strips it from the model's reply *before* parsing/storing, so the output is the clean answer (non-reasoning models are unaffected). Set `include_reasoning: true` to keep the thinking: each provider's output dict gains a `reasoning` key (`null` when the model produced none).

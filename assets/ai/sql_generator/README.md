@@ -92,3 +92,7 @@ schema_context: |
 dialect: postgresql
 validate_sql: true
 ```
+
+## Reasoning models (Qwen3, DeepSeek-R1, ...)
+
+Reasoning models inline their chain of thought as `<think>...</think>`. The component strips it from the model's reply *before* parsing/storing, so the output is the clean answer (non-reasoning models are unaffected). Set `include_reasoning: true` to keep the thinking: adds an `<output_column>_reasoning` column (null when the model produced none). Note the call uses `max_tokens=500`; a reasoning model that spends them all thinking yields an empty SQL cell.

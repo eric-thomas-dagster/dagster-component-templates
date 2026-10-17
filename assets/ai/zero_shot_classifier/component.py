@@ -22,6 +22,66 @@ from dagster import (
 from pydantic import Field
 
 
+# BEGIN reasoning-output normalization (inlined per component; keep copies identical — see tests/test_reasoning_output.py)
+import json as _json_r  # noqa: E402
+import re as _re_r  # noqa: E402
+from typing import List, Optional, Tuple  # noqa: E402,F401
+
+_THINK_BLOCK_R = _re_r.compile(r"<think>(.*?)</think>", _re_r.S | _re_r.I)
+_TOOL_CALL_BLOCK_R = _re_r.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", _re_r.S)
+
+
+def split_reasoning(content: Optional[str]) -> Tuple[str, Optional[str]]:
+    """Split `<think>…</think>` reasoning out of model text -> (answer, reasoning).
+
+    Reasoning models (Qwen3, DeepSeek-R1, ...) often inline their chain of thought. Left in, it breaks JSON parsing,
+    classification and routing downstream. Handles a closed block, an UNCLOSED block (output truncated by max_tokens
+    mid-thought: everything after `<think>` is reasoning and there is no answer yet), and a bare closing tag (some chat
+    templates put the opening tag in the prompt). Returns (content, None) untouched when there is no reasoning."""
+    content = content or ""
+    if "think>" not in content.lower():
+        return content, None
+    parts = [m.strip() for m in _THINK_BLOCK_R.findall(content) if m.strip()]
+    rest = _THINK_BLOCK_R.sub("", content)
+    m = _re_r.search(r"<think>(.*)$", rest, _re_r.S | _re_r.I)
+    if m:
+        if m.group(1).strip():
+            parts.append(m.group(1).strip())
+        rest = rest[: m.start()]
+    elif _re_r.search(r"</think>", rest, _re_r.I) and not parts:
+        before, after = _re_r.split(r"</think>", rest, maxsplit=1, flags=_re_r.I)
+        if before.strip():
+            parts.append(before.strip())
+        rest = after
+    return rest.strip(), ("\n\n".join(parts) if parts else None)
+
+
+def parse_text_tool_calls(content: Optional[str]) -> Tuple[str, List[dict]]:
+    """Recover `<tool_call>{"name":…,"arguments":{…}}</tool_call>` that Qwen/Hermes-style models emit as plain text when the
+    server did not parse it into structured tool_calls -> (remaining text, [{name, arguments(json str)}])."""
+    content = content or ""
+    calls: List[dict] = []
+    for raw in _TOOL_CALL_BLOCK_R.findall(content):
+        try:
+            obj = _json_r.loads(raw)
+        except _json_r.JSONDecodeError:
+            continue
+        name = obj.get("name")
+        if not name:
+            continue
+        args = obj.get("arguments", obj.get("parameters", {}))
+        calls.append({"name": name, "arguments": args if isinstance(args, str) else _json_r.dumps(args)})
+    return (_TOOL_CALL_BLOCK_R.sub("", content).strip() if calls else content), calls
+
+
+def ollama_chat_model(model: str, has_tools: bool) -> str:
+    """LiteLLM's `ollama/` route is /api/generate (no tool support); `ollama_chat/` is /api/chat, which has it."""
+    if has_tools and model.lower().startswith("ollama/"):
+        return "ollama_chat/" + model.split("/", 1)[1]
+    return model
+# END reasoning-output normalization
+
+
 def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
     """Execute SQL via a Dagster resource that exposes .get_engine() (SQLAlchemy)
     OR .get_connection() (DB-API) -- works out of the box with duckdb_resource,
@@ -352,6 +412,7 @@ class ZeroShotClassifierComponent(Component, Model, Resolvable):
         default=None,
         description="Optional text prepended to every mode='llm' classification prompt (e.g. domain context or classification rules).",
     )
+    include_reasoning: bool = Field(default=False, description="mode='llm' only. Reasoning models (Qwen3, DeepSeek-R1, e.g. ollama/qwen3) inline <think>...</think>. The thinking is always stripped before the JSON category is parsed; when true it is also written to an extra '<output_column>_reasoning' column.")
     output_column: Union[str, int] = Field(
         default="predicted_label", description="Column name for the top predicted label"
     )
@@ -527,6 +588,7 @@ class ZeroShotClassifierComponent(Component, Model, Resolvable):
         mode = self.mode
         model_name = self.model_name
         llm_model = self.llm_model
+        include_reasoning = self.include_reasoning
         llm_api_key_env_var = self.llm_api_key_env_var
         llm_max_retries = self.llm_max_retries
         llm_prompt_prefix = self.llm_prompt_prefix
@@ -727,6 +789,7 @@ class ZeroShotClassifierComponent(Component, Model, Resolvable):
 
                 context.log.info(f"Classifying {len(texts)} rows via litellm model '{llm_model}'")
                 categories: List[Optional[str]] = []
+                thinkings: List[Optional[str]] = []
                 for text in texts:
                     prompt_parts = []
                     if llm_prompt_prefix:
@@ -736,6 +799,7 @@ class ZeroShotClassifierComponent(Component, Model, Resolvable):
                         f"Text:\n{text}\n\n"
                         'Return only a JSON object like {"category": "<one of the listed categories>"}.'
                     )
+                    _thinking = None
                     try:
                         resp = completion(
                             model=llm_model,
@@ -743,7 +807,8 @@ class ZeroShotClassifierComponent(Component, Model, Resolvable):
                             api_key=os.environ.get(llm_api_key_env_var),
                             num_retries=llm_max_retries,
                         )
-                        raw = resp.choices[0].message.content.strip()
+                        raw, _thinking = split_reasoning(resp.choices[0].message.content)
+                        raw = raw.strip()
                         if raw.startswith("```"):
                             raw = raw.split("```")[1]
                             if raw.startswith("json"):
@@ -756,7 +821,10 @@ class ZeroShotClassifierComponent(Component, Model, Resolvable):
                         context.log.warning(f"classify (llm): failed for a row: {e}")
                         category = None
                     categories.append(category)
+                    thinkings.append(_thinking)
                 df[output_column] = categories
+                if include_reasoning:
+                    df[f"{output_column}_reasoning"] = thinkings
 
             label_counts = df[output_column].value_counts().to_dict()
             context.log.info(f"Classification complete: {label_counts}")

@@ -194,6 +194,66 @@ _VALID_FORMAT_HINTS = set(_FORMAT_HINTS)
 _VALID_DEPTHS = set(_DEPTH_HINTS)
 
 
+# BEGIN reasoning-output normalization (inlined per component; keep copies identical — see tests/test_reasoning_output.py)
+import json as _json_r  # noqa: E402
+import re as _re_r  # noqa: E402
+from typing import List, Optional, Tuple  # noqa: E402,F401
+
+_THINK_BLOCK_R = _re_r.compile(r"<think>(.*?)</think>", _re_r.S | _re_r.I)
+_TOOL_CALL_BLOCK_R = _re_r.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", _re_r.S)
+
+
+def split_reasoning(content: Optional[str]) -> Tuple[str, Optional[str]]:
+    """Split `<think>…</think>` reasoning out of model text -> (answer, reasoning).
+
+    Reasoning models (Qwen3, DeepSeek-R1, ...) often inline their chain of thought. Left in, it breaks JSON parsing,
+    classification and routing downstream. Handles a closed block, an UNCLOSED block (output truncated by max_tokens
+    mid-thought: everything after `<think>` is reasoning and there is no answer yet), and a bare closing tag (some chat
+    templates put the opening tag in the prompt). Returns (content, None) untouched when there is no reasoning."""
+    content = content or ""
+    if "think>" not in content.lower():
+        return content, None
+    parts = [m.strip() for m in _THINK_BLOCK_R.findall(content) if m.strip()]
+    rest = _THINK_BLOCK_R.sub("", content)
+    m = _re_r.search(r"<think>(.*)$", rest, _re_r.S | _re_r.I)
+    if m:
+        if m.group(1).strip():
+            parts.append(m.group(1).strip())
+        rest = rest[: m.start()]
+    elif _re_r.search(r"</think>", rest, _re_r.I) and not parts:
+        before, after = _re_r.split(r"</think>", rest, maxsplit=1, flags=_re_r.I)
+        if before.strip():
+            parts.append(before.strip())
+        rest = after
+    return rest.strip(), ("\n\n".join(parts) if parts else None)
+
+
+def parse_text_tool_calls(content: Optional[str]) -> Tuple[str, List[dict]]:
+    """Recover `<tool_call>{"name":…,"arguments":{…}}</tool_call>` that Qwen/Hermes-style models emit as plain text when the
+    server did not parse it into structured tool_calls -> (remaining text, [{name, arguments(json str)}])."""
+    content = content or ""
+    calls: List[dict] = []
+    for raw in _TOOL_CALL_BLOCK_R.findall(content):
+        try:
+            obj = _json_r.loads(raw)
+        except _json_r.JSONDecodeError:
+            continue
+        name = obj.get("name")
+        if not name:
+            continue
+        args = obj.get("arguments", obj.get("parameters", {}))
+        calls.append({"name": name, "arguments": args if isinstance(args, str) else _json_r.dumps(args)})
+    return (_TOOL_CALL_BLOCK_R.sub("", content).strip() if calls else content), calls
+
+
+def ollama_chat_model(model: str, has_tools: bool) -> str:
+    """LiteLLM's `ollama/` route is /api/generate (no tool support); `ollama_chat/` is /api/chat, which has it."""
+    if has_tools and model.lower().startswith("ollama/"):
+        return "ollama_chat/" + model.split("/", 1)[1]
+    return model
+# END reasoning-output normalization
+
+
 def _pick(rng, options: List[str]) -> str:
     return options[rng.randrange(len(options))]
 
@@ -261,6 +321,7 @@ def _compose_llm(
     depth: Optional[str],
     include_wrong_variants: bool,
     seed: int,
+    reasoning_sink: Optional[list] = None,
 ) -> str:
     """Mode E: ask LiteLLM to generate one paraphrased prompt variant.
 
@@ -333,7 +394,10 @@ def _compose_llm(
             completion_kwargs["api_base"] = api_base
 
     resp = litellm.completion(**completion_kwargs)
-    text = resp.choices[0].message.content.strip()
+    text, _reasoning = split_reasoning(resp.choices[0].message.content)
+    text = text.strip()
+    if reasoning_sink is not None and _reasoning:
+        reasoning_sink.append(_reasoning)
     # Strip surrounding quotes the LLM sometimes adds
     if len(text) >= 2 and text[0] == text[-1] and text[0] in ('"', "'"):
         text = text[1:-1]
@@ -478,6 +542,7 @@ class SyntheticPromptGeneratorComponent(Component, Model, Resolvable):
     )
     temperature: float = Field(default=0.7)
     max_tokens: int = Field(default=300)
+    include_reasoning: bool = Field(default=False, description="Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped from the generated prompt (mode: llm); when true it is also attached as a 'reasoning' metadata entry on the materialization (the asset value stays the clean prompt string).")
     include_wrong_variants: bool = Field(
         default=False,
         description=(
@@ -613,6 +678,7 @@ class SyntheticPromptGeneratorComponent(Component, Model, Resolvable):
         temperature = self.temperature
         max_tokens = self.max_tokens
         include_wrong_variants = self.include_wrong_variants
+        include_reasoning = self.include_reasoning
 
         asset_name = self.asset_name
         description = (
@@ -621,7 +687,7 @@ class SyntheticPromptGeneratorComponent(Component, Model, Resolvable):
         )
         kinds_list = self.kinds or ["prompt", "synthetic"]
 
-        def _resolve(partition_key: Optional[str]) -> str:
+        def _resolve(partition_key: Optional[str], reasoning_sink: Optional[list] = None) -> str:
             if mode == "prompts":
                 if partition_key is None:
                     raise ValueError(
@@ -685,6 +751,7 @@ class SyntheticPromptGeneratorComponent(Component, Model, Resolvable):
                 depth=depth,
                 include_wrong_variants=include_wrong_variants,
                 seed=seed,
+                reasoning_sink=reasoning_sink,
             )
 
         @asset(
@@ -699,7 +766,8 @@ class SyntheticPromptGeneratorComponent(Component, Model, Resolvable):
         )
         def _asset(context: AssetExecutionContext):
             partition_key = context.partition_key if context.has_partition_key else None
-            text = _resolve(partition_key)
+            _thinking: list = []
+            text = _resolve(partition_key, _thinking)
             metadata: Dict[str, Any] = {
                 "mode": MetadataValue.text(mode),
                 "char_count": MetadataValue.int(len(text)),
@@ -707,6 +775,8 @@ class SyntheticPromptGeneratorComponent(Component, Model, Resolvable):
             }
             if partition_key is not None:
                 metadata["partition_key"] = MetadataValue.text(partition_key)
+            if include_reasoning and _thinking:
+                metadata["reasoning"] = MetadataValue.md("\n\n".join(_thinking))
             return Output(value=text, metadata=metadata)
 
         return Definitions(assets=[_asset])

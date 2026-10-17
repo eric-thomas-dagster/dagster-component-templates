@@ -10,6 +10,13 @@
     }
   },
   "attributes": {
+    "include_reasoning": {
+      "type": "boolean",
+      "label": "Include Reasoning",
+      "description": "Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped from the generated prompt (mode: llm); when true it is also attached as a 'reasoning' metadata entry on the materialization (the asset value stays the clean prompt string).",
+      "required": false,
+      "default": false
+    },
     "asset_name": {
       "type": "string",
       "label": "Asset Name",

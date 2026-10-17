@@ -23,6 +23,66 @@ from dagster import (
 from pydantic import Field
 
 
+# BEGIN reasoning-output normalization (inlined per component; keep copies identical — see tests/test_reasoning_output.py)
+import json as _json_r  # noqa: E402
+import re as _re_r  # noqa: E402
+from typing import List, Optional, Tuple  # noqa: E402,F401
+
+_THINK_BLOCK_R = _re_r.compile(r"<think>(.*?)</think>", _re_r.S | _re_r.I)
+_TOOL_CALL_BLOCK_R = _re_r.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", _re_r.S)
+
+
+def split_reasoning(content: Optional[str]) -> Tuple[str, Optional[str]]:
+    """Split `<think>…</think>` reasoning out of model text -> (answer, reasoning).
+
+    Reasoning models (Qwen3, DeepSeek-R1, ...) often inline their chain of thought. Left in, it breaks JSON parsing,
+    classification and routing downstream. Handles a closed block, an UNCLOSED block (output truncated by max_tokens
+    mid-thought: everything after `<think>` is reasoning and there is no answer yet), and a bare closing tag (some chat
+    templates put the opening tag in the prompt). Returns (content, None) untouched when there is no reasoning."""
+    content = content or ""
+    if "think>" not in content.lower():
+        return content, None
+    parts = [m.strip() for m in _THINK_BLOCK_R.findall(content) if m.strip()]
+    rest = _THINK_BLOCK_R.sub("", content)
+    m = _re_r.search(r"<think>(.*)$", rest, _re_r.S | _re_r.I)
+    if m:
+        if m.group(1).strip():
+            parts.append(m.group(1).strip())
+        rest = rest[: m.start()]
+    elif _re_r.search(r"</think>", rest, _re_r.I) and not parts:
+        before, after = _re_r.split(r"</think>", rest, maxsplit=1, flags=_re_r.I)
+        if before.strip():
+            parts.append(before.strip())
+        rest = after
+    return rest.strip(), ("\n\n".join(parts) if parts else None)
+
+
+def parse_text_tool_calls(content: Optional[str]) -> Tuple[str, List[dict]]:
+    """Recover `<tool_call>{"name":…,"arguments":{…}}</tool_call>` that Qwen/Hermes-style models emit as plain text when the
+    server did not parse it into structured tool_calls -> (remaining text, [{name, arguments(json str)}])."""
+    content = content or ""
+    calls: List[dict] = []
+    for raw in _TOOL_CALL_BLOCK_R.findall(content):
+        try:
+            obj = _json_r.loads(raw)
+        except _json_r.JSONDecodeError:
+            continue
+        name = obj.get("name")
+        if not name:
+            continue
+        args = obj.get("arguments", obj.get("parameters", {}))
+        calls.append({"name": name, "arguments": args if isinstance(args, str) else _json_r.dumps(args)})
+    return (_TOOL_CALL_BLOCK_R.sub("", content).strip() if calls else content), calls
+
+
+def ollama_chat_model(model: str, has_tools: bool) -> str:
+    """LiteLLM's `ollama/` route is /api/generate (no tool support); `ollama_chat/` is /api/chat, which has it."""
+    if has_tools and model.lower().startswith("ollama/"):
+        return "ollama_chat/" + model.split("/", 1)[1]
+    return model
+# END reasoning-output normalization
+
+
 def _require_env(name: str) -> str:
     """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
     from dagster import EnvVar
@@ -280,6 +340,7 @@ class RAGPipelineComponent(Component, Model, Resolvable):
         default=True,
         description="Emit the retrieved docs list as `sources_column` on each output row.",
     )
+    include_reasoning: bool = Field(default=False, description="Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped from answers and from HyDE expanded queries; when true it is also written to an extra '<answer_column>_reasoning' column (the final step's thinking).")
     query_column: Union[str, int] = Field(default="query", description="Column name containing query text")
     answer_column: Union[str, int] = Field(default="answer", description="Column name for generated answers")
     sources_column: Union[str, int] = Field(default="sources", description="Column name for retrieved source documents")
@@ -648,7 +709,8 @@ def _rag_completion(
     latency_ms = int((_time.time() - t0) * 1000)
 
     msg = response.choices[0].message
-    content = msg.content or ""
+    # Reasoning models inline <think>...</think>; it must not leak into answers or HyDE queries.
+    content, reasoning = split_reasoning(msg.content)
     usage = None
     u = getattr(response, "usage", None)
     if u is not None:
@@ -686,6 +748,7 @@ def _rag_completion(
 
     return {
         "content": content,
+        "reasoning": reasoning,
         "usage": usage,
         "cost_usd": cost_usd,
         "latency_ms": latency_ms,
@@ -1013,6 +1076,7 @@ def _do_expand_query(step: dict, state: Dict[str, Any], comp: "RAGPipelineCompon
         "op": "expand_query",
         "query": hypothetical,
         "original_query": query,
+        "reasoning": result["reasoning"],
         "cost_usd": result["cost_usd"],
         "latency_ms": result["latency_ms"],
         "tokens_total": result["tokens_total"],
@@ -1054,6 +1118,7 @@ def _do_generate(step: dict, state: Dict[str, Any], comp: "RAGPipelineComponent"
         "op": "generate",
         "query": query,
         "answer": result["content"],
+        "reasoning": result["reasoning"],
         "docs": docs,  # forward downstream
         "cost_usd": result["cost_usd"],
         "latency_ms": result["latency_ms"],
@@ -1086,6 +1151,7 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
     answer_column = comp.answer_column
     sources_column = comp.sources_column
     include_sources = comp.include_sources
+    include_reasoning = comp.include_reasoning
     query_prompt_template = comp.query_prompt_template
 
     if not steps_cfg:
@@ -1164,6 +1230,7 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
                 subs["partition"] = {}
 
         answers: List[str] = []
+        reasonings: List[Optional[str]] = []
         sources_per_row: List[List[Dict[str, Any]]] = []
         totals = {"cost_usd": 0.0, "latency_ms": 0, "tokens_total": 0,
                   "cache_read_tokens": 0, "cache_creation_tokens": 0}
@@ -1187,6 +1254,7 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
             # The last step's outputs become this row's answer.
             last = state[steps_cfg[-1]["id"]]
             answers.append(last.get("answer") or last.get("content") or "")
+            reasonings.append(last.get("reasoning"))
             sources_per_row.append(last.get("docs") or [])
 
             for k in totals:
@@ -1196,6 +1264,8 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
                         totals[k] += step_out[k] or 0
 
         df[answer_column] = answers
+        if include_reasoning:
+            df[f"{answer_column}_reasoning"] = reasonings
         if include_sources:
             df[sources_column] = sources_per_row
 

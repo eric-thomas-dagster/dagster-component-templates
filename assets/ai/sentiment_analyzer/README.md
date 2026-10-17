@@ -494,3 +494,7 @@ attributes:
 `deps` draws lineage edges in the Dagster asset graph without loading data at runtime. Use it to express that this asset depends on upstream tables or assets produced by other components.
 
 Dependencies can also be wired externally via `map_resolved_asset_specs()` in `definitions.py` — the same approach used by [Dagster Designer](https://github.com/eric-thomas-dagster/dagster_designer).
+
+## Reasoning models (Qwen3, DeepSeek-R1, ...)
+
+Reasoning models inline their chain of thought as `<think>...</think>`. The component strips it from the model's reply *before* parsing/storing, so the output is the clean answer (non-reasoning models are unaffected). Set `include_reasoning: true` to keep the thinking: The model's `<think>` block is stripped before JSON parsing, so reasoning models (Qwen3, DeepSeek-R1 via Ollama's OpenAI-compatible endpoint, e.g. `OPENAI_BASE_URL=http://localhost:11434/v1`) work; the thinking itself is discarded here.

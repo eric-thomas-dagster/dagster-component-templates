@@ -277,3 +277,7 @@ Then in your component YAML:
 - **prompt_template columns**: if a column name referenced in `prompt_template` does not exist in the DataFrame, the component raises a `ValueError` listing the available columns.
 - **Output format**: LLM responses are stored as raw strings. For structured output (JSON, etc.), include formatting instructions in `system_prompt` and parse `response_column` downstream.
 - **Retries**: LiteLLM handles retries internally. The default is 3 retries with exponential backoff.
+
+## Reasoning models (Qwen3, DeepSeek-R1, ...)
+
+Reasoning models inline their chain of thought as `<think>...</think>`. The component strips it from the model's reply *before* parsing/storing, so the output is the clean answer (non-reasoning models are unaffected). Set `include_reasoning: true` to keep the thinking: adds a `<response_column>_reasoning` column (null when the model produced none). `LiteLLMResource.complete()` also returns the stripped answer.

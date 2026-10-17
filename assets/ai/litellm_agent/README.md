@@ -122,3 +122,7 @@ Reference of public MCP servers: [github.com/modelcontextprotocol/servers](https
 | `headers_env` | `Dict[str, str]` | — | http / sse: map of header_name → env_var_name; the header value is read from the named env var at materialization time. Use this for tokens (e.g. {'Authorization': 'DAGSTER_PLUS_TOKEN'} where DAGSTER_PLUS_TOKEN env var h… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
+
+## Reasoning models (Qwen3, DeepSeek-R1, ...)
+
+Reasoning models inline their chain of thought as `<think>...</think>`. The component strips it from the model's reply *before* parsing/storing, so the output is the clean answer (non-reasoning models are unaffected). Set `include_reasoning: true` to keep the thinking: the result dict gains a `reasoning` key (all iterations joined; `null` if none) and a `reasoning` metadata entry. `ollama/...` models are routed to LiteLLM's `ollama_chat/` when MCP tools are present (the `/api/generate` route has no tool support), and `<tool_call>{...}</tool_call>` emitted as plain text is recovered into real tool calls.

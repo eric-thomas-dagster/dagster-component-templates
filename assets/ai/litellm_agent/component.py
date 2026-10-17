@@ -31,6 +31,66 @@ from dagster import (
 from pydantic import ConfigDict, Field
 
 
+# BEGIN reasoning-output normalization (inlined per component; keep copies identical — see tests/test_reasoning_output.py)
+import json as _json_r  # noqa: E402
+import re as _re_r  # noqa: E402
+from typing import List, Optional, Tuple  # noqa: E402,F401
+
+_THINK_BLOCK_R = _re_r.compile(r"<think>(.*?)</think>", _re_r.S | _re_r.I)
+_TOOL_CALL_BLOCK_R = _re_r.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", _re_r.S)
+
+
+def split_reasoning(content: Optional[str]) -> Tuple[str, Optional[str]]:
+    """Split `<think>…</think>` reasoning out of model text -> (answer, reasoning).
+
+    Reasoning models (Qwen3, DeepSeek-R1, ...) often inline their chain of thought. Left in, it breaks JSON parsing,
+    classification and routing downstream. Handles a closed block, an UNCLOSED block (output truncated by max_tokens
+    mid-thought: everything after `<think>` is reasoning and there is no answer yet), and a bare closing tag (some chat
+    templates put the opening tag in the prompt). Returns (content, None) untouched when there is no reasoning."""
+    content = content or ""
+    if "think>" not in content.lower():
+        return content, None
+    parts = [m.strip() for m in _THINK_BLOCK_R.findall(content) if m.strip()]
+    rest = _THINK_BLOCK_R.sub("", content)
+    m = _re_r.search(r"<think>(.*)$", rest, _re_r.S | _re_r.I)
+    if m:
+        if m.group(1).strip():
+            parts.append(m.group(1).strip())
+        rest = rest[: m.start()]
+    elif _re_r.search(r"</think>", rest, _re_r.I) and not parts:
+        before, after = _re_r.split(r"</think>", rest, maxsplit=1, flags=_re_r.I)
+        if before.strip():
+            parts.append(before.strip())
+        rest = after
+    return rest.strip(), ("\n\n".join(parts) if parts else None)
+
+
+def parse_text_tool_calls(content: Optional[str]) -> Tuple[str, List[dict]]:
+    """Recover `<tool_call>{"name":…,"arguments":{…}}</tool_call>` that Qwen/Hermes-style models emit as plain text when the
+    server did not parse it into structured tool_calls -> (remaining text, [{name, arguments(json str)}])."""
+    content = content or ""
+    calls: List[dict] = []
+    for raw in _TOOL_CALL_BLOCK_R.findall(content):
+        try:
+            obj = _json_r.loads(raw)
+        except _json_r.JSONDecodeError:
+            continue
+        name = obj.get("name")
+        if not name:
+            continue
+        args = obj.get("arguments", obj.get("parameters", {}))
+        calls.append({"name": name, "arguments": args if isinstance(args, str) else _json_r.dumps(args)})
+    return (_TOOL_CALL_BLOCK_R.sub("", content).strip() if calls else content), calls
+
+
+def ollama_chat_model(model: str, has_tools: bool) -> str:
+    """LiteLLM's `ollama/` route is /api/generate (no tool support); `ollama_chat/` is /api/chat, which has it."""
+    if has_tools and model.lower().startswith("ollama/"):
+        return "ollama_chat/" + model.split("/", 1)[1]
+    return model
+# END reasoning-output normalization
+
+
 def _require_env(name: str) -> str:
     """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
     from dagster import EnvVar
@@ -196,6 +256,7 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
         default_factory=list,
         description="List of MCP servers to expose as tools. Empty list = no tools (chat-only).",
     )
+    include_reasoning: bool = Field(default=False, description="Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped from the transcript and final_answer; when true it is also returned as a 'reasoning' key in the result dict (all iterations joined) and as asset metadata.")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
     description: Optional[str] = Field(default=None, description="Asset description.")
     owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
@@ -247,6 +308,7 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
         prompt_caching = self.prompt_caching
         max_iterations = self.max_iterations
         mcp_servers = self.mcp_servers
+        include_reasoning = self.include_reasoning
         group_name = self.group_name
         description = self.description
         owners = self.owners or []
@@ -326,6 +388,7 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
                     reasoning_effort=reasoning_effort,
                     thinking_budget=thinking_budget,
                     prompt_caching=prompt_caching,
+                    include_reasoning=include_reasoning,
                 )
             )
 
@@ -336,6 +399,8 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
                 "model": MetadataValue.text(model),
                 "stopped_reason": MetadataValue.text(result["stopped_reason"]),
             }
+            if include_reasoning and result.get("reasoning"):
+                md["reasoning"] = MetadataValue.md(result["reasoning"])
             if result["tool_call_details"]:
                 md["tool_calls"] = MetadataValue.json(result["tool_call_details"])
             context.add_output_metadata(md)
@@ -479,6 +544,7 @@ async def _run_agent(
     reasoning_effort: Optional[str] = None,
     thinking_budget: Optional[int] = None,
     prompt_caching: bool = False,
+    include_reasoning: bool = False,
 ) -> Dict[str, Any]:
     """Run the agent loop. Returns the final result dict."""
     import json
@@ -628,6 +694,7 @@ async def _run_agent(
                 }
 
         tool_call_details: List[Dict[str, Any]] = []
+        reasoning_parts: List[str] = []
         iterations = 0
         stopped_reason = "max_iterations"
 
@@ -636,9 +703,15 @@ async def _run_agent(
             kwargs = dict(completion_kwargs)
             if llm_tools:
                 kwargs["tools"] = llm_tools
+                # ollama/ -> ollama_chat/: the /api/generate route has no tool support
+                kwargs["model"] = ollama_chat_model(model, True)
 
             response = await litellm.acompletion(messages=messages, **kwargs)
             assistant_msg = response.choices[0].message
+            # Reasoning models inline <think>...</think>: keep it out of the transcript / final answer.
+            _clean_text, _reasoning = split_reasoning(assistant_msg.content)
+            if _reasoning:
+                reasoning_parts.append(_reasoning)
             # Convert to dict for the next message list. LiteLLM message objects
             # have a `.model_dump()` shim on newer versions, else `.dict()`.
             try:
@@ -647,9 +720,29 @@ async def _run_agent(
                 assistant_dict = assistant_msg.dict(exclude_none=True)
             # OpenAI requires `role: assistant`
             assistant_dict.setdefault("role", "assistant")
-            messages.append(assistant_dict)
 
             tool_calls = assistant_msg.tool_calls or []
+            if not tool_calls and llm_tools:
+                # Qwen/Hermes-style models served without a tool parser emit <tool_call>{...}</tool_call> as text.
+                _clean_text, _text_calls = parse_text_tool_calls(_clean_text)
+                if _text_calls:
+                    from types import SimpleNamespace
+                    tool_calls = [
+                        SimpleNamespace(
+                            id=f"call_text_{iterations}_{_n}",
+                            type="function",
+                            function=SimpleNamespace(name=_c["name"], arguments=_c["arguments"]),
+                        )
+                        for _n, _c in enumerate(_text_calls)
+                    ]
+                    assistant_dict["tool_calls"] = [
+                        {"id": tc.id, "type": "function",
+                         "function": {"name": tc.function.name, "arguments": tc.function.arguments}}
+                        for tc in tool_calls
+                    ]
+            if assistant_dict.get("content") is not None or _clean_text:
+                assistant_dict["content"] = _clean_text
+            messages.append(assistant_dict)
             if not tool_calls:
                 stopped_reason = "final_answer"
                 break
@@ -729,7 +822,7 @@ async def _run_agent(
                 final_answer = m["content"]
                 break
 
-        return {
+        result = {
             "final_answer": final_answer,
             "iterations": iterations,
             "tool_calls_made": len(tool_call_details),
@@ -739,3 +832,6 @@ async def _run_agent(
             "model": model,
             "mcp_servers": servers_used,
         }
+        if include_reasoning:
+            result["reasoning"] = "\n\n".join(reasoning_parts) or None
+        return result

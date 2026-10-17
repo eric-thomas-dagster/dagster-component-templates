@@ -90,3 +90,7 @@ model: gpt-4o-mini
 prompt: "Describe this image concisely."
 api_key_env_var: OPENAI_API_KEY
 ```
+
+## Reasoning models (Qwen3, DeepSeek-R1, ...)
+
+Reasoning models inline their chain of thought as `<think>...</think>`. The component strips it from the model's reply *before* parsing/storing, so the output is the clean answer (non-reasoning models are unaffected). Set `include_reasoning: true` to keep the thinking: adds an `<output_column>_reasoning` column (null when the model produced none).

@@ -7,6 +7,13 @@
     "outputs": {"type": "text", "description": "One asset with per-candidate scores, winner alias, delta vs. baseline, judge cost/latency. Optional `winner_meets_threshold` asset check."}
   },
   "attributes": {
+    "include_reasoning": {
+      "type": "boolean",
+      "label": "Include Reasoning",
+      "description": "Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped; when true it is also returned as a 'judge_reasoning' key on the output dict (distinct from the per-candidate 'reasoning' the judge writes into scores).",
+      "required": false,
+      "default": false
+    },
     "asset_name":         {"type": "string", "required": true, "label": "Asset Name",
                            "description": "Name of the emitted asset (holds per-candidate scores + winner)."},
 

@@ -301,3 +301,7 @@ provider: ollama    → model: ollama/llama3.2
 
 - **`rag_pipeline`** — the pipeline shape IS retrieval → generation. Every row of upstream is a query; output is an answer. Batteries-included for RAG (retrievers, rerankers, HyDE, hybrid search).
 - **`agentic_pipeline`** — general multi-step LLM workflow: debate, critique loops, tool use, sub-pipelines. Use if you want to compose RAG as one step of a larger agent workflow.
+
+## Reasoning models (Qwen3, DeepSeek-R1, ...)
+
+Reasoning models inline their chain of thought as `<think>...</think>`. The component strips it from the model's reply *before* parsing/storing, so the output is the clean answer (non-reasoning models are unaffected). Set `include_reasoning: true` to keep the thinking: adds an `<answer_column>_reasoning` column holding the final step's thinking (null when none). The thinking is stripped from `expand_query` (HyDE) output too, so it is never embedded for retrieval.

@@ -15,6 +15,13 @@
     }
   },
   "attributes": {
+    "include_reasoning": {
+      "type": "boolean",
+      "label": "Include Reasoning",
+      "description": "mode='llm' only. Reasoning models (Qwen3, DeepSeek-R1, e.g. ollama/qwen3) inline <think>...</think>. The thinking is always stripped before the JSON category is parsed; when true it is also written to an extra '<output_column>_reasoning' column.",
+      "required": false,
+      "default": false
+    },
     "asset_name": {
       "type": "string",
       "label": "Asset Name",

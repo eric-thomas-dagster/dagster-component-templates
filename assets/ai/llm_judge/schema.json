@@ -15,6 +15,13 @@
     }
   },
   "attributes": {
+    "include_reasoning": {
+      "type": "boolean",
+      "label": "Include Reasoning",
+      "description": "Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped before the judge JSON is parsed; when true it is also written to an extra '<score_column>_reasoning' column.",
+      "required": false,
+      "default": false
+    },
     "asset_name": {
       "type": "string",
       "label": "Asset Name",

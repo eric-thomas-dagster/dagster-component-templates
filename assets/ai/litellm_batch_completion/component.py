@@ -21,6 +21,66 @@ from dagster import (
 from pydantic import ConfigDict, Field
 
 
+# BEGIN reasoning-output normalization (inlined per component; keep copies identical — see tests/test_reasoning_output.py)
+import json as _json_r  # noqa: E402
+import re as _re_r  # noqa: E402
+from typing import List, Optional, Tuple  # noqa: E402,F401
+
+_THINK_BLOCK_R = _re_r.compile(r"<think>(.*?)</think>", _re_r.S | _re_r.I)
+_TOOL_CALL_BLOCK_R = _re_r.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", _re_r.S)
+
+
+def split_reasoning(content: Optional[str]) -> Tuple[str, Optional[str]]:
+    """Split `<think>…</think>` reasoning out of model text -> (answer, reasoning).
+
+    Reasoning models (Qwen3, DeepSeek-R1, ...) often inline their chain of thought. Left in, it breaks JSON parsing,
+    classification and routing downstream. Handles a closed block, an UNCLOSED block (output truncated by max_tokens
+    mid-thought: everything after `<think>` is reasoning and there is no answer yet), and a bare closing tag (some chat
+    templates put the opening tag in the prompt). Returns (content, None) untouched when there is no reasoning."""
+    content = content or ""
+    if "think>" not in content.lower():
+        return content, None
+    parts = [m.strip() for m in _THINK_BLOCK_R.findall(content) if m.strip()]
+    rest = _THINK_BLOCK_R.sub("", content)
+    m = _re_r.search(r"<think>(.*)$", rest, _re_r.S | _re_r.I)
+    if m:
+        if m.group(1).strip():
+            parts.append(m.group(1).strip())
+        rest = rest[: m.start()]
+    elif _re_r.search(r"</think>", rest, _re_r.I) and not parts:
+        before, after = _re_r.split(r"</think>", rest, maxsplit=1, flags=_re_r.I)
+        if before.strip():
+            parts.append(before.strip())
+        rest = after
+    return rest.strip(), ("\n\n".join(parts) if parts else None)
+
+
+def parse_text_tool_calls(content: Optional[str]) -> Tuple[str, List[dict]]:
+    """Recover `<tool_call>{"name":…,"arguments":{…}}</tool_call>` that Qwen/Hermes-style models emit as plain text when the
+    server did not parse it into structured tool_calls -> (remaining text, [{name, arguments(json str)}])."""
+    content = content or ""
+    calls: List[dict] = []
+    for raw in _TOOL_CALL_BLOCK_R.findall(content):
+        try:
+            obj = _json_r.loads(raw)
+        except _json_r.JSONDecodeError:
+            continue
+        name = obj.get("name")
+        if not name:
+            continue
+        args = obj.get("arguments", obj.get("parameters", {}))
+        calls.append({"name": name, "arguments": args if isinstance(args, str) else _json_r.dumps(args)})
+    return (_TOOL_CALL_BLOCK_R.sub("", content).strip() if calls else content), calls
+
+
+def ollama_chat_model(model: str, has_tools: bool) -> str:
+    """LiteLLM's `ollama/` route is /api/generate (no tool support); `ollama_chat/` is /api/chat, which has it."""
+    if has_tools and model.lower().startswith("ollama/"):
+        return "ollama_chat/" + model.split("/", 1)[1]
+    return model
+# END reasoning-output normalization
+
+
 def _require_env(name: str) -> str:
     """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
     from dagster import EnvVar
@@ -254,6 +314,7 @@ class LitellmBatchCompletionComponent(Component, Model, Resolvable):
     temperature: float = Field(default=0.0, description="Sampling temperature")
     fallback_models: Optional[List[str]] = Field(default=None, description="Models to try if primary fails")
     max_workers: int = Field(default=4, description="Parallel threads for batch processing")
+    include_reasoning: bool = Field(default=False, description="Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped from the output column; when true it is also written to an extra '<output_column>_reasoning' column.")
     api_key_env_var: Optional[str] = Field(default=None, description="Env var name for API key")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
@@ -403,6 +464,7 @@ class LitellmBatchCompletionComponent(Component, Model, Resolvable):
         system_prompt = self.system_prompt
         prompt_template = self.prompt_template
         max_tokens = self.max_tokens
+        include_reasoning = self.include_reasoning
         temperature = self.temperature
         fallback_models = self.fallback_models
         max_workers = self.max_workers
@@ -564,7 +626,7 @@ group_name=group_name,
             if fallback_models:
                 kwargs["fallbacks"] = fallback_models
 
-            def process_row(row_dict: dict) -> str:
+            def process_row(row_dict: dict):
                 if prompt_template:
                     # Alias text_column → 'text' for templates
                     rd = {**row_dict, "text": row_dict.get(text_column, "")}
@@ -578,14 +640,17 @@ group_name=group_name,
                 messages.append({"role": "user", "content": user_content})
 
                 response = litellm.completion(messages=messages, **kwargs)
-                return response.choices[0].message.content or ""
+                return split_reasoning(response.choices[0].message.content)
 
             rows = [row._asdict() for row in df.itertuples(index=False)]
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                results = list(executor.map(process_row, rows))
+                _pairs = list(executor.map(process_row, rows))
 
+            results = [a for a, _ in _pairs]
             df[output_column] = results
+            if include_reasoning:
+                df[f"{output_column}_reasoning"] = [r for _, r in _pairs]
 
             # Cost tracking
             try:

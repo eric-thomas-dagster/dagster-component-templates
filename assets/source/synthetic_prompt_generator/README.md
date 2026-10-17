@@ -238,3 +238,7 @@ Now iterating on prompts is a one-file YAML edit (add/rename keys under `prompts
 - **`synthetic_data_generator` with `schema_type: support_tickets` / `product_reviews`** — you need a *DataFrame* of realistic-shaped text (with columns), not one prompt per partition.
 - **`file` source directly on `AgenticPipelineComponent`** — prompts already exist on disk. Wire `source: {kind: file, path: "prompts/{partition_key}.txt"}` and skip this component.
 - **`literal` source directly on `AgenticPipelineComponent`** — one hardcoded prompt for a quickstart / smoke test.
+
+## Reasoning models (Qwen3, DeepSeek-R1, ...)
+
+Reasoning models inline their chain of thought as `<think>...</think>`. The component strips it from the model's reply *before* parsing/storing, so the output is the clean answer (non-reasoning models are unaffected). Set `include_reasoning: true` to keep the thinking: the materialization gains a `reasoning` metadata entry (llm mode only); the asset value stays the clean prompt string.

@@ -14,6 +14,13 @@
     "supports_partitions": false
   },
   "attributes": {
+    "include_reasoning": {
+      "type": "boolean",
+      "label": "Include Reasoning",
+      "description": "Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped from the transcript and final_answer; when true it is also returned as a 'reasoning' key in the result dict (all iterations joined) and as asset metadata.",
+      "required": false,
+      "default": false
+    },
     "asset_name": {
       "description": "Output Dagster asset name.",
       "type": "string",

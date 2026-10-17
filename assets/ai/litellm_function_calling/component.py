@@ -20,6 +20,66 @@ from dagster import (
 from pydantic import ConfigDict, Field
 
 
+# BEGIN reasoning-output normalization (inlined per component; keep copies identical — see tests/test_reasoning_output.py)
+import json as _json_r  # noqa: E402
+import re as _re_r  # noqa: E402
+from typing import List, Optional, Tuple  # noqa: E402,F401
+
+_THINK_BLOCK_R = _re_r.compile(r"<think>(.*?)</think>", _re_r.S | _re_r.I)
+_TOOL_CALL_BLOCK_R = _re_r.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", _re_r.S)
+
+
+def split_reasoning(content: Optional[str]) -> Tuple[str, Optional[str]]:
+    """Split `<think>…</think>` reasoning out of model text -> (answer, reasoning).
+
+    Reasoning models (Qwen3, DeepSeek-R1, ...) often inline their chain of thought. Left in, it breaks JSON parsing,
+    classification and routing downstream. Handles a closed block, an UNCLOSED block (output truncated by max_tokens
+    mid-thought: everything after `<think>` is reasoning and there is no answer yet), and a bare closing tag (some chat
+    templates put the opening tag in the prompt). Returns (content, None) untouched when there is no reasoning."""
+    content = content or ""
+    if "think>" not in content.lower():
+        return content, None
+    parts = [m.strip() for m in _THINK_BLOCK_R.findall(content) if m.strip()]
+    rest = _THINK_BLOCK_R.sub("", content)
+    m = _re_r.search(r"<think>(.*)$", rest, _re_r.S | _re_r.I)
+    if m:
+        if m.group(1).strip():
+            parts.append(m.group(1).strip())
+        rest = rest[: m.start()]
+    elif _re_r.search(r"</think>", rest, _re_r.I) and not parts:
+        before, after = _re_r.split(r"</think>", rest, maxsplit=1, flags=_re_r.I)
+        if before.strip():
+            parts.append(before.strip())
+        rest = after
+    return rest.strip(), ("\n\n".join(parts) if parts else None)
+
+
+def parse_text_tool_calls(content: Optional[str]) -> Tuple[str, List[dict]]:
+    """Recover `<tool_call>{"name":…,"arguments":{…}}</tool_call>` that Qwen/Hermes-style models emit as plain text when the
+    server did not parse it into structured tool_calls -> (remaining text, [{name, arguments(json str)}])."""
+    content = content or ""
+    calls: List[dict] = []
+    for raw in _TOOL_CALL_BLOCK_R.findall(content):
+        try:
+            obj = _json_r.loads(raw)
+        except _json_r.JSONDecodeError:
+            continue
+        name = obj.get("name")
+        if not name:
+            continue
+        args = obj.get("arguments", obj.get("parameters", {}))
+        calls.append({"name": name, "arguments": args if isinstance(args, str) else _json_r.dumps(args)})
+    return (_TOOL_CALL_BLOCK_R.sub("", content).strip() if calls else content), calls
+
+
+def ollama_chat_model(model: str, has_tools: bool) -> str:
+    """LiteLLM's `ollama/` route is /api/generate (no tool support); `ollama_chat/` is /api/chat, which has it."""
+    if has_tools and model.lower().startswith("ollama/"):
+        return "ollama_chat/" + model.split("/", 1)[1]
+    return model
+# END reasoning-output normalization
+
+
 def _require_env(name: str) -> str:
     """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
     from dagster import EnvVar
@@ -257,6 +317,7 @@ class LitellmFunctionCallingComponent(Component, Model, Resolvable):
         default="gpt-4o-mini", description="LiteLLM model string")
     output_column: Union[str, int] = Field(default="tool_calls", description="Column to write tool call results as JSON string")
     system_prompt: Optional[str] = Field(default=None, description="System message prepended to each request")
+    include_reasoning: bool = Field(default=False, description="Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped from the text before tool-call recovery; when true it is also written to an extra '<output_column>_reasoning' column.")
     api_key_env_var: Optional[str] = Field(default=None, description="Env var name for API key")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
@@ -407,6 +468,7 @@ class LitellmFunctionCallingComponent(Component, Model, Resolvable):
         system_prompt = self.system_prompt
         api_key_env_var = self.api_key_env_var
         group_name = self.group_name
+        include_reasoning = self.include_reasoning
 
         partitions_def = _build_partitions_def(
             self.partition_type,
@@ -553,13 +615,14 @@ group_name=group_name,
             context.log.info(f"Running function calling on {len(df)} rows with model={model}")
 
             kwargs: dict = {
-                "model": model,
+                "model": ollama_chat_model(model, bool(tools)),  # ollama/ -> ollama_chat/ (the /api/generate route has no tools)
                 "tools": tools,
             }
             if api_key_env_var:
                 kwargs["api_key"] = _require_env(api_key_env_var)
 
             results = []
+            reasonings = []
             tool_call_count = 0
 
             for _, row in df.iterrows():
@@ -571,6 +634,8 @@ group_name=group_name,
 
                 response = litellm.completion(messages=messages, **kwargs)
                 message = response.choices[0].message
+                _text, _reasoning = split_reasoning(message.content)
+                reasonings.append(_reasoning)
 
                 if message.tool_calls:
                     tool_calls_data = [
@@ -587,9 +652,22 @@ group_name=group_name,
                     results.append(json.dumps(tool_calls_data))
                     tool_call_count += len(message.tool_calls)
                 else:
-                    results.append(json.dumps([]))
+                    # Qwen/Hermes-style models served without a tool parser emit <tool_call>{...}</tool_call> as text.
+                    _, _text_calls = parse_text_tool_calls(_text)
+                    tool_calls_data = [
+                        {
+                            "id": f"call_text_{_i}",
+                            "type": "function",
+                            "function": {"name": _c["name"], "arguments": _c["arguments"]},
+                        }
+                        for _i, _c in enumerate(_text_calls)
+                    ]
+                    results.append(json.dumps(tool_calls_data))
+                    tool_call_count += len(tool_calls_data)
 
             df[output_column] = results
+            if include_reasoning:
+                df[f"{output_column}_reasoning"] = reasonings
 
 
             # Build column schema metadata

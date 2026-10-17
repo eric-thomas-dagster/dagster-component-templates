@@ -203,6 +203,66 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+# BEGIN reasoning-output normalization (inlined per component; keep copies identical — see tests/test_reasoning_output.py)
+import json as _json_r  # noqa: E402
+import re as _re_r  # noqa: E402
+from typing import List, Optional, Tuple  # noqa: E402,F401
+
+_THINK_BLOCK_R = _re_r.compile(r"<think>(.*?)</think>", _re_r.S | _re_r.I)
+_TOOL_CALL_BLOCK_R = _re_r.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", _re_r.S)
+
+
+def split_reasoning(content: Optional[str]) -> Tuple[str, Optional[str]]:
+    """Split `<think>…</think>` reasoning out of model text -> (answer, reasoning).
+
+    Reasoning models (Qwen3, DeepSeek-R1, ...) often inline their chain of thought. Left in, it breaks JSON parsing,
+    classification and routing downstream. Handles a closed block, an UNCLOSED block (output truncated by max_tokens
+    mid-thought: everything after `<think>` is reasoning and there is no answer yet), and a bare closing tag (some chat
+    templates put the opening tag in the prompt). Returns (content, None) untouched when there is no reasoning."""
+    content = content or ""
+    if "think>" not in content.lower():
+        return content, None
+    parts = [m.strip() for m in _THINK_BLOCK_R.findall(content) if m.strip()]
+    rest = _THINK_BLOCK_R.sub("", content)
+    m = _re_r.search(r"<think>(.*)$", rest, _re_r.S | _re_r.I)
+    if m:
+        if m.group(1).strip():
+            parts.append(m.group(1).strip())
+        rest = rest[: m.start()]
+    elif _re_r.search(r"</think>", rest, _re_r.I) and not parts:
+        before, after = _re_r.split(r"</think>", rest, maxsplit=1, flags=_re_r.I)
+        if before.strip():
+            parts.append(before.strip())
+        rest = after
+    return rest.strip(), ("\n\n".join(parts) if parts else None)
+
+
+def parse_text_tool_calls(content: Optional[str]) -> Tuple[str, List[dict]]:
+    """Recover `<tool_call>{"name":…,"arguments":{…}}</tool_call>` that Qwen/Hermes-style models emit as plain text when the
+    server did not parse it into structured tool_calls -> (remaining text, [{name, arguments(json str)}])."""
+    content = content or ""
+    calls: List[dict] = []
+    for raw in _TOOL_CALL_BLOCK_R.findall(content):
+        try:
+            obj = _json_r.loads(raw)
+        except _json_r.JSONDecodeError:
+            continue
+        name = obj.get("name")
+        if not name:
+            continue
+        args = obj.get("arguments", obj.get("parameters", {}))
+        calls.append({"name": name, "arguments": args if isinstance(args, str) else _json_r.dumps(args)})
+    return (_TOOL_CALL_BLOCK_R.sub("", content).strip() if calls else content), calls
+
+
+def ollama_chat_model(model: str, has_tools: bool) -> str:
+    """LiteLLM's `ollama/` route is /api/generate (no tool support); `ollama_chat/` is /api/chat, which has it."""
+    if has_tools and model.lower().startswith("ollama/"):
+        return "ollama_chat/" + model.split("/", 1)[1]
+    return model
+# END reasoning-output normalization
+
+
 class LLMEvaluatorComponent(Component, Model, Resolvable):
     """LLM-as-judge evaluator for agent / LLM outputs.
 
@@ -245,6 +305,7 @@ class LLMEvaluatorComponent(Component, Model, Resolvable):
     max_tokens: int = Field(default=256, description="Max tokens per judge call.")
 
     # Input mapping — for agent dicts, the defaults work. Override for other shapes.
+    include_reasoning: bool = Field(default=False, description="Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped before SCORE/REASON are parsed; when true each entry of the 'evaluations' output gains a 'reasoning' key with the judge's thinking.")
     answer_jsonpath: str = Field(
         default="final_answer",
         description="Dot-path inside the upstream dict for the answer to evaluate. e.g. 'final_answer' for agent output, 'response' for LLM-completion output.",
@@ -295,6 +356,7 @@ class LLMEvaluatorComponent(Component, Model, Resolvable):
         answer_path = self.answer_jsonpath
         question_path = self.question_jsonpath
         context_path = self.context_jsonpath
+        include_reasoning = self.include_reasoning
         group_name = self.group_name
         description = self.description
         owners = self.owners or []
@@ -335,7 +397,7 @@ class LLMEvaluatorComponent(Component, Model, Resolvable):
                     answer=str(answer),
                     context=str(ctx_value or "(none)"),
                 )
-                score, reason = _ask_judge(
+                score, reason, thinking = _ask_judge(
                     log=context.log,
                     prompt=judge_prompt,
                     model=model,
@@ -344,6 +406,8 @@ class LLMEvaluatorComponent(Component, Model, Resolvable):
                     max_tokens=max_tokens,
                 )
                 scores[eval_name] = {"score": score, "reason": reason}
+                if include_reasoning:
+                    scores[eval_name]["reasoning"] = thinking
                 context.log.info(
                     f"[eval:{eval_name}] score={score:.2f}  reason={reason[:140]}"
                 )
@@ -409,7 +473,10 @@ def _ask_judge(
     temperature: float,
     max_tokens: int,
 ) -> tuple:
-    """Run one LLM-judge call. Returns (score 0.0-1.0, reason str)."""
+    """Run one LLM-judge call. Returns (score 0.0-1.0, reason str, thinking str | None).
+
+    `<think>...</think>` is split off before SCORE/REASON are parsed, so a "SCORE: 3" mentioned mid-thought
+    cannot be mistaken for the verdict."""
     import os
     import re
 
@@ -431,7 +498,7 @@ def _ask_judge(
         kwargs["api_key"] = key
 
     resp = litellm.completion(**kwargs)
-    text = resp.choices[0].message.content or ""
+    text, thinking = split_reasoning(resp.choices[0].message.content)
 
     # Parse SCORE / REASON. Tolerant of leading text + casing.
     score_match = re.search(r"SCORE\s*:\s*(\d+(?:\.\d+)?)", text, re.IGNORECASE)
@@ -439,7 +506,7 @@ def _ask_judge(
 
     if not score_match:
         log.warning(f"could not parse SCORE from judge output: {text[:200]!r}")
-        return 0.0, "(score parse failed)"
+        return 0.0, "(score parse failed)", thinking
 
     raw = float(score_match.group(1))
     # Normalize: prompts say 0-10. Clamp + divide.
@@ -450,4 +517,4 @@ def _ask_judge(
     score = raw / 10.0
 
     reason = reason_match.group(1).strip() if reason_match else ""
-    return score, reason
+    return score, reason, thinking

@@ -65,7 +65,7 @@ import json
 import re
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import pandas as pd
 
@@ -76,12 +76,14 @@ from dagster import (
     AssetExecutionContext,
     AssetIn,
     AssetKey,
+    BackfillPolicy,
     Component,
     DataVersion,
     ComponentLoadContext,
     Definitions,
     MetadataValue,
     Model,
+    Nothing,
     Output,
     Resolvable,
     asset,
@@ -101,7 +103,7 @@ def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
     what makes the pipeline "broadly usable against DuckDB and other
     databases" rather than requiring the raw text to already be a
     materialized Dagster asset."""
-    sql = source_config["sql"]
+    sql = _bind_partition_placeholders(source_config["sql"], context, _standard_sql_str)
     resource_key = source_config.get("resource_key")
     if resource_key:
         resource = getattr(context.resources, resource_key)
@@ -160,18 +162,60 @@ def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
 
 
 def _build_partitions_def(
-    partition_type, partition_start, partition_values, dynamic_partition_name,
+    partition_type, partition_start, partition_values, dynamic_partition_name, partition_dimensions=None,
 ):
-    """Construct a Dagster partitions_def from the canonical partition fields.
-    Canonical implementation — copied as-is per FIELD_CONVENTIONS.md."""
+    """Construct a Dagster partitions_def from the canonical partition fields: either the flat fields (partition_type / partition_start /
+    partition_values / dynamic_partition_name) or `partition_dimensions` (one axis, or several axes -> MultiPartitionsDefinition).
+    Strict: raises ValueError on misconfiguration (time-based type without a start, static without values, dynamic without a name, flat fields
+    and partition_dimensions together). Same behaviour as rag_pipeline's copy, minus its flat 'multi' shorthand."""
     from dagster import (
         DailyPartitionsDefinition, WeeklyPartitionsDefinition,
         MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
-        StaticPartitionsDefinition, DynamicPartitionsDefinition,
+        StaticPartitionsDefinition, DynamicPartitionsDefinition, MultiPartitionsDefinition,
     )
+    if partition_dimensions and partition_type:
+        raise ValueError("Set either partition_type (flat-fields shape) or partition_dimensions (multi-axis shape), not both.")
+
+    def _build_axis(spec):
+        t = spec.get("type")
+        if t in ("daily", "weekly", "monthly", "hourly") and not spec.get("start"):
+            raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
+        if t == "daily":
+            return DailyPartitionsDefinition(start_date=spec["start"])
+        if t == "weekly":
+            return WeeklyPartitionsDefinition(start_date=spec["start"])
+        if t == "monthly":
+            return MonthlyPartitionsDefinition(start_date=spec["start"])
+        if t == "hourly":
+            return HourlyPartitionsDefinition(start_date=spec["start"])
+        if t == "static":
+            vals = spec.get("values") or []
+            if isinstance(vals, str):
+                vals = [v.strip() for v in vals.split(",") if v.strip()]
+            if not vals:
+                raise ValueError("partition dimension type='static' requires non-empty 'values'")
+            return StaticPartitionsDefinition(list(vals))
+        if t == "dynamic":
+            name = spec.get("dynamic_partition_name") or spec.get("name")
+            if not name:
+                raise ValueError("partition dimension type='dynamic' requires a name")
+            return DynamicPartitionsDefinition(name=name)
+        raise ValueError(f"unknown partition type: {t!r}")
+
+    if partition_dimensions:
+        if len(partition_dimensions) == 1:
+            return _build_axis(partition_dimensions[0])
+        names = [d.get("name") for d in partition_dimensions]
+        if not all(names) or len(set(names)) != len(names):
+            raise ValueError("partition_dimensions with several axes need a unique `name` on each")
+        return MultiPartitionsDefinition({d["name"]: _build_axis(d) for d in partition_dimensions})
+
     if not partition_type:
         return None
-    _values = [v.strip() for v in (partition_values or "").split(",") if v.strip()]
+    if isinstance(partition_values, (list, tuple)):
+        _values = [str(v).strip() for v in partition_values if str(v).strip()]
+    else:
+        _values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
     if partition_type in ("daily", "weekly", "monthly", "hourly") and not partition_start:
         raise ValueError(f"partition_type={partition_type!r} requires partition_start (ISO date).")
     if partition_type == "daily":
@@ -191,6 +235,121 @@ def _build_partitions_def(
             raise ValueError("partition_type='dynamic' requires dynamic_partition_name.")
         return DynamicPartitionsDefinition(name=dynamic_partition_name)
     raise ValueError(f"unknown partition_type: {partition_type!r}")
+
+
+# ── partition-aware source SQL ───────────────────────────────────────────────────────────────────────
+# `source.sql` may use {partition_key}, {partition_start}, {partition_end} (time-window partitions, ISO strings) and {partition_key.<dim>}
+# (multi-dimension partitions). Each placeholder is replaced by a complete, escaped SQL string literal -- write `WHERE d = {partition_key}`,
+# NOT `WHERE d = '{partition_key}'`. `{{` / `}}` are literal braces.
+
+_PLACEHOLDER_RE = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z0-9_\-]+)?)\}")
+
+
+def _sql_placeholders(sql: str) -> List[str]:
+    return _PLACEHOLDER_RE.findall(sql.replace("{{", "\0").replace("}}", "\0"))
+
+
+def _is_partitioned_run(context) -> bool:
+    try:
+        return bool(context.has_partition_key or context.has_partition_key_range)
+    except Exception:
+        return False
+
+
+def _partition_label_and_keys(context) -> Tuple[Optional[str], List[str]]:
+    """(label stamped as source_partition, every partition key the run covers). A one-key run: the key. A single_run backfill range: 'first..last'."""
+    if context.has_partition_key:
+        return str(context.partition_key), [str(context.partition_key)]
+    if context.has_partition_key_range:
+        r = context.partition_key_range
+        keys: List[str] = []
+        try:
+            keys = [str(k) for k in context.assets_def.partitions_def.get_partition_keys_in_range(r)]
+        except Exception:
+            pass
+        return (str(r.start) if r.start == r.end else f"{r.start}..{r.end}"), keys or [str(r.start), str(r.end)]
+    return None, []
+
+
+def _partition_bindings(context) -> Dict[str, str]:
+    from dagster import MultiPartitionsDefinition, TimeWindowPartitionsDefinition
+    b: Dict[str, str] = {}
+    label, _ = _partition_label_and_keys(context)
+    if label is None:
+        return b
+    b["partition_key"] = label
+    window = None
+    if context.has_partition_key:
+        key = context.partition_key
+        kbd = getattr(key, "keys_by_dimension", None)
+        if kbd:
+            for dim, val in kbd.items():
+                b[f"partition_key.{dim}"] = str(val)
+            pdef = context.assets_def.partitions_def
+            if isinstance(pdef, MultiPartitionsDefinition):
+                for d in pdef.partitions_defs:
+                    if isinstance(d.partitions_def, TimeWindowPartitionsDefinition):
+                        window = d.partitions_def.time_window_for_partition_key(kbd[d.name])
+                        break
+    if window is None:
+        try:
+            window = context.partition_time_window
+        except Exception:
+            window = None
+    if window is not None:
+        b["partition_start"], b["partition_end"] = window.start.isoformat(), window.end.isoformat()
+    return b
+
+
+def _bind_partition_placeholders(sql: str, context, quote, what: str = "source.sql") -> str:
+    names = _sql_placeholders(sql)
+    partitioned = _is_partitioned_run(context)
+    unescape = lambda t: t.replace("{{", "{").replace("}}", "}")  # noqa: E731
+    if not names:
+        if partitioned:
+            context.log.warning(
+                f"{what} uses no partition placeholder ({{partition_key}}, {{partition_start}}, {{partition_end}}) but the asset is partitioned: "
+                "every partition run reads the FULL source. Add a placeholder to the WHERE clause to read just this partition.")
+        return unescape(sql)
+    if not partitioned:
+        raise ValueError(f"{what} uses partition placeholder(s) {sorted(set(names))} but this run has no partition key (asset is not partitioned, or this is an unpartitioned run)")
+    bindings = _partition_bindings(context)
+    for n in set(names):
+        if n not in bindings:
+            raise ValueError(f"{what}: placeholder {{{n}}} is not available for this run; available: {sorted(bindings)}")
+        if re.search(rf"[\'\"`]\{{{re.escape(n)}\}}|\{{{re.escape(n)}\}}[\'\"`]", sql):
+            raise ValueError(f"{what}: {{{n}}} is replaced by a complete quoted string literal; remove the quotes around it")
+    protected = sql.replace("{{", "\0L").replace("}}", "\0R")
+    out = _PLACEHOLDER_RE.sub(lambda m: quote(bindings[m.group(1)]), protected)
+    return out.replace("\0L", "{").replace("\0R", "}")
+
+
+def _standard_sql_str(value: Any) -> str:
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+def _validate_partition_placeholders(sql: str, partitions_def, what: str = "source.sql") -> None:
+    """Build-time check of the placeholders against the declared partitions_def."""
+    from dagster import MultiPartitionsDefinition, TimeWindowPartitionsDefinition
+    names = set(_sql_placeholders(sql))
+    if not names:
+        return
+    if partitions_def is None:
+        raise ValueError(f"{what} uses partition placeholder(s) {sorted(names)} but no partitioning is configured (partition_type / partition_dimensions)")
+    dims = [d.name for d in partitions_def.partitions_defs] if isinstance(partitions_def, MultiPartitionsDefinition) else []
+    timed = isinstance(partitions_def, TimeWindowPartitionsDefinition) or (
+        isinstance(partitions_def, MultiPartitionsDefinition) and any(isinstance(d.partitions_def, TimeWindowPartitionsDefinition) for d in partitions_def.partitions_defs))
+    for n in sorted(names):
+        if n == "partition_key":
+            continue
+        if n in ("partition_start", "partition_end"):
+            if not timed:
+                raise ValueError(f"{what}: {{{n}}} needs a time-window partition (daily/weekly/monthly/hourly)")
+        elif n.startswith("partition_key.") and n.split(".", 1)[1] in dims:
+            continue
+        else:
+            raise ValueError(f"{what}: unknown placeholder {{{n}}}; valid: partition_key, partition_start, partition_end"
+                             + "".join(f", partition_key.{d}" for d in dims))
 
 
 # ── chunk op ────────────────────────────────────────────────────────────
@@ -1345,7 +1504,7 @@ _IDENT_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _TABLE_RE = re.compile(r"^`?[A-Za-z0-9_\-]+`?(\.`?[A-Za-z0-9_\-]+`?){0,3}$")
 _MODEL_RE = re.compile(r"^[A-Za-z0-9_\-./:]+$")
 _SQL_RESERVED_COLUMNS = {
-    "chunk_id", "chunk_text", "chunk_index", "content_hash", "category", "embedding", "content", "source_asset_key",
+    "chunk_id", "chunk_text", "chunk_index", "content_hash", "category", "embedding", "content", "category_signature", "embedding_model", "source_asset_key",
     "source_version", "source_partition", "source_code_version", "feedback_retrievals", "feedback_rated",
     "feedback_mean_outcome", "feedback_cited", "feedback_prior", "feedback_quarantined",
     "ml_generate_embedding_result", "ml_generate_embedding_statistics", "ml_generate_embedding_status",
@@ -1411,6 +1570,18 @@ def _sql_embed_expr(dialect: str, text_expr: str, model: Optional[str]) -> str:
     if dialect == "bigquery":
         raise ValueError("BigQuery embeds with the ML.GENERATE_EMBEDDING table function, not a scalar expression")
     raise ValueError(f"unsupported sql_dialect: {dialect!r}")
+
+
+def _sql_embed_model_id(dialect: str, model: Optional[str]) -> str:
+    """The model identity stored next to every embedding (column embedding_model): a stored vector is only reused under the same one."""
+    if dialect == "bigquery":
+        return model or "embedding_model"
+    return model or ("snowflake-arctic-embed-m" if dialect == "snowflake_cortex" else "databricks-gte-large-en")
+
+
+def _sql_category_signature(candidate_labels: List[str]) -> str:
+    """Identity of the label set (column category_signature): a stored category is only reused under the same labels, in the same order."""
+    return hashlib.sha256(json.dumps([str(x) for x in candidate_labels]).encode("utf-8")).hexdigest()[:16]
 
 
 def _sql_hash_expr(dialect: str, text_expr: str) -> str:
@@ -1557,6 +1728,8 @@ def _build_sql_mode_query(
     id_column: str, text_column: str, metadata_columns: List[str],
     *, asset_name: str = "", code_version: str = "", partition: Optional[str] = None,
     stamp_provenance: bool = False, receipts: Optional[Dict[str, Any]] = None, since: Optional[str] = None,
+    incremental: bool = False, reuse: Optional[Dict[str, bool]] = None, counts_only: bool = False,
+    write: str = "replace_table", stage_table: Optional[str] = None,
 ) -> str:
     """Build the single CREATE OR REPLACE TABLE statement implementing chunk -> (stamp, receipts feedback) -> classify -> embed natively in the
     warehouse, in that warehouse's own SQL dialect. write_vector_store has no SQL equivalent (there's no in-warehouse vector index for these
@@ -1565,13 +1738,29 @@ def _build_sql_mode_query(
 
     Output columns: <id_column>, chunk_text, chunk_index, <metadata_columns>, chunk_id, content_hash; with stamp_provenance also
     source_asset_key / source_version / source_partition / source_code_version; with receipts feedback_* (see _validate_receipts); then
-    category (classify) and embedding (embed)."""
+    category + category_signature (classify) and embedding + embedding_model (embed).
+
+    incremental=True: the AI functions only see chunks with no reusable value. `reuse` = {"embed": bool, "classify": bool} says which
+    features may read prior values from the EXISTING output table (the caller probed that it exists and has the needed columns; a missing
+    table cannot be referenced by the statement at all). A prior value is reusable when its content_hash matches AND its embedding_model /
+    category_signature equals the current one, so a changed model or label set re-computes everything. The statement stays one atomic CREATE OR
+    REPLACE: chunk -> stamp -> (receipts) -> per feature [prior values (one row per content_hash) | todo = distinct chunk texts with no prior
+    value -> AI function over todo only] -> join back on content_hash. counts_only=True returns instead a SELECT of total_rows /
+    new_embeddings / new_categories (chunks that will be computed) over the same CTEs, without running any AI function.
+
+    write: 'replace_table' (CREATE OR REPLACE TABLE <output_table>: unpartitioned runs), 'create_table' (CREATE TABLE <output_table>: the first
+    partition run, the table must not exist) or 'stage' (CREATE OR REPLACE TABLE <stage_table>: later partition runs, which then swap only their own
+    rows into output_table, see _run_sql_mode). A partitioned run (partition is not None) always writes source_partition."""
     if dialect not in _SQL_DIALECTS:
         raise ValueError(f"unsupported sql_dialect: {dialect!r}")
+    if write not in ("replace_table", "create_table", "stage") or (write == "stage") != (stage_table is not None):
+        raise ValueError("write must be replace_table / create_table, or stage together with stage_table")
     chunk_step = next(s for s in steps_cfg if s["op"] == "chunk")
     classify_step = next((s for s in steps_cfg if s["op"] == "classify"), None)
     embed_step = next((s for s in steps_cfg if s["op"] == "embed"), None)
     out_tbl = _sql_table(output_table, "output_table")
+    target = {"replace_table": f"CREATE OR REPLACE TABLE {out_tbl}", "create_table": f"CREATE TABLE {out_tbl}",
+              "stage": f"CREATE OR REPLACE TABLE {stage_table}"}[write]
     id_col = _sql_ident(id_column, "id_column")
     text_col = _sql_ident(text_column, "text_column")
     metas = [_sql_ident(c, "metadata_columns entry") for c in metadata_columns]
@@ -1647,34 +1836,101 @@ def _build_sql_mode_query(
             f"  FROM {cur}")))
         cols += ["source_asset_key", "source_version", "source_partition", "source_code_version"]
         cur = "versioned"
+    elif partition is not None:
+        # a partitioned run must always say which partition owns each row: that is what lets a later run replace only its own rows
+        ctes.append(("versioned", f"SELECT {cols_sql(cur, cols)}, {_sql_str(partition)} AS source_partition\n  FROM {cur}"))
+        cols += ["source_partition"]
+        cur = "versioned"
 
-    scalar_extra: List[str] = []
+    reuse = reuse or {}
+    sig = None
+    classify_expr_for = None
     if classify_step is not None:
         candidate_labels = classify_step.get("candidate_labels")
         if not candidate_labels:
             raise ValueError("classify step in execution_mode='sql' requires `candidate_labels`.")
-        classify_expr = _sql_classify_expr(dialect, f"{cur}.chunk_text", candidate_labels)
+        sig = _sql_category_signature(candidate_labels)
+        classify_expr_for = lambda t: _sql_classify_expr(dialect, t, candidate_labels)  # noqa: E731
+    model = embed_model_id = None
+    if embed_step is not None:
+        model = embed_step.get("model") or ("embedding_model" if dialect == "bigquery" else None)
+        if dialect == "bigquery" and (not isinstance(model, str) or not _MODEL_RE.match(model)):
+            raise ValueError(f"execution_mode='sql': embed model {model!r} is not a valid BigQuery model reference (project.dataset.model)")
+        embed_model_id = _sql_embed_model_id(dialect, embed_step.get("model"))
+
+    if incremental and (classify_step is not None or embed_step is not None):
+        sel = [cols_sql("b", cols)]
+        joins: List[str] = []
+        counts: List[str] = [f"(SELECT COUNT(*) FROM {cur}) AS total_rows"]
+
+        def feature(tag: str, value_col: str, tag_col: str, tag_val: str, fresh_select: str, can_reuse: bool, extra_where: str = "") -> None:
+            # prior_<tag>: the reusable earlier values (one row per content_hash); todo_<tag>: distinct chunk texts without one;
+            # new_<tag>: the AI function over todo only; all_<tag>: prior + new, joined back onto every chunk
+            if can_reuse:
+                ctes.append((f"prior_{tag}", (
+                    f"SELECT content_hash, {value_col}\n  FROM {out_tbl}\n  WHERE {tag_col} = {_sql_str(tag_val)} AND {value_col} IS NOT NULL{extra_where}\n"
+                    f"  QUALIFY ROW_NUMBER() OVER (PARTITION BY content_hash ORDER BY chunk_id) = 1")))
+                ctes.append((f"todo_{tag}", (
+                    f"SELECT DISTINCT b.content_hash, b.chunk_text\n  FROM {cur} AS b\n"
+                    f"  LEFT JOIN prior_{tag} AS p ON p.content_hash = b.content_hash\n  WHERE p.content_hash IS NULL")))
+            else:
+                ctes.append((f"todo_{tag}", f"SELECT DISTINCT b.content_hash, b.chunk_text\n  FROM {cur} AS b"))
+            counts.append(f"(SELECT COUNT(*) FROM {cur} AS b JOIN todo_{tag} AS t ON t.content_hash = b.content_hash) AS new_{'categories' if tag == 'category' else 'embeddings'}")
+            if counts_only:
+                return
+            ctes.append((f"new_{tag}", fresh_select))
+            union = f"SELECT content_hash, {value_col} FROM new_{tag}"
+            if can_reuse:
+                union = f"SELECT content_hash, {value_col} FROM prior_{tag}\n  UNION ALL\n  {union}"
+            ctes.append((f"all_{tag}", union))
+            joins.append(f"LEFT JOIN all_{tag} AS {tag[0]}_ ON {tag[0]}_.content_hash = b.content_hash")
+
+        if classify_step is not None:
+            feature("category", "category", "category_signature", sig,
+                    f"SELECT content_hash, {classify_expr_for('todo_category.chunk_text')} AS category\n  FROM todo_category",
+                    bool(reuse.get("classify")))
+            sel += ["c_.category AS category", f"{_sql_str(sig)} AS category_signature"]
+        if embed_step is not None:
+            if dialect == "bigquery":
+                fresh = (f"SELECT content_hash, ml_generate_embedding_result AS embedding\n"
+                         f"  FROM ML.GENERATE_EMBEDDING(MODEL `{model}`,\n"
+                         f"    (SELECT content_hash, chunk_text AS content FROM todo_embedding),\n"
+                         f"    STRUCT(TRUE AS flatten_json_output))")
+            else:
+                fresh = f"SELECT content_hash, {_sql_embed_expr(dialect, 'todo_embedding.chunk_text', embed_step.get('model'))} AS embedding\n  FROM todo_embedding"
+            feature("embedding", "embedding", "embedding_model", embed_model_id, fresh, bool(reuse.get("embed")),
+                    " AND ARRAY_LENGTH(embedding) > 0" if dialect == "bigquery" else "")
+            sel += ["e_.embedding AS embedding", f"{_sql_str(embed_model_id)} AS embedding_model"]
+        with_ = ",\n".join(f"{n} AS (\n  {b}\n)" for n, b in ctes)
+        if counts_only:
+            return f"WITH {with_}\nSELECT {', '.join(counts)}"
+        final = f"SELECT {', '.join(sel)}\nFROM {cur} AS b\n" + "\n".join(joins)
+        return f"{target} AS\nWITH {with_}\n{final}"
+
+    if counts_only:
+        raise ValueError("counts_only needs incremental=True and a classify or embed step")
+    scalar_extra: List[str] = []
+    if classify_step is not None:
+        classify_expr = classify_expr_for(f"{cur}.chunk_text")
         if dialect == "bigquery" and embed_step is not None:
-            ctes.append(("classified", f"SELECT {cols_sql(cur, cols)}, {classify_expr} AS category\n  FROM {cur}"))
-            cols.append("category")
+            ctes.append(("classified", f"SELECT {cols_sql(cur, cols)}, {classify_expr} AS category, {_sql_str(sig)} AS category_signature\n  FROM {cur}"))
+            cols += ["category", "category_signature"]
             cur = "classified"
         else:
-            scalar_extra.append(f"{classify_expr} AS category")
+            scalar_extra += [f"{classify_expr} AS category", f"{_sql_str(sig)} AS category_signature"]
 
     with_ = ",\n".join(f"{n} AS (\n  {b}\n)" for n, b in ctes)
     if embed_step is not None and dialect == "bigquery":
-        model = embed_step.get("model") or "embedding_model"
-        if not isinstance(model, str) or not _MODEL_RE.match(model):
-            raise ValueError(f"execution_mode='sql': embed model {model!r} is not a valid BigQuery model reference (project.dataset.model)")
-        final = (f"SELECT {', '.join(cols)}, ml_generate_embedding_result AS embedding\n"
+        final = (f"SELECT {', '.join(cols)}, ml_generate_embedding_result AS embedding, {_sql_str(embed_model_id)} AS embedding_model\n"
                  f"FROM ML.GENERATE_EMBEDDING(MODEL `{model}`,\n"
                  f"  (SELECT {cols_sql(cur, cols)}, {cur}.chunk_text AS content FROM {cur}),\n"
                  f"  STRUCT(TRUE AS flatten_json_output))")
     else:
         if embed_step is not None:
-            scalar_extra.append(f"{_sql_embed_expr(dialect, f'{cur}.chunk_text', embed_step.get('model'))} AS embedding")
+            scalar_extra += [f"{_sql_embed_expr(dialect, f'{cur}.chunk_text', embed_step.get('model'))} AS embedding",
+                             f"{_sql_str(embed_model_id)} AS embedding_model"]
         final = "SELECT " + ", ".join([cols_sql(cur, cols)] + scalar_extra) + f"\nFROM {cur}"
-    return f"CREATE OR REPLACE TABLE {out_tbl} AS\nWITH {with_}\n{final}"
+    return f"{target} AS\nWITH {with_}\n{final}"
 
 
 # ── Receipts feedback: let what was retrieved and how it turned out shape the next build ─────────────────────
@@ -1913,31 +2169,144 @@ def _sql_fetch_outcomes_by_code_version(context, source_cfg: dict, rcfg: Dict[st
     return {r[0]: {"receipts": int(r[1]), "outcomes": int(r[2]), "mean_outcome": None if r[3] is None else float(r[3])} for r in rows}
 
 
+def _sql_table_columns(session, dialect: str, tbl: str, context=None) -> List[str]:
+    """Column names of `tbl` in ordinal order, [] when it does not exist (INFORMATION_SCHEMA.COLUMNS, so a missing table is not an exception)."""
+    parts = [p.strip("`") for p in tbl.split(".")]
+    name, schema = parts[-1], parts[-2] if len(parts) >= 2 else None
+    if schema is None:
+        if dialect == "bigquery":
+            raise ValueError(f"table {tbl!r} has no dataset part; BigQuery tables need dataset.table")
+        schema_pred = f"LOWER(table_schema) = LOWER({'CURRENT_SCHEMA()' if dialect == 'snowflake_cortex' else 'current_schema()'})"
+    else:
+        schema_pred = f"LOWER(table_schema) = LOWER({_sql_str(schema)})"
+    if dialect == "bigquery":
+        info = f"`{'.'.join(parts[:-2] + [schema])}`.INFORMATION_SCHEMA.COLUMNS"
+    else:  # Snowflake / Databricks: a 3-part name selects that database's / catalog's information_schema, otherwise the current one
+        info = (f"{parts[-3]}." if len(parts) >= 3 else "") + "information_schema.columns"
+    return [str(r[0]) for r in session.fetch(
+        f"SELECT column_name FROM {info} WHERE {schema_pred} AND LOWER(table_name) = LOWER({_sql_str(name)}) ORDER BY ordinal_position")]
+
+
+def _sql_probe_prior_table(session, dialect: str, out_tbl: str, classify_step: Optional[dict], embed_step: Optional[dict], context,
+                           columns: Optional[List[str]] = None) -> Tuple[Dict[str, bool], int]:
+    """Which features can read their prior values from the existing output table: {"embed": bool, "classify": bool}, plus its row count.
+    A missing table (first run) or one without the needed columns (built by an older version of this component, or before the step existed)
+    reports False for the feature, so that feature is built in full."""
+    if columns is None:
+        try:
+            columns = _sql_table_columns(session, dialect, out_tbl, context)
+        except ValueError as e:
+            context.log.warning(f"incremental: {e}; building in full")
+            return {"embed": False, "classify": False}, 0
+    have = {c.lower() for c in columns}
+    base = {"chunk_id", "content_hash"}
+    reuse = {"embed": embed_step is not None and (base | {"embedding", "embedding_model"}) <= have,
+             "classify": classify_step is not None and (base | {"category", "category_signature"}) <= have}
+    prior_rows = int(session.fetch(f"SELECT COUNT(*) FROM {out_tbl}")[0][0]) if any(reuse.values()) else 0
+    if have and not any(reuse.values()):
+        context.log.info(f"incremental: {out_tbl} exists but lacks the columns needed for reuse (built by an older version?); rebuilding in full")
+    return reuse, prior_rows
+
+
+def _sql_stage_table(out_tbl: str, partition_label: str) -> str:
+    parts = out_tbl.split(".")
+    parts[-1] = f"{parts[-1].strip('`')}__stage_{hashlib.md5(partition_label.encode('utf-8')).hexdigest()[:8]}"
+    return ".".join(p.strip("`") for p in parts)
+
+
+def _sql_swap_partition_script(dialect: str, out_tbl: str, stage: str, cols: List[str], label: str, keys: List[str]) -> List[str]:
+    """The statements that replace ONLY this run's partition rows of out_tbl with the stage table's rows. BigQuery: one transaction script.
+    Snowflake: BEGIN / DELETE / INSERT / COMMIT as separate statements (one connection). Databricks (Delta): one atomic INSERT ... REPLACE WHERE."""
+    owned = sorted(set([label] + list(keys)))
+    cond = f"source_partition IN ({', '.join(_sql_str(k) for k in owned)})"
+    col_list = ", ".join(cols)
+    insert = f"INSERT INTO {out_tbl} ({col_list}) SELECT {col_list} FROM {stage}"
+    if dialect == "databricks":
+        return [f"INSERT INTO {out_tbl} REPLACE WHERE {cond} SELECT {col_list} FROM {stage}"]
+    delete = f"DELETE FROM {out_tbl} WHERE {cond}"
+    if dialect == "bigquery":
+        return [f"BEGIN TRANSACTION;\n{delete};\n{insert};\nCOMMIT TRANSACTION;"]
+    return ["BEGIN", delete, insert, "COMMIT"]
+
+
 def _run_sql_mode(
     context, steps_cfg: List[dict], source_cfg: dict, dialect: str, output_table: str,
     id_column: str, text_column: str, metadata_columns: List[str],
     *, asset_name: str = "", code_version: str = "", stamp_provenance: bool = False, emit_data_version: bool = True,
-    receipts_cfg: Optional[Dict[str, Any]] = None,
+    receipts_cfg: Optional[Dict[str, Any]] = None, incremental: bool = True,
 ) -> Output:
-    partition = context.partition_key if context.has_partition_key else None
-    sql = _build_sql_mode_query(steps_cfg, source_cfg, dialect, output_table, id_column, text_column, metadata_columns,
-                                asset_name=asset_name, code_version=code_version, partition=partition,
-                                stamp_provenance=stamp_provenance, receipts=receipts_cfg)
+    partition, partition_keys = _partition_label_and_keys(context)
+    source_cfg = {**source_cfg, "sql": _bind_partition_placeholders(source_cfg["sql"], context, _sql_str)}
     resource_key = source_cfg["resource_key"]
     resource = getattr(context.resources, resource_key)
     out_tbl = _sql_table(output_table, "output_table")
-
-    context.log.info(f"execution_mode='sql' ({dialect}): running server-side chunk/classify/embed into {output_table}")
+    classify_step = next((s for s in steps_cfg if s["op"] == "classify"), None)
+    embed_step = next((s for s in steps_cfg if s["op"] == "embed"), None)
+    incremental = bool(incremental and (classify_step or embed_step))
+    kw = dict(asset_name=asset_name, code_version=code_version, partition=partition, stamp_provenance=stamp_provenance, receipts=receipts_cfg)
     q = (receipts_cfg or {}).get("quarantine")
+    # every read-back below describes THIS partition's rows only (the table also holds the other partitions)
+    scope = f" WHERE source_partition = {_sql_str(partition)}" if partition is not None else ""
+    reuse: Dict[str, bool] = {}
+    prior_rows = 0
+    inc_counts: Optional[Dict[str, int]] = None
     with _sql_session(resource, resource_key) as session:
-        session.execute(sql)
-        row_count = int(session.fetch(f"SELECT COUNT(*) FROM {out_tbl}")[0][0])
+        columns = _sql_table_columns(session, dialect, out_tbl, context) if (incremental or partition is not None) else None
+        if incremental:
+            reuse, prior_rows = _sql_probe_prior_table(session, dialect, out_tbl, classify_step, embed_step, context, columns=columns)
+        build = lambda **extra: _build_sql_mode_query(  # noqa: E731
+            steps_cfg, source_cfg, dialect, output_table, id_column, text_column, metadata_columns,
+            incremental=incremental, reuse=reuse, **kw, **extra)
+        if incremental and any(reuse.values()):
+            # chunks that will pay for an AI call, counted BEFORE the table is changed (afterwards the prior values are gone)
+            row = session.fetch(build(counts_only=True))[0]
+            names = [n for n, on in (("categories", classify_step), ("embeddings", embed_step)) if on]
+            inc_counts = {"total": int(row[0])}
+            for i, name in enumerate(names, start=1):
+                inc_counts[name] = int(row[i])
+        context.log.info(f"execution_mode='sql' ({dialect}): running server-side chunk/classify/embed into {output_table}"
+                         + (f" (partition {partition!r})" if partition is not None else "")
+                         + (f" (incremental, reusing prior: {reuse})" if incremental else ""))
+        if partition is None:
+            sql = build()
+            session.execute(sql)
+        elif not columns:
+            sql = build(write="create_table")          # first partition run: nothing to preserve
+            session.execute(sql)
+        else:
+            if "source_partition" not in {c.lower() for c in columns}:
+                raise ValueError(f"{output_table} exists but has no source_partition column (built by an unpartitioned run or an older version), so this "
+                                 "partition's rows cannot be told apart from the rest. Drop or rename it once and re-run.")
+            stage = _sql_stage_table(out_tbl, partition)
+            sql = build(write="stage", stage_table=stage)
+            try:
+                session.execute(sql)                   # the AI calls happen here; output_table is untouched if this fails
+                stage_cols = _sql_table_columns(session, dialect, stage, context)
+                missing = [c for c in stage_cols if c.lower() not in {x.lower() for x in columns}]
+                if missing:
+                    raise ValueError(f"{output_table} lacks column(s) {missing} that this recipe now writes (a step or option changed since the table "
+                                     "was built). Drop or alter the table once and re-run; the other partitions' rows are untouched.")
+                if dialect == "databricks" and [c.lower() for c in stage_cols] != [c.lower() for c in columns]:
+                    raise ValueError(f"{output_table}'s columns {columns} differ from what this recipe writes {stage_cols}; INSERT ... REPLACE WHERE matches by "
+                                     "position, so it will not run against a table with another column set or order. Drop or alter the table once and re-run.")
+                for stmt in _sql_swap_partition_script(dialect, out_tbl, stage, stage_cols, partition, partition_keys):
+                    try:
+                        session.execute(stmt)
+                    except Exception:
+                        if dialect == "snowflake_cortex":
+                            with contextlib.suppress(Exception):
+                                session.execute("ROLLBACK")
+                        raise
+            finally:
+                with contextlib.suppress(Exception):
+                    session.execute(f"DROP TABLE IF EXISTS {stage}")
+        row_count = int(session.fetch(f"SELECT COUNT(*) FROM {out_tbl}{scope}")[0][0])
         # Read the content version back (same aggregate the statement stamped as source_version).
-        content_version = session.fetch(f"SELECT {_sql_version_agg(dialect)} FROM {out_tbl}")[0][0]
+        content_version = session.fetch(f"SELECT {_sql_version_agg(dialect)} FROM {out_tbl}{scope}")[0][0]
         fb_counts = None
         if receipts_cfg is not None and receipts_cfg.get("stamp", True):
             quarantined = f", {_sql_count_if(dialect, 'feedback_quarantined')}" if q and q["mode"] == "flag" else ""
-            row = session.fetch(f"SELECT {_sql_count_if(dialect, 'feedback_retrievals > 0')}{quarantined} FROM {out_tbl}")[0]
+            row = session.fetch(f"SELECT {_sql_count_if(dialect, 'feedback_retrievals > 0')}{quarantined} FROM {out_tbl}{scope}")[0]
             fb_counts = {"chunks_with_feedback": int(row[0]), "quarantined": int(row[1]) if quarantined else None}
 
     metadata: Dict[str, Any] = {
@@ -1947,8 +2316,22 @@ def _run_sql_mode(
         "output_table": MetadataValue.text(output_table),
         "generated_sql": MetadataValue.md(f"```sql\n{sql}\n```"),
     }
+    if partition is not None:
+        metadata["source_partition"] = MetadataValue.text(partition)
     if content_version is not None:
         metadata["context_version"] = MetadataValue.text(str(content_version))
+    if incremental:
+        for name, step, key in (("embeddings", embed_step, "embed"), ("categories", classify_step, "classify")):
+            if step is None:
+                continue
+            new = inc_counts[name] if inc_counts else row_count
+            metadata[f"reused_{name}"] = MetadataValue.int(row_count - new)
+            metadata[f"new_{name}"] = MetadataValue.int(new)
+            if reuse.get(key) and prior_rows > 0 and row_count - new == 0 and row_count > 0:
+                context.log.warning(
+                    f"incremental: the prior {output_table} has {prior_rows} row(s) but none of their {name} could be reused. "
+                    f"Expected only if the {'embed model' if key == 'embed' else 'candidate_labels'} changed or every chunk's text changed; "
+                    "otherwise check that chunking/ids are stable and the table was not rebuilt by another recipe.")
     if receipts_cfg is not None:
         metadata["receipts_scoped_to_recipe"] = MetadataValue.text(code_version if receipts_cfg.get("scope_to_recipe", True) else "all recipes")
         metadata["receipts_quarantine_mode"] = MetadataValue.text(q["mode"] if q else "off")
@@ -2112,6 +2495,18 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         default=None,
         description="Required when execution_mode='sql'. Fully-qualified destination table name the final chunk/category/embedding rows are written to, in the same database (CREATE OR REPLACE TABLE ... AS ...) -- the knowledge base never leaves the warehouse.",
     )
+    incremental: bool = Field(
+        default=True,
+        description=(
+            "execution_mode='sql' only (ignored in python mode, which has embed `reuse_from`). Re-use the embeddings and categories already in "
+            "`output_table` instead of paying the warehouse AI function for the whole corpus on every run. A chunk's prior embedding is reused when "
+            "its content_hash matches AND the stored embedding_model equals the current model; a prior category when the content_hash matches AND "
+            "the stored category_signature (hash of candidate_labels) equals the current one -- so a changed model or label set recomputes everything. "
+            "Only chunks with no reusable value reach ML.GENERATE_EMBEDDING / Cortex / ai_query / classify. The statement is still one atomic CREATE OR "
+            "REPLACE TABLE. The first run (no table), or a table lacking the needed columns (built by an older version), builds in full. "
+            "Set false to recompute everything every run. Materialization metadata: reused_embeddings, new_embeddings, reused_categories, new_categories."
+        ),
+    )
     steps: List[Dict[str, Any]] = Field(
         description=(
             "Ordered list of {id, op, ...op-specific fields} dicts. Each step's `source:` "
@@ -2208,6 +2603,28 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
     partition_start: Optional[str] = Field(default=None, description="Partition start date (ISO), required for time-based types.")
     partition_values: Optional[Union[str, List[str]]] = Field(default=None, description="Comma-separated values for static partitioning.")
     dynamic_partition_name: Optional[str] = Field(default=None, description="Name for DynamicPartitionsDefinition.")
+    partition_dimensions: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts (type: daily/weekly/monthly/hourly/static/dynamic). "
+            "One entry is a single axis; several make a MultiPartitionsDefinition. Mutually exclusive with the flat partition_* fields. "
+            "In execution_mode='sql', `source.sql` can use {partition_key.<name>} for each axis."
+        ),
+    )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'multi_run' launches one run per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run); 'single_run' materializes a whole backfill range in one run. Leave unset for Dagster's default "
+            "(one run per partition). Ignored when the asset is not partitioned. In execution_mode='sql', single_run is only allowed when `source.sql` "
+            "uses both {partition_start} and {partition_end} (the query must itself select the whole range) and the asset is not multi-dimension; "
+            "otherwise the build raises."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -2257,8 +2674,25 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             raise ValueError("context_engineering_pipeline: set one of `upstream_asset_key` or `source`.")
 
         partitions_def = _build_partitions_def(
-            self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name,
+            self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name, self.partition_dimensions,
         )
+        if self.source and self.source.get("sql"):
+            _validate_partition_placeholders(self.source["sql"], partitions_def)
+        backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            from dagster import MultiPartitionsDefinition
+            used = set(_sql_placeholders((self.source or {}).get("sql", "")))
+            if execution_mode == "sql":
+                if isinstance(partitions_def, MultiPartitionsDefinition):
+                    raise ValueError("backfill_policy='single_run' is not supported with multi-dimension partitions in execution_mode='sql'; use multi_run.")
+                if not {"partition_start", "partition_end"} <= used:
+                    raise ValueError(
+                        "execution_mode='sql' with backfill_policy='single_run' is only safe when `source.sql` selects the whole backfill range with "
+                        "{partition_start} and {partition_end} (otherwise the run would read the full source or just one partition and stamp it as the range). "
+                        "Use those placeholders, or backfill_policy='multi_run'.")
+            backfill_policy_obj = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            backfill_policy_obj = BackfillPolicy.multi_run(max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1)
 
         freshness_policy = None
         if self.freshness_max_lag_minutes is not None:
@@ -2294,6 +2728,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         source_cfg = self.source
         sql_dialect = self.sql_dialect
         output_table = self.output_table
+        incremental = self.incremental
 
         context_policy = _validate_context_policy(self.context_policy) if self.context_policy else None
         retrieval_eval = None
@@ -2322,6 +2757,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             retry_policy=retry_policy,
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
+            backfill_policy=backfill_policy_obj,
         )
         check_specs: List[Any] = []
         if retrieval_eval is not None:
@@ -2345,11 +2781,13 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             asset_kwargs["required_resource_keys"] = _resource_keys
 
         if execution_mode == "sql":
-            @asset(**asset_kwargs)
+            # The table IS the output; there is nothing for an IO manager to persist (and a single_run backfill needs that: an IO manager
+            # cannot store one value for several partitions). dagster_type=Nothing opts out.
+            @asset(dagster_type=Nothing, **asset_kwargs)
             def _sql_asset(context: AssetExecutionContext):
                 yield _run_sql_mode(context, steps_cfg, source_cfg, sql_dialect, output_table, id_column, text_column, metadata_columns,
                                     asset_name=asset_name, code_version=recipe_code_version, stamp_provenance=stamp_provenance,
-                                    emit_data_version=emit_data_version, receipts_cfg=receipts_cfg)
+                                    emit_data_version=emit_data_version, receipts_cfg=receipts_cfg, incremental=incremental)
                 if receipts_cfg is not None and receipts_cfg.get("regression_check"):
                     by_cv = _sql_fetch_outcomes_by_code_version(context, source_cfg, receipts_cfg, asset_name)
                     yield _run_recipe_outcomes_check(receipts_cfg, asset_name, recipe_code_version, context, outcomes_by_cv=by_cv)

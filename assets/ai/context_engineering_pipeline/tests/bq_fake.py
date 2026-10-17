@@ -21,6 +21,8 @@ import duckdb
 import sqlglot
 from sqlglot import exp
 
+from . import ai_stubs
+
 
 class Row(dict):
     """google.cloud.bigquery.table.Row: access by key, attribute, or index."""
@@ -119,14 +121,18 @@ class FakeBigQueryClient:
         self.con = duckdb.connect()
         _OPEN.add(self)
         self.queries: List[str] = []
+        self.con.execute("CREATE VIEW bq_info_schema_columns AS SELECT * FROM information_schema.columns")
+        self.ai = ai_stubs.register(self.con)        # call-counting stand-ins for ML.GENERATE_EMBEDDING / AI.CLASSIFY
 
     # -- SQL ----------------------------------------------------------------------------------------------
     def _to_duckdb(self, sql: str) -> str:
-        sql = _strip_project(sql, self.project)
+        sql = ai_stubs.rewrite_text(_strip_project(sql, self.project))
+        # `ds`.INFORMATION_SCHEMA.COLUMNS: DuckDB has one global information_schema (table_schema = the dataset), so the dataset qualifier goes
+        sql = re.sub(r"`?[\w\-.]+`?\.INFORMATION_SCHEMA\.COLUMNS", "bq_info_schema_columns", sql)
         out = []
         for stmt in sqlglot.parse(sql, read="bigquery"):       # raises ParseError for SQL that is not valid BigQuery
             if stmt is not None:
-                out.append(_sha2_is_already_hex(_zero_based_offsets(stmt)).sql(dialect="duckdb"))
+                out.append(ai_stubs.rewrite_bigquery(_sha2_is_already_hex(_zero_based_offsets(stmt))).sql(dialect="duckdb"))
         return "; ".join(out)
 
     def query(self, sql: str, job_config=None, **kw) -> _Job:

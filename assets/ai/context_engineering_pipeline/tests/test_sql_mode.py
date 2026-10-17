@@ -84,7 +84,8 @@ def test_single_quotes_and_backslashes_in_labels_and_models_are_escaped(mod):
     labels = [lit.name for lit in tree.find_all(sqlglot.exp.Literal) if lit.is_string and "--" in lit.name]
     assert labels == ["x'], 1) --"]          # one literal, quote did not terminate it
     sf = build(mod, "snowflake_cortex", steps=[STEPS_FULL[0], {"id": "e", "op": "embed", "model": "m', 'x"}])
-    assert [lit.name for lit in sqlglot.parse_one(sf, read="snowflake").find_all(sqlglot.exp.Literal) if "m'" in lit.name] == ["m', 'x"]
+    # the model literal appears twice: the embed call and the embedding_model column; both must be one intact literal
+    assert {lit.name for lit in sqlglot.parse_one(sf, read="snowflake").find_all(sqlglot.exp.Literal) if "m'" in lit.name} == {"m', 'x"}
     with pytest.raises(ValueError, match="BigQuery model"):
         build(mod, "bigquery", steps=[STEPS_FULL[0], {"id": "e", "op": "embed", "model": "m` ) --"}])
 
@@ -176,7 +177,10 @@ def test_stamp_provenance_false_omits_source_columns_but_keeps_ids(mod):
     c = make_client()
     c.query(build(mod, "bigquery", steps=CHUNK_ONLY, stamp=False))
     cols = set(rows(c, "SELECT * FROM ds.kb")[0])
-    assert {"chunk_id", "content_hash", "chunk_text", "chunk_index", "id", "cust"} == cols
+    assert {"chunk_id", "content_hash", "chunk_text", "chunk_index", "id", "cust", "source_partition"} == cols   # a partitioned run always stamps its partition
+    c2 = make_client()
+    c2.query(mod._build_sql_mode_query(CHUNK_ONLY, SRC, "bigquery", "ds.kb", "id", "body", ["cust"], asset_name="kb", code_version="v1", stamp_provenance=False))
+    assert {"chunk_id", "content_hash", "chunk_text", "chunk_index", "id", "cust"} == set(rows(c2, "SELECT * FROM ds.kb")[0])   # unpartitioned: none
 
 
 def test_content_version_changes_with_content_only(mod):

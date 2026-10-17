@@ -32,7 +32,7 @@
       "type": "object",
       "label": "Source",
       "required": false,
-      "description": "Pull raw text rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource>, sql: <query>}. Works out of the box with duckdb_resource and any resource exposing .get_engine() or .get_connection(). Mutually exclusive with `upstream_asset_key` -- set exactly one."
+      "description": "Pull raw text rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource>, sql: <query>}. Works out of the box with duckdb_resource and any resource exposing .get_engine() or .get_connection(). Mutually exclusive with `upstream_asset_key` -- set exactly one. On a partitioned asset `sql` may use {partition_key}, {partition_start}, {partition_end} (time-window partitions) and {partition_key.<dim>} (multi-axis); each is replaced by a complete escaped SQL string literal, so write `WHERE d = {partition_key}` without quotes. `{{` / `}}` are literal braces."
     },
     "id_column": {
       "type": "string",
@@ -81,6 +81,13 @@
       "label": "Output Table",
       "required": false,
       "description": "Required when execution_mode='sql'. Fully-qualified destination table the resulting knowledge base is written to, in the same database."
+    },
+    "incremental": {
+      "type": "boolean",
+      "label": "Incremental (SQL mode)",
+      "required": false,
+      "default": true,
+      "description": "execution_mode='sql' only. Reuse the embeddings and categories already in the output table instead of paying the warehouse AI function for the whole corpus every run. A prior embedding is reused when the chunk's content_hash matches and the stored embedding_model equals the current model; a prior category when content_hash matches and the stored category_signature (hash of candidate_labels) equals the current one. Only chunks without a reusable value reach the AI function. The first run, or a table lacking the needed columns, builds in full. Set false to recompute everything every run."
     },
     "steps": {
       "type": "array",
@@ -135,6 +142,9 @@
     "partition_start": { "type": "string", "label": "Partition Start", "required": false, "description": "Partition start date (ISO), required for time-based types." },
     "partition_values": { "type": "string", "label": "Partition Values", "required": false, "description": "Comma-separated values for static partitioning." },
     "dynamic_partition_name": { "type": "string", "label": "Dynamic Partition Name", "required": false, "description": "Name for DynamicPartitionsDefinition." },
+    "partition_dimensions": { "type": "array", "items": { "type": "object" }, "label": "Partition Dimensions", "required": false, "default": null, "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts (type: daily/weekly/monthly/hourly/static/dynamic). One entry is a single axis; several make a MultiPartitionsDefinition. Mutually exclusive with the flat partition_* fields. In execution_mode='sql', `source.sql` can use {partition_key.<name>} for each axis." },
+    "backfill_policy": { "type": "string", "label": "Backfill Policy", "required": false, "default": null, "enum": ["single_run", "multi_run"], "ui:widget": "select", "description": "Backfill execution strategy for a partitioned asset. 'multi_run' launches one run per partition (optionally capped via Backfill Max Partitions Per Run); 'single_run' materializes a whole backfill range in one run. Leave empty for Dagster's default (one run per partition). Ignored when the asset is not partitioned. In execution_mode='sql', single_run is only allowed when `source.sql` uses both {partition_start} and {partition_end} (the query must itself select the whole range) and the asset is not multi-dimension; otherwise the build raises." },
+    "backfill_policy_max_partitions_per_run": { "type": "integer", "label": "Backfill Max Partitions Per Run", "required": false, "default": null, "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1)." },
     "receipts": {
       "type": "object",
       "label": "Receipts",

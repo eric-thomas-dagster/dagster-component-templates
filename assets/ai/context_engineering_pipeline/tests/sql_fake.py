@@ -6,7 +6,7 @@ semantics of OUR logic (joins, windows, filters, JSON extraction, scoping); it i
 
 sqlglot's snowflake/databricks -> duckdb transpile mistranslates a handful of constructs. Each is patched NARROWLY in `_patch_duckdb`
 (on the transpiled text, never on the SQL under test), with the reason next to it. Where a construct has no DuckDB counterpart at all
-(the warehouse AI / splitter functions) a macro stands in so the surrounding statement can run:
+(the warehouse AI / splitter functions; the AI ones are call-counting UDFs from ai_stubs.py) a macro or UDF stands in so the surrounding statement can run:
   - SNOWFLAKE.CORTEX.SPLIT_TEXT_RECURSIVE_CHARACTER  -> `cortex_split`, a fixed-stride splitter (Cortex's real splitter is smarter)
   - Snowflake IS_ARRAY / Databricks FROM_JSON(.., 'array<string>') -> `is_array` / `from_json_strings`, JSON-array helpers
 Three-part names (DB.SCH.t / `cat`.`sch`.`t`) lose their first part: a DuckDB schema stands in for the catalog.schema pair's schema.
@@ -20,6 +20,8 @@ from typing import Any, List
 import duckdb
 import sqlglot
 from sqlglot import exp
+
+from . import ai_stubs
 
 _OPEN: "weakref.WeakSet" = weakref.WeakSet()
 
@@ -62,11 +64,17 @@ class FakeWarehouse:
         self.con.execute("SET TimeZone = 'UTC'")
         self.con.execute("CREATE MACRO cortex_split(t, m, size, ov) AS list_filter(list_transform("
                          "generate_series(1, greatest(length(t), 1), greatest(size - ov, 1)), p -> substr(t, p, size)), x -> length(trim(x)) > 0)")
+        self.ai = ai_stubs.register(self.con)        # call-counting stand-ins for the Cortex / ai_query / ai_classify functions
         self.con.execute("CREATE MACRO is_array(x) AS json_type(x) = 'ARRAY'")
         self.con.execute("CREATE MACRO from_json_strings(x) AS CAST(CAST(x AS JSON) AS VARCHAR[])")
 
     def to_duckdb(self, sql: str) -> str:
-        sql = sql.replace("SNOWFLAKE.CORTEX.SPLIT_TEXT_RECURSIVE_CHARACTER(", "cortex_split(")
+        # Delta `INSERT INTO t REPLACE WHERE cond SELECT ..` (atomic replace of the matching rows) has no DuckDB form: emulated as DELETE + INSERT.
+        # The atomicity is NOT modelled; only the resulting rows are.
+        m = re.match(r"\s*INSERT INTO (\S+) REPLACE WHERE (.*?) SELECT (.*)$", sql, re.S)
+        if m:
+            sql = f"DELETE FROM {m.group(1)} WHERE {m.group(2)}; INSERT INTO {m.group(1)} SELECT {m.group(3)}"
+        sql = ai_stubs.rewrite_text(sql.replace("SNOWFLAKE.CORTEX.SPLIT_TEXT_RECURSIVE_CHARACTER(", "cortex_split("))
         out = []
         for stmt in sqlglot.parse(sql, read=self.read):             # raises ParseError for SQL that is not valid in the dialect
             if stmt is None:

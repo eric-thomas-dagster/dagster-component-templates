@@ -1,0 +1,26 @@
+# execution_mode: sql on BigQuery, partitioned by day and region, incremental (the default): each partition run reads only its slice of the
+# source, calls ML.GENERATE_EMBEDDING / AI.CLASSIFY only for chunks not already in the table (any partition), and replaces only its own rows.
+type: dagster_component_templates.ContextEngineeringPipelineComponent
+attributes:
+  asset_name: support_kb_partitioned
+  source:
+    kind: warehouse_query
+    resource_key: bigquery
+    sql: >-
+      SELECT ticket_id, body FROM `my-project.raw.support_tickets`
+      WHERE region = {partition_key.region} AND created_at >= {partition_start} AND created_at < {partition_end}
+  id_column: ticket_id
+  text_column: body
+  execution_mode: sql
+  sql_dialect: bigquery
+  output_table: my-project.analytics.support_kb
+  incremental: true
+  partition_dimensions:
+    - {name: date, type: daily, start: "2026-01-01"}
+    - {name: region, type: static, values: [us, eu]}
+  backfill_policy: multi_run
+  backfill_policy_max_partitions_per_run: 4
+  steps:
+    - {id: chunks, op: chunk, chunk_size: 500, chunk_overlap: 50, chunk_id_prefix: "support_kb:"}
+    - {id: classified, op: classify, candidate_labels: [billing, technical, shipping, other]}
+    - {id: embedded, op: embed, model: my-project.analytics.text_embedding_model}

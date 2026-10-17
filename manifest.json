@@ -10708,7 +10708,7 @@
       "id": "context_engineering_pipeline",
       "name": "Context Engineering Pipeline",
       "category": "ai",
-      "description": "One YAML builds a governed, searchable, citeable knowledge base out of raw unstructured text: chunk -> classify -> embed -> write_vector_store. Pairs with rag_pipeline (query side). Free/local by default (sentence-transformers + HuggingFace zero-shot + ChromaDB); litellm for any provider; execution_mode='sql' runs the whole chain server-side in Snowflake Cortex / BigQuery / Databricks so the corpus never leaves the warehouse.",
+      "description": "One YAML builds a governed, searchable, citeable knowledge base out of raw unstructured text: chunk -> classify -> embed -> write_vector_store. Pairs with rag_pipeline (query side). Receipt-ready: every chunk is stamped with the provenance a retrieval gateway needs to record context receipts (see `resources/context_receipt_store`). Free/local by default (sentence-transformers + HuggingFace zero-shot + ChromaDB); litellm for any provider; execution_mode='sql' runs the whole chain server-side in Snowflake Cortex / BigQuery / Databricks so the corpus never leaves the warehouse.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "assets/ai/context_engineering_pipeline",
@@ -10754,7 +10754,10 @@
         "grounding",
         "citations",
         "warehouse-native ai",
-        "in-database ml"
+        "in-database ml",
+        "retrieval receipt",
+        "provenance",
+        "receipt-ready"
       ]
     },
     {

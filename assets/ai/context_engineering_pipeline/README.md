@@ -2,6 +2,12 @@
 
 One YAML builds a governed, searchable, citeable knowledge base out of raw unstructured text: **chunk → classify → embed → write_vector_store**. Pairs with `rag_pipeline` for the query side — this component's `write_vector_store` output is exactly what `rag_pipeline`'s `retrieve`/`hybrid_search` ops expect to query against.
 
+**Receipts.** This pipeline is the *build side* of the retrieval-receipt loop ([`resources/context_receipt_store`](../../../resources/context_receipt_store/README.md)):
+it stamps every chunk with the provenance a gateway needs (`source_asset_key`, `source_version`, `chunk_id`, `content_hash`, ...), emits a content-derived data
+version so a no-op rebuild doesn't make receipts look stale, and records the recipe as a Dagster `code_version`. See [Receipt-ready context](#receipt-ready-context).
+It does not *write* receipts itself: a receipt records what was actually retrieved for a question, so it is written by whatever serves the queries (an MCP
+gateway, or your own retrieval code) via `ContextReceiptStore.record_retrieval(...)`.
+
 This is the "build the knowledge base" answer to what dbt Labs calls [context engineering](https://docs.getdbt.com/blog/dbt-context-engineering): chunk/embed/classify raw text, govern it, and make it citeable — the same discipline dbt applies to metrics, applied to unstructured text instead. Same "pipeline component" shape as `ml_pipeline`, `rag_pipeline`, `warehouse_pipeline`, `polars_pipeline`: one YAML, a `steps:` list in reading order, each step's output readable by the next via `source:` (or, if omitted, the immediately-prior step).
 
 ```yaml
@@ -134,7 +140,7 @@ declaration as the `@context_asset` decorator in `resources/context_receipt_stor
 
 ## Receipt-ready context
 
-Two component fields make this pipeline the build side of the retrieval-receipt loop
+Three component fields make this pipeline the build side of the retrieval-receipt loop
 (`resources/context_receipt_store`):
 
 - **`emit_data_version`** (default on) emits a content-derived data version: a hash of every chunk id + content hash

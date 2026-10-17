@@ -94,7 +94,7 @@ from pydantic import Field
 
 # ── Ingestion ────────────────────────────────────────────────────────
 
-def _require_env(name: str) -> str:
+def _require_env(name: str, purpose: Optional[str] = None) -> str:
     """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
     from dagster import EnvVar
 
@@ -104,7 +104,7 @@ def _require_env(name: str) -> str:
     value = EnvVar(name).get_value()
     if value is None:
         raise KeyError(
-            f"Environment variable {name!r} is not set. Set it in the environment of the "
+            f"Environment variable {name!r}{f' (for {purpose})' if purpose else ''} is not set. Set it in the environment of the "
             "Dagster code location (or point the *_env_var field at one that is)."
         )
     return value
@@ -649,6 +649,18 @@ def _bind_source_sql(sql: str, partition_key: Optional[str], partition_fields: O
     return out.replace("\0L", "{").replace("\0R", "}")
 
 
+def _resolve_source_headers(source_config: dict, sub) -> Dict[str, str]:
+    """`url` source request headers. `headers` = {name: value} with partition placeholders templated; `headers_env` =
+    {name: ENV_VAR} resolved at run time via dagster.EnvVar so tokens never sit in YAML. Values are never logged; an unset
+    env var raises naming the variable and the header (not the value)."""
+    out: Dict[str, str] = {}
+    for k, v in (source_config.get("headers") or {}).items():
+        out[str(k)] = str(sub(str(v)))
+    for header_name, env_var in (source_config.get("headers_env") or {}).items():
+        out[str(header_name)] = _require_env(str(env_var), purpose=f"source.headers_env header {header_name!r}")
+    return out
+
+
 def _ingest(
     source_config: dict,
     context,
@@ -658,6 +670,11 @@ def _ingest(
 ) -> Dict[str, Any]:
     """Return the initial state dict: {"text": str, "source_kind": str, ...}."""
     kind = source_config.get("kind", "literal")
+    if partitions_def is None and partition_key is not None:
+        try:  # partitions attached via post_processing are only visible on the running asset
+            partitions_def = context.assets_def.partitions_def
+        except Exception:
+            pass
     window = _partition_window(partition_key, partitions_def)
 
     def _sub(s: Any) -> Any:
@@ -685,7 +702,8 @@ def _ingest(
         import requests
         url = _sub(source_config["url"])
         _pol_url(url)
-        response = requests.get(url, timeout=source_config.get("timeout", 30))
+        headers = _resolve_source_headers(source_config, _sub)
+        response = requests.get(url, headers=headers or None, timeout=source_config.get("timeout", 30))
         response.raise_for_status()
         return {"text": response.text, "source_kind": "url", "source_url": url}
 
@@ -1072,6 +1090,11 @@ def _validate_source_partitioning(source_config: Dict[str, Any], steps: List[Dic
         it every partition reads the whole table. (Not an error: a deliberate full re-read per partition is possible.)
     Placeholders that cannot resolve (e.g. {partition_start} without a time-window partition) always raise."""
     kind = source_config.get("kind", "literal")
+    if source_config.get("full_read_per_partition") is not None:
+        if kind not in ("file", "url", "database"):
+            raise ValueError(f"source.full_read_per_partition has no meaning for kind={kind!r} (only file | url | database)")
+        if not isinstance(source_config["full_read_per_partition"], bool):
+            raise ValueError("source.full_read_per_partition must be true or false")
     field = {"literal": "text", "file": "path", "url": "url", "database": "query"}.get(kind)
     if field is None:
         return
@@ -1099,10 +1122,12 @@ def _validate_source_partitioning(source_config: Dict[str, Any], steps: List[Dic
             "partitioned pipeline, but the literal source text has no {partition_key} / {partition.<name>} / {partition_start} / "
             "{partition_end} placeholder and no step uses one either: every partition would process the identical input. "
             "Template the source (or a step's prompt), or drop the partitioning.")
-    if kind in ("file", "url", "database") and not (kind != "database" and used_in_steps):
+    if kind in ("file", "url", "database") and not (kind != "database" and used_in_steps) \
+            and not source_config.get("full_read_per_partition"):
         logging.getLogger(__name__).warning(
             "agentic_pipeline: partitioned, but source.%s (kind=%s) has no partition placeholder ({partition_key}, "
-            "{partition.<name>}, {partition_start}, {partition_end}): every partition reads the SAME input%s.",
+            "{partition.<name>}, {partition_start}, {partition_end}): every partition reads the SAME input%s. "
+            "If that is deliberate (a 'latest snapshot'), set source.full_read_per_partition: true to silence this.",
             field, kind, " (the whole query result)" if kind == "database" else "")
 
 
@@ -1124,10 +1149,29 @@ def _validate_approve_partitioning(steps: List[Dict[str, Any]], partitioned: boo
             "default key is the partition key); give each a key such as '{partition_key}-<step id>'")
 
 
+def _run_is_partitioned(context) -> bool:
+    """True when this run targets partitions although the component declared none (partitions attached via post_processing)."""
+    try:
+        if context.has_partition_key_range:
+            return True
+    except Exception:
+        pass
+    try:
+        return context.assets_def.partitions_def is not None
+    except Exception:
+        return False
+
+
 def _require_one_partition(context, partitioned: bool) -> None:
     """A partitioned run must be for exactly one partition; otherwise partition_key would be None and every
-    `{partition_key}` template / approval key would silently resolve as if unpartitioned."""
-    if partitioned and not context.has_partition_key:
+    `{partition_key}` template / approval key would silently resolve as if unpartitioned.
+
+    `partitioned` is what the component's own fields declared at load. Partitions attached later (post_processing) are
+    invisible then, so the run itself is also asked: a run that targets a partition RANGE (or an asset whose partitions_def
+    was set elsewhere) without a single partition key is rejected the same way."""
+    if context.has_partition_key:
+        return
+    if partitioned or _run_is_partitioned(context):
         raise RuntimeError(
             "AgenticPipelineComponent: this run covers several partitions (or none), but the pipeline resolves "
             "{partition_key}, sink paths and approval keys per single partition. Launch one partition per run.")

@@ -6,7 +6,7 @@
   "x-dagster-io": {
     "inputs": {
       "type": "any",
-      "description": "Source text — literal, url, file, database, or upstream_asset (kind = literal|url|file|database|upstream_asset). Or omit and let an `mcp_call` step drive the pipeline directly. Partitioned: `{partition_key}` / `{partition.<name>}` / `{partition_start}` / `{partition_end}` are templated into literal text, file path, url and database query (database values are bound as quoted SQL literals; do not quote the placeholder). A partitioned literal source with no placeholder (and none in any step) is rejected at load; file/url/database with none log a warning (every partition would read the same input)."
+      "description": "Source text — literal, url, file, database, or upstream_asset (kind = literal|url|file|database|upstream_asset). Or omit and let an `mcp_call` step drive the pipeline directly. Partitioned: `{partition_key}` / `{partition.<name>}` / `{partition_start}` / `{partition_end}` are templated into literal text, file path, url and database query (database values are bound as quoted SQL literals; do not quote the placeholder). A partitioned literal source with no placeholder (and none in any step) is rejected at load; file/url/database with none log a warning (every partition would read the same input) unless `full_read_per_partition: true` says it is deliberate (file/url/database only). A `url` source also takes `headers` ({name: value}, templated) and `headers_env` ({Header-Name: ENV_VAR}, resolved at run time so tokens stay out of YAML)."
     },
     "outputs": {
       "type": "text",

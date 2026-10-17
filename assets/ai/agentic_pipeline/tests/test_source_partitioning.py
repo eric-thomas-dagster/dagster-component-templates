@@ -129,3 +129,109 @@ def test_file_source_gets_the_window_substituted(mod, fake_litellm, tmp_path):
     (tmp_path / "2026-01-02T00:00:00+00:00.txt").write_text("window file")
     mat(comp(mod, {"kind": "file", "path": str(tmp_path / "{partition_start}.txt")}), "2026-01-02")
     assert "window file" in prompt_of(fake_litellm)
+
+
+# ── url source headers ───────────────────────────────────────────────
+
+import http.server
+import json as _json
+import threading
+
+
+@pytest.fixture
+def echo_server():
+    seen = []
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            seen.append({"path": self.path, "headers": {k.lower(): v for k, v in self.headers.items()}})
+            # records what it received (asserted below) but does NOT echo headers into the body: the body becomes source
+            # text and lands in materialization metadata, which would be the server leaking, not the component.
+            body = _json.dumps({"path": self.path}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *a):
+            pass
+
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    t = threading.Thread(target=srv.serve_forever, daemon=True)
+    t.start()
+    yield f"http://127.0.0.1:{srv.server_port}", seen
+    srv.shutdown()
+
+
+def test_url_headers_are_templated_per_partition_and_env_secret_never_leaks(mod, fake_litellm, echo_server, monkeypatch, caplog):
+    base, seen = echo_server
+    monkeypatch.setenv("SRC_TOKEN", "s3cr3t-token-xyz")
+    c = comp(mod, {"kind": "url", "url": base + "/d/{partition_key}",
+                   "headers": {"X-Day": "day={partition_key}", "X-Static": "fixed"},
+                   "headers_env": {"Authorization": "SRC_TOKEN"}})
+    caplog.set_level(logging.DEBUG)
+    results = []
+    for key in ("2026-01-02", "2026-01-03"):
+        r = dg.materialize(c.build_defs(None).assets, partition_key=key, raise_on_error=False)
+        assert r.success
+        results.append(r)
+    assert [s["path"] for s in seen] == ["/d/2026-01-02", "/d/2026-01-03"]
+    assert [s["headers"]["x-day"] for s in seen] == ["day=2026-01-02", "day=2026-01-03"]
+    assert all(s["headers"]["x-static"] == "fixed" and s["headers"]["authorization"] == "s3cr3t-token-xyz" for s in seen)
+    for r in results:
+        blob = " ".join(str(e.message) for e in r.all_events if getattr(e, "message", None))
+        blob += _json.dumps([str(e.event_specific_data) for e in r.get_asset_materialization_events()])
+        assert "s3cr3t-token-xyz" not in blob
+    assert "s3cr3t-token-xyz" not in caplog.text
+
+
+def test_url_headers_env_unset_names_the_variable(mod, fake_litellm, echo_server, monkeypatch):
+    base, seen = echo_server
+    monkeypatch.delenv("NOPE_TOKEN", raising=False)
+    c = comp(mod, {"kind": "url", "url": base + "/{partition_key}", "headers_env": {"Authorization": "NOPE_TOKEN"}})
+    r = dg.materialize(c.build_defs(None).assets, partition_key="2026-01-02", raise_on_error=False)
+    assert not r.success and not seen
+    msg = " ".join(e.event_specific_data.error.message + (e.event_specific_data.error.cause.message if e.event_specific_data.error.cause else "")
+                   for e in r.get_step_failure_events())
+    assert "NOPE_TOKEN" in msg and "Authorization" in msg
+
+
+# ── full_read_per_partition ──────────────────────────────────────────
+
+def test_full_read_per_partition_silences_the_warning_and_is_rejected_elsewhere(mod, caplog, tmp_path):
+    f = tmp_path / "latest.txt"
+    f.write_text("x")
+    caplog.set_level(logging.WARNING)
+    comp(mod, {"kind": "file", "path": str(f)}).build_defs(None)
+    assert "SAME input" in caplog.text
+    caplog.clear()
+    comp(mod, {"kind": "file", "path": str(f), "full_read_per_partition": True}).build_defs(None)
+    comp(mod, {"kind": "url", "url": "http://x/latest", "full_read_per_partition": True}).build_defs(None)
+    comp(mod, {"kind": "database", "database_url": "sqlite://", "query": "select 1", "full_read_per_partition": True}).build_defs(None)
+    assert "SAME input" not in caplog.text
+    with pytest.raises(ValueError, match="no meaning"):
+        comp(mod, {"kind": "literal", "text": "{partition_key}", "full_read_per_partition": True}).build_defs(None)
+    with pytest.raises(ValueError, match="no meaning"):
+        comp(mod, {"kind": "upstream_asset", "upstream_asset_key": "u", "full_read_per_partition": True}).build_defs(None)
+
+
+# ── partitions attached via post_processing ─────────────────────────
+
+@pytest.mark.parametrize("per_step_ops", [False, True])
+def test_range_run_over_post_processing_partitions_fails_loudly(mod, fake_litellm, per_step_ops):
+    """The component declares no partitioning (so no load-time guard / backfill policy applies); post_processing attaches a
+    partitions_def. A run over a partition RANGE must not resolve {partition_key} as unpartitioned."""
+    from dagster._core.storage.tags import ASSET_PARTITION_RANGE_END_TAG, ASSET_PARTITION_RANGE_START_TAG
+    c = mod.AgenticPipelineComponent(asset_name_prefix="p", source={"kind": "literal", "text": "doc {partition_key}"},
+                                     steps=[dict(SUMM)], outputs={"assets": ["summ"]}, per_step_ops=per_step_ops)
+    pdef = dg.StaticPartitionsDefinition(["a", "b"])
+    asset = c.build_defs(None).assets[0].map_asset_specs(lambda sp: sp.replace_attributes(partitions_def=pdef))
+    assert asset.partitions_def is not None
+    ok = dg.materialize([asset], partition_key="a", raise_on_error=False)
+    assert ok.success and "doc a" in fake_litellm.calls[-1]["messages"][-1]["content"]
+    res = dg.materialize([asset], raise_on_error=False,
+                         tags={ASSET_PARTITION_RANGE_START_TAG: "a", ASSET_PARTITION_RANGE_END_TAG: "b"})
+    assert not res.success
+    msgs = " ".join(e.event_specific_data.error.message + (e.event_specific_data.error.cause.message if e.event_specific_data.error.cause else "")
+                    for e in res.get_step_failure_events())
+    assert "covers several partitions" in msgs, msgs

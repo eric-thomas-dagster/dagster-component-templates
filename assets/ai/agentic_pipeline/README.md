@@ -1013,6 +1013,7 @@ All string fields on sources support `{partition_key}` substitution — a partit
 | Field | Required | Description |
 |---|---|---|
 | `kind` | ✅ | `file` |
+| `full_read_per_partition` |  | `true` = every partition deliberately reads the same file; silences the load warning. |
 | `path` | ✅ | Filesystem path. `{partition_key}` / `{partition_start}` / `{partition_end}` templated (`questions/{partition_key}.txt`). Relative paths resolve against the code-location's working directory. Partitioned with no placeholder: **warning at load**. |
 
 ### `kind: url`
@@ -1021,7 +1022,9 @@ All string fields on sources support `{partition_key}` substitution — a partit
 |---|---|---|
 | `kind` | ✅ | `url` |
 | `url` | ✅ | URL to fetch. `{partition_key}` / `{partition_start}` / `{partition_end}` templated. Response body becomes the source text. Partitioned with no placeholder: **warning at load**. |
-| `headers` |  | Optional `{header: value}` map. Values `{partition_key}`-templated. |
+| `headers` |  | Optional `{header: value}` map sent with the request. Values are templated with `{partition_key}` / `{partition.<name>}` / `{partition_start}` / `{partition_end}`. Not for secrets. |
+| `headers_env` |  | Optional `{Header-Name: ENV_VAR}` map, resolved at run time with `dagster.EnvVar` so tokens never sit in YAML (`headers_env: {Authorization: SRC_AUTH}`; the env var holds the full header value, e.g. `Bearer ...`). An unset variable fails the run naming the variable and header; values are never logged. |
+| `full_read_per_partition` |  | `true` silences the load-time "no partition placeholder" warning for a source that deliberately re-reads the same content in every partition (a "latest snapshot"). |
 
 ### `kind: database`
 
@@ -1031,6 +1034,7 @@ All string fields on sources support `{partition_key}` substitution — a partit
 | `query` | ✅ | SQL query to run. Placeholders `{partition_key}`, `{partition.<name>}`, `{partition_start}`, `{partition_end}` (ISO timestamps of a time-window partition) are bound as **complete quoted SQL string literals** with embedded quotes doubled: write `WHERE day >= {partition_start}`, not `'{partition_start}'` (a placeholder already inside quotes is rejected). `{{` / `}}` are literal braces. Same semantics as `context_engineering_pipeline`'s warehouse query. Partitioned with no placeholder: **warning at load** (every partition reads the whole result). Placeholders without partitioning, or `{partition_start}` without a daily/weekly/monthly/hourly partition: rejected at load. Result is rendered as a markdown table and used as the pipeline's initial input. |
 | `database_url` |  | SQLAlchemy connection URL. Set this OR `database_url_env_var`. |
 | `database_url_env_var` |  | Env var holding the connection URL. |
+| `full_read_per_partition` |  | `true` = every partition deliberately reads the whole result; silences the load warning. |
 | `row_limit` |  | Max rows to render into the table (default 500) — keeps large result sets from blowing out the LLM context window. |
 
 ### `kind: upstream_asset`
@@ -1105,9 +1109,9 @@ A token that exists but cannot be honoured is never a mysterious failure: the ru
 With the first-class `partition_type` / `partition_values` / `partition_dimensions` fields, each run resolves `{partition_key}`, sink paths and `approve` keys from **one** partition, and its output is one value per partition. So:
 
 - `backfill_policy: multi_run` (one run per partition) is the supported shape; `backfill_policy_max_partitions_per_run` must be unset or `1`. `single_run` (or a cap above 1) is **rejected at load time**: a run covering several partitions has no single `partition_key`, so templates and approval keys could not be resolved. If such a run is forced anyway (for example by launching a range from the UI against a policy set elsewhere) it fails with a clear error instead of silently running as unpartitioned.
-- **A source that never mentions the partition** reads identical input in every partition, so it is checked at load, per kind: `literal` is rejected (constant text can never differ) unless some step uses a partition placeholder (then a fixed source is a deliberate choice); `file` / `url` / `database` log a WARNING naming the field (the content behind a path/URL can legitimately change between runs, and a database query *can* be bound, but a deliberate full re-read is possible); `upstream_asset` is exempt.
+- **A source that never mentions the partition** reads identical input in every partition, so it is checked at load, per kind: `literal` is rejected (constant text can never differ) unless some step uses a partition placeholder (then a fixed source is a deliberate choice); `file` / `url` / `database` log a WARNING naming the field (the content behind a path/URL can legitimately change between runs, and a database query *can* be bound, but a deliberate full re-read is possible); `upstream_asset` is exempt. Set `source.full_read_per_partition: true` on a `file` / `url` / `database` source to say the re-read is deliberate and silence the warning (rejected on `literal` / `upstream_asset`, where it has no meaning).
 - `approve` tokens are `<approval_dir>/<key>.json`, with the partition key as the default key, so partitions never share an approval. A key containing characters outside `A-Za-z0-9._-` gets a short hash suffix (`x/y` and `x_y` are different partitions and must not share a token); keys that are already safe are unchanged. Under partitioning, two `approve` steps without their own `key`, or a fixed `key` with no `{partition_key}` / `{partition.<name>}` in it, are rejected at load time (they would share one human decision across steps or partitions).
-- These guards apply to partitions declared with the component's own fields; partitions attached later through `post_processing` are not seen by the component.
+- The load-time guards (source warning/rejection, approve-key checks, `backfill_policy` validation) only see partitions declared with the component's own fields; partitions attached later through `post_processing` are not visible then. The **run-time** check does cover them: a run that targets a partition range (or an asset whose `partitions_def` was attached elsewhere) without a single partition key fails with the "covers several partitions" error, and `{partition_start}` / `{partition_end}` in a source resolve from the running asset's `partitions_def`. Not covered for `post_processing` partitions: the load-time warnings and the `backfill_policy` default (set `multi_run` on the asset yourself, or declare partitions with the component fields).
 
 ## When to reach for this vs. the narrow AI components
 

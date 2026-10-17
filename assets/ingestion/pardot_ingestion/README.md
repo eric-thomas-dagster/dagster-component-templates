@@ -117,3 +117,7 @@ attributes:
   refresh_token: "${PARDOT_REFRESH_TOKEN}"
   resources: "prospects,campaigns"
 ```
+
+## Partitioning
+
+When `partition_type` is set, set `partition_date_column` (time partitions) or `partition_static_column` (static/dynamic/multi partitions) and each run returns only the rows in its partition; a backfill run covers its whole range. The extract itself is still fetched in full and loaded to the destination (dlt deduplicates by key), so the partition scopes what downstream assets receive. `backfill_policy` (`single_run` / `multi_run`) is opt-in; `single_run` needs a partition-range-aware IO manager.

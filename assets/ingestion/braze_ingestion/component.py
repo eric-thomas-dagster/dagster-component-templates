@@ -33,6 +33,34 @@ from dagster import (
 from pydantic import Field
 
 
+# BEGIN partition row-filter helper (inlined per component; keep copies identical, see tests/test_partition_port_ingestion.py)
+from typing import Literal  # noqa: E402,F401
+
+
+def _filter_df_to_partition(df, context, partition_date_column, partition_static_column):
+    """Keep the rows that belong to the run's partition(s). A no-op for an unpartitioned run.
+
+    Time partitions use `context.partition_time_window` (which spans the whole range of a backfill run) against
+    `partition_date_column`; static/dynamic/multi partitions match `partition_static_column` against
+    `context.partition_keys`. Without the relevant column the frame is returned unchanged."""
+    import pandas as pd
+
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return df
+    if partition_date_column and partition_date_column in df.columns:
+        try:
+            window = context.partition_time_window
+        except Exception:
+            return df  # static/dynamic/multi partition: no time window
+        dates = pd.to_datetime(df[partition_date_column], errors="coerce", utc=True)
+        return df[(dates >= pd.Timestamp(window.start)) & (dates < pd.Timestamp(window.end))]
+    if partition_static_column and partition_static_column in df.columns:
+        keys = {str(k) for k in context.partition_keys}
+        return df[df[partition_static_column].astype(str).isin(keys)]
+    return df
+# END partition row-filter helper
+
+
 def _build_partitions_def(
     partition_type,
     partition_start,
@@ -321,6 +349,28 @@ class BrazeIngestionComponent(Component, Model, Resolvable):
         description="Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
     )
 
+    partition_date_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description="Column used to filter the returned DataFrame to the current date partition (time partitions).",
+    )
+    partition_static_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description="Column used to filter the returned DataFrame to the current static/dynamic partition key.",
+    )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill strategy for a partitioned asset. 'single_run' materializes a whole backfill range in one run "
+            "(rows are filtered to the whole range); 'multi_run' launches one run per partition, optionally capped by "
+            "backfill_policy_max_partitions_per_run. Unset keeps Dagster's default. Needs a partition-range-aware IO "
+            "manager for single_run."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run (default 1).",
+    )
+
     retry_policy_max_retries: Optional[int] = Field(
         default=None,
         description="Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
@@ -449,6 +499,17 @@ class BrazeIngestionComponent(Component, Model, Resolvable):
             self.dynamic_partition_name,
             self.partition_dimensions,
         )
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            from dagster import BackfillPolicy as _BackfillPolicy
+
+            _backfill_policy_obj = _BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            from dagster import BackfillPolicy as _BackfillPolicy
+
+            _backfill_policy_obj = _BackfillPolicy.multi_run(max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1)
+        partition_date_column = self.partition_date_column
+        partition_static_column = self.partition_static_column
 
         _retry_policy = None
         if self.retry_policy_max_retries is not None:
@@ -459,7 +520,7 @@ class BrazeIngestionComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
+        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
             key=AssetKey.from_user_string(asset_name),
             description=description,
             owners=owners,
@@ -563,6 +624,7 @@ class BrazeIngestionComponent(Component, Model, Resolvable):
                 return Output(value=pd.DataFrame(), metadata=base_metadata)
 
             combined_df = pd.concat(all_data, ignore_index=True)
+            combined_df = _filter_df_to_partition(combined_df, context, partition_date_column, partition_static_column)
             metadata = {
                 **base_metadata,
                 "row_count": MetadataValue.int(len(combined_df)),

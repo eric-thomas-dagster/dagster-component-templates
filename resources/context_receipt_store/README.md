@@ -83,6 +83,25 @@ separate appended events. Evidence levels supported are `cited`, `verified`,
 and `counterfactual_tested`; they describe the evidence recorded, not certainty
 that a black-box model causally relied on a particular item.
 
+## Record what was withheld
+
+Pass `excluded=[{"item_id": ..., "reason": "pii"}]` (suggested reasons:
+`pii`, `stale`, `out_of_scope`, `over_budget`, `policy`) to `record_retrieval`.
+An item can't be both retrieved and excluded, and `excluded_count` defaults to
+the number listed. `get_receipt()` returns them under `"excluded"`.
+
+## FastMCP examples
+
+Both run against stock FastMCP (tested with 4.1.0); no fork is needed. They import
+`ContextReceiptStore` from the installed `dagster-community-components` package.
+
+- [`examples/fastmcp_gateway.py`](examples/fastmcp_gateway.py): a gateway with
+  `search_context` (policy filter → receipt with excluded reasons),
+  `attach_output`, `explain(receipt_id)` and `impacted_by(asset)` tools.
+- [`examples/fastmcp_receipt_middleware.py`](examples/fastmcp_receipt_middleware.py):
+  a `Middleware` that receipts any tool returning a `_receipt` dict, so tools
+  stay receipt-agnostic.
+
 ## Look up impact
 
 ```python

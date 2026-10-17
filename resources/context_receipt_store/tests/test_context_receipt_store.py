@@ -147,3 +147,28 @@ def test_duplicate_items_rejected_and_missing_rank_defaults_to_position(store):
         store.record_retrieval(context_name="c", items=[{"item_id": "a"}, {"item_id": "a"}])
     rid = store.record_retrieval(context_name="c", items=[{"item_id": "a"}, {"item_id": "b"}])
     assert [i["rank"] for i in store.get_receipt(rid)["items"]] == [0, 1]
+
+
+def test_excluded_items_record_reason_and_validate(store):
+    rid = store.record_retrieval(
+        context_name="c",
+        items=[{"item_id": "a"}],
+        eligible_count=3,
+        excluded=[
+            {"item_id": "b", "reason": "pii", "source_asset_key": "crm"},
+            {"item_id": "c", "reason": "stale"},
+        ],
+    )
+    receipt = store.get_receipt(rid)
+    assert receipt["excluded_count"] == 2
+    assert [(e["item_id"], e["reason"]) for e in receipt["excluded"]] == [("b", "pii"), ("c", "stale")]
+    with pytest.raises(ValueError, match="both retrieved and excluded"):
+        store.record_retrieval(
+            context_name="c", items=[{"item_id": "a"}], excluded=[{"item_id": "a", "reason": "pii"}]
+        )
+    with pytest.raises(ValueError, match="reason"):
+        store.record_retrieval(context_name="c", items=[], excluded=[{"item_id": "z", "reason": " "}])
+    with pytest.raises(ValueError, match="excluded_count"):
+        store.record_retrieval(
+            context_name="c", items=[], excluded=[{"item_id": "z", "reason": "pii"}], excluded_count=0
+        )

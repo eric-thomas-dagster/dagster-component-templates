@@ -24,6 +24,9 @@ _ITEM_FIELDS = {
     "rank",
     "score",
 }
+# Suggested exclusion reasons; any non-empty string is accepted.
+EXCLUSION_REASONS = ("pii", "stale", "out_of_scope", "over_budget", "policy")
+_EXCLUDED_FIELDS = {"item_id", "reason", "source_asset_key", "source_version"}
 _EVIDENCE_LEVELS = {"cited", "verified", "counterfactual_tested"}
 
 
@@ -76,6 +79,16 @@ class ContextReceiptStore:
                     score REAL,
                     PRIMARY KEY (receipt_id, item_id, rank)
                 );
+                CREATE TABLE IF NOT EXISTS context_receipt_excluded (
+                    receipt_id TEXT NOT NULL REFERENCES context_receipts(receipt_id),
+                    item_id TEXT NOT NULL,
+                    reason TEXT NOT NULL,
+                    source_asset_key TEXT,
+                    source_version TEXT,
+                    PRIMARY KEY (receipt_id, item_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_context_receipt_excluded_item
+                    ON context_receipt_excluded(item_id);
                 CREATE INDEX IF NOT EXISTS idx_context_receipt_items_item
                     ON context_receipt_items(item_id);
                 CREATE INDEX IF NOT EXISTS idx_context_receipt_items_asset
@@ -152,11 +165,34 @@ class ContextReceiptStore:
             "score": score,
         }
 
+    @staticmethod
+    def _normalize_excluded(item: Mapping[str, Any]) -> dict[str, Any]:
+        if not isinstance(item, Mapping):
+            raise TypeError("each excluded item must be a mapping")
+        unknown = set(item) - _EXCLUDED_FIELDS
+        if unknown:
+            raise ValueError(f"unsupported excluded item field(s): {', '.join(sorted(unknown))}")
+        for field_name in ("item_id", "reason"):
+            value = item.get(field_name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"each excluded item requires a non-empty {field_name}")
+        for field_name in ("source_asset_key", "source_version"):
+            value = item.get(field_name)
+            if value is not None and not isinstance(value, str):
+                raise TypeError(f"excluded {field_name} must be a string or None")
+        return {
+            "item_id": item["item_id"],
+            "reason": item["reason"],
+            "source_asset_key": item.get("source_asset_key"),
+            "source_version": item.get("source_version"),
+        }
+
     def record_retrieval(
         self,
         *,
         context_name: str,
         items: Iterable[Mapping[str, Any]],
+        excluded: Iterable[Mapping[str, Any]] = (),
         context_version: str | None = None,
         policy_version: str | None = None,
         caller_id: str | None = None,
@@ -191,6 +227,19 @@ class ContextReceiptStore:
             seen_ids.add(item["item_id"])
             if item["rank"] is None:
                 item["rank"] = position
+        normalized_excluded = [self._normalize_excluded(item) for item in excluded]
+        excluded_ids = [item["item_id"] for item in normalized_excluded]
+        if len(set(excluded_ids)) != len(excluded_ids):
+            raise ValueError("duplicate item_id in excluded items")
+        overlap = seen_ids & set(excluded_ids)
+        if overlap:
+            raise ValueError(
+                f"item(s) cannot be both retrieved and excluded: {', '.join(sorted(overlap))}"
+            )
+        if excluded_count is None and normalized_excluded:
+            excluded_count = len(normalized_excluded)
+        elif excluded_count is not None and excluded_count < len(normalized_excluded):
+            raise ValueError("excluded_count is smaller than the excluded items listed")
         receipt_id = str(uuid.uuid4())
         created_at = self._timestamp()
         with self._connect() as conn:
@@ -233,6 +282,23 @@ class ContextReceiptStore:
                         item["score"],
                     )
                     for item in normalized_items
+                ],
+            )
+            conn.executemany(
+                """
+                INSERT INTO context_receipt_excluded (
+                    receipt_id, item_id, reason, source_asset_key, source_version
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                [
+                    (
+                        receipt_id,
+                        item["item_id"],
+                        item["reason"],
+                        item["source_asset_key"],
+                        item["source_version"],
+                    )
+                    for item in normalized_excluded
                 ],
             )
         return receipt_id
@@ -314,6 +380,15 @@ class ContextReceiptStore:
                 """,
                 (receipt_id,),
             ).fetchall()
+            excluded = conn.execute(
+                """
+                SELECT item_id, reason, source_asset_key, source_version
+                FROM context_receipt_excluded
+                WHERE receipt_id = ?
+                ORDER BY item_id
+                """,
+                (receipt_id,),
+            ).fetchall()
             events = conn.execute(
                 """
                 SELECT event_id, event_type, occurred_at, payload_json
@@ -325,6 +400,7 @@ class ContextReceiptStore:
             ).fetchall()
         result = dict(receipt)
         result["items"] = [dict(item) for item in items]
+        result["excluded"] = [dict(item) for item in excluded]
         result["events"] = [
             {
                 "event_id": event["event_id"],

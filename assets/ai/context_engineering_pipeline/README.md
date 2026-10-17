@@ -5,8 +5,9 @@ One YAML builds a governed, searchable, citeable knowledge base out of raw unstr
 **Receipts.** This pipeline is the *build side* of the retrieval-receipt loop ([`resources/context_receipt_store`](../../../resources/context_receipt_store/README.md)):
 it stamps every chunk with the provenance a gateway needs (`source_asset_key`, `source_version`, `chunk_id`, `content_hash`, ...), emits a content-derived data
 version so a no-op rebuild doesn't make receipts look stale, and records the recipe as a Dagster `code_version`. See [Receipt-ready context](#receipt-ready-context).
-It does not *write* receipts itself: a receipt records what was actually retrieved for a question, so it is written by whatever serves the queries (an MCP
-gateway, or your own retrieval code) via `ContextReceiptStore.record_retrieval(...)`.
+It does not *write* receipts itself: a receipt records what was actually retrieved for a question, so it is written by whatever serves the queries
+(`rag_pipeline` with its `receipts:` block, an MCP gateway, or your own retrieval code) via `ContextReceiptStore.record_retrieval(...)`. It does **read them back**:
+with `receipts:` set, every rebuild learns from what was retrieved and how it turned out. See [Learning from receipts](#learning-from-receipts).
 
 This is the "build the knowledge base" answer to what dbt Labs calls [context engineering](https://docs.getdbt.com/blog/dbt-context-engineering): chunk/embed/classify raw text, govern it, and make it citeable — the same discipline dbt applies to metrics, applied to unstructured text instead. Same "pipeline component" shape as `ml_pipeline`, `rag_pipeline`, `warehouse_pipeline`, `polars_pipeline`: one YAML, a `steps:` list in reading order, each step's output readable by the next via `source:` (or, if omitted, the immediately-prior step).
 
@@ -156,6 +157,43 @@ Three component fields make this pipeline the build side of the retrieval-receip
   `source_partition`, `source_id`, `chunk_id`, `content_hash` and `embedding_model` onto every chunk. A gateway builds a
   receipt item straight from a hit's metadata: `{item_id: chunk_id, source_asset_key, source_version, source_partition}`.
 
+## Learning from receipts
+
+Close the loop and every rebuild gets better. Serve queries with `rag_pipeline` (its `receipts:` block records what each query retrieved), record how the
+answers turned out (`store.record_outcome(receipt_id, signal="thumbs_down")`, evidence, escalations...), and add `receipts:` here:
+
+```yaml
+attributes:
+  asset_name: support_kb
+  receipts:
+    resource_key: context_receipts      # a registered ContextReceiptStoreComponent
+    window_days: 30                     # only recent receipts count
+    min_retrievals: 5                   # evidence needed before acting on a chunk
+    min_outcomes: 3
+    quarantine: {mean_outcome_below: -0.3, mode: exclude}     # flag | exclude
+    regression_check: {min_outcomes: 10, max_drop: 0.15, severity: WARN}
+```
+
+Right before `write_vector_store` the build reads each chunk's history from the store and:
+
+- **Stamps** `feedback_retrievals`, `feedback_rated`, `feedback_mean_outcome`, `feedback_cited` and `feedback_prior` onto the chunk (typed numbers, so a gateway can
+  filter and rerank on them; every other metadata field is stored as a string). `refresh_priors` (default on) recomputes the store's item priors first.
+- **Quarantines** chunks with at least `min_retrievals` retrievals and `min_outcomes` ratings whose mean outcome is at or below the threshold. `mode: flag` keeps them
+  indexed with `feedback_quarantined: true`; `mode: exclude` deletes them from the index (by id, so it works even when a document's only chunk is quarantined, with any
+  `sync_mode`; chromadb only). A chunk is not banned forever: an excluded chunk gets no new receipts, so once its old receipts age out of `window_days` it is
+  judged afresh. Fix the source text and it comes back sooner.
+- **Reports** `receipts_feedback` metadata: chunks with feedback, the quarantined ids, **dead weight** (`never_retrieved`, once the asset has at least
+  `dead_weight_min_receipts` receipts), best and worst chunks, why chunks were withheld at query time (`exclusion_reasons`: stale / pii / policy ...), and
+  `outcomes_by_code_version`.
+- **Judges the recipe** (`regression_check`): the `recipe_outcomes` asset check compares the current recipe's real-world mean outcome with the best earlier recipe and
+  warns (or fails) when it is worse by more than `max_drop` -- "chunk size 300 was rated better than 500; consider rolling back". With too few outcomes it passes and
+  says `insufficient_evidence` or `no_baseline` rather than guessing.
+
+Feedback is scoped to the current recipe (`code_version`) by default, so a recipe change starts fresh instead of applying old ratings to different chunks
+(`scope_to_recipe: false` to opt out). Chroma merges metadata on upsert, so when a `feedback_*` key stops applying (stamping off, quarantine mode changed) the
+build writes `None` to delete it instead of leaving a stale flag behind. Python mode only. The end-to-end proof is `tests/test_closed_loop.py`: a real build,
+real queries through `rag_pipeline` that record their own receipts, ratings, and a rebuild that stops serving the chunks users kept rating badly.
+
 ## Getting the raw text in: two ways
 
 - **`upstream_asset_key`**: the usual Dagster way — point at any asset producing a DataFrame with `id_column`/`text_column`.
@@ -225,11 +263,12 @@ Every field name and step shape here is meant to be as readable for a human anal
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `code_version` | `str` | — | Dagster code_version for the asset: the identity of the recipe that builds this context. Defaults to a fingerprint of the steps (chunking, filters, embedding model...), so changing the recipe marks the asset stale in Dag… _(full docs in schema.json + component README)_ |
 | `group_name` | `str` | — | Dagster asset group name |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
 | `owners` | `List[str]` | — | Asset owners — list of team names or email addresses. |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags to apply to the asset. |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Auto-inferred if unset. |
 
 ### Freshness
@@ -245,7 +284,7 @@ Every field name and step shape here is meant to be as readable for a human anal
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily'/'weekly'/'monthly'/'hourly'/'static'/'dynamic'/None. |
 | `partition_start` | `str` | — | Partition start date (ISO), required for time-based types. |
-| `partition_values` | `str` | — | Comma-separated values for static partitioning. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning. |
 
 ### Retry policy
 
@@ -271,6 +310,11 @@ Every field name and step shape here is meant to be as readable for a human anal
 | `max_source_rows` | `int` | — | Safety cap on source rows processed per materialize (applied AFTER any SQL filtering, before chunking). A real corpus is typically far too large to process in one in-memory run -- pair this with partitioning (partition_t… _(full docs in schema.json + component README)_ |
 | `execution_mode` | `str` | `"python"` | 'python' (default): pulls rows into a DataFrame and calls chunk/classify/embed as Python/API calls -- works with every provider, but data leaves the database and the corpus must fit in memory (bound it with max_source_ro… _(full docs in schema.json + component README)_ |
 | `sql_dialect` | `str` | — | Required when execution_mode='sql'. One of: 'snowflake_cortex', 'bigquery', 'databricks'. Selects which warehouse-native AI SQL functions to emit. |
+| `emit_data_version` | `bool` | `true` | Emit a content-derived Dagster data version (hash of every chunk id + content hash + the build recipe). Dagster's default data version derives from the asset's code version and its inputs' data versions, so it changes on… _(full docs in schema.json + component README)_ |
+| `stamp_provenance` | `bool` | `true` | Write source_asset_key, source_version (the emitted data version), source_partition, source_id, chunk_id, content_hash and embedding_model onto every chunk in the vector store, so a retrieval gateway can build receipts d… _(full docs in schema.json + component README)_ |
+| `receipts` | `Dict[str, Any]` | — | Learn from real use: read the retrieval receipts recorded by resources/context_receipt_store back into every build. {resource_key: <registered ContextReceiptStoreComponent>, window_days: 30, min_retrievals: 5, min_outcom… _(full docs in schema.json + component README)_ |
+| `retrieval_eval` | `Dict[str, Any]` | — | A golden set that gates this knowledge base: {queries: [{query, expected: [chunk or source ids]}], k: 5, min_recall: 0.8, min_mrr: null, severity: ERROR\|WARN, blocking: false}. After the index is written, each query is… _(full docs in schema.json + component README)_ |
+| `context_policy` | `Dict[str, Any]` | — | Declare the governance policy a retrieval gateway should enforce for this knowledge base: {scope: <chunk metadata field naming the tenant>, sensitivity: public\|internal\|confidential\|restricted, max_age_hours, token_bu… _(full docs in schema.json + component README)_ |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when include_preview_metadata is True. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |

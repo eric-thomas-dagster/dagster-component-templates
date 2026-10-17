@@ -134,6 +134,12 @@
     },
     "partition_start": { "type": "string", "label": "Partition Start", "required": false, "description": "Partition start date (ISO), required for time-based types." },
     "partition_values": { "type": "string", "label": "Partition Values", "required": false, "description": "Comma-separated values for static partitioning." },
-    "dynamic_partition_name": { "type": "string", "label": "Dynamic Partition Name", "required": false, "description": "Name for DynamicPartitionsDefinition." }
+    "dynamic_partition_name": { "type": "string", "label": "Dynamic Partition Name", "required": false, "description": "Name for DynamicPartitionsDefinition." },
+    "receipts": {
+      "type": "object",
+      "label": "Receipts",
+      "description": "Learn from real use: read the retrieval receipts recorded by resources/context_receipt_store back into every build. {resource_key: <registered ContextReceiptStoreComponent>, window_days: 30, min_retrievals: 5, min_outcomes: 3, refresh_priors: true, scope_to_recipe: true, stamp: true, quarantine: {mean_outcome_below: -0.3, mode: flag\\|exclude}, regression_check: {min_outcomes: 10, max_drop: 0.15, severity: WARN\\|ERROR}}. Right before write_vector_store each chunk is stamped with feedback_retrievals / feedback_rated / feedback_mean_outcome / feedback_cited / feedback_prior (so a gateway can rerank), chunks users keep rating badly are flagged or (mode: exclude) left out of the index until their old receipts age out of the window, and the run reports dead weight, best/worst chunks, exclusion reasons and outcomes per recipe. regression_check adds the `recipe_outcomes` asset check: is the current recipe doing worse in production than an earlier one? Feedback is scoped to the current recipe (code_version) by default so a recipe change starts fresh. Python mode only.",
+      "required": false
+    }
   }
 }

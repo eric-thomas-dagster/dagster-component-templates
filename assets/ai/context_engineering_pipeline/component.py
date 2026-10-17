@@ -1009,6 +1009,11 @@ def _do_write_vector_store(df: pd.DataFrame, step: dict, id_column: str, context
             raise ValueError(f"write_vector_store op: column {required!r} not in upstream columns: {list(df.columns)}")
 
     meta_df = df[[c for c in metadata_columns if c in df.columns]].astype(str).copy()
+    # Metadata is stringified, except the feedback_* columns: they stay typed (int / float / bool) so a gateway can
+    # filter and sort on them (e.g. where={"feedback_quarantined": False}), which strings would not allow.
+    for _col in meta_df.columns:
+        if _col.startswith("feedback_"):
+            meta_df[_col] = pd.Series(df[_col].tolist(), index=meta_df.index, dtype=object)
     # Always present so sync/orphan logic never depends on user-chosen metadata_columns.
     meta_df["source_id"] = df[id_column].astype(str).values
     meta_df["chunk_id"] = df[chunk_id_column].astype(str).values
@@ -1062,6 +1067,12 @@ def _do_write_vector_store(df: pd.DataFrame, step: dict, id_column: str, context
             orphans = [cid for cid in got["ids"] if cid not in new_ids]
         _delete_in_batches(lambda batch: collection.delete(ids=batch), orphans)
         stats["orphans_deleted"] = len(orphans)
+        # Chunks the receipts feedback quarantined (mode: exclude) are deleted by id: sync only cleans up documents that are still
+        # present in this run, and a quarantined chunk may have been its document's only chunk.
+        purge = [i for i in (step.get("_purge_chunk_ids") or []) if i not in new_ids]
+        if purge:
+            _delete_in_batches(lambda batch: collection.delete(ids=batch), purge)
+        stats["quarantined_deleted"] = len(purge)
         if step.get("purge_expired"):
             # Physically remove chunks whose valid_until (set by the stamp op's ttl_days) has passed; a bare date is
             # valid through the end of that day. A gateway already withholds them as "stale"; this also frees the index.
@@ -1357,6 +1368,179 @@ def _build_sql_mode_query(
     return "\n".join(lines)
 
 
+# ── Receipts feedback: let what was retrieved and how it turned out shape the next build ─────────────────────
+#
+# resources/context_receipt_store records, at query time, which chunks were retrieved and (later) how each answer turned out.
+# `receipts:` reads that back at build time so every rebuild learns from real use. It acts on the chunk frame right before
+# `write_vector_store`:  stamp (write feedback_* onto each chunk so gateways can rerank), quarantine (flag or leave out
+# chunks users keep rating badly), and report (dead weight, best/worst chunks, exclusion reasons, outcomes per recipe).
+# An asset check (`recipe_outcomes`) compares the current recipe's real-world outcomes with earlier recipes.
+
+_RECEIPTS_KEYS = {"resource_key", "window_days", "min_retrievals", "min_outcomes", "refresh_priors", "prior_strength",
+                  "scope_to_recipe", "stamp", "quarantine", "dead_weight_min_receipts", "regression_check"}
+_FEEDBACK_COLUMNS = ["feedback_retrievals", "feedback_rated", "feedback_mean_outcome", "feedback_cited", "feedback_prior"]
+
+
+def _validate_receipts(cfg: Dict[str, Any], steps_cfg: List[dict], execution_mode: str) -> Dict[str, Any]:
+    if execution_mode == "sql":
+        raise ValueError("receipts is python-mode only")
+    if not isinstance(cfg, dict):
+        raise ValueError("receipts must be a mapping")
+    unknown = set(cfg) - _RECEIPTS_KEYS
+    if unknown:
+        raise ValueError(f"receipts: unknown field(s) {sorted(unknown)}; valid: {sorted(_RECEIPTS_KEYS)}")
+    if not isinstance(cfg.get("resource_key"), str) or not cfg["resource_key"].strip():
+        raise ValueError("receipts.resource_key is required: the key of a registered ContextReceiptStoreComponent resource")
+    out = {"window_days": 30.0, "min_retrievals": 5, "min_outcomes": 3, "refresh_priors": True, "prior_strength": 5.0,
+           "scope_to_recipe": True, "stamp": True, "dead_weight_min_receipts": 50, **cfg}
+    if float(out["window_days"]) <= 0:
+        raise ValueError("receipts.window_days must be > 0")
+    for name in ("min_retrievals", "min_outcomes"):
+        if int(out[name]) < 1:
+            raise ValueError(f"receipts.{name} must be >= 1")
+    writes = [s_ for s_ in steps_cfg if s_["op"] == "write_vector_store"]
+    if not writes:
+        raise ValueError("receipts needs a write_vector_store step (feedback is applied to the chunks it writes)")
+    q = out.get("quarantine")
+    if q is True:
+        q = {}
+    if q is not None:
+        if not isinstance(q, dict) or set(q) - {"mean_outcome_below", "mode"}:
+            raise ValueError("receipts.quarantine must be true or {mean_outcome_below: -0.3, mode: flag|exclude}")
+        q = {"mean_outcome_below": -0.3, "mode": "flag", **q}
+        if not -1 <= float(q["mean_outcome_below"]) <= 1:
+            raise ValueError("receipts.quarantine.mean_outcome_below must be in [-1, 1]")
+        if q["mode"] not in ("flag", "exclude"):
+            raise ValueError("receipts.quarantine.mode must be 'flag' or 'exclude'")
+        if q["mode"] == "exclude" and any(w.get("provider", "chromadb") != "chromadb" for w in writes):
+            raise ValueError("receipts.quarantine.mode=exclude is supported for the chromadb provider only (it deletes the chunks by id); "
+                             "use mode: flag with other providers")
+        out["quarantine"] = q
+    rc = out.get("regression_check")
+    if rc is not None:
+        if not isinstance(rc, dict) or set(rc) - {"min_outcomes", "max_drop", "severity"}:
+            raise ValueError("receipts.regression_check must be {min_outcomes: 10, max_drop: 0.15, severity: WARN|ERROR}")
+        rc = {"min_outcomes": 10, "max_drop": 0.15, "severity": "WARN", **rc}
+        if rc["severity"] not in ("WARN", "ERROR"):
+            raise ValueError("receipts.regression_check.severity must be WARN or ERROR")
+        out["regression_check"] = rc
+    return out
+
+
+def _receipts_store(cfg: Dict[str, Any], context):
+    store = getattr(context.resources, cfg["resource_key"], None)
+    if store is None or not hasattr(store, "item_feedback"):
+        raise ValueError(f"receipts.resource_key={cfg['resource_key']!r} is not a ContextReceiptStore resource "
+                         f"(register one with ContextReceiptStoreComponent)")
+    return store
+
+
+def _receipts_since(cfg: Dict[str, Any]) -> str:
+    return (datetime.now(timezone.utc) - timedelta(days=float(cfg["window_days"]))).isoformat()
+
+
+def _apply_receipt_feedback(df: pd.DataFrame, write_step: dict, cfg: Dict[str, Any], asset_name: str, code_version: str,
+                            context) -> "tuple[pd.DataFrame, dict, dict]":
+    """Returns (frame to write, the write step with feedback columns added to its metadata_columns, summary for metadata)."""
+    store = _receipts_store(cfg, context)
+    since = _receipts_since(cfg)
+    chunk_col = write_step.get("id_column", "chunk_id" if "chunk_id" in df.columns else None)
+    if chunk_col is None or chunk_col not in df.columns:
+        raise ValueError("receipts: the frame reaching write_vector_store has no chunk id column (add a chunk step, or set id_column)")
+    if cfg["refresh_priors"]:
+        store.refresh_item_scores(prior_strength=float(cfg["prior_strength"]))
+    recipe = code_version if cfg["scope_to_recipe"] else None
+    fb = store.item_feedback(asset_name, since=since, code_version=recipe)
+    ids = df[chunk_col].astype(str).tolist()
+    priors = store.get_item_scores(ids)
+    frame = df.copy()
+    frame["feedback_retrievals"] = [int(fb.get(i, {}).get("retrievals", 0)) for i in ids]
+    frame["feedback_rated"] = [int(fb.get(i, {}).get("rated", 0)) for i in ids]
+    frame["feedback_mean_outcome"] = [float(fb.get(i, {}).get("mean_outcome") or 0.0) for i in ids]  # 0.0 + feedback_rated=0 means unrated
+    frame["feedback_cited"] = [int(fb.get(i, {}).get("cited", 0)) for i in ids]
+    frame["feedback_prior"] = [float((priors.get(i) or {}).get("prior") or 0.0) for i in ids]
+    q = cfg.get("quarantine")
+    quarantined: List[str] = []
+    new_cols = list(_FEEDBACK_COLUMNS) if cfg["stamp"] else []
+    if q:
+        bad = (frame["feedback_retrievals"] >= int(cfg["min_retrievals"])) & (frame["feedback_rated"] >= int(cfg["min_outcomes"])) \
+              & (frame["feedback_mean_outcome"] <= float(q["mean_outcome_below"]))
+        quarantined = [i for i, b in zip(ids, bad.tolist()) if b]
+        if q["mode"] == "flag":
+            frame["feedback_quarantined"] = bad.astype(bool)
+            new_cols.append("feedback_quarantined")
+        else:
+            frame = frame[~bad].reset_index(drop=True)
+            ids = frame[chunk_col].astype(str).tolist()
+    # Keys that no longer apply (stamping switched off, quarantine mode changed, ...) must not linger in the index: Chroma's
+    # upsert MERGES metadata, so a stale `feedback_quarantined: True` would keep hiding a recovered chunk. Writing None
+    # deletes the key. Other providers replace metadata on upsert, so there the unused columns are simply dropped.
+    stale = [c for c in _FEEDBACK_COLUMNS + ["feedback_quarantined"] if c not in new_cols]
+    if write_step.get("provider", "chromadb") == "chromadb":
+        for c in stale:
+            frame[c] = pd.Series([None] * len(frame), index=frame.index, dtype=object)
+        new_cols = new_cols + stale
+    else:
+        frame = frame.drop(columns=[c for c in stale if c in frame.columns])
+    step = dict(write_step)
+    if q and q["mode"] == "exclude" and quarantined:
+        step["_purge_chunk_ids"] = list(quarantined)
+    if step.get("metadata_columns"):
+        step["metadata_columns"] = list(step["metadata_columns"]) + [c for c in new_cols if c not in step["metadata_columns"]]
+    usage = store.asset_usage_since(asset_name, since)
+    receipts_total = int(usage.get("receipts", 0))
+    in_frame = set(df[chunk_col].astype(str))
+    never = [i for i in in_frame if fb.get(i, {}).get("retrievals", 0) == 0]
+    ranked = sorted(((i, v) for i, v in fb.items() if v.get("mean_outcome") is not None and v["rated"] >= int(cfg["min_outcomes"])),
+                    key=lambda kv: kv[1]["mean_outcome"])
+    reasons: Dict[str, int] = {}
+    for v in fb.values():
+        for r, n in v.get("excluded", {}).items():
+            reasons[r] = reasons.get(r, 0) + n
+    summary = {
+        "window_days": float(cfg["window_days"]), "scoped_to_recipe": recipe, "receipts_in_window": receipts_total,
+        "chunks_in_build": len(in_frame), "chunks_with_feedback": sum(1 for i in in_frame if fb.get(i, {}).get("retrievals", 0) > 0),
+        "chunks_rated": sum(1 for i in in_frame if fb.get(i, {}).get("rated", 0) > 0),
+        "quarantine_mode": q["mode"] if q else None, "quarantined": len(quarantined), "quarantined_ids": quarantined[:50],
+        "never_retrieved": len(never) if receipts_total >= int(cfg["dead_weight_min_receipts"]) else None,
+        "exclusion_reasons": reasons,
+        "worst": [{"chunk_id": i, "mean_outcome": v["mean_outcome"], "rated": v["rated"]} for i, v in ranked[:10]],
+        "best": [{"chunk_id": i, "mean_outcome": v["mean_outcome"], "rated": v["rated"]} for i, v in ranked[::-1][:10]],
+        "outcomes_by_code_version": store.outcomes_by_code_version(asset_name, since),
+    }
+    return frame, step, summary
+
+
+def _run_recipe_outcomes_check(cfg: Dict[str, Any], asset_name: str, code_version: str, context) -> AssetCheckResult:
+    """Is the recipe running now doing worse, in production, than an earlier recipe? Judged on user outcomes recorded on receipts."""
+    rc = cfg["regression_check"]
+    store = _receipts_store(cfg, context)
+    by_cv = store.outcomes_by_code_version(asset_name, _receipts_since(cfg))
+    rated = lambda v: v is not None and v.get("mean_outcome") is not None and v["outcomes"] >= int(rc["min_outcomes"])  # noqa: E731
+    cur = by_cv.get(code_version)
+    base_meta = {"code_version": code_version, "outcomes_by_code_version": MetadataValue.json(by_cv)}
+    severity = AssetCheckSeverity.ERROR if rc["severity"] == "ERROR" else AssetCheckSeverity.WARN
+    if not rated(cur):
+        return AssetCheckResult(check_name="recipe_outcomes", passed=True, metadata={**base_meta, "status": "insufficient_evidence",
+                                "outcomes_for_current_recipe": (cur or {}).get("outcomes", 0), "needed": int(rc["min_outcomes"])},
+                                description="Not enough rated outcomes for the current recipe yet to judge it")
+    others = {cv: v for cv, v in by_cv.items() if cv not in (code_version, "unknown") and rated(v)}
+    if not others:
+        return AssetCheckResult(check_name="recipe_outcomes", passed=True, metadata={**base_meta, "status": "no_baseline",
+                                "current_mean_outcome": cur["mean_outcome"]}, description="No earlier recipe with enough outcomes to compare against")
+    best_cv = max(others, key=lambda cv: others[cv]["mean_outcome"])
+    drop = round(others[best_cv]["mean_outcome"] - cur["mean_outcome"], 4)
+    passed = drop <= float(rc["max_drop"])
+    return AssetCheckResult(
+        check_name="recipe_outcomes", passed=passed, severity=severity,
+        metadata={**base_meta, "status": "ok" if passed else "regressed", "current_mean_outcome": cur["mean_outcome"],
+                  "best_previous_version": best_cv, "best_previous_mean_outcome": others[best_cv]["mean_outcome"], "drop": drop,
+                  "max_drop": float(rc["max_drop"])},
+        description=(f"recipe {code_version} mean outcome {cur['mean_outcome']:+.2f} vs {others[best_cv]['mean_outcome']:+.2f} for {best_cv}"
+                     + ("" if passed else f" -- worse by {drop:.2f}; consider rolling back")),
+    )
+
+
 def _run_sql_mode(
     context, steps_cfg: List[dict], source_cfg: dict, dialect: str, output_table: str,
     id_column: str, text_column: str, metadata_columns: List[str],
@@ -1579,6 +1763,20 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         ),
     )
 
+    receipts: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Learn from real use: read the retrieval receipts recorded by resources/context_receipt_store back into every build. "
+            "{resource_key: <registered ContextReceiptStoreComponent>, window_days: 30, min_retrievals: 5, min_outcomes: 3, "
+            "refresh_priors: true, scope_to_recipe: true, stamp: true, quarantine: {mean_outcome_below: -0.3, mode: flag|exclude}, "
+            "regression_check: {min_outcomes: 10, max_drop: 0.15, severity: WARN|ERROR}}. Right before write_vector_store each chunk is "
+            "stamped with feedback_retrievals / feedback_rated / feedback_mean_outcome / feedback_cited / feedback_prior (so a gateway can "
+            "rerank), chunks users keep rating badly are flagged or (mode: exclude) left out of the index until their old receipts age out "
+            "of the window, and the run reports dead weight, best/worst chunks, exclusion reasons and outcomes per recipe. "
+            "regression_check adds the `recipe_outcomes` asset check: is the current recipe doing worse in production than an earlier one? "
+            "Feedback is scoped to the current recipe (code_version) by default so a recipe change starts fresh. Python mode only."
+        ),
+    )
     retrieval_eval: Optional[Dict[str, Any]] = Field(
         default=None,
         description=(
@@ -1715,6 +1913,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             if execution_mode == "sql":
                 raise ValueError("retrieval_eval is python-mode only")
             retrieval_eval = _validate_retrieval_eval(self.retrieval_eval, steps_cfg)
+        receipts_cfg = _validate_receipts(self.receipts, steps_cfg, execution_mode) if self.receipts else None
         _inferred_kinds = self.kinds or ["ai", "context-engineering"]
         _all_tags = dict(self.asset_tags or {})
         for _kind in _inferred_kinds:
@@ -1736,16 +1935,26 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )
+        check_specs: List[Any] = []
         if retrieval_eval is not None:
-            asset_kwargs["check_specs"] = [AssetCheckSpec(
+            check_specs.append(AssetCheckSpec(
                 name="retrieval_quality", asset=AssetKey.from_user_string(asset_name),
-                blocking=bool(retrieval_eval.get("blocking", False)))]
+                blocking=bool(retrieval_eval.get("blocking", False))))
+        if receipts_cfg is not None and receipts_cfg.get("regression_check"):
+            check_specs.append(AssetCheckSpec(name="recipe_outcomes", asset=AssetKey.from_user_string(asset_name)))
+        if check_specs:
+            asset_kwargs["check_specs"] = check_specs
         if context_policy is not None:
             asset_kwargs["metadata"] = {_CONTEXT_POLICY_METADATA_KEY: MetadataValue.json(context_policy)}
         if self.upstream_asset_key:
             asset_kwargs["ins"] = {"upstream": AssetIn(key=AssetKey.from_user_string(self.upstream_asset_key))}
+        _resource_keys = set()
         if source_cfg and source_cfg.get("resource_key"):
-            asset_kwargs["required_resource_keys"] = {source_cfg["resource_key"]}
+            _resource_keys.add(source_cfg["resource_key"])
+        if receipts_cfg is not None:
+            _resource_keys.add(receipts_cfg["resource_key"])
+        if _resource_keys:
+            asset_kwargs["required_resource_keys"] = _resource_keys
 
         if execution_mode == "sql":
             @asset(**asset_kwargs)
@@ -1784,6 +1993,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             last_frame_id: Optional[str] = None
             content_version: Optional[str] = None
             partition = context.partition_key if context.has_partition_key else None
+            receipts_summary: Optional[Dict[str, Any]] = None
 
             for step in steps_cfg:
                 import time as _time
@@ -1798,6 +2008,9 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                     if source_id is None:
                         raise ValueError(f"step {step_id!r} (op=write_vector_store) has no source and is not preceded by another step.")
                     write_input = state[source_id]
+                    if receipts_cfg is not None:
+                        write_input, step, receipts_summary = _apply_receipt_feedback(
+                            write_input, step, receipts_cfg, asset_name, recipe_code_version, context)
                     content_version = _content_version(write_input, step.get("text_column", "chunk_text"), steps_cfg)
                     stamp = {
                         "source_asset_key": asset_name,
@@ -1831,6 +2044,10 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             }
             if content_version is not None:
                 metadata["context_version"] = MetadataValue.text(content_version)
+            if receipts_summary is not None:
+                metadata["receipts_feedback"] = MetadataValue.json(receipts_summary)
+                metadata["receipts_quarantined"] = MetadataValue.int(receipts_summary["quarantined"])
+                metadata["receipts_chunks_with_feedback"] = MetadataValue.int(receipts_summary["chunks_with_feedback"])
             if include_preview and len(final_df) > 0:
                 try:
                     _prev_cols = [c for c in final_df.columns if c != "embedding"]
@@ -1846,6 +2063,8 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             )
             if retrieval_eval is not None:
                 yield _run_retrieval_eval(retrieval_eval, steps_cfg, asset_name, stamp_provenance, context)
+            if receipts_cfg is not None and receipts_cfg.get("regression_check"):
+                yield _run_recipe_outcomes_check(receipts_cfg, asset_name, recipe_code_version, context)
 
         return Definitions(assets=[_asset])
 

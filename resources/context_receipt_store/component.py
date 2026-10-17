@@ -1096,6 +1096,84 @@ class ContextReceiptStore:
             ).fetchall()
         return {row["item_id"]: dict(row) for row in rows}
 
+    def item_feedback(
+        self, asset_key: str, *, since: str = "", code_version: str | None = None
+    ) -> dict[str, dict[str, Any]]:
+        """What happened to each chunk of ``asset_key`` -- the read side a BUILD needs to learn from.
+
+        ``{item_id: {"retrievals", "rated", "mean_outcome", "cited", "excluded", "last_retrieved_at"}}`` over receipts
+        created at/after ``since`` (ISO-8601 UTC; "" = all time). With ``code_version`` only items served from that
+        recipe count: after a recipe change (chunking, embedding model, filters) old feedback describes different
+        chunks and must not be applied to the new ones.
+
+        - ``retrievals``: receipts that returned the item (a receipt counts once however many slots it used).
+        - ``rated``: how many of those have at least one outcome; ``mean_outcome`` is their mean effective outcome
+          (a receipt's effective outcome is the mean of its outcomes, a later outcome with the same ``outcome_ref``
+          superseding the earlier -- exactly how ``refresh_item_scores`` counts), or ``None`` when none are rated.
+        - ``cited``: receipts where evidence of level cited/verified/counterfactual_tested applies to the item
+          (item-scoped evidence only to its ``details.item_ids``; unscoped evidence to every item of the receipt).
+        - ``excluded``: ``{reason: n}`` times the gateway withheld the item (pii / stale / policy / ...). An item that was
+          only ever excluded appears with ``retrievals == 0``.
+        """
+        item_where = "i.source_asset_key = ? AND r.created_at >= ?"
+        excl_where = "e.source_asset_key = ? AND r.created_at >= ?"
+        params: list[Any] = [asset_key, since or ""]
+        if code_version is not None:
+            item_where += " AND COALESCE(i.source_code_version, 'unknown') = ?"
+            excl_where += " AND COALESCE(e.source_code_version, 'unknown') = ?"
+            params.append(code_version)
+        with self._connect() as conn:
+            item_rows = conn.execute(
+                f"SELECT DISTINCT i.receipt_id, i.item_id, r.created_at FROM context_receipt_items i "
+                f"JOIN context_receipts r ON r.receipt_id = i.receipt_id WHERE {item_where}", params,
+            ).fetchall()
+            excl_rows = conn.execute(
+                f"SELECT e.item_id, e.reason FROM context_receipt_excluded e "
+                f"JOIN context_receipts r ON r.receipt_id = e.receipt_id WHERE {excl_where}", params,
+            ).fetchall()
+            ids = sorted({row["receipt_id"] for row in item_rows})
+            events: list[Any] = []
+            for start in range(0, len(ids), 500):  # stay under SQLite's bound-variable limit
+                batch = ids[start:start + 500]
+                events.extend(conn.execute(
+                    f"SELECT receipt_id, event_type, payload_json FROM context_receipt_events "
+                    f"WHERE event_type IN ('outcome', 'evidence') AND receipt_id IN ({','.join('?' * len(batch))}) ORDER BY rowid",
+                    batch,
+                ).fetchall())
+        outcomes: dict[str, dict[str, float]] = {}
+        evidence: dict[str, list[set[str] | None]] = {}
+        for ev in events:
+            payload = json.loads(ev["payload_json"])
+            if ev["event_type"] == "outcome":
+                key = payload.get("outcome_ref") or f"anon-{len(outcomes.get(ev['receipt_id'], {}))}"
+                outcomes.setdefault(ev["receipt_id"], {})[key] = payload["value"]
+            elif payload.get("level") in ("cited", "verified", "counterfactual_tested"):
+                scoped = (payload.get("details") or {}).get("item_ids")
+                evidence.setdefault(ev["receipt_id"], []).append(set(scoped) if isinstance(scoped, list) else None)
+        out: dict[str, dict[str, Any]] = {}
+
+        def entry_for(item_id: str) -> dict[str, Any]:
+            return out.setdefault(item_id, {"retrievals": 0, "rated": 0, "_sum": 0.0, "cited": 0, "excluded": {}, "last_retrieved_at": None})
+
+        for row in item_rows:
+            entry = entry_for(row["item_id"])
+            entry["retrievals"] += 1
+            if entry["last_retrieved_at"] is None or row["created_at"] > entry["last_retrieved_at"]:
+                entry["last_retrieved_at"] = row["created_at"]
+            values = outcomes.get(row["receipt_id"])
+            if values:
+                entry["rated"] += 1
+                entry["_sum"] += sum(values.values()) / len(values)
+            if any(scope is None or row["item_id"] in scope for scope in evidence.get(row["receipt_id"], [])):
+                entry["cited"] += 1
+        for row in excl_rows:
+            entry = entry_for(row["item_id"])
+            entry["excluded"][row["reason"]] = entry["excluded"].get(row["reason"], 0) + 1
+        for entry in out.values():
+            total = entry.pop("_sum")
+            entry["mean_outcome"] = round(total / entry["rated"], 4) if entry["rated"] else None
+        return out
+
     def ingest(self, event: Mapping[str, Any]) -> str:
         """Apply one spec-v1 event (see receipt-spec.v1.json); returns its receipt_id.
 

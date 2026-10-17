@@ -15,6 +15,12 @@
     }
   },
   "attributes": {
+    "receipts": {
+      "type": "object",
+      "label": "Context Receipts",
+      "description": "Optional closed-loop context receipts. {resource_key (required, a ContextReceiptStoreComponent resource), context_name, caller_id, purpose, policy_version, fail_on_error, rerank: {prior_weight, explore_fraction, fetch_multiplier}}. Records every row's final retrieval as a receipt (ids + provenance, never text), writes a receipt_id column, and with rerank reorders retrieve/hybrid_search results by learned item priors. Omit for unchanged behaviour.",
+      "required": false
+    },
     "include_reasoning": {
       "type": "boolean",
       "label": "Include Reasoning",

@@ -488,6 +488,19 @@ class RAGPipelineComponent(Component, Model, Resolvable):
         ),
     )
 
+    receipts: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Optional closed-loop context receipts (ops mode). `{resource_key (required: a registered "
+            "ContextReceiptStoreComponent resource), context_name (default: asset_name), caller_id, purpose, "
+            "policy_version, fail_on_error (default false), rerank: {prior_weight: 0.2, explore_fraction: 0.1, "
+            "fetch_multiplier: 3}}`. Every row's final retrieval is recorded as a receipt (item ids and provenance "
+            "only, never text) and its id is written to a `receipt_id` column. With `rerank`, retrieve / "
+            "hybrid_search over-fetch top_k*fetch_multiplier candidates and reorder them by learned item priors, "
+            "reserving an exploration slot. Omit for unchanged behaviour."
+        ),
+    )
+
     retry_policy_max_retries: Optional[int] = Field(
 
         default=None,
@@ -536,6 +549,7 @@ class RAGPipelineComponent(Component, Model, Resolvable):
                 "Define a chain of ops — at minimum `retrieve` + `generate`. "
                 "See the component README for examples."
             )
+        _validate_receipts(self.receipts, self.asset_name)
         return _build_ops_mode(self)
 
 
@@ -955,6 +969,166 @@ def _rrf_combine(ranked_lists: List[List[Dict[str, Any]]], k: int = 60, top_k: i
     return ordered[:top_k]
 
 
+# ── Context receipts (optional `receipts:` block) ────────────────────
+
+_RECEIPT_KEYS = {"resource_key", "context_name", "caller_id", "purpose", "policy_version", "fail_on_error", "rerank"}
+_RECEIPT_RERANK_KEYS = {"prior_weight", "explore_fraction", "fetch_multiplier"}
+
+
+def _validate_receipts(cfg: Optional[Dict[str, Any]], asset_name: str) -> None:
+    """Fail at build_defs on a malformed `receipts:` block (None = feature off)."""
+    if cfg is None:
+        return
+    where = f"RAGPipelineComponent {asset_name!r}: receipts"
+    if not isinstance(cfg, dict):
+        raise ValueError(f"{where}: must be a mapping, got {type(cfg).__name__}")
+    unknown = set(cfg) - _RECEIPT_KEYS
+    if unknown:
+        raise ValueError(f"{where}: unknown key(s) {sorted(unknown)}; valid keys: {sorted(_RECEIPT_KEYS)}")
+    rk = cfg.get("resource_key")
+    if not isinstance(rk, str) or not rk.strip():
+        raise ValueError(f"{where}.resource_key is required (the key of a registered ContextReceiptStoreComponent resource)")
+    for k in ("context_name", "caller_id", "purpose", "policy_version"):
+        if cfg.get(k) is not None and (not isinstance(cfg[k], str) or not cfg[k].strip()):
+            raise ValueError(f"{where}.{k} must be a non-empty string")
+    if not isinstance(cfg.get("fail_on_error", False), bool):
+        raise ValueError(f"{where}.fail_on_error must be a boolean")
+    rr = cfg.get("rerank")
+    if rr is None:
+        return
+    if not isinstance(rr, dict):
+        raise ValueError(f"{where}.rerank must be a mapping")
+    unknown = set(rr) - _RECEIPT_RERANK_KEYS
+    if unknown:
+        raise ValueError(f"{where}.rerank: unknown key(s) {sorted(unknown)}; valid keys: {sorted(_RECEIPT_RERANK_KEYS)}")
+    for k in ("prior_weight", "explore_fraction"):
+        v = rr.get(k)
+        if v is not None and (isinstance(v, bool) or not isinstance(v, (int, float))):
+            raise ValueError(f"{where}.rerank.{k} must be a number")
+    if not 0 <= float(rr.get("explore_fraction", 0.1)) <= 1:
+        raise ValueError(f"{where}.rerank.explore_fraction must be between 0 and 1")
+    fm = rr.get("fetch_multiplier", 3)
+    if isinstance(fm, bool) or not isinstance(fm, int) or fm < 1:
+        raise ValueError(f"{where}.rerank.fetch_multiplier must be an integer >= 1")
+
+
+# BEGIN receipt-rerank (inlined from resources/context_receipt_store; keep identical, see tests/test_receipts_parity.py)
+def receipt_rerank(candidates, scores, *, top_k=None, prior_weight=0.2, explore_fraction=0.1, rng=None):
+    """Reorder retrieval candidates by learned item priors, with reserved exploration (store `rerank` semantics)."""
+    import random as _random
+
+    rng = rng or _random
+    if not 0 <= explore_fraction <= 1:
+        raise ValueError("explore_fraction must be between 0 and 1")
+    adjusted = []
+    for candidate in candidates:
+        prior = (scores.get(candidate["item_id"]) or {}).get("prior") or 0.0
+        adjusted.append({**candidate, "adjusted_score": float(candidate.get("score") or 0.0) + prior_weight * prior, "selection": "ranked"})
+    adjusted.sort(key=lambda c: -c["adjusted_score"])
+    if top_k is None or top_k >= len(adjusted):
+        return adjusted
+    chosen, rest = adjusted[:top_k], adjusted[top_k:]
+    if top_k > 0 and rest and rng.random() < explore_fraction:
+        pick = dict(rng.choice(rest))
+        pick["selection"] = "explore"
+        chosen[-1] = pick
+    return chosen
+# END receipt-rerank
+
+
+def _receipt_failed(comp: "RAGPipelineComponent", context, what: str, exc: Exception) -> None:
+    if (comp.receipts or {}).get("fail_on_error"):
+        raise exc
+    context.log.warning(f"receipts: {what} failed ({type(exc).__name__}: {exc}); continuing without it")
+
+
+def _receipt_store(comp: "RAGPipelineComponent", context):
+    return getattr(context.resources, comp.receipts["resource_key"])
+
+
+def _doc_chunk_id(doc: Dict[str, Any]) -> Optional[str]:
+    cid = (doc.get("metadata") or {}).get("chunk_id")
+    return str(cid) if cid not in (None, "") else None
+
+
+def _fetch_k(comp: "RAGPipelineComponent", top_k: int) -> int:
+    """Candidates to pull from the vector store: top_k, or top_k*fetch_multiplier when reranking by priors."""
+    rr = (comp.receipts or {}).get("rerank")
+    return top_k * int(rr.get("fetch_multiplier", 3)) if rr is not None else top_k
+
+
+def _apply_receipt_rerank(docs: List[Dict[str, Any]], top_k: int, comp: "RAGPipelineComponent", context) -> List[Dict[str, Any]]:
+    """Reorder over-fetched `docs` by the store's learned priors and keep top_k. On a store failure (and
+    fail_on_error false) fall back to the plain top_k by score."""
+    rr = (comp.receipts or {}).get("rerank")
+    if rr is None:
+        return docs
+    candidates = [{**d, "item_id": _doc_chunk_id(d) or f"__noid_{i}", "score": d.get("score", 0.0)} for i, d in enumerate(docs)]
+    try:
+        priors = _receipt_store(comp, context).get_item_scores([c["item_id"] for c in candidates if not c["item_id"].startswith("__noid_")])
+        ranked = receipt_rerank(
+            candidates, priors, top_k=top_k,
+            prior_weight=float(rr.get("prior_weight", 0.2)),
+            explore_fraction=float(rr.get("explore_fraction", 0.1)),
+        )
+    except Exception as exc:
+        _receipt_failed(comp, context, "reading item priors", exc)
+        return docs[:top_k]
+    return ranked
+
+
+def _opt_str(v: Any) -> Optional[str]:
+    return None if v is None or v == "" else str(v)
+
+
+def _record_receipt(comp: "RAGPipelineComponent", context, query: str, docs: List[Dict[str, Any]],
+                    eligible: Optional[int]) -> Optional[str]:
+    """Record one retrieval receipt for the docs that reached the final step. Returns the receipt id or None."""
+    import hashlib
+
+    cfg = comp.receipts
+    items, seen = [], set()
+    for doc in docs:
+        cid = _doc_chunk_id(doc)
+        if cid is None or cid in seen:
+            continue  # chunks without a chunk_id cannot be tracked as items
+        seen.add(cid)
+        meta = doc.get("metadata") or {}
+        score = doc.get("score")
+        items.append({
+            "item_id": cid,
+            "source_asset_key": _opt_str(meta.get("source_asset_key")),
+            "source_version": _opt_str(meta.get("source_version")),
+            "source_partition": _opt_str(meta.get("source_partition")),
+            "source_code_version": _opt_str(meta.get("source_code_version")),
+            "rank": len(items) + 1,
+            "score": float(score) if isinstance(score, (int, float)) and not isinstance(score, bool) and score == score and abs(score) != float("inf") else None,
+            "selection": "explore" if doc.get("selection") == "explore" else "ranked",
+        })
+    versions = {i["source_version"] for i in items}
+    try:
+        asset_key = context.asset_key.to_user_string()
+    except Exception:
+        asset_key = comp.asset_name
+    try:
+        return _receipt_store(comp, context).record_retrieval(
+            context_name=cfg.get("context_name") or comp.asset_name,
+            items=items,
+            context_version=versions.pop() if len(versions) == 1 else None,
+            policy_version=cfg.get("policy_version"),
+            caller_id=cfg.get("caller_id"),
+            purpose=cfg.get("purpose"),
+            query_hash=hashlib.sha256(query.encode("utf-8")).hexdigest(),
+            eligible_count=max(int(eligible), len(items)) if eligible is not None else None,
+            excluded_count=0,
+            dagster_asset_key=asset_key,
+            dagster_run_id=context.run_id,
+        )
+    except Exception as exc:
+        _receipt_failed(comp, context, "recording the retrieval", exc)
+        return None
+
+
 # ── Ops (5): retrieve / hybrid_search / rerank / expand_query / generate ─
 
 
@@ -993,10 +1167,16 @@ def _do_retrieve(step: dict, state: Dict[str, Any], comp: "RAGPipelineComponent"
     if not query:
         raise ValueError("retrieve: no query available (set __query__ or query_source)")
     emb = _embed_query(retriever.get("embedding") or {}, query)
-    docs = _vector_search(retriever, emb, top_k)
+    docs = _vector_search(retriever, emb, _fetch_k(comp, top_k))
+    eligible = len(docs)
+    if comp.receipts:
+        docs = _apply_receipt_rerank(docs, top_k, comp, context)
     context.log.info(f"[retrieve:{step['id']}] retriever={step['retriever']!r} top_k={top_k} → {len(docs)} docs")
-    return {"op": "retrieve", "query": query, "docs": docs, "top_k": top_k,
-            "retriever": step["retriever"]}
+    out = {"op": "retrieve", "query": query, "docs": docs, "top_k": top_k,
+           "retriever": step["retriever"]}
+    if comp.receipts:
+        out["eligible_count"] = eligible
+    return out
 
 
 def _do_hybrid_search(step: dict, state: Dict[str, Any], comp: "RAGPipelineComponent", context) -> Dict[str, Any]:
@@ -1009,7 +1189,7 @@ def _do_hybrid_search(step: dict, state: Dict[str, Any], comp: "RAGPipelineCompo
 
     # Vector arm — pull top_k*2 to give RRF headroom.
     emb = _embed_query(retriever.get("embedding") or {}, query)
-    vec_hits = _vector_search(retriever, emb, top_k * 2)
+    vec_hits = _vector_search(retriever, emb, _fetch_k(comp, top_k * 2))
 
     # BM25 arm — needs an in-memory corpus. Users pass a prior step id
     # whose docs form the BM25 corpus (typical pattern: retrieve → bm25
@@ -1022,12 +1202,18 @@ def _do_hybrid_search(step: dict, state: Dict[str, Any], comp: "RAGPipelineCompo
         corpus = state[corpus_source].get("docs") or []
     else:
         corpus = step.get("bm25_corpus_docs") or vec_hits  # default: rerank same vec_hits
-    bm25_hits = _bm25_search(corpus, query, top_k * 2)
+    bm25_hits = _bm25_search(corpus, query, _fetch_k(comp, top_k * 2))
 
-    fused = _rrf_combine([vec_hits, bm25_hits], k=int(step.get("rrf_k", 60)), top_k=top_k)
+    fused = _rrf_combine([vec_hits, bm25_hits], k=int(step.get("rrf_k", 60)), top_k=_fetch_k(comp, top_k))
+    eligible = len(fused)
+    if comp.receipts:
+        fused = _apply_receipt_rerank(fused, top_k, comp, context)
     context.log.info(f"[hybrid_search:{step['id']}] vec={len(vec_hits)} bm25={len(bm25_hits)} → fused={len(fused)}")
-    return {"op": "hybrid_search", "query": query, "docs": fused, "top_k": top_k,
-            "retriever": step["retriever"]}
+    out = {"op": "hybrid_search", "query": query, "docs": fused, "top_k": top_k,
+           "retriever": step["retriever"]}
+    if comp.receipts:
+        out["eligible_count"] = eligible
+    return out
 
 
 def _do_rerank(step: dict, state: Dict[str, Any], comp: "RAGPipelineComponent", context) -> Dict[str, Any]:
@@ -1202,6 +1388,7 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
         retry_policy=_retry_policy,
         ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
         deps=[AssetKey.from_user_string(k) for k in (comp.deps or [])],
+        **({"required_resource_keys": {comp.receipts["resource_key"]}} if comp.receipts else {}),
     )
     def _rag_ops_asset(context: AssetExecutionContext, upstream: pd.DataFrame) -> pd.DataFrame:
         # Defensive Output/MaterializeResult unwrap.
@@ -1229,6 +1416,7 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
         answers: List[str] = []
         reasonings: List[Optional[str]] = []
         sources_per_row: List[List[Dict[str, Any]]] = []
+        receipt_ids: List[Optional[str]] = []
         totals = {"cost_usd": 0.0, "latency_ms": 0, "tokens_total": 0,
                   "cache_read_tokens": 0, "cache_creation_tokens": 0}
 
@@ -1253,6 +1441,12 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
             answers.append(last.get("answer") or last.get("content") or "")
             reasonings.append(last.get("reasoning"))
             sources_per_row.append(last.get("docs") or [])
+            if comp.receipts:
+                # One receipt per row: the docs the final step consumed; eligible = candidates the last retrieval saw.
+                eligible = next((o["eligible_count"] for o in reversed(list(state.values()))
+                                 if isinstance(o, dict) and "eligible_count" in o), None)
+                receipt_ids.append(_record_receipt(comp, context, query, last.get("docs") or [], eligible)
+                                   if eligible is not None else None)
 
             for k in totals:
                 # Sum across all steps this row.
@@ -1266,11 +1460,22 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
         if include_sources:
             df[sources_column] = sources_per_row
 
+        if comp.receipts:
+            df["receipt_id"] = receipt_ids
+
         from dagster import TableSchema, TableColumn
         _col_schema = TableSchema(columns=[
             TableColumn(name=str(c), type=str(df.dtypes[c])) for c in df.columns
         ])
+        _receipt_meta = {}
+        if comp.receipts:
+            _receipt_meta = {
+                "receipt_ids": MetadataValue.json([r for r in receipt_ids if r]),
+                "receipts_recorded": MetadataValue.int(sum(1 for r in receipt_ids if r)),
+                "receipts_failed": MetadataValue.int(sum(1 for r in receipt_ids if not r)),
+            }
         context.add_output_metadata({
+            **_receipt_meta,
             "dagster/row_count": MetadataValue.int(len(df)),
             "dagster/column_schema": MetadataValue.table_schema(_col_schema),
             "n_steps": MetadataValue.int(len(steps_cfg)),

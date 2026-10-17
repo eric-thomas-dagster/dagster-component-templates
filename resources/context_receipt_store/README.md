@@ -16,6 +16,23 @@ settings (on by default) write the asset key, content-derived version, partition
 every indexed chunk, so a gateway can build receipt items straight from index hits and a no-op rebuild does not
 make receipts look stale. Any other pipeline works too if it stamps the same fields.
 
+## Closing the loop: reading receipts back into the build
+
+Receipts are only useful if something learns from them. `rag_pipeline`'s `receipts:` block records every retrieval (and reranks with the learned item
+priors); `context_engineering_pipeline`'s `receipts:` block reads them back at build time. The read side it uses is
+`store.item_feedback(asset_key, since="", code_version=None)`:
+
+```python
+store.item_feedback("support_kb", since="2026-09-17T00:00:00+00:00", code_version="recipe-7")
+# {"support_kb_billing_c_0": {"retrievals": 6, "rated": 6, "mean_outcome": -1.0, "cited": 0,
+#                             "excluded": {"stale": 2}, "last_retrieved_at": "..."}, ...}
+```
+
+Per chunk: how often it was retrieved, how many of those receipts have an outcome and their mean (a receipt's effective outcome is the mean of its outcomes; a later
+outcome with the same `outcome_ref` supersedes the earlier -- the same counting as `refresh_item_scores`), how often it was cited, and why the gateway withheld it.
+`code_version` scopes the answer to chunks built by one recipe, so a recipe change does not inherit ratings from different chunks. See
+[`context_engineering_pipeline`'s "Learning from receipts"](../../assets/ai/context_engineering_pipeline/README.md#learning-from-receipts).
+
 ## Configure the Dagster resource
 
 ```yaml

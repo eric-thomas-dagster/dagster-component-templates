@@ -1925,6 +1925,62 @@
                   "type": "string",
                   "description": "Prior step id whose text the reviewer sees; defaults to the pipeline input."
                 },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named inputs: {port_name: {from: step_id} | {literal: value}}"
+                },
+                "persona": {
+                  "type": "string",
+                  "description": "Name of a reusable sub-config declared in the top-level `personas:` block; merged into this step."
+                },
+                "when": {
+                  "type": "object",
+                  "required": [
+                    "source"
+                  ],
+                  "description": "Guard: skip this step (passing its source text through) unless the predicate holds. {source: <prior step id>, field: <result key, default text>, <one predicate>}.",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": "string"
+                    },
+                    "equals": {},
+                    "in": {
+                      "type": "array"
+                    },
+                    "contains": {},
+                    "regex": {
+                      "type": "string"
+                    },
+                    "truthy": {
+                      "type": "boolean"
+                    },
+                    "falsy": {
+                      "type": "boolean"
+                    },
+                    "gt": {
+                      "type": "number"
+                    },
+                    "gte": {
+                      "type": "number"
+                    },
+                    "lt": {
+                      "type": "number"
+                    },
+                    "lte": {
+                      "type": "number"
+                    },
+                    "not": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "policy": {
+                  "type": "object",
+                  "description": "Per-step agent policy; can only further restrict the pipeline-level `policy:` block."
+                },
                 "approval_dir": {
                   "type": "string",
                   "description": "Directory or fsspec URI holding approval tokens (<key>.json) and the pending review queue (pending/<key>.json)."
@@ -1989,6 +2045,2138 @@
                     "continue"
                   ],
                   "default": "stop"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "plan",
+              "type": "object",
+              "required": [
+                "id",
+                "op"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "plan"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Optional prior step id whose text is the goal ({text}); defaults to the pipeline input."
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named inputs: {port_name: {from: step_id} | {literal: value}}"
+                },
+                "persona": {
+                  "type": "string",
+                  "description": "Name of a reusable sub-config declared in the top-level `personas:` block; merged into this step."
+                },
+                "when": {
+                  "type": "object",
+                  "required": [
+                    "source"
+                  ],
+                  "description": "Guard: skip this step (passing its source text through) unless the predicate holds. {source: <prior step id>, field: <result key, default text>, <one predicate>}.",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": "string"
+                    },
+                    "equals": {},
+                    "in": {
+                      "type": "array"
+                    },
+                    "contains": {},
+                    "regex": {
+                      "type": "string"
+                    },
+                    "truthy": {
+                      "type": "boolean"
+                    },
+                    "falsy": {
+                      "type": "boolean"
+                    },
+                    "gt": {
+                      "type": "number"
+                    },
+                    "gte": {
+                      "type": "number"
+                    },
+                    "lt": {
+                      "type": "number"
+                    },
+                    "lte": {
+                      "type": "number"
+                    },
+                    "not": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "policy": {
+                  "type": "object",
+                  "description": "Per-step agent policy; can only further restrict the pipeline-level `policy:` block."
+                },
+                "model": {
+                  "type": "string",
+                  "description": "LLM for this step (and the default for any planner/executor/verifier/... sub-config). May come from `persona`."
+                },
+                "api_key_env_var": {
+                  "type": "string"
+                },
+                "api_base_env_var": {
+                  "type": "string"
+                },
+                "system_prompt": {
+                  "type": "string"
+                },
+                "temperature": {
+                  "type": "number"
+                },
+                "max_tokens": {
+                  "type": "integer"
+                },
+                "reasoning_effort": {
+                  "type": "string",
+                  "description": "low | medium | high; forwarded to reasoning models."
+                },
+                "thinking_budget": {
+                  "type": "integer",
+                  "description": "Max reasoning tokens (Gemini 2.5+/Anthropic thinking models)."
+                },
+                "prompt_caching": {
+                  "type": "boolean"
+                },
+                "goal_template": {
+                  "type": "string",
+                  "description": "Goal text; `{text}` = source text, `{port}` = typed input. Default '{text}'."
+                },
+                "planner": {
+                  "type": "object",
+                  "description": "Planner LLM overrides (same keys as the step's model settings).",
+                  "properties": {
+                    "model": {
+                      "type": "string",
+                      "description": "LLM for this step (and the default for any planner/executor/verifier/... sub-config). May come from `persona`."
+                    },
+                    "api_key_env_var": {
+                      "type": "string"
+                    },
+                    "api_base_env_var": {
+                      "type": "string"
+                    },
+                    "system_prompt": {
+                      "type": "string"
+                    },
+                    "temperature": {
+                      "type": "number"
+                    },
+                    "max_tokens": {
+                      "type": "integer"
+                    },
+                    "reasoning_effort": {
+                      "type": "string",
+                      "description": "low | medium | high; forwarded to reasoning models."
+                    },
+                    "thinking_budget": {
+                      "type": "integer",
+                      "description": "Max reasoning tokens (Gemini 2.5+/Anthropic thinking models)."
+                    },
+                    "prompt_caching": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "executor": {
+                  "type": "object",
+                  "description": "Executor overrides. Setting `mcp_servers` makes each task run as a tool_use_loop.",
+                  "properties": {
+                    "model": {
+                      "type": "string",
+                      "description": "LLM for this step (and the default for any planner/executor/verifier/... sub-config). May come from `persona`."
+                    },
+                    "api_key_env_var": {
+                      "type": "string"
+                    },
+                    "api_base_env_var": {
+                      "type": "string"
+                    },
+                    "system_prompt": {
+                      "type": "string"
+                    },
+                    "temperature": {
+                      "type": "number"
+                    },
+                    "max_tokens": {
+                      "type": "integer"
+                    },
+                    "reasoning_effort": {
+                      "type": "string",
+                      "description": "low | medium | high; forwarded to reasoning models."
+                    },
+                    "thinking_budget": {
+                      "type": "integer",
+                      "description": "Max reasoning tokens (Gemini 2.5+/Anthropic thinking models)."
+                    },
+                    "prompt_caching": {
+                      "type": "boolean"
+                    },
+                    "mcp_servers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                },
+                "verifier": {
+                  "type": "object",
+                  "description": "Checks each task's output; a failure triggers a replan of the remaining work.",
+                  "properties": {
+                    "kind": {
+                      "enum": [
+                        "llm",
+                        "regex",
+                        "json",
+                        "contains"
+                      ],
+                      "description": "Default: llm when a model is available, else regex."
+                    },
+                    "model": {
+                      "type": "string"
+                    },
+                    "pattern": {
+                      "type": "string",
+                      "description": "regex kind: pattern that must match (case-insensitive, dotall)."
+                    },
+                    "contains": {
+                      "description": "contains kind: string or list of strings.",
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      ]
+                    },
+                    "all": {
+                      "type": "boolean",
+                      "description": "contains kind: require every needle (default true)."
+                    },
+                    "required_keys": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "json kind: keys the parsed object must have."
+                    },
+                    "rubric": {
+                      "type": "string",
+                      "description": "llm kind: what a passing answer looks like."
+                    },
+                    "min_score": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1,
+                      "description": "llm kind: pass threshold (default 0.7)."
+                    },
+                    "api_key_env_var": {
+                      "type": "string"
+                    },
+                    "api_base_env_var": {
+                      "type": "string"
+                    },
+                    "system_prompt": {
+                      "type": "string"
+                    },
+                    "temperature": {
+                      "type": "number"
+                    },
+                    "max_tokens": {
+                      "type": "integer"
+                    },
+                    "reasoning_effort": {
+                      "type": "string",
+                      "description": "low | medium | high; forwarded to reasoning models."
+                    },
+                    "thinking_budget": {
+                      "type": "integer",
+                      "description": "Max reasoning tokens (Gemini 2.5+/Anthropic thinking models)."
+                    },
+                    "prompt_caching": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "max_steps": {
+                  "type": "integer",
+                  "description": "Default 8."
+                },
+                "max_replans": {
+                  "type": "integer",
+                  "description": "Default 2."
+                },
+                "synthesize": {
+                  "type": "boolean",
+                  "description": "Write a final composed answer (default true)."
+                },
+                "on_fail": {
+                  "enum": [
+                    "continue",
+                    "fail"
+                  ],
+                  "default": "continue"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "best_of_n",
+              "type": "object",
+              "required": [
+                "id",
+                "op"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "best_of_n"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Optional prior step id; defaults to the pipeline input. Its text fills `{text}` in prompt_template."
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named inputs: {port_name: {from: step_id} | {literal: value}}"
+                },
+                "persona": {
+                  "type": "string",
+                  "description": "Name of a reusable sub-config declared in the top-level `personas:` block; merged into this step."
+                },
+                "when": {
+                  "type": "object",
+                  "required": [
+                    "source"
+                  ],
+                  "description": "Guard: skip this step (passing its source text through) unless the predicate holds. {source: <prior step id>, field: <result key, default text>, <one predicate>}.",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": "string"
+                    },
+                    "equals": {},
+                    "in": {
+                      "type": "array"
+                    },
+                    "contains": {},
+                    "regex": {
+                      "type": "string"
+                    },
+                    "truthy": {
+                      "type": "boolean"
+                    },
+                    "falsy": {
+                      "type": "boolean"
+                    },
+                    "gt": {
+                      "type": "number"
+                    },
+                    "gte": {
+                      "type": "number"
+                    },
+                    "lt": {
+                      "type": "number"
+                    },
+                    "lte": {
+                      "type": "number"
+                    },
+                    "not": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "policy": {
+                  "type": "object",
+                  "description": "Per-step agent policy; can only further restrict the pipeline-level `policy:` block."
+                },
+                "model": {
+                  "type": "string",
+                  "description": "LLM for this step (and the default for any planner/executor/verifier/... sub-config). May come from `persona`."
+                },
+                "api_key_env_var": {
+                  "type": "string"
+                },
+                "api_base_env_var": {
+                  "type": "string"
+                },
+                "system_prompt": {
+                  "type": "string"
+                },
+                "temperature": {
+                  "type": "number"
+                },
+                "max_tokens": {
+                  "type": "integer"
+                },
+                "reasoning_effort": {
+                  "type": "string",
+                  "description": "low | medium | high; forwarded to reasoning models."
+                },
+                "thinking_budget": {
+                  "type": "integer",
+                  "description": "Max reasoning tokens (Gemini 2.5+/Anthropic thinking models)."
+                },
+                "prompt_caching": {
+                  "type": "boolean"
+                },
+                "prompt_template": {
+                  "type": "string",
+                  "description": "User prompt; `{text}` = source text, `{port}` = typed input. Default '{text}'."
+                },
+                "n": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Number of candidates (default 3)."
+                },
+                "models": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Models cycled across candidates (ensemble)."
+                },
+                "select": {
+                  "enum": [
+                    "verifier",
+                    "vote",
+                    "first_valid"
+                  ],
+                  "description": "Default: verifier when a `verifier` is set, else vote."
+                },
+                "verifier": {
+                  "type": "object",
+                  "description": "Scores each candidate. Required when select=verifier.",
+                  "properties": {
+                    "kind": {
+                      "enum": [
+                        "llm",
+                        "regex",
+                        "json",
+                        "contains"
+                      ],
+                      "description": "Default: llm when a model is available, else regex."
+                    },
+                    "model": {
+                      "type": "string"
+                    },
+                    "pattern": {
+                      "type": "string",
+                      "description": "regex kind: pattern that must match (case-insensitive, dotall)."
+                    },
+                    "contains": {
+                      "description": "contains kind: string or list of strings.",
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      ]
+                    },
+                    "all": {
+                      "type": "boolean",
+                      "description": "contains kind: require every needle (default true)."
+                    },
+                    "required_keys": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "json kind: keys the parsed object must have."
+                    },
+                    "rubric": {
+                      "type": "string",
+                      "description": "llm kind: what a passing answer looks like."
+                    },
+                    "min_score": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1,
+                      "description": "llm kind: pass threshold (default 0.7)."
+                    },
+                    "api_key_env_var": {
+                      "type": "string"
+                    },
+                    "api_base_env_var": {
+                      "type": "string"
+                    },
+                    "system_prompt": {
+                      "type": "string"
+                    },
+                    "temperature": {
+                      "type": "number"
+                    },
+                    "max_tokens": {
+                      "type": "integer"
+                    },
+                    "reasoning_effort": {
+                      "type": "string",
+                      "description": "low | medium | high; forwarded to reasoning models."
+                    },
+                    "thinking_budget": {
+                      "type": "integer",
+                      "description": "Max reasoning tokens (Gemini 2.5+/Anthropic thinking models)."
+                    },
+                    "prompt_caching": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "parallel": {
+                  "type": "boolean",
+                  "description": "Default true."
+                },
+                "max_workers": {
+                  "type": "integer",
+                  "description": "Default 4."
+                },
+                "on_none_pass": {
+                  "enum": [
+                    "best",
+                    "fail"
+                  ],
+                  "default": "best"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "cascade",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "models"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "cascade"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Optional prior step id; defaults to the pipeline input. Its text fills `{text}` in prompt_template."
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named inputs: {port_name: {from: step_id} | {literal: value}}"
+                },
+                "persona": {
+                  "type": "string",
+                  "description": "Name of a reusable sub-config declared in the top-level `personas:` block; merged into this step."
+                },
+                "when": {
+                  "type": "object",
+                  "required": [
+                    "source"
+                  ],
+                  "description": "Guard: skip this step (passing its source text through) unless the predicate holds. {source: <prior step id>, field: <result key, default text>, <one predicate>}.",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": "string"
+                    },
+                    "equals": {},
+                    "in": {
+                      "type": "array"
+                    },
+                    "contains": {},
+                    "regex": {
+                      "type": "string"
+                    },
+                    "truthy": {
+                      "type": "boolean"
+                    },
+                    "falsy": {
+                      "type": "boolean"
+                    },
+                    "gt": {
+                      "type": "number"
+                    },
+                    "gte": {
+                      "type": "number"
+                    },
+                    "lt": {
+                      "type": "number"
+                    },
+                    "lte": {
+                      "type": "number"
+                    },
+                    "not": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "policy": {
+                  "type": "object",
+                  "description": "Per-step agent policy; can only further restrict the pipeline-level `policy:` block."
+                },
+                "model": {
+                  "type": "string",
+                  "description": "LLM for this step (and the default for any planner/executor/verifier/... sub-config). May come from `persona`."
+                },
+                "api_key_env_var": {
+                  "type": "string"
+                },
+                "api_base_env_var": {
+                  "type": "string"
+                },
+                "system_prompt": {
+                  "type": "string"
+                },
+                "temperature": {
+                  "type": "number"
+                },
+                "max_tokens": {
+                  "type": "integer"
+                },
+                "reasoning_effort": {
+                  "type": "string",
+                  "description": "low | medium | high; forwarded to reasoning models."
+                },
+                "thinking_budget": {
+                  "type": "integer",
+                  "description": "Max reasoning tokens (Gemini 2.5+/Anthropic thinking models)."
+                },
+                "prompt_caching": {
+                  "type": "boolean"
+                },
+                "prompt_template": {
+                  "type": "string",
+                  "description": "User prompt; `{text}` = source text, `{port}` = typed input. Default '{text}'."
+                },
+                "models": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Ordered cheapest to strongest; escalates when the answer fails `accept` or errors."
+                },
+                "accept": {
+                  "type": "object",
+                  "description": "Verifier an answer must pass to stop escalating. Omit to accept any non-empty answer.",
+                  "properties": {
+                    "kind": {
+                      "enum": [
+                        "llm",
+                        "regex",
+                        "json",
+                        "contains"
+                      ],
+                      "description": "Default: llm when a model is available, else regex."
+                    },
+                    "model": {
+                      "type": "string"
+                    },
+                    "pattern": {
+                      "type": "string",
+                      "description": "regex kind: pattern that must match (case-insensitive, dotall)."
+                    },
+                    "contains": {
+                      "description": "contains kind: string or list of strings.",
+                      "oneOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      ]
+                    },
+                    "all": {
+                      "type": "boolean",
+                      "description": "contains kind: require every needle (default true)."
+                    },
+                    "required_keys": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "json kind: keys the parsed object must have."
+                    },
+                    "rubric": {
+                      "type": "string",
+                      "description": "llm kind: what a passing answer looks like."
+                    },
+                    "min_score": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 1,
+                      "description": "llm kind: pass threshold (default 0.7)."
+                    },
+                    "api_key_env_var": {
+                      "type": "string"
+                    },
+                    "api_base_env_var": {
+                      "type": "string"
+                    },
+                    "system_prompt": {
+                      "type": "string"
+                    },
+                    "temperature": {
+                      "type": "number"
+                    },
+                    "max_tokens": {
+                      "type": "integer"
+                    },
+                    "reasoning_effort": {
+                      "type": "string",
+                      "description": "low | medium | high; forwarded to reasoning models."
+                    },
+                    "thinking_budget": {
+                      "type": "integer",
+                      "description": "Max reasoning tokens (Gemini 2.5+/Anthropic thinking models)."
+                    },
+                    "prompt_caching": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "on_exhausted": {
+                  "enum": [
+                    "last",
+                    "fail"
+                  ],
+                  "default": "last"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "verify",
+              "type": "object",
+              "required": [
+                "id",
+                "op"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "verify"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Prior step id whose text is the ANSWER being checked; defaults to the pipeline input."
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named inputs: {port_name: {from: step_id} | {literal: value}}"
+                },
+                "persona": {
+                  "type": "string",
+                  "description": "Name of a reusable sub-config declared in the top-level `personas:` block; merged into this step."
+                },
+                "when": {
+                  "type": "object",
+                  "required": [
+                    "source"
+                  ],
+                  "description": "Guard: skip this step (passing its source text through) unless the predicate holds. {source: <prior step id>, field: <result key, default text>, <one predicate>}.",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": "string"
+                    },
+                    "equals": {},
+                    "in": {
+                      "type": "array"
+                    },
+                    "contains": {},
+                    "regex": {
+                      "type": "string"
+                    },
+                    "truthy": {
+                      "type": "boolean"
+                    },
+                    "falsy": {
+                      "type": "boolean"
+                    },
+                    "gt": {
+                      "type": "number"
+                    },
+                    "gte": {
+                      "type": "number"
+                    },
+                    "lt": {
+                      "type": "number"
+                    },
+                    "lte": {
+                      "type": "number"
+                    },
+                    "not": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "policy": {
+                  "type": "object",
+                  "description": "Per-step agent policy; can only further restrict the pipeline-level `policy:` block."
+                },
+                "model": {
+                  "type": "string",
+                  "description": "LLM for this step (and the default for any planner/executor/verifier/... sub-config). May come from `persona`."
+                },
+                "api_key_env_var": {
+                  "type": "string"
+                },
+                "api_base_env_var": {
+                  "type": "string"
+                },
+                "system_prompt": {
+                  "type": "string"
+                },
+                "temperature": {
+                  "type": "number"
+                },
+                "max_tokens": {
+                  "type": "integer"
+                },
+                "reasoning_effort": {
+                  "type": "string",
+                  "description": "low | medium | high; forwarded to reasoning models."
+                },
+                "thinking_budget": {
+                  "type": "integer",
+                  "description": "Max reasoning tokens (Gemini 2.5+/Anthropic thinking models)."
+                },
+                "prompt_caching": {
+                  "type": "boolean"
+                },
+                "evidence_source": {
+                  "description": "Step id (or list of ids) holding the evidence. Required unless `inputs.evidence` is given.",
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
+                },
+                "min_score": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1,
+                  "description": "Default 0.7."
+                },
+                "on_fail": {
+                  "enum": [
+                    "continue",
+                    "fail"
+                  ],
+                  "default": "continue"
+                }
+              },
+              "anyOf": [
+                {
+                  "required": [
+                    "evidence_source"
+                  ]
+                },
+                {
+                  "required": [
+                    "inputs"
+                  ]
+                }
+              ],
+              "additionalProperties": false
+            },
+            {
+              "title": "eval",
+              "type": "object",
+              "required": [
+                "id",
+                "op"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "eval"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Prior step id whose text is scored; defaults to the pipeline input."
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named inputs: {port_name: {from: step_id} | {literal: value}}"
+                },
+                "persona": {
+                  "type": "string",
+                  "description": "Name of a reusable sub-config declared in the top-level `personas:` block; merged into this step."
+                },
+                "when": {
+                  "type": "object",
+                  "required": [
+                    "source"
+                  ],
+                  "description": "Guard: skip this step (passing its source text through) unless the predicate holds. {source: <prior step id>, field: <result key, default text>, <one predicate>}.",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": "string"
+                    },
+                    "equals": {},
+                    "in": {
+                      "type": "array"
+                    },
+                    "contains": {},
+                    "regex": {
+                      "type": "string"
+                    },
+                    "truthy": {
+                      "type": "boolean"
+                    },
+                    "falsy": {
+                      "type": "boolean"
+                    },
+                    "gt": {
+                      "type": "number"
+                    },
+                    "gte": {
+                      "type": "number"
+                    },
+                    "lt": {
+                      "type": "number"
+                    },
+                    "lte": {
+                      "type": "number"
+                    },
+                    "not": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "policy": {
+                  "type": "object",
+                  "description": "Per-step agent policy; can only further restrict the pipeline-level `policy:` block."
+                },
+                "model": {
+                  "type": "string",
+                  "description": "LLM for this step (and the default for any planner/executor/verifier/... sub-config). May come from `persona`."
+                },
+                "api_key_env_var": {
+                  "type": "string"
+                },
+                "api_base_env_var": {
+                  "type": "string"
+                },
+                "system_prompt": {
+                  "type": "string"
+                },
+                "temperature": {
+                  "type": "number"
+                },
+                "max_tokens": {
+                  "type": "integer"
+                },
+                "reasoning_effort": {
+                  "type": "string",
+                  "description": "low | medium | high; forwarded to reasoning models."
+                },
+                "thinking_budget": {
+                  "type": "integer",
+                  "description": "Max reasoning tokens (Gemini 2.5+/Anthropic thinking models)."
+                },
+                "prompt_caching": {
+                  "type": "boolean"
+                },
+                "criteria": {
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "object",
+                        "required": [
+                          "name"
+                        ],
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          },
+                          "weight": {
+                            "type": "number"
+                          }
+                        },
+                        "additionalProperties": false
+                      }
+                    ]
+                  },
+                  "description": "Rubric criteria (default ['overall quality'])."
+                },
+                "scale": {
+                  "type": "integer",
+                  "minimum": 2,
+                  "description": "Top of the 1..scale score range (default 5)."
+                },
+                "reference_source": {
+                  "type": "string",
+                  "description": "Optional step id holding the expected answer."
+                },
+                "fail_below": {
+                  "type": "number",
+                  "description": "Hard gate on the weighted mean, in `scale` units; the step raises when below."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "decide",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "outcomes"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "decide"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Prior step id whose text is the input to decide on; defaults to the pipeline input."
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named inputs: {port_name: {from: step_id} | {literal: value}}"
+                },
+                "persona": {
+                  "type": "string",
+                  "description": "Name of a reusable sub-config declared in the top-level `personas:` block; merged into this step."
+                },
+                "when": {
+                  "type": "object",
+                  "required": [
+                    "source"
+                  ],
+                  "description": "Guard: skip this step (passing its source text through) unless the predicate holds. {source: <prior step id>, field: <result key, default text>, <one predicate>}.",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": "string"
+                    },
+                    "equals": {},
+                    "in": {
+                      "type": "array"
+                    },
+                    "contains": {},
+                    "regex": {
+                      "type": "string"
+                    },
+                    "truthy": {
+                      "type": "boolean"
+                    },
+                    "falsy": {
+                      "type": "boolean"
+                    },
+                    "gt": {
+                      "type": "number"
+                    },
+                    "gte": {
+                      "type": "number"
+                    },
+                    "lt": {
+                      "type": "number"
+                    },
+                    "lte": {
+                      "type": "number"
+                    },
+                    "not": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "policy": {
+                  "type": "object",
+                  "description": "Per-step agent policy; can only further restrict the pipeline-level `policy:` block."
+                },
+                "model": {
+                  "type": "string",
+                  "description": "LLM for this step (and the default for any planner/executor/verifier/... sub-config). May come from `persona`."
+                },
+                "api_key_env_var": {
+                  "type": "string"
+                },
+                "api_base_env_var": {
+                  "type": "string"
+                },
+                "system_prompt": {
+                  "type": "string"
+                },
+                "temperature": {
+                  "type": "number"
+                },
+                "max_tokens": {
+                  "type": "integer"
+                },
+                "reasoning_effort": {
+                  "type": "string",
+                  "description": "low | medium | high; forwarded to reasoning models."
+                },
+                "thinking_budget": {
+                  "type": "integer",
+                  "description": "Max reasoning tokens (Gemini 2.5+/Anthropic thinking models)."
+                },
+                "prompt_caching": {
+                  "type": "boolean"
+                },
+                "outcomes": {
+                  "type": "object",
+                  "minProperties": 2,
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "description": "{outcome_name: 'when to choose it'}; at least two."
+                },
+                "evidence_source": {
+                  "description": "Step id (or list of ids) whose text the model cites.",
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
+                },
+                "default_outcome": {
+                  "type": "string",
+                  "description": "Used when the model's answer is not one of `outcomes` (must be one of them); omit to fail."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "conditional_route",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "specialists",
+                "default"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "conditional_route"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Optional prior step id; defaults to the pipeline input. Its text is tested by the conditions and sent to the picked specialist."
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named inputs: {port_name: {from: step_id} | {literal: value}}"
+                },
+                "persona": {
+                  "type": "string",
+                  "description": "Name of a reusable sub-config declared in the top-level `personas:` block; merged into this step."
+                },
+                "when": {
+                  "type": "object",
+                  "required": [
+                    "source"
+                  ],
+                  "description": "Guard: skip this step (passing its source text through) unless the predicate holds. {source: <prior step id>, field: <result key, default text>, <one predicate>}.",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": "string"
+                    },
+                    "equals": {},
+                    "in": {
+                      "type": "array"
+                    },
+                    "contains": {},
+                    "regex": {
+                      "type": "string"
+                    },
+                    "truthy": {
+                      "type": "boolean"
+                    },
+                    "falsy": {
+                      "type": "boolean"
+                    },
+                    "gt": {
+                      "type": "number"
+                    },
+                    "gte": {
+                      "type": "number"
+                    },
+                    "lt": {
+                      "type": "number"
+                    },
+                    "lte": {
+                      "type": "number"
+                    },
+                    "not": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "policy": {
+                  "type": "object",
+                  "description": "Per-step agent policy; can only further restrict the pipeline-level `policy:` block."
+                },
+                "conditions": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "when",
+                      "then"
+                    ],
+                    "properties": {
+                      "when": {
+                        "type": "object",
+                        "description": "Exactly one predicate: regex | contains | equals | jsonpath (+ equals/contains on the resolved node).",
+                        "properties": {
+                          "regex": {
+                            "type": "string"
+                          },
+                          "contains": {
+                            "type": "string"
+                          },
+                          "equals": {},
+                          "jsonpath": {
+                            "type": "string"
+                          },
+                          "value": {}
+                        }
+                      },
+                      "then": {
+                        "type": "string",
+                        "description": "Specialist name."
+                      }
+                    },
+                    "additionalProperties": false
+                  },
+                  "description": "Evaluated in order; first match wins."
+                },
+                "default": {
+                  "type": "string",
+                  "description": "Specialist name that runs when no condition matches."
+                },
+                "specialists": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "name",
+                      "model"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "description": {
+                        "type": "string"
+                      },
+                      "model": {
+                        "type": "string"
+                      },
+                      "api_key_env_var": {
+                        "type": "string"
+                      },
+                      "api_base_env_var": {
+                        "type": "string"
+                      },
+                      "system_prompt": {
+                        "type": "string"
+                      },
+                      "temperature": {
+                        "type": "number"
+                      },
+                      "max_tokens": {
+                        "type": "integer"
+                      },
+                      "reasoning_effort": {
+                        "type": "string"
+                      },
+                      "thinking_budget": {
+                        "type": "integer"
+                      },
+                      "prompt_caching": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "map",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "model"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "map"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Prior step whose text is parsed as a JSON list of items."
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named inputs: {port_name: {from: step_id} | {literal: value}}"
+                },
+                "persona": {
+                  "type": "string",
+                  "description": "Name of a reusable sub-config declared in the top-level `personas:` block; merged into this step."
+                },
+                "when": {
+                  "type": "object",
+                  "required": [
+                    "source"
+                  ],
+                  "description": "Guard: skip this step (passing its source text through) unless the predicate holds. {source: <prior step id>, field: <result key, default text>, <one predicate>}.",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": "string"
+                    },
+                    "equals": {},
+                    "in": {
+                      "type": "array"
+                    },
+                    "contains": {},
+                    "regex": {
+                      "type": "string"
+                    },
+                    "truthy": {
+                      "type": "boolean"
+                    },
+                    "falsy": {
+                      "type": "boolean"
+                    },
+                    "gt": {
+                      "type": "number"
+                    },
+                    "gte": {
+                      "type": "number"
+                    },
+                    "lt": {
+                      "type": "number"
+                    },
+                    "lte": {
+                      "type": "number"
+                    },
+                    "not": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "policy": {
+                  "type": "object",
+                  "description": "Per-step agent policy; can only further restrict the pipeline-level `policy:` block."
+                },
+                "model": {
+                  "type": "string",
+                  "description": "LLM for this step (and the default for any planner/executor/verifier/... sub-config). May come from `persona`."
+                },
+                "api_key_env_var": {
+                  "type": "string"
+                },
+                "api_base_env_var": {
+                  "type": "string"
+                },
+                "system_prompt": {
+                  "type": "string"
+                },
+                "temperature": {
+                  "type": "number"
+                },
+                "max_tokens": {
+                  "type": "integer"
+                },
+                "reasoning_effort": {
+                  "type": "string",
+                  "description": "low | medium | high; forwarded to reasoning models."
+                },
+                "thinking_budget": {
+                  "type": "integer",
+                  "description": "Max reasoning tokens (Gemini 2.5+/Anthropic thinking models)."
+                },
+                "prompt_caching": {
+                  "type": "boolean"
+                },
+                "prompt_template": {
+                  "type": "string",
+                  "description": "Per-item prompt; supports {item}, {index}, {n}, {text}, {port_name}. Default '{item}'."
+                },
+                "max_concurrent": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Default 1 (sequential)."
+                },
+                "output_schema": {
+                  "type": "object",
+                  "description": "JSON Schema; forces structured tool-calling per item."
+                },
+                "output_join": {
+                  "enum": [
+                    "newlines",
+                    "jsonl",
+                    "none",
+                    "records"
+                  ],
+                  "default": "newlines",
+                  "description": "'records' requires output_schema."
+                },
+                "strict": {
+                  "type": "boolean",
+                  "description": "With output_schema: missing required fields raise (default true)."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "extract",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "model",
+                "output_schema"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "extract"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Optional prior step id; defaults to the pipeline input."
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named inputs: {port_name: {from: step_id} | {literal: value}}"
+                },
+                "persona": {
+                  "type": "string",
+                  "description": "Name of a reusable sub-config declared in the top-level `personas:` block; merged into this step."
+                },
+                "when": {
+                  "type": "object",
+                  "required": [
+                    "source"
+                  ],
+                  "description": "Guard: skip this step (passing its source text through) unless the predicate holds. {source: <prior step id>, field: <result key, default text>, <one predicate>}.",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": "string"
+                    },
+                    "equals": {},
+                    "in": {
+                      "type": "array"
+                    },
+                    "contains": {},
+                    "regex": {
+                      "type": "string"
+                    },
+                    "truthy": {
+                      "type": "boolean"
+                    },
+                    "falsy": {
+                      "type": "boolean"
+                    },
+                    "gt": {
+                      "type": "number"
+                    },
+                    "gte": {
+                      "type": "number"
+                    },
+                    "lt": {
+                      "type": "number"
+                    },
+                    "lte": {
+                      "type": "number"
+                    },
+                    "not": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "policy": {
+                  "type": "object",
+                  "description": "Per-step agent policy; can only further restrict the pipeline-level `policy:` block."
+                },
+                "model": {
+                  "type": "string",
+                  "description": "LLM for this step (and the default for any planner/executor/verifier/... sub-config). May come from `persona`."
+                },
+                "api_key_env_var": {
+                  "type": "string"
+                },
+                "api_base_env_var": {
+                  "type": "string"
+                },
+                "system_prompt": {
+                  "type": "string"
+                },
+                "temperature": {
+                  "type": "number"
+                },
+                "max_tokens": {
+                  "type": "integer"
+                },
+                "reasoning_effort": {
+                  "type": "string",
+                  "description": "low | medium | high; forwarded to reasoning models."
+                },
+                "thinking_budget": {
+                  "type": "integer",
+                  "description": "Max reasoning tokens (Gemini 2.5+/Anthropic thinking models)."
+                },
+                "prompt_caching": {
+                  "type": "boolean"
+                },
+                "prompt_template": {
+                  "type": "string",
+                  "description": "Default '{text}'."
+                },
+                "output_schema": {
+                  "type": "object",
+                  "description": "JSON Schema (object) for the returned dict."
+                },
+                "strict": {
+                  "type": "boolean",
+                  "description": "Missing required fields raise (default true) or become None."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "classify",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "model",
+                "labels"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "classify"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Optional prior step id; defaults to the pipeline input."
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named inputs: {port_name: {from: step_id} | {literal: value}}"
+                },
+                "persona": {
+                  "type": "string",
+                  "description": "Name of a reusable sub-config declared in the top-level `personas:` block; merged into this step."
+                },
+                "when": {
+                  "type": "object",
+                  "required": [
+                    "source"
+                  ],
+                  "description": "Guard: skip this step (passing its source text through) unless the predicate holds. {source: <prior step id>, field: <result key, default text>, <one predicate>}.",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": "string"
+                    },
+                    "equals": {},
+                    "in": {
+                      "type": "array"
+                    },
+                    "contains": {},
+                    "regex": {
+                      "type": "string"
+                    },
+                    "truthy": {
+                      "type": "boolean"
+                    },
+                    "falsy": {
+                      "type": "boolean"
+                    },
+                    "gt": {
+                      "type": "number"
+                    },
+                    "gte": {
+                      "type": "number"
+                    },
+                    "lt": {
+                      "type": "number"
+                    },
+                    "lte": {
+                      "type": "number"
+                    },
+                    "not": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "policy": {
+                  "type": "object",
+                  "description": "Per-step agent policy; can only further restrict the pipeline-level `policy:` block."
+                },
+                "model": {
+                  "type": "string",
+                  "description": "LLM for this step (and the default for any planner/executor/verifier/... sub-config). May come from `persona`."
+                },
+                "api_key_env_var": {
+                  "type": "string"
+                },
+                "api_base_env_var": {
+                  "type": "string"
+                },
+                "system_prompt": {
+                  "type": "string"
+                },
+                "temperature": {
+                  "type": "number"
+                },
+                "max_tokens": {
+                  "type": "integer"
+                },
+                "reasoning_effort": {
+                  "type": "string",
+                  "description": "low | medium | high; forwarded to reasoning models."
+                },
+                "thinking_budget": {
+                  "type": "integer",
+                  "description": "Max reasoning tokens (Gemini 2.5+/Anthropic thinking models)."
+                },
+                "prompt_caching": {
+                  "type": "boolean"
+                },
+                "prompt_template": {
+                  "type": "string",
+                  "description": "Default '{text}'."
+                },
+                "labels": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "include_rationale": {
+                  "type": "boolean",
+                  "description": "Default true."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "reduce",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "model"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "reduce"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Prior step whose text is parsed as a list of items to fold."
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named inputs: {port_name: {from: step_id} | {literal: value}}"
+                },
+                "persona": {
+                  "type": "string",
+                  "description": "Name of a reusable sub-config declared in the top-level `personas:` block; merged into this step."
+                },
+                "when": {
+                  "type": "object",
+                  "required": [
+                    "source"
+                  ],
+                  "description": "Guard: skip this step (passing its source text through) unless the predicate holds. {source: <prior step id>, field: <result key, default text>, <one predicate>}.",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": "string"
+                    },
+                    "equals": {},
+                    "in": {
+                      "type": "array"
+                    },
+                    "contains": {},
+                    "regex": {
+                      "type": "string"
+                    },
+                    "truthy": {
+                      "type": "boolean"
+                    },
+                    "falsy": {
+                      "type": "boolean"
+                    },
+                    "gt": {
+                      "type": "number"
+                    },
+                    "gte": {
+                      "type": "number"
+                    },
+                    "lt": {
+                      "type": "number"
+                    },
+                    "lte": {
+                      "type": "number"
+                    },
+                    "not": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "policy": {
+                  "type": "object",
+                  "description": "Per-step agent policy; can only further restrict the pipeline-level `policy:` block."
+                },
+                "model": {
+                  "type": "string",
+                  "description": "LLM for this step (and the default for any planner/executor/verifier/... sub-config). May come from `persona`."
+                },
+                "api_key_env_var": {
+                  "type": "string"
+                },
+                "api_base_env_var": {
+                  "type": "string"
+                },
+                "system_prompt": {
+                  "type": "string"
+                },
+                "temperature": {
+                  "type": "number"
+                },
+                "max_tokens": {
+                  "type": "integer"
+                },
+                "reasoning_effort": {
+                  "type": "string",
+                  "description": "low | medium | high; forwarded to reasoning models."
+                },
+                "thinking_budget": {
+                  "type": "integer",
+                  "description": "Max reasoning tokens (Gemini 2.5+/Anthropic thinking models)."
+                },
+                "prompt_caching": {
+                  "type": "boolean"
+                },
+                "chunk_size": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "description": "Items folded per LLM call (default 10)."
+                },
+                "initial_prompt_template": {
+                  "type": "string",
+                  "description": "First-chunk prompt; {n}, {items}."
+                },
+                "fold_prompt_template": {
+                  "type": "string",
+                  "description": "Subsequent-chunk prompt; {prior}, {items}."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "self_reflect",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "model"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "self_reflect"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Optional prior step id; defaults to the pipeline input."
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named inputs: {port_name: {from: step_id} | {literal: value}}"
+                },
+                "persona": {
+                  "type": "string",
+                  "description": "Name of a reusable sub-config declared in the top-level `personas:` block; merged into this step."
+                },
+                "when": {
+                  "type": "object",
+                  "required": [
+                    "source"
+                  ],
+                  "description": "Guard: skip this step (passing its source text through) unless the predicate holds. {source: <prior step id>, field: <result key, default text>, <one predicate>}.",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": "string"
+                    },
+                    "equals": {},
+                    "in": {
+                      "type": "array"
+                    },
+                    "contains": {},
+                    "regex": {
+                      "type": "string"
+                    },
+                    "truthy": {
+                      "type": "boolean"
+                    },
+                    "falsy": {
+                      "type": "boolean"
+                    },
+                    "gt": {
+                      "type": "number"
+                    },
+                    "gte": {
+                      "type": "number"
+                    },
+                    "lt": {
+                      "type": "number"
+                    },
+                    "lte": {
+                      "type": "number"
+                    },
+                    "not": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "policy": {
+                  "type": "object",
+                  "description": "Per-step agent policy; can only further restrict the pipeline-level `policy:` block."
+                },
+                "model": {
+                  "type": "string",
+                  "description": "LLM for this step (and the default for any planner/executor/verifier/... sub-config). May come from `persona`."
+                },
+                "api_key_env_var": {
+                  "type": "string"
+                },
+                "api_base_env_var": {
+                  "type": "string"
+                },
+                "system_prompt": {
+                  "type": "string"
+                },
+                "temperature": {
+                  "type": "number"
+                },
+                "max_tokens": {
+                  "type": "integer"
+                },
+                "reasoning_effort": {
+                  "type": "string",
+                  "description": "low | medium | high; forwarded to reasoning models."
+                },
+                "thinking_budget": {
+                  "type": "integer",
+                  "description": "Max reasoning tokens (Gemini 2.5+/Anthropic thinking models)."
+                },
+                "prompt_caching": {
+                  "type": "boolean"
+                },
+                "prompt_template": {
+                  "type": "string",
+                  "description": "Default '{text}'."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "sub_pipeline",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "steps"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "sub_pipeline"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Optional prior step id; its text becomes the sub-pipeline's source text."
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named inputs: {port_name: {from: step_id} | {literal: value}}"
+                },
+                "persona": {
+                  "type": "string",
+                  "description": "Name of a reusable sub-config declared in the top-level `personas:` block; merged into this step."
+                },
+                "when": {
+                  "type": "object",
+                  "required": [
+                    "source"
+                  ],
+                  "description": "Guard: skip this step (passing its source text through) unless the predicate holds. {source: <prior step id>, field: <result key, default text>, <one predicate>}.",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": "string"
+                    },
+                    "equals": {},
+                    "in": {
+                      "type": "array"
+                    },
+                    "contains": {},
+                    "regex": {
+                      "type": "string"
+                    },
+                    "truthy": {
+                      "type": "boolean"
+                    },
+                    "falsy": {
+                      "type": "boolean"
+                    },
+                    "gt": {
+                      "type": "number"
+                    },
+                    "gte": {
+                      "type": "number"
+                    },
+                    "lt": {
+                      "type": "number"
+                    },
+                    "lte": {
+                      "type": "number"
+                    },
+                    "not": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "policy": {
+                  "type": "object",
+                  "description": "Per-step agent policy; can only further restrict the pipeline-level `policy:` block."
+                },
+                "steps": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "id",
+                      "op"
+                    ],
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "op": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "description": "Inline sub-pipeline steps (same schema as top-level `steps:`)."
+                },
+                "output_step_id": {
+                  "type": "string",
+                  "description": "Sub-step whose output becomes this step's text; default the last."
+                },
+                "sub_source": {
+                  "type": "object",
+                  "description": "Override source: {kind: literal|file|url|database, ...}."
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "title": "agent_call",
+              "type": "object",
+              "required": [
+                "id",
+                "op",
+                "agent"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "op": {
+                  "const": "agent_call"
+                },
+                "source": {
+                  "type": "string",
+                  "description": "Optional prior step id; defaults to the pipeline input."
+                },
+                "inputs": {
+                  "type": "object",
+                  "description": "Typed named inputs: {port_name: {from: step_id} | {literal: value}}"
+                },
+                "persona": {
+                  "type": "string",
+                  "description": "Name of a reusable sub-config declared in the top-level `personas:` block; merged into this step."
+                },
+                "when": {
+                  "type": "object",
+                  "required": [
+                    "source"
+                  ],
+                  "description": "Guard: skip this step (passing its source text through) unless the predicate holds. {source: <prior step id>, field: <result key, default text>, <one predicate>}.",
+                  "properties": {
+                    "source": {
+                      "type": "string"
+                    },
+                    "field": {
+                      "type": "string"
+                    },
+                    "equals": {},
+                    "in": {
+                      "type": "array"
+                    },
+                    "contains": {},
+                    "regex": {
+                      "type": "string"
+                    },
+                    "truthy": {
+                      "type": "boolean"
+                    },
+                    "falsy": {
+                      "type": "boolean"
+                    },
+                    "gt": {
+                      "type": "number"
+                    },
+                    "gte": {
+                      "type": "number"
+                    },
+                    "lt": {
+                      "type": "number"
+                    },
+                    "lte": {
+                      "type": "number"
+                    },
+                    "not": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "policy": {
+                  "type": "object",
+                  "description": "Per-step agent policy; can only further restrict the pipeline-level `policy:` block."
+                },
+                "agent": {
+                  "type": "string",
+                  "description": "Name declared in the top-level `agents:` block."
+                },
+                "prompt_template": {
+                  "type": "string",
+                  "description": "Default '{text}'; also {port_name}, {partition.<name>}."
+                },
+                "extra_context": {
+                  "type": "object",
+                  "description": "Merged into the agent's payload (available as {extra.<key>})."
                 }
               },
               "additionalProperties": false

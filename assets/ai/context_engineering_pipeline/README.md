@@ -171,6 +171,8 @@ attributes:
     min_retrievals: 5                   # evidence needed before acting on a chunk
     min_outcomes: 3
     quarantine: {mean_outcome_below: -0.3, mode: exclude}     # flag | exclude
+    rewrite_below: -0.3                 # chunks at or below this mean outcome are listed for a human rewrite (default -0.3)
+    prune: {never_retrieved_after_receipts: 200, mode: flag}  # dead weight: flag | exclude (see below)
     regression_check: {min_outcomes: 10, max_drop: 0.15, severity: WARN}
 ```
 
@@ -184,7 +186,24 @@ Right before `write_vector_store` the build reads each chunk's history from the 
   judged afresh. Fix the source text and it comes back sooner.
 - **Reports** `receipts_feedback` metadata: chunks with feedback, the quarantined ids, **dead weight** (`never_retrieved`, once the asset has at least
   `dead_weight_min_receipts` receipts), best and worst chunks, why chunks were withheld at query time (`exclusion_reasons`: stale / pii / policy ...), and
-  `outcomes_by_code_version`.
+  `outcomes_by_code_version`. It also carries **`rewrite_candidates`**: chunks retrieved at least `min_retrievals` times and rated at least `min_outcomes` times whose
+  mean outcome is at or below `rewrite_below` (default -0.3, independent of `quarantine`), worst first, at most 20, each with its `source_id` so you know which
+  document to rewrite. A quarantined (even excluded) chunk stays on the list: it is exactly what needs rewriting. The definition and thresholds are those of
+  `ContextReceiptStore.maintenance_report` (a test runs both on the same events and asserts equal results).
+- **Prunes dead weight** (`prune`): chunks with zero retrievals in the window. `mode: flag` (default) indexes them with `feedback_dead_weight: true`; `mode: exclude`
+  leaves them out of the index (chromadb: deleted by id, as for quarantine). Never retrieved is only evidence when there was traffic and the chunk has had time to be
+  retrieved, so a chunk is judged only when **all** of these hold:
+  1. the window holds at least `never_retrieved_after_receipts` receipts (default 200) *of the current recipe* when `scope_to_recipe` is on (receipts of an
+     earlier recipe prove nothing about this one: without this a recipe change would look like "nothing was ever retrieved");
+  2. it has zero retrievals in the window (same rule as `never_retrieved`);
+  3. it is at least `min_age_days` old (default: `window_days`, so it has existed for the whole receipts window). Every chunk is stamped with
+     `feedback_first_seen_at` (carried over from the previous build; an index or table from before `prune` was switched on has none, so its chunks count as new and
+     are protected until they have aged `min_age_days`). Python mode reads the stamp back from the previous chromadb index; a read failure fails safe (everything counts as new).
+
+  `exclude` removes a chunk from search until a later build re-adds it, and it does so automatically: the build never remembers an exclusion, so once the window no
+  longer qualifies (traffic below the threshold, or the chunk got retrieved) the next build indexes it again. A re-added chunk is new again (its stamp left with it),
+  so it is protected for `min_age_days` and then judged afresh: probation, not a ban. Python mode needs the chromadb provider (it reads the first-seen stamp and
+  deletes by id). The summary reports `pruned`, `pruned_ids`, `prune_judged` (false = not enough traffic, nothing was pruned) and `prune_protected_new`.
 - **Judges the recipe** (`regression_check`): the `recipe_outcomes` asset check compares the current recipe's real-world mean outcome with the best earlier recipe and
   warns (or fails) when it is worse by more than `max_drop` -- "chunk size 300 was rated better than 500; consider rolling back". With too few outcomes it passes and
   says `insufficient_evidence` or `no_baseline` rather than guessing.
@@ -257,7 +276,7 @@ This generates and runs a single `CREATE OR REPLACE TABLE ... AS ...` statement,
     regression_check: {min_outcomes: 10, max_drop: 0.15} # adds the recipe_outcomes check, also computed in the warehouse
 ```
 
-`resource_key` is optional here and defaults to the source's warehouse resource (it must be that same resource). The `recipe_outcomes` check reads its numbers with one extra query through that same resource (`.get_engine()` -> `exec_driver_sql`, `.get_connection()` with `.execute` or cursor-style `cursor.execute` / `fetchall` as Snowflake connections are, or BigQuery's `.get_client()`). Per dialect the JSON payloads are read with `JSON_VALUE` (BigQuery), `PARSE_JSON(payload_json):value::FLOAT` (Snowflake) or `get_json_object(payload_json, '$.value')` (Databricks), and evidence scoped to `details.item_ids` is matched with `UNNEST` / `ARRAY_CONTAINS` / `array_contains(from_json(..., 'array<string>'), ...)`; on Snowflake the window cut-off is a `TIMESTAMP_TZ` literal so it does not depend on the session time zone. The semantics are those of `ContextReceiptStore.item_feedback` (retrievals = distinct receipts returning the chunk, rated = receipts with an outcome, mean outcome = mean of each receipt's effective outcome with a later event on the same `outcome_ref` superseding the earlier, cited = receipts with cited/verified/counterfactual_tested evidence that applies to the chunk), stamped as `feedback_retrievals`, `feedback_rated`, `feedback_mean_outcome`, `feedback_cited`, `feedback_prior` (read from `context_item_scores`) and, with `quarantine`, `feedback_quarantined`. Differences from python mode: `refresh_priors` does nothing (priors are read as written), there is no `receipts_feedback` report (counts of chunks with feedback and quarantined chunks are in the materialization metadata), and no write_vector_store step is needed.
+`resource_key` is optional here and defaults to the source's warehouse resource (it must be that same resource). The `recipe_outcomes` check reads its numbers with one extra query through that same resource (`.get_engine()` -> `exec_driver_sql`, `.get_connection()` with `.execute` or cursor-style `cursor.execute` / `fetchall` as Snowflake connections are, or BigQuery's `.get_client()`). Per dialect the JSON payloads are read with `JSON_VALUE` (BigQuery), `PARSE_JSON(payload_json):value::FLOAT` (Snowflake) or `get_json_object(payload_json, '$.value')` (Databricks), and evidence scoped to `details.item_ids` is matched with `UNNEST` / `ARRAY_CONTAINS` / `array_contains(from_json(..., 'array<string>'), ...)`; on Snowflake the window cut-off is a `TIMESTAMP_TZ` literal so it does not depend on the session time zone. The semantics are those of `ContextReceiptStore.item_feedback` (retrievals = distinct receipts returning the chunk, rated = receipts with an outcome, mean outcome = mean of each receipt's effective outcome with a later event on the same `outcome_ref` superseding the earlier, cited = receipts with cited/verified/counterfactual_tested evidence that applies to the chunk), stamped as `feedback_retrievals`, `feedback_rated`, `feedback_mean_outcome`, `feedback_cited`, `feedback_prior` (read from `context_item_scores`) and, with `quarantine`, `feedback_quarantined`. Differences from python mode: `refresh_priors` does nothing (priors are read as written), `receipts_feedback` carries `rewrite_candidates` and (with `prune`) `pruned` / `prune_judged` / `prune_protected_new` but not the python-mode best/worst lists (counts of chunks with feedback and quarantined chunks are also separate metadata keys; `receipts_pruned` counts pruned chunks), and no write_vector_store step is needed. The report is read with extra queries over the same CTEs **before** the table is replaced, so chunks the statement is about to drop (quarantine / prune `exclude`) are still reported, and `prune` reads each chunk's earlier `feedback_first_seen_at` from the existing `output_table` (a first run, or a table without the column, treats every chunk as new). `prune` adds `feedback_first_seen_at` (and `feedback_dead_weight` in flag mode) columns, so on a partitioned table switching it on needs the same one-time drop/alter as any other new column.
 
 ### Incremental builds in SQL mode
 

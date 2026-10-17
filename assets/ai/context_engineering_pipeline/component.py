@@ -1506,7 +1506,7 @@ _MODEL_RE = re.compile(r"^[A-Za-z0-9_\-./:]+$")
 _SQL_RESERVED_COLUMNS = {
     "chunk_id", "chunk_text", "chunk_index", "content_hash", "category", "embedding", "content", "category_signature", "embedding_model", "source_asset_key",
     "source_version", "source_partition", "source_code_version", "feedback_retrievals", "feedback_rated",
-    "feedback_mean_outcome", "feedback_cited", "feedback_prior", "feedback_quarantined",
+    "feedback_mean_outcome", "feedback_cited", "feedback_prior", "feedback_quarantined", "feedback_dead_weight", "feedback_first_seen_at",
     "ml_generate_embedding_result", "ml_generate_embedding_statistics", "ml_generate_embedding_status",
 }
 
@@ -1704,6 +1704,24 @@ def _sql_receipt_feedback_ctes(rcfg: Dict[str, Any], asset_name: str, recipe: Op
     ]
 
 
+def _sql_window_receipts_cte(rcfg: Dict[str, Any], asset_name: str, recipe: Optional[str], since: str, dialect: str) -> str:
+    """One row (n): receipts in the window that retrieved from this asset (this recipe only when scoped: see _apply_receipt_feedback)."""
+    tbl = lambda n: receipt_table(rcfg["dataset"], n, rcfg.get("table_prefix", ""), _RECEIPT_DIALECT_OF[dialect])  # noqa: E731
+    recipe_filter = f" AND COALESCE(i.source_code_version, 'unknown') = {_sql_str(recipe)}" if recipe is not None else ""
+    return (f"SELECT COUNT(DISTINCT i.receipt_id) AS n FROM {tbl('context_receipt_items')} AS i\n"
+            f"  JOIN {tbl('context_receipts')} AS r ON r.receipt_id = i.receipt_id\n"
+            f"  WHERE i.source_asset_key = {_sql_str(asset_name)} AND r.created_at >= {_sql_ts(since, dialect)}{recipe_filter}")
+
+
+def _sql_dead_expr(prune: Dict[str, Any], dialect: str, now_iso: str) -> str:
+    """Dead weight, over feedback_joined's columns: never retrieved in the window, the window had >= never_retrieved_after_receipts receipts
+    (absence is no evidence without traffic), and the chunk is at least min_age_days old (first_seen_at; a chunk that has not existed
+    for the whole window has had no chance to be retrieved)."""
+    cutoff = (datetime.fromisoformat(now_iso) - timedelta(days=float(prune["min_age_days"]))).isoformat()
+    return (f"(feedback_retrievals = 0 AND (SELECT n FROM window_receipts) >= {int(prune['never_retrieved_after_receipts'])} "
+            f"AND feedback_first_seen_at <= {_sql_ts(cutoff, dialect)})")
+
+
 def _sql_outcomes_by_code_version_query(rcfg: Dict[str, Any], asset_name: str, since: str, dialect: Optional[str] = None) -> str:
     """SQL equivalent of ContextReceiptStore.outcomes_by_code_version (in the receipts' warehouse dialect: rcfg['sql_dialect'], default
     bigquery). Columns: code_version, receipts, outcomes, mean_outcome."""
@@ -1730,6 +1748,7 @@ def _build_sql_mode_query(
     stamp_provenance: bool = False, receipts: Optional[Dict[str, Any]] = None, since: Optional[str] = None,
     incremental: bool = False, reuse: Optional[Dict[str, bool]] = None, counts_only: bool = False,
     write: str = "replace_table", stage_table: Optional[str] = None,
+    now: Optional[str] = None, prior_first_seen: bool = False, preview: Optional[str] = None,
 ) -> str:
     """Build the single CREATE OR REPLACE TABLE statement implementing chunk -> (stamp, receipts feedback) -> classify -> embed natively in the
     warehouse, in that warehouse's own SQL dialect. write_vector_store has no SQL equivalent (there's no in-warehouse vector index for these
@@ -1750,7 +1769,15 @@ def _build_sql_mode_query(
 
     write: 'replace_table' (CREATE OR REPLACE TABLE <output_table>: unpartitioned runs), 'create_table' (CREATE TABLE <output_table>: the first
     partition run, the table must not exist) or 'stage' (CREATE OR REPLACE TABLE <stage_table>: later partition runs, which then swap only their own
-    rows into output_table, see _run_sql_mode). A partitioned run (partition is not None) always writes source_partition."""
+    rows into output_table, see _run_sql_mode). A partitioned run (partition is not None) always writes source_partition.
+
+    receipts.prune: every chunk gets feedback_first_seen_at (the earlier build's value, read from the existing output table when
+    `prior_first_seen` says it exists with that column, else `now`); feedback_dead_weight (flag) or a WHERE (exclude) follows
+    _sql_dead_expr. preview='rewrite' | 'counts' returns instead a SELECT over the same CTEs up to the feedback join (no AI function
+    runs): the rewrite candidates, or (dead chunks, receipts in window, chunks) -- read BEFORE the table is replaced, so chunks the
+    statement is about to drop are still reported."""
+    if preview is not None and receipts is None:
+        raise ValueError("preview needs receipts")
     if dialect not in _SQL_DIALECTS:
         raise ValueError(f"unsupported sql_dialect: {dialect!r}")
     if write not in ("replace_table", "create_table", "stage") or (write == "stage") != (stage_table is not None):
@@ -1802,27 +1829,57 @@ def _build_sql_mode_query(
         recipe = code_version if receipts.get("scope_to_recipe", True) else None
         ctes += _sql_receipt_feedback_ctes(receipts, asset_name, recipe, since or _receipts_since(receipts), dialect)
         scores = receipt_table(receipts["dataset"], "context_item_scores", receipts.get("table_prefix", ""), _RECEIPT_DIALECT_OF[dialect])
+        pr = receipts.get("prune")
+        now_iso = now or datetime.now(timezone.utc).isoformat()
+        seen_select = seen_join = ""
+        if pr:
+            ctes.append(("window_receipts", _sql_window_receipts_cte(receipts, asset_name, recipe, since or _receipts_since(receipts), dialect)))
+            if prior_first_seen:
+                ctes.append(("prior_seen", f"SELECT chunk_id, MIN(feedback_first_seen_at) AS first_seen\n  FROM {out_tbl}\n  GROUP BY chunk_id"))
+                seen_join = "\n  LEFT JOIN prior_seen AS ps ON ps.chunk_id = stamped.chunk_id"
+            seen_select = f",\n         COALESCE({'ps.first_seen, ' if prior_first_seen else ''}{_sql_ts(now_iso, dialect)}) AS feedback_first_seen_at"
         ctes.append(("feedback_joined", (
             f"SELECT {cols_sql('stamped', cols)},\n"
             f"         COALESCE(fb.retrievals, 0) AS feedback_retrievals, COALESCE(fb.rated, 0) AS feedback_rated,\n"
             f"         COALESCE(fb.mean_outcome, 0.0) AS feedback_mean_outcome, COALESCE(fb.cited, 0) AS feedback_cited,\n"
-            f"         COALESCE(sc.prior, 0.0) AS feedback_prior\n"
+            f"         COALESCE(sc.prior, 0.0) AS feedback_prior{seen_select}\n"
             f"  FROM stamped\n  LEFT JOIN item_feedback AS fb ON fb.item_id = stamped.chunk_id\n"
-            f"  LEFT JOIN {scores} AS sc ON sc.item_id = stamped.chunk_id")))
+            f"  LEFT JOIN {scores} AS sc ON sc.item_id = stamped.chunk_id{seen_join}")))
+        dead = _sql_dead_expr(pr, dialect, now_iso) if pr else None
+        if preview == "rewrite":
+            with_ = ",\n".join(f"{n} AS (\n  {b}\n)" for n, b in ctes)
+            return (f"WITH {with_}\nSELECT chunk_id, {id_col} AS source_id, feedback_retrievals, feedback_rated, feedback_mean_outcome, feedback_cited\n"
+                    f"FROM feedback_joined\nWHERE feedback_retrievals >= {int(receipts['min_retrievals'])} AND feedback_rated >= {int(receipts['min_outcomes'])} "
+                    f"AND feedback_mean_outcome <= {float(receipts['rewrite_below'])!r}\n"
+                    f"ORDER BY feedback_mean_outcome, feedback_retrievals DESC, chunk_id\nLIMIT {REWRITE_CANDIDATES_TOP}")
+        if preview == "counts":
+            if not pr:
+                raise ValueError("preview='counts' needs receipts.prune")
+            with_ = ",\n".join(f"{n} AS (\n  {b}\n)" for n, b in ctes)
+            return (f"WITH {with_}\nSELECT {_sql_count_if(dialect, dead)}, (SELECT n FROM window_receipts), COUNT(*), "
+                    f"{_sql_count_if(dialect, 'feedback_retrievals = 0')}\nFROM feedback_joined")
         q = receipts.get("quarantine")
         bad = None
         if q:
             bad = (f"(feedback_retrievals >= {int(receipts['min_retrievals'])} AND feedback_rated >= {int(receipts['min_outcomes'])} "
                    f"AND feedback_mean_outcome <= {float(q['mean_outcome_below'])!r})")
-        fb_cols = list(_FEEDBACK_COLUMNS) if receipts.get("stamp", True) else []
+        fb_cols = (list(_FEEDBACK_COLUMNS) if receipts.get("stamp", True) else []) + (["feedback_first_seen_at"] if pr else [])
         select = list(cols) + fb_cols
-        where = ""
+        out_flags: List[str] = []
+        excl: List[str] = []
         if bad and q["mode"] == "flag":
             select.append(f"{bad} AS feedback_quarantined")
+            out_flags.append("feedback_quarantined")
         elif bad:
-            where = f"\n  WHERE NOT {bad}"
+            excl.append(f"NOT {bad}")
+        if pr and pr["mode"] == "flag":
+            select.append(f"{dead} AS feedback_dead_weight")
+            out_flags.append("feedback_dead_weight")
+        elif pr:
+            excl.append(f"NOT {dead}")
+        where = f"\n  WHERE {' AND '.join(excl)}" if excl else ""
         ctes.append(("feedback_applied", f"SELECT {', '.join(select)}\n  FROM feedback_joined{where}"))
-        cols = cols + fb_cols + (["feedback_quarantined"] if bad and q["mode"] == "flag" else [])
+        cols = cols + fb_cols + out_flags
         cur = "feedback_applied"
 
     if stamp_provenance:
@@ -1942,7 +1999,8 @@ def _build_sql_mode_query(
 # An asset check (`recipe_outcomes`) compares the current recipe's real-world outcomes with earlier recipes.
 
 _RECEIPTS_KEYS = {"resource_key", "window_days", "min_retrievals", "min_outcomes", "refresh_priors", "prior_strength",
-                  "scope_to_recipe", "stamp", "quarantine", "dead_weight_min_receipts", "regression_check", "dataset", "table_prefix"}
+                  "scope_to_recipe", "stamp", "quarantine", "dead_weight_min_receipts", "regression_check", "dataset", "table_prefix",
+                  "rewrite_below", "prune"}
 _FEEDBACK_COLUMNS = ["feedback_retrievals", "feedback_rated", "feedback_mean_outcome", "feedback_cited", "feedback_prior"]
 
 
@@ -2000,6 +2058,23 @@ def _validate_receipts(cfg: Dict[str, Any], steps_cfg: List[dict], execution_mod
             raise ValueError("receipts.quarantine.mode=exclude is supported for the chromadb provider only (it deletes the chunks by id); "
                              "use mode: flag with other providers")
         out["quarantine"] = q
+    if not -1 <= float(out.setdefault("rewrite_below", -0.3)) <= 1:
+        raise ValueError("receipts.rewrite_below must be in [-1, 1]")
+    pr = out.get("prune")
+    if pr is not None:
+        if not isinstance(pr, dict) or set(pr) - {"never_retrieved_after_receipts", "mode", "min_age_days"}:
+            raise ValueError("receipts.prune must be {never_retrieved_after_receipts: 200, mode: flag|exclude, min_age_days: <defaults to window_days>}")
+        pr = {"never_retrieved_after_receipts": 200, "mode": "flag", "min_age_days": float(out["window_days"]), **pr}
+        if int(pr["never_retrieved_after_receipts"]) < 1:
+            raise ValueError("receipts.prune.never_retrieved_after_receipts must be >= 1")
+        if float(pr["min_age_days"]) < 0:
+            raise ValueError("receipts.prune.min_age_days must be >= 0")
+        if pr["mode"] not in ("flag", "exclude"):
+            raise ValueError("receipts.prune.mode must be 'flag' or 'exclude'")
+        if not sql_mode and any(w.get("provider", "chromadb") != "chromadb" for w in writes):
+            raise ValueError("receipts.prune is supported for the chromadb provider only (it reads each chunk's first_seen_at back from the previous "
+                             "index to protect new chunks, and mode=exclude deletes by id)")
+        out["prune"] = pr
     rc = out.get("regression_check")
     if rc is not None:
         if not isinstance(rc, dict) or set(rc) - {"min_outcomes", "max_drop", "severity"}:
@@ -2023,8 +2098,45 @@ def _receipts_since(cfg: Dict[str, Any]) -> str:
     return (datetime.now(timezone.utc) - timedelta(days=float(cfg["window_days"]))).isoformat()
 
 
+REWRITE_CANDIDATES_TOP = 20
+
+
+def _rewrite_candidates(fb: Dict[str, Dict[str, Any]], source_of: Dict[str, str], cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Chunks worth a human rewrite: retrieved >= min_retrievals, rated >= min_outcomes, mean outcome <= rewrite_below; worst first
+    (ties: more retrievals first, then id), top REWRITE_CANDIDATES_TOP. Same definition and thresholds as the receipt store's
+    fold_maintenance_report (pinned by a parity test), restricted to chunks of this build and carrying each chunk's source id.
+    Independent of `quarantine`: a quarantined (even excluded) chunk is exactly what needs rewriting, so it stays on the list."""
+    rows = [{"chunk_id": i, "source_id": source_of[i], "retrievals": int(v["retrievals"]), "rated": int(v["rated"]),
+             "mean_outcome": v["mean_outcome"], "cited": int(v["cited"])}
+            for i, v in fb.items() if i in source_of and v["mean_outcome"] is not None
+            and v["retrievals"] >= int(cfg["min_retrievals"]) and v["rated"] >= int(cfg["min_outcomes"])
+            and v["mean_outcome"] <= float(cfg["rewrite_below"])]
+    return sorted(rows, key=lambda r: (r["mean_outcome"], -r["retrievals"], r["chunk_id"]))[:REWRITE_CANDIDATES_TOP]
+
+
+def _chroma_first_seen(write_step: dict, ids: List[str], context) -> Dict[str, str]:
+    """first_seen_at stamped by an earlier build on the chunks still in the index, {} when the collection does not exist yet.
+    A chunk missing from the result (new, or its stamp is absent) is treated as first seen NOW, so it is protected from pruning for
+    min_age_days. Failing to read the index therefore fails safe (nothing is pruned), never towards deleting."""
+    try:
+        import chromadb
+        client = chromadb.PersistentClient(path=write_step.get("connection_string") or "./chroma_db")
+        collection = client.get_collection(name=write_step.get("collection_name", "context_engineering_kb"))
+        out: Dict[str, str] = {}
+        for i in range(0, len(ids), 500):
+            got = collection.get(ids=ids[i:i + 500], include=["metadatas"])
+            for cid, meta in zip(got["ids"], got["metadatas"]):
+                if (meta or {}).get("feedback_first_seen_at"):
+                    out[cid] = str(meta["feedback_first_seen_at"])
+        return out
+    except Exception as e:  # noqa: BLE001  (first build: no collection; anything else: warn, and treat every chunk as new)
+        if "does not exist" not in str(e).lower() and "not found" not in str(e).lower():
+            context.log.warning(f"receipts.prune: could not read the previous index ({type(e).__name__}: {e}); every chunk counts as new this build")
+        return {}
+
+
 def _apply_receipt_feedback(df: pd.DataFrame, write_step: dict, cfg: Dict[str, Any], asset_name: str, code_version: str,
-                            context) -> "tuple[pd.DataFrame, dict, dict]":
+                            context, source_id_column: Optional[str] = None, now: Optional[datetime] = None) -> "tuple[pd.DataFrame, dict, dict]":
     """Returns (frame to write, the write step with feedback columns added to its metadata_columns, summary for metadata)."""
     store = _receipts_store(cfg, context)
     since = _receipts_since(cfg)
@@ -2043,9 +2155,38 @@ def _apply_receipt_feedback(df: pd.DataFrame, write_step: dict, cfg: Dict[str, A
     frame["feedback_mean_outcome"] = [float(fb.get(i, {}).get("mean_outcome") or 0.0) for i in ids]  # 0.0 + feedback_rated=0 means unrated
     frame["feedback_cited"] = [int(fb.get(i, {}).get("cited", 0)) for i in ids]
     frame["feedback_prior"] = [float((priors.get(i) or {}).get("prior") or 0.0) for i in ids]
+    now = now or datetime.now(timezone.utc)
+    pr = cfg.get("prune")
+    usage = store.asset_usage_since(asset_name, since)
+    receipts_total = int(usage.get("receipts", 0))
+    by_cv = store.outcomes_by_code_version(asset_name, since)
+    # Receipts that could have retrieved a chunk of THIS recipe: with scope_to_recipe the feedback only counts this recipe's
+    # retrievals, so "zero retrievals" is only evidence against a chunk if this recipe saw traffic (a recipe change must not look like
+    # "nothing was ever retrieved").
+    receipts_for_prune = int((by_cv.get(recipe) or {}).get("receipts", 0)) if recipe is not None else receipts_total
+    pruned: List[str] = []
+    protected_new = 0
+    new_cols = list(_FEEDBACK_COLUMNS) if cfg["stamp"] else []
+    if pr:
+        first_seen = _chroma_first_seen(write_step, ids, context)
+        stamped = [first_seen.get(i) or now.isoformat() for i in ids]
+        frame["feedback_first_seen_at"] = stamped
+        new_cols.append("feedback_first_seen_at")
+        judged = receipts_for_prune >= int(pr["never_retrieved_after_receipts"])
+        cutoff = now - timedelta(days=float(pr["min_age_days"]))
+        zero = frame["feedback_retrievals"] == 0
+        old_enough = pd.Series([datetime.fromisoformat(t) <= cutoff for t in stamped], index=frame.index)
+        dead = (zero & old_enough) if judged else zero & False
+        protected_new = int((zero & ~old_enough).sum()) if judged else 0
+        pruned = [i for i, b in zip(ids, dead.tolist()) if b]
+        if pr["mode"] == "flag":
+            frame["feedback_dead_weight"] = dead.astype(bool)
+            new_cols.append("feedback_dead_weight")
+        else:
+            frame = frame[~dead].reset_index(drop=True)
+            ids = frame[chunk_col].astype(str).tolist()
     q = cfg.get("quarantine")
     quarantined: List[str] = []
-    new_cols = list(_FEEDBACK_COLUMNS) if cfg["stamp"] else []
     if q:
         bad = (frame["feedback_retrievals"] >= int(cfg["min_retrievals"])) & (frame["feedback_rated"] >= int(cfg["min_outcomes"])) \
               & (frame["feedback_mean_outcome"] <= float(q["mean_outcome_below"]))
@@ -2059,7 +2200,7 @@ def _apply_receipt_feedback(df: pd.DataFrame, write_step: dict, cfg: Dict[str, A
     # Keys that no longer apply (stamping switched off, quarantine mode changed, ...) must not linger in the index: Chroma's
     # upsert MERGES metadata, so a stale `feedback_quarantined: True` would keep hiding a recovered chunk. Writing None
     # deletes the key. Other providers replace metadata on upsert, so there the unused columns are simply dropped.
-    stale = [c for c in _FEEDBACK_COLUMNS + ["feedback_quarantined"] if c not in new_cols]
+    stale = [c for c in _FEEDBACK_COLUMNS + ["feedback_quarantined", "feedback_dead_weight", "feedback_first_seen_at"] if c not in new_cols]
     if write_step.get("provider", "chromadb") == "chromadb":
         for c in stale:
             frame[c] = pd.Series([None] * len(frame), index=frame.index, dtype=object)
@@ -2067,13 +2208,13 @@ def _apply_receipt_feedback(df: pd.DataFrame, write_step: dict, cfg: Dict[str, A
     else:
         frame = frame.drop(columns=[c for c in stale if c in frame.columns])
     step = dict(write_step)
-    if q and q["mode"] == "exclude" and quarantined:
-        step["_purge_chunk_ids"] = list(quarantined)
+    purge = (quarantined if q and q["mode"] == "exclude" else []) + (pruned if pr and pr["mode"] == "exclude" else [])
+    if purge:
+        step["_purge_chunk_ids"] = list(purge)
     if step.get("metadata_columns"):
         step["metadata_columns"] = list(step["metadata_columns"]) + [c for c in new_cols if c not in step["metadata_columns"]]
-    usage = store.asset_usage_since(asset_name, since)
-    receipts_total = int(usage.get("receipts", 0))
     in_frame = set(df[chunk_col].astype(str))
+    source_of = dict(zip(df[chunk_col].astype(str), df[source_id_column].astype(str))) if source_id_column in df.columns else {i: "" for i in in_frame}
     never = [i for i in in_frame if fb.get(i, {}).get("retrievals", 0) == 0]
     ranked = sorted(((i, v) for i, v in fb.items() if v.get("mean_outcome") is not None and v["rated"] >= int(cfg["min_outcomes"])),
                     key=lambda kv: kv[1]["mean_outcome"])
@@ -2090,8 +2231,16 @@ def _apply_receipt_feedback(df: pd.DataFrame, write_step: dict, cfg: Dict[str, A
         "exclusion_reasons": reasons,
         "worst": [{"chunk_id": i, "mean_outcome": v["mean_outcome"], "rated": v["rated"]} for i, v in ranked[:10]],
         "best": [{"chunk_id": i, "mean_outcome": v["mean_outcome"], "rated": v["rated"]} for i, v in ranked[::-1][:10]],
-        "outcomes_by_code_version": store.outcomes_by_code_version(asset_name, since),
+        "rewrite_below": float(cfg["rewrite_below"]),
+        "rewrite_candidates": _rewrite_candidates(fb, source_of, cfg),
+        "outcomes_by_code_version": by_cv,
     }
+    if pr:
+        summary.update({
+            "prune_mode": pr["mode"], "pruned": len(pruned), "pruned_ids": pruned[:50],
+            "prune_judged": receipts_for_prune >= int(pr["never_retrieved_after_receipts"]),
+            "prune_receipts_in_window": receipts_for_prune, "prune_protected_new": protected_new,
+        })
     return frame, step, summary
 
 
@@ -2245,13 +2394,29 @@ def _run_sql_mode(
     incremental = bool(incremental and (classify_step or embed_step))
     kw = dict(asset_name=asset_name, code_version=code_version, partition=partition, stamp_provenance=stamp_provenance, receipts=receipts_cfg)
     q = (receipts_cfg or {}).get("quarantine")
+    prune = (receipts_cfg or {}).get("prune")
+    now_dt = datetime.now(timezone.utc)
+    if receipts_cfg is not None:
+        # one cut-off and one clock for the preview queries and the statement itself, so the report describes exactly what the build did
+        kw.update(since=_receipts_since(receipts_cfg), now=now_dt.isoformat())
     # every read-back below describes THIS partition's rows only (the table also holds the other partitions)
     scope = f" WHERE source_partition = {_sql_str(partition)}" if partition is not None else ""
     reuse: Dict[str, bool] = {}
     prior_rows = 0
     inc_counts: Optional[Dict[str, int]] = None
     with _sql_session(resource, resource_key) as session:
-        columns = _sql_table_columns(session, dialect, out_tbl, context) if (incremental or partition is not None) else None
+        columns = _sql_table_columns(session, dialect, out_tbl, context) if (incremental or partition is not None or prune) else None
+        if prune:
+            kw["prior_first_seen"] = "feedback_first_seen_at" in {c.lower() for c in columns or []}
+        rewrite_rows = prune_counts = None
+        if receipts_cfg is not None:
+            # read before the table is replaced: prior first_seen_at is still there, and chunks the statement drops (quarantine / prune
+            # exclude) are still reported -- the quarantined ones are exactly what needs rewriting
+            pv = lambda kind: _build_sql_mode_query(  # noqa: E731
+                steps_cfg, source_cfg, dialect, output_table, id_column, text_column, metadata_columns, preview=kind, **kw)
+            rewrite_rows = session.fetch(pv("rewrite"))
+            if prune:
+                prune_counts = session.fetch(pv("counts"))[0]
         if incremental:
             reuse, prior_rows = _sql_probe_prior_table(session, dialect, out_tbl, classify_step, embed_step, context, columns=columns)
         build = lambda **extra: _build_sql_mode_query(  # noqa: E731
@@ -2333,6 +2498,17 @@ def _run_sql_mode(
                     f"Expected only if the {'embed model' if key == 'embed' else 'candidate_labels'} changed or every chunk's text changed; "
                     "otherwise check that chunking/ids are stable and the table was not rebuilt by another recipe.")
     if receipts_cfg is not None:
+        summary: Dict[str, Any] = {
+            "window_days": float(receipts_cfg["window_days"]), "rewrite_below": float(receipts_cfg["rewrite_below"]),
+            "rewrite_candidates": [{"chunk_id": r[0], "source_id": None if r[1] is None else str(r[1]), "retrievals": int(r[2]), "rated": int(r[3]),
+                                    "mean_outcome": float(r[4]), "cited": int(r[5])} for r in rewrite_rows],
+        }
+        if prune:
+            judged = int(prune_counts[1]) >= int(prune["never_retrieved_after_receipts"])
+            summary.update({"prune_mode": prune["mode"], "pruned": int(prune_counts[0]), "prune_judged": judged,
+                            "prune_receipts_in_window": int(prune_counts[1]), "prune_protected_new": int(prune_counts[3]) - int(prune_counts[0]) if judged else 0})
+            metadata["receipts_pruned"] = MetadataValue.int(int(prune_counts[0]))
+        metadata["receipts_feedback"] = MetadataValue.json(summary)
         metadata["receipts_scoped_to_recipe"] = MetadataValue.text(code_version if receipts_cfg.get("scope_to_recipe", True) else "all recipes")
         metadata["receipts_quarantine_mode"] = MetadataValue.text(q["mode"] if q else "off")
         if fb_counts:
@@ -2841,7 +3017,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                     write_input = state[source_id]
                     if receipts_cfg is not None:
                         write_input, step, receipts_summary = _apply_receipt_feedback(
-                            write_input, step, receipts_cfg, asset_name, recipe_code_version, context)
+                            write_input, step, receipts_cfg, asset_name, recipe_code_version, context, source_id_column=id_column)
                     content_version = _content_version(write_input, step.get("text_column", "chunk_text"), steps_cfg)
                     stamp = {
                         "source_asset_key": asset_name,

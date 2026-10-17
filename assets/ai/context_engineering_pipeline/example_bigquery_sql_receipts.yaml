@@ -32,4 +32,6 @@ attributes:
     min_retrievals: 5
     min_outcomes: 3
     quarantine: {mean_outcome_below: -0.3, mode: flag}
+    rewrite_below: -0.3                                     # chunks at or below this mean outcome are listed in receipts_feedback.rewrite_candidates
+    prune: {never_retrieved_after_receipts: 200, mode: flag}   # dead weight: flagged (feedback_dead_weight); mode: exclude drops the rows
     regression_check: {min_outcomes: 10, max_drop: 0.15, severity: WARN}

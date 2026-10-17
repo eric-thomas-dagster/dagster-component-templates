@@ -24,3 +24,12 @@ attributes:
     - {id: chunks, op: chunk, chunk_size: 500, chunk_overlap: 50, chunk_id_prefix: "support_kb:"}
     - {id: classified, op: classify, candidate_labels: [billing, technical, shipping, other]}
     - {id: embedded, op: embed, model: my-project.analytics.text_embedding_model}
+  # Golden-set gate, run warehouse-side after every partition run over the WHOLE table (the table is the index), so early partitions can miss answers
+  # that live in partitions not built yet. Queries are embedded with the build's model and scored by cosine similarity (VECTOR / ARRAY<FLOAT64>).
+  retrieval_eval:
+    k: 5
+    min_recall: 0.8
+    severity: WARN
+    queries:
+      - {query: "how do I get a refund?", expected: [ticket_1001]}
+      - {query: "my package never arrived", expected: [support_kb:ticket_2040_0]}

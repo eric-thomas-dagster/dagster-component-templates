@@ -348,3 +348,6 @@ def test_partitioned_example_yaml_builds_and_its_sql_parses(mod):
         assets_def=SimpleNamespace(partitions_def=asset_def.partitions_def)), mod._sql_str)
     sqlglot.parse_one(bound, read="bigquery")
     assert "'us'" in bound and "2026-01-02T00:00:00+00:00" in bound and "2026-01-03T00:00:00+00:00" in bound
+    assert [s.name for s in asset_def.check_specs] == ["retrieval_quality"]       # the example's golden-set gate
+    sqlglot.parse_one(mod._build_retrieval_eval_query(attrs["retrieval_eval"], attrs["steps"], "bigquery", attrs["output_table"], attrs["id_column"],
+                                                      asset_name=attrs["asset_name"], scoped=True), read="bigquery")

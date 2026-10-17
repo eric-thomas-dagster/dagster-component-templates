@@ -1,0 +1,20 @@
+type: dagster_community_components.ReceiptOutcomeIngestionComponent
+attributes:
+  asset_name: receipt_outcome_ingestion
+  store_resource_key: context_receipts
+  source:
+    kind: sql
+    resource_key: warehouse            # a DuckDB / Snowflake / BigQuery-style resource
+    query: >
+      SELECT receipt_id, rating, user_id, created_at
+      FROM feedback
+      WHERE created_at >= {since}
+  mapping:
+    receipt_id: receipt_id
+    value: rating
+    scale: {min: 1, max: 5}            # CSAT 1-5 -> -1..1
+    signal_value: csat
+    outcome_ref: user_id               # a user changing their rating supersedes the old one
+    occurred_at: created_at
+    source: support_csat
+  cron_schedule: "*/30 * * * *"

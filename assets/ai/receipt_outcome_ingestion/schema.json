@@ -1,0 +1,155 @@
+{
+  "component_type": "dagster_community_components.ReceiptOutcomeIngestionComponent",
+  "description": "Turns real feedback (warehouse table, csv/json/jsonl/parquet files, or an HTTP JSON API such as Zendesk CSAT) into context-receipt outcomes so the learning loop (item_feedback, rerank priors, recipe_outcomes) learns without custom code. Idempotent via deterministic outcome_refs, incremental via a cursor in the asset's own materialization metadata; unknown receipts and bad rows are counted and sampled, never crash.",
+  "category": "ai",
+  "icon": "MessageSquareHeart",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "none",
+      "description": "No data output. Materialization metadata: rows_read, outcomes_recorded, superseded_in_run, unknown_receipts, bad_rows (+ examples), skipped_rows, cursor, lag_seconds."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": false
+    },
+    "store_resource_key": {
+      "type": "string",
+      "label": "Store Resource Key",
+      "description": "Resource key of the ContextReceiptStore (the context_receipt_store component's resource_key).",
+      "required": false
+    },
+    "source": {
+      "type": "object",
+      "label": "Source",
+      "description": "Where feedback comes from. kind: sql {resource_key, query with a {since} placeholder} | file {path (glob ok), format?, records_path?, allow_empty?} | http_json {url, headers?, headers_env? {Header: ENV_VAR}, records_path?, since_param?, since_format? iso|epoch, next_url_path?, page_param?, max_pages?}.",
+      "required": true
+    },
+    "mapping": {
+      "type": "object",
+      "label": "Mapping",
+      "description": "How a row becomes an outcome. receipt_id (REQUIRED column/field), signal (column) or signal_value (constant), value (column, number in [-1,1]), value_map {raw: signal-or-number}, scale {min, max} (linear map of a numeric rating to -1..1), skip_values [raw values to ignore], outcome_ref (column, e.g. user id, so a changed rating supersedes), source (label), occurred_at (column; drives the incremental cursor).",
+      "required": true
+    },
+    "on_bad_row": {
+      "type": "string",
+      "label": "On Bad Row",
+      "description": "'skip' (count + sample in metadata) or 'fail' (raise before recording anything).",
+      "required": false
+    },
+    "on_unknown_receipt": {
+      "type": "string",
+      "label": "On Unknown Receipt",
+      "description": "'skip' (count + sample in metadata) or 'fail' (record the known ones, then raise).",
+      "required": false
+    },
+    "max_rows": {
+      "type": "integer",
+      "label": "Max Rows",
+      "description": "Process at most this many rows per run, oldest first by occurred_at; the cursor lets the next run continue.",
+      "required": false
+    },
+    "initial_since": {
+      "type": "string",
+      "label": "Initial Since",
+      "description": "Value bound to {since} / since_param on the first run (no cursor yet).",
+      "required": false
+    },
+    "cron_schedule": {
+      "type": "string",
+      "label": "Cron Schedule",
+      "description": "Optional cron expression; when set, a schedule materializes this asset.",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "description": "Asset owners (team:name or emails)",
+      "required": false,
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "description": "Asset kinds for the catalog (default: ['python', 'feedback'])",
+      "required": false,
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Tags added to the asset",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "deps": {
+      "type": "array",
+      "label": "Deps",
+      "description": "Upstream asset keys this ingestion depends on (e.g. the table-producing asset).",
+      "required": false,
+      "items": {
+        "type": "string"
+      },
+      "ui:widget": "list"
+    },
+    "freshness_max_lag_minutes": {
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "description": "FreshnessPolicy max lag minutes.",
+      "required": false
+    },
+    "freshness_cron": {
+      "type": "string",
+      "label": "Freshness Cron",
+      "description": "FreshnessPolicy cron schedule.",
+      "required": false
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "RetryPolicy max retries.",
+      "required": false
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Seconds between retries.",
+      "required": false
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "'linear' or 'exponential'.",
+      "required": false
+    }
+  },
+  "tags": [
+    "context receipts",
+    "feedback",
+    "learning loop",
+    "csat",
+    "outcomes"
+  ],
+  "name": "receipt_outcome_ingestion"
+}

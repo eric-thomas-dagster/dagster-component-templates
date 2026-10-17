@@ -1,0 +1,43 @@
+question,user,rating
+Why was I charged twice for my subscription?,csv_ana,down
+Why was I charged twice for my subscription?,csv_ben,down
+Why was I charged twice for my subscription?,csv_cho,down
+Can I get a refund for a duplicate charge on my subscription?,csv_ana,down
+Can I get a refund for a duplicate charge on my subscription?,csv_ben,down
+Can I get a refund for a duplicate charge on my subscription?,csv_cho,down
+I was charged twice so how do I get my money back?,csv_ana,down
+I was charged twice so how do I get my money back?,csv_ben,down
+I was charged twice so how do I get my money back?,csv_cho,down
+Is a double charge on my subscription refundable?,csv_ana,down
+Is a double charge on my subscription refundable?,csv_ben,down
+Is a double charge on my subscription refundable?,csv_cho,down
+How long do refunds take to reach my card?,csv_ana,up
+How long do refunds take to reach my card?,csv_ben,up
+How long do refunds take to reach my card?,csv_cho,up
+How do I cancel my subscription?,csv_ana,up
+How do I cancel my subscription?,csv_ben,up
+How do I cancel my subscription?,csv_cho,up
+Where can I download my monthly invoices?,csv_ana,down
+Where can I download my monthly invoices?,csv_ben,down
+Where can I download my monthly invoices?,csv_cho,down
+How do I export a report as PDF?,csv_ana,up
+How do I export a report as PDF?,csv_ben,up
+How do I export a report as PDF?,csv_cho,up
+How long does express shipping take?,csv_ana,up
+How long does express shipping take?,csv_ben,up
+How long does express shipping take?,csv_cho,up
+How do I reset my password?,csv_ana,up
+How do I reset my password?,csv_ben,up
+How do I reset my password?,csv_cho,up
+Will I get an email when a refund is issued?,csv_ana,up
+Will I get an email when a refund is issued?,csv_ben,up
+Will I get an email when a refund is issued?,csv_cho,up
+Are duplicate charges refunded automatically?,csv_ana,down
+Are duplicate charges refunded automatically?,csv_ben,down
+Are duplicate charges refunded automatically?,csv_cho,down
+Do I need to do anything to get a duplicate charge refunded?,csv_ana,down
+Do I need to do anything to get a duplicate charge refunded?,csv_ben,down
+Do I need to do anything to get a duplicate charge refunded?,csv_cho,down
+Within how many business days is a duplicate charge refunded?,csv_ana,up
+Within how many business days is a duplicate charge refunded?,csv_ben,up
+Within how many business days is a duplicate charge refunded?,csv_cho,up

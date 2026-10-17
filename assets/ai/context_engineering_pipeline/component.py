@@ -1351,7 +1351,7 @@ def _recipe_fingerprint(steps_cfg: List[dict]) -> str:
     return hashlib.sha256(json.dumps(recipe, sort_keys=True, default=str).encode()).hexdigest()[:16]
 
 
-def _validate_retrieval_eval(cfg: Dict[str, Any], steps_cfg: List[dict]) -> Dict[str, Any]:
+def _validate_retrieval_eval(cfg: Dict[str, Any], steps_cfg: List[dict], execution_mode: str = "python") -> Dict[str, Any]:
     unknown = set(cfg) - {"queries", "k", "min_recall", "min_mrr", "severity", "blocking"}
     if unknown:
         raise ValueError(f"retrieval_eval: unknown field(s) {sorted(unknown)}")
@@ -1368,6 +1368,11 @@ def _validate_retrieval_eval(cfg: Dict[str, Any], steps_cfg: List[dict]) -> Dict
             raise ValueError(f"retrieval_eval: {name} must be between 0 and 1")
     if cfg.get("severity", "ERROR") not in ("ERROR", "WARN"):
         raise ValueError("retrieval_eval: severity must be ERROR or WARN")
+    if execution_mode == "sql":
+        # the index IS the output table: it needs the embed step (its model embeds the golden queries) and nothing else
+        if not any(s_["op"] == "embed" for s_ in steps_cfg):
+            raise ValueError("retrieval_eval in execution_mode='sql' needs an embed step (the output table's `embedding` column is what it searches)")
+        return dict(cfg)
     writes = [s_ for s_ in steps_cfg if s_["op"] == "write_vector_store"]
     if not any(s_["op"] == "embed" for s_ in steps_cfg) or not writes or writes[-1].get("provider", "chromadb") != "chromadb":
         raise ValueError("retrieval_eval needs an embed step and a chromadb write_vector_store step (the only index it can query)")
@@ -1388,14 +1393,25 @@ def _run_retrieval_eval(cfg: Dict[str, Any], steps_cfg: List[dict], asset_name: 
     collection = chromadb.PersistentClient(path=write_step.get("connection_string") or "./chroma_db").get_collection(
         write_step.get("collection_name", "context_engineering_kb"))
     where = {"source_asset_key": {"$eq": asset_name}} if scoped else None
+    ranked: List[List[Tuple[str, Any]]] = []
+    for embedding in embedded["embedding"]:
+        res = collection.query(query_embeddings=[list(embedding)], n_results=k, where=where, include=["metadatas"])
+        ranked.append([(cid, (meta or {}).get("source_id")) for cid, meta in zip(res["ids"][0], res["metadatas"][0])])
+    return _retrieval_quality_result(cfg, ranked)
+
+
+def _retrieval_quality_result(cfg: Dict[str, Any], ranked: List[List[Tuple[str, Any]]]) -> AssetCheckResult:
+    """The single definition of the `retrieval_quality` check, shared by python and SQL mode. `ranked[i]` is query i's top-k as ordered
+    (chunk_id, source_id) pairs. A query is a hit when any expected id equals a returned chunk id or source id; its reciprocal rank is
+    1 / (position of the first such result); recall@k = hits / queries and MRR = mean reciprocal rank."""
+    queries = cfg["queries"]
+    k = int(cfg.get("k", 5))
     hits = 0
     reciprocal = 0.0
     misses: List[str] = []
-    for q, embedding in zip(queries, embedded["embedding"]):
-        res = collection.query(query_embeddings=[list(embedding)], n_results=k, where=where, include=["metadatas"])
+    for q, results in zip(queries, ranked):
         expected = {str(e) for e in q["expected"]}
-        rank = next((i for i, (cid, meta) in enumerate(zip(res["ids"][0], res["metadatas"][0]))
-                     if cid in expected or (meta or {}).get("source_id") in expected), None)
+        rank = next((i for i, (cid, source_id) in enumerate(results) if cid in expected or source_id in expected), None)
         if rank is None:
             misses.append(q["query"])
         else:
@@ -2395,6 +2411,78 @@ def _sql_swap_partition_script(dialect: str, out_tbl: str, stage: str, cols: Lis
     return ["BEGIN", delete, insert, "COMMIT"]
 
 
+def _sql_cosine_similarity(dialect: str, a: str, b: str) -> str:
+    """Cosine similarity (higher = closer) of two embedding expressions, in the dialect's own functions."""
+    if dialect == "bigquery":
+        return f"(1 - COSINE_DISTANCE({a}, {b}))"
+    if dialect == "snowflake_cortex":
+        return f"VECTOR_COSINE_SIMILARITY({a}, {b})"
+    if dialect == "databricks":
+        # plain Spark array functions (no vector type or index needed): dot / (|a| * |b|), NULL for a zero vector
+        norm = lambda x: f"sqrt(aggregate(transform({x}, v -> v * v), CAST(0 AS DOUBLE), (acc, v) -> acc + v))"  # noqa: E731
+        dot = f"aggregate(zip_with(CAST({a} AS ARRAY<DOUBLE>), CAST({b} AS ARRAY<DOUBLE>), (x, y) -> x * y), CAST(0 AS DOUBLE), (acc, v) -> acc + v)"
+        return f"({dot} / NULLIF({norm(a)} * {norm(b)}, 0))"
+    raise ValueError(f"unsupported sql_dialect: {dialect!r}")
+
+
+def _build_retrieval_eval_query(cfg: Dict[str, Any], steps_cfg: List[dict], dialect: str, output_table: str, id_column: str,
+                                *, asset_name: str = "", scoped: bool = False) -> str:
+    """The warehouse-side retrieval_eval: embed every golden query with the SAME embedding the build used (same model, same function), score
+    it against every chunk of `output_table` by cosine similarity and return each query's top-k as rows (qi, rank, chunk_id, source_id), best first.
+    Matching against `expected` and the metrics happen in Python (_retrieval_quality_result), the same code python mode uses.
+
+    Candidates = the WHOLE table: the table is the index (python mode likewise searches the whole collection, every partition), restricted to rows
+    whose `embedding_model` is the current one (vectors of two models cannot be compared) and, with stamp_provenance, to this asset's
+    `source_asset_key`. Quarantined / dead-weight rows stay candidates (python mode does not filter them either): the check scores what
+    the index serves; `exclude` mode has already left them out of the table."""
+    if dialect not in _SQL_DIALECTS:
+        raise ValueError(f"unsupported sql_dialect: {dialect!r}")
+    embed_step = next(s_ for s_ in steps_cfg if s_["op"] == "embed")
+    model = embed_step.get("model")
+    tbl = _sql_table(output_table, "output_table")
+    id_col = _sql_ident(id_column, "id_column")
+    k = int(cfg.get("k", 5))
+    golden = "\n    UNION ALL ".join(f"SELECT {i} AS qi, {_sql_str(q['query'])} AS content" for i, q in enumerate(cfg["queries"]))
+    if dialect == "bigquery":
+        model = model or "embedding_model"
+        if not isinstance(model, str) or not _MODEL_RE.match(model):
+            raise ValueError(f"execution_mode='sql': embed model {model!r} is not a valid BigQuery model reference (project.dataset.model)")
+        embedded = (f"SELECT qi, ml_generate_embedding_result AS qemb\n  FROM ML.GENERATE_EMBEDDING(MODEL `{model}`,\n"
+                    f"    (SELECT qi, content FROM golden),\n    STRUCT(TRUE AS flatten_json_output))")
+        usable = "ARRAY_LENGTH(c.embedding) > 0 AND ARRAY_LENGTH(q.qemb) = ARRAY_LENGTH(c.embedding)"
+        has_vec = "ARRAY_LENGTH(embedding) > 0"
+    else:
+        embedded = f"SELECT qi, {_sql_embed_expr(dialect, 'content', model)} AS qemb\n  FROM golden"
+        usable = "TRUE"      # a NULL query vector scores NULL and drops out below; q.qemb is referenced once, so the engine has no reason to embed a query twice
+        has_vec = "embedding IS NOT NULL"
+    where = [f"embedding_model = {_sql_str(_sql_embed_model_id(dialect, embed_step.get('model')))}", has_vec]
+    if scoped:
+        where.append(f"source_asset_key = {_sql_str(asset_name)}")
+    return (
+        f"WITH golden AS (\n  {golden}\n),\n"
+        f"queries AS (\n  {embedded}\n),\n"
+        f"candidates AS (\n  SELECT chunk_id, CAST({id_col} AS STRING) AS source_id, embedding\n  FROM {tbl}\n  WHERE {' AND '.join(where)}\n),\n"
+        f"scored AS (\n  SELECT q.qi AS qi, c.chunk_id AS chunk_id, c.source_id AS source_id,\n"
+        f"         {_sql_cosine_similarity(dialect, 'c.embedding', 'q.qemb')} AS sim\n"
+        f"  FROM queries AS q CROSS JOIN candidates AS c\n  WHERE {usable}\n),\n"
+        f"ranked AS (\n  SELECT qi, chunk_id, source_id, ROW_NUMBER() OVER (PARTITION BY qi ORDER BY sim DESC, chunk_id) AS rn\n"
+        f"  FROM scored\n  WHERE sim IS NOT NULL\n)\n"
+        f"SELECT qi, rn, chunk_id, source_id FROM ranked WHERE rn <= {k} ORDER BY qi, rn")
+
+
+def _run_sql_retrieval_eval(cfg: Dict[str, Any], steps_cfg: List[dict], source_cfg: dict, dialect: str, output_table: str,
+                            id_column: str, asset_name: str, scoped: bool, context) -> AssetCheckResult:
+    """retrieval_quality for execution_mode='sql': runs _build_retrieval_eval_query through the build's own warehouse resource."""
+    sql = _build_retrieval_eval_query(cfg, steps_cfg, dialect, output_table, id_column, asset_name=asset_name, scoped=scoped)
+    resource_key = source_cfg["resource_key"]
+    with _sql_session(getattr(context.resources, resource_key), resource_key) as session:
+        rows = session.fetch(sql)
+    ranked: List[List[Tuple[str, Any]]] = [[] for _ in cfg["queries"]]
+    for r in rows:                                      # ordered by (qi, rank)
+        ranked[int(r[0])].append((str(r[2]), None if r[3] is None else str(r[3])))
+    return _retrieval_quality_result(cfg, ranked)
+
+
 def _run_sql_mode(
     context, steps_cfg: List[dict], source_cfg: dict, dialect: str, output_table: str,
     id_column: str, text_column: str, metadata_columns: List[str],
@@ -2760,7 +2848,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             "min_recall: 0.8, min_mrr: null, severity: ERROR|WARN, blocking: false}. After the index is written, each "
             "query is embedded with the same embed step and run against it; the `retrieval_quality` asset check reports "
             "recall@k and MRR and fails below the thresholds, with `blocking: true` holding downstream assets until it "
-            "passes. Pair with code_version: a new recipe must still answer the golden questions. Python mode, chromadb only."
+            "passes. Pair with code_version: a new recipe must still answer the golden questions. Python mode needs a chromadb index; execution_mode='sql' (bigquery, snowflake_cortex, databricks) runs it warehouse-side by cosine similarity over the whole output table."
         ),
     )
     context_policy: Optional[Dict[str, Any]] = Field(
@@ -2926,9 +3014,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         context_policy = _validate_context_policy(self.context_policy) if self.context_policy else None
         retrieval_eval = None
         if self.retrieval_eval:
-            if execution_mode == "sql":
-                raise ValueError("retrieval_eval is python-mode only")
-            retrieval_eval = _validate_retrieval_eval(self.retrieval_eval, steps_cfg)
+            retrieval_eval = _validate_retrieval_eval(self.retrieval_eval, steps_cfg, execution_mode)
         receipts_cfg = _validate_receipts(self.receipts, steps_cfg, execution_mode, sql_dialect, source_cfg) if self.receipts else None
         _inferred_kinds = self.kinds or ["ai", "context-engineering"]
         _all_tags = dict(self.asset_tags or {})
@@ -2981,6 +3067,9 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                 yield _run_sql_mode(context, steps_cfg, source_cfg, sql_dialect, output_table, id_column, text_column, metadata_columns,
                                     asset_name=asset_name, code_version=recipe_code_version, stamp_provenance=stamp_provenance,
                                     emit_data_version=emit_data_version, receipts_cfg=receipts_cfg, incremental=incremental)
+                if retrieval_eval is not None:
+                    yield _run_sql_retrieval_eval(retrieval_eval, steps_cfg, source_cfg, sql_dialect, output_table, id_column, asset_name,
+                                                  stamp_provenance, context)
                 if receipts_cfg is not None and receipts_cfg.get("regression_check"):
                     by_cv = _sql_fetch_outcomes_by_code_version(context, source_cfg, receipts_cfg, asset_name)
                     yield _run_recipe_outcomes_check(receipts_cfg, asset_name, recipe_code_version, context, outcomes_by_cv=by_cv)

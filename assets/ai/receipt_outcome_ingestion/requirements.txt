@@ -1,0 +1,4 @@
+dagster
+pandas
+# sql source: your warehouse resource (dagster-duckdb / dagster-snowflake / dagster-gcp)
+# file source, parquet: pyarrow

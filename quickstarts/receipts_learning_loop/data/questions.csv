@@ -1,0 +1,35 @@
+question,gold_doc,round
+Why was I charged twice for my subscription?,billing_refund_current,train
+Can I get a refund for a duplicate charge on my subscription?,billing_refund_current,train
+I was charged twice so how do I get my money back?,billing_refund_current,train
+Is a double charge on my subscription refundable?,billing_refund_current,train
+How long do refunds take to reach my card?,billing_refund_timing,train
+How do I cancel my subscription?,billing_cancel,train
+Where can I download my monthly invoices?,billing_invoices,train
+How do I export a report as PDF?,export_report,train
+How long does express shipping take?,ship_standard,train
+How do I reset my password?,account_password,train
+Will I get an email when a refund is issued?,billing_refund_current,train
+Are duplicate charges refunded automatically?,billing_refund_current,train
+Do I need to do anything to get a duplicate charge refunded?,billing_refund_current,train
+Within how many business days is a duplicate charge refunded?,billing_refund_current,train
+Charged twice on my plan what do I do,billing_refund_current,shadow
+Do you refund duplicate charges,billing_refund_current,shadow
+When will the money for a refund show up on my statement,billing_refund_timing,shadow
+Stop my subscription renewing,billing_cancel,shadow
+Where are my monthly invoices,billing_invoices,shadow
+How do I add my VAT number,billing_tax,shadow
+Switch to a cheaper plan,billing_change_plan,shadow
+Send my report as a PDF file,export_report,shadow
+Automatically email me a report every week,export_scheduled,shadow
+How many rows can I export,export_limits,shadow
+When will my parcel arrive,ship_standard,shadow
+Can I send an item back,ship_returns,shadow
+I forgot my password,account_password,shadow
+Set up SAML login with Okta,sso_setup,shadow
+What is the API request limit,api_rate_limits,shadow
+Add a colleague to my workspace,team_invite,shadow
+Where is my data stored EU or US,security_data_residency,shadow
+Stop paying for a user,team_seat_removal,shadow
+Update the card on file,billing_payment_methods,shadow
+Which roles can manage billing,team_roles,shadow

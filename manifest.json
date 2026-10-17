@@ -31881,6 +31881,57 @@
       ]
     },
     {
+      "id": "receipt_outcome_ingestion",
+      "name": "receipt_outcome_ingestion",
+      "category": "ai",
+      "description": "Turns real feedback (a SQL feedback table, a CSV/JSON/Parquet export, or a paginated HTTP JSON API such as Zendesk CSAT) into context-receipt outcomes, incrementally and idempotently, so the retrieval learning loop works without custom code.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/receipt_outcome_ingestion",
+      "tags": [],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/receipt_outcome_ingestion/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/receipt_outcome_ingestion/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/receipt_outcome_ingestion/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/receipt_outcome_ingestion/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/receipt_outcome_ingestion/requirements.txt",
+      "icon": "ThumbsUp",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-17",
+        "evidence": "tests/ in the component dir: real ContextReceiptStore, real files, real DuckDB resource, real local HTTP server (pagination, secret headers); idempotent re-ingest, supersession, cursor, loop proof into item_feedback. Zendesk preset mapping written from documentation, not run against Zendesk."
+      },
+      "agent_hints": {
+        "inputs": "store_resource_key (a ContextReceiptStore resource); source {kind: sql|file|http_json}; mapping {receipt_id, signal|signal_value, value|value_map|scale, outcome_ref, occurred_at}.",
+        "outputs": "Outcomes recorded on existing receipts; metadata rows_read, outcomes_recorded, unknown_receipts, bad_rows, cursor, lag_seconds.",
+        "side_effects": "Appends outcome events to the receipt store (one write per outcome; slow on warehouse-backed stores).",
+        "anti_uses": "Feedback rows must carry the receipt_id the application returned with the answer; without it there is nothing to attach to.",
+        "requires_resources": [
+          "context_receipts"
+        ],
+        "output_type": "none",
+        "requires_pip": [
+          "pandas"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "receipts",
+        "feedback",
+        "outcomes",
+        "csat",
+        "thumbs",
+        "learning loop"
+      ]
+    },
+    {
       "id": "agent_review_queue",
       "name": "agent_review_queue",
       "category": "ai",

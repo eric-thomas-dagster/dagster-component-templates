@@ -1,0 +1,17 @@
+# Step 6: a CANDIDATE recipe (recipe-8) written to its own collection: it embeds "title + body" instead of body alone, and its SQL retires pages marked outdated.
+# Same asset name as the live index, different code_version, so receipts attribute outcomes to the right recipe.
+type: dagster_community_components.ContextEngineeringPipelineComponent
+attributes:
+  asset_name: support_kb
+  source:
+    kind: warehouse_query
+    resource_key: duckdb
+    sql: "SELECT doc_id, title || '. ' || body AS body FROM support_docs WHERE doc_id NOT LIKE '%outdated' ORDER BY doc_id"
+  id_column: doc_id
+  text_column: body
+  code_version: recipe-8
+  steps:
+    - {id: chunks, op: chunk, strategy: fixed, chunk_size: 500, chunk_overlap: 0, min_chunk_chars: 10}
+    - {id: unique, op: dedupe, mode: normalized}
+    - {id: embedded, op: embed, provider: litellm, model: stand-in-hashing-embed}
+    - {id: indexed, op: write_vector_store, provider: chromadb, connection_string: "${WORKDIR}/chroma_candidate", collection_name: support_kb_v2}

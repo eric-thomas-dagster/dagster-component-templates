@@ -52,7 +52,7 @@ Every op is free/local by default (sentence-transformers + HuggingFace zero-shot
 Everything below is YAML `steps` and component settings; none of it needs Python code. "Python mode" is
 `execution_mode: python` (the default), where the steps run in Python. `execution_mode: sql` instead runs chunk, classify
 and embed inside the warehouse and supports only those three ops, so `filter`, `dedupe`, `sensitivity`, `stamp`, `enrich`,
-parent-child chunking, `retrieval_eval` and the rest here need python mode.
+parent-child chunking and the rest here need python mode (`retrieval_eval` works in both, see below).
 
 **Every knob in one runnable pipeline:** [`example_all_knobs.yaml`](example_all_knobs.yaml). It is exercised end to end by
 `tests/test_example_all_knobs.py`, so it stays correct.
@@ -129,7 +129,28 @@ severity: ERROR, blocking: true}` embeds each golden query with the pipeline's o
 this run just wrote, and reports **`retrieval_quality`** as an asset check: recall@k (a hit when any expected chunk id or
 source id is in the top k) and MRR. `blocking: true` holds downstream assets until it passes. Together with the code
 version this is the safety net for recipe changes: a new chunking or embedding model must still answer the golden
-questions. Python mode, chromadb only.
+questions. Python mode needs a chromadb index.
+
+**In `execution_mode: sql`** (`bigquery`, `snowflake_cortex`, `databricks`) the same `retrieval_eval` block runs warehouse-side, with the same golden-set shape,
+thresholds, `severity`, `blocking`, check name and metadata (`recall_at_k`, `mrr`, `k`, `queries`, `misses`) and the same definitions (they are computed by
+one shared function). It needs only an `embed` step. After the table is built, the check runs one statement through the build's own warehouse resource
+(`get_engine` / `get_connection` / `get_client`, like `recipe_outcomes`): it embeds every golden query with the build's own embedding function and model
+(`ML.GENERATE_EMBEDDING`, `SNOWFLAKE.CORTEX.EMBED_TEXT_768`, `ai_query`), scores each against every chunk of `output_table` by cosine similarity, and returns
+each query's top `k` chunks (ties broken by `chunk_id`); matching against `expected` (a chunk id or the `id_column` value) happens in Python.
+- **Similarity.** BigQuery `1 - COSINE_DISTANCE(embedding, query)` (exact scan, no vector index needed); Snowflake `VECTOR_COSINE_SIMILARITY` (the table's
+  `embedding` is the `VECTOR` Cortex returned); Databricks cosine from plain array functions (`zip_with` / `aggregate`), so `embedding` must be `ARRAY<FLOAT>` /
+  `ARRAY<DOUBLE>` as `ai_query` returns for an embedding endpoint. All three are a brute-force scan over every candidate row for every query (queries x chunks
+  comparisons): fine for golden sets of tens of queries over millions of chunks; there is no ANN index and no top-k pushdown.
+- **Which rows are searched: the whole table.** The table is the index (python mode likewise searches the whole collection, every partition), so a partitioned run
+  evaluates the table as it stands after that partition's rows were swapped in, not only the partition's own rows. Expect the first partition runs to miss
+  golden questions whose answers live in partitions that are not built yet. Candidates are limited to rows whose `embedding_model` equals the current model (vectors
+  of two models are not comparable) and, with `stamp_provenance`, to this asset's `source_asset_key`.
+- **Incremental reuse / receipts.** The check reads the final table, so reused embeddings count like fresh ones and only the golden queries are embedded by the
+  check (N calls, once per query; the engine could in principle inline the query CTE and repeat the call per use, so keep golden sets small). Quarantine `exclude` rows
+  are not in the table and therefore not retrievable; `flag` rows (and `prune` flagged rows) stay candidates, exactly as python mode (which does not filter on
+  `feedback_quarantined` either): the check scores what the index serves, and a gateway filtering on the flag is responsible for its own filter.
+- **Limits.** The golden queries are embedded with the same model but the build embeds `chunk_text` whose boundaries come from the SQL chunker, so scores are not
+  numerically comparable with a python-mode run over the same documents.
 
 ## Declaring governance policy
 

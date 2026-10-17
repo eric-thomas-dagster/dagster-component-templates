@@ -1,0 +1,31 @@
+# Step 1 (and step 4, the rebuild): the knowledge base. Source = a DuckDB table; chunk -> dedupe -> embed -> Chroma.
+# `receipts:` is what closes the loop: on every build it reads the receipts + outcomes, stamps feedback_* onto each chunk,
+# quarantines (here: removes) chunks people keep rating badly, and reports rewrite candidates and dead weight.
+type: dagster_community_components.ContextEngineeringPipelineComponent
+attributes:
+  asset_name: support_kb
+  source:
+    kind: warehouse_query
+    resource_key: duckdb
+    sql: "SELECT doc_id, title, body FROM support_docs ORDER BY doc_id"
+  id_column: doc_id
+  text_column: body
+  metadata_columns: [title]
+  code_version: recipe-7
+  steps:
+    - {id: chunks, op: chunk, strategy: fixed, chunk_size: 500, chunk_overlap: 0, min_chunk_chars: 10}
+    - {id: unique, op: dedupe, mode: normalized}
+    - id: embedded
+      op: embed
+      provider: litellm
+      model: stand-in-hashing-embed   # <- the one-line change for a real model: text-embedding-3-small (see README)
+    - {id: indexed, op: write_vector_store, provider: chromadb, connection_string: "${WORKDIR}/chroma_live", collection_name: support_kb}
+  receipts:
+    resource_key: context_receipts
+    window_days: 30
+    min_retrievals: 3          # small because the demo has few questions; production defaults are 5 / 3
+    min_outcomes: 3
+    stamp: true                # feedback_retrievals / _rated / _mean_outcome / _cited / _prior on every chunk
+    quarantine: {mean_outcome_below: -0.6, mode: exclude}
+    rewrite_below: -0.3        # chunks at or below this mean outcome are listed in receipts_feedback.rewrite_candidates
+    prune: {never_retrieved_after_receipts: 10, mode: flag, min_age_days: 0}   # dead weight is flagged, not deleted

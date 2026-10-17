@@ -1,0 +1,15 @@
+# Step 3b: feedback rows -> receipt outcomes. An app carries the receipt_id it was handed through to its feedback table; run_demo.py
+# writes that join (feedback.csv x the receipt ids of this run) to ${WORKDIR}/feedback_with_receipts.csv. Re-ingesting never double-counts.
+type: dagster_community_components.ReceiptOutcomeIngestionComponent
+attributes:
+  asset_name: receipt_outcome_ingestion
+  store_resource_key: context_receipts
+  source:
+    kind: file
+    path: ${WORKDIR}/feedback_with_receipts.csv
+  mapping:
+    receipt_id: receipt_id
+    signal: rating
+    value_map: {up: thumbs_up, down: thumbs_down}
+    outcome_ref: user
+    source: feedback_csv

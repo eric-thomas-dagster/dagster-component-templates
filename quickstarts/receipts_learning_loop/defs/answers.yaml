@@ -1,0 +1,14 @@
+# Step 2 (and 5, the re-ask): answer questions. Retrieve wide, rerank by the learned per-chunk priors, record a receipt per answer.
+type: dagster_community_components.RAGPipelineComponent
+attributes:
+  asset_name: answers
+  upstream_asset_key: questions
+  retrievers:
+    kb: {kind: chromadb, path: "${WORKDIR}/chroma_live", collection_name: support_kb}
+  steps:
+    - {id: found, op: retrieve, retriever: kb, top_k: 3}
+    - {id: ans, op: generate, source: found, model: gpt-4o-mini}   # stubbed in the demo: no LLM call
+  receipts:
+    resource_key: context_receipts
+    context_name: support_kb
+    rerank: {prior_weight: 0.3, explore_fraction: 0.0}

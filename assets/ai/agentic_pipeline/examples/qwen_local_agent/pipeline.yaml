@@ -1,0 +1,54 @@
+# A tool-using agent on a LOCAL Qwen3 model (Ollama), confined by a `policy:`.
+#
+#   ollama pull qwen3:8b && ollama serve         # http://localhost:11434
+#   OLLAMA_API_BASE=http://localhost:11434       # exported in the code location's environment
+#
+# What the policy guarantees, no matter what the model decides to do:
+#   * it can only READ files under ./examples/qwen_local_agent/data  (the filesystem MCP server is also started
+#     with only that directory, and `arg_rules` refuses any path argument that resolves outside it -- `..` and
+#     symlinks included)
+#   * write/delete/move tools are never shown to the model, and a hallucinated call to one is refused
+#   * the only env vars the pipeline can read -- and the only ones the tool subprocess receives -- are listed
+#   * the only host it may call is the local Ollama server
+#   * it may not spend more than 12 model calls or 20 tool calls in a run
+type: dagster_community_components.AgenticPipelineComponent
+attributes:
+  asset_name_prefix: qwen_review
+  source:
+    kind: literal
+    text: >-
+      Read every file in the data directory. Summarize what each one says in one line, then list any
+      security risks you notice.
+  steps:
+    - id: review
+      op: tool_use_loop
+      model: ollama/qwen3:8b          # routed to LiteLLM's ollama_chat/ (the route that supports tools)
+      api_base_env_var: OLLAMA_API_BASE
+      temperature: 0.2
+      max_tokens: 2048
+      max_iterations: 8
+      system_prompt: >-
+        You are a careful code and config reviewer. Use the file tools to read what you need, then call
+        `finalize` with your answer. Never guess file contents.
+      mcp_servers:
+        - name: fs
+          type: stdio
+          command: [npx, -y, "@modelcontextprotocol/server-filesystem", "examples/qwen_local_agent/data"]
+  outputs:
+    assets: [review]
+  policy:
+    on_violation: fail
+    env:
+      allow: [OLLAMA_API_BASE]
+    filesystem:
+      read: [examples/qwen_local_agent/data]
+    network:
+      allow_hosts: [localhost, 127.0.0.1]
+    tools:
+      deny: ["fs__write_*", "fs__edit_*", "fs__move_*", "fs__create_*", "fs__delete_*"]
+      max_calls_per_run: 20
+      arg_rules:
+        - {tool: "fs__*", arg: path, under: [examples/qwen_local_agent/data]}
+    budget:
+      max_llm_calls: 12
+      max_seconds: 300

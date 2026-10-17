@@ -93,6 +93,9 @@ def _require_env(name: str) -> str:
     """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
     from dagster import EnvVar
 
+    _p = _pol()
+    if _p is not None:
+        _p.check_env(name)
     value = EnvVar(name).get_value()
     if value is None:
         raise KeyError(
@@ -101,6 +104,338 @@ def _require_env(name: str) -> str:
         )
     return value
 
+
+
+# ── Agent policy: guardrails at the component boundary ───────────────────────
+#
+# An optional `policy:` block limits what the pipeline will do ON THE AGENT'S BEHALF: which env vars it may
+# read (and hand to MCP subprocesses), which paths it may read/write, which hosts it may call, which tools the
+# model may use (and with what arguments), which components it may invoke, and how much it may spend. With no
+# `policy:` every check below is a no-op, so existing pipelines behave exactly as before.
+#
+# This is enforcement at the component's boundary -- the pipeline refuses to do the thing -- not an OS sandbox.
+# An MCP stdio server is a subprocess that runs with the worker's OS permissions; the policy decides which env
+# vars it is given and which of its tools the model may call, not what the server code does once running. For
+# hard isolation run the code location in a container.
+
+import contextlib
+import contextvars
+import fnmatch
+import logging
+from types import SimpleNamespace
+from urllib.parse import urlparse
+
+_POLICY_SECTIONS = {
+    "on_violation": None,
+    "env": {"allow"},
+    "filesystem": {"read", "write"},
+    "network": {"allow_hosts"},
+    "tools": {"allow", "deny", "max_calls_per_run", "arg_rules"},
+    "components": {"allow"},
+    "budget": {"max_cost_usd", "max_tokens", "max_llm_calls", "max_seconds"},
+}
+_ARG_RULE_KEYS = {"tool", "arg", "under", "hosts", "allow_regex", "deny_regex"}
+# What a stdio MCP subprocess always gets when `policy.env.allow` is set (so `npx`, `uvx`, etc. still run).
+_SAFE_SUBPROCESS_ENV = (
+    "PATH", "HOME", "USER", "LOGNAME", "SHELL", "TERM", "LANG", "LC_ALL", "TMPDIR", "TEMP", "TMP",
+    "SYSTEMROOT", "COMSPEC", "PATHEXT",
+)
+
+
+class PolicyViolation(RuntimeError):
+    """The pipeline tried to do something its `policy:` does not allow (and `on_violation` is `fail`)."""
+
+
+def _validate_policy(cfg: Any) -> Dict[str, Any]:
+    """Reject typos loudly: a misspelled `filesystm:` silently allowing everything would be a security footgun."""
+    if cfg in (None, {}):
+        return {}
+    if not isinstance(cfg, dict):
+        raise ValueError(f"policy must be a mapping, got {type(cfg).__name__}")
+    for key, val in cfg.items():
+        if key not in _POLICY_SECTIONS:
+            raise ValueError(f"unknown policy key {key!r}; valid: {sorted(_POLICY_SECTIONS)}")
+        if key == "on_violation":
+            if val not in ("fail", "warn"):
+                raise ValueError("policy.on_violation must be 'fail' or 'warn'")
+            continue
+        if not isinstance(val, dict):
+            raise ValueError(f"policy.{key} must be a mapping")
+        bad = set(val) - _POLICY_SECTIONS[key]
+        if bad:
+            raise ValueError(f"unknown policy.{key} key(s) {sorted(bad)}; valid: {sorted(_POLICY_SECTIONS[key])}")
+        for sub, v in val.items():
+            if sub in ("max_cost_usd", "max_tokens", "max_llm_calls", "max_seconds", "max_calls_per_run"):
+                if not isinstance(v, (int, float)) or isinstance(v, bool) or v < 0:
+                    raise ValueError(f"policy.{key}.{sub} must be a non-negative number")
+            elif sub == "arg_rules":
+                if not isinstance(v, list):
+                    raise ValueError("policy.tools.arg_rules must be a list")
+                for rule in v:
+                    if not isinstance(rule, dict) or "arg" not in rule or set(rule) - _ARG_RULE_KEYS:
+                        raise ValueError(
+                            f"each policy.tools.arg_rules entry needs `arg` and only keys {sorted(_ARG_RULE_KEYS)}; got {rule!r}"
+                        )
+            elif not isinstance(v, list) or not all(isinstance(x, str) for x in v):
+                raise ValueError(f"policy.{key}.{sub} must be a list of strings")
+    return cfg
+
+
+class _Policy:
+    """One run's view of the policy. `usage` is a plain dict that lives in the pipeline state so counters
+    accumulate across every step (and across per-step ops in graph mode)."""
+
+    def __init__(self, cfg: Dict[str, Any], usage: Dict[str, Any]):
+        self.cfg = cfg or {}
+        self.usage = usage
+        usage.setdefault("started_at", time.time())
+        for k, zero in (("llm_calls", 0), ("tool_calls", 0), ("tokens", 0), ("cost_usd", 0.0)):
+            usage.setdefault(k, zero)
+        usage.setdefault("violations", [])
+
+    def _sec(self, name: str) -> Dict[str, Any]:
+        return self.cfg.get(name) or {}
+
+    def violate(self, kind: str, detail: str, *, hard: bool = True) -> None:
+        """Record a violation; raise unless on_violation is 'warn' (or the caller handles refusal itself)."""
+        self.usage["violations"].append({"kind": kind, "detail": detail, "at": _now_iso()})
+        if hard and self.cfg.get("on_violation", "fail") != "warn":
+            raise PolicyViolation(f"[policy:{kind}] {detail}")
+        logging.getLogger(__name__).warning("[policy:%s] %s", kind, detail)
+
+    # environment
+    def env_allowed(self, name: str) -> bool:
+        allow = self._sec("env").get("allow")
+        return allow is None or any(fnmatch.fnmatchcase(name, p) for p in allow)
+
+    def check_env(self, name: str) -> None:
+        if not self.env_allowed(name):
+            self.violate("env", f"reading environment variable {name!r} is not allowed (policy.env.allow)")
+
+    # filesystem
+    @staticmethod
+    def _under(path: str, roots: List[str]) -> bool:
+        real = os.path.realpath(os.path.abspath(str(path)))
+        for r in roots:
+            base = os.path.realpath(os.path.abspath(re.sub(r"(/\*{1,2})+$", "", str(r)) or "."))
+            if real == base or real.startswith(base + os.sep):
+                return True
+        return False
+
+    def check_path(self, path: Any, mode: str) -> None:
+        roots = self._sec("filesystem").get(mode)
+        if roots is not None and not self._under(str(path), roots):
+            self.violate("filesystem", f"{mode} of {str(path)!r} is outside policy.filesystem.{mode} {list(roots)}")
+
+    # network
+    @staticmethod
+    def _host_ok(url: str, patterns: List[str]) -> bool:
+        host = (urlparse(str(url)).hostname or "").lower()
+        return bool(host) and any(fnmatch.fnmatchcase(host, p.lower()) for p in patterns)
+
+    def check_url(self, url: Any) -> None:
+        hosts = self._sec("network").get("allow_hosts")
+        if hosts is not None and not self._host_ok(str(url), hosts):
+            self.violate("network", f"call to {str(url)!r} is not in policy.network.allow_hosts {list(hosts)}")
+
+    # components
+    def check_component(self, component_type: str) -> None:
+        allow = self._sec("components").get("allow")
+        name = str(component_type).rsplit(".", 1)[-1]
+        if allow is not None and not any(fnmatch.fnmatchcase(name, p) for p in allow):
+            self.violate("components", f"invoking component {name!r} is not in policy.components.allow {list(allow)}")
+
+    # budget
+    def before_llm_call(self) -> None:
+        b, u = self._sec("budget"), self.usage
+        if b.get("max_llm_calls") is not None and u["llm_calls"] >= b["max_llm_calls"]:
+            self.violate("budget", f"policy.budget.max_llm_calls={b['max_llm_calls']} reached")
+        if b.get("max_seconds") is not None and time.time() - u["started_at"] > b["max_seconds"]:
+            self.violate("budget", f"policy.budget.max_seconds={b['max_seconds']} exceeded")
+        if b.get("max_cost_usd") is not None and u["cost_usd"] >= b["max_cost_usd"]:
+            self.violate("budget", f"policy.budget.max_cost_usd={b['max_cost_usd']} reached (spent {u['cost_usd']:.4f})")
+        if b.get("max_tokens") is not None and u["tokens"] >= b["max_tokens"]:
+            self.violate("budget", f"policy.budget.max_tokens={b['max_tokens']} reached (used {u['tokens']})")
+
+    def after_llm_call(self, cost_usd: Optional[float], tokens: Optional[int]) -> None:
+        u = self.usage
+        u["llm_calls"] += 1
+        u["tokens"] += int(tokens or 0)
+        u["cost_usd"] += float(cost_usd or 0.0)
+        b = self._sec("budget")
+        if b.get("max_cost_usd") is not None and u["cost_usd"] > b["max_cost_usd"]:
+            self.violate("budget", f"policy.budget.max_cost_usd={b['max_cost_usd']} exceeded (spent {u['cost_usd']:.4f})")
+        if b.get("max_tokens") is not None and u["tokens"] > b["max_tokens"]:
+            self.violate("budget", f"policy.budget.max_tokens={b['max_tokens']} exceeded (used {u['tokens']})")
+
+    # tools -- the model can only act through the tools the pipeline gives it
+    def tool_visible(self, *names: str) -> bool:
+        """Static allow/deny (no counters): used to decide which tools the model is even shown."""
+        t = self._sec("tools")
+        if any(fnmatch.fnmatchcase(n, p) for n in names if n for p in (t.get("deny") or [])):
+            return False
+        allow = t.get("allow")
+        return allow is None or any(fnmatch.fnmatchcase(n, p) for n in names if n for p in allow)
+
+    def tool_refusal(self, tool: str, real_name: str, args: Any) -> Optional[str]:
+        """Why this specific call must be refused, or None. Never raises: the refusal goes back to the model."""
+        t = self._sec("tools")
+        if not self.tool_visible(tool, real_name):
+            return f"tool {tool!r} is not permitted by policy.tools (allow/deny)"
+        cap = t.get("max_calls_per_run")
+        if cap is not None and self.usage["tool_calls"] >= cap:
+            return f"policy.tools.max_calls_per_run={cap} reached"
+        args = args if isinstance(args, dict) else {}
+        for rule in t.get("arg_rules") or []:
+            if not any(fnmatch.fnmatchcase(n, rule.get("tool", "*")) for n in (tool, real_name) if n):
+                continue
+            arg = rule["arg"]
+            if arg not in args:
+                continue
+            val = args[arg]
+            sval = val if isinstance(val, str) else json.dumps(val, default=str)
+            if "under" in rule and not self._under(sval, rule["under"]):
+                return f"argument {arg!r}={sval!r} is outside {list(rule['under'])}"
+            if "hosts" in rule and not self._host_ok(sval, rule["hosts"]):
+                return f"argument {arg!r}={sval!r} is not an allowed host {list(rule['hosts'])}"
+            if "allow_regex" in rule and not re.search(rule["allow_regex"], sval):
+                return f"argument {arg!r} does not match required pattern {rule['allow_regex']!r}"
+            if "deny_regex" in rule and re.search(rule["deny_regex"], sval):
+                return f"argument {arg!r} matches forbidden pattern {rule['deny_regex']!r}"
+        return None
+
+    def guard_tool(self, tool: str, real_name: str, args: Any) -> Optional[str]:
+        """Returns a refusal reason (caller must NOT run the tool) or None (allowed; counted)."""
+        reason = self.tool_refusal(tool, real_name, args)
+        if reason:
+            self.violate("tools", reason, hard=False)
+            if self.cfg.get("on_violation", "fail") == "warn":
+                reason = None  # warn mode: record + log, but let the call through
+        if reason is None:
+            self.usage["tool_calls"] += 1
+        return reason
+
+
+@contextlib.contextmanager
+def _policy_scope(cfg: Optional[Dict[str, Any]], usage: Dict[str, Any]):
+    """Activate the policy for code that runs OUTSIDE a step (file/database ingest, sinks). No-op without a policy."""
+    if not cfg:
+        yield None
+        return
+    policy = _Policy(cfg, usage)
+    token = _ACTIVE_POLICY.set(policy)
+    try:
+        yield policy
+    finally:
+        try:
+            _ACTIVE_POLICY.reset(token)
+        except ValueError:  # generator finalised in a different context; nothing active to restore
+            pass
+
+
+_ACTIVE_POLICY: "contextvars.ContextVar[Optional[_Policy]]" = contextvars.ContextVar("agentic_policy", default=None)
+_REASONING_TRACE: "contextvars.ContextVar[Optional[list]]" = contextvars.ContextVar("agentic_reasoning", default=None)
+
+
+def _pol() -> Optional[_Policy]:
+    return _ACTIVE_POLICY.get()
+
+
+def _env_get(name: str, default: Optional[str] = None) -> Optional[str]:
+    """os.environ.get, subject to policy.env.allow."""
+    p = _pol()
+    if p is not None:
+        p.check_env(name)
+    return os.environ.get(name, default)
+
+
+def _pol_path(path: Any, mode: str) -> None:
+    p = _pol()
+    if p is not None:
+        p.check_path(path, mode)
+
+
+def _pol_url(url: Any) -> None:
+    p = _pol()
+    if p is not None and url:
+        p.check_url(url)
+
+
+def _pol_component(component_type: str) -> None:
+    p = _pol()
+    if p is not None:
+        p.check_component(component_type)
+
+
+def _mcp_subprocess_env(extra: Optional[Dict[str, Any]] = None) -> Dict[str, str]:
+    """Env handed to a stdio MCP server: the full process env (historical behaviour) unless policy.env.allow is
+    set, in which case only allowed vars + a minimal baseline. The server's own YAML `env:` always applies."""
+    p = _pol()
+    if p is not None and p._sec("env").get("allow") is not None:
+        base = {k: v for k, v in os.environ.items() if k in _SAFE_SUBPROCESS_ENV or p.env_allowed(k)}
+    else:
+        base = dict(os.environ)
+    base.update({str(k): str(v) for k, v in (extra or {}).items()})
+    return base
+
+
+# ── Model-output normalisation (Qwen / DeepSeek-R1 style local models) ────────
+
+_THINK_BLOCK = re.compile(r"<think>(.*?)</think>", re.S | re.I)
+_TOOL_CALL_BLOCK = re.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>", re.S)
+
+
+def _split_reasoning(content: str) -> "tuple[str, Optional[str]]":
+    """Split `<think>…</think>` reasoning out of model text -> (answer, reasoning).
+
+    Handles the three shapes seen in practice: a closed block, an UNCLOSED block (output truncated by
+    max_tokens mid-thought -> everything after `<think>` is reasoning and there is no answer yet), and a bare
+    closing tag (some chat templates put the opening tag in the prompt)."""
+    if not content or "think>" not in content.lower():
+        return content, None
+    parts = [m.strip() for m in _THINK_BLOCK.findall(content) if m.strip()]
+    rest = _THINK_BLOCK.sub("", content)
+    m = re.search(r"<think>(.*)$", rest, re.S | re.I)
+    if m:  # unclosed
+        if m.group(1).strip():
+            parts.append(m.group(1).strip())
+        rest = rest[: m.start()]
+    elif re.search(r"</think>", rest, re.I) and not parts:  # bare closing tag
+        before, after = re.split(r"</think>", rest, maxsplit=1, flags=re.I)
+        if before.strip():
+            parts.append(before.strip())
+        rest = after
+    return rest.strip(), ("\n\n".join(parts) if parts else None)
+
+
+def _parse_text_tool_calls(content: str) -> "tuple[str, list]":
+    """Some Qwen/Hermes-style models emit `<tool_call>{"name":…,"arguments":{…}}</tool_call>` as plain text when the
+    server did not parse it into structured tool_calls. Recover those -> (remaining text, [{name, arguments(json str)}])."""
+    calls = []
+    for raw in _TOOL_CALL_BLOCK.findall(content or ""):
+        try:
+            obj = json.loads(raw)
+        except json.JSONDecodeError:
+            continue
+        name = obj.get("name")
+        if not name:
+            continue
+        args = obj.get("arguments", obj.get("parameters", {}))
+        calls.append({"name": name, "arguments": args if isinstance(args, str) else json.dumps(args)})
+    return (_TOOL_CALL_BLOCK.sub("", content).strip() if calls else content), calls
+
+
+def _ollama_chat_model(model: str, has_tools: bool) -> str:
+    """LiteLLM's `ollama/` route uses /api/generate (no tool support); `ollama_chat/` uses /api/chat, which does."""
+    if has_tools and model.lower().startswith("ollama/"):
+        return "ollama_chat/" + model.split("/", 1)[1]
+    return model
+
+
+def _note_reasoning(model: str, text: Optional[str]) -> None:
+    trace = _REASONING_TRACE.get()
+    if trace is not None and text:
+        trace.append({"model": model, "text": text})
 
 
 def _apply_partition_template(s: str, partition_key: Optional[str]) -> str:
@@ -231,6 +566,7 @@ def _ingest(
 
     if kind == "file":
         path = _sub(source_config["path"])
+        _pol_path(path, "read")
         with open(path) as f:
             text = f.read()
         return {"text": text, "source_kind": "file", "source_path": path}
@@ -238,6 +574,7 @@ def _ingest(
     if kind == "url":
         import requests
         url = _sub(source_config["url"])
+        _pol_url(url)
         response = requests.get(url, timeout=source_config.get("timeout", 30))
         response.raise_for_status()
         return {"text": response.text, "source_kind": "url", "source_url": url}
@@ -252,7 +589,7 @@ def _ingest(
         if database_url:
             url = database_url
         elif database_url_env_var:
-            url = os.environ.get(database_url_env_var)
+            url = _env_get(database_url_env_var)
             if not url:
                 raise EnvironmentError(f"Env var {database_url_env_var!r} is not set")
         else:
@@ -416,10 +753,17 @@ def _completion(
         kwargs["api_key"] = _require_env(api_key_env_var)
     if api_base_env_var:
         kwargs["api_base"] = _require_env(api_base_env_var)
+        _pol_url(kwargs["api_base"])
     if tools:
         kwargs["tools"] = tools
     if tool_choice:
         kwargs["tool_choice"] = tool_choice
+    if tools and m_lower.startswith("ollama/"):
+        # `ollama/` is /api/generate (no tool support); `ollama_chat/` is /api/chat. Ollama's chat API also has no
+        # tool_choice="required", so ask for "auto" (callers already fall back when the model emits no tool call).
+        kwargs["model"] = _ollama_chat_model(effective_model, True)
+        if kwargs.get("tool_choice") == "required":
+            kwargs["tool_choice"] = "auto"
     # Reasoning params are provider-specific. LiteLLM's `drop_params=True`
     # doesn't reliably strip them when forwarding to a provider that
     # doesn't accept them (thinking_budget → OpenAI reaches the wire and
@@ -432,11 +776,16 @@ def _completion(
         elif is_anthropic:
             kwargs["thinking"] = {"type": "enabled", "budget_tokens": int(thinking_budget)}
 
+    _p = _pol()
+    if _p is not None:
+        _p.before_llm_call()
     call_started_at = time.time()
     response = litellm.completion(**kwargs)
     latency_ms = int((time.time() - call_started_at) * 1000)
     msg = response.choices[0].message
-    content = msg.content or ""
+    # Reasoning models (Qwen3, DeepSeek-R1, ...) often inline their chain of thought as <think>…</think>. Keep it
+    # out of the answer (downstream JSON parsing / routing would choke on it) and surface it as step metadata.
+    content, _think = _split_reasoning(msg.content or "")
 
     # Surface reasoning traces when the provider returns them (Claude
     # thinking blocks, DeepSeek reasoning_content, some LiteLLM-wrapped
@@ -448,6 +797,8 @@ def _completion(
         psf = getattr(msg, "provider_specific_fields", None)
         if isinstance(psf, dict):
             reasoning_content = psf.get("reasoning_content")
+    reasoning_content = reasoning_content or _think
+    _note_reasoning(effective_model, reasoning_content)
 
     tool_calls_out = []
     for tc in (msg.tool_calls or []):
@@ -455,6 +806,10 @@ def _completion(
             "name": tc.function.name,
             "arguments": tc.function.arguments,
         })
+    if tools and not tool_calls_out:
+        # Qwen/Hermes-style models sometimes emit <tool_call>{...}</tool_call> as plain text; recover it.
+        content, _text_calls = _parse_text_tool_calls(content)
+        tool_calls_out.extend(_text_calls)
 
     usage = None
     u = getattr(response, "usage", None)
@@ -496,6 +851,9 @@ def _completion(
             if isinstance(v, (int, float)):
                 cache_creation_tokens = int(v)
                 break
+
+    if _p is not None:
+        _p.after_llm_call(cost_usd, tokens_total)
 
     return {
         "content": content,
@@ -1459,7 +1817,7 @@ def _resolve_mcp_headers(cfg: Dict[str, Any], server_name: str) -> Dict[str, str
     for k, v in (cfg.get("headers") or {}).items():
         headers[k] = str(v)
     for header_name, env_var in (cfg.get("headers_env") or {}).items():
-        val = os.environ.get(env_var)
+        val = _env_get(env_var)
         if val is None:
             raise ValueError(
                 f"MCP server {server_name!r} references env var {env_var!r} for header "
@@ -1544,8 +1902,7 @@ async def _call_mcp_tool_async(
             # `GITHUB_PERSONAL_ACCESS_TOKEN`, `OPENAI_API_KEY`, and any
             # other var the MCP server needs. YAML `env:` values override
             # inherited ones (last-write-wins).
-            _base_env = dict(os.environ)
-            _base_env.update(server_cfg.get("env") or {})
+            _base_env = _mcp_subprocess_env(server_cfg.get("env"))
             params = StdioServerParameters(
                 command=cmd[0], args=list(cmd[1:]), env=_base_env
             )
@@ -1561,6 +1918,7 @@ async def _call_mcp_tool_async(
             if not url:
                 raise ValueError(f"MCP server {name!r} is http but url is empty.")
             headers = _resolve_mcp_headers(server_cfg, name)
+            _pol_url(url)
             read, write, _sid = await stack.enter_async_context(
                 streamablehttp_client(url, headers=headers or None)
             )
@@ -1574,6 +1932,7 @@ async def _call_mcp_tool_async(
             if not url:
                 raise ValueError(f"MCP server {name!r} is sse but url is empty.")
             headers = _resolve_mcp_headers(server_cfg, name)
+            _pol_url(url)
             read, write = await stack.enter_async_context(
                 sse_client(url, headers=headers or None)
             )
@@ -1600,7 +1959,7 @@ async def _call_mcp_tool_async(
             # Optional bearer-token auth: `bearer_env: MCP_TOKEN` reads the
             # env var and adds `Authorization: Bearer <value>` at call time.
             bearer_env = server_cfg.get("bearer_env")
-            if bearer_env and os.environ.get(bearer_env):
+            if bearer_env and _env_get(bearer_env):
                 headers = {
                     **(headers or {}),
                     "Authorization": f"Bearer {_require_env(bearer_env)}",
@@ -1725,6 +2084,12 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         f"[mcp_call:{step.get('id')}] tool={tool_name} args={resolved_args}"
     )
 
+    _p = _pol()
+    if _p is not None:
+        _refusal = _p.guard_tool(f"{server_cfg.get('name', 'mcp')}__{tool_name}", tool_name, resolved_args)
+        if _refusal:
+            raise PolicyViolation(f"[policy:tools] mcp_call step {step.get('id')!r}: {_refusal}")
+
     t0 = time.time()
     try:
         result = asyncio.run(
@@ -1822,8 +2187,7 @@ async def _discover_mcp_tools_async(
                     raise ValueError(
                         f"MCP server {name!r} stdio needs `command: [...]` (LIST of strings)."
                     )
-                _base_env = dict(os.environ)
-                _base_env.update(server_cfg.get("env") or {})
+                _base_env = _mcp_subprocess_env(server_cfg.get("env"))
                 params = StdioServerParameters(
                     command=cmd[0], args=list(cmd[1:]), env=_base_env
                 )
@@ -1837,6 +2201,7 @@ async def _discover_mcp_tools_async(
                 if not url:
                     raise ValueError(f"MCP server {name!r} http needs url.")
                 headers = _resolve_mcp_headers(server_cfg, name)
+                _pol_url(url)
                 read, write, _sid = await stack.enter_async_context(
                     streamablehttp_client(url, headers=headers or None)
                 )
@@ -1849,6 +2214,7 @@ async def _discover_mcp_tools_async(
                 if not url:
                     raise ValueError(f"MCP server {name!r} sse needs url.")
                 headers = _resolve_mcp_headers(server_cfg, name)
+                _pol_url(url)
                 read, write = await stack.enter_async_context(
                     sse_client(url, headers=headers or None)
                 )
@@ -1865,7 +2231,7 @@ async def _discover_mcp_tools_async(
                 config = server_cfg.get("config")
                 headers = _resolve_mcp_headers(server_cfg, name)
                 bearer_env = server_cfg.get("bearer_env")
-                if bearer_env and os.environ.get(bearer_env):
+                if bearer_env and _env_get(bearer_env):
                     headers = {**(headers or {}), "Authorization": f"Bearer {_require_env(bearer_env)}"}
                 if config:
                     client_ctx = FastMCPClient(config)
@@ -2015,6 +2381,15 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
     if allowed:
         tool_index = {k: v for k, v in tool_index.items() if v["name"] in allowed}
 
+    _p = _pol()
+    if _p is not None:
+        # The model can only act through the tools it is shown: hide denied / non-allowlisted ones entirely.
+        tool_index = {k: v for k, v in tool_index.items() if _p.tool_visible(k, v["name"])}
+        tool_schemas = [
+            t for t in tool_schemas
+            if t["function"]["name"] == finalize_name or t["function"]["name"] in tool_index
+        ]
+
     context.log.info(
         f"[tool_use_loop:{step.get('id', '?')}] {len(tool_index)} tool(s) "
         f"available: {sorted(tool_index.keys())[:10]}"
@@ -2062,7 +2437,7 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
 
     for iteration in range(1, max_iterations + 1):
         kwargs: Dict[str, Any] = {
-            "model": model,
+            "model": _ollama_chat_model(model, True),
             "messages": messages,
             "temperature": temperature,
             "max_tokens": max_tokens_per_call,
@@ -2077,16 +2452,21 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
                 kwargs["thinking_budget"] = int(thinking_budget)
             elif _is_anthropic:
                 kwargs["thinking"] = {"type": "enabled", "budget_tokens": int(thinking_budget)}
-        if api_key_env_var and os.environ.get(api_key_env_var):
+        if api_key_env_var and _env_get(api_key_env_var):
             kwargs["api_key"] = _require_env(api_key_env_var)
-        if api_base_env_var and os.environ.get(api_base_env_var):
+        if api_base_env_var and _env_get(api_base_env_var):
             kwargs["api_base"] = _require_env(api_base_env_var)
+            _pol_url(kwargs["api_base"])
 
+        _p = _pol()
+        if _p is not None:
+            _p.before_llm_call()
         t0 = _time.time()
         response = litellm.completion(**kwargs)
         llm_ms = int((_time.time() - t0) * 1000)
         n_llm_calls += 1
         total_llm_latency_ms += llm_ms
+        iter_cost = None
         try:
             iter_cost = float(litellm.completion_cost(completion_response=response))
             total_cost_usd += iter_cost
@@ -2104,10 +2484,25 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
 
         msg = response.choices[0].message
         tool_calls = getattr(msg, "tool_calls", None) or []
+        _iter_tokens = (
+            getattr(usage, "total_tokens", None)
+            or (usage.get("total_tokens") if isinstance(usage, dict) else None)
+        )
+        if _p is not None:
+            _p.after_llm_call(iter_cost, _iter_tokens)
+        _content_clean, _think = _split_reasoning(msg.content or "")
+        _note_reasoning(model, _think)
+        if not tool_calls:
+            _content_clean, _text_calls = _parse_text_tool_calls(_content_clean)
+            if _text_calls:  # Qwen/Hermes-style <tool_call> text the server did not parse
+                tool_calls = [
+                    SimpleNamespace(id=f"textcall_{iteration}_{i}", function=SimpleNamespace(name=c["name"], arguments=c["arguments"]))
+                    for i, c in enumerate(_text_calls)
+                ]
 
         if not tool_calls:
             # LLM emitted content without a tool call — treat as final answer.
-            content = msg.content or ""
+            content = _content_clean
             trajectory.append({
                 "iteration": iteration,
                 "phase": "final_answer_no_tool",
@@ -2125,7 +2520,7 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
         # sees what it just did on the next iteration.
         messages.append({
             "role": "assistant",
-            "content": msg.content or "",
+            "content": _content_clean,
             "tool_calls": [
                 {
                     "id": tc.id,
@@ -2196,6 +2591,18 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
                     "tool_name": tool_name, "tool_args": tool_args, "error": error_msg,
                 })
                 continue
+
+            if _p is not None:
+                _refusal = _p.guard_tool(tool_name, tool_meta["name"], tool_args)
+                if _refusal:
+                    messages.append({"role": "tool", "tool_call_id": tc.id, "content": f"ERROR: blocked by policy: {_refusal}"})
+                    trajectory.append({
+                        "iteration": iteration, "phase": "tool_call_blocked",
+                        "tool_name": tool_name, "tool_args": tool_args, "error": _refusal,
+                    })
+                    context.log.warning(f"[tool_use_loop iter={iteration}] {tool_name} blocked by policy: {_refusal}")
+                    n_tool_calls += 1
+                    continue
 
             t_tool = _time.time()
             try:
@@ -3071,6 +3478,8 @@ def _do_sub_pipeline(step: dict, state: Dict[str, Any], context) -> Dict[str, An
         "source": {"text": src_text, "source_kind": "sub_pipeline_input"},
         "__ctx__": _ctx_of(state),  # inherit partition context
         "__personas__": state.get("__personas__") or {},  # inherit personas
+        "__policy__": state.get("__policy__") or {},  # inherit policy; share ONE usage dict so budgets are run-wide
+        "__policy_usage__": state.setdefault("__policy_usage__", {}),
         "__agents__": state.get("__agents__") or {},  # inherit agents
     }
     sub_source = step.get("sub_source")
@@ -3214,7 +3623,7 @@ def _call_openai_assistant(agent_cfg: Dict[str, Any], prompt: str, context) -> D
 
     assistant_id = agent_cfg.get("assistant_id")
     if not assistant_id and agent_cfg.get("assistant_id_env_var"):
-        assistant_id = os.environ.get(agent_cfg["assistant_id_env_var"])
+        assistant_id = _env_get(agent_cfg["assistant_id_env_var"])
     if not assistant_id:
         raise ValueError(
             "openai_assistant agent needs `assistant_id:` OR `assistant_id_env_var:`"
@@ -3222,19 +3631,20 @@ def _call_openai_assistant(agent_cfg: Dict[str, Any], prompt: str, context) -> D
 
     client_kwargs: Dict[str, Any] = {}
     if agent_cfg.get("api_key_env_var"):
-        v = os.environ.get(agent_cfg["api_key_env_var"])
+        v = _env_get(agent_cfg["api_key_env_var"])
         if v:
             client_kwargs["api_key"] = v
     if agent_cfg.get("api_base_env_var"):
-        v = os.environ.get(agent_cfg["api_base_env_var"])
+        v = _env_get(agent_cfg["api_base_env_var"])
         if v:
             client_kwargs["base_url"] = v
+    _pol_url(client_kwargs.get("base_url") or "https://api.openai.com/v1")
     client = OpenAI(**client_kwargs)
 
     max_wait = int(agent_cfg.get("max_wait_seconds", 300))
     thread_id = agent_cfg.get("thread_id")
     if not thread_id and agent_cfg.get("thread_id_env_var"):
-        thread_id = os.environ.get(agent_cfg["thread_id_env_var"])
+        thread_id = _env_get(agent_cfg["thread_id_env_var"])
 
     t0 = time.time()
     if thread_id:
@@ -3290,7 +3700,7 @@ def _call_remote_agent(
 
     url = agent_cfg.get("url")
     if not url and agent_cfg.get("url_env_var"):
-        url = os.environ.get(agent_cfg["url_env_var"])
+        url = _env_get(agent_cfg["url_env_var"])
     if not url:
         raise ValueError("remote_agent needs `url:` OR `url_env_var:`")
 
@@ -3299,7 +3709,7 @@ def _call_remote_agent(
 
     headers: Dict[str, str] = {}
     if agent_cfg.get("auth_bearer_env_var"):
-        tok = os.environ.get(agent_cfg["auth_bearer_env_var"])
+        tok = _env_get(agent_cfg["auth_bearer_env_var"])
         if not tok:
             raise ValueError(
                 f"remote_agent auth_bearer_env_var {agent_cfg['auth_bearer_env_var']!r} not set"
@@ -3308,7 +3718,7 @@ def _call_remote_agent(
     for k, v in (agent_cfg.get("headers") or {}).items():
         headers[str(k)] = str(v)
     for header_name, env_var in (agent_cfg.get("headers_env") or {}).items():
-        val = os.environ.get(env_var)
+        val = _env_get(env_var)
         if val is None:
             raise ValueError(
                 f"remote_agent headers_env {header_name!r} references env {env_var!r} but it's unset"
@@ -3331,6 +3741,7 @@ def _call_remote_agent(
 
     t0 = time.time()
     context.log.info(f"[agent_call/remote_agent] {method} {url}")
+    _pol_url(url)
     resp = requests.request(method, url, **request_kwargs)
     resp.raise_for_status()
     body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {"_raw": resp.text}
@@ -3347,6 +3758,7 @@ def _call_remote_agent(
         deadline = time.time() + poll_timeout
         while time.time() < deadline:
             time.sleep(poll_interval)
+            _pol_url(poll_url)
             pr = requests.get(poll_url, headers=headers, timeout=timeout)
             pr.raise_for_status()
             body = pr.json()
@@ -3557,6 +3969,7 @@ def _load_external_agent_manifest(
                 data = json.load(f)
         else:
             from urllib.request import urlopen
+            _pol_url(manifest_url)
             with urlopen(manifest_url, timeout=30) as resp:
                 data = json.load(resp)
         if isinstance(data, dict):
@@ -3980,6 +4393,8 @@ def _do_invoke_component(step: dict, state: Dict[str, Any], context) -> Dict[str
         raise ValueError("invoke_component requires `component_type: <dotted path>`")
     attributes = dict(step.get("attributes") or {})
 
+    _pol_component(component_type)
+
     cls = _resolve_component_class(component_type)
     try:
         comp = cls(**attributes)
@@ -4172,6 +4587,12 @@ def _build_step_metadata(
             md[f"{aid}__proposals"] = dg.MetadataValue.json(v)
         elif k == "history" and v is not None:
             md[f"{aid}__history"] = dg.MetadataValue.json(v)
+        elif k == "reasoning" and v:
+            md[f"{aid}__reasoning"] = dg.MetadataValue.md(
+                "\n\n---\n\n".join(f"**{r['model']}**\n\n{r['text']}" for r in v)[:20000]
+            )
+        elif k in ("policy_usage", "policy_violation_detail") and v:
+            md[f"{aid}__{k}"] = dg.MetadataValue.json(v)
         elif k == "tool_call_trace" and v is not None:
             md[f"{aid}__tool_call_trace"] = dg.MetadataValue.json(v)
         elif isinstance(v, (str, int, float, bool)):
@@ -4292,7 +4713,37 @@ def _run_step(step: dict, state: Dict[str, Any], context) -> None:
         step = _resolve_persona(step, personas)
 
     context.log.info(f"[step {step_id!r}] op={op!r}")
-    state[step_id] = _OPS[op](step, state, context)
+
+    # Agent policy (optional): installed for the duration of this step. Usage counters live in `state` (plain
+    # dict) so budgets accumulate across steps -- including per-step ops, where state is passed between ops.
+    policy_cfg = state.get("__policy__")
+    p_token = None
+    n_before = 0
+    if policy_cfg:
+        _active = _pol()  # an enclosing scope (ingest/sinks body) already owns the run's counters: share them
+        usage = state.setdefault("__policy_usage__", _active.usage if _active is not None else {})
+        policy = _Policy(policy_cfg, usage)
+        n_before = len(usage["violations"])
+        p_token = _ACTIVE_POLICY.set(policy)
+    r_token = _REASONING_TRACE.set([])
+    try:
+        result = _OPS[op](step, state, context)
+        trace = _REASONING_TRACE.get()
+    finally:
+        _REASONING_TRACE.reset(r_token)
+        if p_token is not None:
+            _ACTIVE_POLICY.reset(p_token)
+    if isinstance(result, dict):
+        if trace:
+            result["reasoning"] = trace
+            result["reasoning_chars"] = sum(len(r["text"]) for r in trace)
+        if policy_cfg:
+            u = state["__policy_usage__"]
+            result["policy_violations"] = len(u["violations"]) - n_before
+            result["policy_usage"] = {k: (round(u[k], 6) if k == "cost_usd" else u[k]) for k in ("llm_calls", "tool_calls", "tokens", "cost_usd")}
+            if len(u["violations"]) > n_before:
+                result["policy_violation_detail"] = u["violations"][n_before:]
+    state[step_id] = result
 
 
 # ── Component class ──────────────────────────────────────────────────
@@ -4445,6 +4896,24 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "`text_sinks:` writes step text to disk; `json_sinks:` writes full step dict."
         ),
     )
+    policy: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Guardrails on what this pipeline will do on the agent's behalf; omitted = no restrictions. Sections "
+            "(all optional): `on_violation: fail|warn` (default fail); `env.allow: [NAME, 'PREFIX_*']` (env vars the "
+            "pipeline may read, and the ONLY ones -- plus a minimal PATH/HOME baseline -- handed to MCP stdio "
+            "subprocesses); `filesystem.read` / `filesystem.write: [paths]` (allowed roots for file sources and "
+            "text/json sinks); `network.allow_hosts: [host, '*.corp.com']` (sources, MCP http/sse servers, remote "
+            "agents, LLM api_base); `tools.allow` / `tools.deny: [patterns]` (the model is only shown permitted "
+            "tools), `tools.max_calls_per_run: N`, `tools.arg_rules: [{tool, arg, under|hosts|allow_regex|deny_regex}]` "
+            "(refuse calls whose arguments leave the sandbox: e.g. a path outside ./data); `components.allow: "
+            "[ClassName]` (invoke_component targets); `budget.max_cost_usd|max_tokens|max_llm_calls|max_seconds`. "
+            "Denied tool calls are returned to the model as an error so it can adapt; other violations raise "
+            "PolicyViolation (or just log under on_violation: warn). Violations and usage are recorded as step "
+            "metadata. NOTE: this is enforcement at the component boundary, not an OS sandbox -- an MCP stdio "
+            "server still runs with the worker's OS permissions."
+        ),
+    )
     personas: Optional[Dict[str, Dict[str, Any]]] = Field(
         default=None,
         description=(
@@ -4581,6 +5050,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         return ComponentFormConfig(label="Agentic Pipeline", editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        _validate_policy(self.policy)  # typos in a security config must fail loudly, not silently allow everything
         prefix = self.asset_name_prefix
         steps = list(self.steps)
         source_config = dict(self.source)
@@ -4783,15 +5253,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             # to be in `state` before dispatch.
             return [s["id"] for s in steps if s.get("id") in need]
 
-        @dg.multi_asset(
-            outs=outs,
-            name=f"{prefix}_pipeline",
-            ins=ins or None,
-            internal_asset_deps=internal_asset_deps or None,
-            partitions_def=_partitions_def,
-            can_subset=True,
-        )
-        def _pipeline(context: dg.AssetExecutionContext, **kwargs):
+        def _pipeline_impl(context: dg.AssetExecutionContext, **kwargs):
             partition_key = context.partition_key if context.has_partition_key else None
             if partition_key:
                 context.log.info(f"partition-aware materialization: partition_key={partition_key!r}")
@@ -4855,6 +5317,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     "partition_fields": partition_fields,
                 },
                 "__personas__": self.personas or {},
+                "__policy__": self.policy or {},
                 "__agents__": self.agents or {},
                 "__sibling_agent_cards__": discovered_sibling_cards,
             }
@@ -4880,6 +5343,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 parent = os.path.dirname(path)
                 if parent:
                     os.makedirs(parent, exist_ok=True)
+                _pol_path(path, "write")
                 with open(path, "w") as f:
                     f.write(text)
                 context.log.info(f"text_sink {from_id!r} → {path}")
@@ -4894,6 +5358,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 parent = os.path.dirname(path)
                 if parent:
                     os.makedirs(parent, exist_ok=True)
+                _pol_path(path, "write")
                 with open(path, "w") as f:
                     json.dump(state[from_id], f, indent=2, default=str)
                 context.log.info(f"json_sink {from_id!r} → {path}")
@@ -4970,9 +5435,30 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                             md[f"{aid}__proposals"] = dg.MetadataValue.json(v)
                         elif k == "history" and v is not None:
                             md[f"{aid}__history"] = dg.MetadataValue.json(v)
+                        elif k == "reasoning" and v:
+                            md[f"{aid}__reasoning"] = dg.MetadataValue.md(
+                                "\n\n---\n\n".join(f"**{r['model']}**\n\n{r['text']}" for r in v)[:20000]
+                            )
+                        elif k in ("policy_usage", "policy_violation_detail") and v:
+                            md[f"{aid}__{k}"] = dg.MetadataValue.json(v)
                         elif isinstance(v, (str, int, float, bool)):
                             md[f"{aid}__{k}"] = dg.MetadataValue.text(str(v))
                 yield dg.Output(value=entry, output_name=f"{prefix}_{aid}", metadata=md)
+
+        @dg.multi_asset(
+            outs=outs,
+            name=f"{prefix}_pipeline",
+            ins=ins or None,
+            internal_asset_deps=internal_asset_deps or None,
+            partitions_def=_partitions_def,
+            can_subset=True,
+        )
+        def _pipeline(context: dg.AssetExecutionContext, **kwargs):
+            # File/URL/database ingest and the text/json sinks run in here, outside any step, so the policy
+            # must be active for the whole body (steps re-activate it with the same shared usage counters).
+            usage: Dict[str, Any] = {}
+            with _policy_scope(self.policy, usage):
+                yield from _pipeline_impl(context, **kwargs)
 
         return dg.Definitions(assets=[_pipeline])
 
@@ -5036,6 +5522,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                         "partition_fields": partition_fields,
                     },
                     "__personas__": _self.personas or {},
+                    "__policy__": _self.policy or {},
                     "__agents__": _self.agents or {},
                     "__sibling_agent_cards__": discovered_sibling_cards,
                 }
@@ -5044,10 +5531,12 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             def _ingest_op(context: dg.OpExecutionContext):
                 partition_key = context.partition_key if context.has_partition_key else None
                 partition_fields = _parse_partition_key(partition_key, partition_key_parser)
-                initial_entry = _ingest(
-                    source_config, context,
-                    partition_key=partition_key, partition_fields=partition_fields,
-                )
+                _usage: Dict[str, Any] = {}
+                with _policy_scope(_self.policy, _usage):
+                    initial_entry = _ingest(
+                        source_config, context,
+                        partition_key=partition_key, partition_fields=partition_fields,
+                    )
                 context.log.info(
                     f"[{prefix}_ingest] {len(initial_entry.get('text', ''))} chars "
                     f"via {source_kind} partition_key={partition_key!r}"
@@ -5059,6 +5548,8 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                         "partition_fields": partition_fields,
                     },
                     "__personas__": _self.personas or {},
+                    "__policy__": _self.policy or {},
+                    "__policy_usage__": _usage,
                     "__agents__": _self.agents or {},
                     "__sibling_agent_cards__": discovered_sibling_cards,
                 }
@@ -5094,32 +5585,35 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             partition_key = context.partition_key if context.has_partition_key else None
             partition_fields = _parse_partition_key(partition_key, partition_key_parser)
 
-            # Sinks (same code as single-op path).
-            for sink in text_sinks:
-                from_id = sink["from"]
-                path = _apply_ctx_substitutions(sink["path"], partition_key, partition_fields)
-                if from_id not in state:
-                    raise ValueError(f"text_sinks: unknown step id {from_id!r}")
-                text = state[from_id].get("text", "") if isinstance(state[from_id], dict) else str(state[from_id])
-                parent = os.path.dirname(path)
-                if parent:
-                    os.makedirs(parent, exist_ok=True)
-                with open(path, "w") as f:
-                    f.write(text)
-                context.log.info(f"text_sink {from_id!r} → {path}")
+            with _policy_scope(_self.policy, state.setdefault("__policy_usage__", {})):
+                # Sinks (same code as single-op path).
+                for sink in text_sinks:
+                    from_id = sink["from"]
+                    path = _apply_ctx_substitutions(sink["path"], partition_key, partition_fields)
+                    if from_id not in state:
+                        raise ValueError(f"text_sinks: unknown step id {from_id!r}")
+                    text = state[from_id].get("text", "") if isinstance(state[from_id], dict) else str(state[from_id])
+                    parent = os.path.dirname(path)
+                    if parent:
+                        os.makedirs(parent, exist_ok=True)
+                    _pol_path(path, "write")
+                    with open(path, "w") as f:
+                        f.write(text)
+                    context.log.info(f"text_sink {from_id!r} → {path}")
 
-            for sink in json_sinks:
-                import json as _json
-                from_id = sink["from"]
-                path = _apply_ctx_substitutions(sink["path"], partition_key, partition_fields)
-                if from_id not in state:
-                    raise ValueError(f"json_sinks: unknown step id {from_id!r}")
-                parent = os.path.dirname(path)
-                if parent:
-                    os.makedirs(parent, exist_ok=True)
-                with open(path, "w") as f:
-                    _json.dump(state[from_id], f, indent=2, default=str)
-                context.log.info(f"json_sink {from_id!r} → {path}")
+                for sink in json_sinks:
+                    import json as _json
+                    from_id = sink["from"]
+                    path = _apply_ctx_substitutions(sink["path"], partition_key, partition_fields)
+                    if from_id not in state:
+                        raise ValueError(f"json_sinks: unknown step id {from_id!r}")
+                    parent = os.path.dirname(path)
+                    if parent:
+                        os.makedirs(parent, exist_ok=True)
+                    _pol_path(path, "write")
+                    with open(path, "w") as f:
+                        _json.dump(state[from_id], f, indent=2, default=str)
+                    context.log.info(f"json_sink {from_id!r} → {path}")
 
             # Emit each declared asset as its own Output with metadata.
             missing = [aid for aid in asset_ids if aid not in state]

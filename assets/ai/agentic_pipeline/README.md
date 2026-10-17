@@ -10,7 +10,45 @@ Standardize what an agentic pipeline looks like across your org. `source` + `ste
 - [`examples/document_summarization/`](examples/document_summarization/README.md) — one `delegate` step, structured output (`summary` + `action_items`), extracted verbatim from a real sample document.
 - [`examples/route_to_specialist/`](examples/route_to_specialist/README.md) — three registered specialist agents, **no** `required_capabilities` set — proves the picker LLM does genuine semantic matching (billing/technical/general question → correct specialist, verified with three different real questions).
 - [`examples/debate_best_answer/`](examples/debate_best_answer/README.md) — two debater agents (shared capability tag, distinguished by semantics) + one arbitrator (distinct tag), joined with typed `inputs:` ports into a final verdict that genuinely weighs both arguments.
+- [`examples/qwen_local_agent/`](examples/qwen_local_agent/README.md) — **new, not yet run against a live Ollama**: a local-Qwen3 `tool_use_loop` confined by a `policy:` (read-only folder, no writes, env/host allowlists, budget). Enforcement is covered by the component's tests; see the README for exactly what is and isn't verified.
 - [`examples/pipeline_incident_triage/`](examples/pipeline_incident_triage/README.md) — the first `tool_use_loop` showcase: one agent, three REAL tools (a live vendor status-page check, a real `git log`, a real runbook search), iterating freely until it has enough evidence to decide "wait, don't debug" vs. actually troubleshoot. Caught Snowflake's status page actually degraded, live, mid-build.
+
+## Reasoning models, local models (Qwen, DeepSeek-R1) and agent policy
+
+**Reasoning output.** Models that think out loud (Qwen3, DeepSeek-R1, ...) often inline `<think>…</think>` in the reply.
+Every model call now splits it off: the step's `text` is the clean answer (so JSON parsing, routing and `classify`/`extract`
+keep working), and the thinking is attached as `<step>__reasoning` metadata (markdown, per model). Provider-supplied
+`reasoning_content` is kept the same way. A truncated, never-closed `<think>` yields reasoning and no answer rather than a
+mangled answer.
+
+**Ollama / local models.** `model: ollama/<name>` works with any LiteLLM-reachable local server (`api_base_env_var` for a
+remote one, or vLLM/LM Studio via their OpenAI-compatible URL). When tools are involved the model is routed to
+`ollama_chat/` (the route with tool support) and `tool_choice: required` is downgraded to `auto`; a `<tool_call>{…}</tool_call>`
+the server did not parse is recovered. See [`examples/qwen_local_agent/`](examples/qwen_local_agent/README.md).
+
+**`policy:` -- guardrails on what the agent can do.** Omit it and nothing changes. Set it and the pipeline enforces, at its
+own boundary, which env vars it may read (and hand to MCP subprocesses), which paths it may read/write, which hosts it may
+call, which tools the model may see and with what arguments, which components `invoke_component` may run, and a budget
+(cost / tokens / model calls / seconds). Typos in the block fail at load time. Denied tool calls are returned to the model
+as an error so it can adapt; other violations raise `PolicyViolation` (or just log with `on_violation: warn`). Usage and
+violations are recorded on each step as `<step>__policy_usage` / `<step>__policy_violation_detail`.
+
+```yaml
+policy:
+  env:        {allow: [OPENAI_API_KEY, "MCP_*"]}
+  filesystem: {read: [./data], write: [./out]}
+  network:    {allow_hosts: [api.openai.com, "*.corp.example.com"]}
+  tools:
+    deny: ["*delete*", "*write*"]
+    max_calls_per_run: 20
+    arg_rules: [{tool: "fs__*", arg: path, under: [./data]}]     # also: hosts, allow_regex, deny_regex
+  components: {allow: [FilterComponent]}
+  budget: {max_cost_usd: 0.50, max_llm_calls: 40, max_seconds: 300}
+```
+
+This is enforcement at the component boundary, **not an OS sandbox**: an MCP stdio server still runs with the worker's OS
+permissions (the policy controls its environment and which of its tools the model may call). In `per_step_ops` mode the
+usage counters travel with the pipeline state, so budgets are still run-wide.
 
 ## Why Dagster (not just a job runner)
 

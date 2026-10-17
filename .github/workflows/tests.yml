@@ -1,0 +1,68 @@
+name: tests
+
+# Runs the repo-level tests plus the suites for the context-engineering / receipts / agentic stack on every push and PR,
+# and the registry + manifest consistency checks. (There are ~460 per-component tests/ directories; this is a curated set,
+# not all of them. Add a directory to TEST_DIRS below when a component gets a committed test suite you want gated.)
+
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+  workflow_dispatch: {}
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  TEST_DIRS: >-
+    tests
+    resources/context_receipt_store/tests
+    assets/ai/context_receipt_bigquery_sync/tests
+    assets/ai/context_engineering_pipeline/tests
+    assets/ai/rag_pipeline/tests
+    assets/ai/agentic_pipeline/tests
+    assets/ai/agent_review_queue/tests
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install pyyaml
+      - name: Registry covers every component class
+        run: python tools/check_component_registry.py
+      - name: manifest.json parses and ids are unique
+        run: |
+          python - <<'PY'
+          import json, collections
+          m = json.load(open("manifest.json"))
+          ids = [c["id"] for c in m["components"]]
+          dup = [k for k, n in collections.Counter(ids).items() if n > 1]
+          assert not dup, f"duplicate manifest ids: {dup}"
+          print(f"{len(ids)} components, ids unique")
+          PY
+      - name: Receipt backend self-test (SQLite, no warehouse)
+        run: |
+          pip install dagster pandas
+          python tools/verify_receipts_backend.py sqlite --path "$RUNNER_TEMP/receipts.sqlite3"
+
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install "dagster>=1.10.0" pandas pytest pyyaml chromadb duckdb duckdb-engine sqlalchemy sqlglot \
+                      jsonschema tabulate pyarrow litellm requests fsspec
+      - name: Run tests
+        run: python -m pytest $TEST_DIRS -q -p no:cacheprovider -W ignore

@@ -58,6 +58,7 @@ zero-shot + ChromaDB) -- no API key required to run this end to end,
 matching dbt's own stated philosophy that this kind of governance
 tooling should be cheap to validate, not another paid call per test.
 """
+import ast
 import hashlib
 import json
 import re
@@ -293,19 +294,116 @@ def _chunk_markdown(text: str, size: int, overlap: int) -> List[Tuple[str, str]]
     return out
 
 
+_CODE_BOUNDARIES: Dict[str, "re.Pattern"] = {
+    "javascript": re.compile(r"^(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\b|class\b|interface\b|type\s+\w+\s*=|const\s+\w+\s*=\s*(?:async\s*)?(?:\(|function))", re.MULTILINE),
+    "go": re.compile(r"^(?:func|type)\b", re.MULTILINE),
+    "rust": re.compile(r"^(?:pub(?:\([^)]*\))?\s+)?(?:fn|struct|enum|impl|trait|mod)\b", re.MULTILINE),
+    "java": re.compile(r"^ {0,4}(?:@\w+[^\n]*\n\s*)*(?:public|private|protected|internal|static|abstract|final|class|interface|enum)\b", re.MULTILINE),
+    "ruby": re.compile(r"^(?:def|class|module)\b", re.MULTILINE),
+    "generic": re.compile(r"^(?:def|class|function|func|fn|sub)\b", re.MULTILINE),
+}
+_CODE_LANGUAGE_ALIASES = {
+    "py": "python", "python": "python",
+    "js": "javascript", "jsx": "javascript", "ts": "javascript", "tsx": "javascript", "javascript": "javascript", "typescript": "javascript",
+    "go": "go", "golang": "go", "rs": "rust", "rust": "rust",
+    "java": "java", "kt": "java", "kotlin": "java", "cs": "java", "csharp": "java", "scala": "java",
+    "rb": "ruby", "ruby": "ruby",
+}
+
+
+def _normalize_language(value: Any) -> Optional[str]:
+    if value is None or (isinstance(value, float) and pd.isna(value)):
+        return None
+    text = str(value).strip().lower().lstrip(".")
+    if "." in text or "/" in text:  # a path: use its extension
+        text = text.rsplit(".", 1)[-1]
+    return _CODE_LANGUAGE_ALIASES.get(text)
+
+
+def _pack_units(units: List[Tuple[str, str]], size: int, overlap: int) -> List[Tuple[str, str]]:
+    """Merge adjacent small code units up to ``size`` chars; split any single oversized unit recursively."""
+    out: List[Tuple[str, str]] = []
+    buf_label, buf_text, extra = "", "", 0
+
+    def flush():
+        nonlocal buf_label, buf_text, extra
+        if buf_text.strip():
+            out.append((buf_label + (f" +{extra}" if extra else ""), buf_text.strip("\n")))
+        buf_label, buf_text, extra = "", "", 0
+
+    for label, text in units:
+        if len(text) > size:
+            flush()
+            out.extend((label, piece) for piece in _chunk_recursive(text, size, overlap))
+            continue
+        if buf_text and len(buf_text) + 1 + len(text) > size:
+            flush()
+        if buf_text:
+            buf_text += "\n" + text
+            extra += 1
+        else:
+            buf_label, buf_text = label, text
+    flush()
+    return out
+
+
+def _code_units_python(text: str) -> Optional[List[Tuple[str, str]]]:
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return None
+    lines = text.splitlines()
+    units: List[Tuple[str, str]] = []
+    cursor = 0  # next unconsumed 0-based line
+    for node in tree.body:
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            continue
+        start = min([node.lineno] + [d.lineno for d in node.decorator_list]) - 1
+        if start > cursor and "\n".join(lines[cursor:start]).strip():
+            units.append(("module", "\n".join(lines[cursor:start])))
+        units.append((node.name, "\n".join(lines[start:node.end_lineno])))
+        cursor = node.end_lineno
+    if cursor < len(lines) and "\n".join(lines[cursor:]).strip():
+        units.append(("module", "\n".join(lines[cursor:])))
+    return units
+
+
+def _chunk_code(text: str, size: int, overlap: int, language: Optional[str]) -> List[Tuple[str, str]]:
+    """Code-aware chunking: one unit per top-level function/class (Python via ``ast``, so decorators and
+    exact extents are right; other languages by a boundary-keyword heuristic, not a parser), small adjacent
+    units packed together, oversized units split recursively. Returns (chunk, unit label) so chunks cite the
+    symbol they came from. Unparseable Python and unknown languages fall back to the generic heuristic."""
+    units = _code_units_python(text) if language == "python" else None
+    if units is None:
+        pattern = _CODE_BOUNDARIES.get(language or "", _CODE_BOUNDARIES["generic"])
+        starts = [m.start() for m in pattern.finditer(text)]
+        if not starts:
+            return [(chunk, "code") for chunk in _chunk_recursive(text, size, overlap)]
+        bounds = ([0] if starts[0] > 0 else []) + starts + [len(text)]
+        units = []
+        for a, b in zip(bounds, bounds[1:]):
+            body = text[a:b].rstrip()
+            if body.strip():
+                first = body.strip().splitlines()[0].strip()
+                units.append(("header" if a == 0 and starts[0] > 0 else first[:60], body))
+    return [(chunk, label) for label, chunk in _pack_units(units, size, overlap)]
+
+
 class _SafeFormat(dict):
     def __missing__(self, key):
         return ""
 
 
 def _do_chunk(df: pd.DataFrame, step: dict, id_column: str, text_column: str, metadata_columns: List[str], context) -> pd.DataFrame:
-    """Knobs: strategy (fixed|recursive|markdown), chunk_size/chunk_overlap with length_unit
+    """Knobs: strategy (fixed|recursive|markdown|code: per-function/class chunks for source files, see
+    language / language_column / path_column), chunk_id_prefix (REQUIRED when several assets share one
+    vector collection and their source ids can overlap), chunk_size/chunk_overlap with length_unit
     (chars|tokens, tokens estimated via chars_per_token), preserve_sentences (fixed only),
     min_chunk_chars, max_chunks_per_source, chunk_id_mode (positional|content), header_template
     (prepended to each chunk's text, may use any carried column and {section_path})."""
     strategy = step.get("strategy", "fixed")
-    if strategy not in ("fixed", "recursive", "markdown"):
-        raise ValueError(f"chunk op: strategy must be fixed, recursive or markdown, got {strategy!r}")
+    if strategy not in ("fixed", "recursive", "markdown", "code"):
+        raise ValueError(f"chunk op: strategy must be fixed, recursive, markdown or code, got {strategy!r}")
     unit = step.get("length_unit", "chars")
     cpt = float(step.get("chars_per_token", 4.0))
     chunk_size = max(1, _to_chars(step.get("chunk_size", 500), unit, cpt))
@@ -320,6 +418,9 @@ def _do_chunk(df: pd.DataFrame, step: dict, id_column: str, text_column: str, me
     if id_mode not in ("positional", "content"):
         raise ValueError(f"chunk op: chunk_id_mode must be 'positional' or 'content', got {id_mode!r}")
     header_template = step.get("header_template")
+    id_prefix = str(step.get("chunk_id_prefix") or "")
+    code_language = _normalize_language(step.get("language"))
+    language_column, path_column = step.get("language_column"), step.get("path_column")
 
     rows: List[Dict[str, Any]] = []
     skipped = dropped_small = capped = 0
@@ -333,8 +434,15 @@ def _do_chunk(df: pd.DataFrame, step: dict, id_column: str, text_column: str, me
             pieces = [(c, "") for c in _chunk_fixed(text, chunk_size, chunk_overlap, preserve_sentences)]
         elif strategy == "recursive":
             pieces = [(c, "") for c in _chunk_recursive(text, chunk_size, chunk_overlap)]
-        else:
+        elif strategy == "markdown":
             pieces = _chunk_markdown(text, chunk_size, chunk_overlap)
+        else:
+            lang = code_language
+            if lang is None and language_column and language_column in df.columns:
+                lang = _normalize_language(row[language_column])
+            if lang is None and path_column and path_column in df.columns:
+                lang = _normalize_language(row[path_column])
+            pieces = _chunk_code(text, chunk_size, chunk_overlap, lang)
         kept = [(c, sp) for c, sp in pieces if len(c) >= min_chars]
         dropped_small += len(pieces) - len(kept)
         if max_chunks is not None and len(kept) > int(max_chunks):
@@ -351,7 +459,7 @@ def _do_chunk(df: pd.DataFrame, step: dict, id_column: str, text_column: str, me
                 fields = _SafeFormat({**{k: ("" if pd.isna(v) else v) for k, v in row.items() if k != text_column}, "section_path": section_path})
                 chunk_text = header_template.format_map(fields) + body
             digest = _sha256(chunk_text)
-            chunk_id = f"{source_id}_{digest[:12]}" if id_mode == "content" else f"{source_id}_{i}"
+            chunk_id = f"{id_prefix}{source_id}_{digest[:12]}" if id_mode == "content" else f"{id_prefix}{source_id}_{i}"
             if chunk_id in seen_ids:  # identical text twice in one source (content ids): keep both
                 chunk_id = f"{chunk_id}-{i}"
             seen_ids.add(chunk_id)
@@ -362,7 +470,7 @@ def _do_chunk(df: pd.DataFrame, step: dict, id_column: str, text_column: str, me
                 out_text_col: chunk_text,
                 "content_hash": digest,
             })
-            if strategy == "markdown":
+            if strategy in ("markdown", "code"):
                 record["section_path"] = section_path
             rows.append(record)
     if skipped:
@@ -780,8 +888,10 @@ def _do_write_vector_store(df: pd.DataFrame, step: dict, id_column: str, context
     writes source_asset_key / source_version / source_partition / chunk_id / content_hash /
     embedding_model / source_id onto every chunk so a retrieval gateway can build receipts straight from
     index hits. sync_mode=replace_sources deletes chunks of the source rows in this run that no longer
-    exist (a shrunk document no longer leaves stale chunks behind); replace_all makes the collection
-    exactly this run (refused for partitioned assets). chromadb is exercised by tests; qdrant and
+    exist (a shrunk document no longer leaves stale chunks behind); replace_all makes this asset's
+    chunks exactly this run (the whole collection when provenance is not stamped; refused for partitioned
+    assets). With provenance stamped, sync only touches this asset's chunks, and a chunk id that already
+    belongs to a different asset is an error (set chunk_id_prefix). chromadb is exercised by tests; qdrant and
     pinecone are not exercised against live services; pinecone cannot delete by filter so it
     falls back to upsert with a warning."""
     provider = step.get("provider", "chromadb")
@@ -822,18 +932,36 @@ def _do_write_vector_store(df: pd.DataFrame, step: dict, id_column: str, context
         collection_name = step.get("collection_name", "context_engineering_kb")
         client = chromadb.PersistentClient(path=connection_string)
         collection = client.get_or_create_collection(name=collection_name)
+        this_asset = (stamp or {}).get("source_asset_key")
+        if this_asset is not None:
+            # Several assets may share a collection, but a chunk id can belong to only one of them.
+            for i in range(0, len(ids), 500):
+                got = collection.get(ids=ids[i:i + 500], include=["metadatas"])
+                clash = [cid for cid, meta in zip(got["ids"], got["metadatas"])
+                         if (meta or {}).get("source_asset_key") not in (None, this_asset)]
+                if clash:
+                    raise ValueError(
+                        f"write_vector_store: chunk id(s) {clash[:3]} already belong to a different asset in collection "
+                        f"{collection_name!r}; set `chunk_id_prefix` on the chunk step (for example the asset name) so assets "
+                        "sharing a collection cannot overwrite each other."
+                    )
         embeddings = df[embedding_column].tolist()
         documents = df[text_column].astype(str).tolist()
         for i in range(0, len(df), batch_size):
             j = min(i + batch_size, len(df))
             collection.upsert(ids=ids[i:j], embeddings=embeddings[i:j], documents=documents[i:j], metadatas=metadatas[i:j])
         orphans: List[str] = []
+        # Sync is scoped to this asset's own chunks when provenance is stamped, so one asset's rebuild never
+        # deletes another's chunks in a shared collection.
+        own = {"source_asset_key": {"$eq": this_asset}} if this_asset is not None else None
         if sync_mode == "replace_sources":
             for i in range(0, len(source_ids), 500):
-                got = collection.get(where={"source_id": {"$in": source_ids[i:i + 500]}}, include=[])
+                match = {"source_id": {"$in": source_ids[i:i + 500]}}
+                got = collection.get(where={"$and": [match, own]} if own else match, include=[])
                 orphans.extend(cid for cid in got["ids"] if cid not in new_ids)
         elif sync_mode == "replace_all":
-            orphans = [cid for cid in collection.get(include=[])["ids"] if cid not in new_ids]
+            got = collection.get(where=own, include=[]) if own else collection.get(include=[])
+            orphans = [cid for cid in got["ids"] if cid not in new_ids]
         _delete_in_batches(lambda batch: collection.delete(ids=batch), orphans)
         stats["orphans_deleted"] = len(orphans)
         context.log.info(f"write_vector_store: upserted {len(df)} chunks into chromadb collection {collection_name!r} at {connection_string!r}; removed {len(orphans)} stale chunk(s) ({sync_mode})")

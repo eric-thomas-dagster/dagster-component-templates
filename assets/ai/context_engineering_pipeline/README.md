@@ -43,7 +43,10 @@ Every op is free/local by default (sentence-transformers + HuggingFace zero-shot
 ## Knobs (python mode)
 
 **`chunk`**: `strategy` (`fixed` | `recursive` | `markdown`: markdown splits at headings and records a `section_path`
-breadcrumb for citations), `chunk_size` / `chunk_overlap` with `length_unit: chars | tokens` (tokens are estimated as
+breadcrumb for citations | `code`: one chunk per top-level function or class, Python via `ast` so decorators and extents are exact,
+other languages by a boundary-keyword heuristic rather than a parser; `language`, `language_column` or `path_column` pick
+the language, small units are packed together, oversized ones split, and `section_path` names the symbol), `chunk_id_prefix`
+(required when assets share a collection and their source ids can overlap), `chunk_size` / `chunk_overlap` with `length_unit: chars | tokens` (tokens are estimated as
 `chars_per_token`, default 4), `min_chunk_chars`, `max_chunks_per_source`, `chunk_id_mode: positional | content`
 (content ids are `source_<hash>`: an unchanged chunk keeps its id and a changed one gets a new id, so learned
 retrieval priors do not carry over to different text), `header_template` (e.g. `"[{title}] "`, prepended to each chunk
@@ -71,6 +74,31 @@ exactly this run; refused for partitioned assets). chromadb is exercised by test
 against live services; Pinecone cannot delete by filter on serverless indexes, so it behaves as `upsert` with a warning.
 Qdrant point ids are now derived from the chunk id (they used to be the DataFrame row index, which overwrote unrelated
 chunks across runs, so re-index existing Qdrant collections).
+
+## Several kinds of context: tickets, docs, code
+
+Each kind of source is its own asset with its own chunking, collection and policy; that is the supported shape. The
+gateway discovers all of them with `context_policies(defs)` and every chunk names its asset, so receipts, health
+checks and rebuilds stay per source.
+
+```yaml
+# three components, three assets, three independently versioned collections
+- {asset_name: support_tickets, upstream_asset_key: raw_tickets, id_column: ticket_id, text_column: body,
+   context_policy: {scope: customer_id, sensitivity: confidential},
+   steps: [{id: c, op: chunk, strategy: recursive, chunk_id_prefix: "tickets:"}, ...]}
+- {asset_name: product_docs, upstream_asset_key: raw_docs, id_column: page_id, text_column: markdown,
+   context_policy: {sensitivity: public},
+   steps: [{id: c, op: chunk, strategy: markdown, chunk_id_prefix: "docs:"}, ...]}
+- {asset_name: product_code, upstream_asset_key: raw_code, id_column: path, text_column: source,
+   context_policy: {sensitivity: internal, access_tags: [engineering]},
+   steps: [{id: c, op: chunk, strategy: code, path_column: path, chunk_id_prefix: "code:"}, ...]}
+```
+
+Separate collections are the simplest. Assets may share one collection if each sets a distinct `chunk_id_prefix`: without
+provenance-scoped sync and a collision guard, one asset's rebuild could delete or overwrite another's chunks that happen
+to share a source id, so a chunk id that already belongs to a different asset now raises, and stale-chunk cleanup only
+touches the writing asset's own chunks. Getting the raw rows in (from a ticketing export, a docs site, a git checkout) is
+the job of the upstream ingestion assets.
 
 ## Declaring governance policy
 

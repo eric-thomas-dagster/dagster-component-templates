@@ -8,8 +8,8 @@
 
 The tables further down were generated at v0.10.52 and are out of date. After the partition sweep, of the 823 components under `assets/`:
 
-- **728** use the partition context (row filter, `{partition_*}` tokens, a partition time window, or a scratch-and-swap of the output's slice).
-- **95** do not. **92** of those are partition-agnostic by design:
+- **730** use the partition context (row filter, `{partition_*}` tokens, a partition time window, or a scratch-and-swap of the output's slice).
+- **93** do not. **92** of those are partition-agnostic by design:
   - **Emit graph metadata, not rows** (10): lineage_to_alation, lineage_to_castordoc, lineage_to_collibra, lineage_to_data360, lineage_to_datahub, lineage_to_file, lineage_to_openmetadata, lineage_to_purview, lineage_to_webhook, lineage_graph_extractor
   - **Provision or trigger infrastructure** (33): argo_workflow_trigger, arm_template_asset, automation_condition_applicator, autosys_asset, bicep_asset, budget_asset, cloud_functions_invoke_asset, cloud_run_job_trigger_asset, community_component_installer, dagstermill_notebook_asset, data_contract, docker_container_asset, dry_run_asset, gcp_deployment_manager_asset, hooks_asset, k8s_job_asset, lifecycle_wap, log_prints_asset, precisely_connect_job_trigger, profile_asset, rivery_run_asset, rpa_queue_concurrency_lock, sensitive_asset, shadow_asset, shell_command_asset, snapshot_asset, spark_k8s_operator_asset, step_functions_asset, supabase_edge_function_trigger, task_asset, terraform_cloud_asset, throttle_asset, warm_scheduled_job
   - **dbt and warehouse tasks (they run their own scheduling)** (5): snowflake_dynamic_table_refresh_asset, snowflake_stored_procedure_call_asset, snowflake_task_execute_asset, enriched_dbt_cloud_workspace, enriched_dbt_project
@@ -19,7 +19,7 @@ The tables further down were generated at v0.10.52 and are out of date. After th
   - **Whole-database or whole-table operations** (12): dataiku_asset, warehouse_schema_assets, bigquery_load_from_gcs_asset, database_constraints_migration, database_replication, database_tables_migration, database_view_migration, database_views_migration, streaming_consumer, polytomic_asset, database_migration_assessment, database_schema_inventory
   - **State snapshots, metrics and static data with no time dimension** (8): cognos_report_data_ingestion, jde_orchestration_output_ingestion, qlik_compose_workflow_metrics_ingestion, qlik_replicate_task_metrics_ingestion, vanta_controls_ingestion, inline_dataframe, dynamic_fanout_asset, rpa_output_parser
   - **Insert-only history modelling** (1): data_vault_hub_link_satellite
-- **3** are genuinely open: anthropic_llm_batch, openai_llm_batch, pyspark_feed_orchestrator. The two LLM batch components keep crash-recovery state per asset, so partitioning them needs per-partition state first. `pyspark_feed_orchestrator` emits one asset per feed file, so a partition scheme needs a per-feed decision.
+- **1** is genuinely open: pyspark_feed_orchestrator. It emits one asset per feed file, so a partition scheme needs a per-feed decision.
 
 How a component applies a partition, by shape:
 
@@ -27,6 +27,7 @@ How a component applies a partition, by shape:
 |---|---|
 | Takes an upstream DataFrame (AI, transforms, sinks, reverse ETL) | Keeps only the rows in the partition: `partition_date_column` against the partition's time window, `partition_static_column` against the partition key(s). A backfill run covers its whole range. |
 | dlt-based ingestion | Returns only the partition's rows. With `partition_window_params` set, the window is also pushed into each resource's API request so only that slice is fetched and loaded; without it the extract is still fetched in full. |
+| LLM batch (`openai_llm_batch`, `anthropic_llm_batch`) | One batch per partition: only that partition's rows are submitted, and the batch id, prompts hash and crash-recovery state are kept per partition. The status sensor requests one results run per finished partition. |
 | Warehouse SQL transforms (`warehouse_*`) | Read only the run's slice of the source, build the result in a scratch table with the unchanged SQL, then in one transaction create the output if missing, delete the output's slice and insert the new rows; other partitions are never touched. |
 | Query-style readers (logs, metrics, SQL, KQL, PromQL, NRQL) | `{partition_key}`, `{partition_date}`, `{partition_start}`, `{partition_end}` are substituted into the query/filter/time-range fields. |
 | Infrastructure | `{partition_*}` tokens and `DAGSTER_PARTITION_*` environment variables. |

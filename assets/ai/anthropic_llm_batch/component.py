@@ -446,6 +446,35 @@ class AnthropicLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
     )
 
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name.")
+
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. A partitioned run submits one batch of only the rows in its partition.",
+    )
+    partition_start: Optional[str] = Field(
+        default=None,
+        description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+    )
+    partition_values: Optional[Union[str, List[str]]] = Field(
+        default=None,
+        description="Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'.",
+    )
+    dynamic_partition_name: Optional[str] = Field(
+        default=None,
+        description="Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+    )
+    partition_dimensions: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields.",
+    )
+    partition_date_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description="Column used to filter the rows to submit to the current date partition (time partitions).",
+    )
+    partition_static_column: Optional[Union[str, int]] = Field(
+        default=None,
+        description="Column used to filter the rows to submit to the current static/dynamic partition key.",
+    )
     owners: Optional[List[str]] = Field(
         default=None,
         description="Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com']",
@@ -486,6 +515,10 @@ class AnthropicLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
             raise ValueError("AnthropicLlmBatchComponent: set exactly one of `upstream_asset_key` or `source`.")
 
         asset_name = self.asset_name
+        _validate_batch_partitioning(self.partition_type, self.partition_date_column, self.partition_static_column)
+        partitions_def = _build_partitions_def(self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name, self.partition_dimensions)
+        partition_date_column = self.partition_date_column
+        partition_static_column = self.partition_static_column
         upstream_key = dg.AssetKey.from_user_string(self.upstream_asset_key) if self.upstream_asset_key else None
         source_cfg = self.source
         prompt_column = self.prompt_column
@@ -517,7 +550,8 @@ class AnthropicLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
                 _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
                 upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
 
-            df = upstream.copy().reset_index(drop=True)
+            _partition_key = _batch_partition_key(context)
+            df = _filter_df_to_partition(upstream, context, partition_date_column, partition_static_column).copy().reset_index(drop=True)
             columns = list(df.columns)
             prompt_col_name = _resolve_column(prompt_column, columns)
             id_col_name = _resolve_column(id_column, columns)
@@ -530,9 +564,8 @@ class AnthropicLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
 
             prior_batch_id = None
             prior_hash = None
-            event = context.instance.get_latest_materialization_event(context.asset_key)
-            if event and event.asset_materialization and event.asset_materialization.metadata:
-                md = event.asset_materialization.metadata
+            md = _latest_materialization_metadata(context.instance, context.asset_key, _partition_key)
+            if md:
                 prior_batch_id = md.get("batch_id").text if md.get("batch_id") else None
                 prior_hash = md.get("prompts_hash").text if md.get("prompts_hash") else None
 
@@ -548,9 +581,8 @@ class AnthropicLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
             # ever confirmed a batch_id for it, this might be an in-flight or
             # orphaned submission rather than a safe fresh start.
             if not (prior_batch_id and prior_hash == prompts_hash):
-                obs_result = context.instance.fetch_observations(context.asset_key, limit=1)
-                if obs_result.records:
-                    last_record = obs_result.records[0]
+                last_record = _latest_observation(context.instance, context.asset_key, _partition_key)
+                if last_record is not None:
                     last_obs = last_record.asset_observation
                     pending_mv = (last_obs.metadata or {}).get("pending_submission_hash")
                     pending_hash = pending_mv.text if pending_mv else None
@@ -601,6 +633,7 @@ class AnthropicLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
                 # orphaned-intent check above looks for on a subsequent run.
                 context.log_event(dg.AssetObservation(
                     asset_key=context.asset_key,
+                    partition=_partition_key,
                     metadata={"pending_submission_hash": prompts_hash},
                 ))
                 requests = _build_batch_requests(pairs, model, max_tokens, temperature, system_prompt)
@@ -618,6 +651,7 @@ class AnthropicLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
                 tags=self.asset_tags or None,
                 owners=self.owners or None,
                 retry_policy=retry_policy,
+                partitions_def=partitions_def,
             )
             if upstream_key:
                 _blocking_kwargs["ins"] = {"upstream": dg.AssetIn(key=upstream_key)}
@@ -683,6 +717,7 @@ class AnthropicLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
             tags=self.asset_tags or None,
             owners=self.owners or None,
             retry_policy=retry_policy,
+            partitions_def=partitions_def,
         )
         if upstream_key:
             _submit_kwargs["ins"] = {"upstream": dg.AssetIn(key=upstream_key)}
@@ -713,7 +748,7 @@ class AnthropicLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
             })
             return pd.DataFrame([{"batch_id": batch.id, "processing_status": batch.processing_status, "request_count": len(pairs)}])
 
-        @dg.asset(retry_policy=retry_policy, 
+        @dg.asset(retry_policy=retry_policy, partitions_def=partitions_def,
             key=results_key,
             description=self.description or f"Parsed results of an Anthropic Message Batch run (see {submit_key_str}).",
             group_name=self.group_name,
@@ -759,6 +794,45 @@ class AnthropicLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
             else dg.DefaultSensorStatus.STOPPED
         )
 
+        def _partitioned_status(context: dg.SensorEvaluationContext):
+            """One results run per partition whose submitted batch has finished. The cursor remembers, per partition, the
+            batch it already handled, so finished partitions cost no API call on later ticks."""
+            import json
+
+            api_key = os.environ.get(api_key_env_var)
+            if not api_key:
+                return dg.SensorResult(skip_reason=f"{api_key_env_var} not set.")
+            client = _build_anthropic_client(api_key)
+            cursor = json.loads(context.cursor) if context.cursor else {}
+            run_requests, notes = [], []
+            for pk in sorted(context.instance.get_materialized_partitions(submit_key)):
+                md = _latest_materialization_metadata(context.instance, submit_key, pk)
+                batch_id_mv = md.get("batch_id")
+                if not batch_id_mv or not batch_id_mv.text:
+                    continue
+                batch_id = batch_id_mv.text
+                if str(cursor.get(pk, "")).startswith(batch_id + "|"):
+                    continue
+                try:
+                    batch = client.messages.batches.retrieve(batch_id)
+                except Exception as e:
+                    notes.append(f"{pk}: batches.retrieve({batch_id!r}) failed: {e}")
+                    continue
+                status = batch.processing_status
+                if not (status == "ended"):
+                    notes.append(f"{pk}: batch {batch_id} status={status!r} (not finished yet)")
+                    continue
+                run_requests.append(dg.RunRequest(
+                    run_key=f"{pk}|{batch_id}|{status}",
+                    asset_selection=[results_key],
+                    partition_key=pk,
+                    run_config={"ops": {results_op_name: {"config": {"batch_id": batch_id}}}},
+                ))
+                cursor[pk] = f"{batch_id}|{status}"
+            if not run_requests:
+                return dg.SensorResult(skip_reason="; ".join(notes) or f"No finished batches to process for {submit_key_str}.")
+            return dg.SensorResult(run_requests=run_requests, cursor=json.dumps(cursor))
+
         @dg.sensor(
             name=sensor_name,
             asset_selection=[results_key],
@@ -766,6 +840,8 @@ class AnthropicLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
             default_status=default_status,
         )
         def _status_sensor(context: dg.SensorEvaluationContext):
+            if partitions_def is not None:
+                return _partitioned_status(context)
             event = context.instance.get_latest_materialization_event(submit_key)
             if not event or not event.asset_materialization:
                 return dg.SensorResult(skip_reason=f"No materialization found for {submit_key_str}.")
@@ -805,3 +881,183 @@ class AnthropicLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
         return dg.Definitions(assets=[_submit_asset, _results_asset], sensors=[_status_sensor])
+
+
+# BEGIN batch partition helpers (inlined per component; keep copies identical, see tests/test_partition_llm_batch.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from dagster import (  # noqa: E402,F401
+    DailyPartitionsDefinition,
+    DynamicPartitionsDefinition,
+    HourlyPartitionsDefinition,
+    MonthlyPartitionsDefinition,
+    MultiPartitionsDefinition,
+    StaticPartitionsDefinition,
+    WeeklyPartitionsDefinition,
+)
+
+
+def _build_partitions_def(
+    partition_type,
+    partition_start,
+    partition_values,
+    dynamic_partition_name,
+    partition_dimensions,
+):
+    """Construct a Dagster partitions_def from the canonical partition fields.
+
+    Strict: raises ValueError on misconfigured combinations rather than
+    silently picking a default. Specifically:
+      - time-based partition_type without partition_start
+      - partition_type=multi without partition_values
+      - partition_type=dynamic without dynamic_partition_name
+      - both partition_dimensions AND flat fields set (ambiguous intent)
+    """
+    from dagster import (
+        DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+        MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+        StaticPartitionsDefinition, MultiPartitionsDefinition,
+        DynamicPartitionsDefinition,
+    )
+
+    if partition_dimensions and partition_type:
+        raise ValueError(
+            "Set either partition_type (flat-fields shape) or "
+            "partition_dimensions (multi-axis shape), not both."
+        )
+
+    def _build_axis(spec):
+        t = spec.get("type")
+        if t in ("daily", "weekly", "monthly", "hourly") and not spec.get("start"):
+            raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
+        if t == "daily":
+            return DailyPartitionsDefinition(start_date=spec["start"])
+        if t == "weekly":
+            return WeeklyPartitionsDefinition(start_date=spec["start"])
+        if t == "monthly":
+            return MonthlyPartitionsDefinition(start_date=spec["start"])
+        if t == "hourly":
+            return HourlyPartitionsDefinition(start_date=spec["start"])
+        if t == "static":
+            vals = spec.get("values") or []
+            if isinstance(vals, str):
+                vals = [v.strip() for v in vals.split(",") if v.strip()]
+            if not vals:
+                raise ValueError("partition dimension type='static' requires non-empty 'values'")
+            return StaticPartitionsDefinition(list(vals))
+        if t == "dynamic":
+            name = spec.get("dynamic_partition_name") or spec.get("name")
+            if not name:
+                raise ValueError("partition dimension type='dynamic' requires a name")
+            return DynamicPartitionsDefinition(name=name)
+        raise ValueError(f"unknown partition type: {t!r}")
+
+    if partition_dimensions:
+        if len(partition_dimensions) == 1:
+            return _build_axis(partition_dimensions[0])
+        axes = {d["name"]: _build_axis(d) for d in partition_dimensions}
+        return MultiPartitionsDefinition(axes)
+
+    if not partition_type:
+        return None
+    if isinstance(partition_values, (list, tuple)):
+        _values = [str(v).strip() for v in partition_values if str(v).strip()]
+    else:
+        _values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
+    if partition_type in ("daily", "weekly", "monthly", "hourly") and not partition_start:
+        raise ValueError(
+            f"partition_type={partition_type!r} requires partition_start (ISO date, e.g. '2024-01-01')."
+        )
+    if partition_type == "daily":
+        return DailyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "weekly":
+        return WeeklyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "monthly":
+        return MonthlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "hourly":
+        return HourlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "static":
+        if not _values:
+            raise ValueError("partition_type='static' requires partition_values (comma-separated).")
+        return StaticPartitionsDefinition(_values)
+    if partition_type == "dynamic":
+        if not dynamic_partition_name:
+            raise ValueError(
+                "partition_type='dynamic' requires dynamic_partition_name."
+            )
+        return DynamicPartitionsDefinition(name=dynamic_partition_name)
+    if partition_type == "multi":
+        if not _values:
+            raise ValueError("partition_type='multi' requires partition_values (comma-separated).")
+        if not partition_start:
+            raise ValueError("partition_type='multi' requires partition_start (the date axis start).")
+        return MultiPartitionsDefinition({
+            "date": DailyPartitionsDefinition(start_date=partition_start),
+            "static_dim": StaticPartitionsDefinition(_values),
+        })
+    raise ValueError(f"unknown partition_type: {partition_type!r}")
+
+
+def _filter_df_to_partition(df, context, partition_date_column, partition_static_column):
+    """Keep the rows that belong to the run's partition(s). A no-op for an unpartitioned run or a non-DataFrame input.
+
+    Time partitions use `context.partition_time_window` (which spans the whole range of a backfill run) against
+    `partition_date_column`; static/dynamic/multi partitions match `partition_static_column` against
+    `context.partition_keys`. Without the relevant column the input is returned unchanged."""
+    import pandas as pd
+
+    if not hasattr(df, "columns") or not (context.has_partition_key or context.has_partition_key_range):
+        return df
+    if partition_date_column and partition_date_column in df.columns:
+        try:
+            window = context.partition_time_window
+        except Exception:
+            return df  # static/dynamic/multi partition: no time window
+        dates = pd.to_datetime(df[partition_date_column], errors="coerce", utc=True)
+        return df[(dates >= pd.Timestamp(window.start)) & (dates < pd.Timestamp(window.end))]
+    if partition_static_column and partition_static_column in df.columns:
+        keys = {str(k) for k in context.partition_keys}
+        return df[df[partition_static_column].astype(str).isin(keys)]
+    return df
+
+
+def _validate_batch_partitioning(partition_type, date_column, static_column):
+    """Without a column to slice by, every partition would submit the whole dataset: a duplicate paid batch each time."""
+    if not partition_type:
+        return
+    if partition_type == "multi":
+        raise ValueError("partition_type='multi' is not supported by the batch components; use a time or static partition.")
+    if partition_type in ("daily", "weekly", "monthly", "hourly"):
+        if not date_column:
+            raise ValueError(f"partition_type={partition_type!r} needs partition_date_column: each partition submits only its own rows.")
+    elif not static_column:
+        raise ValueError(f"partition_type={partition_type!r} needs partition_static_column: each partition submits only its own rows.")
+
+
+def _batch_partition_key(context):
+    """The partition key of a partitioned run, or None. A batch run handles exactly one partition: its batch id, prompts hash
+    and cancel/reattach decisions are all kept per partition."""
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return None
+    keys = list(context.partition_keys)
+    if len(keys) != 1:
+        raise ValueError(f"a batch run handles one partition at a time, got {len(keys)}; backfill with one run per partition (the default).")
+    return str(keys[0])
+
+
+def _latest_materialization_metadata(instance, asset_key, partition_key):
+    """Metadata of the latest materialization of `asset_key`: of that partition when partitioned, else overall."""
+    if partition_key is None:
+        event = instance.get_latest_materialization_event(asset_key)
+        materialization = event.asset_materialization if event else None
+    else:
+        records = instance.fetch_materializations(dg.AssetRecordsFilter(asset_key=asset_key, asset_partitions=[partition_key]), limit=1).records
+        materialization = records[0].asset_materialization if records else None
+    return materialization.metadata if materialization is not None and materialization.metadata else {}
+
+
+def _latest_observation(instance, asset_key, partition_key):
+    """The latest observation record of `asset_key` (of that partition when partitioned), or None."""
+    flt = asset_key if partition_key is None else dg.AssetRecordsFilter(asset_key=asset_key, asset_partitions=[partition_key])
+    records = instance.fetch_observations(flt, limit=1).records
+    return records[0] if records else None
+# END batch partition helpers

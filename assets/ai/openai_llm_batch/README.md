@@ -152,3 +152,13 @@ environment.
 | `sensor_default_status` | `str` | `"running"` | 'running' or 'stopped' -- initial status of the auto-created sensor. Only used when wait_for_completion=False. |
 
 [//]: # (FIELDS:END)
+
+## Partitioning
+
+Set `partition_type` (with `partition_start` for time partitions) and `partition_date_column` (or `partition_static_column` for static/dynamic partitions) to run one batch per partition, for example one batch per day of tickets. A partitioned run:
+
+- submits only the rows in its partition (a missing column is refused at load time, since every partition would otherwise submit the whole dataset as a duplicate paid batch);
+- keeps its batch id, `prompts_hash` and crash-recovery state **per partition**, so one partition never reattaches to, cancels, or hides the unconfirmed submission of another;
+- handles one partition per run (use one run per partition when backfilling, which is Dagster's default).
+
+In the default deferred mode (`wait_for_completion: false`) both the `__submit` and the results asset are partitioned and the status sensor walks the partitions that have a submitted batch: it requests the results run for each partition whose batch has finished, remembers per partition which batch it already handled, and makes no API call for a partition it has finished with. `multi` partitions are not supported. Unpartitioned runs behave exactly as before.

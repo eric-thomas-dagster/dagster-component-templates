@@ -205,9 +205,11 @@ class AmplitudeEventTrackComponent(Component, Model, Resolvable):
                                                cfg.partition_values, cfg.dynamic_partition_name)
         retry_policy = None
         if cfg.retry_policy_max_retries is not None:
+            from dagster import Backoff as _Backoff
+
             retry_policy = RetryPolicy(max_retries=cfg.retry_policy_max_retries,
                                        delay=cfg.retry_policy_delay_seconds or 1,
-                                       backoff=cfg.retry_policy_backoff)  # type: ignore[arg-type]
+                                       backoff=_Backoff.EXPONENTIAL if str(cfg.retry_policy_backoff).lower() == "exponential" else _Backoff.LINEAR)
 
         rrks: set = set()
         if cfg.resource_key: rrks.add(cfg.resource_key)

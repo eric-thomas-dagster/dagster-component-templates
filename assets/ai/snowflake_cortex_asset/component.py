@@ -15,6 +15,7 @@ Supported Cortex functions
 """
 from typing import Dict, List, Optional, Union
 
+import re
 import dagster as dg
 from pydantic import ConfigDict, Field
 
@@ -347,6 +348,17 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         # freshness_max_lag_minutes / freshness_cron -> FreshnessPolicy (applied to the asset(s) below)
+        partitions_def = _build_partitions_def(
+            self.partition_type,
+            self.partition_start,
+            self.partition_values,
+            None,  # dynamic_partition_name: not a field of this component
+            None,  # partition_dimensions: not a field of this component
+        )
+        partition_date_column = self.partition_date_column
+        partition_static_column = self.partition_static_column
+        partition_static_dim = self.partition_static_dim
+
         _freshness_policy_obj = (
             _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
             if self.freshness_max_lag_minutes is not None else None
@@ -372,7 +384,7 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
 
-        @dg.asset(freshness_policy=_freshness_policy_obj, retry_policy=_retry_policy, 
+        @dg.asset(partitions_def=partitions_def, freshness_policy=_freshness_policy_obj, retry_policy=_retry_policy, 
             key=dg.AssetKey.from_user_string(self.asset_name),
             group_name=self.group_name or "ai_enrichment",
             kinds={"snowflake", "ai", "sql"},
@@ -426,25 +438,41 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             cortex_expr = self._build_cortex_expr()
             output_col = self.output_column
 
-            if self.if_exists == "replace":
-                dml = (
-                    f"CREATE OR REPLACE TABLE {self.target_table} AS "
-                    f"SELECT *, {cortex_expr} AS {output_col} "
-                    f"FROM {self.source_table}"
-                )
+            # A partitioned run only processes (and, for if_exists=replace, only replaces) its own slice of the
+            # source: rows in the partition's time window and/or with the partition's static-axis value.
+            partition_where = _partition_predicate(
+                context, partition_date_column, partition_static_column, partition_static_dim
+            )
+            statements = []
+            if partition_where is None:
+                if self.if_exists == "replace":
+                    statements.append(
+                        f"CREATE OR REPLACE TABLE {self.target_table} AS "
+                        f"SELECT *, {cortex_expr} AS {output_col} "
+                        f"FROM {self.source_table}"
+                    )
+                else:
+                    statements.append(
+                        f"INSERT INTO {self.target_table} "
+                        f"SELECT *, {cortex_expr} AS {output_col} "
+                        f"FROM {self.source_table}"
+                    )
             else:
-                dml = (
-                    f"INSERT INTO {self.target_table} "
-                    f"SELECT *, {cortex_expr} AS {output_col} "
-                    f"FROM {self.source_table}"
-                )
+                select = f"SELECT *, {cortex_expr} AS {output_col} FROM {self.source_table} WHERE {partition_where}"
+                if self.if_exists == "replace":
+                    # Replacing the whole table would wipe the other partitions: replace only this slice.
+                    statements.append(f"CREATE TABLE IF NOT EXISTS {self.target_table} AS {select} AND 1 = 0")
+                    statements.append(f"DELETE FROM {self.target_table} WHERE {partition_where}")
+                statements.append(f"INSERT INTO {self.target_table} {select}")
+            dml = ";\n".join(statements)
 
             context.log.info(f"Executing Cortex SQL:\n{dml}")
 
             conn = snowflake.connector.connect(**connect_kwargs)
             try:
                 cur = conn.cursor()
-                cur.execute(dml)
+                for statement in statements:
+                    cur.execute(statement)
 
                 # Fetch row count from the target table
                 cur.execute(f"SELECT COUNT(*) FROM {self.target_table}")
@@ -486,3 +514,151 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
+
+
+def _sql_ident(name):
+    """A column name that is safe to splice into SQL (letters, digits, underscore, $, optionally dotted)."""
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_$]*(\.[A-Za-z_][A-Za-z0-9_$]*)*", str(name)):
+        raise ValueError(f"unsafe SQL identifier for a partition column: {name!r}")
+    return str(name)
+
+
+def _sql_str(value):
+    return "'" + str(value).replace("'", "''") + "'"
+
+
+def _partition_predicate(context, partition_date_column, partition_static_column, partition_static_dim):
+    """WHERE-clause text selecting the current partition's rows, or None when the run is not partitioned (or no
+    partition column is configured). Time partitions use the window dagster computes (correct for a single tick and
+    for a backfill range); the static axis is matched against every key being materialized."""
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return None
+    clauses = []
+    if partition_date_column:
+        try:
+            window = context.partition_time_window
+        except Exception:
+            window = None  # static / dynamic partitions have no time window
+        if window is not None:
+            col = _sql_ident(partition_date_column)
+            clauses.append(
+                f"{col} >= {_sql_str(window.start.strftime('%Y-%m-%d %H:%M:%S'))} "
+                f"AND {col} < {_sql_str(window.end.strftime('%Y-%m-%d %H:%M:%S'))}"
+            )
+    if partition_static_column:
+        values = []
+        for key in context.partition_keys:
+            if hasattr(key, "keys_by_dimension"):
+                dims = key.keys_by_dimension
+                v = next((dims[d] for d in (partition_static_dim, "static_dim", "segment") if d and d in dims), None)
+            else:
+                v = str(key)
+            if v is not None:
+                values.append(v)
+        if values:
+            clauses.append(f"{_sql_ident(partition_static_column)} IN ({', '.join(_sql_str(v) for v in sorted(set(values)))})")
+    return " AND ".join(clauses) if clauses else None
+
+
+# BEGIN partitions-def builder (inlined per component; keep copies identical, see tests/test_partition_port.py)
+def _build_partitions_def(
+    partition_type,
+    partition_start,
+    partition_values,
+    dynamic_partition_name,
+    partition_dimensions,
+):
+    """Construct a Dagster partitions_def from the canonical partition fields.
+
+    Strict: raises ValueError on misconfigured combinations rather than
+    silently picking a default. Specifically:
+      - time-based partition_type without partition_start
+      - partition_type=multi without partition_values
+      - partition_type=dynamic without dynamic_partition_name
+      - both partition_dimensions AND flat fields set (ambiguous intent)
+    """
+    from dagster import (
+        DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+        MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+        StaticPartitionsDefinition, MultiPartitionsDefinition,
+        DynamicPartitionsDefinition,
+    )
+
+    # Both shapes set: ambiguous. Pick one.
+    if partition_dimensions and partition_type:
+        raise ValueError(
+            "Set either partition_type (flat-fields shape) or "
+            "partition_dimensions (multi-axis shape), not both."
+        )
+
+    def _build_axis(spec):
+        t = spec.get("type")
+        if t in ("daily", "weekly", "monthly", "hourly") and not spec.get("start"):
+            raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
+        if t == "daily":
+            return DailyPartitionsDefinition(start_date=spec["start"])
+        if t == "weekly":
+            return WeeklyPartitionsDefinition(start_date=spec["start"])
+        if t == "monthly":
+            return MonthlyPartitionsDefinition(start_date=spec["start"])
+        if t == "hourly":
+            return HourlyPartitionsDefinition(start_date=spec["start"])
+        if t == "static":
+            vals = spec.get("values") or []
+            if isinstance(vals, str):
+                vals = [v.strip() for v in vals.split(",") if v.strip()]
+            if not vals:
+                raise ValueError("partition dimension type='static' requires non-empty 'values'")
+            return StaticPartitionsDefinition(list(vals))
+        if t == "dynamic":
+            name = spec.get("dynamic_partition_name") or spec.get("name")
+            if not name:
+                raise ValueError("partition dimension type='dynamic' requires a name")
+            return DynamicPartitionsDefinition(name=name)
+        raise ValueError(f"unknown partition type: {t!r}")
+
+    if partition_dimensions:
+        if len(partition_dimensions) == 1:
+            return _build_axis(partition_dimensions[0])
+        axes = {d["name"]: _build_axis(d) for d in partition_dimensions}
+        return MultiPartitionsDefinition(axes)
+
+    if not partition_type:
+        return None
+    if isinstance(partition_values, (list, tuple)):
+        _values = [str(v).strip() for v in partition_values if str(v).strip()]
+    else:
+        _values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
+    if partition_type in ("daily", "weekly", "monthly", "hourly") and not partition_start:
+        raise ValueError(
+            f"partition_type={partition_type!r} requires partition_start (ISO date, e.g. '2024-01-01')."
+        )
+    if partition_type == "daily":
+        return DailyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "weekly":
+        return WeeklyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "monthly":
+        return MonthlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "hourly":
+        return HourlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "static":
+        if not _values:
+            raise ValueError("partition_type='static' requires partition_values (comma-separated).")
+        return StaticPartitionsDefinition(_values)
+    if partition_type == "dynamic":
+        if not dynamic_partition_name:
+            raise ValueError(
+                "partition_type='dynamic' requires dynamic_partition_name."
+            )
+        return DynamicPartitionsDefinition(name=dynamic_partition_name)
+    if partition_type == "multi":
+        if not _values:
+            raise ValueError("partition_type='multi' requires partition_values (comma-separated).")
+        if not partition_start:
+            raise ValueError("partition_type='multi' requires partition_start (the date axis start).")
+        return MultiPartitionsDefinition({
+            "date": DailyPartitionsDefinition(start_date=partition_start),
+            "static_dim": StaticPartitionsDefinition(_values),
+        })
+    raise ValueError(f"unknown partition_type: {partition_type!r}")
+# END partitions-def builder

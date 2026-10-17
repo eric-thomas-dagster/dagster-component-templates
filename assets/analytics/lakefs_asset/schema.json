@@ -119,7 +119,7 @@
     "partition_date_column": {
       "type": "string",
       "label": "Partition Date Column",
-      "description": "Column used to filter rows to the current date partition key (e.g. 'event_date', 'created_at').",
+      "description": "Not used by this component, which has no input rows to filter. Use {partition_key}, {partition_date}, {partition_start} and {partition_end} in `branch`, `destination_branch`, `source_ref`, `commit_message` and `metadata` instead.",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"
@@ -142,7 +142,7 @@
     "partition_static_column": {
       "type": "string",
       "label": "Static Partition Column",
-      "description": "Column used to filter rows to the current static partition value (e.g. 'customer_id', 'region').",
+      "description": "Not used by this component, which has no input rows to filter. Use {partition_key}, {partition_date}, {partition_start} and {partition_end} in `branch`, `destination_branch`, `source_ref`, `commit_message` and `metadata` instead.",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"

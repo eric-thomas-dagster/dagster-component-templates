@@ -61,10 +61,10 @@ When the asset is materialized:
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
-| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Not used by this component, which has no input rows to filter. Use {partition_key}, {partition_date}, {partition_start} and {partition_end} in `variables` instead. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Not used by this component, which has no input rows to filter. Use {partition_key}, {partition_date}, {partition_start} and {partition_end} in `variables` instead. |
 
 ### Retry policy
 
@@ -130,3 +130,12 @@ Dependencies can also be wired externally via `map_resolved_asset_specs()` in `d
 ```
 requests>=2.28.0
 ```
+
+## Partitioning
+
+Set `partition_type` (with `partition_start` / `partition_values`) to make this a partitioned asset. This component has no
+input rows to filter, so a partition means the run is parameterized by it: `{partition_key}`, `{partition_date}`
+(YYYY-MM-DD), `{partition_start}` and `{partition_end}` (ISO datetimes), and for multi-partitions
+`{partition_<dimension>}`, are substituted into `variables`. Only these tokens are replaced; other braces are left alone. Tools
+that run as a process also receive `DAGSTER_PARTITION_KEY`, `DAGSTER_PARTITION_DATE`, `DAGSTER_PARTITION_START` and
+`DAGSTER_PARTITION_END` in their environment. An unpartitioned run is unchanged.

@@ -178,7 +178,7 @@
       "required": false
     },
     "partition_date_column": {
-      "description": "Column used to filter the upstream DataFrame to the current date partition key.",
+      "description": "Not used by this component, which has no input rows to filter. Use {partition_key}, {partition_date}, {partition_start} and {partition_end} in `args` and `kwargs` instead.",
       "type": "string",
       "label": "Partition Date Column",
       "required": false,
@@ -198,7 +198,7 @@
       "x-dagster-widget": "column"
     },
     "partition_static_column": {
-      "description": "Column used to filter the upstream DataFrame to the current static partition value.",
+      "description": "Not used by this component, which has no input rows to filter. Use {partition_key}, {partition_date}, {partition_start} and {partition_end} in `args` and `kwargs` instead.",
       "type": "string",
       "label": "Partition Static Column",
       "required": false,

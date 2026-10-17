@@ -354,30 +354,62 @@ class SyntheticDataComponent(Component, Model, Resolvable):
                 if isinstance(seed_data, dict):
                     _frames = [v for v in seed_data.values() if isinstance(v, pd.DataFrame)]
                     seed_data = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
-                return _generate_data(
+                # Filter to current partition if partitioned
+                if context.has_partition_key or context.has_partition_key_range:
+                    # One filter pass per partition key: a normal tick gives exactly one,
+                    # a single_run backfill gives the whole range. Rows are selected by
+                    # position so keys that match overlapping rows never duplicate them.
+                    _pk_base = seed_data
+                    _pk_pos = _pk_base.reset_index(drop=True) if hasattr(_pk_base, 'reset_index') else _pk_base
+                    _pk_keep = set()
+                    _pk_filtered = False
+                    for _pk_iter in context.partition_keys:
+                        seed_data = _pk_pos
+                        _pk = _pk_iter
+                        _is_multi = hasattr(_pk, "keys_by_dimension")
+                        _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                        _static_key = next((_pk.keys_by_dimension[_d] for _d in (partition_static_dim, "static_dim", "segment") if _d and _d in _pk.keys_by_dimension), "") if _is_multi else None
+                        if partition_date_column and partition_date_column in seed_data.columns and _date_key:
+                            _col_dates = pd.to_datetime(seed_data[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
+                            seed_data = seed_data[_col_dates == _date_key]
+                        if partition_static_column and partition_static_column in seed_data.columns and _static_key:
+                            seed_data = seed_data[seed_data[partition_static_column].astype(str) == _static_key]
+                        elif partition_static_column and partition_static_column in seed_data.columns and not _is_multi:
+                            seed_data = seed_data[seed_data[partition_static_column].astype(str) == str(_pk)]
+                        if seed_data is not _pk_pos:
+                            _pk_filtered = True
+                            _pk_keep.update(seed_data.index)
+                    seed_data = _pk_base.iloc[sorted(_pk_keep)] if _pk_filtered else _pk_base
+                _generated = _generate_data(
                     context=context,
                     schema=schema,
                     n_rows=n_rows,
                     llm_model=llm_model,
                     api_key_env_var=api_key_env_var,
-                    context_str=context_str,
+                    context_str=(_partition_note(context, partition_static_dim) + (context_str or "")) or context_str,
                     batch_size=batch_size,
                     seed_df=seed_data,
+                )
+                return _stamp_df_to_partition(
+                    _generated, context, partition_date_column, partition_static_column, partition_static_dim
                 )
 
         else:
 
-            @asset(retry_policy=_retry_policy, freshness_policy=_freshness_policy, key=AssetKey.from_user_string(asset_name), deps=[], group_name=group_name)
+            @asset(partitions_def=partitions_def, retry_policy=_retry_policy, freshness_policy=_freshness_policy, key=AssetKey.from_user_string(asset_name), deps=[], group_name=group_name)
             def _asset(context: AssetExecutionContext) -> pd.DataFrame:  # type: ignore[no-redef]
-                return _generate_data(
+                _generated = _generate_data(
                     context=context,
                     schema=schema,
                     n_rows=n_rows,
                     llm_model=llm_model,
                     api_key_env_var=api_key_env_var,
-                    context_str=context_str,
+                    context_str=(_partition_note(context, partition_static_dim) + (context_str or "")) or context_str,
                     batch_size=batch_size,
                     seed_df=None,
+                )
+                return _stamp_df_to_partition(
+                    _generated, context, partition_date_column, partition_static_column, partition_static_dim
                 )
 
         from dagster import build_column_schema_change_checks
@@ -387,6 +419,60 @@ class SyntheticDataComponent(Component, Model, Resolvable):
 
 
         return Definitions(assets=[_asset], asset_checks=list(_schema_checks))
+
+
+def _partition_static_values(context, partition_static_dim):
+    """The static-axis value of each partition key being materialized (several for a backfill range)."""
+    values = []
+    for key in context.partition_keys:
+        if hasattr(key, "keys_by_dimension"):
+            dims = key.keys_by_dimension
+            value = next((dims[d] for d in (partition_static_dim, "static_dim", "segment") if d and d in dims), None)
+        else:
+            value = str(key)
+        if value is not None:
+            values.append(value)
+    return values
+
+
+def _partition_note(context, partition_static_dim):
+    """A line telling the model which partition it is generating for, so partitions do not all get the same data."""
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return ""
+    parts = []
+    try:
+        window = context.partition_time_window
+        parts.append(f"dates from {window.start.date()} up to (not including) {window.end.date()}")
+    except Exception:
+        pass
+    static = _partition_static_values(context, partition_static_dim)
+    if static:
+        parts.append("segment " + ", ".join(sorted(set(static))))
+    return ("Generate data for " + " and ".join(parts) + ".\n") if parts else ""
+
+
+def _stamp_df_to_partition(df, context, partition_date_column, partition_static_column, partition_static_dim):
+    """Generated rows have no input to filter, so a partition means: the rows belong to it. Rows are stamped with
+    dates spread evenly across the partition's time window and with its static-axis value (round-robin across the keys
+    of a backfill range), so downstream partitioned assets that filter on these columns route them correctly."""
+    if not (context.has_partition_key or context.has_partition_key_range) or len(df) == 0:
+        return df
+    out = df.copy()
+    n = len(out)
+    if partition_date_column and partition_date_column in out.columns:
+        try:
+            window = context.partition_time_window
+        except Exception:
+            window = None  # static / dynamic partition: no time window
+        if window is not None:
+            start, end = pd.Timestamp(window.start), pd.Timestamp(window.end)
+            stamped = [start + (end - start) * i / n for i in range(n)]
+            out[partition_date_column] = [d.strftime("%Y-%m-%d %H:%M:%S") for d in stamped] if out[partition_date_column].dtype == object else stamped
+    if partition_static_column and partition_static_column in out.columns:
+        values = _partition_static_values(context, partition_static_dim)
+        if values:
+            out[partition_static_column] = [values[i % len(values)] for i in range(n)]
+    return out
 
 
 def _generate_data(

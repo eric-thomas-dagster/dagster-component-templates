@@ -33,7 +33,9 @@ def _ported():
     return out
 
 
-PORTED = _ported()
+PORTED_ALL = _ported()  # everything carrying the inlined builder (row-filtering transforms, SQL, infrastructure...)
+FILTER_MARKER = "# Filter to current partition if partitioned"
+PORTED = [p for p in PORTED_ALL if FILTER_MARKER in p.read_text()]  # the ones that filter DataFrame rows
 
 
 def _builder(text):
@@ -41,23 +43,25 @@ def _builder(text):
 
 
 def test_ported_components_exist_and_share_one_builder_equal_to_the_reference():
-    assert len(PORTED) >= 24
+    assert len(PORTED_ALL) >= 38 and len(PORTED) >= 26
     reference = re.search(r"^def _build_partitions_def\(.*?(?=^def |^class )", GOLD.read_text(), re.S | re.M).group(0).rstrip()
-    for p in PORTED:
+    for p in PORTED_ALL:
         block = _builder(p.read_text())
         body = block.split("\n", 1)[1].rsplit("\n", 1)[0]
         assert body == reference, f"{p.relative_to(ROOT)} drifted from the reference builder"
 
 
 def test_every_ported_component_passes_partitions_def_to_its_asset_and_filters():
-    for p in PORTED:
+    for p in PORTED_ALL:
         text = p.read_text()
         tree = ast.parse(text)
         build = next(n for c in tree.body if isinstance(c, ast.ClassDef) for n in c.body if isinstance(n, ast.FunctionDef) and n.name == "build_defs")
         decos = [d for f in ast.walk(build) if isinstance(f, ast.FunctionDef) for d in f.decorator_list
                  if isinstance(d, ast.Call) and getattr(d.func, "attr", getattr(d.func, "id", "")) == "asset"]
         assert decos and all(any(k.arg == "partitions_def" for k in d.keywords) for d in decos), p
-        assert "# Filter to current partition if partitioned" in text, p
+        # components that take rows in must filter them (infrastructure and SQL ones parameterize instead; see their tests)
+        if p in PORTED:
+            assert FILTER_MARKER in text, p
 
 
 # ── runtime: filtering is real ──────────────────────────────────────────────
@@ -125,9 +129,12 @@ def _data(name, base):
 # Components whose output does not depend on the input rows at all (sample-size calculators and the like): the run
 # must still succeed partitioned, but there is nothing to distinguish between days.
 DATA_INDEPENDENT = {"ab_controls"}
+# Output columns that differ between any two runs (timestamps), so they cannot take part in the comparison.
+VOLATILE_COLUMNS = {"moderation_scorer": ["scored_at"]}
 
 
-def _same(a, b):
+def _same(a, b, drop=()):
+    a, b = a.drop(columns=list(drop), errors="ignore"), b.drop(columns=list(drop), errors="ignore")
     try:
         pd.testing.assert_frame_equal(a.reset_index(drop=True), b.reset_index(drop=True), check_like=True,
                                       check_dtype=False, rtol=1e-6, atol=1e-9)
@@ -170,10 +177,10 @@ def test_partitioned_run_equals_unpartitioned_run_over_that_days_rows(path):
             expected = dg.materialize([plain, up_day]).output_for_node(name)
         except ModuleNotFoundError as exc:
             pytest.skip(f"optional dependency missing: {exc}")
-        assert _same(actual, expected), f"{folder.name}: partition {day} did not equal the unpartitioned run over that day's rows"
+        assert _same(actual, expected, VOLATILE_COLUMNS.get(folder.name, ())), f"{folder.name}: partition {day} did not equal the unpartitioned run over that day's rows"
         outputs[day] = actual
     if folder.name not in DATA_INDEPENDENT:
-        assert not _same(outputs[DAYS[0]], outputs[DAYS[1]]), f"{folder.name}: both days gave identical output"
+        assert not _same(outputs[DAYS[0]], outputs[DAYS[1]], VOLATILE_COLUMNS.get(folder.name, ())), f"{folder.name}: both days gave identical output"
 
 
 def test_multi_partition_filters_by_date_and_static_axis():

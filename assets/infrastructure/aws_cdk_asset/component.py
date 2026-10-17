@@ -199,7 +199,7 @@ class AWSCDKAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
-        description="Column used to filter the upstream DataFrame to the current date partition key.",
+        description="Not used by this component, which has no input rows to filter. Use {partition_key}, {partition_date}, {partition_start} and {partition_end} in `context` and `parameters` instead.",
     )
 
     partition_values: Optional[Union[str, List[str]]] = Field(
@@ -214,7 +214,7 @@ class AWSCDKAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
-        description="Column used to filter the upstream DataFrame to the current static partition value.",
+        description="Not used by this component, which has no input rows to filter. Use {partition_key}, {partition_date}, {partition_start} and {partition_end} in `context` and `parameters` instead.",
     )
 
     retry_policy_max_retries: Optional[int] = Field(
@@ -245,6 +245,17 @@ class AWSCDKAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         # Capture all config as local variables for use inside the asset fn.
         # freshness_max_lag_minutes / freshness_cron -> FreshnessPolicy (applied to the asset(s) below)
         # retry_policy_* settings -> RetryPolicy (applied to the asset(s) below)
+        partitions_def = _build_partitions_def(
+            self.partition_type,
+            self.partition_start,
+            self.partition_values,
+            None,  # dynamic_partition_name: not a field of this component
+            None,  # partition_dimensions: not a field of this component
+        )
+        partition_date_column = self.partition_date_column
+        partition_static_column = self.partition_static_column
+        partition_static_dim = self.partition_static_dim
+
         _retry_policy_obj = None
         if self.retry_policy_max_retries is not None:
             from dagster import Backoff, RetryPolicy
@@ -280,7 +291,7 @@ class AWSCDKAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         # Resolve the effective outputs file path once.
         effective_outputs_file = outputs_file or f"/tmp/{asset_name}_outputs.json"
 
-        @dg.asset(retry_policy=_retry_policy_obj, freshness_policy=_freshness_policy_obj, 
+        @dg.asset(partitions_def=partitions_def, retry_policy=_retry_policy_obj, freshness_policy=_freshness_policy_obj, 
             key=dg.AssetKey.from_user_string(asset_name),
             group_name=group_name,
             description=description,
@@ -290,6 +301,7 @@ class AWSCDKAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             # ----------------------------------------------------------------
             # Build the CDK command
             # ----------------------------------------------------------------
+            _tokens = _partition_vars(context)
             cmd: list[str] = [cdk_bin, operation]
 
             # Stack selection
@@ -312,11 +324,11 @@ class AWSCDKAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 cmd.append("--no-rollback")
 
             # Context variables: -c key=value
-            for key, value in (context_vars or {}).items():
+            for key, value in _substitute_partition(context_vars or {}, _tokens).items():
                 cmd.extend(["-c", f"{key}={value}"])
 
             # CloudFormation parameters: --parameters StackName:Param=value
-            for key, value in (parameters or {}).items():
+            for key, value in _substitute_partition(parameters or {}, _tokens).items():
                 cmd.extend(["--parameters", f"{key}={value}"])
 
             if profile:
@@ -337,7 +349,7 @@ class AWSCDKAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             proc = subprocess.Popen(
                 cmd,
                 cwd=working_dir,
-                env={**os.environ, **(env_vars or {})},
+                env={**os.environ, **(env_vars or {}), **_partition_env(_tokens)},
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
@@ -427,3 +439,160 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
+
+
+# BEGIN partitions-def builder (inlined per component; keep copies identical, see tests/test_partition_port.py)
+def _build_partitions_def(
+    partition_type,
+    partition_start,
+    partition_values,
+    dynamic_partition_name,
+    partition_dimensions,
+):
+    """Construct a Dagster partitions_def from the canonical partition fields.
+
+    Strict: raises ValueError on misconfigured combinations rather than
+    silently picking a default. Specifically:
+      - time-based partition_type without partition_start
+      - partition_type=multi without partition_values
+      - partition_type=dynamic without dynamic_partition_name
+      - both partition_dimensions AND flat fields set (ambiguous intent)
+    """
+    from dagster import (
+        DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+        MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+        StaticPartitionsDefinition, MultiPartitionsDefinition,
+        DynamicPartitionsDefinition,
+    )
+
+    # Both shapes set: ambiguous. Pick one.
+    if partition_dimensions and partition_type:
+        raise ValueError(
+            "Set either partition_type (flat-fields shape) or "
+            "partition_dimensions (multi-axis shape), not both."
+        )
+
+    def _build_axis(spec):
+        t = spec.get("type")
+        if t in ("daily", "weekly", "monthly", "hourly") and not spec.get("start"):
+            raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
+        if t == "daily":
+            return DailyPartitionsDefinition(start_date=spec["start"])
+        if t == "weekly":
+            return WeeklyPartitionsDefinition(start_date=spec["start"])
+        if t == "monthly":
+            return MonthlyPartitionsDefinition(start_date=spec["start"])
+        if t == "hourly":
+            return HourlyPartitionsDefinition(start_date=spec["start"])
+        if t == "static":
+            vals = spec.get("values") or []
+            if isinstance(vals, str):
+                vals = [v.strip() for v in vals.split(",") if v.strip()]
+            if not vals:
+                raise ValueError("partition dimension type='static' requires non-empty 'values'")
+            return StaticPartitionsDefinition(list(vals))
+        if t == "dynamic":
+            name = spec.get("dynamic_partition_name") or spec.get("name")
+            if not name:
+                raise ValueError("partition dimension type='dynamic' requires a name")
+            return DynamicPartitionsDefinition(name=name)
+        raise ValueError(f"unknown partition type: {t!r}")
+
+    if partition_dimensions:
+        if len(partition_dimensions) == 1:
+            return _build_axis(partition_dimensions[0])
+        axes = {d["name"]: _build_axis(d) for d in partition_dimensions}
+        return MultiPartitionsDefinition(axes)
+
+    if not partition_type:
+        return None
+    if isinstance(partition_values, (list, tuple)):
+        _values = [str(v).strip() for v in partition_values if str(v).strip()]
+    else:
+        _values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
+    if partition_type in ("daily", "weekly", "monthly", "hourly") and not partition_start:
+        raise ValueError(
+            f"partition_type={partition_type!r} requires partition_start (ISO date, e.g. '2024-01-01')."
+        )
+    if partition_type == "daily":
+        return DailyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "weekly":
+        return WeeklyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "monthly":
+        return MonthlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "hourly":
+        return HourlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "static":
+        if not _values:
+            raise ValueError("partition_type='static' requires partition_values (comma-separated).")
+        return StaticPartitionsDefinition(_values)
+    if partition_type == "dynamic":
+        if not dynamic_partition_name:
+            raise ValueError(
+                "partition_type='dynamic' requires dynamic_partition_name."
+            )
+        return DynamicPartitionsDefinition(name=dynamic_partition_name)
+    if partition_type == "multi":
+        if not _values:
+            raise ValueError("partition_type='multi' requires partition_values (comma-separated).")
+        if not partition_start:
+            raise ValueError("partition_type='multi' requires partition_start (the date axis start).")
+        return MultiPartitionsDefinition({
+            "date": DailyPartitionsDefinition(start_date=partition_start),
+            "static_dim": StaticPartitionsDefinition(_values),
+        })
+    raise ValueError(f"unknown partition_type: {partition_type!r}")
+# END partitions-def builder
+
+
+# BEGIN partition-vars helper (inlined per component; keep copies identical, see tests/test_partition_vars.py)
+def _partition_vars(context):
+    """Tokens a partitioned run can use in its variables: {partition_key}, and for time partitions {partition_date}
+    (YYYY-MM-DD), {partition_start} and {partition_end} (ISO datetimes); for a multi-partition also
+    {partition_<dimension>}. Empty for an unpartitioned run."""
+    import re as _re
+
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return {}
+    keys = list(context.partition_keys)
+    tokens = {"partition_key": ",".join(str(k) for k in keys)}
+    try:
+        window = context.partition_time_window
+        tokens["partition_start"] = window.start.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_end"] = window.end.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_date"] = window.start.strftime("%Y-%m-%d")
+    except Exception:
+        pass  # static / dynamic partitions have no time window
+    if len(keys) == 1 and hasattr(keys[0], "keys_by_dimension"):
+        for dimension, value in keys[0].keys_by_dimension.items():
+            tokens["partition_" + _re.sub(r"\W", "_", str(dimension))] = str(value)
+    return tokens
+
+
+def _partition_env(tokens):
+    """DAGSTER_PARTITION_* environment variables for a partitioned run (empty when unpartitioned)."""
+    if not tokens:
+        return {}
+    env = {"DAGSTER_PARTITION_KEY": tokens["partition_key"]}
+    for token, name in (("partition_date", "DAGSTER_PARTITION_DATE"), ("partition_start", "DAGSTER_PARTITION_START"),
+                        ("partition_end", "DAGSTER_PARTITION_END")):
+        if token in tokens:
+            env[name] = tokens[token]
+    return env
+
+
+def _substitute_partition(value, tokens):
+    """Replace {partition_*} tokens inside strings, recursively through dicts and lists. Only known tokens are
+    replaced, so other braces (JSON, shell, templates) are left alone. A no-op for an unpartitioned run."""
+    import re as _re
+
+    if not tokens:
+        return value
+    if isinstance(value, str):
+        return _re.sub(r"\{(partition_\w+)\}", lambda m: tokens.get(m.group(1), m.group(0)), value)
+    if isinstance(value, dict):
+        return {k: _substitute_partition(v, tokens) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(_substitute_partition(v, tokens) for v in value)
+    return value
+# END partition-vars helper

@@ -53,10 +53,10 @@ Helm must be installed separately and available on `PATH`, or provide the full p
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
-| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Not used by this component, which has no input rows to filter. Use {partition_key}, {partition_date}, {partition_start} and {partition_end} in `release_name`, `namespace`, `set_values` and `set_string_values` instead. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Not used by this component, which has no input rows to filter. Use {partition_key}, {partition_date}, {partition_start} and {partition_end} in `release_name`, `namespace`, `set_values` and `set_string_values` instead. |
 
 ### Retry policy
 
@@ -298,3 +298,12 @@ After a successful deployment, the following are recorded as Dagster asset metad
 | `group_name` | `str` | `"infrastructure"` | Dagster asset group name |
 | `description` | `str \| null` | `null` | Asset description |
 | `deps` | `list[str] \| null` | `null` | Upstream Dagster asset keys |
+
+## Partitioning
+
+Set `partition_type` (with `partition_start` / `partition_values`) to make this a partitioned asset. This component has no
+input rows to filter, so a partition means the run is parameterized by it: `{partition_key}`, `{partition_date}`
+(YYYY-MM-DD), `{partition_start}` and `{partition_end}` (ISO datetimes), and for multi-partitions
+`{partition_<dimension>}`, are substituted into `release_name`, `namespace`, `set_values` and `set_string_values`. Only these tokens are replaced; other braces are left alone. Tools
+that run as a process also receive `DAGSTER_PARTITION_KEY`, `DAGSTER_PARTITION_DATE`, `DAGSTER_PARTITION_START` and
+`DAGSTER_PARTITION_END` in their environment. An unpartitioned run is unchanged.

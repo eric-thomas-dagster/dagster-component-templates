@@ -170,7 +170,7 @@ class RiveryRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
-        description="Column used to filter the upstream DataFrame to the current date partition key.",
+        description="Not supported by this component: a Rivery river is triggered as configured and takes no partition-dependent input here, so partitioning is ignored and the asset stays unpartitioned.",
     )
 
     partition_values: Optional[Union[str, List[str]]] = Field(
@@ -185,7 +185,7 @@ class RiveryRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
-        description="Column used to filter the upstream DataFrame to the current static partition value.",
+        description="Not supported by this component: a Rivery river is triggered as configured and takes no partition-dependent input here, so partitioning is ignored and the asset stays unpartitioned.",
     )
 
     retry_policy_max_retries: Optional[int] = Field(
@@ -211,6 +211,16 @@ class RiveryRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         # freshness_max_lag_minutes / freshness_cron -> FreshnessPolicy (applied to the asset(s) below)
         # retry_policy_* settings -> RetryPolicy (applied to the asset(s) below)
+        if self.partition_type:
+            import warnings
+        
+            warnings.warn(
+                "rivery_run_asset ignores partition_type: a Rivery river takes no partition-dependent input here, "
+                "so the asset is not partitioned.",
+                UserWarning,
+                stacklevel=2,
+            )
+
         _retry_policy_obj = None
         if self.retry_policy_max_retries is not None:
             from dagster import Backoff, RetryPolicy

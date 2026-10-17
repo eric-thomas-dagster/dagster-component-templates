@@ -59,10 +59,10 @@ When the asset is materialized:
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
-| `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Not supported by this component: a Rivery river is triggered as configured and takes no partition-dependent input here, so partitioning is ignored and the asset stays unpartitioned. |
 | `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
-| `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_static_column` | `Union[str, int]` | — | Not supported by this component: a Rivery river is triggered as configured and takes no partition-dependent input here, so partitioning is ignored and the asset stays unpartitioned. |
 
 ### Retry policy
 
@@ -120,3 +120,7 @@ Dependencies can also be wired externally via `map_resolved_asset_specs()` in `d
 ```
 requests>=2.28.0
 ```
+
+## Partitioning
+
+Not supported: the `partition_*` settings are ignored (with a warning at load) because a Rivery river is triggered as configured and takes no partition-dependent input here.

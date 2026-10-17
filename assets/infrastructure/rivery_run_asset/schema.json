@@ -154,7 +154,7 @@
       "required": false
     },
     "partition_date_column": {
-      "description": "Column used to filter the upstream DataFrame to the current date partition key.",
+      "description": "Not supported by this component: a Rivery river is triggered as configured and takes no partition-dependent input here, so partitioning is ignored and the asset stays unpartitioned.",
       "type": "string",
       "label": "Partition Date Column",
       "required": false,
@@ -174,7 +174,7 @@
       "x-dagster-widget": "column"
     },
     "partition_static_column": {
-      "description": "Column used to filter the upstream DataFrame to the current static partition value.",
+      "description": "Not supported by this component: a Rivery river is triggered as configured and takes no partition-dependent input here, so partitioning is ignored and the asset stays unpartitioned.",
       "type": "string",
       "label": "Partition Static Column",
       "required": false,

@@ -249,6 +249,7 @@ _CLASS_PATHS: dict[str, str] = {
     "ConfluenceResourceComponent": "resources/confluence_resource/component.py",
     "ConstantContactIngestionComponent": "assets/ingestion/constant_contact_ingestion/component.py",
     "ContextEngineeringPipelineComponent": "assets/ai/context_engineering_pipeline/component.py",
+    "AsyncReceiptWriter": "resources/context_receipt_store/component.py",
     "ContextReceiptStore": "resources/context_receipt_store/component.py",
     "ContextReceiptStoreComponent": "resources/context_receipt_store/component.py",
     "ContractExtractorComponent": "assets/ai/contract_extractor/component.py",
@@ -1720,6 +1721,10 @@ def _make_stub(name: str) -> type:
 # live in the applicator module alongside `AutomationConditionApplicatorComponent`,
 # and that module has no heavy transitive deps.
 _HELPERS = {
+    "rerank_with_priors":
+        "dagster_community_components.resources.context_receipt_store.component:rerank",
+    "new_receipt_id":
+        "dagster_community_components.resources.context_receipt_store.component:new_receipt_id",
     "apply_rules":
         "dagster_community_components.assets.infrastructure.automation_condition_applicator.component:apply_rules",
     "defs_with_automation_rules":

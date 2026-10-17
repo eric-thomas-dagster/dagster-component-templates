@@ -1,7 +1,7 @@
 {
   "component_type": "dagster_community_components.ContextReceiptStoreComponent",
   "name": "Context Receipt Store",
-  "description": "Register an append-only SQLite receipt store for context retrievals, output references, and impact lookups.",
+  "description": "Context receipt store with a closed feedback loop: gateway receipts, outcomes (thumbs/edits/escalations), learned item priors, and an optional Dagster sensor that reports aggregated usage, flags stale reads and can request rebuilds.",
   "category": "resource",
   "attributes": {
     "resource_key": {
@@ -17,6 +17,41 @@
       "required": false,
       "default": "./context-receipts.sqlite3",
       "description": "SQLite file path for local or single-host prototypes. Use a shared receipt service/database for multi-host production writes."
+    },
+    "usage_sensor_enabled": {
+      "type": "boolean",
+      "label": "Usage Sensor",
+      "required": false,
+      "default": false,
+      "description": "Add a sensor that tails receipts, reports aggregated usage as AssetObservations on source assets, refreshes learned item priors, and can request rebuilds."
+    },
+    "usage_sensor_interval_seconds": {
+      "type": "number",
+      "label": "Sensor Interval (s)",
+      "required": false,
+      "default": 60,
+      "description": "Sensor evaluation interval."
+    },
+    "rebuild_asset_keys": {
+      "type": "array",
+      "label": "Rebuildable Asset Keys",
+      "required": false,
+      "default": [],
+      "description": "Asset keys the sensor may re-materialize when stale reads pile up. Empty means observe only, never trigger runs."
+    },
+    "stale_reads_threshold": {
+      "type": "number",
+      "label": "Stale Reads Threshold",
+      "required": false,
+      "default": 25,
+      "description": "Receipt items served from an out-of-date data version before a rebuild is requested."
+    },
+    "score_prior_strength": {
+      "type": "number",
+      "label": "Prior Strength",
+      "required": false,
+      "default": 5.0,
+      "description": "Shrinkage for item quality priors: higher needs more outcome evidence to move a prior."
     }
   }
 }

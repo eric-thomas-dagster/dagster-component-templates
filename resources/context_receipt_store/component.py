@@ -5,7 +5,10 @@ from __future__ import annotations
 import json
 import math
 import os
+import queue
+import random
 import sqlite3
+import threading
 import time
 import uuid
 from collections.abc import Iterable, Iterator, Mapping
@@ -23,7 +26,73 @@ _ITEM_FIELDS = {
     "source_version",
     "rank",
     "score",
+    "selection",
 }
+SELECTIONS = ("ranked", "explore")
+# Outcome signals -> default value in [-1, 1]. Unknown signals need an explicit value.
+OUTCOME_SIGNALS = {
+    "thumbs_up": 1.0,
+    "thumbs_down": -1.0,
+    "accepted": 0.5,
+    "edited": -0.3,
+    "escalated": -0.7,
+    "reopened": -0.7,
+    "closed_won": 1.0,
+    "closed_lost": -0.5,
+}
+# How much a receipt's outcome is credited/blamed on an item, by strongest evidence
+# that the item was actually used. Retrieved-only is weak: it was merely in the window.
+EVIDENCE_WEIGHTS = {"retrieved": 0.5, "cited": 1.0, "verified": 1.5, "counterfactual_tested": 2.0}
+_CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
+
+
+class DuplicateReceiptError(ValueError):
+    """Raised when a caller-assigned receipt_id already exists (safe to treat as success on retry)."""
+
+
+def new_receipt_id() -> str:
+    """Time-sortable ULID, generated client-side so the hot path needs no DB round trip."""
+    value = (int(time.time() * 1000) << 80) | int.from_bytes(os.urandom(10), "big")
+    chars = []
+    for _ in range(26):
+        chars.append(_CROCKFORD[value & 31])
+        value >>= 5
+    return "".join(reversed(chars))
+
+
+def rerank(
+    candidates: Iterable[Mapping[str, Any]],
+    scores: Mapping[str, Mapping[str, Any]],
+    *,
+    top_k: int | None = None,
+    prior_weight: float = 0.2,
+    explore_fraction: float = 0.1,
+    rng: random.Random | None = None,
+) -> list[dict[str, Any]]:
+    """Reorder retrieval candidates by learned item priors, with reserved exploration.
+
+    ``candidates`` are ``{"item_id", "score", ...}``; ``scores`` is the result of
+    ``ContextReceiptStore.get_item_scores``. With probability ``explore_fraction`` one
+    candidate from outside the top ``top_k`` replaces the last slot and is marked
+    ``selection="explore"``; record that on the receipt so analysis can discount it.
+    Without exploration, top-ranked items get all the credit (rich-get-richer).
+    """
+    rng = rng or random
+    if not 0 <= explore_fraction <= 1:
+        raise ValueError("explore_fraction must be between 0 and 1")
+    adjusted = []
+    for candidate in candidates:
+        prior = (scores.get(candidate["item_id"]) or {}).get("prior") or 0.0
+        adjusted.append({**candidate, "adjusted_score": float(candidate.get("score") or 0.0) + prior_weight * prior, "selection": "ranked"})
+    adjusted.sort(key=lambda c: -c["adjusted_score"])
+    if top_k is None or top_k >= len(adjusted):
+        return adjusted
+    chosen, rest = adjusted[:top_k], adjusted[top_k:]
+    if top_k > 0 and rest and rng.random() < explore_fraction:
+        pick = dict(rng.choice(rest))
+        pick["selection"] = "explore"
+        chosen[-1] = pick
+    return chosen
 # Suggested exclusion reasons; any non-empty string is accepted.
 EXCLUSION_REASONS = ("pii", "stale", "out_of_scope", "over_budget", "policy")
 _EXCLUDED_FIELDS = {"item_id", "reason", "source_asset_key", "source_version"}
@@ -77,7 +146,16 @@ class ContextReceiptStore:
                     source_version TEXT,
                     rank INTEGER,
                     score REAL,
+                    selection TEXT NOT NULL DEFAULT 'ranked',
                     PRIMARY KEY (receipt_id, item_id, rank)
+                );
+                CREATE TABLE IF NOT EXISTS context_item_scores (
+                    item_id TEXT PRIMARY KEY,
+                    retrievals INTEGER NOT NULL,
+                    outcome_weight REAL NOT NULL,
+                    outcome_sum REAL NOT NULL,
+                    prior REAL NOT NULL,
+                    updated_at TEXT NOT NULL
                 );
                 CREATE TABLE IF NOT EXISTS context_receipt_excluded (
                     receipt_id TEXT NOT NULL REFERENCES context_receipts(receipt_id),
@@ -104,6 +182,11 @@ class ContextReceiptStore:
                     ON context_receipt_events(receipt_id, occurred_at);
                 """
             )
+            columns = {row[1] for row in conn.execute("PRAGMA table_info(context_receipt_items)")}
+            if "selection" not in columns:  # databases created before exploration tracking
+                conn.execute(
+                    "ALTER TABLE context_receipt_items ADD COLUMN selection TEXT NOT NULL DEFAULT 'ranked'"
+                )
             yield conn
             conn.commit()
         except BaseException:
@@ -152,6 +235,9 @@ class ContextReceiptStore:
             value = item.get(field_name)
             if value is not None and not isinstance(value, str):
                 raise TypeError(f"item {field_name} must be a string or None")
+        selection = item.get("selection", "ranked")
+        if selection not in SELECTIONS:
+            raise ValueError(f"item selection must be one of: {', '.join(SELECTIONS)}")
         score = item.get("score")
         if score is not None:
             if not isinstance(score, (int, float)) or isinstance(score, bool) or not math.isfinite(score):
@@ -163,6 +249,7 @@ class ContextReceiptStore:
             "source_version": item.get("source_version"),
             "rank": rank,
             "score": score,
+            "selection": selection,
         }
 
     @staticmethod
@@ -202,6 +289,7 @@ class ContextReceiptStore:
         excluded_count: int | None = None,
         dagster_asset_key: str | None = None,
         dagster_run_id: str | None = None,
+        receipt_id: str | None = None,
     ) -> str:
         """Persist a retrieval fact and return its portable receipt ID.
 
@@ -240,9 +328,16 @@ class ContextReceiptStore:
             excluded_count = len(normalized_excluded)
         elif excluded_count is not None and excluded_count < len(normalized_excluded):
             raise ValueError("excluded_count is smaller than the excluded items listed")
-        receipt_id = str(uuid.uuid4())
+        if receipt_id is None:
+            receipt_id = new_receipt_id()
+        elif not isinstance(receipt_id, str) or not receipt_id.strip():
+            raise ValueError("receipt_id must be a non-empty string")
         created_at = self._timestamp()
         with self._connect() as conn:
+            if conn.execute(
+                "SELECT 1 FROM context_receipts WHERE receipt_id = ?", (receipt_id,)
+            ).fetchone():
+                raise DuplicateReceiptError(f"receipt already exists: {receipt_id}")
             conn.execute(
                 """
                 INSERT INTO context_receipts (
@@ -269,8 +364,8 @@ class ContextReceiptStore:
             conn.executemany(
                 """
                 INSERT INTO context_receipt_items (
-                    receipt_id, item_id, source_asset_key, source_version, rank, score
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    receipt_id, item_id, source_asset_key, source_version, rank, score, selection
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 [
                     (
@@ -280,6 +375,7 @@ class ContextReceiptStore:
                         item["source_version"],
                         item["rank"],
                         item["score"],
+                        item["selection"],
                     )
                     for item in normalized_items
                 ],
@@ -373,7 +469,7 @@ class ContextReceiptStore:
                 return None
             items = conn.execute(
                 """
-                SELECT item_id, source_asset_key, source_version, rank, score
+                SELECT item_id, source_asset_key, source_version, rank, score, selection
                 FROM context_receipt_items
                 WHERE receipt_id = ?
                 ORDER BY rank, item_id
@@ -412,6 +508,179 @@ class ContextReceiptStore:
         ]
         return result
 
+    def record_outcome(
+        self,
+        receipt_id: str,
+        *,
+        signal: str,
+        value: float | None = None,
+        source: str | None = None,
+        outcome_ref: str | None = None,
+    ) -> None:
+        """Append an outcome (thumbs, human edit, escalation, deal result...) to a receipt.
+
+        ``value`` is in [-1, 1]; known signals default (see ``OUTCOME_SIGNALS``), unknown
+        ones need an explicit value. A later outcome with the same ``outcome_ref`` (for
+        example a user id flipping thumbs-up to thumbs-down) supersedes the earlier one
+        when scoring, so changing your mind is not double-counted.
+        """
+        if not isinstance(signal, str) or not signal.strip():
+            raise ValueError("signal must be a non-empty string")
+        if value is None:
+            if signal not in OUTCOME_SIGNALS:
+                raise ValueError(f"unknown signal {signal!r} requires an explicit value")
+            value = OUTCOME_SIGNALS[signal]
+        if (
+            not isinstance(value, (int, float))
+            or isinstance(value, bool)
+            or not math.isfinite(value)
+            or not -1 <= value <= 1
+        ):
+            raise ValueError("outcome value must be a finite number in [-1, 1]")
+        self._append_event(
+            receipt_id,
+            "outcome",
+            {"signal": signal, "value": float(value), "source": source, "outcome_ref": outcome_ref},
+        )
+
+    def read_since(
+        self, receipt_cursor: int = 0, event_cursor: int = 0, limit: int = 1000
+    ) -> dict[str, Any]:
+        """Cold-path tail: new receipts and new outcomes since the given cursors.
+
+        Cursors are monotonically increasing row positions, so a consumer (such as
+        the Dagster sensor) can resume exactly where it stopped. Late outcomes for
+        old receipts arrive through ``event_cursor``.
+        """
+        with self._connect() as conn:
+            receipts = conn.execute(
+                "SELECT rowid AS pos, * FROM context_receipts WHERE rowid > ? ORDER BY rowid LIMIT ?",
+                (receipt_cursor, limit),
+            ).fetchall()
+            ids = [r["receipt_id"] for r in receipts]
+            marks = ",".join("?" * len(ids))
+            items = conn.execute(
+                f"SELECT * FROM context_receipt_items WHERE receipt_id IN ({marks})", ids
+            ).fetchall() if ids else []
+            excluded = conn.execute(
+                f"SELECT * FROM context_receipt_excluded WHERE receipt_id IN ({marks})", ids
+            ).fetchall() if ids else []
+            events = conn.execute(
+                """
+                SELECT rowid AS pos, receipt_id, payload_json FROM context_receipt_events
+                WHERE event_type = 'outcome' AND rowid > ? ORDER BY rowid LIMIT ?
+                """,
+                (event_cursor, limit),
+            ).fetchall()
+            outcome_assets: dict[str, list[str]] = {}
+            if events:
+                oids = sorted({e["receipt_id"] for e in events})
+                omarks = ",".join("?" * len(oids))
+                for row in conn.execute(
+                    f"SELECT DISTINCT receipt_id, source_asset_key FROM context_receipt_items "
+                    f"WHERE receipt_id IN ({omarks}) AND source_asset_key IS NOT NULL",
+                    oids,
+                ):
+                    outcome_assets.setdefault(row["receipt_id"], []).append(row["source_asset_key"])
+        by_receipt: dict[str, dict[str, Any]] = {}
+        for row in receipts:
+            record = {k: row[k] for k in row.keys() if k != "pos"}
+            record["items"], record["excluded"] = [], []
+            by_receipt[row["receipt_id"]] = record
+        for row in items:
+            by_receipt[row["receipt_id"]]["items"].append(dict(row))
+        for row in excluded:
+            by_receipt[row["receipt_id"]]["excluded"].append(dict(row))
+        outcomes = []
+        for row in events:
+            payload = json.loads(row["payload_json"])
+            payload["receipt_id"] = row["receipt_id"]
+            payload["source_asset_keys"] = outcome_assets.get(row["receipt_id"], [])
+            outcomes.append(payload)
+        return {
+            "receipts": [by_receipt[r["receipt_id"]] for r in receipts],
+            "outcomes": outcomes,
+            "receipt_cursor": receipts[-1]["pos"] if receipts else receipt_cursor,
+            "event_cursor": events[-1]["pos"] if events else event_cursor,
+        }
+
+    def refresh_item_scores(self, prior_strength: float = 5.0) -> int:
+        """Recompute per-item quality priors from receipts + outcomes; returns items scored.
+
+        For each receipt the effective outcome is the mean of its outcomes (a later
+        outcome with the same ``outcome_ref`` replaces the earlier). Every retrieved
+        item is credited/blamed with that outcome weighted by the strongest evidence
+        that *it* was used: evidence events may name ``details.item_ids``; unscoped
+        evidence applies to all items. ``prior = sum(w*outcome) / (sum(w) + prior_strength)``
+        shrinks toward 0 until there is enough evidence. Items retrieved only via
+        ``selection="explore"`` are still scored; exploration is what lets them be seen.
+        """
+        if prior_strength < 0:
+            raise ValueError("prior_strength must be >= 0")
+        with self._connect() as conn:
+            items = conn.execute("SELECT receipt_id, item_id FROM context_receipt_items").fetchall()
+            events = conn.execute(
+                """
+                SELECT receipt_id, event_type, payload_json FROM context_receipt_events
+                WHERE event_type IN ('outcome', 'evidence') ORDER BY rowid
+                """
+            ).fetchall()
+        outcomes: dict[str, dict[str, float]] = {}
+        evidence: dict[str, list[tuple[float, set[str] | None]]] = {}
+        for row in events:
+            payload = json.loads(row["payload_json"])
+            if row["event_type"] == "outcome":
+                key = payload.get("outcome_ref") or f"anon-{len(outcomes.get(row['receipt_id'], {}))}"
+                outcomes.setdefault(row["receipt_id"], {})[key] = payload["value"]
+            else:
+                ids = payload["details"].get("item_ids")
+                evidence.setdefault(row["receipt_id"], []).append(
+                    (EVIDENCE_WEIGHTS[payload["level"]], set(ids) if isinstance(ids, list) else None)
+                )
+        stats: dict[str, list[float]] = {}  # item -> [retrievals, weight, weighted_sum]
+        for row in items:
+            entry = stats.setdefault(row["item_id"], [0, 0.0, 0.0])
+            entry[0] += 1
+            values = outcomes.get(row["receipt_id"])
+            if not values:
+                continue
+            weight = max(
+                [EVIDENCE_WEIGHTS["retrieved"]]
+                + [w for w, ids in evidence.get(row["receipt_id"], []) if ids is None or row["item_id"] in ids]
+            )
+            entry[1] += weight
+            entry[2] += weight * (sum(values.values()) / len(values))
+        now = self._timestamp()
+        with self._connect() as conn:
+            conn.executemany(
+                """
+                INSERT INTO context_item_scores
+                    (item_id, retrievals, outcome_weight, outcome_sum, prior, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(item_id) DO UPDATE SET
+                    retrievals = excluded.retrievals, outcome_weight = excluded.outcome_weight,
+                    outcome_sum = excluded.outcome_sum, prior = excluded.prior,
+                    updated_at = excluded.updated_at
+                """,
+                [
+                    (item, int(n), w, total, total / (w + prior_strength) if (w + prior_strength) else 0.0, now)
+                    for item, (n, w, total) in stats.items()
+                ],
+            )
+        return len(stats)
+
+    def get_item_scores(self, item_ids: Iterable[str]) -> dict[str, dict[str, Any]]:
+        """Read learned priors for ``rerank``; unknown items are simply absent."""
+        ids = list(item_ids)
+        if not ids:
+            return {}
+        with self._connect() as conn:
+            rows = conn.execute(
+                f"SELECT * FROM context_item_scores WHERE item_id IN ({','.join('?' * len(ids))})",
+                ids,
+            ).fetchall()
+        return {row["item_id"]: dict(row) for row in rows}
+
     def find_by_item(self, item_id: str) -> list[str]:
         """Return receipt IDs that retrieved a particular stable item ID."""
         with self._connect() as conn:
@@ -437,6 +706,180 @@ class ContextReceiptStore:
         return [row["receipt_id"] for row in rows]
 
 
+class AsyncReceiptWriter:
+    """Fire-and-forget receipt writes so the agent never waits on the store.
+
+    Receipt IDs are assigned up front, so ``record_retrieval`` returns instantly and
+    later ``attach_output`` / ``record_outcome`` calls can reference it before the
+    row is durable. A single worker applies operations in order with bounded retries;
+    operations that still fail land in ``dead_letters`` for inspection/replay. This is
+    in-process and not crash-safe: use a durable outbox/queue when losing receipts on
+    process death is unacceptable.
+    """
+
+    _OPS = ("record_retrieval", "attach_output", "add_evidence", "record_outcome")
+
+    def __init__(self, store: ContextReceiptStore, *, max_retries: int = 5, backoff_seconds: float = 0.1):
+        self.store = store
+        self.max_retries = max_retries
+        self.backoff_seconds = backoff_seconds
+        self.dead_letters: list[tuple[str, tuple, dict, BaseException]] = []
+        self._queue: queue.Queue = queue.Queue()
+        self._worker = threading.Thread(target=self._run, daemon=True)
+        self._worker.start()
+
+    def record_retrieval(self, **kwargs: Any) -> str:
+        kwargs["receipt_id"] = kwargs.get("receipt_id") or new_receipt_id()
+        self._queue.put(("record_retrieval", (), kwargs))
+        return kwargs["receipt_id"]
+
+    def attach_output(self, *args: Any, **kwargs: Any) -> None:
+        self._queue.put(("attach_output", args, kwargs))
+
+    def add_evidence(self, *args: Any, **kwargs: Any) -> None:
+        self._queue.put(("add_evidence", args, kwargs))
+
+    def record_outcome(self, *args: Any, **kwargs: Any) -> None:
+        self._queue.put(("record_outcome", args, kwargs))
+
+    def flush(self) -> None:
+        """Block until everything queued so far has been written or dead-lettered."""
+        self._queue.join()
+
+    def _run(self) -> None:
+        while True:
+            op, args, kwargs = self._queue.get()
+            try:
+                self._apply(op, args, kwargs)
+            finally:
+                self._queue.task_done()
+
+    def _apply(self, op: str, args: tuple, kwargs: dict) -> None:
+        for attempt in range(self.max_retries + 1):
+            try:
+                getattr(self.store, op)(*args, **kwargs)
+                return
+            except DuplicateReceiptError:
+                return  # an earlier attempt actually committed
+            except (ValueError, TypeError, KeyError) as exc:
+                self.dead_letters.append((op, args, kwargs, exc))  # will never succeed on retry
+                return
+            except Exception as exc:  # transient storage error
+                if attempt == self.max_retries:
+                    self.dead_letters.append((op, args, kwargs, exc))
+                    return
+                time.sleep(self.backoff_seconds * (2**attempt))
+
+
+def _current_data_version(instance: Any, asset_key: dg.AssetKey) -> str | None:
+    """Latest materialization's data version, or None when unknown (staleness then not judged)."""
+    record = instance.get_latest_data_version_record(asset_key)
+    materialization = getattr(record, "asset_materialization", None) if record else None
+    if materialization is None:
+        return None
+    return (materialization.tags or {}).get("dagster/data_version")
+
+
+def build_usage_sensor(
+    store: ContextReceiptStore,
+    *,
+    name: str,
+    interval_seconds: int,
+    rebuild_asset_keys: list[str],
+    stale_reads_threshold: int,
+    prior_strength: float,
+) -> dg.SensorDefinition:
+    """Cold-path sensor: tail receipts, report aggregated usage, learn priors, request rebuilds.
+
+    Emits one AssetObservation per source asset per tick (aggregated, never one event
+    per receipt). ``source_version`` on receipt items is compared with the asset's latest
+    ``dagster/data_version``; reads of an older version are *stale reads*. Only assets
+    listed in ``rebuild_asset_keys`` can be re-materialized by this sensor.
+    """
+    rebuild_keys = [dg.AssetKey.from_user_string(k) for k in rebuild_asset_keys]
+
+    @dg.sensor(
+        name=name,
+        minimum_interval_seconds=interval_seconds,
+        asset_selection=dg.AssetSelection.assets(*rebuild_keys) if rebuild_keys else None,
+        description="Aggregates context receipts onto assets, refreshes item priors, requests rebuilds.",
+    )
+    def context_receipt_usage_sensor(context: dg.SensorEvaluationContext):
+        state = json.loads(context.cursor) if context.cursor else {}
+        data = store.read_since(state.get("r", 0), state.get("e", 0))
+        if not data["receipts"] and not data["outcomes"]:
+            return dg.SkipReason("no new receipts or outcomes")
+
+        usage: dict[str, dict[str, Any]] = {}
+
+        def bucket(key: str) -> dict[str, Any]:
+            return usage.setdefault(
+                key,
+                {"retrievals": 0, "receipts": set(), "explored": 0, "excluded": {}, "stale": 0,
+                 "outcomes": 0, "outcome_sum": 0.0, "versions": {}},
+            )
+
+        current: dict[str, str | None] = {}
+        for receipt in data["receipts"]:
+            for item in receipt["items"]:
+                key = item["source_asset_key"]
+                if not key:
+                    continue
+                if key not in current:
+                    current[key] = _current_data_version(context.instance, dg.AssetKey.from_user_string(key))
+                b = bucket(key)
+                b["retrievals"] += 1
+                b["receipts"].add(receipt["receipt_id"])
+                b["explored"] += item["selection"] == "explore"
+                version = item["source_version"]
+                if current[key] is not None and version is not None and version != current[key]:
+                    b["stale"] += 1
+            for item in receipt["excluded"]:
+                if item["source_asset_key"]:
+                    reasons = bucket(item["source_asset_key"])["excluded"]
+                    reasons[item["reason"]] = reasons.get(item["reason"], 0) + 1
+        for outcome in data["outcomes"]:
+            for key in outcome["source_asset_keys"]:
+                b = bucket(key)
+                b["outcomes"] += 1
+                b["outcome_sum"] += outcome["value"]
+
+        stale_state = state.get("stale", {})
+        events, run_requests = [], []
+        for key, b in sorted(usage.items()):
+            version = current.get(key)
+            prior = stale_state.get(key, {})
+            running = (prior.get("n", 0) if prior.get("v") == version else 0) + b["stale"]
+            stale_state[key] = {"v": version, "n": running}
+            metadata: dict[str, Any] = {
+                "context_receipts/retrievals": b["retrievals"],
+                "context_receipts/receipts": len(b["receipts"]),
+                "context_receipts/explored": b["explored"],
+                "context_receipts/stale_reads": b["stale"],
+                "context_receipts/stale_reads_since_refresh": running,
+                "context_receipts/excluded_by_reason": b["excluded"],
+                "context_receipts/outcomes": b["outcomes"],
+            }
+            if b["outcomes"]:
+                metadata["context_receipts/mean_outcome"] = round(b["outcome_sum"] / b["outcomes"], 4)
+            if version is not None:
+                metadata["context_receipts/current_data_version"] = version
+            events.append(dg.AssetObservation(asset_key=dg.AssetKey.from_user_string(key), metadata=metadata))
+            asset_key = dg.AssetKey.from_user_string(key)
+            if asset_key in rebuild_keys and running >= stale_reads_threshold:
+                run_requests.append(
+                    dg.RunRequest(run_key=f"context-rebuild:{key}:{version}", asset_selection=[asset_key])
+                )
+
+        store.refresh_item_scores(prior_strength)
+        cursor = json.dumps(
+            {"r": data["receipt_cursor"], "e": data["event_cursor"], "stale": stale_state}, sort_keys=True
+        )
+        return dg.SensorResult(asset_events=events, run_requests=run_requests, cursor=cursor)
+
+    return context_receipt_usage_sensor
+
+
 class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a context receipt store for assets and agent gateways."""
 
@@ -452,8 +895,45 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
 
+    usage_sensor_enabled: bool = Field(
+        default=False,
+        description=(
+            "Add a sensor that tails receipts, reports aggregated usage as AssetObservations on "
+            "the source assets, refreshes learned item priors, and can request rebuilds."
+        ),
+    )
+    usage_sensor_interval_seconds: int = Field(default=60, description="Sensor evaluation interval.")
+    rebuild_asset_keys: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Asset keys (e.g. 'support/tickets') the sensor may re-materialize when stale reads "
+            "pile up. Empty means observe only, never trigger runs."
+        ),
+    )
+    stale_reads_threshold: int = Field(
+        default=25,
+        description="Receipt items served from an out-of-date data version before a rebuild is requested.",
+    )
+    score_prior_strength: float = Field(
+        default=5.0,
+        description="Shrinkage for item quality priors: higher needs more outcome evidence to move a prior.",
+    )
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         store = ContextReceiptStore(os.path.expanduser(self.database_path))
+        sensors = []
+        if self.usage_sensor_enabled:
+            sensors.append(
+                build_usage_sensor(
+                    store,
+                    name=f"{self.resource_key}_usage_sensor",
+                    interval_seconds=self.usage_sensor_interval_seconds,
+                    rebuild_asset_keys=self.rebuild_asset_keys,
+                    stale_reads_threshold=self.stale_reads_threshold,
+                    prior_strength=self.score_prior_strength,
+                )
+            )
         return dg.Definitions(
-            resources={self.resource_key: dg.ResourceDefinition.hardcoded_resource(store)}
+            resources={self.resource_key: dg.ResourceDefinition.hardcoded_resource(store)},
+            sensors=sensors,
         )

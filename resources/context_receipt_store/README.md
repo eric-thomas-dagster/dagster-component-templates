@@ -102,6 +102,50 @@ Both run against stock FastMCP (tested with 4.1.0); no fork is needed. They impo
   a `Middleware` that receipts any tool returning a `_receipt` dict, so tools
   stay receipt-agnostic.
 
+## Close the loop: outcomes → scores → better context
+
+Gateway writes receipts; Dagster reads them. Dagster is never in the agent's request path.
+
+**Hot path (gateway, no Dagster):** `new_receipt_id()` assigns a time-sortable ID
+client-side; `AsyncReceiptWriter` queues writes with retries so the agent never waits
+on the store (failures land in `dead_letters`; it is in-process, so use a durable
+outbox if losing receipts on process death is unacceptable).
+
+```python
+writer = AsyncReceiptWriter(ContextReceiptStore("./receipts.sqlite3"))
+receipt_id = writer.record_retrieval(context_name="support", items=[...], excluded=[...])
+writer.attach_output(receipt_id, output_id="a1", model="m", output_hash="...")
+writer.record_outcome(receipt_id, signal="thumbs_down", outcome_ref="user-42")
+```
+
+**Outcomes:** `record_outcome` takes `thumbs_up`, `thumbs_down`, `accepted`, `edited`,
+`escalated`, `reopened`, `closed_won`, `closed_lost` (or any signal with an explicit
+value in [-1, 1]). A later outcome with the same `outcome_ref` supersedes the earlier
+one, so a flipped thumb isn't double-counted. Outcomes can arrive weeks later.
+
+**Scoring:** `refresh_item_scores()` credits/blames each retrieved item with the
+receipt's outcome, weighted by the strongest evidence it was actually used
+(retrieved 0.5 < cited 1.0 < verified 1.5 < counterfactual 2.0; evidence may name
+`details.item_ids` so blame lands on the chunk that was relied on), shrunk toward 0
+until there is enough evidence. `get_item_scores()` + `rerank_with_priors()` let the
+gateway use the priors, and `rerank_with_priors(..., explore_fraction=0.1)` reserves
+a slice of traffic for exploration (recorded as `selection="explore"` on the
+receipt) so early winners don't lock in.
+
+**Dagster sensor** (`usage_sensor_enabled: true`): tails receipts and outcomes by cursor,
+emits **one aggregated `AssetObservation` per source asset per tick** (retrievals,
+exclusions by reason, stale reads, outcome counts, mean outcome), refreshes the item
+priors, and, only for assets listed in `rebuild_asset_keys`, requests a rebuild once
+`stale_reads_threshold` receipt items were served from an out-of-date version.
+"Out of date" means the receipt's `source_version` differs from the asset's latest
+`dagster/data_version`, so the gateway should stamp `source_version` with that value
+(assets without a data version are never judged stale).
+
+This is a feedback loop that optimizes the context layer with the model held fixed,
+not reinforcement learning. Limits: priors are only as good as the outcome signal;
+credit is per item (not a causal estimate); no inverse-propensity correction for
+exploration yet; scoring recomputes from scratch each tick (fine for prototype scale).
+
 ## Look up impact
 
 ```python

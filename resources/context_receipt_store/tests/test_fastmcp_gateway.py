@@ -24,6 +24,8 @@ def test_gateway_receipts_retrieval_exclusions_and_output(tmp_path, monkeypatch)
     # The example imports the public package path; alias it to the local file.
     pkg = type(sys)("dagster_community_components")
     pkg.ContextReceiptStore = store_mod.ContextReceiptStore
+    pkg.AsyncReceiptWriter = store_mod.AsyncReceiptWriter
+    pkg.rerank_with_priors = store_mod.rerank
     monkeypatch.setitem(sys.modules, "dagster_community_components", pkg)
     gw = _load("ctx_gateway_example", root / "examples" / "fastmcp_gateway.py")
     store = store_mod.ContextReceiptStore(str(tmp_path / "gw.sqlite3"))
@@ -36,15 +38,18 @@ def test_gateway_receipts_retrieval_exclusions_and_output(tmp_path, monkeypatch)
             await client.call_tool("attach_output", {
                 "receipt_id": res["receipt_id"], "output_id": "out-1",
                 "model": "m", "output_text": "answer"})
+            await client.call_tool("record_feedback", {
+                "receipt_id": res["receipt_id"], "signal": "thumbs_down", "user_id": "u1"})
+            await client.call_tool("explain", {"receipt_id": res["receipt_id"]})  # flushes writer
             return res
 
     res = asyncio.run(run())
-    assert [c["id"] for c in res["chunks"]] == ["tkt-1:0"]
+    assert [c["id"] for c in res["chunks"]] == ["tkt-1:0", "tkt-4:0"]
     receipt = store.get_receipt(res["receipt_id"])
     reasons = {e["item_id"]: e["reason"] for e in receipt["excluded"]}
     assert reasons == {"tkt-2:0": "pii", "tkt-3:0": "stale", "tkt-9:0": "out_of_scope"}
-    assert receipt["eligible_count"] == 4 and receipt["excluded_count"] == 3
-    assert [e["event_type"] for e in receipt["events"]] == ["output_attached"]
+    assert receipt["eligible_count"] == 5 and receipt["excluded_count"] == 3
+    assert [e["event_type"] for e in receipt["events"]] == ["output_attached", "outcome"]
     assert "answer" not in str(receipt)
     assert store.find_by_source_asset("support_tickets") == [res["receipt_id"]]
 
@@ -83,3 +88,36 @@ def test_middleware_receipts_opted_in_tools_only(tmp_path, monkeypatch):
     receipt = store.get_receipt(got["receipt_id"])
     assert receipt["caller_id"] == "agent" and receipt["excluded"][0]["reason"] == "pii"
     assert plain == {"v": 1}
+
+
+def test_outcomes_reorder_future_retrievals_closed_loop(tmp_path, monkeypatch):
+    """thumbs-down on answers built from tkt-1 -> scores -> gateway ranks tkt-4 first next time."""
+    root = Path(__file__).parents[1]
+    store_mod = _load("ctx_store_component3", root / "component.py")
+    pkg = type(sys)("dagster_community_components")
+    pkg.ContextReceiptStore = store_mod.ContextReceiptStore
+    pkg.AsyncReceiptWriter = store_mod.AsyncReceiptWriter
+    pkg.rerank_with_priors = store_mod.rerank
+    monkeypatch.setitem(sys.modules, "dagster_community_components", pkg)
+    gw = _load("ctx_gateway_example3", root / "examples" / "fastmcp_gateway.py")
+    store = store_mod.ContextReceiptStore(str(tmp_path / "loop.sqlite3"))
+    app = gw.build_gateway(store, explore_fraction=0)
+    args = {"query": "renewal blockers", "account": "acme", "caller_id": "a", "purpose": "p"}
+
+    async def run():
+        async with Client(app) as client:
+            first = (await client.call_tool("search_context", args)).data
+            for n in range(3):
+                r = (await client.call_tool("search_context", args)).data
+                await client.call_tool("record_feedback", {
+                    "receipt_id": r["receipt_id"], "signal": "thumbs_down", "user_id": f"u{n}"})
+                # a verifier found only tkt-1 was actually relied on in these bad answers
+                await client.call_tool("explain", {"receipt_id": r["receipt_id"]})  # flush
+                store.add_evidence(r["receipt_id"], level="verified", details={"item_ids": ["tkt-1:0"]})
+            store.refresh_item_scores(prior_strength=1)  # what Dagster's sensor does each tick
+            second = (await client.call_tool("search_context", args)).data
+            return first, second
+
+    first, second = asyncio.run(run())
+    assert [c["id"] for c in first["chunks"]] == ["tkt-1:0", "tkt-4:0"]  # tie on keywords, no priors yet
+    assert [c["id"] for c in second["chunks"]] == ["tkt-4:0", "tkt-1:0"]  # blamed chunk demoted

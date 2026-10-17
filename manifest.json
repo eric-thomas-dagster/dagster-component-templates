@@ -10761,7 +10761,7 @@
       "id": "context_receipt_store",
       "name": "Context Receipt Store",
       "category": "resource",
-      "description": "Append-only SQLite prototype store for context retrieval receipts, output references, and source-impact lookups. Exposes a standalone Python API for FastMCP gateways and Prefect flows without writing online receipts to Dagster's event log.",
+      "description": "Context receipts with a closed feedback loop: gateway-written retrieval receipts (retrieved + excluded-with-reason), outcomes (thumbs/edits/escalations), learned item priors with exploration, an async hot-path writer, and an optional Dagster sensor that reports aggregated usage, flags stale reads and can request rebuilds.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "resources/context_receipt_store",
@@ -10784,7 +10784,7 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-10-16",
-        "notes": "SQLite persistence, receipt/output event round-trips, source-impact lookup, input validation, and Dagster resource registration tested locally."
+        "notes": "Receipts, excluded items, outcomes, evidence-weighted scoring, rerank/exploration, async writer, and the usage sensor (real DagsterInstance, data-version staleness, cursor resume, rebuild gating) tested locally; FastMCP gateway and middleware tested against FastMCP 4.1.0."
       },
       "produces": [
         "resource"

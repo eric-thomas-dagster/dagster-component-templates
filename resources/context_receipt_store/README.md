@@ -357,6 +357,8 @@ impact analysis; it does not yet query Dagster's asset graph automatically.
 
 ## Verify your backend
 
+Without Dagster, from a checkout of this repo, run `python3 tools/verify_receipts_backend.py bigquery --dataset my-project.context --prefix verify_` (or `sql --url-env RECEIPTS_URL --schema ...`, or `sqlite --path ...`). It runs the same self-test, prints a PASS/FAIL line per step and exits non-zero on any failure -- a one-command check against your own warehouse.
+
 Pointed this at a real Snowflake, BigQuery or Postgres? Check it in one step:
 
 ```yaml

@@ -6,8 +6,8 @@ import dagster as dg
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent))
-from backends import KINDS, all_cells, load_module, make_store, row_counts  # noqa: E402
-from test_bigquery_backend import item, scenario  # noqa: E402
+from .backends import KINDS, all_cells, load_module, make_store, row_counts  # noqa: E402
+from .test_bigquery_backend import item, scenario  # noqa: E402
 
 
 @pytest.fixture()

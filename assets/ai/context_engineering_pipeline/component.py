@@ -61,6 +61,8 @@ tooling should be cheap to validate, not another paid call per test.
 import ast
 import contextlib
 import hashlib
+import inspect
+import weakref
 import json
 import re
 import uuid
@@ -89,6 +91,47 @@ from dagster import (
     asset,
 )
 from pydantic import Field
+
+
+# --- _vendor_client_session: begin (identical in every component that takes a vendor-client resource; drift-tested) ---
+_GENERATOR_CLIENTS: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()   # generator -> the client it yielded
+
+
+@contextlib.contextmanager
+def _vendor_client_session(obj):
+    """Yield a vendor client (BigQuery-style: .query / .execute_query) from whatever Dagster hands the asset for a resource key. With
+    required_resource_keys, dagster-gcp's BigQueryResource (an IAttachDifferentObjectToOpContext) arrives as a bare GENERATOR that yields the
+    client; injected as a parameter it is the resource whose .get_client() is a @contextmanager; a plain client is used as is.
+
+    A bare generator is ONE shared object (context.resources hands every caller in the step the same one) and can only be advanced once, so the
+    client it yielded is remembered for the later calls and the generator is left to Dagster / the garbage collector: closing it after the
+    first use would make the second use in the same step raise StopIteration. Its `with` exit (credential teardown) runs when it is collected."""
+    def _is_client(o):
+        return hasattr(o, "query") or hasattr(o, "execute_query")
+
+    def _client_of(gen):
+        if gen not in _GENERATOR_CLIENTS:
+            _GENERATOR_CLIENTS[gen] = next(gen)
+        return _GENERATOR_CLIENTS[gen]
+
+    if inspect.isgenerator(obj):
+        yield _client_of(obj)
+        return
+    if hasattr(obj, "get_client"):
+        made = obj.get_client()
+        if inspect.isgenerator(made):
+            try:
+                yield next(made)
+            finally:
+                made.close()        # our own generator: runs its `with` exit / credential teardown
+        elif not _is_client(made) and hasattr(made, "__enter__"):
+            with made as client:
+                yield client
+        else:
+            yield made
+        return
+    yield obj
+# --- _vendor_client_session: end ---
 
 
 def _read_with_client(client, sql: str, resource_key: str) -> "pd.DataFrame":
@@ -139,15 +182,10 @@ def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
             # fails with AttributeError. Must be entered via `with`.
             with resource.get_connection() as conn:
                 return pd.read_sql(sql, conn)
-        if hasattr(resource, "get_client"):
-            # "get_client" means something different per vendor -- there's no universal calling convention, so dispatch on the
-            # CLIENT's own shape rather than assume one. dagster_gcp's BigQueryResource.get_client() is a @contextmanager (checked
-            # against the real library): calling it without `with` hands back a _GeneratorContextManager that has no .query. A bare
-            # vendor client (already has .query/.execute_query) is used as is.
-            made = resource.get_client()
-            if hasattr(made, "query") or hasattr(made, "execute_query") or not hasattr(made, "__enter__"):
-                return _read_with_client(made, sql, resource_key)
-            with made as client:
+        if inspect.isgenerator(resource) or hasattr(resource, "get_client") or hasattr(resource, "query") or hasattr(resource, "execute_query"):
+            # a vendor client: dagster_gcp's BigQueryResource arrives as a bare generator (required_resource_keys) or as the resource
+            # whose get_client() is a @contextmanager (parameter injection); _vendor_client_session handles both, and a bare client.
+            with _vendor_client_session(resource) as client:
                 return _read_with_client(client, sql, resource_key)
         raise ValueError(
             f"resource {resource_key!r} must expose .get_engine() (SQLAlchemy), "
@@ -2374,8 +2412,8 @@ def _sql_session(resource, resource_key: str):
                 cur.execute(s)
                 return cur
             yield _SqlSession(run, lambda s: list(run(s).fetchall()))
-    elif hasattr(resource, "get_client"):
-        with resource.get_client() as client:
+    elif inspect.isgenerator(resource) or hasattr(resource, "get_client") or hasattr(resource, "query"):
+        with _vendor_client_session(resource) as client:
             yield _SqlSession(lambda s: client.query(s).result(), lambda s: list(client.query(s).result()))
     else:
         raise ValueError(f"resource {resource_key!r} must expose .get_engine(), .get_connection() or .get_client() (BigQuery).")

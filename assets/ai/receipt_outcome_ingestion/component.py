@@ -16,11 +16,17 @@ Design points
 """
 
 import csv
+import contextlib
+import email.utils
 import glob as _glob
 import hashlib
+import inspect
+import weakref
+import http.client
 import json
 import math
 import os
+import random
 import time
 import urllib.error
 import urllib.parse
@@ -119,13 +125,15 @@ def _norm_key(v: Any) -> str:
     """Normalize a raw cell / map key so 5, 5.0, '5' and ' Good ' vs 'good' all match."""
     if isinstance(v, bool):
         return str(v).lower()
-    if isinstance(v, (int, float)) and not isinstance(v, bool):
-        return str(int(v)) if float(v).is_integer() else str(v)
+    if isinstance(v, int):
+        return str(v)       # exact, and float(10**400) would raise OverflowError
+    if isinstance(v, float):
+        return str(int(v)) if math.isfinite(v) and v.is_integer() else str(v)
     s = str(v).strip().lower()
     try:
         f = float(s)
-        return str(int(f)) if f.is_integer() else s
-    except ValueError:
+        return str(int(f)) if math.isfinite(f) and f.is_integer() else s
+    except (ValueError, OverflowError):
         return s
 
 
@@ -166,31 +174,159 @@ def _dotted(obj: Any, path: str) -> Any:
     return cur
 
 
+# ── transient-failure retry (inlined per component; keep self-contained) ────────────────────────────────────────────
+
+RETRYABLE_HTTP = (429, 500, 502, 503, 504)
+_BACKOFF_BASE_SECONDS = 0.5
+_sleep = time.sleep          # tests replace these two for deterministic, instant backoff
+_rng = random.Random()
+
+
+def _jitter_delay(attempt: int, max_backoff: float) -> float:
+    """Exponential backoff with FULL jitter: uniform(0, min(max_backoff, base * 2**attempt)); ``attempt`` is 0 after the first failure."""
+    return _rng.uniform(0.0, min(float(max_backoff), _BACKOFF_BASE_SECONDS * (2 ** attempt)))
+
+
+def _parse_retry_after(value: Optional[str], now: Optional[datetime] = None) -> Optional[float]:
+    """``Retry-After``: delta-seconds or an HTTP-date -> seconds to wait (>= 0); None when absent/unparseable."""
+    if value is None or not str(value).strip():
+        return None
+    v = str(value).strip()
+    try:
+        secs = float(v)
+        return max(0.0, secs) if math.isfinite(secs) else None
+    except ValueError:
+        pass
+    try:
+        when = email.utils.parsedate_to_datetime(v)
+    except (TypeError, ValueError):
+        return None
+    if when is None:
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    return max(0.0, (when - (now or datetime.now(timezone.utc))).total_seconds())
+
+
+class _Transient(Exception):
+    """Raised by an attempt to say 'retry me'; carries the server's Retry-After seconds (if any) and a safe, secret-free description."""
+
+    def __init__(self, what: str, retry_after: Optional[float] = None):
+        super().__init__(what)
+        self.what, self.retry_after = what, retry_after
+
+
+def _retrying(attempt_fn, *, max_attempts: int, max_backoff: float, describe: str):
+    """Call ``attempt_fn()`` up to ``max_attempts`` times, sleeping (full-jitter backoff, or Retry-After capped at ``max_backoff``) between
+    tries when it raises _Transient. Anything else propagates immediately. Final failure: ValueError naming the attempt count."""
+    last: Optional[_Transient] = None
+    for n in range(max_attempts):
+        try:
+            return attempt_fn()
+        except _Transient as exc:
+            last = exc
+            if n + 1 >= max_attempts:
+                break
+            delay = min(exc.retry_after, float(max_backoff)) if exc.retry_after is not None else _jitter_delay(n, max_backoff)
+            _sleep(delay)
+    raise ValueError(f"{describe} failed after {max_attempts} attempt(s): {last.what}") from None
+
+
+_SQL_TRANSIENT_NAMES = {"OperationalError", "InterfaceError", "DisconnectionError", "ConnectionError", "ConnectionException",
+                        "ConnectionResetError", "TimeoutError", "ReadTimeout", "ConnectTimeout"}
+
+
+def _is_transient_sql_error(exc: BaseException) -> bool:
+    """Connection-level failures only (by class name / OSError, so no driver import): a bad query (syntax, missing table/column) is not retried."""
+    for e in (exc, getattr(exc, "orig", None), exc.__cause__):
+        if e is None:
+            continue
+        if isinstance(e, OSError) or type(e).__name__ in _SQL_TRANSIENT_NAMES:
+            return True
+    return False
+
+
 # ── sources ──────────────────────────────────────────────────────────────────────────────────────────────────────
 
-def _read_sql(cfg: Dict[str, Any], since: str, context) -> List[Dict[str, Any]]:
+# --- _vendor_client_session: begin (identical in every component that takes a vendor-client resource; drift-tested) ---
+_GENERATOR_CLIENTS: "weakref.WeakKeyDictionary" = weakref.WeakKeyDictionary()   # generator -> the client it yielded
+
+
+@contextlib.contextmanager
+def _vendor_client_session(obj):
+    """Yield a vendor client (BigQuery-style: .query / .execute_query) from whatever Dagster hands the asset for a resource key. With
+    required_resource_keys, dagster-gcp's BigQueryResource (an IAttachDifferentObjectToOpContext) arrives as a bare GENERATOR that yields the
+    client; injected as a parameter it is the resource whose .get_client() is a @contextmanager; a plain client is used as is.
+
+    A bare generator is ONE shared object (context.resources hands every caller in the step the same one) and can only be advanced once, so the
+    client it yielded is remembered for the later calls and the generator is left to Dagster / the garbage collector: closing it after the
+    first use would make the second use in the same step raise StopIteration. Its `with` exit (credential teardown) runs when it is collected."""
+    def _is_client(o):
+        return hasattr(o, "query") or hasattr(o, "execute_query")
+
+    def _client_of(gen):
+        if gen not in _GENERATOR_CLIENTS:
+            _GENERATOR_CLIENTS[gen] = next(gen)
+        return _GENERATOR_CLIENTS[gen]
+
+    if inspect.isgenerator(obj):
+        yield _client_of(obj)
+        return
+    if hasattr(obj, "get_client"):
+        made = obj.get_client()
+        if inspect.isgenerator(made):
+            try:
+                yield next(made)
+            finally:
+                made.close()        # our own generator: runs its `with` exit / credential teardown
+        elif not _is_client(made) and hasattr(made, "__enter__"):
+            with made as client:
+                yield client
+        else:
+            yield made
+        return
+    yield obj
+# --- _vendor_client_session: end ---
+
+
+def _read_sql(cfg: Dict[str, Any], since: str, context, retry: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """Run ``query`` (``{since}`` bound as an escaped string literal) through a Dagster resource exposing get_engine() (SQLAlchemy),
     get_connection() (DB-API context manager: DuckDB/Postgres/Snowflake) or get_client() (BigQuery-style .query().to_dataframe())."""
-    import pandas as pd
-
     sql = cfg["query"].replace("{since}", _sql_literal(since))
     resource = getattr(context.resources, cfg["resource_key"])
+    retry = retry or {"max_attempts": 1, "max_backoff": 0}
+
+    def attempt() -> "pd.DataFrame":
+        try:
+            return _run_sql(resource, sql, cfg)
+        except Exception as exc:  # noqa: BLE001
+            if _is_transient_sql_error(exc):
+                raise _Transient(type(exc).__name__) from exc
+            raise
+
+    # a read-only SELECT is safe to re-run; connection blips get at most 3 tries however high retry_max_attempts is
+    df = _retrying(attempt, max_attempts=min(3, retry["max_attempts"]), max_backoff=retry["max_backoff"], describe="sql source query")
+    df = df.astype(object).where(df.notna(), None)
+    return df.to_dict("records")
+
+
+def _run_sql(resource: Any, sql: str, cfg: Dict[str, Any]):
+    import pandas as pd
+
     if hasattr(resource, "get_engine"):
-        df = pd.read_sql(sql, resource.get_engine())
+        return pd.read_sql(sql, resource.get_engine())
     elif hasattr(resource, "get_connection"):
         with resource.get_connection() as conn:  # a @contextmanager (dagster_duckdb.DuckDBResource): must be entered
-            df = pd.read_sql(sql, conn)
-    elif hasattr(resource, "get_client"):
-        client = resource.get_client()
-        if not hasattr(client, "query"):
-            raise ValueError(f"resource {cfg['resource_key']!r}: get_client() returned {type(client).__name__} with no .query()")
-        df = client.query(sql).to_dataframe()
+            return pd.read_sql(sql, conn)
+    elif inspect.isgenerator(resource) or hasattr(resource, "get_client") or hasattr(resource, "query"):
+        with _vendor_client_session(resource) as client:
+            if not hasattr(client, "query"):
+                raise ValueError(f"resource {cfg['resource_key']!r}: get_client() returned {type(client).__name__} with no .query()")
+            return client.query(sql).to_dataframe()
     else:
         raise ValueError(
             f"resource {cfg['resource_key']!r} ({type(resource).__name__}) must expose get_engine(), get_connection() or get_client()"
         )
-    df = df.astype(object).where(df.notna(), None)
-    return df.to_dict("records")
 
 
 def _records_at(data: Any, records_path: Optional[str], where: str) -> List[Dict[str, Any]]:
@@ -204,39 +340,80 @@ def _records_at(data: Any, records_path: Optional[str], where: str) -> List[Dict
     return [r for r in node if isinstance(r, dict)]
 
 
-def _read_file(cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
+def _file_signature(p: str) -> Tuple[int, int]:
+    st = os.stat(p)
+    return st.st_mtime_ns, st.st_size
+
+
+def _read_one_file(p: str, fmt: str, cfg: Dict[str, Any], bad: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    if fmt in ("csv", "tsv"):
+        with open(p, newline="", encoding="utf-8-sig") as f:
+            rows.extend(dict(r) for r in csv.DictReader(f, delimiter="\t" if fmt == "tsv" else ","))
+    elif fmt in ("jsonl", "ndjson"):
+        with open(p, encoding="utf-8", errors="replace") as f:
+            for n, line in enumerate(f, 1):
+                if not line.strip():
+                    continue
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError as exc:   # a half-written trailing line, or corruption: a bad row, not a crash
+                    bad.append({"row": f"{p}:{n}", "reason": f"invalid JSON line ({exc.msg})"})
+                    continue
+                if isinstance(obj, dict):
+                    rows.append(obj)
+                else:
+                    bad.append({"row": f"{p}:{n}", "reason": f"JSON line is a {type(obj).__name__}, not an object"})
+    elif fmt == "json":
+        with open(p, encoding="utf-8") as f:
+            try:
+                data = json.load(f)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"{p}: invalid JSON ({exc.msg} at line {exc.lineno})") from None
+        rows.extend(_records_at(data, cfg.get("records_path"), p))
+    elif fmt == "parquet":
+        import pandas as pd
+        df = pd.read_parquet(p)
+        df = df.astype(object).where(df.notna(), None)
+        rows.extend(df.to_dict("records"))
+    else:
+        raise ValueError(f"{p}: unsupported file format {fmt!r} (csv, tsv, json, jsonl, parquet)")
+    return rows
+
+
+def _read_file(cfg: Dict[str, Any], retry: Optional[Dict[str, Any]] = None) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """-> (rows, bad_lines). jsonl lines that do not parse are returned in ``bad_lines`` (counted as bad rows by the caller).
+    A csv/json/parquet file whose (mtime, size) changed while it was being read (a writer mid-flight) is re-read after a backoff;
+    jsonl is append-friendly and tolerates it (the partial last line is just a bad row until the writer finishes)."""
+    retry = retry or {"max_attempts": 3, "max_backoff": 5}
     pattern = os.path.expanduser(cfg["path"])
     paths = sorted(_glob.glob(pattern, recursive=True)) if any(c in pattern for c in "*?[") else ([pattern] if os.path.exists(pattern) else [])
     paths = [p for p in paths if os.path.isfile(p)]
     if not paths and not cfg.get("allow_empty"):
         raise FileNotFoundError(f"source.path {cfg['path']!r} matched no files (set source.allow_empty: true to treat that as zero rows)")
     rows: List[Dict[str, Any]] = []
+    bad: List[Dict[str, Any]] = []
     for p in paths:
         fmt = (cfg.get("format") or Path(p).suffix.lstrip(".")).lower()
-        if fmt in ("csv", "tsv"):
-            with open(p, newline="", encoding="utf-8-sig") as f:
-                rows.extend(dict(r) for r in csv.DictReader(f, delimiter="\t" if fmt == "tsv" else ","))
-        elif fmt in ("jsonl", "ndjson"):
-            with open(p, encoding="utf-8") as f:
-                for n, line in enumerate(f, 1):
-                    if line.strip():
-                        try:
-                            obj = json.loads(line)
-                        except json.JSONDecodeError as exc:
-                            raise ValueError(f"{p}:{n}: invalid JSON line ({exc})") from exc
-                        if isinstance(obj, dict):
-                            rows.append(obj)
-        elif fmt == "json":
-            with open(p, encoding="utf-8") as f:
-                rows.extend(_records_at(json.load(f), cfg.get("records_path"), p))
-        elif fmt == "parquet":
-            import pandas as pd
-            df = pd.read_parquet(p)
-            df = df.astype(object).where(df.notna(), None)
-            rows.extend(df.to_dict("records"))
-        else:
-            raise ValueError(f"{p}: unsupported file format {fmt!r} (csv, tsv, json, jsonl, parquet)")
-    return rows
+        got: Dict[str, Any] = {}
+
+        def attempt() -> None:
+            before = _file_signature(p)
+            local_bad: List[Dict[str, Any]] = []
+            try:
+                got["rows"] = _read_one_file(p, fmt, cfg, local_bad)
+            except Exception as exc:  # noqa: BLE001
+                if fmt != "jsonl" and _file_signature(p) != before:   # unreadable BECAUSE it is being rewritten: retry
+                    raise _Transient("file changed while being read") from exc
+                raise
+            if fmt not in ("jsonl", "ndjson") and _file_signature(p) != before:
+                raise _Transient("file changed while being read")
+            got["bad"] = local_bad
+
+        _retrying(attempt, max_attempts=retry["max_attempts"], max_backoff=retry["max_backoff"], describe=f"reading {p}")
+        rows.extend(got["rows"])
+        bad.extend(got["bad"])
+    return rows, bad
 
 
 def _resolve_headers(cfg: Dict[str, Any]) -> Dict[str, str]:
@@ -270,22 +447,31 @@ class _SameOriginRedirect(urllib.request.HTTPRedirectHandler):
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
-def _http_get_json(url: str, headers: Dict[str, str], timeout: float) -> Any:
-    last: Optional[Exception] = None
+def _http_get_json(url: str, headers: Dict[str, str], timeout: float, retry: Optional[Dict[str, Any]] = None) -> Any:
+    """GET + parse JSON. Retries connection errors, timeouts and HTTP 429/500/502/503/504 (``Retry-After`` honoured, capped by the max
+    backoff); every other 4xx fails at once. Error text names the status and the URL without its query string -- never headers/secrets."""
+    retry = retry or {"max_attempts": 4, "max_backoff": 30}
+    where = f"GET {url.split('?')[0]}"
     opener = urllib.request.build_opener(_SameOriginRedirect)
-    for attempt in range(3):
+
+    def attempt() -> Any:
+        req = urllib.request.Request(url, headers={"Accept": "application/json", **headers})
         try:
-            req = urllib.request.Request(url, headers={"Accept": "application/json", **headers})
             with opener.open(req, timeout=timeout) as resp:
-                return json.loads(resp.read().decode("utf-8"))
+                body = resp.read()
         except urllib.error.HTTPError as exc:
-            if exc.code not in (429, 500, 502, 503, 504):
-                raise ValueError(f"GET {url.split('?')[0]} failed: HTTP {exc.code}") from None
-            last = exc
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-            last = exc
-        time.sleep(0.2 * (attempt + 1))
-    raise ValueError(f"GET {url.split('?')[0]} failed after 3 attempts: {type(last).__name__}") from None
+            if exc.code in RETRYABLE_HTTP:
+                raise _Transient(f"HTTP {exc.code}", _parse_retry_after(exc.headers.get("Retry-After") if exc.headers else None)) from None
+            raise ValueError(f"{where} failed: HTTP {exc.code} (not retried)") from None
+        except (urllib.error.URLError, OSError, http.client.HTTPException) as exc:   # refused/reset/DNS/timeout/truncated body
+            reason = getattr(exc, "reason", exc)
+            raise _Transient(f"{type(reason).__name__} (connection or timeout)") from None
+        try:
+            return json.loads(body.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError(f"{where}: response is not valid JSON ({type(exc).__name__}); first bytes: {body[:40]!r}") from None
+
+    return _retrying(attempt, max_attempts=retry["max_attempts"], max_backoff=retry["max_backoff"], describe=where)
 
 
 def _with_param(url: str, name: str, value: Any) -> str:
@@ -295,7 +481,7 @@ def _with_param(url: str, name: str, value: Any) -> str:
     return urllib.parse.urlunsplit(parts._replace(query=urllib.parse.urlencode(q)))
 
 
-def _read_http(cfg: Dict[str, Any], since: str, context) -> Tuple[List[Dict[str, Any]], bool]:
+def _read_http(cfg: Dict[str, Any], since: str, context, retry: Optional[Dict[str, Any]] = None) -> Tuple[List[Dict[str, Any]], bool]:
     """-> (rows, truncated). ``truncated`` is True when ``max_pages`` stopped the read while more pages may exist."""
     headers = _resolve_headers(cfg)
     timeout = float(cfg.get("timeout_seconds", 30))
@@ -313,7 +499,7 @@ def _read_http(cfg: Dict[str, Any], since: str, context) -> Tuple[List[Dict[str,
     for n in range(max_pages):
         if n == 0 and cfg.get("page_param"):
             url = _with_param(url, cfg["page_param"], page)
-        data = _http_get_json(url, headers, timeout)
+        data = _http_get_json(url, headers, timeout, retry)
         recs = _records_at(data, cfg.get("records_path"), "http_json")
         rows.extend(recs)
         nxt = _dotted(data, cfg["next_url_path"]) if cfg.get("next_url_path") else None
@@ -367,8 +553,8 @@ def _resolve_outcome(row: Dict[str, Any], m: Dict[str, Any], vmap: Dict[str, Any
             raise _Bad(f"non-numeric value {x!r}")
         try:
             f = float(x)
-        except (TypeError, ValueError):
-            raise _Bad(f"non-numeric value {x!r}") from None
+        except (TypeError, ValueError, OverflowError):
+            raise _Bad(f"non-numeric or out-of-range value {str(x)[:40]!r}") from None
         if not math.isfinite(f):
             raise _Bad(f"non-finite value {x!r}")
         return f
@@ -421,7 +607,8 @@ def _outcome_ref(label: str, rid: str, explicit: Optional[str], row: Dict[str, A
 
 def ingest_feedback(store: Any, rows: List[Dict[str, Any]], mapping: Dict[str, Any], *, cursor: Optional[datetime], on_bad_row: str,
                     on_unknown_receipt: str, max_rows: Optional[int], read_truncated: bool = False, order: str = "asc",
-                    unknown_receipt_grace_hours: float = 24.0, now: Optional[datetime] = None) -> Dict[str, Any]:
+                    unknown_receipt_grace_hours: float = 24.0, now: Optional[datetime] = None,
+                    read_bad: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """Pure-ish core (store + rows in, report out): validate every row first, then write. Returns counts, samples and the new cursor.
 
     Cursor safety (every unread / not-yet-resolvable record must stay at or ahead of the new cursor; reads are inclusive):
@@ -441,6 +628,9 @@ def ingest_feedback(store: Any, rows: List[Dict[str, Any]], mapping: Dict[str, A
     prepared: List[Tuple[Optional[datetime], int, Dict[str, Any]]] = []
     min_read: Optional[datetime] = None
     bad = report["bad"]
+    for b in (read_bad or []):   # lines the reader could not parse (corrupt / half-written jsonl)
+        report["bad_total"] += 1
+        bad.append(b)
     for i, row in enumerate(rows):
         dt = None
         if ts_col:
@@ -562,6 +752,8 @@ class ReceiptOutcomeIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
     on_unknown_receipt: str = Field(default="skip", description="'skip' (count + sample in metadata) or 'fail' (record the known ones, then raise).")
     max_rows: Optional[int] = Field(default=None, description="Process at most this many rows per run, oldest first by occurred_at; the cursor lets the next run continue.")
     unknown_receipt_grace_hours: float = Field(default=24.0, description="A feedback row whose receipt id is unknown but whose occurred_at is younger than this is retried (the cursor is held just before it; counted in unknown_receipts_pending) because the receipt may not be durable yet (async writer, multi-host). Older unknown-receipt rows are dropped and the cursor moves past them. 0 disables the retry.")
+    retry_max_attempts: int = Field(default=4, description="Tries per source read (HTTP page / file / SQL) on transient failures: connection errors, timeouts, HTTP 429/500/502/503/504 (exponential backoff with full jitter; Retry-After honoured). SQL reads use at most 3. Other 4xx are never retried. 1 disables retrying.")
+    retry_max_backoff_seconds: float = Field(default=30.0, description="Upper bound on any single wait between retries, including a server's Retry-After.")
     initial_since: str = Field(default=DEFAULT_SINCE, description="Value bound to {since} / since_param on the first run (no cursor yet).")
     cron_schedule: Optional[str] = Field(default=None, description="Optional cron expression; when set, a schedule materializes this asset.")
     group_name: Optional[str] = Field(default="context_receipts", description="Asset group")
@@ -614,6 +806,14 @@ class ReceiptOutcomeIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             raise ValueError("source.order must be 'asc' or 'desc'")
         if self.unknown_receipt_grace_hours < 0:
             raise ValueError("unknown_receipt_grace_hours must be >= 0")
+        if isinstance(self.retry_max_attempts, bool) or not 1 <= self.retry_max_attempts <= 20:
+            raise ValueError("retry_max_attempts must be an integer between 1 and 20")
+        if not 0 < self.retry_max_backoff_seconds <= 3600:
+            raise ValueError("retry_max_backoff_seconds must be > 0 and <= 3600")
+        if kind == "http_json" and "timeout_seconds" in src:
+            ts = src["timeout_seconds"]
+            if isinstance(ts, bool) or not isinstance(ts, (int, float)) or not 0 < ts <= 3600:
+                raise ValueError("source.timeout_seconds must be a number > 0 and <= 3600")
         if self.max_rows is not None and self.max_rows < 1:
             raise ValueError("max_rows must be >= 1")
 
@@ -622,6 +822,7 @@ class ReceiptOutcomeIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
         src, mapping = dict(self.source), dict(self.mapping)
         store_key, on_bad, on_unknown, max_rows = self.store_resource_key, self.on_bad_row, self.on_unknown_receipt, self.max_rows
         initial_since = self.initial_since
+        retry_cfg = {"max_attempts": self.retry_max_attempts, "max_backoff": self.retry_max_backoff_seconds}
         grace_hours = self.unknown_receipt_grace_hours
         asset_key = dg.AssetKey.from_user_string(self.asset_name)
         tags = {**(self.asset_tags or {}), **{f"dagster/kind/{k}": "" for k in (self.kinds or ["python", "feedback"])}}
@@ -661,12 +862,19 @@ class ReceiptOutcomeIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
 
             kind = src["kind"]
             truncated = False
+            read_bad: List[Dict[str, Any]] = []
+            # The whole read finishes BEFORE anything is recorded, and the cursor lives in this run's materialization: a read that fails
+            # after its retries (e.g. page 2 of 3) raises here, so nothing is recorded and no new cursor is written -- the next run
+            # starts again from the old cursor (re-reading is safe: outcome_ref idempotency).
             if kind == "http_json":
-                rows, truncated = _read_http(src, since, context)
+                rows, truncated = _read_http(src, since, context, retry_cfg)
+            elif kind == "sql":
+                rows = _read_sql(src, since, context, retry_cfg)
             else:
-                rows = _read_sql(src, since, context) if kind == "sql" else _read_file(src)
+                rows, read_bad = _read_file(src, retry_cfg)
             rep = ingest_feedback(store, rows, mapping, cursor=cursor, on_bad_row=on_bad, on_unknown_receipt=on_unknown, max_rows=max_rows,
-                                  read_truncated=truncated, order=src.get("order", "asc"), unknown_receipt_grace_hours=grace_hours)
+                                  read_truncated=truncated, order=src.get("order", "asc"), unknown_receipt_grace_hours=grace_hours,
+                                  read_bad=read_bad)
 
             new_cursor = rep["cursor"] or prev_cursor_s or ""
             lag = None

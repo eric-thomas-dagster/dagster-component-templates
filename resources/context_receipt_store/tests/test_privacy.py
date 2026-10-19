@@ -8,8 +8,8 @@ import dagster as dg
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent))
-from backends import KINDS, all_cells, load_module, make_store  # noqa: E402
-from test_bigquery_backend import item  # noqa: E402
+from .backends import KINDS, all_cells, load_module, make_store  # noqa: E402
+from .test_bigquery_backend import item  # noqa: E402
 
 RAW_CALLER, RAW_SESSION = "alice@example.com", "sess-RAW-0001"
 

@@ -97,5 +97,17 @@ Other `http_json` options: `since_param` (+ `since_format: iso|epoch`), `page_pa
 `max_pages` (default 50), `order` (`asc`|`desc`), `headers` (non-secret), `headers_env` (`{Header-Name: ENV_VAR}`; a missing variable fails the run without
 echoing anything).
 
+### Transient failures
+
+- **`http_json`**: connection errors, timeouts (`source.timeout_seconds`, default 30) and HTTP 429/500/502/503/504 are retried with exponential backoff and **full jitter**;
+  a `Retry-After` header (seconds or HTTP-date) is honoured, capped by `retry_max_backoff_seconds`. Any other 4xx (401/403/404...) fails immediately with an error naming the
+  status (never the headers or secrets). Malformed JSON and a missing/ill-typed `records_path` are clear, non-retried errors. `retry_max_attempts` (default 4, 1 disables) and
+  `retry_max_backoff_seconds` (default 30) are component fields.
+- **A page that fails after its retries fails the run, and the cursor does not move.** The whole source read finishes before anything is recorded, and the cursor is written only
+  by a successful run's materialization, so a run that dies on page 2 records nothing from page 1 and the next run starts from the old cursor (re-reading is safe: deterministic `outcome_ref`s).
+- **`sql`**: connection-level errors (OSError/`OperationalError`/`InterfaceError`...) retry up to 3 tries; a bad query is never retried.
+- **`file`**: jsonl lines that do not parse (corruption, a half-written last line) are counted as bad rows (`bad_rows`, honouring `on_bad_row`), not a crash. A csv/json/parquet file whose
+  mtime/size changes while it is being read is re-read after a backoff, and fails with a clear error if it never settles.
+
 Tested against a real `ContextReceiptStore`, real csv/jsonl/json/parquet files, a real DuckDB resource and a local HTTP server
 (`python3 -m pytest assets/ai/receipt_outcome_ingestion/tests -q`).

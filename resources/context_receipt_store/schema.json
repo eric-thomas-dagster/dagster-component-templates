@@ -239,6 +239,24 @@
       "label": "Sql Connection",
       "description": "backend: sql -- connect with the vendor's own Python connector, no SQLAlchemy needed (use this OR sql_url_env_var). kind: snowflake {account, user, warehouse, database, schema, role, password_env_var or private_key_env_var [+ private_key_passphrase_env_var]} (pip install snowflake-connector-python, which dagster-snowflake already brings); kind: databricks {server_hostname, http_path, access_token_env_var, catalog, schema} (pip install databricks-sql-connector); kind: postgres or mysql {host, port, database, user, password_env_var} (pip install psycopg2-binary or pymysql). Secrets are read from the named environment variables. Optional connect_args: extra keyword arguments for the connector.",
       "required": false
+    },
+    "retry_max_attempts": {
+      "type": "integer",
+      "label": "Retry Max Attempts",
+      "description": "backend: bigquery or sql -- attempts (first try included) for an operation that fails with a transient error (rate limit, 5xx, connection lost, deadlock, serialization failure). 1 disables retries. Permanent errors (syntax, permission, not found, duplicate) are never retried. Writes are retry-safe: a retried receipt or event is never duplicated.",
+      "required": false
+    },
+    "retry_max_backoff_seconds": {
+      "type": "number",
+      "label": "Retry Max Backoff Seconds",
+      "description": "backend: bigquery or sql -- ceiling of the exponential backoff between attempts (full jitter: the wait is uniform between 0 and min(this, 0.5 * 2^(attempt-1)) seconds).",
+      "required": false
+    },
+    "connection_max_age_seconds": {
+      "type": "number",
+      "label": "Connection Max Age Seconds",
+      "description": "backend: sql -- recycle a database connection once it is this many seconds old (guards against idle-session kills on Snowflake, Postgres and Databricks). Empty keeps a connection until it fails; a dead one is always replaced.",
+      "required": false
     }
   }
 }

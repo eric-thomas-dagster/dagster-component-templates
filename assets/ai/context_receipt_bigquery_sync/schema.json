@@ -167,6 +167,18 @@
       "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "required": false,
       "ui:widget": "list"
+    },
+    "retry_max_attempts": {
+      "type": "integer",
+      "label": "Retry Max Attempts",
+      "description": "Tries per BigQuery statement/load job on transient errors (ServiceUnavailable, InternalServerError, TooManyRequests, BadGateway, DeadlineExceeded, 403 rateLimitExceeded/quotaExceeded), with exponential backoff and full jitter. 1 disables retrying. The final failure raises the original error.",
+      "required": false
+    },
+    "retry_max_backoff_seconds": {
+      "type": "number",
+      "label": "Retry Max Backoff Seconds",
+      "description": "Upper bound on any single wait between retries.",
+      "required": false
     }
   }
 }

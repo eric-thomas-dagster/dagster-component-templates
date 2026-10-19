@@ -12,9 +12,9 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent))
-from backends import load_module  # noqa: E402
-from bq_fake import FakeBigQueryClient, install_fake_bigquery  # noqa: E402
-from test_bigquery_backend import item  # noqa: E402
+from .backends import load_module  # noqa: E402
+from .bq_fake import FakeBigQueryClient, install_fake_bigquery  # noqa: E402
+from .test_bigquery_backend import item  # noqa: E402
 
 
 @pytest.fixture()

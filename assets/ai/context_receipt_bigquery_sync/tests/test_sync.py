@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 import dagster as dg
 import pytest
-from bq_fake import FakeBigQueryResource
+from .bq_fake import FakeBigQueryResource
 
 DS = "proj.ctx"
 

@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent))
-from bq_fake import FakeBigQueryClient, install_fake_bigquery  # noqa: E402
+from .bq_fake import FakeBigQueryClient, install_fake_bigquery  # noqa: E402
 
 # dbapi-*: the same SqlContextReceiptStore on a plain PEP-249 connection factory (no SQLAlchemy): real sqlite3 (paramstyle qmark)
 # and real duckdb (qmark), so every parametrized suite also proves the DBAPI executor.

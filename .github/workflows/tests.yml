@@ -20,6 +20,8 @@ env:
     assets/ai/rag_pipeline/tests
     assets/ai/agentic_pipeline/tests
     assets/ai/agent_review_queue/tests
+    assets/ai/receipt_outcome_ingestion/tests
+    quickstarts/receipts_learning_loop/tests
 
 jobs:
   checks:
@@ -66,9 +68,15 @@ jobs:
           pip install --upgrade pip
           # sqlglot and duckdb are PINNED to the versions the fake-warehouse tests (bq_fake.py / sql_fake.py) were written against:
           # they patch sqlglot's BigQuery/Snowflake/Databricks -> DuckDB translation, which differs between releases.
-          pip install "dagster>=1.10.0" pandas pytest pyyaml chromadb "duckdb==1.5.6" "duckdb-engine==0.17.0" "sqlalchemy>=2" \
+          pip install "dagster>=1.10.0" dagster-duckdb pandas pytest pyyaml chromadb "duckdb==1.5.6" "duckdb-engine==0.17.0" "sqlalchemy>=2" \
                       "sqlglot==28.0.0" jsonschema tabulate pyarrow litellm requests fsspec \
                       dlt cryptography scikit-learn geopandas \
                       google-auth google-api-python-client google-cloud-bigquery reportlab pillow
+      - name: Install vendor client libraries (library-contract tests skip any that is missing)
+        # best effort per package: a wheel that is unavailable for this Python must not fail the job, the matching contract tests just skip
+        run: |
+          for pkg in dagster-gcp snowflake-connector-python databricks-sql-connector psycopg2-binary pymysql; do
+            pip install "$pkg" || echo "::warning::could not install $pkg; its contract tests will skip"
+          done
       - name: Run tests
         run: python -m pytest $TEST_DIRS -q -p no:cacheprovider -W ignore

@@ -12,9 +12,9 @@ Usage:
 import atexit
 import contextlib
 import re
-import weakref
 import sys
 import types
+import weakref
 from typing import Any, Dict, List
 
 import duckdb
@@ -22,6 +22,11 @@ import sqlglot
 from sqlglot import exp
 
 from . import ai_stubs
+
+
+class Conflict(Exception):
+    """google.api_core.exceptions.Conflict (409): a job with that id already exists."""
+    code = 409
 
 
 class Row(dict):
@@ -68,7 +73,7 @@ class SchemaField:
 
 class _Job:
     def __init__(self, rows=None, affected=None):
-        self._rows, self.num_dml_affected_rows, self.errors = rows or [], affected, None
+        self._rows, self.num_dml_affected_rows, self.errors, self.error_result = rows or [], affected, None, None
 
     def result(self, *a, **k):
         return iter(self._rows)
@@ -131,6 +136,7 @@ class FakeBigQueryClient:
         self.con = duckdb.connect()
         _OPEN.add(self)
         self.queries: List[str] = []
+        self.jobs: Dict[str, _Job] = {}
         self.con.execute("CREATE VIEW bq_info_schema_columns AS SELECT * FROM information_schema.columns")
         self.ai = ai_stubs.register(self.con)        # call-counting stand-ins for ML.GENERATE_EMBEDDING / AI.CLASSIFY
 
@@ -170,9 +176,29 @@ class FakeBigQueryClient:
         self._insert(self._norm_table(table), rows)
         return []
 
-    def load_table_from_json(self, rows, destination, job_config=None, **kw) -> _Job:
-        self._insert(self._norm_table(destination), rows)
-        return _Job()
+    def get_job(self, job_id, location=None, **kw) -> _Job:
+        return self.jobs[job_id]
+
+    def load_table_from_json(self, rows, destination, job_config=None, job_id=None, **kw) -> _Job:
+        if job_id is not None and job_id in self.jobs:
+            raise Conflict(f"409 Already Exists: Job {job_id}")
+        table = self._norm_table(destination)
+        # Like BigQuery: a load job whose explicit schema says NULLABLE for a column the table has as REQUIRED (NOT NULL) would relax the mode,
+        # which needs schema_update_options=ALLOW_FIELD_RELAXATION; without it the job fails. (Without schema=, the table's own schema applies.)
+        schema = getattr(job_config, "schema", None)
+        if schema and "ALLOW_FIELD_RELAXATION" not in (getattr(job_config, "schema_update_options", None) or []):
+            ds, _, name = table.rpartition(".")
+            required = {r[0] for r in self.con.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = ? AND is_nullable = 'NO'"
+                + (" AND table_schema = ?" if ds else ""), [name, ds] if ds else [name]).fetchall()}
+            relaxed = sorted(f.name for f in schema if f.mode == "NULLABLE" and f.name in required)
+            if relaxed:
+                raise RuntimeError(f"400 Provided Schema does not match Table {destination}: field(s) {relaxed} changed mode from REQUIRED to NULLABLE")
+        self._insert(table, rows)
+        job = _Job()
+        if job_id is not None:
+            self.jobs[job_id] = job
+        return job
 
     def _insert(self, table: str, rows: List[dict]) -> None:
         for row in rows:

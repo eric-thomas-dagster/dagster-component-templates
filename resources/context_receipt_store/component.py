@@ -1697,6 +1697,9 @@ class ContextReceiptStore:
         with self._connect():
             pass
 
+    def close(self) -> None:
+        """Release held connections (a no-op here: the SQLite store opens one per call; the warehouse stores override it)."""
+
     def _selftest_cursors(self) -> tuple[int, int]:
         """(receipt_cursor, event_cursor) at 'now', so ``selftest`` reads only its own tail instead of the whole store."""
         with self._connect() as conn:
@@ -2019,13 +2022,186 @@ def _missing_columns_message(alters: list, errors: list) -> str:
             f"(the existence probe failed with: {errors[0][:200]!r}; if the table itself does not exist, create it first or set create_tables=True)")
 
 
+# -- transient-failure handling shared by the BigQuery and SQL stores (classification table: README "Retries and failure handling") --
+_PERMANENT_BUILTINS = (ValueError, TypeError, KeyError, LookupError, AttributeError, AssertionError, NotImplementedError, ImportError)
+_PERMANENT_NAMES = frozenset({
+    "ProgrammingError", "IntegrityError", "DataError", "NotSupportedError", "SyntaxError", "BadRequest", "NotFound", "Conflict",
+    "Unauthorized", "Forbidden", "PermissionDenied", "InvalidArgument", "Unauthenticated", "AlreadyExists", "FailedPrecondition",
+    "InvalidRequestError", "ArgumentError", "NoSuchTableError", "UniqueViolation", "ForeignKeyViolation", "UndefinedTable",
+    "UndefinedColumn", "InsufficientPrivilege", "DuplicateReceiptError", "InvalidOperation"})
+_TRANSIENT_NAMES = frozenset({
+    # google.api_core.exceptions (BigQuery)
+    "ServiceUnavailable", "InternalServerError", "TooManyRequests", "DeadlineExceeded", "GatewayTimeout", "BadGateway", "Aborted",
+    "ResourceExhausted", "Unavailable", "RetryError",
+    # lock / serialization failures of the transactional databases
+    "DeadlockDetected", "SerializationFailure", "LockNotAvailable", "TransactionRollbackError"})
+_LOST_NAMES = frozenset({"RequestError", "ConnectionError", "ConnectionResetError", "BrokenPipeError", "ConnectionAbortedError", "ConnectionRefusedError"})
+_BQ_TRANSIENT_REASONS = frozenset({"ratelimitexceeded", "quotaexceeded", "backenderror", "internalerror", "jobbackoff", "jobratelimitexceeded"})
+_HTTP_TRANSIENT = frozenset({429, 500, 502, 503, 504})
+# numeric driver codes: Snowflake errno / MySQL errno
+_CODES_LOST = frozenset({250001, 250003, 390111, 390112, 390114, 2002, 2003, 2006, 2013, 2055})
+_CODES_TRANSIENT = frozenset({1213, 1205, 1040})
+_CODES_TIMEOUT = frozenset({604, 1317, 3024})        # Snowflake statement timeout, MySQL query interrupted / max_execution_time
+# SQLSTATEs: 08xxx connection exception; 40001/40P01 serialization failure / deadlock; 55P03 lock unavailable; 53300 too many connections
+_STATES_LOST = frozenset({"57P01", "57P02", "57P03"})
+_STATES_TRANSIENT = frozenset({"40001", "40P01", "55P03", "53300"})
+_STATES_TIMEOUT = frozenset({"57014"})                # query_canceled (statement_timeout)
+_DRIVER_ERROR_NAMES = frozenset({"OperationalError", "InterfaceError", "DatabaseError", "InternalError", "Error", "RequestError", "IOException"})
+_MSG_LOST = ("connection reset", "server closed the connection", "connection already closed", "connection is closed", "connection was closed",
+             "connection closed", "ssl syscall", "eof detected", "terminating connection", "could not connect", "connection refused",
+             "connection timed out", "timeout expired", "no route to host", "could not receive data", "lost connection", "gone away",
+             "broken pipe", "network is unreachable", "session expired", "invalid sessionhandle", "session no longer exists",
+             "authentication token has expired", "connection lost")
+_MSG_TRANSIENT = ("temporarily unavailable", "service unavailable", "too many requests", "database is locked", "database table is locked",
+                  "deadlock", "could not serialize", "database system is starting up", "too many connections", "exceeded rate limits")
+
+
+def _norm_codes(exc: BaseException) -> tuple[set, set]:
+    """(numeric codes, SQLSTATE-like strings) an exception carries, wherever the driver put them."""
+    nums: set = set()
+    states: set = set()
+    for attr in ("errno", "code", "status_code", "http_code", "status", "sqlite_errorcode", "pgcode", "sqlstate", "sqlcode"):
+        value = getattr(exc, attr, None)
+        if isinstance(value, bool):
+            continue
+        if isinstance(value, int):
+            nums.add(value)
+        elif isinstance(value, str) and value:
+            if value.isdigit() and attr not in ("pgcode", "sqlstate"):
+                nums.add(int(value))
+            else:
+                states.add(value.upper())
+    response = getattr(exc, "response", None)
+    status = getattr(response, "status_code", None)
+    if isinstance(status, int):
+        nums.add(status)
+    if exc.args and isinstance(exc.args[0], int) and not isinstance(exc.args[0], bool):
+        nums.add(exc.args[0])                      # pymysql: OperationalError(1213, "Deadlock ...")
+    return nums, states
+
+
+def _classify_error(exc: BaseException, unknown: str = "permanent") -> str:
+    """``"transient"`` (retry), ``"connection_lost"`` (retry on a fresh connection), ``"timeout"`` (retry only if the work is idempotent)
+    or ``"permanent"`` (never retry). Decided by class name / attributes / message so no vendor library is imported; ``unknown`` is what an
+    error we cannot place counts as."""
+    if isinstance(exc, _PERMANENT_BUILTINS):
+        return "permanent"
+    orig = getattr(exc, "orig", None)               # SQLAlchemy DBAPIError wraps the driver's exception
+    if getattr(exc, "connection_invalidated", False):
+        return "connection_lost"
+    if isinstance(orig, BaseException) and orig is not exc:
+        return _classify_error(orig, unknown)
+    names = {c.__name__ for c in type(exc).__mro__}
+    nums, states = _norm_codes(exc)
+    reasons = {str(e.get("reason", "")).lower() for e in (getattr(exc, "errors", None) or []) if isinstance(e, dict)}
+    try:
+        text = str(exc).lower()
+    except Exception:  # noqa: BLE001
+        text = ""
+    if reasons & _BQ_TRANSIENT_REASONS or ("Forbidden" in names and "exceeded rate limits" in text):
+        return "transient"                          # BigQuery load-job / table-update rate limits arrive as 403
+    if names & _TRANSIENT_NAMES:
+        return "transient"
+    if nums & _HTTP_TRANSIENT:
+        return "transient"
+    if nums & _CODES_LOST or any(s.startswith("08") for s in states) or states & _STATES_LOST:
+        return "connection_lost"
+    if nums & _CODES_TRANSIENT or states & _STATES_TRANSIENT:
+        return "transient"
+    if nums & _CODES_TIMEOUT or states & _STATES_TIMEOUT:
+        return "timeout"
+    if names & _LOST_NAMES:
+        return "connection_lost"
+    if names & _PERMANENT_NAMES:
+        return "permanent"
+    if names & _DRIVER_ERROR_NAMES:
+        if any(m in text for m in _MSG_LOST):
+            return "connection_lost"
+        if any(m in text for m in _MSG_TRANSIENT):
+            return "transient"
+        return "permanent"                          # an OperationalError we cannot place (bad password, unknown database ...)
+    if isinstance(exc, (TimeoutError, InterruptedError)):
+        return "transient"
+    if isinstance(exc, OSError):
+        import errno as _errno
+
+        lost = {_errno.ECONNRESET, _errno.EPIPE, _errno.ETIMEDOUT, _errno.ECONNREFUSED, _errno.ECONNABORTED, _errno.EHOSTUNREACH,
+                _errno.ENETUNREACH, _errno.ENETDOWN}
+        return "connection_lost" if getattr(exc, "errno", None) in lost else "permanent"
+    return unknown
+
+
+class _Retrier:
+    """Retry with exponential backoff and full jitter. One instance per store; ``sleep`` and ``rng`` are injectable so tests never wait.
+
+    ``run(fn)`` calls ``fn`` up to ``max_attempts`` times. Only the OUTERMOST ``run`` on a thread retries: a ``run`` nested inside ``fn``
+    just calls through, so a retried multi-statement unit is retried as a unit and attempts never multiply (3 x 4 = 12).
+    ``fn`` must be safe to re-run from the top (the stores make every unit idempotent)."""
+
+    def __init__(self, max_attempts: int = 4, max_backoff_seconds: float = 20.0, *, base_backoff_seconds: float = 0.5,
+                 sleep: Any = None, rng: random.Random | None = None):
+        if isinstance(max_attempts, bool) or not isinstance(max_attempts, int) or max_attempts < 1:
+            raise ValueError(f"retry_max_attempts must be an integer >= 1, got {max_attempts!r}")
+        if isinstance(max_backoff_seconds, bool) or not isinstance(max_backoff_seconds, (int, float)) or max_backoff_seconds < 0 or max_backoff_seconds != max_backoff_seconds:
+            raise ValueError(f"retry_max_backoff_seconds must be a number >= 0, got {max_backoff_seconds!r}")
+        self.max_attempts, self.max_backoff_seconds, self.base_backoff_seconds = max_attempts, float(max_backoff_seconds), float(base_backoff_seconds)
+        self._sleep = sleep or time.sleep
+        self._rng = rng or random.Random()
+        self._local = threading.local()
+
+    def delay(self, attempt: int) -> float:
+        """Full jitter: uniform(0, min(max_backoff, base * 2**(attempt-1))) for the wait after failed attempt number ``attempt``."""
+        return self._rng.uniform(0.0, min(self.max_backoff_seconds, self.base_backoff_seconds * (2 ** (attempt - 1))))
+
+    def _give_up(self, exc: BaseException, attempt: int, what: str, kind: str) -> None:
+        note = (f"[context_receipt_store] {what} failed after {attempt} attempt(s) of max {self.max_attempts} "
+                f"({kind}: {type(exc).__name__}); raising the original error")
+        if hasattr(exc, "add_note"):
+            exc.add_note(note)
+        else:  # Python 3.10
+            exc.__notes__ = [*getattr(exc, "__notes__", []), note]
+        logger.error("context_receipt_store: %s", note)
+
+    def run(self, fn: Any, *, idempotent: bool = True, what: str = "operation") -> Any:
+        if getattr(self._local, "depth", 0):
+            return fn()
+        self._local.depth = 1
+        try:
+            attempt = 0
+            while True:
+                attempt += 1
+                try:
+                    return fn()
+                except Exception as exc:  # noqa: BLE001
+                    kind = _classify_error(exc)
+                    if kind == "timeout":
+                        kind = "transient" if idempotent else "permanent"
+                    if kind == "permanent":
+                        if attempt > 1:
+                            self._give_up(exc, attempt, what, kind)
+                        raise
+                    if attempt >= self.max_attempts:
+                        self._give_up(exc, attempt, what, kind)
+                        raise
+                    wait = self.delay(attempt)
+                    # the exception CLASS only: its message can carry SQL text, parameters or connection details
+                    logger.warning("context_receipt_store: transient %s during %s (attempt %d of %d), retrying in %.2fs",
+                                   type(exc).__name__, what, attempt, self.max_attempts, wait)
+                    self._sleep(wait)
+        finally:
+            self._local.depth = 0
+
+
 class BigQueryContextReceiptStore(ContextReceiptStore):
     """Receipts in BigQuery. ``client_factory()`` returns a ``google.cloud.bigquery.Client`` or a context manager yielding one
     (dagster-gcp's ``BigQueryResource.get_client``)."""
 
-    def __init__(self, dataset: str, *, client_factory: Any, table_prefix: str = "", create_tables: bool = True):
+    def __init__(self, dataset: str, *, client_factory: Any, table_prefix: str = "", create_tables: bool = True,
+                 retry_max_attempts: int = 4, retry_max_backoff_seconds: float = 20.0, retry_sleep: Any = None,
+                 retry_rng: random.Random | None = None):
         if not dataset or "." not in dataset.strip("`"):
             raise ValueError("dataset must be 'project.dataset'")
+        self._retrier = _Retrier(retry_max_attempts, retry_max_backoff_seconds, sleep=retry_sleep, rng=retry_rng)
         self.dataset = dataset.strip("`")
         self.table_prefix = table_prefix
         self.database_path = f"bigquery://{self.dataset}/{table_prefix}"
@@ -2078,45 +2254,68 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
             if self._ready:
                 return
             missing, errors = [], []
-            with self._client() as client:
-                for probe, alter in receipt_column_upgrades(self.dataset, self.table_prefix):
-                    try:
-                        client.query(probe).result()
-                    except Exception as exc:  # noqa: BLE001
-                        missing.append(alter)
-                        errors.append(str(exc))
+            for probe, alter in receipt_column_upgrades(self.dataset, self.table_prefix):
+                exc = self._probe_failure(probe)
+                if exc is not None:
+                    missing.append(alter)
+                    errors.append(str(exc))
             if missing:
                 raise RuntimeError(_missing_columns_message(missing, errors))
             self._ready = True
+
+    def _ddl(self, sql: str) -> None:
+        """One DDL / probe statement, retried on transient errors (every statement we send here is safe to re-run)."""
+        def run() -> None:
+            with self._client() as client:
+                client.query(sql).result()
+        self._retrier.run(run, what="BigQuery statement")
+
+    def _probe_failure(self, probe: str) -> BaseException | None:
+        """None if the probe ran; the error if it failed PERMANENTLY (column missing). A transient failure (already retried) is raised, never
+        mistaken for a missing column."""
+        try:
+            self._ddl(probe)
+            return None
+        except Exception as exc:  # noqa: BLE001
+            if _classify_error(exc) != "permanent":
+                raise
+            return exc
 
     def ensure_tables(self) -> None:
         with self._ready_lock:
             if self._ready:
                 return
-            with self._client() as client:
-                for ddl in receipt_table_ddl(self.dataset, self.table_prefix):
-                    client.query(ddl).result()
-                for probe, alter in receipt_column_upgrades(self.dataset, self.table_prefix):   # tables made by an older release
+            for ddl in receipt_table_ddl(self.dataset, self.table_prefix):
+                self._ddl(ddl)
+            for probe, alter in receipt_column_upgrades(self.dataset, self.table_prefix):   # tables made by an older release
+                if self._probe_failure(probe) is not None:      # column missing: the probe's SELECT fails
                     try:
-                        client.query(probe).result()
-                    except Exception:  # noqa: BLE001  (column missing: the probe's SELECT fails)
-                        client.query(alter).result()
+                        self._ddl(alter)
+                    except Exception:  # noqa: BLE001  (an ALTER retried after a lost ack says 'already exists': fine if the column is there now)
+                        if self._probe_failure(probe) is not None:
+                            raise
             self._ready = True
 
     def _query(self, sql: str, **params: Any) -> list:
         from google.cloud import bigquery as bq  # imported lazily: only the BigQuery backend needs it
 
         self._prepare()
-        with self._client() as client:
-            job = client.query(sql, job_config=bq.QueryJobConfig(query_parameters=self._params(bq, params)))
-            return [dict(r) for r in job.result()]
+
+        def run() -> list:
+            with self._client() as client:
+                job = client.query(sql, job_config=bq.QueryJobConfig(query_parameters=self._params(bq, params)))
+                return [dict(r) for r in job.result()]
+        return self._retrier.run(run, what="BigQuery query")
 
     def _load(self, table: str, rows: list, columns: Sequence[tuple], *, explicit_schema: bool = False) -> None:
         """Append ``rows`` (dicts) to ``table`` with a load job. ``columns``: [(name, bigquery_type)].
 
         By default NO ``schema=`` is sent: a WRITE_APPEND into an existing table uses the table's own schema. Our DDL creates NOT NULL (REQUIRED)
         columns, and a load job whose schema says NULLABLE for them would relax REQUIRED -> NULLABLE, which needs an explicit opt-in
-        (``schema_update_options=ALLOW_FIELD_RELAXATION``) and fails otherwise. ``explicit_schema=True`` only for the all-NULLABLE staging table."""
+        (``schema_update_options=ALLOW_FIELD_RELAXATION``) and fails otherwise. ``explicit_schema=True`` only for the all-NULLABLE staging table.
+
+        NOT retried by itself: re-running a load whose ack was lost would append the rows twice. Every caller wraps it in a unit that is safe
+        to re-run from the top (``record_retrieval``, ``_append_event``, ``_refresh_write``) and that unit owns the retry."""
         if not rows:
             return
         from google.cloud import bigquery as bq
@@ -2142,37 +2341,61 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
                          mcp_request_id: str | None = None, dagster_partition_key: str | None = None) -> str:
         receipt_id, norm_items, norm_excluded, excluded_count, caller_id, mcp_session_id = self._prepare_retrieval(
             context_name, items, excluded, eligible_count, excluded_count, receipt_id, caller_id, mcp_session_id)
-        # One round trip on the happy path: does the receipt exist (duplicate), and did a crashed earlier attempt leave
-        # items behind (they are written before the receipt row, which is the commit marker)?
-        seen = self._query(
-            f"SELECT (SELECT COUNT(1) FROM {self._t('context_receipts')} WHERE receipt_id = @r) AS r, "
-            f"(SELECT COUNT(1) FROM {self._t('context_receipt_items')} WHERE receipt_id = @r) AS i, "
-            f"(SELECT COUNT(1) FROM {self._t('context_receipt_excluded')} WHERE receipt_id = @r) AS e", r=receipt_id)[0]
-        if seen["r"]:
-            raise DuplicateReceiptError(f"receipt already exists: {receipt_id}")
-        if seen["i"]:
-            self._query(f"DELETE FROM {self._t('context_receipt_items')} WHERE receipt_id = @r", r=receipt_id)
-        if seen["e"]:
-            self._query(f"DELETE FROM {self._t('context_receipt_excluded')} WHERE receipt_id = @r", r=receipt_id)
-        src = ("source_asset_key", "source_version", "source_partition", "source_code_version")
-        self._load(self._t("context_receipt_items"), [{"receipt_id": receipt_id, **i} for i in norm_items],
-                   [("receipt_id", "STRING"), ("item_id", "STRING"), *[(c, "STRING") for c in src], ("rank", "INT64"), ("score", "FLOAT64"), ("selection", "STRING")])
-        self._load(self._t("context_receipt_excluded"), [{"receipt_id": receipt_id, **e} for e in norm_excluded],
-                   [("receipt_id", "STRING"), ("item_id", "STRING"), ("reason", "STRING"), *[(c, "STRING") for c in src]])
-        values = dict(zip(_BQ_RECEIPT_COLS, (receipt_id, self._timestamp(), context_name, context_version, policy_version, caller_id, purpose,
-                                             query_hash, eligible_count, excluded_count, dagster_asset_key, dagster_run_id, trace_id,
-                                             mcp_session_id, mcp_request_id, dagster_partition_key)))
-        self._load(self._t("context_receipts"), [values],
-                   [(c, "TIMESTAMP" if c == "created_at" else "INT64" if c.endswith("_count") else "STRING") for c in _BQ_RECEIPT_COLS])
-        return receipt_id
+        created_at = self._timestamp()                       # fixed before the retry loop: every attempt writes the same row
+        attempts = {"n": 0}
+
+        def write() -> str:
+            attempts["n"] += 1
+            # One round trip on the happy path: does the receipt exist (duplicate), and did a crashed earlier attempt leave
+            # items behind (they are written before the receipt row, which is the commit marker)?
+            seen = self._query(
+                f"SELECT (SELECT COUNT(1) FROM {self._t('context_receipts')} WHERE receipt_id = @r) AS r, "
+                f"(SELECT COUNT(1) FROM {self._t('context_receipt_items')} WHERE receipt_id = @r) AS i, "
+                f"(SELECT COUNT(1) FROM {self._t('context_receipt_excluded')} WHERE receipt_id = @r) AS e", r=receipt_id)[0]
+            if seen["r"]:
+                if attempts["n"] > 1 and self._receipt_is_ours(receipt_id, context_name, query_hash):
+                    return receipt_id           # an earlier attempt committed and only its acknowledgement was lost
+                raise DuplicateReceiptError(f"receipt already exists: {receipt_id}")
+            if seen["i"]:
+                self._query(f"DELETE FROM {self._t('context_receipt_items')} WHERE receipt_id = @r", r=receipt_id)
+            if seen["e"]:
+                self._query(f"DELETE FROM {self._t('context_receipt_excluded')} WHERE receipt_id = @r", r=receipt_id)
+            src = ("source_asset_key", "source_version", "source_partition", "source_code_version")
+            self._load(self._t("context_receipt_items"), [{"receipt_id": receipt_id, **i} for i in norm_items],
+                       [("receipt_id", "STRING"), ("item_id", "STRING"), *[(c, "STRING") for c in src], ("rank", "INT64"), ("score", "FLOAT64"), ("selection", "STRING")])
+            self._load(self._t("context_receipt_excluded"), [{"receipt_id": receipt_id, **e} for e in norm_excluded],
+                       [("receipt_id", "STRING"), ("item_id", "STRING"), ("reason", "STRING"), *[(c, "STRING") for c in src]])
+            values = dict(zip(_BQ_RECEIPT_COLS, (receipt_id, created_at, context_name, context_version, policy_version, caller_id, purpose,
+                                                 query_hash, eligible_count, excluded_count, dagster_asset_key, dagster_run_id, trace_id,
+                                                 mcp_session_id, mcp_request_id, dagster_partition_key)))
+            self._load(self._t("context_receipts"), [values],
+                       [(c, "TIMESTAMP" if c == "created_at" else "INT64" if c.endswith("_count") else "STRING") for c in _BQ_RECEIPT_COLS])
+            return receipt_id
+
+        self._prepare()
+        return self._retrier.run(write, what="record_retrieval")
+
+    def _receipt_is_ours(self, receipt_id: str, context_name: str, query_hash: str | None) -> bool:
+        """After a retry found the receipt already there: is it the one we were writing (lost ack) or somebody else's with the same id?"""
+        rows = self._query(f"SELECT context_name, query_hash FROM {self._t('context_receipts')} WHERE receipt_id = @r", r=receipt_id)
+        return bool(rows) and rows[0]["context_name"] == context_name and rows[0]["query_hash"] == query_hash
 
     def _append_event(self, receipt_id: str, event_type: str, payload: Mapping[str, Any]) -> None:
-        if not self._query(f"SELECT 1 AS x FROM {self._t('context_receipts')} WHERE receipt_id = @r LIMIT 1", r=receipt_id):
-            raise KeyError(f"unknown context receipt: {receipt_id}")
-        self._load(self._t("context_receipt_events"), [{
-            "event_id": str(uuid.uuid4()), "receipt_id": receipt_id, "event_type": event_type, "occurred_at": self._timestamp(),
-            "payload_json": json.dumps(payload, sort_keys=True, separators=(",", ":")),
-        }], [("event_id", "STRING"), ("receipt_id", "STRING"), ("event_type", "STRING"), ("occurred_at", "TIMESTAMP"), ("payload_json", "STRING")])
+        # event_id and timestamp are fixed BEFORE the retry loop, and the table has no uniqueness, so each attempt checks whether
+        # this event_id already landed (a load job that succeeded but whose acknowledgement was lost) before loading it.
+        row = {"event_id": str(uuid.uuid4()), "receipt_id": receipt_id, "event_type": event_type, "occurred_at": self._timestamp(),
+               "payload_json": json.dumps(payload, sort_keys=True, separators=(",", ":"))}
+
+        def write() -> None:
+            if not self._query(f"SELECT 1 AS x FROM {self._t('context_receipts')} WHERE receipt_id = @r LIMIT 1", r=receipt_id):
+                raise KeyError(f"unknown context receipt: {receipt_id}")
+            if self._query(f"SELECT 1 AS x FROM {self._t('context_receipt_events')} WHERE event_id = @e LIMIT 1", e=row["event_id"]):
+                return
+            self._load(self._t("context_receipt_events"), [row],
+                       [("event_id", "STRING"), ("receipt_id", "STRING"), ("event_type", "STRING"), ("occurred_at", "TIMESTAMP"), ("payload_json", "STRING")])
+
+        self._prepare()
+        self._retrier.run(write, what="append_event")
 
     # -- reads ------------------------------------------------------------------------------------------------
     def get_receipt(self, receipt_id: str) -> dict[str, Any] | None:
@@ -2267,6 +2490,13 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
                 for item, (n, w, total) in stats.items()]
         if not rows:
             return 0
+        self._prepare()
+        self._retrier.run(lambda: self._refresh_write(rows), what="refresh_item_scores")
+        return len(stats)
+
+    def _refresh_write(self, rows: list) -> None:
+        """Stage + MERGE as ONE re-runnable unit: each attempt gets a fresh staging table, so a retried attempt can never double-load one
+        (that would make the MERGE fail with 'must match at most one source row')."""
         # Per-call staging table (uuid suffix) + one MERGE: readers never see a half-written score table, and concurrent refreshes
         # never share (and interleave rows in) a staging table, which would make the MERGE fail with "must match at most one source row".
         scores = receipt_table(self.dataset, "context_item_scores", self.table_prefix)
@@ -2291,7 +2521,7 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
                 self._query(f"DROP TABLE IF EXISTS {staging}")
             except Exception:  # noqa: BLE001  (never mask the real error; a leftover uuid-named staging table is harmless)
                 pass
-        return len(stats)
+
 
     def get_item_scores(self, item_ids: Iterable[str]) -> dict[str, dict[str, Any]]:
         ids = list(item_ids)
@@ -2453,7 +2683,7 @@ _SQL_DRIVER_HINTS = {  # URL scheme -> what to pip install (these drivers are op
 }
 
 
-def _create_sql_engine(url: str) -> Any:
+def _create_sql_engine(url: str, **engine_kwargs: Any) -> Any:
     """``sqlalchemy.create_engine`` with an actionable error when the SQLAlchemy driver for this database is not installed."""
     scheme = url.split(":", 1)[0].split("+", 1)[0].lower()
     hint = _SQL_DRIVER_HINTS.get(scheme)
@@ -2461,11 +2691,11 @@ def _create_sql_engine(url: str) -> Any:
         import sqlalchemy
 
         try:
-            return sqlalchemy.create_engine(url)
+            return sqlalchemy.create_engine(url, **engine_kwargs)
         except ModuleNotFoundError as exc:
             # SQLAlchemy 2.1 made psycopg (v3) the default for a bare postgresql:// URL; psycopg2-binary users have the older driver
             if scheme in ("postgresql", "postgres") and "+" not in url.split(":", 1)[0] and getattr(exc, "name", "") == "psycopg":
-                return sqlalchemy.create_engine("postgresql+psycopg2:" + url.split(":", 1)[1])
+                return sqlalchemy.create_engine("postgresql+psycopg2:" + url.split(":", 1)[1], **engine_kwargs)
             raise
     except (ImportError, Exception) as exc:  # noqa: BLE001  (NoSuchModuleError subclasses Exception, not ImportError)
         missing = isinstance(exc, ImportError) or type(exc).__name__ == "NoSuchModuleError"
@@ -2690,37 +2920,64 @@ class _DbapiTx:
 
 class _DbapiExecutor:
     """A plain PEP-249 connection: ``connect`` is a zero-argument callable returning a connection. One connection per thread (the async
-    writer thread and the caller never share one), opened on first use and dropped after a failed rollback so the next call reconnects."""
+    writer thread and the caller never share one), opened on first use. A connection is discarded (and closed) when a call fails with a
+    connection-lost error, when a rollback fails, or when it is older than ``max_age_seconds``; the next call reconnects through the factory."""
 
-    def __init__(self, connect: Any, dialect: str, paramstyle: str | None = None, transaction_mode: str | None = None):
+    def __init__(self, connect: Any, dialect: str, paramstyle: str | None = None, transaction_mode: str | None = None,
+                 max_age_seconds: float | None = None, clock: Any = None):
         if paramstyle is not None and paramstyle not in _PARAMSTYLES:
             raise ValueError(f"unsupported paramstyle {paramstyle!r}; supported: {list(_PARAMSTYLES)}")
         if transaction_mode is not None and transaction_mode not in ("dbapi", "sql", "none"):
             raise ValueError("transaction_mode must be 'dbapi', 'sql' or 'none'")
+        if max_age_seconds is not None and (isinstance(max_age_seconds, bool) or not isinstance(max_age_seconds, (int, float)) or max_age_seconds <= 0):
+            raise ValueError(f"connection_max_age_seconds must be a positive number or None, got {max_age_seconds!r}")
         self._connect, self.dialect_name = connect, dialect
         self._style = paramstyle
         self._mode = transaction_mode or _TX_MODES.get(dialect, "dbapi")
+        self._max_age = max_age_seconds
+        self._clock = clock or time.monotonic
         self._local = threading.local()
+        self._open: list = []            # every live connection of every thread, so close() can release them all
+        self._open_lock = threading.Lock()
+        self._generation = 0
 
     def _conn(self) -> Any:
-        conn = getattr(self._local, "conn", None)
+        local = self._local
+        conn = getattr(local, "conn", None)
+        if conn is not None and (getattr(local, "gen", None) != self._generation
+                                 or (self._max_age is not None and self._clock() - local.born >= self._max_age)):
+            self._drop()                 # closed by close() from another thread, or too old: recycle
+            conn = None
         if conn is None:
             conn = self._connect()
-            if self._style is None:
-                self._style = _driver_paramstyle(conn)
+            try:
                 if self._style is None:
-                    raise ValueError(f"cannot tell the paramstyle of {type(conn).__module__!r}; pass paramstyle= "
-                                     f"(one of {list(_PARAMSTYLES)}; see the driver's docs)")
-            self._local.conn = conn
+                    self._style = _driver_paramstyle(conn)
+                    if self._style is None:
+                        raise ValueError(f"cannot tell the paramstyle of {type(conn).__module__!r}; pass paramstyle= "
+                                         f"(one of {list(_PARAMSTYLES)}; see the driver's docs)")
+            except BaseException:
+                self._close_quietly(conn)        # never leak a connection we are not going to keep
+                raise
+            local.conn, local.born, local.gen = conn, self._clock(), self._generation
+            with self._open_lock:
+                self._open.append(conn)
         return conn
 
-    def _drop(self) -> None:
-        conn, self._local.conn = getattr(self._local, "conn", None), None
+    @staticmethod
+    def _close_quietly(conn: Any) -> None:
         try:
             if conn is not None:
                 conn.close()
         except Exception:  # noqa: BLE001
             pass
+
+    def _drop(self) -> None:
+        conn, self._local.conn = getattr(self._local, "conn", None), None
+        if conn is not None:
+            with self._open_lock:
+                self._open = [c for c in self._open if c is not conn]
+        self._close_quietly(conn)
 
     @contextmanager
     def transaction(self, single: bool = False) -> Iterator[_DbapiTx]:
@@ -2735,20 +2992,30 @@ class _DbapiExecutor:
                 tx.execute("COMMIT")
             elif self._mode == "dbapi":
                 conn.commit()
-        except BaseException:
-            try:
-                if use_sql:
-                    tx.execute("ROLLBACK")
-                elif self._mode == "dbapi":
-                    conn.rollback()
-            except Exception:  # noqa: BLE001
-                self._drop()      # state unknown: reconnect next time
+        except BaseException as exc:
+            if isinstance(exc, Exception) and _classify_error(exc) == "connection_lost":
+                self._drop()      # the session is gone (idle kill, token expiry, network): nothing to roll back, reconnect next time
+            else:
+                try:
+                    if use_sql:
+                        tx.execute("ROLLBACK")
+                    elif self._mode == "dbapi":
+                        conn.rollback()
+                except Exception:  # noqa: BLE001
+                    self._drop()      # state unknown: reconnect next time
             raise
         finally:
             tx.close()
 
     def close(self) -> None:
+        """Close this thread's connection and every other thread's that is still open (best effort: some drivers, sqlite3 by default, refuse
+        to close a connection from a thread other than the one that opened it; the async writer closes its own via ``AsyncReceiptWriter.close``)."""
         self._drop()
+        with self._open_lock:
+            others, self._open = self._open, []
+            self._generation += 1
+        for conn in others:
+            self._close_quietly(conn)
 
 
 class SqlContextReceiptStore(ContextReceiptStore):
@@ -2757,7 +3024,9 @@ class SqlContextReceiptStore(ContextReceiptStore):
     for MySQL, "" for the connection default)."""
 
     def __init__(self, engine: Any = None, *, schema: str = "", table_prefix: str = "", dialect: str | None = None, create_tables: bool = True,
-                 connection_factory: Any = None, paramstyle: str | None = None, transaction_mode: str | None = None):
+                 connection_factory: Any = None, paramstyle: str | None = None, transaction_mode: str | None = None,
+                 retry_max_attempts: int = 4, retry_max_backoff_seconds: float = 20.0, retry_sleep: Any = None,
+                 retry_rng: random.Random | None = None, connection_max_age_seconds: float | None = None, connection_clock: Any = None):
         """Two ways in, exactly one of:
 
         ``engine``: a SQLAlchemy Engine, a URL string, or a zero-argument callable returning an Engine (built on first use, so an unset
@@ -2767,26 +3036,38 @@ class SqlContextReceiptStore(ContextReceiptStore):
         ``databricks.sql.connect``, ``psycopg2.connect``, ``pymysql.connect``, ``sqlite3.connect``, ``duckdb.connect`` ...), no SQLAlchemy.
         ``dialect`` is then required. ``paramstyle`` (qmark/numeric/named/format/pyformat) defaults to the driver module's own
         ``paramstyle``; ``transaction_mode`` ('dbapi'/'sql'/'none') defaults per dialect (see ``_TX_MODES``). One connection is kept per
-        thread and opened on first use."""
+        thread and opened on first use, discarded and reopened after a connection-lost error or once it is
+        ``connection_max_age_seconds`` old (default: never recycled by age). Transient errors are retried (``retry_max_attempts`` attempts,
+        exponential backoff with full jitter capped at ``retry_max_backoff_seconds``; see the README table for what counts as transient)."""
+        self._retrier = _Retrier(retry_max_attempts, retry_max_backoff_seconds, sleep=retry_sleep, rng=retry_rng)
+        if connection_max_age_seconds is not None and (isinstance(connection_max_age_seconds, bool) or not isinstance(connection_max_age_seconds, (int, float)) or connection_max_age_seconds <= 0):
+            raise ValueError(f"connection_max_age_seconds must be a positive number or None, got {connection_max_age_seconds!r}")
+        self._max_age = connection_max_age_seconds
         if (engine is None) == (connection_factory is None):
             raise ValueError("give exactly one of engine= (SQLAlchemy) or connection_factory= (a PEP-249 connection factory)")
         if dialect is not None and dialect not in _SQL_DIALECT_NAMES:
             raise ValueError(f"unsupported SQL dialect {dialect!r}; supported: {sorted(set(_SQL_DIALECT_NAMES))}")
         self._engine_obj: Any = None
         self._engine_factory: Any = None
+        self._owns_engine = False
         self._dbapi: _DbapiExecutor | None = None
         if connection_factory is not None:
             if dialect is None:
                 raise ValueError("connection_factory= needs dialect= (one of " + ", ".join(sorted(set(_SQL_DIALECT_NAMES))) + ")")
-            self._dbapi = _DbapiExecutor(connection_factory, _SQL_DIALECT_NAMES[dialect], paramstyle, transaction_mode)
+            self._dbapi = _DbapiExecutor(connection_factory, _SQL_DIALECT_NAMES[dialect], paramstyle, transaction_mode,
+                                       max_age_seconds=connection_max_age_seconds, clock=connection_clock)
             self._exec: Any = self._dbapi
         else:
             if paramstyle is not None or transaction_mode is not None:
                 raise ValueError("paramstyle= / transaction_mode= apply only to connection_factory=")
             if isinstance(engine, str):
-                self._engine_factory = lambda url=engine: _create_sql_engine(url)
+                # pre-ping + recycle: a pooled connection killed while idle is replaced instead of failing the first call after the idle period
+                kw = {"pool_pre_ping": True, **({"pool_recycle": int(connection_max_age_seconds)} if connection_max_age_seconds else {})}
+                self._engine_factory = lambda url=engine: _create_sql_engine(url, **kw)
+                self._owns_engine = True
             elif callable(engine) and not hasattr(engine, "dialect"):
                 self._engine_factory = engine
+                self._owns_engine = True      # we call the factory, so the engine it returns is ours to dispose
             else:
                 self._engine_obj = engine
             self._exec = _SaExecutor(lambda: self._engine)
@@ -2807,9 +3088,13 @@ class SqlContextReceiptStore(ContextReceiptStore):
         return self._engine_obj
 
     def close(self) -> None:
-        """Close this thread's DBAPI connection (no-op for an engine; dispose that yourself)."""
+        """Release connections: every open DBAPI connection (this thread's for certain, other threads' best effort), or the SQLAlchemy engine
+        when this store built it from a URL (an engine you passed in is yours to dispose)."""
         if self._dbapi is not None:
             self._dbapi.close()
+        elif self._owns_engine and self._engine_obj is not None:
+            self._engine_obj.dispose()
+            self._engine_obj = None
 
     @property
     def dialect(self) -> str:  # type: ignore[override]
@@ -2853,16 +3138,32 @@ class SqlContextReceiptStore(ContextReceiptStore):
         else:
             self._verify_columns()
 
+    def _run_tx(self, sql: str, params: Mapping[str, Any] | None = None, *, what: str = "statement") -> list:
+        """One statement in its own transaction, retried on transient errors (callers pass only statements that are safe to re-run)."""
+        def run() -> list:
+            with self._exec.transaction() as conn:
+                return conn.execute(sql, params or {})
+        return self._retrier.run(run, what=what)
+
+    def _probe_failure(self, probe: str) -> BaseException | None:
+        """None if the probe ran; the error if it failed PERMANENTLY (column missing). A transient failure (already retried) is raised, never
+        mistaken for a missing column."""
+        try:
+            self._run_tx(probe, what="column probe")
+            return None
+        except Exception as exc:  # noqa: BLE001
+            if _classify_error(exc) != "permanent":
+                raise
+            return exc
+
     def _verify_columns(self) -> None:
         with self._ready_lock:
             if self._ready:
                 return
             missing, errors = [], []
             for probe, alter in receipt_column_upgrades(self.schema, self.table_prefix, self.dialect):
-                try:
-                    with self._exec.transaction() as conn:
-                        conn.execute(probe)
-                except Exception as exc:  # noqa: BLE001
+                exc = self._probe_failure(probe)
+                if exc is not None:
                     missing.append(alter)
                     errors.append(str(exc))
             if missing:
@@ -2873,32 +3174,38 @@ class SqlContextReceiptStore(ContextReceiptStore):
         with self._ready_lock:
             if self._ready:
                 return
-            with self._exec.transaction() as conn:
-                for ddl in receipt_table_ddl(self.schema, self.table_prefix, self.dialect):
-                    conn.execute(ddl)
+            ddl_list = receipt_table_ddl(self.schema, self.table_prefix, self.dialect)
+
+            def create() -> None:
+                with self._exec.transaction() as conn:
+                    for ddl in ddl_list:
+                        conn.execute(ddl)
+            self._retrier.run(create, what="create tables")
             for probe, alter in receipt_column_upgrades(self.schema, self.table_prefix, self.dialect):   # tables made by an older release
-                try:
-                    with self._exec.transaction() as conn:      # its own transaction: a failed probe aborts a Postgres transaction
-                        conn.execute(probe)
-                except Exception:  # noqa: BLE001  (column missing)
-                    with self._exec.transaction() as conn:
-                        conn.execute(alter)
+                if self._probe_failure(probe) is not None:      # column missing; the probe has its own transaction (a failed one aborts Postgres')
+                    try:
+                        self._run_tx(alter, what="add column")
+                    except Exception:  # noqa: BLE001  (an ALTER retried after a lost ack says 'already exists': fine if the column is there now)
+                        if self._probe_failure(probe) is not None:
+                            raise
             if self.dialect in ("postgres", "sqlite", "duckdb"):         # warehouses have no secondary indexes
                 for table, cols in (("context_receipts", "receipt_id"), ("context_receipt_items", "item_id"),
                                     ("context_receipt_items", "receipt_id"), ("context_receipt_items", "source_asset_key"),
                                     ("context_receipt_excluded", "receipt_id"), ("context_receipt_events", "receipt_id, occurred_at")):
                     index = f"idx_{self.table_prefix}{table}_{cols.split(',')[0]}".replace(" ", "")
                     try:
-                        with self._exec.transaction() as conn:
-                            conn.execute(f'CREATE INDEX IF NOT EXISTS "{index}" ON {self._t(table)} ({cols})')
+                        self._run_tx(f'CREATE INDEX IF NOT EXISTS "{index}" ON {self._t(table)} ({cols})', what="create index")
                     except Exception:  # an index is an optimization, never a reason to fail
                         pass
             self._ready = True
 
     def _query(self, sql: str, **params: Any) -> list:
         self._prepare()
-        with self._exec.transaction(single=True) as conn:
-            return conn.execute(sql, params)
+
+        def run() -> list:
+            with self._exec.transaction(single=True) as conn:
+                return conn.execute(sql, params)
+        return self._retrier.run(run, what="query")
 
     def _in_chunks(self, ids: list, size: int | None = None) -> Iterator[list]:
         # databricks-sql-connector's native parameters cap at 255 markers per query: stay well under it there.
@@ -2917,46 +3224,66 @@ class SqlContextReceiptStore(ContextReceiptStore):
         receipt_id, norm_items, norm_excluded, excluded_count, caller_id, mcp_session_id = self._prepare_retrieval(
             context_name, items, excluded, eligible_count, excluded_count, receipt_id, caller_id, mcp_session_id)
         self._prepare()
-        created_at = self._tsv(self._timestamp())
-        with self._exec.transaction() as conn:
-            seen = conn.execute(
-                f"SELECT (SELECT COUNT(1) FROM {self._t('context_receipts')} WHERE receipt_id = :r) AS r, "
-                f"(SELECT COUNT(1) FROM {self._t('context_receipt_items')} WHERE receipt_id = :r) AS i, "
-                f"(SELECT COUNT(1) FROM {self._t('context_receipt_excluded')} WHERE receipt_id = :r) AS e", {"r": receipt_id})[0]
-            if seen["r"]:
-                raise DuplicateReceiptError(f"receipt already exists: {receipt_id}")
-            if seen["i"]:   # leftovers of a crashed earlier attempt (databases without transactions)
-                conn.execute(f"DELETE FROM {self._t('context_receipt_items')} WHERE receipt_id = :r", {"r": receipt_id})
-            if seen["e"]:
-                conn.execute(f"DELETE FROM {self._t('context_receipt_excluded')} WHERE receipt_id = :r", {"r": receipt_id})
-            if norm_items:
-                conn.executemany(
-                    f"INSERT INTO {self._t('context_receipt_items')} (receipt_id, item_id, source_asset_key, source_version, source_partition, "
-                    f"source_code_version, {self._rank}, score, selection) VALUES (:receipt_id, :item_id, :source_asset_key, :source_version, "
-                    f":source_partition, :source_code_version, :rank, :score, :selection)",
-                    [{"receipt_id": receipt_id, **i} for i in norm_items])
-            if norm_excluded:
-                conn.executemany(
-                    f"INSERT INTO {self._t('context_receipt_excluded')} (receipt_id, item_id, reason, source_asset_key, source_version, "
-                    f"source_partition, source_code_version) VALUES (:receipt_id, :item_id, :reason, :source_asset_key, :source_version, "
-                    f":source_partition, :source_code_version)",
-                    [{"receipt_id": receipt_id, **e} for e in norm_excluded])
-            conn.execute(   # the receipt row goes last: it is the commit marker
-                f"INSERT INTO {self._t('context_receipts')} ({', '.join(_BQ_RECEIPT_COLS)}) VALUES ({', '.join(':' + c for c in _BQ_RECEIPT_COLS)})",
-                dict(zip(_BQ_RECEIPT_COLS, (receipt_id, created_at, context_name, context_version, policy_version, caller_id, purpose, query_hash,
-                                            eligible_count, excluded_count, dagster_asset_key, dagster_run_id, trace_id, mcp_session_id,
-                                            mcp_request_id, dagster_partition_key))))
-        return receipt_id
+        created_at = self._tsv(self._timestamp())       # fixed before the retry loop: every attempt writes the same row
+        attempts = {"n": 0}
+
+        def write() -> str:
+            attempts["n"] += 1
+            with self._exec.transaction() as conn:
+                seen = conn.execute(
+                    f"SELECT (SELECT COUNT(1) FROM {self._t('context_receipts')} WHERE receipt_id = :r) AS r, "
+                    f"(SELECT COUNT(1) FROM {self._t('context_receipt_items')} WHERE receipt_id = :r) AS i, "
+                    f"(SELECT COUNT(1) FROM {self._t('context_receipt_excluded')} WHERE receipt_id = :r) AS e", {"r": receipt_id})[0]
+                if seen["r"]:
+                    if attempts["n"] > 1:
+                        row = conn.execute(f"SELECT context_name, query_hash FROM {self._t('context_receipts')} WHERE receipt_id = :r",
+                                           {"r": receipt_id})[0]
+                        if row["context_name"] == context_name and row["query_hash"] == query_hash:
+                            return receipt_id     # an earlier attempt committed and only its acknowledgement was lost
+                    raise DuplicateReceiptError(f"receipt already exists: {receipt_id}")
+                if seen["i"]:   # leftovers of a crashed earlier attempt (databases without transactions)
+                    conn.execute(f"DELETE FROM {self._t('context_receipt_items')} WHERE receipt_id = :r", {"r": receipt_id})
+                if seen["e"]:
+                    conn.execute(f"DELETE FROM {self._t('context_receipt_excluded')} WHERE receipt_id = :r", {"r": receipt_id})
+                if norm_items:
+                    conn.executemany(
+                        f"INSERT INTO {self._t('context_receipt_items')} (receipt_id, item_id, source_asset_key, source_version, source_partition, "
+                        f"source_code_version, {self._rank}, score, selection) VALUES (:receipt_id, :item_id, :source_asset_key, :source_version, "
+                        f":source_partition, :source_code_version, :rank, :score, :selection)",
+                        [{"receipt_id": receipt_id, **i} for i in norm_items])
+                if norm_excluded:
+                    conn.executemany(
+                        f"INSERT INTO {self._t('context_receipt_excluded')} (receipt_id, item_id, reason, source_asset_key, source_version, "
+                        f"source_partition, source_code_version) VALUES (:receipt_id, :item_id, :reason, :source_asset_key, :source_version, "
+                        f":source_partition, :source_code_version)",
+                        [{"receipt_id": receipt_id, **e} for e in norm_excluded])
+                conn.execute(   # the receipt row goes last: it is the commit marker
+                    f"INSERT INTO {self._t('context_receipts')} ({', '.join(_BQ_RECEIPT_COLS)}) VALUES ({', '.join(':' + c for c in _BQ_RECEIPT_COLS)})",
+                    dict(zip(_BQ_RECEIPT_COLS, (receipt_id, created_at, context_name, context_version, policy_version, caller_id, purpose, query_hash,
+                                                eligible_count, excluded_count, dagster_asset_key, dagster_run_id, trace_id, mcp_session_id,
+                                                mcp_request_id, dagster_partition_key))))
+            return receipt_id
+
+        return self._retrier.run(write, what="record_retrieval")
 
     def _append_event(self, receipt_id: str, event_type: str, payload: Mapping[str, Any]) -> None:
-        if not self._query(f"SELECT 1 AS x FROM {self._t('context_receipts')} WHERE receipt_id = :r LIMIT 1", r=receipt_id):
-            raise KeyError(f"unknown context receipt: {receipt_id}")
-        with self._exec.transaction(single=True) as conn:
-            conn.execute(
-                f"INSERT INTO {self._t('context_receipt_events')} (event_id, receipt_id, event_type, occurred_at, payload_json) "
-                f"VALUES (:event_id, :receipt_id, :event_type, :occurred_at, :payload_json)",
-                {"event_id": str(uuid.uuid4()), "receipt_id": receipt_id, "event_type": event_type,
-                 "occurred_at": self._tsv(self._timestamp()), "payload_json": json.dumps(payload, sort_keys=True, separators=(",", ":"))})
+        self._prepare()
+        # event_id and timestamp are fixed BEFORE the retry loop; each attempt checks whether this event_id already landed (a commit whose
+        # acknowledgement was lost) in the same transaction as the insert, so a retried event is never duplicated.
+        row = {"event_id": str(uuid.uuid4()), "receipt_id": receipt_id, "event_type": event_type,
+               "occurred_at": self._tsv(self._timestamp()), "payload_json": json.dumps(payload, sort_keys=True, separators=(",", ":"))}
+
+        def write() -> None:
+            with self._exec.transaction() as conn:
+                if not conn.execute(f"SELECT 1 AS x FROM {self._t('context_receipts')} WHERE receipt_id = :r LIMIT 1", {"r": receipt_id}):
+                    raise KeyError(f"unknown context receipt: {receipt_id}")
+                if conn.execute(f"SELECT 1 AS x FROM {self._t('context_receipt_events')} WHERE event_id = :e LIMIT 1", {"e": row["event_id"]}):
+                    return
+                conn.execute(
+                    f"INSERT INTO {self._t('context_receipt_events')} (event_id, receipt_id, event_type, occurred_at, payload_json) "
+                    f"VALUES (:event_id, :receipt_id, :event_type, :occurred_at, :payload_json)", row)
+
+        self._retrier.run(write, what="append_event")
 
     # -- reads ------------------------------------------------------------------------------------------------
     def get_receipt(self, receipt_id: str) -> dict[str, Any] | None:
@@ -3065,16 +3392,18 @@ class SqlContextReceiptStore(ContextReceiptStore):
                 for item, (n, w, total) in stats.items()]
         if rows:
             if self.dialect in _MERGE_DIALECTS:
-                self._merge_item_scores(rows)
+                self._retrier.run(lambda: self._merge_item_scores(rows), what="refresh_item_scores")   # fresh staging table per attempt
             else:
                 # postgres/mysql/snowflake/sqlite/duckdb: delete + insert inside ONE real transaction, so readers never see a half-written
                 # table (a crash rolls the whole thing back).
-                with self._exec.transaction() as conn:
-                    for chunk in self._in_chunks([r["item_id"] for r in rows]):
-                        conn.execute(f"DELETE FROM {self._t('context_item_scores')} WHERE item_id IN :ids", {"ids": chunk})
-                    conn.executemany(
-                        f"INSERT INTO {self._t('context_item_scores')} (item_id, retrievals, outcome_weight, outcome_sum, prior, updated_at) "
-                        f"VALUES (:item_id, :retrievals, :outcome_weight, :outcome_sum, :prior, :updated_at)", rows)
+                def write() -> None:        # delete + insert in one transaction: re-running it after a lost commit ack just rewrites the same rows
+                    with self._exec.transaction() as conn:
+                        for chunk in self._in_chunks([r["item_id"] for r in rows]):
+                            conn.execute(f"DELETE FROM {self._t('context_item_scores')} WHERE item_id IN :ids", {"ids": chunk})
+                        conn.executemany(
+                            f"INSERT INTO {self._t('context_item_scores')} (item_id, retrievals, outcome_weight, outcome_sum, prior, updated_at) "
+                            f"VALUES (:item_id, :retrievals, :outcome_weight, :outcome_sum, :prior, :updated_at)", rows)
+                self._retrier.run(write, what="refresh_item_scores")
         return len(stats)
 
     def _merge_item_scores(self, rows: list) -> None:
@@ -3210,10 +3539,12 @@ class SqlContextReceiptStore(ContextReceiptStore):
         existed = 0
         for chunk in self._in_chunks(ids):
             existed += self._query(f"SELECT COUNT(1) AS n FROM {self._t('context_receipts')} WHERE receipt_id IN :ids", ids=chunk)[0]["n"]
-        with self._exec.transaction() as conn:
-            for chunk in self._in_chunks(ids):
-                for table in ("context_receipt_events", "context_receipt_excluded", "context_receipt_items", "context_receipts"):
-                    conn.execute(f"DELETE FROM {self._t(table)} WHERE receipt_id IN :ids", {"ids": chunk})
+        def delete() -> None:        # idempotent: deleting what is already gone is a no-op
+            with self._exec.transaction() as conn:
+                for chunk in self._in_chunks(ids):
+                    for table in ("context_receipt_events", "context_receipt_excluded", "context_receipt_items", "context_receipts"):
+                        conn.execute(f"DELETE FROM {self._t(table)} WHERE receipt_id IN :ids", {"ids": chunk})
+        self._retrier.run(delete, what="delete_receipts")
         return existed
 
     def delete_item_scores(self, item_ids: Iterable[str]) -> int:
@@ -3221,9 +3552,11 @@ class SqlContextReceiptStore(ContextReceiptStore):
         existed = 0
         for chunk in self._in_chunks(ids):
             existed += self._query(f"SELECT COUNT(1) AS n FROM {self._t('context_item_scores')} WHERE item_id IN :ids", ids=chunk)[0]["n"]
-        with self._exec.transaction() as conn:
-            for chunk in self._in_chunks(ids):
-                conn.execute(f"DELETE FROM {self._t('context_item_scores')} WHERE item_id IN :ids", {"ids": chunk})
+        def delete() -> None:
+            with self._exec.transaction() as conn:
+                for chunk in self._in_chunks(ids):
+                    conn.execute(f"DELETE FROM {self._t('context_item_scores')} WHERE item_id IN :ids", {"ids": chunk})
+        self._retrier.run(delete, what="delete_item_scores")
         return existed
 
     def _selftest_cursors(self) -> tuple[int, int]:
@@ -3263,18 +3596,26 @@ class AsyncReceiptWriter:
 
     Receipt IDs are assigned up front, so ``record_retrieval`` returns instantly and
     later ``attach_output`` / ``record_outcome`` calls can reference it before the
-    row is durable. A single worker applies operations in order with bounded retries;
-    operations that still fail land in ``dead_letters`` for inspection/replay. This is
-    in-process and not crash-safe: use a durable outbox/queue when losing receipts on
-    process death is unacceptable.
+    row is durable. A single worker applies operations in order; operations that fail
+    land in ``dead_letters`` for inspection/replay. This is in-process and not
+    crash-safe: use a durable outbox/queue when losing receipts on process death is
+    unacceptable.
+
+    Retries: the BigQuery and SQL stores retry transient errors themselves (backoff, jitter,
+    retry-safe writes), so for them the writer does NOT retry again (``max_retries`` defaults to 0:
+    an error that reaches the writer already survived the store's whole retry budget, and retrying
+    it would multiply attempts). For a store without its own retry (the SQLite one) ``max_retries``
+    defaults to 5. Errors that can never succeed (bad arguments, SQL errors, permission, unknown
+    receipt) are dead-lettered immediately either way.
     """
 
     _OPS = ("record_retrieval", "attach_output", "add_evidence", "record_outcome")
 
-    def __init__(self, store: ContextReceiptStore, *, max_retries: int = 5, backoff_seconds: float = 0.1):
+    def __init__(self, store: ContextReceiptStore, *, max_retries: int | None = None, backoff_seconds: float = 0.1, sleep: Any = None):
         self.store = store
-        self.max_retries = max_retries
+        self.max_retries = (0 if getattr(store, "_retrier", None) is not None else 5) if max_retries is None else max_retries
         self.backoff_seconds = backoff_seconds
+        self._sleep = sleep or time.sleep
         self.dead_letters: list[tuple[str, tuple, dict, BaseException]] = []
         self._queue: queue.Queue = queue.Queue()
         self._worker = threading.Thread(target=self._run, daemon=True)
@@ -3306,10 +3647,22 @@ class AsyncReceiptWriter:
         """Block until everything queued so far has been written or dead-lettered."""
         self._queue.join()
 
+    def close(self) -> None:
+        """Flush, then stop the worker; the worker closes the store's connection itself (a driver connection belongs to the thread that opened it)."""
+        if self._worker.is_alive():
+            self._queue.put(("__close__", (), {}))
+            self._worker.join(timeout=30)
+
     def _run(self) -> None:
         while True:
             op, args, kwargs = self._queue.get()
             try:
+                if op == "__close__":
+                    try:
+                        self.store.close()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    return
                 self._apply(op, args, kwargs)
             finally:
                 self._queue.task_done()
@@ -3321,14 +3674,12 @@ class AsyncReceiptWriter:
                 return
             except DuplicateReceiptError:
                 return  # an earlier attempt actually committed
-            except (ValueError, TypeError, KeyError) as exc:
-                self.dead_letters.append((op, args, kwargs, exc))  # will never succeed on retry
-                return
-            except Exception as exc:  # transient storage error
-                if attempt == self.max_retries:
+            except Exception as exc:
+                # known-permanent errors never succeed on retry; anything we cannot place keeps the old benefit of the doubt (retried)
+                if attempt == self.max_retries or _classify_error(exc, unknown="transient") == "permanent":
                     self.dead_letters.append((op, args, kwargs, exc))
                     return
-                time.sleep(self.backoff_seconds * (2**attempt))
+                self._sleep(self.backoff_seconds * (2**attempt))
 
 
 class _AsyncWrites:
@@ -3341,10 +3692,17 @@ class _AsyncWrites:
 
     _sync_cls: Any = None
 
-    def __init__(self, *args: Any, writer_max_retries: int = 5, writer_backoff_seconds: float = 0.5, **kwargs: Any):
+    def __init__(self, *args: Any, writer_max_retries: int | None = None, writer_backoff_seconds: float = 0.5, writer_sleep: Any = None,
+                 **kwargs: Any):
         super().__init__(*args, **kwargs)
+        # writer_max_retries=None: 0, because the inner store retries transient errors itself (see AsyncReceiptWriter)
         self._writer = AsyncReceiptWriter(self._sync_cls(*args, **kwargs), max_retries=writer_max_retries,
-                                          backoff_seconds=writer_backoff_seconds)
+                                          backoff_seconds=writer_backoff_seconds, sleep=writer_sleep)
+
+    def close(self) -> None:
+        """Flush queued writes, close the writer thread's connection, then this store's own."""
+        self._writer.close()
+        super().close()
 
     @property
     def dead_letters(self) -> list:
@@ -3916,6 +4274,18 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
         description="backend: bigquery or sql -- queue writes on a background thread (a load job takes seconds, so an agent should not wait on it). Reads see only finished writes; call flush() for read-your-writes. Not crash-safe.",
     )
 
+    retry_max_attempts: int = Field(
+        default=4,
+        description="backend: bigquery or sql -- attempts (first try included) for an operation that fails with a transient error (rate limit, 5xx, connection lost, deadlock, serialization failure). 1 disables retries. Permanent errors (syntax, permission, not found, duplicate) are never retried. Writes are retry-safe: a retried receipt or event is never duplicated.",
+    )
+    retry_max_backoff_seconds: float = Field(
+        default=20.0,
+        description="backend: bigquery or sql -- ceiling of the exponential backoff between attempts (full jitter: the wait is uniform between 0 and min(this, 0.5 * 2^(attempt-1)) seconds).",
+    )
+    connection_max_age_seconds: Optional[float] = Field(
+        default=None,
+        description="backend: sql -- recycle a database connection once it is this many seconds old (guards against idle-session kills on Snowflake, Postgres and Databricks). Empty keeps a connection until it fails; a dead one is always replaced.",
+    )
     usage_sensor_enabled: bool = Field(
         default=False,
         description=(
@@ -4002,6 +4372,13 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
     )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        if isinstance(self.retry_max_attempts, bool) or self.retry_max_attempts < 1:
+            raise ValueError(f"retry_max_attempts must be an integer >= 1, got {self.retry_max_attempts!r}")
+        if self.retry_max_backoff_seconds < 0:
+            raise ValueError(f"retry_max_backoff_seconds must be >= 0, got {self.retry_max_backoff_seconds!r}")
+        if self.connection_max_age_seconds is not None and self.connection_max_age_seconds <= 0:
+            raise ValueError(f"connection_max_age_seconds must be positive or empty, got {self.connection_max_age_seconds!r}")
+        retry = {"retry_max_attempts": self.retry_max_attempts, "retry_max_backoff_seconds": self.retry_max_backoff_seconds}
         if self.backend == "sqlite":
             store: ContextReceiptStore = ContextReceiptStore(os.path.expanduser(self.database_path))
         elif self.backend == "bigquery":
@@ -4020,7 +4397,7 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
                 return BigQueryResource(project=project, location=location, gcp_credentials=creds).get_client()
 
             cls = AsyncBigQueryContextReceiptStore if self.async_writes else BigQueryContextReceiptStore
-            store = cls(self.bigquery_dataset, client_factory=client_factory, table_prefix=self.bigquery_table_prefix)
+            store = cls(self.bigquery_dataset, client_factory=client_factory, table_prefix=self.bigquery_table_prefix, **retry)
         elif self.backend == "sql":
             if bool(self.sql_url_env_var) == bool(self.sql_connection):
                 raise ValueError("backend: sql requires exactly one of sql_url_env_var (the env var holding a SQLAlchemy URL) "
@@ -4028,14 +4405,20 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
             cls = AsyncSqlContextReceiptStore if self.async_writes else SqlContextReceiptStore
             if self.sql_connection:
                 factory, dialect = _build_dbapi_connection(self.sql_connection)
-                store = cls(connection_factory=factory, dialect=dialect, schema=self.sql_schema, table_prefix=self.sql_table_prefix)
+                store = cls(connection_factory=factory, dialect=dialect, schema=self.sql_schema, table_prefix=self.sql_table_prefix,
+                            connection_max_age_seconds=self.connection_max_age_seconds, **retry)
             else:
                 url_env = self.sql_url_env_var
 
-                def engine_factory():
-                    return _create_sql_engine(dg.EnvVar(url_env).get_value())
+                engine_kw: dict[str, Any] = {"pool_pre_ping": True}
+                if self.connection_max_age_seconds:
+                    engine_kw["pool_recycle"] = int(self.connection_max_age_seconds)
 
-                store = cls(engine_factory, schema=self.sql_schema, table_prefix=self.sql_table_prefix)
+                def engine_factory():
+                    return _create_sql_engine(dg.EnvVar(url_env).get_value(), **engine_kw)
+
+                store = cls(engine_factory, schema=self.sql_schema, table_prefix=self.sql_table_prefix,
+                            connection_max_age_seconds=self.connection_max_age_seconds, **retry)
         else:
             raise ValueError(f"backend must be 'sqlite', 'bigquery' or 'sql', got {self.backend!r}")
         if self.pseudonymize_callers:

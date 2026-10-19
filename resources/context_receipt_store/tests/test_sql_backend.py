@@ -9,7 +9,7 @@ import pytest
 
 sqlalchemy = pytest.importorskip("sqlalchemy")
 sys.path.insert(0, str(Path(__file__).parent))
-from test_bigquery_backend import item, scenario, norm_usage  # noqa: E402
+from .test_bigquery_backend import item, scenario, norm_usage  # noqa: E402
 
 
 def _load():

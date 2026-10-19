@@ -9,15 +9,24 @@ Usage:
     monkeypatch.setitem(sys.modules, "google.cloud.bigquery", install_fake_bigquery(client))   # also registers google / google.cloud
     # a dagster-gcp style resource: FakeBigQueryResource(client) with .get_client() as a context manager
 """
+import atexit
 import contextlib
 import re
 import sys
 import types
+import weakref
 from typing import Any, Dict, List
 
 import duckdb
 import sqlglot
 from sqlglot import exp
+
+from . import ai_stubs
+
+
+class Conflict(Exception):
+    """google.api_core.exceptions.Conflict (409): a job with that id already exists."""
+    code = 409
 
 
 class Row(dict):
@@ -64,7 +73,7 @@ class SchemaField:
 
 class _Job:
     def __init__(self, rows=None, affected=None):
-        self._rows, self.num_dml_affected_rows, self.errors = rows or [], affected, None
+        self._rows, self.num_dml_affected_rows, self.errors, self.error_result = rows or [], affected, None, None
 
     def result(self, *a, **k):
         return iter(self._rows)
@@ -102,19 +111,44 @@ def _sha2_is_already_hex(stmt):
     return stmt
 
 
+def _safe_cosine_distance(stmt):
+    """BigQuery's `SAFE.COSINE_DISTANCE(a, b)` returns NULL instead of erroring (zero / empty vector, dimension mismatch). sqlglot leaves the SAFE.
+    prefix as a bare Dot; DuckDB's equivalent of "NULL on error" is TRY(..), around the same list_cosine_distance a plain COSINE_DISTANCE becomes."""
+    for dot in list(stmt.find_all(exp.Dot)):
+        fn = dot.expression
+        if isinstance(dot.this, exp.Identifier) and dot.this.name.upper() == "SAFE" and isinstance(fn, exp.Anonymous) and fn.name.upper() == "COSINE_DISTANCE":
+            dot.replace(exp.Anonymous(this="TRY", expressions=[exp.CosineDistance(this=fn.expressions[0], expression=fn.expressions[1])]))
+    return stmt
+
+
+_OPEN: "weakref.WeakSet" = weakref.WeakSet()
+
+
+@atexit.register
+def _close_all():  # close DuckDB connections before interpreter teardown (avoids native-thread / mutex races at exit)
+    for c in list(_OPEN):
+        c.close()
+
+
 class FakeBigQueryClient:
     def __init__(self, project: str = "proj", location=None):
         self.project, self.location = project, location
         self.con = duckdb.connect()
+        _OPEN.add(self)
         self.queries: List[str] = []
+        self.jobs: Dict[str, _Job] = {}
+        self.con.execute("CREATE VIEW bq_info_schema_columns AS SELECT * FROM information_schema.columns")
+        self.ai = ai_stubs.register(self.con)        # call-counting stand-ins for ML.GENERATE_EMBEDDING / AI.CLASSIFY
 
     # -- SQL ----------------------------------------------------------------------------------------------
     def _to_duckdb(self, sql: str) -> str:
-        sql = _strip_project(sql, self.project)
+        sql = ai_stubs.rewrite_text(_strip_project(sql, self.project))
+        # `ds`.INFORMATION_SCHEMA.COLUMNS: DuckDB has one global information_schema (table_schema = the dataset), so the dataset qualifier goes
+        sql = re.sub(r"(?:`[^`]+`\.)?`?[\w\-.]+`?\.INFORMATION_SCHEMA\.COLUMNS", "bq_info_schema_columns", sql)
         out = []
         for stmt in sqlglot.parse(sql, read="bigquery"):       # raises ParseError for SQL that is not valid BigQuery
             if stmt is not None:
-                out.append(_sha2_is_already_hex(_zero_based_offsets(stmt)).sql(dialect="duckdb"))
+                out.append(ai_stubs.rewrite_bigquery(_safe_cosine_distance(_sha2_is_already_hex(_zero_based_offsets(stmt)))).sql(dialect="duckdb"))
         return "; ".join(out)
 
     def query(self, sql: str, job_config=None, **kw) -> _Job:
@@ -142,7 +176,12 @@ class FakeBigQueryClient:
         self._insert(self._norm_table(table), rows)
         return []
 
-    def load_table_from_json(self, rows, destination, job_config=None, **kw) -> _Job:
+    def get_job(self, job_id, location=None, **kw) -> _Job:
+        return self.jobs[job_id]
+
+    def load_table_from_json(self, rows, destination, job_config=None, job_id=None, **kw) -> _Job:
+        if job_id is not None and job_id in self.jobs:
+            raise Conflict(f"409 Already Exists: Job {job_id}")
         table = self._norm_table(destination)
         # Like BigQuery: a load job whose explicit schema says NULLABLE for a column the table has as REQUIRED (NOT NULL) would relax the mode,
         # which needs schema_update_options=ALLOW_FIELD_RELAXATION; without it the job fails. (Without schema=, the table's own schema applies.)
@@ -156,7 +195,10 @@ class FakeBigQueryClient:
             if relaxed:
                 raise RuntimeError(f"400 Provided Schema does not match Table {destination}: field(s) {relaxed} changed mode from REQUIRED to NULLABLE")
         self._insert(table, rows)
-        return _Job()
+        job = _Job()
+        if job_id is not None:
+            self.jobs[job_id] = job
+        return job
 
     def _insert(self, table: str, rows: List[dict]) -> None:
         for row in rows:
@@ -167,7 +209,8 @@ class FakeBigQueryClient:
         self.con.execute(f"CREATE SCHEMA IF NOT EXISTS {str(dataset).split('.')[-1]}")
 
     def close(self):
-        pass
+        with contextlib.suppress(Exception):
+            self.con.close()
 
 
 class FakeBigQueryResource:

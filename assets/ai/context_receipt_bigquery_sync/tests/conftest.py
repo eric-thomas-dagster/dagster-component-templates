@@ -43,7 +43,7 @@ def store(store_mod, tmp_path):
 
 @pytest.fixture
 def bq(monkeypatch):
-    from bq_fake import FakeBigQueryClient, install_fake_bigquery
+    from .bq_fake import FakeBigQueryClient, install_fake_bigquery
     client = FakeBigQueryClient(project="proj")
     client.create_dataset("proj.ctx", exists_ok=True)
     module = install_fake_bigquery(client)

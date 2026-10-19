@@ -7,8 +7,8 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent))
-from backends import load_module, make_store  # noqa: E402
-from test_partition_key import _item, _old_ddl  # noqa: E402
+from .backends import load_module, make_store  # noqa: E402
+from .test_partition_key import _item, _old_ddl  # noqa: E402
 
 KINDS_WH = ["bigquery-fake", "sql-duckdb", "sql-sqlite", "dbapi-sqlite", "dbapi-duckdb"]
 

@@ -391,6 +391,65 @@ receipt = receipts.get_receipt(receipt_ids[0])
 item attributed to that Dagster asset. This is a first prototype of recall and
 impact analysis; it does not yet query Dagster's asset graph automatically.
 
+## Retries and failure handling (BigQuery and SQL backends)
+
+Warehouses fail transiently: rate limits, 5xx responses, a session killed while idle, a deadlock. The BigQuery and SQL stores retry those
+themselves, so a pipeline run or an agent request does not fail on a blip.
+
+```yaml
+attributes:
+  retry_max_attempts: 4              # attempts, first try included; 1 turns retries off
+  retry_max_backoff_seconds: 20      # ceiling of the backoff
+  connection_max_age_seconds: 1800   # backend: sql -- recycle a connection this old (optional)
+```
+
+**Backoff.** Exponential with full jitter: after failed attempt *n* the wait is uniform between 0 and `min(retry_max_backoff_seconds, 0.5 * 2^(n-1))` seconds.
+Each retry logs one WARNING with the attempt number, the error **class** and the delay (never the SQL, parameters or the error text, which can carry
+either). When the attempts run out the **original exception** is raised unchanged, with a note stating how many attempts were made (visible in the
+traceback on Python 3.11+, `__notes__` on 3.10) and an ERROR log line.
+
+**What counts as transient** (decided from class name, attributes and message, so no vendor library is imported):
+
+| Retried | Examples |
+|---|---|
+| BigQuery | `ServiceUnavailable`, `InternalServerError`, `TooManyRequests`, `DeadlineExceeded`, `GatewayTimeout`, `BadGateway`, `Aborted`, `ResourceExhausted`; a 403 whose `errors[0].reason` is `rateLimitExceeded`, `quotaExceeded`, `backendError`, `internalError` (load-job and table-update rate limits) |
+| Snowflake | connection / network errno `250001`, `250003`; expired session or token `390111`, `390112`, `390114` (the connection is replaced) |
+| Databricks | `RequestError` (the connection is replaced); 429 / 500 / 502 / 503 / 504; "Temporarily unavailable"; invalid or expired session handle |
+| Postgres | SQLSTATE `40001` serialization failure, `40P01` deadlock, `55P03`, `53300`; connection loss (`08xxx`, `57P01-03`, "server closed the connection", "SSL SYSCALL ... EOF") |
+| MySQL | `1213` deadlock, `1205` lock wait timeout, `1040` too many connections; `2002`, `2003`, `2006`, `2013`, `2055` lost connection (connection replaced) |
+| SQLAlchemy | `DBAPIError.connection_invalidated`; otherwise the wrapped driver error (`.orig`) is classified |
+| Generic | `ConnectionError` family, `BrokenPipeError`, `TimeoutError`, `OSError` with ECONNRESET / EPIPE / ETIMEDOUT / ECONNREFUSED / ECONNABORTED / EHOSTUNREACH |
+| Retried only because every operation here is re-runnable | statement timeouts: Snowflake `604`, Postgres `57014`, MySQL `1317` / `3024` (they will usually time out again, so they burn the attempts quickly) |
+| **Never retried** | syntax / `ProgrammingError`, `IntegrityError` and unique violations, `DuplicateReceiptError`, permission (`Forbidden` without a rate-limit reason, `PermissionDenied`, `Unauthorized`), `NotFound`, `BadRequest`, bad credentials (an `OperationalError` that matches none of the transient patterns), `ValueError` / `TypeError` / `KeyError` and any other error not listed above |
+
+**Retries are safe for writes.** A retry can follow a write that actually committed but whose acknowledgement was lost, so:
+
+- `record_retrieval` retries as one unit (duplicate check, orphan cleanup, items, then the receipt row as the commit marker). If a *retry* finds the receipt
+  already there it counts as success only when it is ours (same `context_name` and `query_hash`); a different receipt with that id still raises
+  `DuplicateReceiptError`. A duplicate on the *first* attempt is always an error. Limit: a retry cannot tell its own committed write from an earlier,
+  unrelated receipt that has the same id, context and query hash; callers who supply their own `receipt_id` should not reuse one.
+- Events (`attach_output`, `add_evidence`, `record_outcome`, `ingest`): the `event_id` is generated once before the first attempt and every attempt
+  checks whether that `event_id` is already stored, so a retried event is never duplicated (the BigQuery table has no uniqueness constraint; the check is the guard).
+- `refresh_item_scores`, `enforce_retention`, `delete_receipts`, `delete_item_scores` and the DDL are re-runnable and are retried whole. A BigQuery or Databricks
+  refresh uses a fresh staging table on every attempt.
+- Retries do not multiply: only the outermost operation retries, so a unit made of several statements uses `retry_max_attempts` in total.
+- A failure while probing for the late-added column is raised, never mistaken for "column missing" (which would trigger an ALTER).
+
+**Connections (SQL with a connector factory, `sql_connection`).** One connection per thread. After a connection-lost error the connection is discarded
+and closed, and the retry reconnects through the factory; if the connection died mid-commit the unit is simply re-run (it is idempotent, see above).
+`connection_max_age_seconds` recycles a connection that old before its next transaction (idle-session guard for Snowflake, Postgres and Databricks). For a
+SQLAlchemy URL the engine is created with `pool_pre_ping` (and `pool_recycle` from the same setting). `store.close()` closes every open connection (for
+async stores it first flushes the queue; the writer thread closes its own connection). An engine you pass in yourself is yours to dispose.
+
+**Async writes.** `async_writes: true` queues writes on a background thread. That writer does **not** retry again on top of the store's retries
+(`writer_max_retries` defaults to 0 for these stores, previously 5, which could multiply 4 x 5 attempts): an error that reaches it already survived the
+store's whole budget and is dead-lettered (`store.dead_letters`) after exactly `retry_max_attempts` tries. Permanent errors are dead-lettered on the first. A bare
+`AsyncReceiptWriter` over the SQLite store keeps its own retries (default 5), since that store has none.
+
+What is verified: failure-injection tests (`tests/test_transient_retry.py`) with fake clients and connections that raise stand-ins named like the vendor
+exceptions, including "committed but acknowledgement lost" commits and load jobs. Nothing has been run against real BigQuery, Snowflake, Databricks, Postgres or
+MySQL, so the classification table is built from the drivers' documented errors rather than observed ones.
+
 ## Verify your backend
 
 Without Dagster, from a checkout of this repo, run `python3 tools/verify_receipts_backend.py bigquery --dataset my-project.context --prefix verify_` (or `sql --url-env RECEIPTS_URL --schema ...`, or `dbapi --kind snowflake|databricks|postgres|mysql ...` for the vendor connector, or `sqlite --path ...`). It runs the same self-test, prints a PASS/FAIL line per step and exits non-zero on any failure -- a one-command check against your own warehouse.

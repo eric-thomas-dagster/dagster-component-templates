@@ -148,6 +148,18 @@
       "label": "Unknown Receipt Grace Hours",
       "description": "A feedback row whose receipt id is unknown but whose occurred_at is younger than this is retried (the cursor is held just before it; counted in unknown_receipts_pending) because the receipt may not be durable yet (async writer, multi-host). Older unknown-receipt rows are dropped and the cursor moves past them. 0 disables the retry.",
       "required": false
+    },
+    "retry_max_attempts": {
+      "type": "integer",
+      "label": "Retry Max Attempts",
+      "description": "Tries per source read (HTTP page / file / SQL) on transient failures: connection errors, timeouts, HTTP 429/500/502/503/504 (exponential backoff with full jitter; Retry-After honoured). SQL reads use at most 3. Other 4xx are never retried. 1 disables retrying.",
+      "required": false
+    },
+    "retry_max_backoff_seconds": {
+      "type": "number",
+      "label": "Retry Max Backoff Seconds",
+      "description": "Upper bound on any single wait between retries, including a server's Retry-After.",
+      "required": false
     }
   },
   "tags": [

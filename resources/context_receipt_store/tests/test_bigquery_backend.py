@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent))
-from bq_fake import FakeBigQueryClient, install_fake_bigquery  # noqa: E402
+from .bq_fake import FakeBigQueryClient, install_fake_bigquery  # noqa: E402
 
 
 def _load():

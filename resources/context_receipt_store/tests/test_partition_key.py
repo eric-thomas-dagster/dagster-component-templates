@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 sys.path.insert(0, str(Path(__file__).parent))
-from backends import KINDS, load_module, make_store  # noqa: E402
+from .backends import KINDS, load_module, make_store  # noqa: E402
 
 SCHEMA = json.loads((Path(__file__).parents[1] / "receipt-spec.v1.json").read_text())
 

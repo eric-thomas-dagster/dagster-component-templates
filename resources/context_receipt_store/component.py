@@ -2447,7 +2447,7 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
 # (a parity test runs one scenario through each). Writes use one transaction per call where the database has them.
 
 _SQL_DRIVER_HINTS = {  # URL scheme -> what to pip install (these drivers are optional: only the backend you use needs one)
-    "postgresql": "sqlalchemy psycopg2-binary", "postgres": "sqlalchemy psycopg2-binary", "mysql": "sqlalchemy pymysql",
+    "postgresql": "sqlalchemy psycopg2-binary (or psycopg[binary])", "postgres": "sqlalchemy psycopg2-binary (or psycopg[binary])", "mysql": "sqlalchemy pymysql",
     "mariadb": "sqlalchemy pymysql", "snowflake": "sqlalchemy snowflake-sqlalchemy", "databricks": "sqlalchemy databricks-sqlalchemy",
     "duckdb": "sqlalchemy duckdb-engine", "sqlite": "sqlalchemy",
 }
@@ -2460,7 +2460,13 @@ def _create_sql_engine(url: str) -> Any:
     try:
         import sqlalchemy
 
-        return sqlalchemy.create_engine(url)
+        try:
+            return sqlalchemy.create_engine(url)
+        except ModuleNotFoundError as exc:
+            # SQLAlchemy 2.1 made psycopg (v3) the default for a bare postgresql:// URL; psycopg2-binary users have the older driver
+            if scheme in ("postgresql", "postgres") and "+" not in url.split(":", 1)[0] and getattr(exc, "name", "") == "psycopg":
+                return sqlalchemy.create_engine("postgresql+psycopg2:" + url.split(":", 1)[1])
+            raise
     except (ImportError, Exception) as exc:  # noqa: BLE001  (NoSuchModuleError subclasses Exception, not ImportError)
         missing = isinstance(exc, ImportError) or type(exc).__name__ == "NoSuchModuleError"
         if missing and hint:
@@ -2488,7 +2494,8 @@ def _convert_sql_params(sql: str, params: Mapping[str, Any] | None, paramstyle: 
     ignored. Backslash-escaped quotes inside string literals are not understood (this store's own SQL has none)."""
     if paramstyle not in _PARAMSTYLES:
         raise ValueError(f"unsupported paramstyle {paramstyle!r}; supported: {list(_PARAMSTYLES)}")
-    params = dict(params or {})
+    # NaN/inf have no portable SQL literal (Snowflake would render a bare `nan` and read it as a column) -> store NULL
+    params = {k: (None if isinstance(v, float) and (v != v or v in (float("inf"), float("-inf"))) else v) for k, v in dict(params or {}).items()}
     escape = paramstyle in ("format", "pyformat")
     out: list[str] = []
     ordered: list[Any] = []
@@ -3896,7 +3903,7 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
     sql_table_prefix: str = Field(default="", description="backend: sql -- prefix for the five receipt table names.")
     bigquery_dataset: Optional[str] = Field(
         default=None,
-        description="backend: bigquery -- 'project.dataset' holding the receipt tables (created on first use if missing). The same dataset a SQL-mode context_engineering_pipeline `receipts: {dataset: ...}` reads.",
+        description="backend: bigquery -- 'project.dataset' holding the receipt tables (the dataset must already exist; the tables are created on first use). The same dataset a SQL-mode context_engineering_pipeline `receipts: {dataset: ...}` reads.",
     )
     bigquery_table_prefix: str = Field(default="", description="backend: bigquery -- prefix for the five receipt table names (e.g. 'prod_'), to keep several environments in one dataset.")
     bigquery_location: Optional[str] = Field(default=None, description="backend: bigquery -- BigQuery location, e.g. 'US' or 'EU'.")

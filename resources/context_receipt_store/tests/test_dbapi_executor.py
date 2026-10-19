@@ -447,3 +447,35 @@ def test_sqlalchemy_url_form_still_works_alongside(mod, monkeypatch, tmp_path):
     assert store._dbapi is None and store._engine_obj is None
     rid = store.record_retrieval(context_name="kb", items=[item("a")])
     assert store.get_receipt(rid)["receipt_id"] == rid
+
+
+def test_nan_and_inf_become_null_not_a_bare_literal():
+    """Snowflake's client would render a float NaN as bare `nan` (read as a column name); store NULL instead."""
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location("crs_nan", Path(__file__).resolve().parent.parent / "component.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    sql, params = mod._convert_sql_params("INSERT INTO t (a, b, c, d) VALUES (:a, :b, :c, :d)",
+                                          {"a": float("nan"), "b": float("inf"), "c": float("-inf"), "d": 0.5}, "pyformat")
+    assert params == {"a": None, "b": None, "c": None, "d": 0.5}
+
+
+def test_bare_postgresql_url_falls_back_to_psycopg2_when_psycopg3_is_missing(monkeypatch):
+    import importlib.util
+    from pathlib import Path
+    import sqlalchemy
+    spec = importlib.util.spec_from_file_location("crs_pg", Path(__file__).resolve().parent.parent / "component.py")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    seen = []
+
+    def fake_create(url, **kw):
+        seen.append(url)
+        if url.startswith("postgresql://"):
+            raise ModuleNotFoundError("No module named 'psycopg'", name="psycopg")
+        return "engine"
+
+    monkeypatch.setattr(sqlalchemy, "create_engine", fake_create)
+    assert mod._create_sql_engine("postgresql://u:p@h/db") == "engine"
+    assert seen == ["postgresql://u:p@h/db", "postgresql+psycopg2://u:p@h/db"]

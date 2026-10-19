@@ -58,7 +58,7 @@ type: dagster_community_components.ContextReceiptStoreComponent
 attributes:
   resource_key: context_receipts
   backend: bigquery
-  bigquery_dataset: my-project.context        # five tables are created on first use
+  bigquery_dataset: my-project.context        # the dataset must exist; the five tables are created on first use
   bigquery_table_prefix: prod_                # optional: several environments in one dataset
   gcp_credentials_env_var: GCP_SA_JSON_B64    # omit for Application Default Credentials
   async_writes: true                          # default

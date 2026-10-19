@@ -132,7 +132,7 @@
     "bigquery_dataset": {
       "type": "string",
       "label": "Bigquery Dataset",
-      "description": "backend: bigquery -- 'project.dataset' holding the receipt tables (created on first use if missing). The same dataset a SQL-mode context_engineering_pipeline `receipts: {dataset: ...}` reads.",
+      "description": "backend: bigquery -- 'project.dataset' holding the receipt tables (the dataset must already exist; the tables are created on first use). The same dataset a SQL-mode context_engineering_pipeline `receipts: {dataset: ...}` reads.",
       "required": false
     },
     "bigquery_table_prefix": {

@@ -21,11 +21,12 @@ does not know are counted (`unknown_receipts`), never fatal.
 | **Incremental** | The cursor (max `occurred_at` handled) is the asset's own `cursor` materialization metadata, read back via `context.instance` -- no local files. It is bound into `{since}` (sql) / `since_param` (http) and also filtered in Python. Reads are **inclusive** (`>= cursor`): boundary rows are re-read, which is safe, but each re-read appends another event (the store is append-only; the *effective* outcome does not change). Without `mapping.occurred_at` there is no cursor and every run reads everything. |
 | **Writes** | Synchronous, not `AsyncReceiptWriter`, so the cursor only advances past outcomes that are durably recorded. Against the BigQuery store each outcome is a query + load: keep `max_rows` modest there. |
 | **Bad rows** | Missing receipt id, unmapped signal, value outside [-1,1] or the `scale`, non-numeric value, bad timestamp. With `on_bad_row: skip` (default) they are counted, with the first 5 in `bad_row_examples`; with `fail` the run raises **before recording anything**. |
-| **Unknown receipts** | `unknown_receipts` + `unknown_receipt_examples`. `on_unknown_receipt: fail` records the known ones then raises. A skipped unknown row still advances the cursor (the receipt is not expected to appear later). |
-| **max_rows** | Oldest-first by `occurred_at`; the cursor lets following runs catch up. HTTP/SQL results are fully fetched before truncating. |
+| **Unknown receipts** | `unknown_receipts` + `unknown_receipt_examples`. `on_unknown_receipt: fail` records the known ones then raises. An unknown-receipt row **younger than `unknown_receipt_grace_hours`** (default 24, by its `occurred_at`) holds the cursor back to just before it and is retried next run (feedback can arrive before its receipt is durable: async writer, multi-host); it is counted in `unknown_receipts_pending`. Older ones are dropped and the cursor moves past them. Re-reading is safe (outcome_ref idempotency). With `max_rows`, a held row inside the batch stalls progress until it ages out of the grace window; `0` disables the retry. |
+| **max_rows** | Oldest-first by `occurred_at`; the cursor lets following runs catch up. HTTP/SQL results are fully fetched before truncating. A batch is never cut inside a group of rows sharing one timestamp (it extends to the end of the group), and a batch of only re-read boundary rows extends to the next timestamp, so every run makes progress even when more than `max_rows` rows share a timestamp. |
+| **max_pages / `order`** | `source.order: asc` (default, oldest-first API) or `desc` (newest-first). If `max_pages` stops the read, an `asc` run advances the cursor to the newest record read (the unread ones are newer). A `desc` run reads the *newest* pages, so unread records are *older*: the cursor does **not** advance unless the read reached the previous cursor (`cursor_held_reason: desc_truncated_before_previous_cursor`, plus a warning). On a newest-first API set `max_pages` high enough to reach the previous cursor (the first run has no cursor, so it needs the whole backlog). `read_truncated` is in the metadata. |
 
 Materialization metadata: `rows_read`, `rows_before_cursor`, `outcomes_recorded`, `superseded_in_run`, `skipped_rows`, `unknown_receipts`
-(+examples), `bad_rows` (+examples), `cursor`, `lag_seconds`.
+(+examples), `unknown_receipts_pending`, `bad_rows` (+examples), `cursor`, `cursor_held_reason`, `read_truncated`, `lag_seconds`.
 
 ## Mapping
 
@@ -92,8 +93,8 @@ attributes:
     source: slack_reactions
 ```
 
-Other `http_json` options: `since_param` (+ `since_format: iso|epoch`), `page_param` (increments until an empty page), `next_url_path`,
-`max_pages` (default 50), `headers` (non-secret), `headers_env` (`{Header-Name: ENV_VAR}`; a missing variable fails the run without
+Other `http_json` options: `since_param` (+ `since_format: iso|epoch`), `page_param` (increments until an empty page), `next_url_path` (a next URL on another scheme/host is refused, and cross-host redirects are refused, so `headers_env` secrets are only ever sent to the configured host),
+`max_pages` (default 50), `order` (`asc`|`desc`), `headers` (non-secret), `headers_env` (`{Header-Name: ENV_VAR}`; a missing variable fails the run without
 echoing anything).
 
 Tested against a real `ContextReceiptStore`, real csv/jsonl/json/parquet files, a real DuckDB resource and a local HTTP server

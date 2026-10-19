@@ -1057,7 +1057,7 @@ def _rrf_combine(ranked_lists: List[List[Dict[str, Any]]], k: int = 60, top_k: i
 _RECEIPT_KEYS = {"resource_key", "context_name", "caller_id", "purpose", "policy_version", "fail_on_error", "rerank", "shadow"}
 _SHADOW_KEYS = {"retriever", "replaces", "fraction", "seed", "label", "code_version_override",
                 "live_code_version", "candidate_code_version", "source_asset_key",
-                "min_outcomes", "margin", "window_days", "resamples", "confidence", "bootstrap_seed", "promote_when"}
+                "min_outcomes", "margin", "window_days", "resamples", "confidence", "bootstrap_seed", "promote_when", "max_samples"}
 _RECEIPT_RERANK_KEYS = {"prior_weight", "explore_fraction", "fetch_multiplier"}
 
 
@@ -1156,6 +1156,9 @@ def _validate_shadow(sh: Any, where: str, retrievers: Optional[Dict[str, Any]], 
     rs = sh.get("resamples")
     if rs is not None and (isinstance(rs, bool) or not isinstance(rs, int) or rs < 100):
         raise ValueError(f"{where}.resamples must be an integer >= 100")
+    ms = sh.get("max_samples")
+    if ms is not None and (isinstance(ms, bool) or not isinstance(ms, int) or ms < 100):
+        raise ValueError(f"{where}.max_samples must be an integer >= 100")
     cf = sh.get("confidence")
     if cf is not None and (isinstance(cf, bool) or not isinstance(cf, (int, float)) or not 0 < float(cf) < 1):
         raise ValueError(f"{where}.confidence must be a number strictly between 0 and 1")
@@ -1223,6 +1226,14 @@ def _bootstrap_diffs(live: List[float], cand: List[float], resamples: int, seed:
     return diffs
 
 
+def _subsample(values: List[float], max_samples: int, seed: Any, side: str) -> List[float]:
+    """Deterministic (seeded, without replacement) subsample of at most ``max_samples`` values; unchanged when already small."""
+    if len(values) <= max_samples:
+        return values
+    import random
+    return random.Random(f"{seed}|subsample|{side}").sample(values, max_samples)
+
+
 def _percentile_ci(diffs: List[float], confidence: float) -> Tuple[float, float]:
     """Two-sided percentile interval of an already sorted bootstrap distribution."""
     import math
@@ -1235,7 +1246,7 @@ def _percentile_ci(diffs: List[float], confidence: float) -> Tuple[float, float]
 
 def compare_recipes(samples: Optional[Dict[str, List[float]]], live: str, candidate: str,
                     min_outcomes: int = 10, margin: float = 0.05, *, resamples: int = 2000, confidence: float = 0.95,
-                    seed: Any = 0, promote_when: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+                    seed: Any = 0, promote_when: Optional[Dict[str, Any]] = None, max_samples: int = 20000) -> Dict[str, Any]:
     """Judge a candidate recipe against the live one from `store.outcome_samples_by_code_version(...)`.
 
     `samples` maps code version -> one effective outcome per answered receipt. Fewer than `min_outcomes` on either side
@@ -1249,7 +1260,10 @@ def compare_recipes(samples: Optional[Dict[str, List[float]]], live: str, candid
 
     So `margin` is the smallest difference worth acting on and the interval says whether the difference is distinguishable
     from noise; both must hold. Zero-variance samples give a degenerate interval [diff, diff] (take that as "no observed
-    noise", not proof). `p_candidate_better` is the share of resamples where the candidate mean exceeds the live mean.
+    noise", not proof). The bootstrap costs `resamples * (n_live + n_candidate)` pure-python draws, so a side with more than
+    `max_samples` outcomes is first subsampled (seeded, without replacement) to `max_samples` for the interval only: `diff`, the means
+    and `n_live` / `n_candidate` stay exact, and `subsampled` / `n_live_used` / `n_candidate_used` say what the interval used.
+    `p_candidate_better` is the share of resamples where the candidate mean exceeds the live mean.
     `ready_to_promote` is only reported (never acted on): with `promote_when={confidence, min_outcomes}` it is true when,
     at that confidence and per-side count, the rule above gives `candidate_better`; without it, None."""
     def clean(cv):
@@ -1259,10 +1273,13 @@ def compare_recipes(samples: Optional[Dict[str, List[float]]], live: str, candid
         "verdict": "insufficient_evidence", "live_mean": sum(lv) / len(lv) if lv else None,
         "candidate_mean": sum(cd) / len(cd) if cd else None, "n_live": len(lv), "n_candidate": len(cd),
         "diff": None, "ci_low": None, "ci_high": None, "p_candidate_better": None,
-        "confidence": float(confidence), "resamples": int(resamples), "ready_to_promote": None if not promote_when else False}
+        "confidence": float(confidence), "resamples": int(resamples), "ready_to_promote": None if not promote_when else False,
+        "subsampled": False, "max_samples": int(max_samples), "n_live_used": len(lv), "n_candidate_used": len(cd)}
     if samples is None or len(lv) < min_outcomes or len(cd) < min_outcomes or not lv or not cd:
         return out
-    diffs = _bootstrap_diffs(lv, cd, int(resamples), seed)
+    lv_b, cd_b = _subsample(lv, int(max_samples), seed, "live"), _subsample(cd, int(max_samples), seed, "candidate")
+    out.update(subsampled=len(lv_b) < len(lv) or len(cd_b) < len(cd), n_live_used=len(lv_b), n_candidate_used=len(cd_b))
+    diffs = _bootstrap_diffs(lv_b, cd_b, int(resamples), seed)
     diff = round(out["candidate_mean"] - out["live_mean"], 9)
 
     def rule(conf: float) -> Tuple[str, float, float]:
@@ -1305,7 +1322,8 @@ def _build_shadow_check(comp: "RAGPipelineComponent", asset_key: AssetKey):
         r = compare_recipes(samples, sh["live_code_version"], sh["candidate_code_version"],
                             min_outcomes=int(sh.get("min_outcomes", 10)), margin=float(sh.get("margin", 0.05)),
                             resamples=int(sh.get("resamples", 2000)), confidence=float(sh.get("confidence", 0.95)),
-                            seed=sh.get("bootstrap_seed", 0), promote_when=sh.get("promote_when"))
+                            seed=sh.get("bootstrap_seed", 0), promote_when=sh.get("promote_when"),
+                            max_samples=int(sh.get("max_samples", 20000)))
         for k, v in r.items():
             md[k] = (MetadataValue.bool(v) if isinstance(v, bool) else MetadataValue.text(v) if isinstance(v, str)
                      else MetadataValue.float(float(v)) if isinstance(v, float)

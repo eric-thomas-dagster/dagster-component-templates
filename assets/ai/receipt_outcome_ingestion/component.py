@@ -50,7 +50,7 @@ SOURCE_KEYS = {
     "sql": {"kind", "resource_key", "query", "database_url_env_var"},
     "file": {"kind", "path", "format", "records_path", "allow_empty"},
     "http_json": {"kind", "url", "headers", "headers_env", "records_path", "since_param", "since_format", "next_url_path",
-                  "page_param", "max_pages", "timeout_seconds"},
+                  "page_param", "max_pages", "timeout_seconds", "order"},
 }
 MAPPING_KEYS = {"receipt_id", "signal", "signal_value", "value", "value_map", "scale", "outcome_ref", "source", "occurred_at",
                 "skip_values"}
@@ -249,12 +249,34 @@ def _resolve_headers(cfg: Dict[str, Any]) -> Dict[str, str]:
     return headers
 
 
+def _origin(url: str) -> Tuple[str, str, int]:
+    """(scheme, host, port) with default ports filled in, for same-origin comparisons."""
+    p = urllib.parse.urlsplit(url)
+    scheme = (p.scheme or "").lower()
+    try:
+        port = p.port
+    except ValueError:
+        port = None
+    return scheme, (p.hostname or "").lower(), port or {"http": 80, "https": 443}.get(scheme, 0)
+
+
+class _SameOriginRedirect(urllib.request.HTTPRedirectHandler):
+    """urllib re-sends every custom header (our secret ``headers_env`` ones) to wherever a 3xx points. Refuse cross-origin redirects."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if _origin(req.full_url) != _origin(urllib.parse.urljoin(req.full_url, newurl)):
+            raise ValueError(f"refusing cross-origin redirect from {_origin(req.full_url)[1]!r} to "
+                             f"{_origin(urllib.parse.urljoin(req.full_url, newurl))[1]!r}: configured headers are never sent to another host")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def _http_get_json(url: str, headers: Dict[str, str], timeout: float) -> Any:
     last: Optional[Exception] = None
+    opener = urllib.request.build_opener(_SameOriginRedirect)
     for attempt in range(3):
         try:
             req = urllib.request.Request(url, headers={"Accept": "application/json", **headers})
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
+            with opener.open(req, timeout=timeout) as resp:
                 return json.loads(resp.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             if exc.code not in (429, 500, 502, 503, 504):
@@ -273,11 +295,14 @@ def _with_param(url: str, name: str, value: Any) -> str:
     return urllib.parse.urlunsplit(parts._replace(query=urllib.parse.urlencode(q)))
 
 
-def _read_http(cfg: Dict[str, Any], since: str, context) -> List[Dict[str, Any]]:
+def _read_http(cfg: Dict[str, Any], since: str, context) -> Tuple[List[Dict[str, Any]], bool]:
+    """-> (rows, truncated). ``truncated`` is True when ``max_pages`` stopped the read while more pages may exist."""
     headers = _resolve_headers(cfg)
     timeout = float(cfg.get("timeout_seconds", 30))
     max_pages = int(cfg.get("max_pages", 50))
     url = cfg["url"]
+    origin = _origin(url)
+    truncated = False
     if cfg.get("since_param"):
         sv: Any = since
         if cfg.get("since_format", "iso") == "epoch":
@@ -295,7 +320,11 @@ def _read_http(cfg: Dict[str, Any], since: str, context) -> List[Dict[str, Any]]
         if cfg.get("next_url_path"):
             if not nxt:
                 break
-            url = urllib.parse.urljoin(url, str(nxt))
+            nxt_url = urllib.parse.urljoin(url, str(nxt))
+            if _origin(nxt_url) != origin:
+                raise ValueError(f"http_json: next_url_path returned a URL on host {_origin(nxt_url)[1]!r}, not {origin[1]!r}; "
+                                 f"refusing to follow it (configured headers are never sent to another host)")
+            url = nxt_url
         elif cfg.get("page_param"):
             if not recs:
                 break
@@ -304,8 +333,14 @@ def _read_http(cfg: Dict[str, Any], since: str, context) -> List[Dict[str, Any]]
         else:
             break
     else:
-        context.log.warning(f"http_json: stopped at max_pages={max_pages}; more pages may exist (they are picked up next run via the cursor)")
-    return rows
+        truncated = True
+        if cfg.get("order", "asc") == "desc":
+            context.log.warning(f"http_json: stopped at max_pages={max_pages} on a newest-first (order: desc) API; unread records are OLDER than "
+                                f"what was read, so the cursor only advances once a run reaches the previous cursor. Raise max_pages so a "
+                                f"run can reach it.")
+        else:
+            context.log.warning(f"http_json: stopped at max_pages={max_pages}; more (newer) pages may exist and are picked up next run via the cursor")
+    return rows, truncated
 
 
 # ── row -> outcome ──────────────────────────────────────────────────────────────────────────────────────────────
@@ -385,16 +420,26 @@ def _outcome_ref(label: str, rid: str, explicit: Optional[str], row: Dict[str, A
 
 
 def ingest_feedback(store: Any, rows: List[Dict[str, Any]], mapping: Dict[str, Any], *, cursor: Optional[datetime], on_bad_row: str,
-                    on_unknown_receipt: str, max_rows: Optional[int]) -> Dict[str, Any]:
-    """Pure-ish core (store + rows in, report out): validate every row first, then write. Returns counts, samples and the new cursor."""
+                    on_unknown_receipt: str, max_rows: Optional[int], read_truncated: bool = False, order: str = "asc",
+                    unknown_receipt_grace_hours: float = 24.0, now: Optional[datetime] = None) -> Dict[str, Any]:
+    """Pure-ish core (store + rows in, report out): validate every row first, then write. Returns counts, samples and the new cursor.
+
+    Cursor safety (every unread / not-yet-resolvable record must stay at or ahead of the new cursor; reads are inclusive):
+      * ``max_rows`` cuts oldest-first but never inside a timestamp tie group, and always makes progress past the previous cursor;
+      * ``read_truncated`` + ``order == "desc"``: unread records are OLDER than what was read, so the cursor does not advance unless
+        the read reached the previous cursor;
+      * an unknown-receipt row younger than ``unknown_receipt_grace_hours`` holds the cursor just before it so it is retried."""
+    now = now or datetime.now(timezone.utc)
     label = mapping.get("source") or "feedback"
     vmap = {_norm_key(k): v for k, v in (mapping.get("value_map") or {}).items()}
     skip = {_norm_key(x) for x in (mapping.get("skip_values") or [])}
     ts_col = mapping.get("occurred_at")
     report: Dict[str, Any] = {"rows_read": len(rows), "rows_before_cursor": 0, "skipped_rows": 0, "bad": [], "unknown": [], "outcomes_recorded": 0,
-                              "superseded_in_run": 0, "bad_total": 0, "cursor": None}
+                              "superseded_in_run": 0, "bad_total": 0, "cursor": None, "unknown_pending": [], "truncated": False,
+                              "cursor_held_reason": None}
 
     prepared: List[Tuple[Optional[datetime], int, Dict[str, Any]]] = []
+    min_read: Optional[datetime] = None
     bad = report["bad"]
     for i, row in enumerate(rows):
         dt = None
@@ -404,13 +449,24 @@ def ingest_feedback(store: Any, rows: List[Dict[str, Any]], mapping: Dict[str, A
                 report["bad_total"] += 1
                 bad.append({"row": i, "reason": f"missing/unparseable occurred_at ({ts_col!r}): {_get(row, ts_col)!r}"})
                 continue
+            if min_read is None or dt < min_read:
+                min_read = dt
             if cursor is not None and dt < cursor:
                 report["rows_before_cursor"] += 1
                 continue
         prepared.append((dt, i, row))
     prepared.sort(key=lambda t: (t[0] is None, t[0] or datetime.min.replace(tzinfo=timezone.utc), t[1]))  # oldest first: last writer wins on a ref
-    if max_rows is not None:
-        prepared = prepared[:max_rows]
+    if max_rows is not None and len(prepared) > max_rows:
+        end = max_rows
+        while True:
+            while end < len(prepared) and prepared[end][0] is not None and prepared[end][0] == prepared[end - 1][0]:
+                end += 1  # never cut inside a timestamp tie group
+            if cursor is not None and end < len(prepared) and prepared[end - 1][0] == cursor:
+                end += 1  # the batch is all re-read boundary rows: take the next group too, or the cursor could never move
+                continue
+            break
+        report["truncated"] = end < len(prepared)
+        prepared = prepared[:end]
 
     plan: List[Tuple[Optional[datetime], str, str, float, str]] = []
     for dt, i, row in prepared:
@@ -433,26 +489,45 @@ def ingest_feedback(store: Any, rows: List[Dict[str, Any]], mapping: Dict[str, A
     seen: set = set()
     newest: Optional[datetime] = cursor
     pending_unknown_fail = False
+    grace = timedelta(hours=max(0.0, float(unknown_receipt_grace_hours)))
+    hold: Optional[datetime] = None  # earliest young unknown-receipt row: the cursor must stay just before it
+    pending: Dict[str, None] = {}
     for dt, rid, sig, val, ref in plan:
-        if rid in unknown:
-            continue
-        try:
-            store.record_outcome(rid, signal=sig, value=val, source=label, outcome_ref=ref)
-        except KeyError:
-            unknown[rid] = None
-            pending_unknown_fail = True
-        else:
-            report["outcomes_recorded"] += 1
-            if (rid, ref) in seen:
-                report["superseded_in_run"] += 1
-            seen.add((rid, ref))
+        is_unknown = rid in unknown
+        if not is_unknown:
+            try:
+                store.record_outcome(rid, signal=sig, value=val, source=label, outcome_ref=ref)
+            except KeyError:
+                unknown[rid] = None
+                pending_unknown_fail = True
+                is_unknown = True
+            else:
+                report["outcomes_recorded"] += 1
+                if (rid, ref) in seen:
+                    report["superseded_in_run"] += 1
+                seen.add((rid, ref))
+        if is_unknown and dt is not None and now - dt < grace:
+            pending[rid] = None
+            if hold is None or dt < hold:
+                hold = dt
         if dt is not None and (newest is None or dt > newest):
             newest = dt
     report["unknown"] = list(unknown)
+    report["unknown_pending"] = list(pending)
     if pending_unknown_fail and on_unknown_receipt == "fail":
         raise ValueError(f"{len(unknown)} feedback row(s) reference unknown receipt ids, e.g. {list(unknown)[:5]} "
                          f"(known ones were recorded; the cursor was not advanced)")
-    # Bad-timestamp rows never move the cursor; unknown-receipt rows do (the receipt is not coming back -- documented).
+    # Bad-timestamp rows never move the cursor. Unknown-receipt rows older than the grace window are dropped (cursor passes them);
+    # younger ones hold the cursor back so they are retried (re-recording is safe: outcome_ref idempotency).
+    if read_truncated and order == "desc" and (cursor is None or min_read is None or min_read > cursor):
+        newest = cursor  # unread records are older than everything read: advancing would skip them forever
+        report["cursor_held_reason"] = "desc_truncated_before_previous_cursor"
+    if hold is not None:
+        held = hold - timedelta(microseconds=1)
+        if newest is None or held < newest:
+            newest = max(held, cursor) if cursor is not None else held
+            if report["cursor_held_reason"] is None:
+                report["cursor_held_reason"] = "unknown_receipt_within_grace"
     report["cursor"] = newest.isoformat() if newest is not None else None
     return report
 
@@ -472,7 +547,7 @@ class ReceiptOutcomeIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
         description=(
             "Where feedback comes from. kind: sql {resource_key, query with a {since} placeholder} | file {path (glob ok), format?, "
             "records_path?, allow_empty?} | http_json {url, headers?, headers_env? {Header: ENV_VAR}, records_path?, since_param?, "
-            "since_format? iso|epoch, next_url_path?, page_param?, max_pages?}."
+            "since_format? iso|epoch, next_url_path? (must stay on the same host), page_param?, max_pages?, order? asc|desc (default asc; desc = newest-first API)}."
         ),
     )
     mapping: Dict[str, Any] = Field(
@@ -486,6 +561,7 @@ class ReceiptOutcomeIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
     on_bad_row: str = Field(default="skip", description="'skip' (count + sample in metadata) or 'fail' (raise before recording anything).")
     on_unknown_receipt: str = Field(default="skip", description="'skip' (count + sample in metadata) or 'fail' (record the known ones, then raise).")
     max_rows: Optional[int] = Field(default=None, description="Process at most this many rows per run, oldest first by occurred_at; the cursor lets the next run continue.")
+    unknown_receipt_grace_hours: float = Field(default=24.0, description="A feedback row whose receipt id is unknown but whose occurred_at is younger than this is retried (the cursor is held just before it; counted in unknown_receipts_pending) because the receipt may not be durable yet (async writer, multi-host). Older unknown-receipt rows are dropped and the cursor moves past them. 0 disables the retry.")
     initial_since: str = Field(default=DEFAULT_SINCE, description="Value bound to {since} / since_param on the first run (no cursor yet).")
     cron_schedule: Optional[str] = Field(default=None, description="Optional cron expression; when set, a schedule materializes this asset.")
     group_name: Optional[str] = Field(default="context_receipts", description="Asset group")
@@ -534,6 +610,10 @@ class ReceiptOutcomeIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
                 raise ValueError(f"mapping.value_map[{k!r}] must be a signal name or a number in [-1, 1], got {v!r}")
         if self.on_bad_row not in ("skip", "fail") or self.on_unknown_receipt not in ("skip", "fail"):
             raise ValueError("on_bad_row / on_unknown_receipt must be 'skip' or 'fail'")
+        if kind == "http_json" and src.get("order", "asc") not in ("asc", "desc"):
+            raise ValueError("source.order must be 'asc' or 'desc'")
+        if self.unknown_receipt_grace_hours < 0:
+            raise ValueError("unknown_receipt_grace_hours must be >= 0")
         if self.max_rows is not None and self.max_rows < 1:
             raise ValueError("max_rows must be >= 1")
 
@@ -542,6 +622,7 @@ class ReceiptOutcomeIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
         src, mapping = dict(self.source), dict(self.mapping)
         store_key, on_bad, on_unknown, max_rows = self.store_resource_key, self.on_bad_row, self.on_unknown_receipt, self.max_rows
         initial_since = self.initial_since
+        grace_hours = self.unknown_receipt_grace_hours
         asset_key = dg.AssetKey.from_user_string(self.asset_name)
         tags = {**(self.asset_tags or {}), **{f"dagster/kind/{k}": "" for k in (self.kinds or ["python", "feedback"])}}
         required = {store_key} | ({src["resource_key"]} if src["kind"] == "sql" else set())
@@ -579,8 +660,13 @@ class ReceiptOutcomeIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             since = cursor.isoformat() if cursor else initial_since
 
             kind = src["kind"]
-            rows = _read_sql(src, since, context) if kind == "sql" else _read_file(src) if kind == "file" else _read_http(src, since, context)
-            rep = ingest_feedback(store, rows, mapping, cursor=cursor, on_bad_row=on_bad, on_unknown_receipt=on_unknown, max_rows=max_rows)
+            truncated = False
+            if kind == "http_json":
+                rows, truncated = _read_http(src, since, context)
+            else:
+                rows = _read_sql(src, since, context) if kind == "sql" else _read_file(src)
+            rep = ingest_feedback(store, rows, mapping, cursor=cursor, on_bad_row=on_bad, on_unknown_receipt=on_unknown, max_rows=max_rows,
+                                  read_truncated=truncated, order=src.get("order", "asc"), unknown_receipt_grace_hours=grace_hours)
 
             new_cursor = rep["cursor"] or prev_cursor_s or ""
             lag = None
@@ -594,6 +680,9 @@ class ReceiptOutcomeIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
                 "superseded_in_run": dg.MetadataValue.int(rep["superseded_in_run"]),
                 "skipped_rows": dg.MetadataValue.int(rep["skipped_rows"]),
                 "unknown_receipts": dg.MetadataValue.int(len(rep["unknown"])),
+                "unknown_receipts_pending": dg.MetadataValue.int(len(rep["unknown_pending"])),
+                "read_truncated": truncated,
+                "cursor_held_reason": rep["cursor_held_reason"] or "",
                 "unknown_receipt_examples": dg.MetadataValue.json(rep["unknown"][:5]),
                 "bad_rows": dg.MetadataValue.int(rep["bad_total"]),
                 "bad_row_examples": dg.MetadataValue.json(rep["bad"][:5]),
@@ -603,6 +692,12 @@ class ReceiptOutcomeIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
                 md["lag_seconds"] = dg.MetadataValue.float(lag)
             if rep["unknown"]:
                 context.log.warning(f"{len(rep['unknown'])} unknown receipt id(s), e.g. {rep['unknown'][:5]}")
+            if rep["unknown_pending"]:
+                context.log.warning(f"{len(rep['unknown_pending'])} unknown receipt id(s) are younger than unknown_receipt_grace_hours="
+                                    f"{grace_hours:g}; the cursor is held back so they are retried next run")
+            if rep["cursor_held_reason"] == "desc_truncated_before_previous_cursor":
+                context.log.warning("cursor NOT advanced: the newest-first read stopped (max_pages) before reaching the previous cursor; "
+                                    "raise source.max_pages so a run can reach it")
             if rep["bad_total"]:
                 context.log.warning(f"{rep['bad_total']} bad row(s), e.g. {rep['bad'][:5]}")
             return dg.MaterializeResult(metadata=md)

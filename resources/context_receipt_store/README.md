@@ -70,7 +70,8 @@ The resource has the same API as the SQLite store (`record_retrieval`, `record_o
 - **Writes are load jobs, not streaming inserts**, so rows stay deletable/updatable (retention, score refresh). A load job takes seconds, hence `async_writes: true`: writes are queued on a background thread and return at once; argument errors still raise at the call site, storage failures that survive retries land in `store.dead_letters`. Reads see finished writes only; call `store.flush()` for read-your-writes. Queued writes are lost if the process dies.
 - **Receipt row is written last** (it is the commit marker); a retry with the same `receipt_id` cleans up orphan items from a crashed attempt.
 - `read_since` cursors are microsecond timestamps instead of row positions.
-- `refresh_item_scores` reads all items/events and recomputes in Python (then one `MERGE`): fine for hundreds of thousands of receipts, not billions.
+- `refresh_item_scores` reads all items/events and recomputes in Python (then one `MERGE` from a per-call staging table that is dropped afterwards): fine for hundreds of thousands of receipts, not billions.
+- `refresh_item_scores` atomicity on the SQL store: Databricks (no multi-statement transactions) writes a per-call staging table then runs ONE `MERGE` (old scores or new, never partial; a crash can only leave a uuid-named staging table behind); Postgres/MySQL/Snowflake/SQLite/DuckDB delete + insert in one real transaction (rolled back on a crash).
 - Already have receipts in SQLite? Keep them local and ship them with `ContextReceiptBigQuerySyncComponent` instead of switching backends.
 
 Verification: exercised against a fake BigQuery client that parses every statement as BigQuery (sqlglot) and runs it in DuckDB. Not run against real BigQuery.

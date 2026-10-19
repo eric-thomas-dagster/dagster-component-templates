@@ -2267,22 +2267,30 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
                 for item, (n, w, total) in stats.items()]
         if not rows:
             return 0
-        # staging + one MERGE: readers never see a half-written score table
-        staging = receipt_table(self.dataset, "context_item_scores", self.table_prefix).replace("context_item_scores`", "context_item_scores_staging`")
+        # Per-call staging table (uuid suffix) + one MERGE: readers never see a half-written score table, and concurrent refreshes
+        # never share (and interleave rows in) a staging table, which would make the MERGE fail with "must match at most one source row".
+        scores = receipt_table(self.dataset, "context_item_scores", self.table_prefix)
+        head, _, tail = scores.rpartition("context_item_scores")
+        staging = f"{head}context_item_scores_staging_{uuid.uuid4().hex[:12]}{tail}"
         # explicit, all-NULLABLE columns: the staging load below declares NULLABLE fields, and whether CREATE TABLE ... AS SELECT
         # would carry REQUIRED over from the scores table is not something the docs settle
-        self._query(f"CREATE TABLE IF NOT EXISTS {staging} (item_id STRING, retrievals INT64, outcome_weight FLOAT64, "
+        self._query(f"CREATE TABLE {staging} (item_id STRING, retrievals INT64, outcome_weight FLOAT64, "
                     f"outcome_sum FLOAT64, prior FLOAT64, updated_at TIMESTAMP)")
-        self._query(f"TRUNCATE TABLE {staging}")
-        self._load(staging, rows, [("item_id", "STRING"), ("retrievals", "INT64"), ("outcome_weight", "FLOAT64"), ("outcome_sum", "FLOAT64"),
-                                   ("prior", "FLOAT64"), ("updated_at", "TIMESTAMP")],
-                   explicit_schema=True)
-        self._query(
-            f"MERGE {self._t('context_item_scores')} t USING {staging} s ON t.item_id = s.item_id "
-            f"WHEN MATCHED THEN UPDATE SET retrievals = s.retrievals, outcome_weight = s.outcome_weight, outcome_sum = s.outcome_sum, "
-            f"prior = s.prior, updated_at = s.updated_at "
-            f"WHEN NOT MATCHED THEN INSERT (item_id, retrievals, outcome_weight, outcome_sum, prior, updated_at) "
-            f"VALUES (s.item_id, s.retrievals, s.outcome_weight, s.outcome_sum, s.prior, s.updated_at)")
+        try:
+            self._load(staging, rows, [("item_id", "STRING"), ("retrievals", "INT64"), ("outcome_weight", "FLOAT64"), ("outcome_sum", "FLOAT64"),
+                                       ("prior", "FLOAT64"), ("updated_at", "TIMESTAMP")],
+                       explicit_schema=True)
+            self._query(
+                f"MERGE {self._t('context_item_scores')} t USING {staging} s ON t.item_id = s.item_id "
+                f"WHEN MATCHED THEN UPDATE SET retrievals = s.retrievals, outcome_weight = s.outcome_weight, outcome_sum = s.outcome_sum, "
+                f"prior = s.prior, updated_at = s.updated_at "
+                f"WHEN NOT MATCHED THEN INSERT (item_id, retrievals, outcome_weight, outcome_sum, prior, updated_at) "
+                f"VALUES (s.item_id, s.retrievals, s.outcome_weight, s.outcome_sum, s.prior, s.updated_at)")
+        finally:
+            try:
+                self._query(f"DROP TABLE IF EXISTS {staging}")
+            except Exception:  # noqa: BLE001  (never mask the real error; a leftover uuid-named staging table is harmless)
+                pass
         return len(stats)
 
     def get_item_scores(self, item_ids: Iterable[str]) -> dict[str, dict[str, Any]]:
@@ -2613,6 +2621,7 @@ class _SaExecutor:
 #            autocommit=True; duckdb autocommits and its rollback() raises when no transaction is active)
 #   "none":  no multi-statement transactions at all (Databricks SQL warehouses): every statement stands alone. record_retrieval's
 #            ordering (items, then the receipt row last as the commit marker) is what keeps a crashed write invisible.
+_MERGE_DIALECTS = ("databricks",)   # refresh_item_scores: staging table + one atomic MERGE (the only dialect here with no transactions)
 _TX_MODES = {"sqlite": "dbapi", "postgres": "dbapi", "mysql": "dbapi", "snowflake": "sql", "duckdb": "sql", "databricks": "none"}
 
 
@@ -3048,13 +3057,50 @@ class SqlContextReceiptStore(ContextReceiptStore):
                  "prior": total / (w + prior_strength) if (w + prior_strength) else 0.0, "updated_at": now}
                 for item, (n, w, total) in stats.items()]
         if rows:
-            with self._exec.transaction() as conn:    # delete + insert in one transaction: readers never see a half-written table
-                for chunk in self._in_chunks([r["item_id"] for r in rows]):
-                    conn.execute(f"DELETE FROM {self._t('context_item_scores')} WHERE item_id IN :ids", {"ids": chunk})
-                conn.executemany(
-                    f"INSERT INTO {self._t('context_item_scores')} (item_id, retrievals, outcome_weight, outcome_sum, prior, updated_at) "
-                    f"VALUES (:item_id, :retrievals, :outcome_weight, :outcome_sum, :prior, :updated_at)", rows)
+            if self.dialect in _MERGE_DIALECTS:
+                self._merge_item_scores(rows)
+            else:
+                # postgres/mysql/snowflake/sqlite/duckdb: delete + insert inside ONE real transaction, so readers never see a half-written
+                # table (a crash rolls the whole thing back).
+                with self._exec.transaction() as conn:
+                    for chunk in self._in_chunks([r["item_id"] for r in rows]):
+                        conn.execute(f"DELETE FROM {self._t('context_item_scores')} WHERE item_id IN :ids", {"ids": chunk})
+                    conn.executemany(
+                        f"INSERT INTO {self._t('context_item_scores')} (item_id, retrievals, outcome_weight, outcome_sum, prior, updated_at) "
+                        f"VALUES (:item_id, :retrievals, :outcome_weight, :outcome_sum, :prior, :updated_at)", rows)
         return len(stats)
+
+    def _merge_item_scores(self, rows: list) -> None:
+        """Databricks (no multi-statement transactions): write the new rows to a per-call staging table, then ONE ``MERGE`` into ``context_item_scores``.
+
+        Guarantee: the MERGE is a single atomic statement (Delta transaction / Snowflake statement), so a reader sees the old scores or
+        the new ones for the touched items, never a half-written set -- also on Databricks, where this store has no multi-statement
+        transactions (``transaction_mode='none'``). A crash before the MERGE leaves ``context_item_scores`` untouched (only the staging
+        table can be left behind; its name carries a per-call uuid, so concurrent refreshes never share it). Snowflake does not take
+        this path: its connection runs real BEGIN/COMMIT transactions, so delete + insert is already atomic there and a mid-way
+        CREATE TABLE would implicitly commit it."""
+        scores = self._t("context_item_scores")
+        head, _, tail = scores.rpartition("context_item_scores")
+        stg = f"{head}context_item_scores_stg_{uuid.uuid4().hex[:12]}{tail}"
+        S, _, I, F, T = _RECEIPT_TYPES[self.dialect]
+        cols = ("item_id", "retrievals", "outcome_weight", "outcome_sum", "prior", "updated_at")
+        self._query(f"CREATE TABLE {stg} (item_id {S}, retrievals {I}, outcome_weight {F}, outcome_sum {F}, prior {F}, updated_at {T})")
+        try:
+            with self._exec.transaction() as conn:
+                for start in range(0, len(rows), 1000):          # 6 markers per row-statement: far under the 255-marker cap
+                    conn.executemany(f"INSERT INTO {stg} ({', '.join(cols)}) VALUES (:item_id, :retrievals, :outcome_weight, :outcome_sum, "
+                                     f":prior, :updated_at)", rows[start:start + 1000])
+                conn.execute(
+                    f"MERGE INTO {scores} t USING {stg} s ON t.item_id = s.item_id "
+                    f"WHEN MATCHED THEN UPDATE SET retrievals = s.retrievals, outcome_weight = s.outcome_weight, "
+                    f"outcome_sum = s.outcome_sum, prior = s.prior, updated_at = s.updated_at "
+                    f"WHEN NOT MATCHED THEN INSERT ({', '.join(cols)}) VALUES (s.item_id, s.retrievals, s.outcome_weight, s.outcome_sum, "
+                    f"s.prior, s.updated_at)", {})
+        finally:
+            try:
+                self._query(f"DROP TABLE IF EXISTS {stg}")
+            except Exception:  # noqa: BLE001  (never mask the real error; a leftover uuid-named staging table is harmless)
+                pass
 
     def get_item_scores(self, item_ids: Iterable[str]) -> dict[str, dict[str, Any]]:
         ids = list(item_ids)

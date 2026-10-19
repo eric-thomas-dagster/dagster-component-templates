@@ -356,7 +356,8 @@ def test_deterministic_and_seed_sensitive(mod):
 def test_result_reports_everything(mod):
     r = mod.compare_recipes(_smp(_normal(0, 1, 30, 1), _normal(1, 1, 25, 2)), "L", "C", confidence=0.9, resamples=500)
     assert set(r) == {"verdict", "live_mean", "candidate_mean", "n_live", "n_candidate", "diff", "ci_low", "ci_high",
-                      "p_candidate_better", "confidence", "resamples", "ready_to_promote"}
+                      "p_candidate_better", "confidence", "resamples", "ready_to_promote", "subsampled", "max_samples",
+                      "n_live_used", "n_candidate_used"}
     assert (r["n_live"], r["n_candidate"], r["confidence"], r["resamples"], r["ready_to_promote"]) == (30, 25, 0.9, 500, None)
     assert r["ci_low"] < r["diff"] < r["ci_high"]
 
@@ -416,7 +417,8 @@ def test_the_rule_needs_both_the_interval_and_the_margin(mod, monkeypatch):
 
 @pytest.mark.parametrize("key, bad", [("resamples", 10), ("resamples", 2.5), ("confidence", 1.0), ("confidence", 0),
                                       ("bootstrap_seed", 1.5), ("promote_when", {"confidence": 2}),
-                                      ("promote_when", {"nope": 1}), ("promote_when", {"min_outcomes": 0})])
+                                      ("promote_when", {"nope": 1}), ("promote_when", {"min_outcomes": 0}),
+                                      ("max_samples", 5), ("max_samples", 1000.5)])
 def test_bootstrap_fields_are_validated(mod, index, candidate_index, key, bad):
     sh = {"retriever": "cand", "fraction": 0.5, **CV, key: bad}
     with pytest.raises(ValueError):
@@ -530,3 +532,29 @@ def test_check_is_reproducible_run_to_run(mod, index, candidate_index, tmp_path)
     (a,) = _eval(mod, comp, store)
     (b,) = _eval(mod, comp, store)
     assert a.metadata["ci_low"].value == b.metadata["ci_low"].value and a.metadata["ci_high"].value == b.metadata["ci_high"].value
+
+
+def test_large_samples_are_subsampled_deterministically_and_bounded(mod):
+    import time
+    live, cand = _normal(0.0, 0.5, 200_000, 11), _normal(0.1, 0.5, 200_000, 12)
+    t0 = time.time()
+    r = mod.compare_recipes(_smp(live, cand), "L", "C", resamples=300, seed=5, max_samples=5000)
+    assert time.time() - t0 < 8, "bootstrap cost must be bounded by max_samples, not by the number of receipts"
+    assert r["subsampled"] is True and (r["n_live"], r["n_candidate"]) == (200_000, 200_000) and (r["n_live_used"], r["n_candidate_used"]) == (5000, 5000)
+    assert abs(r["diff"] - (sum(cand) / len(cand) - sum(live) / len(live))) < 1e-9          # point estimate uses every outcome
+    assert r["ci_low"] < 0.1 < r["ci_high"]
+    again = mod.compare_recipes(_smp(live, cand), "L", "C", resamples=300, seed=5, max_samples=5000)
+    assert (again["ci_low"], again["ci_high"]) == (r["ci_low"], r["ci_high"])                # seeded: stable
+    other = mod.compare_recipes(_smp(live, cand), "L", "C", resamples=300, seed=6, max_samples=5000)
+    assert (other["ci_low"], other["ci_high"]) != (r["ci_low"], r["ci_high"])
+
+
+def test_small_samples_are_not_subsampled(mod):
+    r = mod.compare_recipes(_smp(_normal(0, 1, 40, 1), _normal(1, 1, 40, 2)), "L", "C", max_samples=100)
+    assert r["subsampled"] is False and (r["n_live_used"], r["n_candidate_used"]) == (40, 40)
+
+
+def test_subsample_is_without_replacement_and_seeded(mod):
+    vals = list(range(1000))
+    a = mod._subsample(vals, 100, 1, "live")
+    assert len(a) == len(set(a)) == 100 and a == mod._subsample(vals, 100, 1, "live") and a != mod._subsample(vals, 100, 2, "live")

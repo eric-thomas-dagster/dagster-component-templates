@@ -289,6 +289,7 @@ another entry under `retrievers`, and serve a slice of queries from it. Judge it
       margin: 0.05                      # smallest mean-outcome difference worth acting on
       confidence: 0.95                  # bootstrap interval level (default 0.95)
       resamples: 2000                   # bootstrap draws (default 2000, min 100)
+      max_samples: 20000                # per side; more outcomes than this are subsampled (seeded, no replacement) for the interval only (default 20000, min 100)
       bootstrap_seed: 0                 # RNG seed: same outcomes -> same interval (default 0)
       # promote_when: {confidence: 0.99, min_outcomes: 30}   # only sets the reported `ready_to_promote`; nothing is ever promoted automatically
 ```
@@ -311,7 +312,8 @@ another entry under `retrievers`, and serve a slice of queries from it. Judge it
   - Zero-variance samples give a degenerate interval `[diff, diff]`; read that as "no observed noise", not proof. With tiny
     `min_outcomes` the percentile bootstrap is optimistic, so keep it at 30+ for real decisions.
   The check fails (WARN) only on `live_better`. Metadata: `verdict`, `live_mean`, `candidate_mean`, `n_live`, `n_candidate`, `diff`,
-  `ci_low`, `ci_high`, `p_candidate_better` (share of resamples where the candidate mean beats live), `confidence`, `resamples`, `ready_to_promote`.
+  `ci_low`, `ci_high`, `p_candidate_better` (share of resamples where the candidate mean beats live), `confidence`, `resamples`, `ready_to_promote`, `subsampled`, `max_samples`, `n_live_used`, `n_candidate_used`.
+  The bootstrap costs `resamples * (n_live + n_candidate)` pure-python draws, so a side with more than `max_samples` outcomes is subsampled deterministically (seeded by `bootstrap_seed`, without replacement) before the interval is computed; `diff`, the means and `n_*` stay exact over all outcomes.
   `promote_when: {confidence, min_outcomes}` makes `ready_to_promote` true when the same rule, at that confidence and per-side count,
   says `candidate_better`; it is a reported boolean only, never an action. If the receipt store predates
   `outcome_samples_by_code_version` the check reports `insufficient_evidence` with a `reason` instead of a verdict.

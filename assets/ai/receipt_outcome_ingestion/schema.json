@@ -25,7 +25,7 @@
     "source": {
       "type": "object",
       "label": "Source",
-      "description": "Where feedback comes from. kind: sql {resource_key, query with a {since} placeholder} | file {path (glob ok), format?, records_path?, allow_empty?} | http_json {url, headers?, headers_env? {Header: ENV_VAR}, records_path?, since_param?, since_format? iso|epoch, next_url_path?, page_param?, max_pages?}.",
+      "description": "Where feedback comes from. kind: sql {resource_key, query with a {since} placeholder} | file {path (glob ok), format?, records_path?, allow_empty?} | http_json {url, headers?, headers_env? {Header: ENV_VAR}, records_path?, since_param?, since_format? iso|epoch, next_url_path? (same host only), page_param?, max_pages?, order? asc|desc (default asc; desc = newest-first API)}.",
       "required": true
     },
     "mapping": {
@@ -141,6 +141,12 @@
       "type": "string",
       "label": "Retry Policy Backoff",
       "description": "'linear' or 'exponential'.",
+      "required": false
+    },
+    "unknown_receipt_grace_hours": {
+      "type": "number",
+      "label": "Unknown Receipt Grace Hours",
+      "description": "A feedback row whose receipt id is unknown but whose occurred_at is younger than this is retried (the cursor is held just before it; counted in unknown_receipts_pending) because the receipt may not be durable yet (async writer, multi-host). Older unknown-receipt rows are dropped and the cursor moves past them. 0 disables the retry.",
       "required": false
     }
   },

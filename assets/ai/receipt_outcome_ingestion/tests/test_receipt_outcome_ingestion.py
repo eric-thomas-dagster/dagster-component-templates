@@ -4,7 +4,7 @@ import csv
 import json
 import os
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlsplit
 
@@ -500,3 +500,200 @@ def test_ingested_outcomes_reach_item_feedback_and_refresh_item_scores(mod, stor
     run(comp(mod, {"kind": "file", "path": str(p)}, FILE_MAP), store)
     store.refresh_item_scores(prior_strength=1.0)
     assert store.get_item_scores(["c1", "c2", "shared"])["shared"]["prior"] == pytest.approx(sc["shared"]["prior"])
+
+
+# ── review fixes: cursor safety, host pinning, tie groups, unknown-receipt grace ──────────────────────────────────
+
+def _paged_api(api_factory, records, per_page):
+    """Page-number API over ``records`` (list order is served order), 'data' + page param."""
+    def pages(path, q, base):
+        n = int(q.get("page", ["1"])[0])
+        return {"data": records[(n - 1) * per_page: n * per_page]}
+    return api_factory(pages)
+
+
+def _rec(r, i, ts):
+    return {"rid": r[i], "s": "good", "t": ts, "k": f"k{i}-{ts}"}
+
+
+HTTP_MAP = {"receipt_id": "rid", "signal": "s", "occurred_at": "t", "value_map": {"good": "thumbs_up"}, "outcome_ref": "k"}
+
+
+def test_desc_api_truncated_by_max_pages_does_not_skip_older_records(mod, store, api_factory, monkeypatch):
+    r = store.rids
+    monkeypatch.setenv("API_AUTH", "Bearer s3cr3t-token")
+    newest_first = [_rec(r, i, f"2026-03-0{i}T00:00:00Z") for i in (5, 4, 3, 2, 1)]
+    api = _paged_api(api_factory, newest_first, 2)
+    src = {"kind": "http_json", "url": f"{api.url}/fb", "headers_env": {"Authorization": "API_AUTH"}, "records_path": "data",
+           "page_param": "page", "order": "desc", "max_pages": 1}
+    inst = dg.DagsterInstance.ephemeral()
+    m = md(run(comp(mod, src, HTTP_MAP), store, inst)[0])
+    assert m["rows_read"] == 2 and m["read_truncated"] is True
+    assert m["cursor"] == ""                                      # NOT advanced to 03-05: records 1..3 are still unread
+    # a run that can reach the end picks up everything, including the old records the truncated run never saw
+    m = md(run(comp(mod, {**src, "max_pages": 10}, HTTP_MAP), store, inst)[0])
+    assert m["rows_read"] == 5 and m["cursor"].startswith("2026-03-05")
+    assert all(len(effective(store, r[i])) == 1 for i in (1, 2, 3, 4, 5))
+
+
+def test_desc_truncated_run_advances_once_it_reaches_the_previous_cursor(mod, store, api_factory, monkeypatch):
+    r = store.rids
+    monkeypatch.setenv("API_AUTH", "Bearer s3cr3t-token")
+    recs = [_rec(r, i, f"2026-03-0{i}T00:00:00Z") for i in (5, 4, 3, 2, 1)]
+    api = _paged_api(api_factory, recs[3:], 2)                    # only 03-02, 03-01 exist at first
+    src = {"kind": "http_json", "url": f"{api.url}/fb", "headers_env": {"Authorization": "API_AUTH"}, "records_path": "data",
+           "page_param": "page", "order": "desc", "max_pages": 1}
+    inst = dg.DagsterInstance.ephemeral()
+    assert md(run(comp(mod, src, HTTP_MAP), store, inst)[0])["cursor"] == ""   # truncated, never reached a cursor (none yet)
+    src2 = {**src, "max_pages": 10}
+    assert md(run(comp(mod, src2, HTTP_MAP), store, inst)[0])["cursor"].startswith("2026-03-02")
+    api.pages = lambda path, q, base: {"data": recs[(int(q.get("page", ["1"])[0]) - 1) * 2: int(q.get("page", ["1"])[0]) * 2]}
+    m = md(run(comp(mod, src, HTTP_MAP), store, inst)[0])          # page 1 = 03-05, 03-04: has not reached 03-02 -> held
+    assert m["read_truncated"] is True and m["cursor"].startswith("2026-03-02")
+    src3 = {**src, "max_pages": 2}                                # pages 1+2 reach 03-03, 03-02 (== cursor) -> safe to advance
+    m = md(run(comp(mod, src3, HTTP_MAP), store, inst)[0])
+    assert m["cursor"].startswith("2026-03-05")
+
+
+def test_asc_api_truncated_by_max_pages_advances_to_max_read(mod, store, api_factory, monkeypatch):
+    r = store.rids
+    monkeypatch.setenv("API_AUTH", "Bearer s3cr3t-token")
+    api = _paged_api(api_factory, [_rec(r, i, f"2026-03-0{i}T00:00:00Z") for i in (1, 2, 3, 4, 5)], 2)
+    src = {"kind": "http_json", "url": f"{api.url}/fb", "headers_env": {"Authorization": "API_AUTH"}, "records_path": "data",
+           "page_param": "page", "max_pages": 1}
+    m = md(run(comp(mod, src, HTTP_MAP), store)[0])
+    assert m["read_truncated"] is True and m["cursor"].startswith("2026-03-02")
+
+
+def test_invalid_order_rejected(mod):
+    with pytest.raises(ValueError):
+        comp(mod, {"kind": "http_json", "url": "http://x/y", "order": "sideways"}, HTTP_MAP).build_defs(None)
+
+
+def test_next_url_on_another_host_is_refused_and_no_secret_is_sent(mod, store, api_factory, monkeypatch):
+    r = store.rids
+    monkeypatch.setenv("API_AUTH", "Bearer s3cr3t-token")
+    evil = api_factory(lambda *a: {"data": []})
+    good = api_factory(lambda path, q, base: {"data": [_rec(r, 1, "2026-03-01T00:00:00Z")], "next": f"{evil.url}/steal"})
+    src = {"kind": "http_json", "url": f"{good.url}/fb", "headers_env": {"Authorization": "API_AUTH"}, "records_path": "data",
+           "next_url_path": "next"}
+    result, _ = run(comp(mod, src, HTTP_MAP), store)
+    assert not result.success and evil.requests == []
+    text = " ".join(str(getattr(e, "message", "")) + repr(getattr(e, "event_specific_data", "")) for e in result.all_events)
+    assert "s3cr3t-token" not in text and "another host" in text
+
+
+def test_cross_host_redirect_is_refused_and_no_secret_is_sent(mod, store, api_factory, monkeypatch):
+    monkeypatch.setenv("API_AUTH", "Bearer s3cr3t-token")
+    evil = api_factory(lambda *a: {"data": []})
+
+    class Redir(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            self.send_response(302)
+            self.send_header("Location", f"{evil.url}/steal")
+            self.end_headers()
+
+    srv = HTTPServer(("127.0.0.1", 0), Redir)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        src = {"kind": "http_json", "url": f"http://127.0.0.1:{srv.server_port}/fb", "headers_env": {"Authorization": "API_AUTH"},
+               "records_path": "data"}
+        result, _ = run(comp(mod, src, HTTP_MAP), store)
+        assert not result.success and evil.requests == []
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
+def test_same_host_redirect_still_works(mod, store, api_factory, monkeypatch):
+    r = store.rids
+    monkeypatch.setenv("API_AUTH", "Bearer s3cr3t-token")
+    api = api_factory(lambda path, q, base: {"data": [_rec(r, 1, "2026-03-01T00:00:00Z")]})
+
+    class Redir(BaseHTTPRequestHandler):
+        def log_message(self, *a):
+            pass
+
+        def do_GET(self):
+            self.send_response(302)
+            self.send_header("Location", f"http://127.0.0.1:{self.server.server_port}/real")
+            self.end_headers()
+
+    srv = HTTPServer(("127.0.0.1", 0), Redir)
+    # 'real' is served by the same host: make it answer through a second handler by mapping /real onto the api via proxy-less trick
+    class Both(Redir):
+        def do_GET(self):
+            if self.path.startswith("/real"):
+                assert self.headers.get("Authorization") == "Bearer s3cr3t-token"
+                raw = json.dumps({"data": [_rec(r, 1, "2026-03-01T00:00:00Z")]}).encode()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+            else:
+                super().do_GET()
+    srv = HTTPServer(("127.0.0.1", 0), Both)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        src = {"kind": "http_json", "url": f"http://127.0.0.1:{srv.server_port}/fb", "headers_env": {"Authorization": "API_AUTH"}, "records_path": "data"}
+        result, _ = run(comp(mod, src, HTTP_MAP), store)
+        assert result.success and md(result)["outcomes_recorded"] == 1
+    finally:
+        srv.shutdown()
+        srv.server_close()
+
+
+def test_max_rows_never_cuts_inside_a_tie_group_and_always_progresses(mod, store, tmp_path):
+    r = store.rids
+    p = tmp_path / "fb.csv"
+    tie = "2026-01-01T00:00:00Z"
+    rows = [{"receipt_id": r[i], "reaction": "good", "user": f"u{i}", "ts": tie} for i in (1, 2, 3, 4, 5)]
+    rows.append({"receipt_id": r[1], "reaction": "bad", "user": "late", "ts": "2026-01-02T00:00:00Z"})
+    write_csv(p, rows)
+    c = comp(mod, {"kind": "file", "path": str(p)}, FILE_MAP, max_rows=2)
+    inst = dg.DagsterInstance.ephemeral()
+    m1 = md(run(c, store, inst)[0])
+    assert m1["outcomes_recorded"] == 5 and m1["cursor"].startswith("2026-01-01")      # whole tie group, not 2 of 5
+    m2 = md(run(c, store, inst)[0])                                                     # boundary group is re-read; must still reach jan 2
+    assert m2["cursor"].startswith("2026-01-02") and list(effective(store, r[1]).values()).count(-1.0) == 1
+
+
+def test_unknown_receipt_within_grace_holds_cursor_and_is_retried(mod, store, tmp_path):
+    r = store.rids
+    now = datetime.now(timezone.utc)
+    young = (now - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    older = (now - timedelta(hours=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    old_unknown = (now - timedelta(hours=72)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    p = tmp_path / "fb.csv"
+    write_csv(p, [{"receipt_id": r[1], "reaction": "good", "user": "u1", "ts": older},
+                  {"receipt_id": "rcpt-not-yet-durable", "reaction": "good", "user": "u2", "ts": young},
+                  {"receipt_id": "rcpt-gone", "reaction": "good", "user": "u9", "ts": old_unknown},
+                  ])
+    c = comp(mod, {"kind": "file", "path": str(p)}, FILE_MAP)
+    inst = dg.DagsterInstance.ephemeral()
+    m1 = md(run(c, store, inst)[0])
+    assert m1["unknown_receipts"] == 2 and m1["unknown_receipts_pending"] == 1
+    assert _dt(m1["cursor"]) < _dt(young) and _dt(m1["cursor"]) >= _dt(older)         # held just before the young unknown row
+    # the receipt becomes durable; the row is retried and recorded, the cursor moves on
+    rid = store.record_retrieval(context_name="support", dagster_asset_key="kb", items=[{"item_id": "c9", "source_asset_key": "kb", "rank": 0}])
+    write_csv(p, [{"receipt_id": r[1], "reaction": "good", "user": "u1", "ts": older},
+                  {"receipt_id": rid, "reaction": "good", "user": "u2", "ts": young}])
+    m2 = md(run(c, store, inst)[0])
+    assert m2["unknown_receipts"] == 0 and _dt(m2["cursor"]) == _dt(young)
+    assert len(effective(store, rid)) == 1
+
+
+def test_unknown_receipt_grace_zero_drops_immediately(mod, store, tmp_path):
+    now = datetime.now(timezone.utc)
+    young = (now - timedelta(minutes=5)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    p = tmp_path / "fb.csv"
+    write_csv(p, [{"receipt_id": "nope", "reaction": "good", "user": "u", "ts": young}])
+    m = md(run(comp(mod, {"kind": "file", "path": str(p)}, FILE_MAP, unknown_receipt_grace_hours=0), store)[0])
+    assert m["unknown_receipts_pending"] == 0 and _dt(m["cursor"]) == _dt(young)
+
+
+def _dt(s):
+    return datetime.fromisoformat(s.replace("Z", "+00:00"))

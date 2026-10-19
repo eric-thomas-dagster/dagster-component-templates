@@ -67,7 +67,7 @@ def test_only_the_staging_load_sends_an_explicit_schema(mod, client):
     store.refresh_item_scores()
     assert seen
     for dest, schema in seen:
-        assert (schema is not None) == dest.endswith("context_item_scores_staging"), (dest, schema)
+        assert (schema is not None) == ("context_item_scores_staging" in dest), (dest, schema)
 
 
 # ── B7 ───────────────────────────────────────────────────────────────────────────────────────────────

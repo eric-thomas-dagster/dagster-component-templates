@@ -240,6 +240,7 @@ def _build(rel, extra, monkeypatch, tmp_path):
 
 
 def _substituted(rel, monkeypatch, tmp_path, partitioned=True):
+    monkeypatch.chdir(tmp_path)  # components that write files (output_dir, extract_to) must write here, never into the repo
     import signal
     import time
 

@@ -126,7 +126,7 @@
     "backend": {
       "type": "string",
       "label": "Backend",
-      "description": "Where receipts live: 'sqlite' (a local file) or 'bigquery' (tables in a BigQuery dataset, shared across hosts, queryable from SQL-mode pipelines).",
+      "description": "Where receipts live: 'sqlite' (a local file) or 'bigquery' (tables in a BigQuery dataset, shared across hosts, queryable from SQL-mode pipelines; limited by BigQuery's 1,500 load jobs per table per day, so only for under ~1,500 receipts+events per day -- use sqlite plus ContextReceiptBigQuerySyncComponent for volume).",
       "required": false
     },
     "bigquery_dataset": {

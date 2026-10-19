@@ -50,6 +50,9 @@ def register(con: "duckdb.DuckDBPyConnection") -> AiCalls:
     con.create_function("ai_embed", ai_embed, ["VARCHAR", "VARCHAR"], "DOUBLE[]")
     con.create_function("ai_query", ai_embed, ["VARCHAR", "VARCHAR"], "DOUBLE[]")    # Databricks' name
     con.create_function("ai_classify", ai_classify, ["VARCHAR", "VARCHAR[]"], "VARCHAR")
+    # Snowflake CLASSIFY_TEXT returns an OBJECT {"label": ...} (not the label): modelled as a JSON object, so SQL that stores it without
+    # extracting :label stores '{"label": ..}' instead of the bare label.
+    con.execute("CREATE OR REPLACE MACRO cortex_classify_text(t, l) AS CAST(json_object('label', ai_classify(t, l)) AS JSON)")
     return calls
 
 
@@ -68,5 +71,5 @@ def rewrite_bigquery(stmt: exp.Expression) -> exp.Expression:
 
 def rewrite_text(sql: str) -> str:
     return (sql.replace("SNOWFLAKE.CORTEX.EMBED_TEXT_768(", "ai_query(")
-               .replace("SNOWFLAKE.CORTEX.CLASSIFY_TEXT(", "ai_classify(")
+               .replace("SNOWFLAKE.CORTEX.CLASSIFY_TEXT(", "cortex_classify_text(")
                .replace("AI.CLASSIFY(", "ai_classify("))

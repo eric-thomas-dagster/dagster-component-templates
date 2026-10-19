@@ -312,6 +312,7 @@ def test_every_incremental_shape_parses_in_its_dialect_and_calls_ai_only_on_new_
             assert cte is not None and cte.alias.startswith("new_"), f"AI call outside a new_* CTE: {text[:60]}"   # only the todo subset reaches it
     assert not any(isinstance(n, exp.GenerateEmbedding) for n in ctree.walk()), "counts_only must not call the AI function"
     assert "ai_query" not in counts and "CLASSIFY" not in counts.upper().replace("CLASSIFIED", "")
+    sql = sql.replace("`ds.kb`", "ds.kb")      # BigQuery tables are always emitted as one backticked path
     out_tbl_refs = sql.count("FROM ds.kb")
     assert out_tbl_refs == int(reuse_embed and "embed" in shape) + int(reuse_classify and "classify" in shape) + int(shape == "both" and reuse_embed and reuse_classify) * 0 \
         or shape == "both"

@@ -102,7 +102,7 @@ def test_dialect_specific_receipt_sql_shapes(mod):
     assert "CAST('" in sf and "AS TIMESTAMP_TZ)" in sf and "TIMESTAMP '" not in sf          # not a session-zone NTZ literal
     assert "DB.SCH.context_receipt_events" in sf and "IS_ARRAY(ids)" in sf and "COUNT_IF(" in sf and "COUNTIF(" not in sf
     assert "get_json_object(payload_json, '$.value')" in dbx and "`cat`.`sch`.`context_receipt_events`" in dbx
-    assert "from_json(ids, 'array<string>')" in dbx and "array_contains(c.scoped_ids, h.item_id)" in dbx and "COUNTIF(" not in dbx
+    assert "from_json(ids, 'ARRAY<STRING>')" in dbx and "array_contains(c.scoped_ids, h.item_id)" in dbx and "COUNTIF(" not in dbx
     assert "JSON_VALUE" not in sf + dbx and "UNNEST" not in sf + dbx
 
 

@@ -106,6 +106,16 @@ def _sha2_is_already_hex(stmt):
     return stmt
 
 
+def _safe_cosine_distance(stmt):
+    """BigQuery's `SAFE.COSINE_DISTANCE(a, b)` returns NULL instead of erroring (zero / empty vector, dimension mismatch). sqlglot leaves the SAFE.
+    prefix as a bare Dot; DuckDB's equivalent of "NULL on error" is TRY(..), around the same list_cosine_distance a plain COSINE_DISTANCE becomes."""
+    for dot in list(stmt.find_all(exp.Dot)):
+        fn = dot.expression
+        if isinstance(dot.this, exp.Identifier) and dot.this.name.upper() == "SAFE" and isinstance(fn, exp.Anonymous) and fn.name.upper() == "COSINE_DISTANCE":
+            dot.replace(exp.Anonymous(this="TRY", expressions=[exp.CosineDistance(this=fn.expressions[0], expression=fn.expressions[1])]))
+    return stmt
+
+
 _OPEN: "weakref.WeakSet" = weakref.WeakSet()
 
 
@@ -128,11 +138,11 @@ class FakeBigQueryClient:
     def _to_duckdb(self, sql: str) -> str:
         sql = ai_stubs.rewrite_text(_strip_project(sql, self.project))
         # `ds`.INFORMATION_SCHEMA.COLUMNS: DuckDB has one global information_schema (table_schema = the dataset), so the dataset qualifier goes
-        sql = re.sub(r"`?[\w\-.]+`?\.INFORMATION_SCHEMA\.COLUMNS", "bq_info_schema_columns", sql)
+        sql = re.sub(r"(?:`[^`]+`\.)?`?[\w\-.]+`?\.INFORMATION_SCHEMA\.COLUMNS", "bq_info_schema_columns", sql)
         out = []
         for stmt in sqlglot.parse(sql, read="bigquery"):       # raises ParseError for SQL that is not valid BigQuery
             if stmt is not None:
-                out.append(ai_stubs.rewrite_bigquery(_sha2_is_already_hex(_zero_based_offsets(stmt))).sql(dialect="duckdb"))
+                out.append(ai_stubs.rewrite_bigquery(_safe_cosine_distance(_sha2_is_already_hex(_zero_based_offsets(stmt)))).sql(dialect="duckdb"))
         return "; ".join(out)
 
     def query(self, sql: str, job_config=None, **kw) -> _Job:

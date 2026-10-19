@@ -8,7 +8,7 @@ sqlglot's snowflake/databricks -> duckdb transpile mistranslates a handful of co
 (on the transpiled text, never on the SQL under test), with the reason next to it. Where a construct has no DuckDB counterpart at all
 (the warehouse AI / splitter functions; the AI ones are call-counting UDFs from ai_stubs.py) a macro or UDF stands in so the surrounding statement can run:
   - SNOWFLAKE.CORTEX.SPLIT_TEXT_RECURSIVE_CHARACTER  -> `cortex_split`, a fixed-stride splitter (Cortex's real splitter is smarter)
-  - Snowflake IS_ARRAY / Databricks FROM_JSON(.., 'array<string>') -> `is_array` / `from_json_strings`, JSON-array helpers
+  - Snowflake IS_ARRAY / Databricks FROM_JSON(.., 'ARRAY<STRING>') -> `is_array` / `from_json_strings`, JSON-array helpers
 Three-part names (DB.SCH.t / `cat`.`sch`.`t`) lose their first part: a DuckDB schema stands in for the catalog.schema pair's schema.
 """
 import atexit
@@ -49,8 +49,11 @@ def _patch_duckdb(sql: str, read: str) -> str:
     # chunk_text) -- column order reversed (ordinality comes last) and 1-based (posexplode is 0-based).
     sql = sql.replace("AS chunks(chunk_index, chunk_text)", "AS chunks(chunk_text, idx1)")
     sql = sql.replace("chunks.chunk_index AS chunk_index", "(chunks.idx1 - 1) AS chunk_index")
-    # Spark from_json(str, 'array<string>') takes a Spark schema string; DuckDB's takes a DuckDB one
-    sql = sql.replace("FROM_JSON(ids, 'array<string>')", "from_json_strings(ids)")
+    # Spark from_json(str, 'ARRAY<STRING>') takes a Spark schema string; DuckDB's takes a DuckDB one
+    sql = sql.replace("FROM_JSON(ids, 'ARRAY<STRING>')", "from_json_strings(ids)")
+    # Snowflake `CLASSIFY_TEXT(..):label::STRING` (OBJECT field access) is rendered CAST(f(..) -> '$.label' AS TEXT): the JSON `->` keeps the quotes
+    # of the string ('"x"'); Snowflake's ::STRING of the variant gives the bare label, so use ->> (see ai_stubs.cortex_classify_text).
+    sql = sql.replace(" -> '$.label' AS TEXT)", " ->> '$.label' AS TEXT)")
     return sql
 
 

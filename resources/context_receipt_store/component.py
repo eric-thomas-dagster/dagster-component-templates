@@ -1995,8 +1995,8 @@ class ContextReceiptStore:
 # agents/gateways run on several hosts. Same method surface and results as the SQLite store (a parity test runs one scenario
 # through both); the row folding is the shared _fold_* code, only reads/writes differ.
 #
-# Writes go through LOAD jobs, not streaming inserts: streaming-buffer rows cannot be DELETEd/UPDATEd for up to ~90 minutes,
-# which would break `enforce_retention` and score refreshes. A load job costs seconds, not milliseconds -- put an
+# Writes go through LOAD jobs, not streaming inserts: rows written by streaming (legacy tabledata.insertAll / the Storage Write API) sit in
+# the streaming buffer and cannot be DELETEd/UPDATEd for up to ~30 minutes (the ~90-minute figure in the docs is for copy operations), which would break `enforce_retention` and score refreshes. A load job costs seconds, not milliseconds -- put an
 # AsyncReceiptWriter in front of it on any hot path (the component does so with `async_writes: true`).
 
 def _bq_iso(value: Any) -> Any:
@@ -2059,8 +2059,11 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
                 out.append(bq.ScalarQueryParameter(name, "INT64", value))
             elif isinstance(value, float):
                 out.append(bq.ScalarQueryParameter(name, "FLOAT64", value))
+            elif value is None:
+                raise ValueError(f"BigQuery query parameters cannot be NULL (parameter {name!r} is None): "
+                                 "write the NULL into the SQL text (IS NULL) instead of binding it")
             else:
-                out.append(bq.ScalarQueryParameter(name, "STRING", None if value is None else str(value)))
+                out.append(bq.ScalarQueryParameter(name, "STRING", str(value)))
         return out
 
     def _prepare(self) -> None:
@@ -2108,17 +2111,21 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
             job = client.query(sql, job_config=bq.QueryJobConfig(query_parameters=self._params(bq, params)))
             return [dict(r) for r in job.result()]
 
-    def _load(self, table: str, rows: list, columns: Sequence[tuple]) -> None:
-        """Append ``rows`` (dicts) to ``table`` with a load job. ``columns``: [(name, bigquery_type)]."""
+    def _load(self, table: str, rows: list, columns: Sequence[tuple], *, explicit_schema: bool = False) -> None:
+        """Append ``rows`` (dicts) to ``table`` with a load job. ``columns``: [(name, bigquery_type)].
+
+        By default NO ``schema=`` is sent: a WRITE_APPEND into an existing table uses the table's own schema. Our DDL creates NOT NULL (REQUIRED)
+        columns, and a load job whose schema says NULLABLE for them would relax REQUIRED -> NULLABLE, which needs an explicit opt-in
+        (``schema_update_options=ALLOW_FIELD_RELAXATION``) and fails otherwise. ``explicit_schema=True`` only for the all-NULLABLE staging table."""
         if not rows:
             return
         from google.cloud import bigquery as bq
 
         self._prepare()
-        cfg = bq.LoadJobConfig(
-            write_disposition="WRITE_APPEND",
-            schema=[bq.SchemaField(n, _BQ_TYPES[t]) for n, t in columns],
-        )
+        cfg_kw: dict[str, Any] = {"write_disposition": "WRITE_APPEND"}
+        if explicit_schema:
+            cfg_kw["schema"] = [bq.SchemaField(n, _BQ_TYPES[t]) for n, t in columns]
+        cfg = bq.LoadJobConfig(**cfg_kw)
         with self._client() as client:
             client.load_table_from_json(rows, table.strip("`"), job_config=cfg).result()
 
@@ -2262,10 +2269,14 @@ class BigQueryContextReceiptStore(ContextReceiptStore):
             return 0
         # staging + one MERGE: readers never see a half-written score table
         staging = receipt_table(self.dataset, "context_item_scores", self.table_prefix).replace("context_item_scores`", "context_item_scores_staging`")
-        self._query(f"CREATE TABLE IF NOT EXISTS {staging} AS SELECT * FROM {self._t('context_item_scores')} WHERE FALSE")
+        # explicit, all-NULLABLE columns: the staging load below declares NULLABLE fields, and whether CREATE TABLE ... AS SELECT
+        # would carry REQUIRED over from the scores table is not something the docs settle
+        self._query(f"CREATE TABLE IF NOT EXISTS {staging} (item_id STRING, retrievals INT64, outcome_weight FLOAT64, "
+                    f"outcome_sum FLOAT64, prior FLOAT64, updated_at TIMESTAMP)")
         self._query(f"TRUNCATE TABLE {staging}")
         self._load(staging, rows, [("item_id", "STRING"), ("retrievals", "INT64"), ("outcome_weight", "FLOAT64"), ("outcome_sum", "FLOAT64"),
-                                   ("prior", "FLOAT64"), ("updated_at", "TIMESTAMP")])
+                                   ("prior", "FLOAT64"), ("updated_at", "TIMESTAMP")],
+                   explicit_schema=True)
         self._query(
             f"MERGE {self._t('context_item_scores')} t USING {staging} s ON t.item_id = s.item_id "
             f"WHEN MATCHED THEN UPDATE SET retrievals = s.retrievals, outcome_weight = s.outcome_weight, outcome_sum = s.outcome_sum, "
@@ -2873,7 +2884,10 @@ class SqlContextReceiptStore(ContextReceiptStore):
         with self._exec.transaction(single=True) as conn:
             return conn.execute(sql, params)
 
-    def _in_chunks(self, ids: list, size: int = 500) -> Iterator[list]:
+    def _in_chunks(self, ids: list, size: int | None = None) -> Iterator[list]:
+        # databricks-sql-connector's native parameters cap at 255 markers per query: stay well under it there.
+        if size is None:
+            size = 200 if self.dialect == "databricks" else 500
         for start in range(0, len(ids), size):
             yield ids[start:start + size]
 
@@ -2958,8 +2972,8 @@ class SqlContextReceiptStore(ContextReceiptStore):
     def read_since(self, receipt_cursor: int = 0, event_cursor: int = 0, limit: int = 1000) -> dict[str, Any]:
         """Same contract as the SQLite store; cursors are microseconds since the epoch of ``created_at`` / ``occurred_at``."""
         receipts = self._page(self._query(
-            f"SELECT * FROM {self._t('context_receipts')} WHERE created_at > :c ORDER BY created_at, receipt_id LIMIT :n",
-            c=self._from_micros(receipt_cursor), n=int(limit)), "created_at", int(limit))
+            f"SELECT * FROM {self._t('context_receipts')} WHERE created_at > :c ORDER BY created_at, receipt_id LIMIT {int(limit)}",
+            c=self._from_micros(receipt_cursor)), "created_at", int(limit))
         for row in receipts:
             row["pos"] = self._micros(row["created_at"])
         ids = [r["receipt_id"] for r in receipts]
@@ -2970,7 +2984,7 @@ class SqlContextReceiptStore(ContextReceiptStore):
             excluded += self._query(f"SELECT * FROM {self._t('context_receipt_excluded')} WHERE receipt_id IN :ids", ids=chunk)
         events = self._page(self._query(
             f"SELECT event_id, receipt_id, event_type, occurred_at, payload_json FROM {self._t('context_receipt_events')} "
-            f"WHERE occurred_at > :c ORDER BY occurred_at, event_id LIMIT :n", c=self._from_micros(event_cursor), n=int(limit)),
+            f"WHERE occurred_at > :c ORDER BY occurred_at, event_id LIMIT {int(limit)}", c=self._from_micros(event_cursor)),
             "occurred_at", int(limit))
         for row in events:
             row["pos"] = self._micros(row["occurred_at"])
@@ -3812,7 +3826,7 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     backend: str = Field(
         default="sqlite",
-        description="Where receipts live: 'sqlite' (a local file), 'bigquery' (tables in a BigQuery dataset), or 'sql' (Postgres, MySQL, Snowflake, Databricks, DuckDB, through a SQLAlchemy URL or a plain vendor connection). The warehouse backends are shared across hosts and queryable from SQL-mode pipelines.",
+        description="Where receipts live: 'sqlite' (a local file), 'bigquery' (tables in a BigQuery dataset; one load job per receipt part and per event, so only for under ~1,500 receipts+events per day per table -- use sqlite plus ContextReceiptBigQuerySyncComponent for volume), or 'sql' (Postgres, MySQL, Snowflake, Databricks, DuckDB, through a SQLAlchemy URL or a plain vendor connection). The warehouse backends are shared across hosts and queryable from SQL-mode pipelines.",
     )
     sql_url_env_var: Optional[str] = Field(
         default=None,

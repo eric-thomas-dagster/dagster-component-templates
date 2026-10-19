@@ -324,7 +324,7 @@ def test_python_mode_source_binds_partition_placeholders(mod):
 @pytest.mark.parametrize("dialect", list(READ))
 def test_partition_statements_parse_in_their_dialect(mod, dialect):
     import sqlglot
-    steps = [{"id": "c", "op": "chunk"}, {"id": "k", "op": "classify", "candidate_labels": ["a"]}, {"id": "e", "op": "embed", "model": "p.d.m"}]
+    steps = [{"id": "c", "op": "chunk"}, {"id": "k", "op": "classify", "candidate_labels": ["a", "b"]}, {"id": "e", "op": "embed", "model": "p.d.m"}]
     src = {"sql": "SELECT id, body FROM ds.src"}
     stage = mod._sql_stage_table("proj.ds.kb", "2026-01-01")
     for write, kw in (("create_table", {}), ("stage", {"stage_table": stage})):

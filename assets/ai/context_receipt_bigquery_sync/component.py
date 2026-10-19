@@ -166,7 +166,7 @@ def _chunks(values: List[str], size: int = _ID_BATCH):
 
 
 def _load(client: Any, bq: Any, table: str, rows: List[Dict[str, Any]]) -> int:
-    """Append rows with a LOAD job (not streaming inserts: streamed rows sit in a buffer BigQuery will not DELETE for up to ~90 minutes,
+    """Append rows with a LOAD job (not streaming inserts: rows written by streaming (insertAll / Storage Write API) sit in a buffer BigQuery will not DELETE for up to ~30 minutes (the ~90-minute figure is for copy operations),
     which would break the replay path). The table already exists with its schema, so ISO-8601 strings load into TIMESTAMP columns."""
     if not rows:
         return 0

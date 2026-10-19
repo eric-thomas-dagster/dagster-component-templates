@@ -286,6 +286,24 @@ def test_all_sql_is_valid_bigquery_and_uses_load_jobs(comp, store, bq):
     assert any("UNNEST(@ids)" in q for q in client.queries)
 
 
+def test_loads_send_no_schema_so_required_columns_are_not_relaxed(comp, store, bq):
+    """The destination tables have NOT NULL (REQUIRED) columns; a load job whose schema says NULLABLE would relax them, which BigQuery rejects
+    without ALLOW_FIELD_RELAXATION (the fake rejects it too). The sync must load with the table's own schema."""
+    client, _ = bq
+    seen = []
+    real = client.load_table_from_json
+
+    def spy(rows, destination, job_config=None, **kw):
+        seen.append(getattr(job_config, "schema", None))
+        return real(rows, destination, job_config=job_config, **kw)
+    client.load_table_from_json = spy
+    ids = seed(store, 2)
+    store.record_outcome(ids[0], signal="thumbs_up", outcome_ref="u")
+    run_asset(comp, store, client)
+    assert seen and all(sch is None for sch in seen)
+    assert client.con.execute("SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'ctx' AND is_nullable = 'NO'").fetchone()[0] > 0
+
+
 def test_table_prefix_and_dataset_without_project(comp, store, bq):
     client, _ = bq
     seed(store, 2)

@@ -66,6 +66,7 @@ attributes:
 
 The resource has the same API as the SQLite store (`record_retrieval`, `record_outcome`, `item_feedback`, `refresh_item_scores`, `outcomes_by_code_version`, `ingest`, `enforce_retention`, ...), so `rag_pipeline`, the gateway helpers and the pipeline's `receipts:` work unchanged. A parity test runs one scenario through both backends and requires identical results.
 
+- **Not for high volume.** BigQuery quota -- load jobs are limited to 1,500 per table per day (and table-metadata operations to 5 per 10 s per table; cloud.google.com/bigquery/quotas#load_jobs). This store does 1-3 load jobs per receipt and 1 per event, so it is NOT suitable above roughly 1,500 receipts + events per day per table. For volume, keep receipts in the SQLite store and ship them in batches with ContextReceiptBigQuerySyncComponent.
 - **Writes are load jobs, not streaming inserts**, so rows stay deletable/updatable (retention, score refresh). A load job takes seconds, hence `async_writes: true`: writes are queued on a background thread and return at once; argument errors still raise at the call site, storage failures that survive retries land in `store.dead_letters`. Reads see finished writes only; call `store.flush()` for read-your-writes. Queued writes are lost if the process dies.
 - **Receipt row is written last** (it is the commit marker); a retry with the same `receipt_id` cleans up orphan items from a crashed attempt.
 - `read_since` cursors are microsecond timestamps instead of row positions.

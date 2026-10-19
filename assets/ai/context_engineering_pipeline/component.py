@@ -1550,9 +1550,22 @@ def _sql_ident(value: Any, what: str) -> str:
     return value
 
 
-def _sql_table(value: Any, what: str) -> str:
+_BQ_PROJECT_RE = re.compile(r"^[A-Za-z0-9_\-]+$")
+_BQ_NAME_RE = re.compile(r"^[A-Za-z0-9_]+$")
+
+
+def _sql_table(value: Any, what: str, dialect: Optional[str] = None) -> str:
     if not isinstance(value, str) or not _TABLE_RE.match(value):
         raise ValueError(f"execution_mode='sql': {what}={value!r} is not a valid table reference (up to 4 dot-separated parts of letters, digits, _ or -)")
+    if dialect == "bigquery":
+        # BigQuery: [project.]dataset.table, a dash only in the project id. Emitted as ONE backticked path everywhere (DDL, DML, FROM): the docs
+        # only allow an unquoted dashed project id in FROM / TABLE clauses, never in CREATE / INSERT / DROP.
+        parts = [p.strip("`") for p in value.split(".")]
+        ok = len(parts) <= 3 and all(_BQ_NAME_RE.match(p) for p in parts[-2:]) and (len(parts) < 3 or _BQ_PROJECT_RE.match(parts[0]))
+        if not ok:
+            raise ValueError(f"execution_mode='sql': {what}={value!r} is not a valid BigQuery table reference ([project.]dataset.table; only the "
+                             "project id may contain a dash, dataset and table names are letters, digits and _)")
+        return "`" + ".".join(parts) + "`"
     return value
 
 
@@ -1583,10 +1596,28 @@ def _sql_chunk_expr(dialect: str, text_expr: str, chunk_size: int, chunk_overlap
     raise ValueError(f"unsupported sql_dialect: {dialect!r}")
 
 
+def _sql_check_classify_labels(dialect: str, candidate_labels: List[str]) -> None:
+    """The documented hard limits of each warehouse's classifier, checked at build time (BigQuery's AI.CLASSIFY documents none)."""
+    labels = [str(x) for x in candidate_labels]
+    if dialect == "snowflake_cortex":
+        # docs.snowflake.com/en/sql-reference/functions/classify_text-snowflake-cortex: 2 to 100 unique labels
+        if not 2 <= len(labels) <= 100 or len(set(labels)) != len(labels):
+            raise ValueError(f"classify with sql_dialect='snowflake_cortex' needs 2 to 100 unique candidate_labels (CLASSIFY_TEXT limit); "
+                             f"got {len(labels)} label(s), {len(set(labels))} unique")
+    elif dialect == "databricks":
+        # docs: ai_classify (v1) takes 2 to 20 labels, each 1 to 50 characters
+        if not 2 <= len(labels) <= 20:
+            raise ValueError(f"classify with sql_dialect='databricks' needs 2 to 20 candidate_labels (ai_classify limit); got {len(labels)}")
+        bad = [x for x in labels if not 1 <= len(x) <= 50]
+        if bad:
+            raise ValueError(f"classify with sql_dialect='databricks': every candidate label must be 1 to 50 characters (ai_classify limit); offending: {bad!r}")
+
+
 def _sql_classify_expr(dialect: str, text_expr: str, candidate_labels: List[str]) -> str:
     labels_sql = ", ".join(_sql_str(label) for label in candidate_labels)
     if dialect == "snowflake_cortex":
-        return f"SNOWFLAKE.CORTEX.CLASSIFY_TEXT({text_expr}, ARRAY_CONSTRUCT({labels_sql}))"
+        # CLASSIFY_TEXT returns an OBJECT {"label": "..."}, not the label: take the field (docs.snowflake.com .../classify_text-snowflake-cortex).
+        return f"SNOWFLAKE.CORTEX.CLASSIFY_TEXT({text_expr}, ARRAY_CONSTRUCT({labels_sql})):label::STRING"
     if dialect == "bigquery":
         return f"AI.CLASSIFY({text_expr}, [{labels_sql}])"
     if dialect == "databricks":
@@ -1626,7 +1657,10 @@ def _sql_version_agg(dialect: str) -> str:
     if dialect == "bigquery":
         return "TO_HEX(MD5(STRING_AGG(content_hash, '' ORDER BY chunk_id)))"
     if dialect == "databricks":
-        return "md5(array_join(transform(sort_array(collect_list(struct(chunk_id, content_hash))), x -> x.content_hash), ''))"
+        # Sort a plain string (chunk_id, a space, the 64-hex content_hash), not an array of structs: struct ordering is not documented. The space sorts
+        # below every printable id character, so this is chunk_id order (the same order, hence the same version, as the other dialects).
+        return ("md5(array_join(transform(sort_array(collect_list(concat(CAST(chunk_id AS STRING), ' ', content_hash))), "
+                "x -> right(x, 64)), ''))")
     return "MD5(LISTAGG(content_hash, '') WITHIN GROUP (ORDER BY chunk_id))"
 
 
@@ -1690,7 +1724,7 @@ def _sql_citing_ctes(events: str, dialect: str) -> List[Tuple[str, str]]:
         return [
             ("citing_raw", f"SELECT receipt_id, get_json_object(payload_json, '$.details.item_ids') AS ids\n  FROM {events}\n  WHERE {where}"),
             ("citing_events", ("SELECT receipt_id, COALESCE(left(ids, 1) = '[', FALSE) AS is_scoped,\n"
-                               "         CASE WHEN COALESCE(left(ids, 1) = '[', FALSE) THEN from_json(ids, 'array<string>') END AS scoped_ids\n  FROM citing_raw")),
+                               "         CASE WHEN COALESCE(left(ids, 1) = '[', FALSE) THEN from_json(ids, 'ARRAY<STRING>') END AS scoped_ids\n  FROM citing_raw")),
         ]
     return [("citing_events", (
         f"SELECT receipt_id, payload_json,\n"
@@ -1818,7 +1852,7 @@ def _build_sql_mode_query(
     chunk_step = next(s for s in steps_cfg if s["op"] == "chunk")
     classify_step = next((s for s in steps_cfg if s["op"] == "classify"), None)
     embed_step = next((s for s in steps_cfg if s["op"] == "embed"), None)
-    out_tbl = _sql_table(output_table, "output_table")
+    out_tbl = _sql_table(output_table, "output_table", dialect)
     target = {"replace_table": f"CREATE OR REPLACE TABLE {out_tbl}", "create_table": f"CREATE TABLE {out_tbl}",
               "stage": f"CREATE OR REPLACE TABLE {stage_table}"}[write]
     id_col = _sql_ident(id_column, "id_column")
@@ -1940,6 +1974,7 @@ def _build_sql_mode_query(
         if not candidate_labels:
             raise ValueError("classify step in execution_mode='sql' requires `candidate_labels`.")
         sig = _sql_category_signature(candidate_labels)
+        _sql_check_classify_labels(dialect, candidate_labels)
         classify_expr_for = lambda t: _sql_classify_expr(dialect, t, candidate_labels)  # noqa: E731
     model = embed_model_id = None
     if embed_step is not None:
@@ -2362,7 +2397,9 @@ def _sql_table_columns(session, dialect: str, tbl: str, context=None) -> List[st
     else:
         schema_pred = f"LOWER(table_schema) = LOWER({_sql_str(schema)})"
     if dialect == "bigquery":
-        info = f"`{'.'.join(parts[:-2] + [schema])}`.INFORMATION_SCHEMA.COLUMNS"
+        # documented forms: `project-id`.dataset.INFORMATION_SCHEMA.COLUMNS and dataset.INFORMATION_SCHEMA.COLUMNS. A missing TABLE gives zero
+        # rows, but a missing DATASET raises NotFound (not caught here: the dataset is the user's to create, so that error is the right one).
+        info = (f"`{parts[0]}`." if len(parts) >= 3 else "") + f"{schema}.INFORMATION_SCHEMA.COLUMNS"
     else:  # Snowflake / Databricks: a 3-part name selects that database's / catalog's information_schema, otherwise the current one
         info = (f"{parts[-3]}." if len(parts) >= 3 else "") + "information_schema.columns"
     return [str(r[0]) for r in session.fetch(
@@ -2390,10 +2427,12 @@ def _sql_probe_prior_table(session, dialect: str, out_tbl: str, classify_step: O
     return reuse, prior_rows
 
 
-def _sql_stage_table(out_tbl: str, partition_label: str) -> str:
-    parts = out_tbl.split(".")
-    parts[-1] = f"{parts[-1].strip('`')}__stage_{hashlib.md5(partition_label.encode('utf-8')).hexdigest()[:8]}"
-    return ".".join(p.strip("`") for p in parts)
+def _sql_stage_table(out_tbl: str, partition_label: str, dialect: Optional[str] = None) -> str:
+    parts = [p.strip("`") for p in out_tbl.split(".")]
+    parts[-1] = f"{parts[-1]}__stage_{hashlib.md5(partition_label.encode('utf-8')).hexdigest()[:8]}"
+    if dialect == "bigquery":
+        return "`" + ".".join(parts) + "`"      # one backticked path: an unquoted dashed project id is not valid in CREATE / INSERT / DROP
+    return ".".join(parts)
 
 
 def _sql_swap_partition_script(dialect: str, out_tbl: str, stage: str, cols: List[str], label: str, keys: List[str]) -> List[str]:
@@ -2414,7 +2453,8 @@ def _sql_swap_partition_script(dialect: str, out_tbl: str, stage: str, cols: Lis
 def _sql_cosine_similarity(dialect: str, a: str, b: str) -> str:
     """Cosine similarity (higher = closer) of two embedding expressions, in the dialect's own functions."""
     if dialect == "bigquery":
-        return f"(1 - COSINE_DISTANCE({a}, {b}))"
+        # SAFE.: COSINE_DISTANCE errors on zero-norm / empty vectors and on a dimension mismatch, and BigQuery does not guarantee a WHERE guard runs first
+        return f"(1 - SAFE.COSINE_DISTANCE({a}, {b}))"
     if dialect == "snowflake_cortex":
         return f"VECTOR_COSINE_SIMILARITY({a}, {b})"
     if dialect == "databricks":
@@ -2439,7 +2479,7 @@ def _build_retrieval_eval_query(cfg: Dict[str, Any], steps_cfg: List[dict], dial
         raise ValueError(f"unsupported sql_dialect: {dialect!r}")
     embed_step = next(s_ for s_ in steps_cfg if s_["op"] == "embed")
     model = embed_step.get("model")
-    tbl = _sql_table(output_table, "output_table")
+    tbl = _sql_table(output_table, "output_table", dialect)
     id_col = _sql_ident(id_column, "id_column")
     k = int(cfg.get("k", 5))
     golden = "\n    UNION ALL ".join(f"SELECT {i} AS qi, {_sql_str(q['query'])} AS content" for i, q in enumerate(cfg["queries"]))
@@ -2493,7 +2533,7 @@ def _run_sql_mode(
     source_cfg = {**source_cfg, "sql": _bind_partition_placeholders(source_cfg["sql"], context, _sql_str)}
     resource_key = source_cfg["resource_key"]
     resource = getattr(context.resources, resource_key)
-    out_tbl = _sql_table(output_table, "output_table")
+    out_tbl = _sql_table(output_table, "output_table", dialect)
     classify_step = next((s for s in steps_cfg if s["op"] == "classify"), None)
     embed_step = next((s for s in steps_cfg if s["op"] == "embed"), None)
     incremental = bool(incremental and (classify_step or embed_step))
@@ -2547,7 +2587,7 @@ def _run_sql_mode(
             if "source_partition" not in {c.lower() for c in columns}:
                 raise ValueError(f"{output_table} exists but has no source_partition column (built by an unpartitioned run or an older version), so this "
                                  "partition's rows cannot be told apart from the rest. Drop or rename it once and re-run.")
-            stage = _sql_stage_table(out_tbl, partition)
+            stage = _sql_stage_table(out_tbl, partition, dialect)
             sql = build(write="stage", stage_table=stage)
             try:
                 session.execute(sql)                   # the AI calls happen here; output_table is untouched if this fails

@@ -143,7 +143,19 @@ class FakeBigQueryClient:
         return []
 
     def load_table_from_json(self, rows, destination, job_config=None, **kw) -> _Job:
-        self._insert(self._norm_table(destination), rows)
+        table = self._norm_table(destination)
+        # Like BigQuery: a load job whose explicit schema says NULLABLE for a column the table has as REQUIRED (NOT NULL) would relax the mode,
+        # which needs schema_update_options=ALLOW_FIELD_RELAXATION; without it the job fails. (Without schema=, the table's own schema applies.)
+        schema = getattr(job_config, "schema", None)
+        if schema and "ALLOW_FIELD_RELAXATION" not in (getattr(job_config, "schema_update_options", None) or []):
+            ds, _, name = table.rpartition(".")
+            required = {r[0] for r in self.con.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = ? AND is_nullable = 'NO'"
+                + (" AND table_schema = ?" if ds else ""), [name, ds] if ds else [name]).fetchall()}
+            relaxed = sorted(f.name for f in schema if f.mode == "NULLABLE" and f.name in required)
+            if relaxed:
+                raise RuntimeError(f"400 Provided Schema does not match Table {destination}: field(s) {relaxed} changed mode from REQUIRED to NULLABLE")
+        self._insert(table, rows)
         return _Job()
 
     def _insert(self, table: str, rows: List[dict]) -> None:

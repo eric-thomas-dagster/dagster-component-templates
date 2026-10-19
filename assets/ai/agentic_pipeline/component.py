@@ -94,6 +94,17 @@ from pydantic import Field
 
 # ── Ingestion ────────────────────────────────────────────────────────
 
+try:  # exception groups are built in from Python 3.11; on 3.10 anyio/mcp raise the `exceptiongroup` backport's class
+    _BaseExceptionGroup = BaseExceptionGroup  # noqa: F821
+except NameError:
+    try:
+        from exceptiongroup import BaseExceptionGroup as _BaseExceptionGroup
+    except ImportError:  # nothing can be a group here; keep `except`/isinstance clauses valid
+        class _BaseExceptionGroup(BaseException):  # type: ignore[no-redef]
+            exceptions: tuple = ()
+
+
+
 def _require_env(name: str, purpose: Optional[str] = None) -> str:
     """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
     from dagster import EnvVar
@@ -2371,14 +2382,14 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
                 parse_as=parse_as,
             )
         )
-    except BaseExceptionGroup as eg:  # noqa: F821 (py311+)
+    except _BaseExceptionGroup as eg:
         # Recursively unwrap nested anyio ExceptionGroups (mcp lib nests
         # session-level and stdio_client-level task groups) so the real
         # underlying error — subprocess exit, MCP protocol error, tool-arg
         # validation — surfaces in the Dagster UI instead of a generic
         # "unhandled errors in a TaskGroup".
         def _first_leaf(exc):
-            while isinstance(exc, BaseExceptionGroup) and exc.exceptions:
+            while isinstance(exc, _BaseExceptionGroup) and exc.exceptions:
                 exc = exc.exceptions[0]
             return exc
 
@@ -2906,9 +2917,9 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
                     f"[tool_use_loop iter={iteration}] {tool_name}({str(tool_args)[:80]}) → "
                     f"{tool_ms}ms {len(result_text)} chars"
                 )
-            except BaseExceptionGroup as eg:  # noqa: F821 (py311+)
+            except _BaseExceptionGroup as eg:
                 def _first_leaf(exc):
-                    while isinstance(exc, BaseExceptionGroup) and exc.exceptions:
+                    while isinstance(exc, _BaseExceptionGroup) and exc.exceptions:
                         exc = exc.exceptions[0]
                     return exc
                 inner = _first_leaf(eg)
@@ -4502,12 +4513,12 @@ def _do_delegate(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
                     validate_input_schema=step.get("validate_mcp_schema", True),
                 )
             )
-        except BaseExceptionGroup as eg:  # noqa: F821 (py311+)
+        except _BaseExceptionGroup as eg:
             # Recursively unwrap nested anyio ExceptionGroups (mcp lib nests
             # session-level and stdio_client-level task groups) -- same
             # unwrapping as _do_mcp_call, for the same reason.
             def _first_leaf(exc):
-                while isinstance(exc, BaseExceptionGroup) and exc.exceptions:
+                while isinstance(exc, _BaseExceptionGroup) and exc.exceptions:
                     exc = exc.exceptions[0]
                 return exc
 

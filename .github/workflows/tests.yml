@@ -53,7 +53,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.12"]
+        python-version: ["3.10", "3.12"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -66,8 +66,7 @@ jobs:
           # they patch sqlglot's BigQuery/Snowflake/Databricks -> DuckDB translation, which differs between releases.
           pip install "dagster>=1.10.0" pandas pytest pyyaml chromadb "duckdb==1.5.6" "duckdb-engine==0.17.0" "sqlalchemy>=2" \
                       "sqlglot==28.0.0" jsonschema tabulate pyarrow litellm requests fsspec \
-                      dlt cryptography scikit-learn geopandas
+                      dlt cryptography scikit-learn geopandas \
+                      google-auth google-api-python-client google-cloud-bigquery reportlab pillow
       - name: Run tests
-        # tests/test_partition_port_readers.py exercises ~28 cloud-SDK readers (bigtable, spanner, firestore, azure monitor, google
-        # calendar/drive, reportlab/video generators, ...) and needs all those SDKs installed; it is not part of this gate.
-        run: python -m pytest $TEST_DIRS -q -p no:cacheprovider -W ignore --ignore=tests/test_partition_port_readers.py
+        run: python -m pytest $TEST_DIRS -q -p no:cacheprovider -W ignore

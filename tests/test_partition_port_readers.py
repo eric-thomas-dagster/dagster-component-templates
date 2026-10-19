@@ -135,12 +135,31 @@ FIELDS = {
     "assets/ingestion/tm1_cube_data_ingestion": ["filters"],
 }
 class _MissingModules(importlib.abc.MetaPathFinder, importlib.abc.Loader):
-    """Last-resort finder: any module that is not installed (cloud SDKs imported lazily inside the step) is fabricated."""
+    """Last-resort finder: any module that is not installed (cloud SDKs imported lazily inside the step) is
+    fabricated -- but only for the specific names below, not unconditionally.
 
-    TOP_LEVEL = {"azure", "boto3", "botocore", "googleapiclient", "pymysql", "polars"}
+    This is appended to the END of sys.meta_path, so every real finder (builtin, frozen, path-based) has
+    already had first crack at resolving the name; find_spec here only ever runs for a name genuinely
+    missing from the environment. It must stay a named allowlist rather than "fabricate anything
+    unresolvable": boto3 (a real, installed dependency) lazily imports `awscrt`, an optional compiled
+    extension that's itself genuinely absent here, and botocore's own code already handles that absence
+    with a try/except -- fabricating `awscrt` instead of letting that import fail normally broke the
+    fallback (botocore read `awscrt.__version__` off the fake module and got a confusing AttributeError
+    instead of the ImportError its own except-clause expects). So this only stands in for first-party
+    cloud/auth SDKs this repo's components import lazily and guard with their own "pip install ..."
+    ImportError, never for a third-party library's own internal optional dependencies.
+
+    google.oauth2/google.auth/google.api_core/google.genai/google.protobuf are siblings of google.cloud.*
+    (not children of it) that several components also import for credentials/typing -- real CI failures,
+    caught locally only because those happened to already be installed as someone else's transitive
+    dependency.
+    """
+
+    TOP_LEVEL = {"azure", "boto3", "botocore", "googleapiclient", "pymysql", "polars", "isodate"}
+    GOOGLE_PREFIXES = ("google.cloud", "google.oauth2", "google.auth", "google.api_core", "google.genai", "google.protobuf")
 
     def find_spec(self, name, path=None, target=None):
-        if name.split(".")[0] in self.TOP_LEVEL or name == "google.cloud" or name.startswith("google.cloud."):
+        if name.split(".")[0] in self.TOP_LEVEL or any(name == p or name.startswith(p + ".") for p in self.GOOGLE_PREFIXES):
             return importlib.machinery.ModuleSpec(name, self, is_package=True)
         return None
 

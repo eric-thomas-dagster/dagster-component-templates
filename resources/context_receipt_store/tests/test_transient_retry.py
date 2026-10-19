@@ -616,7 +616,9 @@ def test_sqlalchemy_engine_path_retries_transient_errors(mod, tmp_path):
     assert len(sleeps) == 2 and store.get_receipt(rid) is not None
     assert sql_count(store, "context_receipt_items") == 1
     seen["n"] = -99
-    with pytest.raises(sa.exc.OperationalError) as info:          # SQLAlchemy wraps the driver error: classified through .orig
+    # SQLAlchemy 2.1 wraps an error raised in the cursor-execute hook as sa.exc.OperationalError (classified through .orig); 2.0 lets the
+    # raw driver error through. Either way the ORIGINAL error must come back after the attempt cap.
+    with pytest.raises((sa.exc.OperationalError, sqlite3.OperationalError)) as info:
         store.record_retrieval(context_name="kb", items=[item("a")])
     assert len(sleeps) == 2 + 3 and any("4 attempt" in n for n in info.value.__notes__)
     engine.dispose()

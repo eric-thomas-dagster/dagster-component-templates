@@ -94,9 +94,11 @@ from pydantic import Field
 
 # ── Ingestion ────────────────────────────────────────────────────────
 
-try:  # exception groups are built in from Python 3.11; on 3.10 anyio/mcp raise the `exceptiongroup` backport's class
-    _BaseExceptionGroup = BaseExceptionGroup  # noqa: F821
-except NameError:
+import builtins as _builtins  # noqa: E402
+
+# exception groups are built in from Python 3.11; on 3.10 anyio/mcp raise the `exceptiongroup` backport's class
+_BaseExceptionGroup = getattr(_builtins, "BaseExceptionGroup", None)
+if _BaseExceptionGroup is None:
     try:
         from exceptiongroup import BaseExceptionGroup as _BaseExceptionGroup
     except ImportError:  # nothing can be a group here; keep `except`/isinstance clauses valid

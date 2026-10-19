@@ -72,6 +72,27 @@ requires_transformers = pytest.mark.skipif(
     not _transformers_available(),
     reason="requires transformers+torch (pip install transformers torch)",
 )
+def _hf_models_reachable() -> bool:
+    """These tests load real HuggingFace models: fine when the hub is reachable or the models are already cached, otherwise
+    they would hang ~1 minute and fail with a network error, which says nothing about the code."""
+    import socket
+    from pathlib import Path
+
+    cache = Path.home() / ".cache" / "huggingface" / "hub"
+    if cache.is_dir() and any(cache.iterdir()):
+        return True
+    try:
+        socket.create_connection(("huggingface.co", 443), timeout=2).close()
+        return True
+    except OSError:
+        return False
+
+
+requires_hf_models = pytest.mark.skipif(
+    not _hf_models_reachable(), reason="needs the HuggingFace hub (network) or a populated HF cache for the real models",
+)
+
+
 requires_chromadb = pytest.mark.skipif(
     not _chromadb_available(), reason="requires chromadb (pip install chromadb)",
 )

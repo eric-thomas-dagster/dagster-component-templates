@@ -27,6 +27,7 @@ from .conftest import (
     requires_chromadb,
     requires_duckdb,
     requires_duckdb_engine,
+    requires_hf_models,
     requires_sentence_transformers,
     requires_transformers,
 )
@@ -66,6 +67,7 @@ def _materialize(component, df=None, upstream_name="raw_tickets", resources=None
 
 @requires_sentence_transformers
 @requires_transformers
+@requires_hf_models
 @requires_chromadb
 def test_full_pipeline_chunk_classify_embed_write_vector_store(mod, tickets_df, tmp_path):
     component = mod.ContextEngineeringPipelineComponent(
@@ -99,6 +101,7 @@ def test_full_pipeline_chunk_classify_embed_write_vector_store(mod, tickets_df, 
 
 @requires_sentence_transformers
 @requires_transformers
+@requires_hf_models
 def test_chunking_explodes_rows_and_carries_metadata(mod, tickets_df):
     component = mod.ContextEngineeringPipelineComponent(
         asset_name="chunks_only",

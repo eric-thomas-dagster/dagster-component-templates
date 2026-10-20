@@ -368,7 +368,7 @@ def test_external_package_workspace_fetches_real_manifest_for_key(mod, component
 
     component.external_packages = ["shared_core"]
     component.external_package_workspaces = {
-        "shared_core": {"project_id": 999, "environment_id": 888},
+        "shared_core": mod.ExternalPackageWorkspaceRef(project_id=999, environment_id=888),
     }
     gold_manifest = {
         "nodes": {
@@ -402,7 +402,7 @@ def test_external_package_workspace_fetch_failure_falls_back_gracefully(mod, com
 
     component.external_packages = ["shared_core"]
     component.external_package_workspaces = {
-        "shared_core": {"project_id": 999, "environment_id": 888},
+        "shared_core": mod.ExternalPackageWorkspaceRef(project_id=999, environment_id=888),
     }
     component.external_package_schemas = {"shared_core": "silver_cursorapi"}
     gold_manifest = {
@@ -445,7 +445,7 @@ def test_external_package_workspace_result_is_cached_per_package(mod, component,
 
     component.external_packages = ["shared_core"]
     component.external_package_workspaces = {
-        "shared_core": {"project_id": 999, "environment_id": 888},
+        "shared_core": mod.ExternalPackageWorkspaceRef(project_id=999, environment_id=888),
     }
     gold_manifest = {
         "nodes": {
@@ -465,6 +465,57 @@ def test_external_package_workspace_result_is_cached_per_package(mod, component,
     }
     component._build_external_package_specs(gold_manifest)
     assert len(calls) == 1
+
+
+def test_external_package_workspaces_accepts_env_var_templated_ids(monkeypatch):
+    """Real customer regression: `external_package_workspaces` used to be
+    declared `Optional[Dict[str, Dict[str, int]]]` -- a generic dict value
+    type, not a dedicated Resolvable sub-class. The Resolved framework only
+    widens a field's OWN declared type to accept a Jinja template string; it
+    doesn't recurse into a generic `Dict[str, int]` value type to widen the
+    inner `int` too. So `project_id: "{{ env.X }}"` / `environment_id: "{{
+    env.Y }}"` failed real Pydantic validation ("not valid under any of the
+    given schemas") the moment the YAML was loaded -- forcing the customer
+    to hardcode the literal IDs, which breaks across environments/accounts.
+
+    This goes through the real YAML/Resolvable loading path (not
+    `model_construct` + direct attribute assignment, which every other test
+    in this file uses and which bypasses resolution entirely) specifically
+    because that's the only path that exercises the bug. Stops short of
+    `build_defs()` (which would make a real dbt Cloud API call) --
+    `tree.load_component` alone fully resolves the YAML, including every
+    Jinja template, without touching the network.
+    """
+    import yaml
+    from dagster.components.testing import create_defs_folder_sandbox
+
+    monkeypatch.setenv("TEST_DBT_CLOUD_PROJECT_ID", "12345")
+    monkeypatch.setenv("TEST_DBT_CLOUD_ENVIRONMENT_ID", "67890")
+
+    attrs = {
+        "workspace": {"account_id": 1, "token": "fake-token", "project_id": 1, "environment_id": 1},
+        "external_packages": ["shared_core"],
+        "external_package_workspaces": {
+            "shared_core": {
+                "project_id": "{{ env.TEST_DBT_CLOUD_PROJECT_ID }}",
+                "environment_id": "{{ env.TEST_DBT_CLOUD_ENVIRONMENT_ID }}",
+            },
+        },
+    }
+    with create_defs_folder_sandbox() as sb:
+        d = sb.defs_folder_path / "f"
+        d.mkdir()
+        (d / "defs.yaml").write_text(yaml.safe_dump({
+            "type": "assets.dbt.enriched_dbt_cloud_workspace.component.EnrichedDbtCloudWorkspaceComponent",
+            "attributes": attrs,
+        }))
+        with sb.build_component_tree() as tree:
+            component = tree.load_component(d)
+            ref = component.external_package_workspaces["shared_core"]
+            assert ref.project_id == 12345
+            assert ref.environment_id == 67890
+            assert isinstance(ref.project_id, int)
+            assert isinstance(ref.environment_id, int)
 
 
 def test_external_package_schema_default_fills_in_missing_schema(mod, component):

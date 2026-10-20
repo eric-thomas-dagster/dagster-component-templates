@@ -429,7 +429,7 @@ available at all.
 | `emit_contract_checks` | `bool` | `false` | — |
 | `external_packages` | `List[str]` | — | — |
 | `external_package_schemas` | `Dict[str, str]` | — | — |
-| `external_package_workspaces` | `Dict[str, Dict[str, int]]` | — | — |
+| `external_package_workspaces` | `Dict[str, ExternalPackageWorkspaceRef]` (`{project_id, environment_id}`, each accepts a `{{ env.VAR }}` template) | — | — |
 | `emit_semantic_layer_as_assets` | `bool` | `false` | — |
 | `enable_materialization_kinds` | `bool` | `false` | — |
 | `auto_trigger_on_freshness_failure` | `bool` | `false` | — |

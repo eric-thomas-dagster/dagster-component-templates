@@ -22825,7 +22825,7 @@
       "icon": "si:dbt",
       "type": "dagster_component_templates.EnrichedDbtCloudWorkspaceComponent",
       "component_type": "dagster_component_templates.EnrichedDbtCloudWorkspaceComponent",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "author": "Dagster Community",
       "dependencies": {
         "pip": [

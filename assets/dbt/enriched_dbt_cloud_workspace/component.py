@@ -525,6 +525,28 @@ class AssetOverride(dg.Resolvable):
     asset_key: Optional[str] = None
 
 
+@dataclass
+class ExternalPackageWorkspaceRef(dg.Resolvable):
+    """One `external_package_workspaces` entry: the `project_id`/`environment_id`
+    of an external_packages package's own dbt Cloud project.
+
+    This used to be a plain ``Dict[str, int]`` value. The Resolved framework
+    only widens a field's OWN declared type to accept a Jinja template string
+    (``field_type | str`` in the generated schema) -- it doesn't recurse into
+    the value type of a generic ``Dict[str, int]`` to widen `int` too. So
+    `{{ env.MY_VAR }}` for `project_id`/`environment_id` failed real Pydantic
+    int validation with "not valid under any of the given schemas" (a real
+    customer hit this: env vars worked everywhere else in this component,
+    but not here, forcing them to hardcode the IDs). A dedicated Resolvable
+    dataclass gets the per-field widening `AssetOverride` above already
+    relies on, the same way `account_id`/`project_id`/`environment_id` on
+    `workspace` itself (a real `DbtCloudWorkspace`/`Resolvable`) do.
+    """
+
+    project_id: int
+    environment_id: int
+
+
 def _resolve_override_deps(
     asset_overrides: Optional[Dict[str, "AssetOverride"]],
     lookup_key: str,
@@ -1250,7 +1272,7 @@ try:
         `asset_overrides.asset_key` instead -- that always wins over both
         this and the translator."""
 
-        external_package_workspaces: Optional[Dict[str, Dict[str, int]]] = None
+        external_package_workspaces: Optional[Dict[str, ExternalPackageWorkspaceRef]] = None
         """The REAL fix for dbt-mesh key mismatches, when available: for an
         `external_packages` package that's a dbt Cloud project under the
         SAME dbt Cloud account/token as `workspace` (the common case --
@@ -1778,16 +1800,16 @@ try:
 
                 external_workspace = DbtCloudWorkspace(
                     credentials=self.workspace.credentials,
-                    project_id=spec["project_id"],
-                    environment_id=spec["environment_id"],
+                    project_id=spec.project_id,
+                    environment_id=spec.environment_id,
                 )
                 workspace_data = external_workspace.get_or_fetch_workspace_data()
                 cache[package_name] = dict(workspace_data.manifest)
             except Exception as e:
                 dg.get_dagster_logger().warning(
                     f"external_package_workspaces: failed to fetch the real manifest for "
-                    f"package {package_name!r} (project_id={spec.get('project_id')}, "
-                    f"environment_id={spec.get('environment_id')}): {e}. Falling back to "
+                    f"package {package_name!r} (project_id={spec.project_id}, "
+                    f"environment_id={spec.environment_id}): {e}. Falling back to "
                     f"external_package_schemas / the bare translator result for this package."
                 )
             return cache[package_name]
@@ -2611,7 +2633,7 @@ except ImportError:
         emit_contract_checks: bool = Field(default=False)
         external_packages: Optional[List[str]] = Field(default=None)
         external_package_schemas: Optional[Dict[str, str]] = Field(default=None)
-        external_package_workspaces: Optional[Dict[str, Dict[str, int]]] = Field(default=None)
+        external_package_workspaces: Optional[Dict[str, ExternalPackageWorkspaceRef]] = Field(default=None)
         emit_semantic_layer_as_assets: bool = Field(default=False)
         enable_materialization_kinds: bool = Field(default=False)
         auto_trigger_on_freshness_failure: bool = Field(default=False)

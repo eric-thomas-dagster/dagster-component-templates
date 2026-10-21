@@ -3814,6 +3814,16 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                     context.log.info(f"step {step_id!r} ({op_kind}) → {len(df)} rows in {elapsed:.2f}s")
                     return df, md
 
+                # The first step's op takes a real `upstream` INPUT only when self.upstream_asset_key is
+                # set (the graph wires a real predecessor to it). With `source:` instead, _pipeline_fn
+                # calls this op with zero args -- so the parameter must not exist at all here: a
+                # declared-but-unconnected `upstream: pd.DataFrame = None` parameter still gets a real
+                # Dagster input slot (default value None), and Dagster's own output type check then fails
+                # None against the pd.DataFrame annotation. Caught live: per_step_ops=True + `source:` (no
+                # upstream_asset_key) crashed with DagsterTypeCheckDidNotPass before this fix -- the
+                # existing committed test only ever exercised upstream_asset_key, never `source:` alone.
+                takes_upstream_input = not is_first or bool(self.upstream_asset_key)
+
                 if is_last:
                     # Generator form: the only step whose op may also yield AssetCheckResults
                     # (retrieval_eval / regression_check both describe "the built index", i.e.
@@ -3832,22 +3842,41 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                         if check_output_names else None
                     )
 
+                    if takes_upstream_input:
+                        @op(name=op_name, required_resource_keys=rrk or None, retry_policy=retry_policy, out=op_out)
+                        def _last_step_op(context: OpExecutionContext, upstream: pd.DataFrame = None):
+                            df, md = _compute(context, upstream)
+                            yield Output(df, metadata=md, output_name="result")
+                            if retrieval_eval is not None:
+                                yield _run_retrieval_eval(retrieval_eval, steps_cfg, asset_name, stamp_provenance, context)
+                            if receipts_cfg is not None and receipts_cfg.get("regression_check"):
+                                yield _run_recipe_outcomes_check(receipts_cfg, asset_name, recipe_code_version, context)
+                        return _last_step_op
+
                     @op(name=op_name, required_resource_keys=rrk or None, retry_policy=retry_policy, out=op_out)
-                    def _last_step_op(context: OpExecutionContext, upstream: pd.DataFrame = None):
-                        df, md = _compute(context, upstream)
+                    def _last_step_op_no_input(context: OpExecutionContext):
+                        df, md = _compute(context, None)
                         yield Output(df, metadata=md, output_name="result")
                         if retrieval_eval is not None:
                             yield _run_retrieval_eval(retrieval_eval, steps_cfg, asset_name, stamp_provenance, context)
                         if receipts_cfg is not None and receipts_cfg.get("regression_check"):
                             yield _run_recipe_outcomes_check(receipts_cfg, asset_name, recipe_code_version, context)
+                    return _last_step_op_no_input
 
-                    return _last_step_op
+                if takes_upstream_input:
+                    @op(name=op_name, required_resource_keys=rrk or None, retry_policy=retry_policy)
+                    def _step_op(context: OpExecutionContext, upstream: pd.DataFrame = None) -> pd.DataFrame:
+                        df, md = _compute(context, upstream)
+                        context.add_output_metadata(md)
+                        return df
+                    return _step_op
 
                 @op(name=op_name, required_resource_keys=rrk or None, retry_policy=retry_policy)
-                def _step_op(context: OpExecutionContext, upstream: pd.DataFrame = None) -> pd.DataFrame:
-                    df, md = _compute(context, upstream)
+                def _step_op_no_input(context: OpExecutionContext) -> pd.DataFrame:
+                    df, md = _compute(context, None)
                     context.add_output_metadata(md)
                     return df
+                return _step_op_no_input
 
                 return _step_op
 

@@ -275,6 +275,92 @@ def test_source_warehouse_query_against_real_duckdb(mod, tmp_path):
 
 
 @requires_duckdb
+@requires_sentence_transformers
+def test_per_step_ops_with_source_warehouse_query_and_no_upstream_asset_key(mod, tmp_path):
+    """Regression: the first step's op always declared an `upstream: pd.DataFrame = None` parameter,
+    even with `source:` (no upstream_asset_key) -- _pipeline_fn then calls it with zero args, but
+    Dagster still gives that declared-but-unconnected parameter a real input slot (default value None)
+    and type-checks it against the pd.DataFrame annotation, raising DagsterTypeCheckDidNotPass. The
+    existing committed per_step_ops tests only ever used upstream_asset_key, so this combination
+    (both real features, never combined in a test) had never actually been exercised."""
+    import duckdb
+    from dagster_duckdb import DuckDBResource
+
+    db_path = str(tmp_path / "tickets.duckdb")
+    conn = duckdb.connect(db_path)
+    conn.execute(
+        "CREATE TABLE tickets AS SELECT * FROM (VALUES "
+        "(1, 'Refund my duplicate charge please'), "
+        "(2, 'App crashes on upload, logs attached')) AS t(ticket_id, body)"
+    )
+    conn.close()
+
+    component = mod.ContextEngineeringPipelineComponent(
+        asset_name="support_kb_sql_source",
+        source={"kind": "warehouse_query", "resource_key": "duckdb_resource", "sql": "SELECT * FROM tickets"},
+        id_column="ticket_id",
+        text_column="body",
+        per_step_ops=True,
+        steps=[
+            {"id": "chunks", "op": "chunk", "chunk_size": 200},
+            {"id": "embedded", "op": "embed", "provider": "sentence_transformers", "model": "all-MiniLM-L6-v2"},
+        ],
+    )
+    result = _materialize(component, resources={"duckdb_resource": DuckDBResource(database=db_path)})
+    assert result.success
+    chunks_out = result.asset_value("support_kb_sql_source_chunks")
+    assert len(chunks_out) == 2
+    final_out = result.asset_value("support_kb_sql_source")
+    assert "embedding" in final_out.columns
+
+
+@requires_duckdb
+@requires_sentence_transformers
+def test_per_step_ops_partitioned_source_reads_only_its_own_partition(mod, tmp_path):
+    """Same first-step-op bug as above, combined with real partitioning (the other genuinely
+    untested combination): the `{partition_key}` placeholder in `source.sql` must scope each
+    partition's run to only its own slice of the source table."""
+    import duckdb
+    from dagster_duckdb import DuckDBResource
+
+    db_path = str(tmp_path / "tickets.duckdb")
+    conn = duckdb.connect(db_path)
+    conn.execute(
+        "CREATE TABLE tickets AS SELECT * FROM (VALUES "
+        "(1, 'Refund my duplicate charge please', '2026-01-01'), "
+        "(2, 'App crashes on upload, logs attached', '2026-01-02')) AS t(ticket_id, body, day)"
+    )
+    conn.close()
+
+    component = mod.ContextEngineeringPipelineComponent(
+        asset_name="support_kb_partitioned",
+        source={"kind": "warehouse_query", "resource_key": "duckdb_resource",
+                "sql": "SELECT ticket_id, body FROM tickets WHERE day = {partition_key}"},
+        id_column="ticket_id",
+        text_column="body",
+        per_step_ops=True,
+        partition_type="static",
+        partition_values=["2026-01-01", "2026-01-02"],
+        steps=[
+            {"id": "chunks", "op": "chunk", "chunk_size": 200},
+            {"id": "embedded", "op": "embed", "provider": "sentence_transformers", "model": "all-MiniLM-L6-v2"},
+        ],
+    )
+    defs = component.build_defs(context=None)
+    asset_def = list(defs.assets)[0]
+    instance = dg.DagsterInstance.ephemeral()
+    resources = {"duckdb_resource": DuckDBResource(database=db_path)}
+
+    res1 = dg.materialize([asset_def], resources=resources, instance=instance, partition_key="2026-01-01")
+    assert res1.success
+    assert list(res1.asset_value("support_kb_partitioned")["ticket_id"]) == [1]
+
+    res2 = dg.materialize([asset_def], resources=resources, instance=instance, partition_key="2026-01-02")
+    assert res2.success
+    assert list(res2.asset_value("support_kb_partitioned")["ticket_id"]) == [2]
+
+
+@requires_duckdb
 @requires_duckdb_engine
 def test_source_database_url_env_var_fallback_no_dagster_resource(mod, tmp_path, monkeypatch):
     """source: {kind: warehouse_query, database_url_env_var: ...} must work with

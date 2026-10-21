@@ -4,8 +4,8 @@
   },
   "results": [
     {
-      "id": "context_engineering_pipeline",
-      "path": "assets/ai/context_engineering_pipeline",
+      "id": "context_receipt_store",
+      "path": "resources/context_receipt_store",
       "status": "PASS",
       "warnings": [],
       "error": null,

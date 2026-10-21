@@ -13039,8 +13039,8 @@
       "id": "context_receipt_store",
       "name": "Context Receipt Store",
       "category": "resource",
-      "description": "Context receipts with a closed feedback loop: gateway-written retrieval receipts (retrieved + excluded-with-reason), outcomes (thumbs/edits/escalations), learned item priors with exploration, an async hot-path writer, and an optional Dagster sensor that reports aggregated usage, flags stale reads and can request rebuilds.",
-      "version": "1.0.0",
+      "description": "Context receipts with a closed feedback loop: gateway-written retrieval receipts (retrieved + excluded-with-reason), outcomes (thumbs/edits/escalations), learned item priors with exploration, an async hot-path writer, and an optional Dagster sensor that reports aggregated usage, flags stale reads and can request rebuilds. `backend: sqlite` (local file, default), `backend: bigquery` (tables in a BigQuery dataset), or `backend: sql` (Postgres, MySQL, Snowflake, Databricks, DuckDB via SQLAlchemy or a plain vendor DBAPI connection) -- the warehouse backends are shared across hosts and queryable from a SQL-mode context_engineering_pipeline.",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "resources/context_receipt_store",
       "tags": [
@@ -13061,8 +13061,8 @@
       "icon": "Receipt",
       "validation": {
         "level": "code",
-        "last_validated": "2026-10-16",
-        "notes": "Receipts, excluded items, outcomes, evidence-weighted scoring, rerank/exploration, async writer, versioned spec (JSON Schema conformance), per-partition staleness and rebuilds, lineage-walking recall with partition mapping, context-health asset checks (executed for real), MCP/trace ids on receipts, @context_asset decorator with enforceable policy, downstream consumption validation, retention enforcement, grounding check and context_health, implicit reformulation signals, and the usage sensor (real DagsterInstance) tested locally; FastMCP gateway and middleware tested against FastMCP 4.1.0."
+        "last_validated": "2026-10-21",
+        "notes": "Receipts, excluded items, outcomes, evidence-weighted scoring, rerank/exploration, async writer, versioned spec (JSON Schema conformance), per-partition staleness and rebuilds, lineage-walking recall with partition mapping, context-health asset checks (executed for real), MCP/trace ids on receipts, @context_asset decorator with enforceable policy, downstream consumption validation, retention enforcement, grounding check and context_health, implicit reformulation signals, and the usage sensor (real DagsterInstance) tested locally; FastMCP gateway and middleware tested against FastMCP 4.1.0. Also covers the warehouse backends added since: backend='bigquery' and the generic backend='sql' (Postgres/MySQL/Snowflake/Databricks/DuckDB, via SQLAlchemy or a plain DBAPI connector) are parity-tested against the SQLite store's own results, with transient-failure retries, vendor-client contract tests against the real client libraries, fuzz tests, and the generated SQL audited against the Snowflake/BigQuery/Databricks docs -- not run against a real warehouse (tools/verify_receipts_backend.py is the one-command self-test to run against yours)."
       },
       "produces": [
         "resource"
@@ -13071,8 +13071,8 @@
       "agent_hints": {
         "when_to_use": "Record serving-time context retrievals and attach output references without modifying Dagster internals.",
         "outputs": "ContextReceiptStore resource and standalone Python API for immutable retrieval records, append-only output/evidence events, and source-impact lookups.",
-        "side_effects": "Creates and writes a SQLite file on the first receipt operation.",
-        "anti_uses": "SQLite is for local or single-host prototypes, not a multi-host production receipt backend. Do not store raw queries, context text, or model outputs in receipts."
+        "side_effects": "backend: sqlite (default) creates and writes a local SQLite file on the first receipt operation. backend: bigquery / backend: sql instead write to tables in that warehouse/database, created on first use.",
+        "anti_uses": "backend: sqlite is for local or single-host prototypes, not a multi-host production receipt backend -- use backend: bigquery or backend: sql (shared across hosts, queryable from SQL) for production. Do not store raw queries, context text, or model outputs in receipts."
       },
       "keywords": [
         "context engineering",
@@ -13080,7 +13080,13 @@
         "provenance",
         "impact analysis",
         "fastmcp",
-        "prefect"
+        "prefect",
+        "bigquery",
+        "sql",
+        "warehouse",
+        "snowflake",
+        "databricks",
+        "postgres"
       ]
     },
     {

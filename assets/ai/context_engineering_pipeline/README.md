@@ -42,23 +42,28 @@ Every op is free/local by default (sentence-transformers + HuggingFace zero-shot
 
 ### Scaffold these demos end-to-end
 
-Two runnable walkthroughs, same closed context-receipt loop (build → serve → real feedback → rebuild with
-the identical recipe → the chunks that kept failing are gone), different serving layer:
+Three runnable walkthroughs:
 
-- [`examples/context_engineering.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering.md) — serving is `rag_pipeline`, so the query side shows up as a Dagster asset too.
+- [`examples/context_engineering.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering.md) — the closed context-receipt loop (build → serve → real feedback → rebuild with the identical recipe → the chunks that kept failing are gone); serving is `rag_pipeline`, so the query side shows up as a Dagster asset too.
   ```bash
   curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_context_engineering_demo.sh | bash
   cd context-engineering-demo
   uv run dg dev
   ```
-- [`examples/context_engineering_mcp.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering_mcp.md) — Dagster does only the build; serving is a standalone FastMCP gateway + agent over real stdio MCP, no Dagster import in the serving path at all.
+- [`examples/context_engineering_mcp.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering_mcp.md) — the same closed loop, but Dagster does only the build; serving is a standalone FastMCP gateway + agent over real stdio MCP, no Dagster import in the serving path at all.
   ```bash
   curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_context_engineering_mcp_demo.sh | bash
   cd context-engineering-mcp-demo
   uv run dg dev
   ```
+- [`examples/context_engineering_partitioned.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering_partitioned.md) — `partition_type: daily` + `per_step_ops: true`: one build per day, each reading only that day's new rows; the index grows a day at a time, no rebuild reprocesses a prior day.
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_context_engineering_partitioned_demo.sh | bash
+  cd context-engineering-partitioned-demo
+  uv run dg dev
+  ```
 
-Both free/local by default (sentence-transformers + HuggingFace zero-shot + ChromaDB + local SQLite); both live-validated end to end, run twice each, exit 0 both times.
+All three free/local by default (sentence-transformers + HuggingFace zero-shot + ChromaDB, plus local SQLite or DuckDB); all live-validated end to end, exit 0.
 
 ## Ops
 

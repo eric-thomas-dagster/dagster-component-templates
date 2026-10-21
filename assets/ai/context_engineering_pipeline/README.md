@@ -75,9 +75,11 @@ All three free/local by default (sentence-transformers + HuggingFace zero-shot +
 ## Knobs (all configured in YAML)
 
 Everything below is YAML `steps` and component settings; none of it needs Python code. "Python mode" is
-`execution_mode: python` (the default), where the steps run in Python. `execution_mode: sql` instead runs chunk, classify
-and embed inside the warehouse and supports only those three ops, so `filter`, `dedupe`, `sensitivity`, `stamp`, `enrich`,
-parent-child chunking and the rest here need python mode (`retrieval_eval` works in both, see below).
+`execution_mode: python` (the default), where the steps run in Python. `execution_mode: sql` instead runs steps inside
+the warehouse as one atomic statement: chunk, classify and embed always (mapped onto each warehouse's own AI functions),
+plus `filter`/`dedupe`/`sensitivity`/`stamp` (plain SQL, with specific unsupported parts called out and rejected per op
+below). `enrich`, parent-child chunking and everything else on this page needs python mode (`retrieval_eval` works in
+both, see below).
 
 **Every knob in one runnable pipeline:** [`example_all_knobs.yaml`](example_all_knobs.yaml). It is exercised end to end by
 `tests/test_example_all_knobs.py`, so it stays correct.
@@ -100,19 +102,39 @@ passage changes the version.
 **`enrich`**: an LLM-written field on every chunk: `mode: summary | keywords | questions | context` (a situating
 sentence, the "contextual retrieval" technique; it is shown the chunk's `parent_text` when there is one), `model` (any
 litellm model, required), `prepend: true` to put the text in front of the chunk so it is embedded and hashed,
-`on_error: raise | skip`. One model call per chunk: it costs money and time.
+`on_error: raise | skip`. One model call per chunk: it costs money and time. **Python mode only** — an arbitrary
+per-chunk LLM prompt has no warehouse-native equivalent.
 
 **`filter`**: drop by `min_chars`, `max_chars`, `min_alnum_ratio`, `exclude_patterns` (regexes for boilerplate, footers,
-signatures); reasons are counted in the step metadata.
+signatures); reasons are counted in the step metadata. **Also works in `execution_mode: sql`** (plain `LENGTH`/
+`REGEXP_REPLACE`-based SQL, portable across all 3 dialects) — except `exclude_patterns` entries that need lookahead,
+lookbehind or backreferences (e.g. `(?=...)`, `(?<=...)`, `\1`): BigQuery's regex engine (RE2) can't express those, so
+`build_defs()` raises a clear error instead of silently mistranslating the pattern. Keep `exclude_patterns` simple, or
+use `execution_mode: python`.
 
-**`dedupe`**: `mode: exact | normalized`, `within: [columns]` so one tenant's chunk never suppresses another's.
+**`dedupe`**: `mode: exact | normalized`, `within: [columns]` so one tenant's chunk never suppresses another's. **Also
+works in `execution_mode: sql`** (one more CTE with `QUALIFY ROW_NUMBER() OVER (PARTITION BY ... ORDER BY chunk_id) =
+1`, the same pattern the incremental-reuse logic already uses) — no caveats, fully portable.
 
 **`sensitivity`**: regex PII detection (email, phone, ssn, Luhn-checked credit_card, ipv4); `action: tag | redact | drop`.
 `tag` adds `sensitivity` (`pii`/`none`) and `pii_types` columns that a gateway can withhold on (receipt exclusion reason
-`pii`). Regex only, not NER: it misses names and free-form identifiers, so treat it as a floor.
+`pii`). Regex only, not NER: it misses names and free-form identifiers, so treat it as a floor. **Partially works in
+`execution_mode: sql`**: `detectors: [email, ssn, ipv4]` and `action: tag | drop` are plain, portable SQL. `phone`'s
+pattern needs a negative lookahead/lookbehind RE2 can't express, and `credit_card`'s precision in python mode comes
+from a Luhn check with no portable SQL equivalent built here (a regex-only match would have a much higher
+false-positive rate) — both detectors, and `action: redact` (which would need `content_hash` recomputed mid-statement),
+raise a clear error in SQL mode rather than shipping a silently weaker version. Use `execution_mode: python` for those.
 
 **`stamp`**: governance columns that become filterable vector-store metadata: `columns: {scope: "{customer_id}"}`,
-`ttl_days` (adds `valid_until` so a gateway can withhold expired chunks, receipt reason `stale`).
+`ttl_days` (adds `valid_until` so a gateway can withhold expired chunks, receipt reason `stale`). **Also works in
+`execution_mode: sql`** — `columns` templates must be a plain literal or simple `{column}` placeholders only (no
+Python format specs like `{x:.2f}`); `ttl_days` is computed once at build time and embedded as a date literal, so no
+per-dialect date-arithmetic function is needed.
+
+All four of `filter`/`dedupe`/`sensitivity`/`stamp` in SQL mode are inserted right after chunk-id/content-hash
+assignment and before receipts feedback and classify/embed, regardless of where they're listed in `steps:` — so
+dropped or deduped chunks never pay for a receipts-feedback join or a warehouse AI function call. Not yet supported
+together with `per_step_ops: true` in SQL mode (that path stays chunk/classify/embed-only, one table per step).
 
 **`embed`**: `reuse_from: {connection_string, collection_name}` (chromadb) skips chunks whose `chunk_id`, `content_hash`
 and embedding model already exist in the index, so only new or changed chunks pay for an embedding call. Every embedded
@@ -525,3 +547,4 @@ Every field name and step shape here is meant to be as readable for a human anal
 - `execution_mode: sql` — every dialect's statement is parsed with sqlglot in that dialect. The chunk, provenance and receipts-feedback statements of all three dialects are additionally executed (sqlglot -> DuckDB, `tests/bq_fake.py` and `tests/sql_fake.py`, which patches the few constructs sqlglot mistranslates) against real tables, and the feedback columns and `recipe_outcomes` numbers are asserted equal to `ContextReceiptStore.item_feedback` / `outcomes_by_code_version` on the same events. The warehouse AI functions (`ML.GENERATE_EMBEDDING`, `AI.CLASSIFY`, Cortex, `ai_query`/`ai_classify`, Cortex's text splitter) are stood in for by call-counting DuckDB UDFs (`tests/ai_stubs.py`) in the incremental and partition tests (so reuse is asserted as exact call counts) and are never run for real, and DuckDB is not Snowflake or Databricks (JSON, NULL and type-coercion corners can differ). Flip to `validation.level: live` only once that's confirmed against a real Snowflake/BigQuery/Databricks account.
 - `execution_mode: sql` + `per_step_ops: true` — same DuckDB-backed execution path (`tests/test_sql_per_step_ops.py`): real `dg.materialize()` builds three real, separate physical tables, asserts the per-step asset lineage (`AssetsDefinition.asset_deps`) and that incremental reuse is scoped per table, not shared across them. Also caught (and fixed, both execution modes) a real Dagster `AssetsDefinition.from_graph` gap along the way: a check declared via `check_specs` needs a literally-named graph output (`AssetCheckSpec.get_python_identifier()`), not just a bare `yield AssetCheckResult(...)` — `retrieval_quality`/`recipe_outcomes` would otherwise crash `build_defs()` the first time they were combined with `per_step_ops` in either mode.
 - `per_step_ops: true` (python mode) + `source: {kind: warehouse_query}` + partitioning, all three together — real against DuckDB (`test_per_step_ops_with_source_warehouse_query_and_no_upstream_asset_key`, `test_per_step_ops_partitioned_source_reads_only_its_own_partition`). Caught and fixed a real bug: the first step's op always declared an `upstream: pd.DataFrame = None` parameter, even with `source:` (no `upstream_asset_key`) wired to it — `_pipeline_fn` calls it with zero args, but Dagster still gives that declared-but-unconnected parameter a real input slot (default value `None`) and type-checks it against the `pd.DataFrame` annotation, raising `DagsterTypeCheckDidNotPass`. Every existing committed `per_step_ops` test only ever used `upstream_asset_key`, so this combination had never actually been exercised. Fixed by omitting the `upstream` parameter entirely from the first step's op when there's no `upstream_asset_key` to connect to it.
+- `execution_mode: sql` + `filter`/`dedupe`/`sensitivity`/`stamp` — real against DuckDB, all 3 dialects (`tests/test_sql_filter_dedupe_sensitivity_stamp.py`): min/max_chars, min_alnum_ratio, portable `exclude_patterns`, both dedupe modes, `within`-scoped dedupe, sensitivity `tag`/`drop` for the email/ssn/ipv4 detectors, stamp's `columns` templating and `ttl_days`, and all four combined in one build alongside classify/embed. Also real, executed rejections (not just structural): `exclude_patterns` using lookahead/lookbehind/backreferences, the `phone`/`credit_card` sensitivity detectors, `action: redact`, a stamp template with a Python format spec, and `per_step_ops: true` combined with any of these four (that path stays chunk/classify/embed-only). Fixing the hardcoded `FROM stamped` references these new steps needed to interpose before also surfaced that the receipts-feedback join previously assumed "stamped" was always literally the frontmost CTE -- now driven off a `cur` pointer like the rest of the statement.

@@ -2018,6 +2018,60 @@ def _sql_chunk_and_stamp_stage(
     return ctes, cols, cur
 
 
+# ── filter / dedupe / sensitivity / stamp in execution_mode='sql' ──────────────────────────────────────
+# Portable across bigquery/snowflake_cortex/databricks because REGEXP_CONTAINS/REGEXP_LIKE/RLIKE and
+# REGEXP_REPLACE take the same (value, pattern[, replacement]) argument order in all three; the regex
+# SYNTAX itself is also compatible for the fixed, component-authored patterns below (character classes,
+# \b, \d, \w, \s, quantifiers, non-capturing groups) -- none of them use lookaround or backreferences.
+
+def _sql_regexp_contains(dialect: str, expr: str, pattern_literal: str) -> str:
+    if dialect == "bigquery":
+        return f"REGEXP_CONTAINS({expr}, {pattern_literal})"
+    if dialect == "snowflake_cortex":
+        return f"REGEXP_LIKE({expr}, {pattern_literal})"
+    return f"({expr} RLIKE {pattern_literal})"  # databricks / Spark SQL
+
+
+def _sql_regexp_replace(dialect: str, expr: str, pattern_literal: str, replacement_literal: str) -> str:
+    return f"REGEXP_REPLACE({expr}, {pattern_literal}, {replacement_literal})"  # same arg order, all 3 dialects
+
+
+_UNSAFE_REGEX_RE = re.compile(r"\(\?[=!]|\(\?<[=!]|\\[1-9]|\(\?P=")
+
+
+def _validate_portable_regex(pattern: str, what: str) -> None:
+    """BigQuery's regex engine (RE2, used by REGEXP_CONTAINS/REGEXP_REPLACE) has no lookahead,
+    lookbehind or backreferences -- a pattern using any of those cannot be translated portably across
+    bigquery/snowflake_cortex/databricks. Reject loudly at build time instead of silently mistranslating
+    or only failing on one dialect."""
+    if _UNSAFE_REGEX_RE.search(pattern):
+        raise ValueError(
+            f"execution_mode='sql': {what} pattern {pattern!r} uses lookahead/lookbehind/backreferences, "
+            f"which BigQuery's RE2 regex engine does not support -- not portable across "
+            f"bigquery/snowflake_cortex/databricks. Simplify the pattern, or use execution_mode='python' "
+            f"where Python's `re` module supports it."
+        )
+
+
+_SQL_PII_PATTERNS: Dict[str, str] = {
+    "email": r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}",
+    "ssn": r"\b\d{3}-\d{2}-\d{4}\b",
+    "ipv4": r"\b(?:\d{1,3}\.){3}\d{1,3}\b",
+}
+# phone's python pattern needs (?<!\d)/(?!\d) (negative lookbehind/lookahead) -- not RE2-portable.
+# credit_card's value in python mode comes from Luhn-checking the regex matches, which has no portable
+# SQL equivalent implemented here; a regex-only credit_card match would have a much higher false-positive
+# rate (catching phone numbers, account numbers, ...) than python mode's, so it is excluded rather than
+# silently shipped weaker.
+_SQL_PII_UNSUPPORTED: Dict[str, str] = {
+    "phone": "its pattern needs a negative lookahead/lookbehind that BigQuery's RE2 engine does not support",
+    "credit_card": "its Luhn-check validation (what keeps its false-positive rate down in python mode) has no portable SQL equivalent here",
+}
+
+_STAMP_TEMPLATE_RE = re.compile(r"^(?:[^{}]|\{[a-zA-Z_][a-zA-Z0-9_]*\})*$")
+_STAMP_PLACEHOLDER_RE = re.compile(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}")
+
+
 def _build_sql_mode_query(
     steps_cfg: List[dict], source_cfg: dict, dialect: str, output_table: str,
     id_column: str, text_column: str, metadata_columns: List[str],
@@ -2101,27 +2155,143 @@ def _build_sql_mode_query(
         f"  FROM chunked")))
     cols += ["chunk_id", "content_hash"]
     cur = "stamped"
+    now_iso = now or datetime.now(timezone.utc).isoformat()
+
+    # filter / dedupe / sensitivity (tag|drop) / stamp, in steps_cfg order -- always positioned here
+    # (before receipts feedback and classify/embed) regardless of where they appear in `steps:`, so
+    # dropped/deduped chunks never pay for a receipts-feedback join or a warehouse AI function call.
+    # None of them touch chunk_text/content_hash (sensitivity's action='redact', which would need
+    # content_hash recomputed afterward, is rejected below instead), so this fixed position is safe.
+    for _step in steps_cfg:
+        _op = _step["op"]
+        if _op == "filter":
+            _text = f"{cur}.chunk_text"
+            _preds: List[str] = []
+            if _step.get("min_chars") is not None:
+                _preds.append(f"LENGTH({_text}) >= {int(_step['min_chars'])}")
+            if _step.get("max_chars") is not None:
+                _preds.append(f"LENGTH({_text}) <= {int(_step['max_chars'])}")
+            if _step.get("min_alnum_ratio") is not None:
+                _alnum = _sql_regexp_replace(dialect, _text, _sql_str(r"[^a-zA-Z0-9]"), _sql_str(""))
+                _preds.append(f"(CASE WHEN LENGTH({_text}) = 0 THEN 0.0 ELSE LENGTH({_alnum}) / LENGTH({_text}) END) >= {float(_step['min_alnum_ratio'])!r}")
+            for _pattern in _step.get("exclude_patterns") or []:
+                _validate_portable_regex(_pattern, "filter exclude_patterns")
+                _preds.append(f"NOT {_sql_regexp_contains(dialect, _text, _sql_str(f'(?im){_pattern}'))}")
+            _where = f"\n  WHERE {' AND '.join(_preds)}" if _preds else ""
+            ctes.append(("filtered", f"SELECT {cols_sql(cur, cols)}\n  FROM {cur}{_where}"))
+            cur = "filtered"
+        elif _op == "dedupe":
+            _mode = _step.get("mode", "normalized")
+            if _mode not in ("exact", "normalized"):
+                raise ValueError(f"dedupe op: mode must be 'exact' or 'normalized', got {_mode!r}")
+            _within = _step.get("within") or []
+            for _w in _within:
+                if _w not in cols:
+                    raise ValueError(f"dedupe op: within column {_w!r} not in upstream columns: {cols}")
+            if _mode == "exact":
+                _key = f"{cur}.content_hash"
+            else:
+                _norm = f"TRIM({_sql_regexp_replace(dialect, _sql_regexp_replace(dialect, f'LOWER({cur}.chunk_text)', _sql_str(r'[^\w\s]'), _sql_str('')), _sql_str(r'\s+'), _sql_str(' '))})"
+                _key = _sql_hash_expr(dialect, _norm)
+            _partition_by = ", ".join([_key] + [f"{cur}.{_w}" for _w in _within])
+            ctes.append(("deduped", (
+                f"SELECT {cols_sql(cur, cols)}\n  FROM {cur}\n"
+                f"  QUALIFY ROW_NUMBER() OVER (PARTITION BY {_partition_by} ORDER BY {cur}.chunk_id) = 1")))
+            cur = "deduped"
+        elif _op == "sensitivity":
+            _detectors = _step.get("detectors") or list(_SQL_PII_PATTERNS)
+            _unsupported = [d for d in _detectors if d in _SQL_PII_UNSUPPORTED]
+            if _unsupported:
+                _reasons = "; ".join(f"{d}: {_SQL_PII_UNSUPPORTED[d]}" for d in _unsupported)
+                raise ValueError(
+                    f"execution_mode='sql': sensitivity detector(s) {_unsupported} not supported ({_reasons}); "
+                    f"use execution_mode='python', or drop them from `detectors`."
+                )
+            _unknown = [d for d in _detectors if d not in _SQL_PII_PATTERNS]
+            if _unknown:
+                raise ValueError(f"sensitivity op: unknown detector(s) {_unknown}; valid for execution_mode='sql': {sorted(_SQL_PII_PATTERNS)}")
+            _action = _step.get("action", "tag")
+            if _action == "redact":
+                raise ValueError(
+                    "execution_mode='sql': sensitivity action='redact' is not supported (it would require "
+                    "re-hashing content_hash mid-statement); use 'tag' or 'drop', or execution_mode='python'."
+                )
+            if _action not in ("tag", "drop"):
+                raise ValueError(f"sensitivity op: action must be tag or drop, got {_action!r}")
+            _text = f"{cur}.chunk_text"
+            _hit_exprs = {d: _sql_regexp_contains(dialect, _text, _sql_str(f"(?im){_SQL_PII_PATTERNS[d]}")) for d in _detectors}
+            _any_hit = " OR ".join(_hit_exprs.values())
+            _out_col = _step.get("output_column", "sensitivity")
+            _types_col = _step.get("types_column", "pii_types")
+            _type_parts = [f"(CASE WHEN {expr} THEN {_sql_str(d)} ELSE NULL END)" for d, expr in _hit_exprs.items()]
+            _types_expr = f"CONCAT_WS(',', {', '.join(_type_parts)})"
+            ctes.append(("sensitivity_tagged", (
+                f"SELECT {cols_sql(cur, cols)},\n"
+                f"         (CASE WHEN ({_any_hit}) THEN 'pii' ELSE 'none' END) AS {_out_col},\n"
+                f"         {_types_expr} AS {_types_col}\n"
+                f"  FROM {cur}")))
+            cols = cols + [_out_col, _types_col]
+            cur = "sensitivity_tagged"
+            if _action == "drop":
+                ctes.append(("sensitivity_filtered", f"SELECT {cols_sql(cur, cols)}\n  FROM {cur}\n  WHERE {_out_col} = 'none'"))
+                cur = "sensitivity_filtered"
+        elif _op == "stamp":
+            _select_extra: List[str] = []
+            for _name, _template in (_step.get("columns") or {}).items():
+                _template = str(_template)
+                if not _STAMP_TEMPLATE_RE.match(_template):
+                    raise ValueError(
+                        f"execution_mode='sql': stamp column {_name!r} template {_template!r} must be a plain "
+                        f"literal or simple {{column}} placeholders only (no format specs) -- use execution_mode='python' for anything more complex."
+                    )
+                _placeholders = _STAMP_PLACEHOLDER_RE.findall(_template)
+                for _p in _placeholders:
+                    if _p not in cols:
+                        raise ValueError(f"execution_mode='sql': stamp column {_name!r} references {{{_p}}}, not in upstream columns: {cols}")
+                if not _placeholders:
+                    _expr = _sql_str(_template)
+                else:
+                    _parts: List[str] = []
+                    _pos = 0
+                    for _m in _STAMP_PLACEHOLDER_RE.finditer(_template):
+                        if _m.start() > _pos:
+                            _parts.append(_sql_str(_template[_pos:_m.start()]))
+                        _parts.append(f"CAST({cur}.{_m.group(1)} AS STRING)")
+                        _pos = _m.end()
+                    if _pos < len(_template):
+                        _parts.append(_sql_str(_template[_pos:]))
+                    _expr = f"CONCAT({', '.join(_parts)})" if len(_parts) > 1 else _parts[0]
+                _select_extra.append(f"{_expr} AS {_name}")
+                cols = cols + [_name]
+            if _step.get("ttl_days") is not None:
+                _valid_col = _step.get("valid_until_column", "valid_until")
+                _valid_date = (datetime.fromisoformat(now_iso) + timedelta(days=float(_step["ttl_days"]))).date().isoformat()
+                _select_extra.append(f"{_sql_str(_valid_date)} AS {_valid_col}")
+                cols = cols + [_valid_col]
+            if _select_extra:
+                _base_cols = cols[:-len(_select_extra)]
+                ctes.append(("stamped_governance", f"SELECT {cols_sql(cur, _base_cols)},\n         " + ",\n         ".join(_select_extra) + f"\n  FROM {cur}"))
+                cur = "stamped_governance"
 
     if receipts is not None:
         recipe = code_version if receipts.get("scope_to_recipe", True) else None
         ctes += _sql_receipt_feedback_ctes(receipts, asset_name, recipe, since or _receipts_since(receipts), dialect)
         scores = receipt_table(receipts["dataset"], "context_item_scores", receipts.get("table_prefix", ""), _RECEIPT_DIALECT_OF[dialect])
         pr = receipts.get("prune")
-        now_iso = now or datetime.now(timezone.utc).isoformat()
         seen_select = seen_join = ""
         if pr:
             ctes.append(("window_receipts", _sql_window_receipts_cte(receipts, asset_name, recipe, since or _receipts_since(receipts), dialect)))
             if prior_first_seen:
                 ctes.append(("prior_seen", f"SELECT chunk_id, MIN(feedback_first_seen_at) AS first_seen\n  FROM {out_tbl}\n  GROUP BY chunk_id"))
-                seen_join = "\n  LEFT JOIN prior_seen AS ps ON ps.chunk_id = stamped.chunk_id"
+                seen_join = f"\n  LEFT JOIN prior_seen AS ps ON ps.chunk_id = {cur}.chunk_id"
             seen_select = f",\n         COALESCE({'ps.first_seen, ' if prior_first_seen else ''}{_sql_ts(now_iso, dialect)}) AS feedback_first_seen_at"
         ctes.append(("feedback_joined", (
-            f"SELECT {cols_sql('stamped', cols)},\n"
+            f"SELECT {cols_sql(cur, cols)},\n"
             f"         COALESCE(fb.retrievals, 0) AS feedback_retrievals, COALESCE(fb.rated, 0) AS feedback_rated,\n"
             f"         COALESCE(fb.mean_outcome, 0.0) AS feedback_mean_outcome, COALESCE(fb.cited, 0) AS feedback_cited,\n"
             f"         COALESCE(sc.prior, 0.0) AS feedback_prior{seen_select}\n"
-            f"  FROM stamped\n  LEFT JOIN item_feedback AS fb ON fb.item_id = stamped.chunk_id\n"
-            f"  LEFT JOIN {scores} AS sc ON sc.item_id = stamped.chunk_id{seen_join}")))
+            f"  FROM {cur}\n  LEFT JOIN item_feedback AS fb ON fb.item_id = {cur}.chunk_id\n"
+            f"  LEFT JOIN {scores} AS sc ON sc.item_id = {cur}.chunk_id{seen_join}")))
         dead = _sql_dead_expr(pr, dialect, now_iso) if pr else None
         if preview == "rewrite":
             with_ = ",\n".join(f"{n} AS (\n  {b}\n)" for n, b in ctes)
@@ -3227,7 +3397,10 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             "names a prior step's id to read from; if omitted, defaults to the immediately "
             "preceding step (so you don't have to repeat `source:` on every line). "
             "Valid ops: 'chunk' (must be first), 'filter', 'dedupe', 'sensitivity', 'stamp', 'enrich', 'classify', 'embed', "
-            "'write_vector_store'. filter/dedupe/sensitivity/stamp/enrich are python-mode only."
+            "'write_vector_store'. 'write_vector_store' and 'enrich' are python-mode only (no warehouse-native "
+            "equivalent); 'filter'/'dedupe'/'sensitivity'/'stamp' also work with execution_mode='sql' (each with its "
+            "own sub-validation for the specific parts that have no portable warehouse-SQL equivalent, e.g. "
+            "sensitivity's phone/credit_card detectors and action='redact', filter's lookahead/lookbehind patterns)."
         )
     )
 
@@ -3383,9 +3556,26 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
 
         execution_mode = self.execution_mode
         if execution_mode == "sql":
-            python_only = sorted({s["op"] for s in steps_cfg} - {"chunk", "classify", "embed"})
+            # chunk/classify/embed map onto each warehouse's own AI functions; filter/dedupe/sensitivity/stamp
+            # are expressible as plain SQL (see _build_sql_mode_query) and so are also offered here, each with
+            # its own sub-validation (e.g. sensitivity's phone/credit_card detectors and redact action, filter's
+            # exclude_patterns) rejecting the specific parts that have no portable warehouse-SQL equivalent.
+            # enrich has no warehouse-native equivalent at all (an arbitrary per-chunk LLM prompt) -- python mode only.
+            sql_capable_ops = {"chunk", "classify", "embed", "filter", "dedupe", "sensitivity", "stamp"}
+            python_only = sorted({s["op"] for s in steps_cfg} - sql_capable_ops)
             if python_only:
-                raise ValueError(f"execution_mode='sql' supports only chunk/classify/embed steps; python-mode-only op(s): {python_only}")
+                raise ValueError(
+                    f"execution_mode='sql' supports chunk/classify/embed/filter/dedupe/sensitivity/stamp steps; "
+                    f"python-mode-only op(s): {python_only} (enrich has no warehouse-native equivalent)."
+                )
+            if self.per_step_ops:
+                per_step_sql_only = sorted({s["op"] for s in steps_cfg} - {"chunk", "classify", "embed"})
+                if per_step_sql_only:
+                    raise ValueError(
+                        f"execution_mode='sql' with per_step_ops=True supports only chunk/classify/embed steps "
+                        f"(one real table per step); filter/dedupe/sensitivity/stamp aren't available as their own "
+                        f"per-step SQL tables yet: {per_step_sql_only}. Drop per_step_ops, or drop those steps."
+                    )
             custom_classify = [s["id"] for s in steps_cfg if s["op"] == "classify" and s.get("mode") == "custom"]
             if custom_classify:
                 raise ValueError(

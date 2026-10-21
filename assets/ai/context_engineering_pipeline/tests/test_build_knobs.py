@@ -209,10 +209,23 @@ def test_embedding_reuse_only_embeds_new_or_changed_chunks(mod, tmp_path):
         assert len(calls) == 3  # new embedding model: nothing reusable
 
 
-def test_new_ops_rejected_in_sql_mode(mod):
+def test_enrich_rejected_in_sql_mode(mod):
+    """enrich has no warehouse-native equivalent (an arbitrary per-chunk LLM prompt) and stays
+    python-mode-only; filter/dedupe/sensitivity/stamp are real execution_mode='sql' steps now
+    (see test_sql_filter_dedupe_sensitivity_stamp.py for their real, executed coverage)."""
     comp = mod.ContextEngineeringPipelineComponent(
         asset_name="kb", id_column="id", text_column="body", execution_mode="sql", sql_dialect="snowflake_cortex",
         output_table="db.s.t", source={"kind": "warehouse_query", "resource_key": "r", "sql": "select 1"},
-        steps=[{"id": "c", "op": "chunk"}, {"id": "d", "op": "dedupe"}])
+        steps=[{"id": "c", "op": "chunk"}, {"id": "e", "op": "enrich", "mode": "summary", "model": "gpt-4o-mini"}])
     with pytest.raises(ValueError, match="python-mode-only"):
+        comp.build_defs(None)
+
+
+def test_new_sql_ops_rejected_with_per_step_ops(mod):
+    comp = mod.ContextEngineeringPipelineComponent(
+        asset_name="kb", id_column="id", text_column="body", execution_mode="sql", sql_dialect="snowflake_cortex",
+        output_table="db.s.t", source={"kind": "warehouse_query", "resource_key": "r", "sql": "select 1"},
+        per_step_ops=True,
+        steps=[{"id": "c", "op": "chunk"}, {"id": "d", "op": "dedupe"}])
+    with pytest.raises(ValueError, match="aren't available as their own per-step SQL tables"):
         comp.build_defs(None)

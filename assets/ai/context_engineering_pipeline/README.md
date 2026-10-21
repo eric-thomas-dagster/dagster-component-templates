@@ -38,12 +38,32 @@ attributes:
       collection_name: support_tickets
 ```
 
-Every op is free/local by default (sentence-transformers + HuggingFace zero-shot + ChromaDB) — no API key required to run this end to end, matching dbt's own stated philosophy that governance tooling should be cheap to validate, not another paid call per test.
+Every op is free/local by default (sentence-transformers + HuggingFace zero-shot + ChromaDB) — no API key required to run this end to end; governance tooling should be cheap to validate, not another paid call per test.
+
+### Scaffold these demos end-to-end
+
+Two runnable walkthroughs, same closed context-receipt loop (build → serve → real feedback → rebuild with
+the identical recipe → the chunks that kept failing are gone), different serving layer:
+
+- [`examples/context_engineering.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering.md) — serving is `rag_pipeline`, so the query side shows up as a Dagster asset too.
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_context_engineering_demo.sh | bash
+  cd context-engineering-demo
+  uv run dg dev
+  ```
+- [`examples/context_engineering_mcp.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering_mcp.md) — Dagster does only the build; serving is a standalone FastMCP gateway + agent over real stdio MCP, no Dagster import in the serving path at all.
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_context_engineering_mcp_demo.sh | bash
+  cd context-engineering-mcp-demo
+  uv run dg dev
+  ```
+
+Both free/local by default (sentence-transformers + HuggingFace zero-shot + ChromaDB + local SQLite); both live-validated end to end, run twice each, exit 0 both times.
 
 ## Ops
 
 - **chunk** (must be first): fixed-size chunking with sentence-boundary snapping and configurable overlap. Threads `id_column` (and any `metadata_columns`) through to every chunk row as a citation back to the source row.
-- **classify**: tags each chunk with a category **before** embedding — dbt's "relevance vs. similarity" fix: raw cosine similarity ranks short boilerplate over long relevant analysis unless chunks are pre-filtered by category first. Two modes: `mode: zero_shot` (default — HuggingFace zero-shot, local, free, no API key) or `mode: llm` (any litellm model judges the category — costs money per chunk, but applies real judgment a fixed label set can't for nuanced/ambiguous cases).
+- **classify**: tags each chunk with a category **before** embedding — a relevance-vs-similarity fix: raw cosine similarity ranks short boilerplate over long relevant analysis unless chunks are pre-filtered by category first. Two modes: `mode: zero_shot` (default — HuggingFace zero-shot, local, free, no API key) or `mode: llm` (any litellm model judges the category — costs money per chunk, but applies real judgment a fixed label set can't for nuanced/ambiguous cases).
 - **embed**: `provider: sentence_transformers` (default, local, free), `openai`, `cohere`, or `litellm` (universal gateway — one interface across every provider litellm supports: Azure, Bedrock, Vertex, Ollama, VoyageAI, Mistral, etc., via litellm's `"<provider>/<model>"` naming).
 - **write_vector_store**: `provider: chromadb` (default, local, free), `pinecone`, or `qdrant`.
 
@@ -245,11 +265,11 @@ Set exactly one — `upstream_asset_key` and `source` are mutually exclusive.
 
 By default every configured step — `chunk`, `classify`, `embed`, `write_vector_store`, ... — runs inside
 one `@asset`'s compute function: a single node in the graph, one materialization per run, with each step's
-timing/row-count folded into that one asset's `step_metadata` field. Set `per_step_ops: true` (python mode
-only) to flip that: each step becomes its own `@dg.op` inside one op graph, so each one is its own visible
-asset node, with its own materialization history, its own metadata, and (via Dagster's native
-re-execution-from-failure) independently retryable — same shape as `AgenticPipelineComponent`'s
-`per_step_ops`.
+timing/row-count folded into that one asset's `step_metadata` field. Set `per_step_ops: true` to flip that:
+each step becomes its own `@dg.op` inside one op graph, so each one is its own visible asset node, with its
+own materialization history, its own metadata, and (via Dagster's native re-execution-from-failure)
+independently retryable — same shape as `AgenticPipelineComponent`'s `per_step_ops`. Supported in both
+python mode and `execution_mode: sql` (see below for the SQL-mode shape).
 
 ```yaml
 attributes:
@@ -271,10 +291,37 @@ pointing at this component's output elsewhere keeps working unchanged — and ev
 asset, same as today; every step additionally gets its own `op` / `elapsed_seconds` / row-count metadata on
 its own node.
 
-Not supported with `execution_mode='sql'`: the whole chunk/classify/embed chain there is one atomic
-warehouse statement (the reason `execution_mode: sql` exists at all — zero round-trips), so there's no
-discrete per-step structure to expose without a genuine architecture change (one table per step instead of
-one combined statement). Also not supported together with `freshness_max_lag_minutes`: Dagster's
+### `per_step_ops` with `execution_mode: sql`
+
+Each participating step (`chunk` always, `classify`/`embed` if configured) becomes its own real warehouse
+table — `<output_table>__<step id>` for every step but the last, plain `output_table` for the last — instead
+of folding chunk → stamp → classify → embed into one combined `CREATE OR REPLACE TABLE` statement. Same
+asset-naming and lineage convention as python mode above. Incremental reuse is preserved per step: each
+stage probes **its own** table's existing contents (not the single shared `output_table`'s), so changing
+only the classify labels re-only-classifies without re-embedding, and vice versa — the same guarantee
+`execution_mode: sql` already gives in its single-statement form, now per table.
+
+```yaml
+attributes:
+  asset_name: support_kb
+  execution_mode: sql
+  per_step_ops: true
+  sql_dialect: bigquery
+  output_table: analytics.support_kb
+  source: {kind: warehouse_query, resource_key: bq, sql: "SELECT ticket_id AS id, body FROM analytics.raw_tickets"}
+  steps:
+    - {id: chunks, op: chunk, chunk_size: 500}
+    - {id: classified, op: classify, candidate_labels: [billing, technical, shipping, other]}
+    - {id: embedded, op: embed, model: "myproject.ds.text_embedding_model"}
+```
+
+Publishes `support_kb_chunks` (table `analytics.support_kb__chunks`), `support_kb_classified` (table
+`analytics.support_kb__classified`), and `support_kb` (table `analytics.support_kb`, the embed step). No
+`write_vector_store` equivalent in SQL mode, per_step_ops or not — see "`execution_mode: sql` — data never
+leaves the database" below for why 3 steps is the complete scope, not a gap. Not yet supported together
+with partitioning: per-table partition staging is a tracked follow-up.
+
+Not supported together with `freshness_max_lag_minutes` (either execution mode): Dagster's
 `graph_multi_asset`/`AssetsDefinition.from_graph` machinery has no per-output freshness-policy plumbing
 today, confirmed directly against the installed `dagster` package — both together raise at `build_defs()`
 time rather than silently doing nothing.
@@ -288,7 +335,7 @@ A real corpus is almost never small enough to hold in one pandas DataFrame and p
 
 ## `execution_mode: sql` — data never leaves the database
 
-dbt's own context-engineering package never sends data to Python either — chunk/embed/classify all run as warehouse-native SQL functions (Snowflake Cortex, BigQuery `ML.GENERATE_EMBEDDING`/`AI.CLASSIFY`, Databricks `ai_query`/`ai_classify`). Set `execution_mode: sql` to do the same thing here:
+Never send the corpus to Python at all — chunk/embed/classify all run as warehouse-native SQL functions (Snowflake Cortex, BigQuery `ML.GENERATE_EMBEDDING`/`AI.CLASSIFY`, Databricks `ai_query`/`ai_classify`). Set `execution_mode: sql`:
 
 ```yaml
 type: dagster_component_templates.ContextEngineeringPipelineComponent
@@ -370,7 +417,7 @@ A partitioned SQL-mode asset no longer replaces the whole table on every partiti
 
 `backfill_policy: single_run` in SQL mode is allowed only when `source.sql` uses both `{partition_start}` and `{partition_end}` and the asset is not multi-axis (otherwise it raises at build time). Such a run stamps rows `source_partition = 'first..last'` and replaces that label and any single-key partition inside the range; re-running a *different overlapping* range can leave duplicates, so keep backfill ranges consistent or use `multi_run`. The asset has no IO-manager value (`dagster_type=Nothing`), which is what lets a single_run backfill run at all.
 
-**DuckDB has no native embedding/completion function** — same limitation dbt's own package has (their `jaffle-logistics` example leaves DuckDB as a placeholder for exactly this reason). Use `execution_mode: python` with a `source: {kind: warehouse_query, resource_key: duckdb_resource, ...}` for DuckDB instead — the corpus still never has to already be a materialized Dagster asset, it just runs the chunk/classify/embed chain in Python rather than natively in the database.
+**DuckDB has no native embedding/completion function.** Use `execution_mode: python` with a `source: {kind: warehouse_query, resource_key: duckdb_resource, ...}` for DuckDB instead — the corpus still never has to already be a materialized Dagster asset, it just runs the chunk/classify/embed chain in Python rather than natively in the database.
 
 ## Hand-writing this YAML
 
@@ -445,7 +492,7 @@ Every field name and step shape here is meant to be as readable for a human anal
 | `incremental` | `bool` | `true` | execution_mode='sql' only (ignored in python mode, which has embed `reuse_from`). Re-use the embeddings and categories already in `output_table` instead of paying the warehouse AI function for the whole corpus on every r… _(full docs in schema.json + component README)_ |
 | `emit_data_version` | `bool` | `true` | Emit a content-derived Dagster data version (hash of every chunk id + content hash + the build recipe). Dagster's default data version derives from the asset's code version and its inputs' data versions, so it changes on… _(full docs in schema.json + component README)_ |
 | `stamp_provenance` | `bool` | `true` | Write source_asset_key, source_version (the emitted data version), source_partition, source_id, chunk_id, content_hash and embedding_model onto every chunk in the vector store, so a retrieval gateway can build receipts d… _(full docs in schema.json + component README)_ |
-| `per_step_ops` | `bool` | `false` | When True (python mode only), emit each configured step as its own @dg.op inside one op graph instead of folding the whole chain into a single @asset -- one visible, individually re-executable-on-failure asset node per s… _(full docs in schema.json + component README)_ |
+| `per_step_ops` | `bool` | `false` | When True, emit each configured step as its own @dg.op inside one op graph instead of folding the whole chain into a single @asset -- one visible, individually re-executable-on-failure asset node per step (chunk/classify… _(full docs in schema.json + component README)_ |
 | `receipts` | `Dict[str, Any]` | — | Learn from real use: read the retrieval receipts recorded by resources/context_receipt_store back into every build. {resource_key: <registered ContextReceiptStoreComponent>, window_days: 30, min_retrievals: 5, min_outcom… _(full docs in schema.json + component README)_ |
 | `retrieval_eval` | `Dict[str, Any]` | — | A golden set that gates this knowledge base: {queries: [{query, expected: [chunk or source ids]}], k: 5, min_recall: 0.8, min_mrr: null, severity: ERROR\|WARN, blocking: false}. After the index is written, each query is… _(full docs in schema.json + component README)_ |
 | `context_policy` | `Dict[str, Any]` | — | Declare the governance policy a retrieval gateway should enforce for this knowledge base: {scope: <chunk metadata field naming the tenant>, sensitivity: public\|internal\|confidential\|restricted, max_age_hours, token_bu… _(full docs in schema.json + component README)_ |
@@ -471,3 +518,4 @@ Every field name and step shape here is meant to be as readable for a human anal
 
 **Parsed and partly executed, never against a real warehouse (no credentials in this environment)**:
 - `execution_mode: sql` — every dialect's statement is parsed with sqlglot in that dialect. The chunk, provenance and receipts-feedback statements of all three dialects are additionally executed (sqlglot -> DuckDB, `tests/bq_fake.py` and `tests/sql_fake.py`, which patches the few constructs sqlglot mistranslates) against real tables, and the feedback columns and `recipe_outcomes` numbers are asserted equal to `ContextReceiptStore.item_feedback` / `outcomes_by_code_version` on the same events. The warehouse AI functions (`ML.GENERATE_EMBEDDING`, `AI.CLASSIFY`, Cortex, `ai_query`/`ai_classify`, Cortex's text splitter) are stood in for by call-counting DuckDB UDFs (`tests/ai_stubs.py`) in the incremental and partition tests (so reuse is asserted as exact call counts) and are never run for real, and DuckDB is not Snowflake or Databricks (JSON, NULL and type-coercion corners can differ). Flip to `validation.level: live` only once that's confirmed against a real Snowflake/BigQuery/Databricks account.
+- `execution_mode: sql` + `per_step_ops: true` — same DuckDB-backed execution path (`tests/test_sql_per_step_ops.py`): real `dg.materialize()` builds three real, separate physical tables, asserts the per-step asset lineage (`AssetsDefinition.asset_deps`) and that incremental reuse is scoped per table, not shared across them. Also caught (and fixed, both execution modes) a real Dagster `AssetsDefinition.from_graph` gap along the way: a check declared via `check_specs` needs a literally-named graph output (`AssetCheckSpec.get_python_identifier()`), not just a bare `yield AssetCheckResult(...)` — `retrieval_quality`/`recipe_outcomes` would otherwise crash `build_defs()` the first time they were combined with `per_step_ops` in either mode.

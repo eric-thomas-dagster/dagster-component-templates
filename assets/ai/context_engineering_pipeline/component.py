@@ -44,18 +44,18 @@ Op coverage:
                       as a citation back to the source row.
 - classify:           HuggingFace zero-shot classification (local, free,
                       no API key) tags each chunk with a category BEFORE
-                      embedding -- this is dbt's "relevance vs. similarity"
-                      trick: raw cosine similarity ranks short boilerplate
-                      over long relevant analysis unless chunks are
-                      pre-filtered by category first.
+                      embedding -- a relevance-vs-similarity trick: raw
+                      cosine similarity ranks short boilerplate over long
+                      relevant analysis unless chunks are pre-filtered by
+                      category first.
 - embed:              sentence-transformers (local, free), OpenAI, or
                       Cohere.
 - write_vector_store: ChromaDB (local, free), Pinecone, or Qdrant.
 
 Every op is free/local by default (sentence-transformers + HuggingFace
-zero-shot + ChromaDB) -- no API key required to run this end to end,
-matching dbt's own stated philosophy that this kind of governance
-tooling should be cheap to validate, not another paid call per test.
+zero-shot + ChromaDB) -- no API key required to run this end to end;
+governance tooling should be cheap to validate, not another paid call
+per test.
 """
 import ast
 import contextlib
@@ -86,6 +86,7 @@ from dagster import (
     Model,
     Nothing,
     OpExecutionContext,
+    Out,
     Output,
     Resolvable,
     asset,
@@ -1850,6 +1851,126 @@ def _sql_outcomes_by_code_version_query(rcfg: Dict[str, Any], asset_name: str, s
             "GROUP BY v.code_version ORDER BY v.code_version")
 
 
+def _sql_chunk_and_stamp_stage(
+    chunk_step: dict, source_cfg: dict, dialect: str, id_column: str, text_column: str, metadata_columns: List[str],
+    *, asset_name: str, code_version: str, partition: Optional[str] = None, stamp_provenance: bool = False,
+    receipts: Optional[Dict[str, Any]] = None, since: Optional[str] = None, now: Optional[str] = None,
+    prior_first_seen: bool = False, out_tbl: Optional[str] = None,
+) -> "tuple[List[Tuple[str, str]], List[str], str]":
+    """The chunk -> stamp (chunk_id/content_hash) -> [receipts feedback] -> [provenance] CTE chain.
+
+    Extracted so the single-statement SQL-mode path (`_build_sql_mode_query`) and the per_step_ops
+    path's 'chunks' stage (`_build_sql_chunks_table_query`) stay byte-identical by construction instead
+    of by discipline -- this is the exact code both call, not a parallel reimplementation.
+
+    `out_tbl` (the formatted reference to the EXISTING physical output/chunks table) is only read when
+    `receipts.prune` and `prior_first_seen` are both set -- it carries forward each chunk's
+    `feedback_first_seen_at` stamp from the table's current contents. Required in that case.
+
+    Returns (ctes, cols, cur): the CTE list built so far, the column list each CTE selects, and the
+    name of the last (current) CTE a caller should SELECT FROM to continue the chain.
+    """
+    id_col = _sql_ident(id_column, "id_column")
+    text_col = _sql_ident(text_column, "text_column")
+    metas = [_sql_ident(c, "metadata_columns entry") for c in metadata_columns]
+    for c in [id_col] + metas:
+        if c.lower() in _SQL_RESERVED_COLUMNS:
+            raise ValueError(f"execution_mode='sql': column {c!r} collides with a column the component writes ({sorted(_SQL_RESERVED_COLUMNS)[:6]}...); alias it in `source.sql`")
+    if len({id_col, *metas}) != len(metas) + 1:
+        raise ValueError("execution_mode='sql': id_column / metadata_columns contain duplicates")
+
+    chunk_size = int(chunk_step.get("chunk_size", 500))
+    chunk_overlap = int(chunk_step.get("chunk_overlap", 50))
+    chunk_expr = _sql_chunk_expr(dialect, f"src.{text_col}", chunk_size, chunk_overlap)
+    meta_select = "".join(f",\n         src.{c} AS {c}" for c in metas)
+    head = f"src.{id_col} AS {id_col}"
+    if dialect == "snowflake_cortex":
+        chunk_cte = (f"SELECT {head},\n         chunk.value::string AS chunk_text,\n         chunk.index AS chunk_index{meta_select}\n"
+                     f"  FROM ({source_cfg['sql']}) AS src,\n       LATERAL FLATTEN(input => {chunk_expr}) AS chunk")
+    elif dialect == "bigquery":
+        chunk_cte = (f"SELECT {head},\n         chunk_text,\n         chunk_index{meta_select}\n"
+                     f"  FROM ({source_cfg['sql']}) AS src,\n       UNNEST({chunk_expr}) AS chunk_text WITH OFFSET AS chunk_index")
+    else:
+        chunk_cte = (f"SELECT {head},\n         chunks.chunk_text AS chunk_text,\n         chunks.chunk_index AS chunk_index{meta_select}\n"
+                     f"  FROM ({source_cfg['sql']}) AS src\n  LATERAL VIEW posexplode({chunk_expr}) chunks AS chunk_index, chunk_text")
+
+    prefix = _sql_str(chunk_step.get("chunk_id_prefix") or "")
+    cols = [id_col, "chunk_text", "chunk_index", *metas]
+    ctes: List[Tuple[str, str]] = [("chunked", chunk_cte)]
+    cols_sql = lambda alias, cs: ", ".join(f"{alias}.{c}" for c in cs)  # noqa: E731
+
+    ctes.append(("stamped", (
+        f"SELECT {cols_sql('chunked', cols)},\n"
+        f"         CONCAT({prefix}, CAST(chunked.{id_col} AS STRING), '_', CAST(chunked.chunk_index AS STRING)) AS chunk_id,\n"
+        f"         {_sql_hash_expr(dialect, 'chunked.chunk_text')} AS content_hash\n"
+        f"  FROM chunked")))
+    cols += ["chunk_id", "content_hash"]
+    cur = "stamped"
+
+    if receipts is not None:
+        recipe = code_version if receipts.get("scope_to_recipe", True) else None
+        ctes += _sql_receipt_feedback_ctes(receipts, asset_name, recipe, since or _receipts_since(receipts), dialect)
+        scores = receipt_table(receipts["dataset"], "context_item_scores", receipts.get("table_prefix", ""), _RECEIPT_DIALECT_OF[dialect])
+        pr = receipts.get("prune")
+        now_iso = now or datetime.now(timezone.utc).isoformat()
+        seen_select = seen_join = ""
+        if pr:
+            ctes.append(("window_receipts", _sql_window_receipts_cte(receipts, asset_name, recipe, since or _receipts_since(receipts), dialect)))
+            if prior_first_seen:
+                ctes.append(("prior_seen", f"SELECT chunk_id, MIN(feedback_first_seen_at) AS first_seen\n  FROM {out_tbl}\n  GROUP BY chunk_id"))
+                seen_join = "\n  LEFT JOIN prior_seen AS ps ON ps.chunk_id = stamped.chunk_id"
+            seen_select = f",\n         COALESCE({'ps.first_seen, ' if prior_first_seen else ''}{_sql_ts(now_iso, dialect)}) AS feedback_first_seen_at"
+        ctes.append(("feedback_joined", (
+            f"SELECT {cols_sql('stamped', cols)},\n"
+            f"         COALESCE(fb.retrievals, 0) AS feedback_retrievals, COALESCE(fb.rated, 0) AS feedback_rated,\n"
+            f"         COALESCE(fb.mean_outcome, 0.0) AS feedback_mean_outcome, COALESCE(fb.cited, 0) AS feedback_cited,\n"
+            f"         COALESCE(sc.prior, 0.0) AS feedback_prior{seen_select}\n"
+            f"  FROM stamped\n  LEFT JOIN item_feedback AS fb ON fb.item_id = stamped.chunk_id\n"
+            f"  LEFT JOIN {scores} AS sc ON sc.item_id = stamped.chunk_id{seen_join}")))
+        dead = _sql_dead_expr(pr, dialect, now_iso) if pr else None
+        q = receipts.get("quarantine")
+        bad = None
+        if q:
+            bad = (f"(feedback_retrievals >= {int(receipts['min_retrievals'])} AND feedback_rated >= {int(receipts['min_outcomes'])} "
+                   f"AND feedback_mean_outcome <= {float(q['mean_outcome_below'])!r})")
+        fb_cols = (list(_FEEDBACK_COLUMNS) if receipts.get("stamp", True) else []) + (["feedback_first_seen_at"] if pr else [])
+        select = list(cols) + fb_cols
+        out_flags: List[str] = []
+        excl: List[str] = []
+        if bad and q["mode"] == "flag":
+            select.append(f"{bad} AS feedback_quarantined")
+            out_flags.append("feedback_quarantined")
+        elif bad:
+            excl.append(f"NOT {bad}")
+        if pr and pr["mode"] == "flag":
+            select.append(f"{dead} AS feedback_dead_weight")
+            out_flags.append("feedback_dead_weight")
+        elif pr:
+            excl.append(f"NOT {dead}")
+        where = f"\n  WHERE {' AND '.join(excl)}" if excl else ""
+        ctes.append(("feedback_applied", f"SELECT {', '.join(select)}\n  FROM feedback_joined{where}"))
+        cols = cols + fb_cols + out_flags
+        cur = "feedback_applied"
+
+    if stamp_provenance:
+        part = _sql_str(partition) if partition is not None else "CAST(NULL AS STRING)"
+        ctes.append(("versioned", (
+            f"SELECT {cols_sql(cur, cols)},\n"
+            f"         {_sql_str(asset_name)} AS source_asset_key,\n"
+            f"         (SELECT {_sql_version_agg(dialect)} FROM {cur}) AS source_version,\n"
+            f"         {part} AS source_partition,\n"
+            f"         {_sql_str(code_version)} AS source_code_version\n"
+            f"  FROM {cur}")))
+        cols += ["source_asset_key", "source_version", "source_partition", "source_code_version"]
+        cur = "versioned"
+    elif partition is not None:
+        ctes.append(("versioned", f"SELECT {cols_sql(cur, cols)}, {_sql_str(partition)} AS source_partition\n  FROM {cur}"))
+        cols += ["source_partition"]
+        cur = "versioned"
+
+    return ctes, cols, cur
+
+
 def _build_sql_mode_query(
     steps_cfg: List[dict], source_cfg: dict, dialect: str, output_table: str,
     id_column: str, text_column: str, metadata_columns: List[str],
@@ -2098,6 +2219,122 @@ def _build_sql_mode_query(
                              f"{_sql_str(embed_model_id)} AS embedding_model"]
         final = "SELECT " + ", ".join([cols_sql(cur, cols)] + scalar_extra) + f"\nFROM {cur}"
     return f"{target} AS\nWITH {with_}\n{final}"
+
+
+# ── per_step_ops, execution_mode='sql': one real table per step ──────────────────────────────────────────────
+#
+# User-confirmed scope (see commit message / memory): real per-step tables (not cosmetic fake assets over one
+# statement), incremental reuse preserved, 3 steps max (chunk/classify/embed -- write_vector_store genuinely
+# has no SQL equivalent, confirmed dbt-labs/dbt-context-engineering's own "search" model is the RETRIEVAL step,
+# not a 4th build step, so there's nothing missing here to reach parity with). Unpartitioned only for now
+# (validated in build_defs) -- partition-aware per-table staging is real added complexity, tracked as a
+# follow-up rather than built speculatively.
+#
+# `_sql_chunk_and_stamp_stage` (above, shared verbatim with the single-statement path) builds the chunks
+# table's content. `_build_sql_feature_table_query` below is a single-feature (classify OR embed) version of
+# `_build_sql_mode_query`'s `feature()` closure -- incremental reuse against THIS stage's own prior table
+# instead of the shared output_table, since each stage is now a separate table with its own history.
+
+
+def _build_sql_chunks_table_query(
+    chunk_step: dict, source_cfg: dict, dialect: str, chunks_table: str, id_column: str, text_column: str,
+    metadata_columns: List[str], *, asset_name: str, code_version: str, stamp_provenance: bool = False,
+    receipts: Optional[Dict[str, Any]] = None, since: Optional[str] = None, now: Optional[str] = None,
+    prior_first_seen: bool = False, prior_chunks_table: Optional[str] = None,
+) -> "tuple[str, List[str]]":
+    """The 'chunks' stage: chunk -> stamp -> [receipts feedback] -> [provenance], written to its own
+    table. Returns (sql, cols) -- cols is what every later stage's `SELECT *` actually carries forward."""
+    ctes, cols, cur = _sql_chunk_and_stamp_stage(
+        chunk_step, source_cfg, dialect, id_column, text_column, metadata_columns,
+        asset_name=asset_name, code_version=code_version, stamp_provenance=stamp_provenance,
+        receipts=receipts, since=since, now=now, prior_first_seen=prior_first_seen, out_tbl=prior_chunks_table,
+    )
+    cols_sql = lambda alias, cs: ", ".join(f"{alias}.{c}" for c in cs)  # noqa: E731
+    with_ = ",\n".join(f"{n} AS (\n  {b}\n)" for n, b in ctes)
+    final = f"SELECT {cols_sql(cur, cols)}\nFROM {cur}"
+    return f"CREATE OR REPLACE TABLE {chunks_table} AS\nWITH {with_}\n{final}", cols
+
+
+def _build_sql_feature_table_query(
+    *, tag: str, tag_col: str, tag_val: str, dialect: str, prior_table: str, this_table: str,
+    base_cols: List[str], fresh_select: str, can_reuse: bool, extra_where: str = "", counts_only: bool = False,
+) -> str:
+    """One feature (classify OR embed) as its own `CREATE OR REPLACE TABLE`, reading every column of
+    `prior_table` (the previous stage's real table) through and adding exactly one new column. When
+    `can_reuse`, rows whose content_hash already has a value in `this_table` (THIS stage's own prior
+    run, by content_hash -- not `prior_table`) skip recomputation, same content-hash-match logic as
+    `_build_sql_mode_query`'s `feature()` closure, just targeting this stage's own table instead of a
+    shared output_table (each stage now has its own history to reuse from).
+
+    `fresh_select` is the dialect/feature-specific SELECT that computes `tag` for the rows with no
+    reusable value (built by the caller -- BigQuery's embed uses a different TABLE FUNCTION shape than
+    everything else, exactly as in the single-statement path).
+    """
+    cols_sql = lambda alias, cs: ", ".join(f"{alias}.{c}" for c in cs)  # noqa: E731
+    ctes: List[Tuple[str, str]] = [("base", f"SELECT * FROM {prior_table}")]
+    cur = "base"
+    counts = [f"(SELECT COUNT(*) FROM {cur}) AS total_rows"]
+    if can_reuse:
+        ctes.append(("prior_vals", (
+            f"SELECT content_hash, {tag}\n  FROM {this_table}\n  WHERE {tag_col} = {_sql_str(tag_val)} AND {tag} IS NOT NULL{extra_where}\n"
+            f"  QUALIFY ROW_NUMBER() OVER (PARTITION BY content_hash ORDER BY chunk_id) = 1")))
+        ctes.append(("todo", (
+            f"SELECT DISTINCT b.content_hash, b.chunk_text\n  FROM {cur} AS b\n"
+            f"  LEFT JOIN prior_vals AS p ON p.content_hash = b.content_hash\n  WHERE p.content_hash IS NULL")))
+    else:
+        ctes.append(("todo", f"SELECT DISTINCT b.content_hash, b.chunk_text\n  FROM {cur} AS b"))
+    counts.append(f"(SELECT COUNT(*) FROM {cur} AS b JOIN todo AS t ON t.content_hash = b.content_hash) AS new_count")
+    if counts_only:
+        with_ = ",\n".join(f"{n} AS (\n  {b}\n)" for n, b in ctes)
+        return f"WITH {with_}\nSELECT {', '.join(counts)}"
+    ctes.append(("new_vals", fresh_select))
+    union = f"SELECT content_hash, {tag} FROM new_vals"
+    if can_reuse:
+        union = f"SELECT content_hash, {tag} FROM prior_vals\n  UNION ALL\n  {union}"
+    ctes.append(("all_vals", union))
+    sel = [cols_sql("b", base_cols), f"v.{tag} AS {tag}", f"{_sql_str(tag_val)} AS {tag_col}"]
+    with_ = ",\n".join(f"{n} AS (\n  {b}\n)" for n, b in ctes)
+    final = f"SELECT {', '.join(sel)}\nFROM {cur} AS b\n  LEFT JOIN all_vals AS v ON v.content_hash = b.content_hash"
+    return f"CREATE OR REPLACE TABLE {this_table} AS\nWITH {with_}\n{final}"
+
+
+def _build_sql_classify_table_query(
+    classify_step: dict, dialect: str, prior_table: str, this_table: str, base_cols: List[str], *, can_reuse: bool,
+) -> str:
+    candidate_labels = classify_step.get("candidate_labels")
+    if not candidate_labels:
+        raise ValueError("classify step in execution_mode='sql' requires `candidate_labels`.")
+    _sql_check_classify_labels(dialect, candidate_labels)
+    sig = _sql_category_signature(candidate_labels)
+    classify_expr = _sql_classify_expr(dialect, "todo.chunk_text", candidate_labels)
+    fresh = f"SELECT content_hash, {classify_expr} AS category\n  FROM todo"
+    return _build_sql_feature_table_query(
+        tag="category", tag_col="category_signature", tag_val=sig, dialect=dialect,
+        prior_table=prior_table, this_table=this_table, base_cols=base_cols, fresh_select=fresh, can_reuse=can_reuse,
+    )
+
+
+def _build_sql_embed_table_query(
+    embed_step: dict, dialect: str, prior_table: str, this_table: str, base_cols: List[str], *, can_reuse: bool,
+) -> str:
+    model = embed_step.get("model") or ("embedding_model" if dialect == "bigquery" else None)
+    if dialect == "bigquery" and (not isinstance(model, str) or not _MODEL_RE.match(model)):
+        raise ValueError(f"execution_mode='sql': embed model {model!r} is not a valid BigQuery model reference (project.dataset.model)")
+    embed_model_id = _sql_embed_model_id(dialect, embed_step.get("model"))
+    if dialect == "bigquery":
+        fresh = (f"SELECT content_hash, ml_generate_embedding_result AS embedding\n"
+                 f"  FROM ML.GENERATE_EMBEDDING(MODEL `{model}`,\n"
+                 f"    (SELECT content_hash, chunk_text AS content FROM todo),\n"
+                 f"    STRUCT(TRUE AS flatten_json_output))")
+        extra_where = " AND ARRAY_LENGTH(embedding) > 0"
+    else:
+        fresh = f"SELECT content_hash, {_sql_embed_expr(dialect, 'todo.chunk_text', embed_step.get('model'))} AS embedding\n  FROM todo"
+        extra_where = ""
+    return _build_sql_feature_table_query(
+        tag="embedding", tag_col="embedding_model", tag_val=embed_model_id, dialect=dialect,
+        prior_table=prior_table, this_table=this_table, base_cols=base_cols, fresh_select=fresh,
+        can_reuse=can_reuse, extra_where=extra_where,
+    )
 
 
 # ── Receipts feedback: let what was retrieved and how it turned out shape the next build ─────────────────────
@@ -2565,6 +2802,73 @@ def _run_sql_retrieval_eval(cfg: Dict[str, Any], steps_cfg: List[dict], source_c
     return _retrieval_quality_result(cfg, ranked)
 
 
+def _run_sql_chunks_stage(
+    context, resource_key: str, chunk_step: dict, source_cfg: dict, dialect: str, chunks_table: str,
+    id_column: str, text_column: str, metadata_columns: List[str], *, asset_name: str, code_version: str,
+    stamp_provenance: bool, receipts_cfg: Optional[Dict[str, Any]],
+) -> "tuple[Dict[str, Any], List[str]]":
+    """Executes the per_step_ops SQL-mode 'chunks' stage for real. Returns (metadata, cols) -- cols is
+    what the next stage's `SELECT *` carries forward."""
+    resource = getattr(context.resources, resource_key)
+    chunks_tbl = _sql_table(chunks_table, "output_table", dialect)
+    with _sql_session(resource, resource_key) as session:
+        prior_first_seen = False
+        if receipts_cfg is not None and receipts_cfg.get("prune"):
+            try:
+                existing = {c.lower() for c in _sql_table_columns(session, dialect, chunks_tbl, context)}
+                prior_first_seen = "feedback_first_seen_at" in existing
+            except ValueError:
+                prior_first_seen = False
+        sql, cols = _build_sql_chunks_table_query(
+            chunk_step, source_cfg, dialect, chunks_tbl, id_column, text_column, metadata_columns,
+            asset_name=asset_name, code_version=code_version, stamp_provenance=stamp_provenance,
+            receipts=receipts_cfg, prior_first_seen=prior_first_seen, prior_chunks_table=chunks_tbl,
+        )
+        context.log.info(f"per_step_ops (sql): building chunks table {chunks_table}")
+        session.execute(sql)
+        row_count = int(session.fetch(f"SELECT COUNT(*) FROM {chunks_tbl}")[0][0])
+    metadata = {
+        "dagster/row_count": MetadataValue.int(row_count),
+        "sql_table": MetadataValue.text(chunks_table),
+        "generated_sql": MetadataValue.md(f"```sql\n{sql}\n```"),
+    }
+    return metadata, cols
+
+
+def _run_sql_feature_stage(
+    context, resource_key: str, step: dict, dialect: str, prior_table: str, this_table: str, base_cols: List[str],
+    *, tag: str, tag_col: str, incremental: bool,
+) -> Dict[str, Any]:
+    """Executes one per_step_ops SQL-mode feature stage (classify OR embed, `tag` is 'category' or
+    'embedding') for real. Probes `this_table`'s OWN existing contents (not `prior_table`) for
+    incremental reuse -- each stage now has its own history, instead of every feature sharing one
+    output_table's history."""
+    resource = getattr(context.resources, resource_key)
+    prior_tbl = _sql_table(prior_table, "output_table", dialect)
+    this_tbl = _sql_table(this_table, "output_table", dialect)
+    with _sql_session(resource, resource_key) as session:
+        can_reuse = False
+        if incremental:
+            try:
+                existing = {c.lower() for c in _sql_table_columns(session, dialect, this_tbl, context)}
+                can_reuse = {"chunk_id", "content_hash", tag, tag_col} <= existing
+            except ValueError:
+                can_reuse = False
+        if tag == "category":
+            sql = _build_sql_classify_table_query(step, dialect, prior_tbl, this_tbl, base_cols, can_reuse=can_reuse)
+        else:
+            sql = _build_sql_embed_table_query(step, dialect, prior_tbl, this_tbl, base_cols, can_reuse=can_reuse)
+        context.log.info(f"per_step_ops (sql): building {tag} table {this_table} (reuse={can_reuse})")
+        session.execute(sql)
+        row_count = int(session.fetch(f"SELECT COUNT(*) FROM {this_tbl}")[0][0])
+    return {
+        "dagster/row_count": MetadataValue.int(row_count),
+        "sql_table": MetadataValue.text(this_table),
+        "reused": MetadataValue.bool(can_reuse),
+        "generated_sql": MetadataValue.md(f"```sql\n{sql}\n```"),
+    }
+
+
 def _run_sql_mode(
     context, steps_cfg: List[dict], source_cfg: dict, dialect: str, output_table: str,
     id_column: str, text_column: str, metadata_columns: List[str],
@@ -2846,8 +3150,8 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             "warehouse's own distributed engine via a warehouse-native AI function -- data "
             "never leaves the database and there's no in-memory size limit, but only works "
             "for warehouses with a native embedding/completion function (set sql_dialect). "
-            "DuckDB has no such function (same limitation dbt's own context-engineering "
-            "package has) -- use 'python' with a duckdb_resource `source:` for DuckDB."
+            "DuckDB has no such function -- use 'python' with a duckdb_resource `source:` "
+            "for DuckDB."
         ),
     )
     sql_dialect: Optional[str] = Field(
@@ -2910,16 +3214,19 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
     per_step_ops: bool = Field(
         default=False,
         description=(
-            "When True (python mode only), emit each configured step as its own @dg.op inside one op graph "
-            "instead of folding the whole chain into a single @asset -- one visible, individually "
-            "re-executable-on-failure asset node per step (chunk/classify/embed/write_vector_store/...), same "
-            "shape as AgenticPipelineComponent's per_step_ops. The asset key for the FINAL step stays "
-            "`asset_name` unchanged (so any existing upstream_asset_key pointing at this component's output keeps "
-            "working); every OTHER step publishes as `<asset_name>_<step id>`, with real step-to-step lineage "
-            "between them (not just every step depending on the raw upstream). Not supported with "
-            "execution_mode='sql' (one atomic warehouse statement has no discrete per-step structure to expose; "
-            "a multi-table SQL-mode equivalent -- one table/asset per step instead of one combined statement -- "
-            "is a tracked follow-up, not built yet)."
+            "When True, emit each configured step as its own @dg.op inside one op graph instead of folding "
+            "the whole chain into a single @asset -- one visible, individually re-executable-on-failure asset "
+            "node per step (chunk/classify/embed/write_vector_store/...), same shape as "
+            "AgenticPipelineComponent's per_step_ops. The asset key for the FINAL step stays `asset_name` "
+            "unchanged (so any existing upstream_asset_key pointing at this component's output keeps working); "
+            "every OTHER step publishes as `<asset_name>_<step id>`, with real step-to-step lineage between "
+            "them (not just every step depending on the raw upstream). Supported with execution_mode='sql' "
+            "too: each participating step (chunk always, classify/embed if configured) becomes its own real "
+            "warehouse table instead of one combined CREATE OR REPLACE TABLE statement, with incremental reuse "
+            "preserved per table (write_vector_store has no SQL equivalent either way, so a SQL-mode pipeline "
+            "tops out at 3 steps/tables). Not yet supported combined with partitioning in sql mode (per-table "
+            "partition staging is a tracked follow-up), nor with freshness_max_lag_minutes in either mode "
+            "(AssetsDefinition.from_graph has no per-output freshness-policy plumbing)."
         ),
     )
 
@@ -3050,8 +3357,6 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             raise ValueError("context_engineering_pipeline: set exactly one of `upstream_asset_key` or `source`, not both.")
         if not self.upstream_asset_key and not self.source:
             raise ValueError("context_engineering_pipeline: set one of `upstream_asset_key` or `source`.")
-        if self.per_step_ops and execution_mode == "sql":
-            raise ValueError("per_step_ops=True is not supported with execution_mode='sql'.")
 
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name, self.partition_dimensions,
@@ -3074,6 +3379,13 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         elif partitions_def is not None and self.backfill_policy == "multi_run":
             backfill_policy_obj = BackfillPolicy.multi_run(max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1)
 
+        if self.per_step_ops and execution_mode == "sql" and partitions_def is not None:
+            raise ValueError(
+                "per_step_ops=True with execution_mode='sql' does not support partitioning yet: each "
+                "step's own table would need its own partition-aware stage/swap script (today's single-table "
+                "partition staging, per step) -- real added complexity, tracked as a follow-up rather than "
+                "built speculatively. Unpartitioned per_step_ops SQL mode is supported."
+            )
         if self.per_step_ops and self.freshness_max_lag_minutes is not None:
             raise ValueError(
                 "per_step_ops=True does not support freshness_max_lag_minutes: Dagster's graph_multi_asset "
@@ -3164,6 +3476,15 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             _resource_keys.add(receipts_cfg["resource_key"])
         if _resource_keys:
             asset_kwargs["required_resource_keys"] = _resource_keys
+
+        if execution_mode == "sql" and self.per_step_ops:
+            return self._build_per_step_ops_sql_defs(
+                steps_cfg=steps_cfg, asset_name=asset_name, id_column=id_column, text_column=text_column,
+                metadata_columns=metadata_columns, recipe_code_version=recipe_code_version,
+                stamp_provenance=stamp_provenance, source_cfg=source_cfg, receipts_cfg=receipts_cfg,
+                retrieval_eval=retrieval_eval, sql_dialect=sql_dialect, output_table=output_table,
+                incremental=incremental, all_tags=_all_tags, check_specs=check_specs,
+            )
 
         if execution_mode == "sql":
             # The table IS the output; there is nothing for an IO manager to persist (and a single_run backfill needs that: an IO manager
@@ -3324,6 +3645,11 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         references elsewhere keep working unchanged); every other step publishes as `<asset_name>_<step id>`.
         """
         last_step_id = steps_cfg[-1]["id"]
+        # AssetsDefinition.from_graph's check_specs must each correspond to a literally-named output on
+        # the underlying node (confirmed directly: AssetCheckSpec.get_python_identifier() -- there is no
+        # bare-yield auto-wiring the way a plain @asset(check_specs=...) gets for free). Caught here
+        # before shipping SQL mode's own copy of this graph-construction pattern.
+        check_output_names = [spec.get_python_identifier() for spec in (check_specs or [])]
 
         def _step_asset_key(step_id: str) -> str:
             return asset_name if step_id == last_step_id else f"{asset_name}_{step_id}"
@@ -3440,10 +3766,22 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                     # this step specifically). Mixing a plain `return` with `yield` elsewhere in
                     # the same function would turn every call into a generator unconditionally,
                     # so non-last steps get their own plain-return op below instead.
-                    @op(name=op_name, required_resource_keys=rrk or None, retry_policy=retry_policy)
+                    #
+                    # When there ARE checks, the op needs an explicit `out=` with one Out per check
+                    # output (named exactly `AssetCheckSpec.get_python_identifier()`, not a name of our
+                    # choosing -- AssetsDefinition.from_graph matches on it literally) alongside the
+                    # primary "result" Out; a bare `yield AssetCheckResult(...)` then auto-produces that
+                    # named output, so only the asset-value yield needs `output_name="result"` once
+                    # `out=` stops being implicit.
+                    op_out = (
+                        {"result": Out(), **{n: Out(dagster_type=Nothing, is_required=False) for n in check_output_names}}
+                        if check_output_names else None
+                    )
+
+                    @op(name=op_name, required_resource_keys=rrk or None, retry_policy=retry_policy, out=op_out)
                     def _last_step_op(context: OpExecutionContext, upstream: pd.DataFrame = None):
                         df, md = _compute(context, upstream)
-                        yield Output(df, metadata=md)
+                        yield Output(df, metadata=md, output_name="result")
                         if retrieval_eval is not None:
                             yield _run_retrieval_eval(retrieval_eval, steps_cfg, asset_name, stamp_provenance, context)
                         if receipts_cfg is not None and receipts_cfg.get("regression_check"):
@@ -3506,25 +3844,30 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
 
         op_graph = _graph(
             name=f"{asset_name}_pipeline",
-            out={name: GraphOut() for name in keys_by_output_name},
+            out={**{name: GraphOut() for name in keys_by_output_name}, **{n: GraphOut() for n in check_output_names}},
             ins={name: GraphIn() for name in keys_by_input_name},
         )
         def _pipeline_fn(**kwargs):
             upstream_input = kwargs.get("upstream")
             results: Dict[str, Any] = {}
+            check_results: Dict[str, Any] = {}
             prev_id: Optional[str] = None
             for i, step in enumerate(steps_cfg):
                 step_id = step["id"]
                 source_id = step.get("source") or prev_id
                 step_op = ops_by_id[step_id]
                 if i == 0:
-                    results[step_id] = step_op(upstream_input) if self.upstream_asset_key else step_op()
+                    out = step_op(upstream_input) if self.upstream_asset_key else step_op()
                 else:
                     if source_id is None or source_id not in results:
                         raise ValueError(f"step {step_id!r} (op={step['op']!r}) has no source and is not preceded by another step.")
-                    results[step_id] = step_op(results[source_id])
+                    out = step_op(results[source_id])
+                if step_id == last_step_id and check_output_names:
+                    out, *check_outs = out   # op has one Out per declared check, in check_output_names order
+                    check_results = dict(zip(check_output_names, check_outs))
+                results[step_id] = out
                 prev_id = step_id
-            return {_step_asset_key(s["id"]): results[s["id"]] for s in steps_cfg}
+            return {**{_step_asset_key(s["id"]): results[s["id"]] for s in steps_cfg}, **check_results}
         op_graph = op_graph(_pipeline_fn)
 
         pipeline_asset = AssetsDefinition.from_graph(
@@ -3535,6 +3878,190 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             partitions_def=partitions_def,
             group_name=self.group_name,
             backfill_policy=backfill_policy_obj,
+            check_specs=check_specs or None,
+            code_versions_by_output_name=code_versions_by_output_name,
+            descriptions_by_output_name=descriptions_by_output_name,
+            tags_by_output_name=tags_by_output_name,
+            owners_by_output_name=owners_by_output_name or None,
+        )
+        return Definitions(assets=[pipeline_asset])
+
+    def _build_per_step_ops_sql_defs(
+        self, *, steps_cfg: List[dict], asset_name: str, id_column: str, text_column: str,
+        metadata_columns: List[str], recipe_code_version: str, stamp_provenance: bool, source_cfg: dict,
+        receipts_cfg: Optional[Dict[str, Any]], retrieval_eval: Optional[Dict[str, Any]], sql_dialect: str,
+        output_table: str, incremental: bool, all_tags: Dict[str, str], check_specs: List[Any],
+    ) -> Definitions:
+        """`per_step_ops=True` + `execution_mode='sql'`: one real table (and one real asset) per
+        participating step -- chunk always, classify/embed if configured. write_vector_store has no SQL
+        equivalent (same reason `_build_sql_mode_query` stops at embed): there's no "4th step" to add for
+        parity -- dbt-labs/dbt-context-engineering's own reference package confirms its 3rd model
+        ("search") is the RETRIEVAL step, not a build step, so 3 steps max here is the correct scope, not
+        a gap. Unpartitioned only (validated in build_defs): per-table partition staging is real added
+        complexity, tracked as a follow-up.
+
+        Each op calls straight into the real execution-layer functions (`_run_sql_chunks_stage` /
+        `_run_sql_feature_stage`) -- no DataFrame changes hands between ops (SQL mode never pulls data
+        into Python at all), so every op is `Nothing`-typed: Dagster's ordering-only dependency, same as
+        the existing single-asset SQL path's own output type.
+        """
+        resource_key = source_cfg["resource_key"]
+        chunk_step = next(s for s in steps_cfg if s["op"] == "chunk")
+        classify_step = next((s for s in steps_cfg if s["op"] == "classify"), None)
+        embed_step = next((s for s in steps_cfg if s["op"] == "embed"), None)
+        last_step_id = steps_cfg[-1]["id"]
+        # Same requirement as _build_per_step_ops_defs: AssetsDefinition.from_graph needs each check to
+        # be a literally-named output (AssetCheckSpec.get_python_identifier()) on the underlying node --
+        # a bare `yield AssetCheckResult(...)` is not auto-wired the way @asset(check_specs=...) wires it.
+        check_output_names = [spec.get_python_identifier() for spec in (check_specs or [])]
+
+        def _step_asset_key(step_id: str) -> str:
+            return asset_name if step_id == last_step_id else f"{asset_name}_{step_id}"
+
+        def _step_table(step_id: str) -> str:
+            return output_table if step_id == last_step_id else f"{output_table}__{step_id}"
+
+        # Column lists are pure static config -- a deterministic function of id_column/metadata_columns/
+        # stamp_provenance/receipts, never of the actual data -- so they're computed once here at build
+        # time (a dummy `source_cfg['sql']` is safe: only the chunk CTE's FROM clause reads it, which
+        # doesn't affect which columns exist) instead of threaded through op outputs at runtime.
+        _, cols_after_chunk, _cur = _sql_chunk_and_stamp_stage(
+            chunk_step, {"sql": ""}, sql_dialect, id_column, text_column, metadata_columns,
+            asset_name=asset_name, code_version=recipe_code_version, stamp_provenance=stamp_provenance,
+            receipts=receipts_cfg,
+        )
+        cols_by_step: Dict[str, List[str]] = {chunk_step["id"]: cols_after_chunk}
+        if classify_step is not None:
+            cols_by_step[classify_step["id"]] = cols_after_chunk + ["category", "category_signature"]
+        if embed_step is not None:
+            prior_id = classify_step["id"] if classify_step is not None else chunk_step["id"]
+            cols_by_step[embed_step["id"]] = cols_by_step[prior_id] + ["embedding", "embedding_model"]
+
+        ops_by_id: Dict[str, Any] = {}
+        prev_step_id: Optional[str] = None
+        for step in steps_cfg:
+            step_id, op_kind = step["id"], step["op"]
+            op_name = f"{asset_name}_{step_id}"
+            this_table = _step_table(step_id)
+            is_last = step_id == last_step_id
+            source_step_id = prev_step_id  # chunk has none; classify/embed read from the immediately-prior step
+
+            def _make_op(step=step, step_id=step_id, op_kind=op_kind, op_name=op_name, this_table=this_table,
+                         is_last=is_last, source_step_id=source_step_id):
+                # Same optional-plain-input convention as _build_per_step_ops_defs's own ops (an
+                # `upstream=None`-defaulted parameter, no explicit Nothing `ins=`/`out=`): SQL mode
+                # never threads a real value between ops either, it just needs the dependency edge for
+                # ordering, and real step-to-step ASSET lineage comes from internal_asset_deps below,
+                # not from this op-call wiring.
+                def _compute(context: OpExecutionContext) -> Dict[str, Any]:
+                    if op_kind == "chunk":
+                        md, _cols = _run_sql_chunks_stage(
+                            context, resource_key, step, source_cfg, sql_dialect, this_table,
+                            id_column, text_column, metadata_columns, asset_name=asset_name,
+                            code_version=recipe_code_version, stamp_provenance=stamp_provenance,
+                            receipts_cfg=receipts_cfg,
+                        )
+                    else:
+                        tag = "category" if op_kind == "classify" else "embedding"
+                        tag_col = "category_signature" if op_kind == "classify" else "embedding_model"
+                        md = _run_sql_feature_stage(
+                            context, resource_key, step, sql_dialect, _step_table(source_step_id), this_table,
+                            cols_by_step[source_step_id], tag=tag, tag_col=tag_col, incremental=incremental,
+                        )
+                    if is_last:
+                        tbl_ref = _sql_table(this_table, "output_table", sql_dialect)
+                        with _sql_session(getattr(context.resources, resource_key), resource_key) as session:
+                            content_version = session.fetch(f"SELECT {_sql_version_agg(sql_dialect)} FROM {tbl_ref}")[0][0]
+                        md["context_version"] = MetadataValue.text(str(content_version))
+                        md["n_steps"] = MetadataValue.int(len(steps_cfg))
+                        md["step_chain"] = MetadataValue.text(" → ".join(s["id"] for s in steps_cfg))
+                    return md
+
+                if is_last:
+                    # Generator form: the only step whose op may also yield AssetCheckResults
+                    # (retrieval_eval / regression_check both describe "the built index", i.e. this
+                    # step specifically). See _build_per_step_ops_defs for why non-last steps need a
+                    # separate plain op instead of branching inside the same function, and for why
+                    # `out=` must name each check output explicitly once there are any.
+                    op_out = (
+                        {"result": Out(dagster_type=Nothing), **{n: Out(dagster_type=Nothing, is_required=False) for n in check_output_names}}
+                        if check_output_names else None
+                    )
+
+                    @op(name=op_name, required_resource_keys={resource_key}, out=op_out)
+                    def _last_stage_op(context: OpExecutionContext, upstream=None) -> Any:
+                        md = _compute(context)
+                        yield Output(None, metadata=md, output_name="result")
+                        if retrieval_eval is not None:
+                            yield _run_sql_retrieval_eval(retrieval_eval, steps_cfg, source_cfg, sql_dialect, output_table,
+                                                          id_column, asset_name, stamp_provenance, context)
+                        if receipts_cfg is not None and receipts_cfg.get("regression_check"):
+                            by_cv = _sql_fetch_outcomes_by_code_version(context, source_cfg, receipts_cfg, asset_name)
+                            yield _run_recipe_outcomes_check(receipts_cfg, asset_name, recipe_code_version, context, outcomes_by_cv=by_cv)
+
+                    return _last_stage_op
+
+                @op(name=op_name, required_resource_keys={resource_key})
+                def _stage_op(context: OpExecutionContext, upstream=None) -> Any:
+                    md = _compute(context)
+                    context.add_output_metadata(md)
+                    return None
+
+                return _stage_op
+
+            ops_by_id[step_id] = _make_op()
+            prev_step_id = step_id
+
+        keys_by_output_name: Dict[str, AssetKey] = {}
+        code_versions_by_output_name: Dict[str, str] = {}
+        descriptions_by_output_name: Dict[str, str] = {}
+        owners_by_output_name: Dict[str, List[str]] = {}
+        tags_by_output_name: Dict[str, Dict[str, str]] = {}
+        internal_asset_deps: Dict[str, set] = {}
+        prev_step_id = None
+        for step in steps_cfg:
+            step_id = step["id"]
+            output_name = _step_asset_key(step_id)
+            keys_by_output_name[output_name] = AssetKey.from_user_string(output_name)
+            code_versions_by_output_name[output_name] = recipe_code_version
+            descriptions_by_output_name[output_name] = (
+                self.description or f"Context-engineering pipeline step {step_id!r} ({step['op']}, execution_mode=sql)")
+            if self.owners:
+                owners_by_output_name[output_name] = list(self.owners)
+            tags_by_output_name[output_name] = all_tags
+            internal_asset_deps[output_name] = (
+                {AssetKey.from_user_string(_step_asset_key(prev_step_id))} if prev_step_id is not None else set()
+            )
+            prev_step_id = step_id
+
+        from dagster import AssetsDefinition, GraphOut
+        from dagster import graph as _graph
+
+        op_graph = _graph(
+            name=f"{asset_name}_pipeline",
+            out={**{name: GraphOut() for name in keys_by_output_name}, **{n: GraphOut() for n in check_output_names}},
+        )
+
+        def _pipeline_fn():
+            results: Dict[str, Any] = {}
+            check_results: Dict[str, Any] = {}
+            prev = None
+            for step in steps_cfg:
+                step_op = ops_by_id[step["id"]]
+                out = step_op(prev) if prev is not None else step_op()
+                if step["id"] == last_step_id and check_output_names:
+                    out, *check_outs = out   # op has one Out per declared check, in check_output_names order
+                    check_results = dict(zip(check_output_names, check_outs))
+                prev = out
+                results[step["id"]] = out
+            return {**{_step_asset_key(s["id"]): results[s["id"]] for s in steps_cfg}, **check_results}
+        op_graph = op_graph(_pipeline_fn)
+
+        pipeline_asset = AssetsDefinition.from_graph(
+            op_graph,
+            keys_by_output_name=keys_by_output_name,
+            internal_asset_deps=internal_asset_deps,
+            group_name=self.group_name,
             check_specs=check_specs or None,
             code_versions_by_output_name=code_versions_by_output_name,
             descriptions_by_output_name=descriptions_by_output_name,

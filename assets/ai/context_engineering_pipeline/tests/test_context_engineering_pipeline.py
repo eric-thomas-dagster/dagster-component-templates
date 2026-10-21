@@ -163,14 +163,49 @@ def test_per_step_ops_publishes_one_asset_per_step_with_real_lineage(mod, ticket
     assert chunks_md["op"].value == "chunk"
 
 
-def test_per_step_ops_rejects_execution_mode_sql(mod):
+@requires_sentence_transformers
+@requires_transformers
+@requires_hf_models
+@requires_chromadb
+def test_per_step_ops_retrieval_eval_check_attaches_to_the_final_step_asset(mod, tickets_df, tmp_path):
+    """AssetsDefinition.from_graph regression: a check declared via check_specs must correspond to a
+    LITERALLY named output on the graph (AssetCheckSpec.get_python_identifier()) -- a bare
+    `yield AssetCheckResult(...)` is not auto-wired into an arbitrary op's declared outputs the way
+    @asset(check_specs=...) wires it for a plain single-asset. Caught here: per_step_ops=True +
+    retrieval_eval together crashed at build_defs() time before this test existed."""
+    component = mod.ContextEngineeringPipelineComponent(
+        asset_name="support_kb", upstream_asset_key="raw_tickets", id_column="ticket_id", text_column="body",
+        per_step_ops=True,
+        steps=[
+            {"id": "chunks", "op": "chunk", "chunk_size": 200},
+            {"id": "embedded", "op": "embed", "provider": "sentence_transformers", "model": "all-MiniLM-L6-v2"},
+            {"id": "indexed", "op": "write_vector_store", "provider": "chromadb",
+             "connection_string": str(tmp_path / "chroma"), "collection_name": "support_tickets"},
+        ],
+        retrieval_eval={
+            "queries": [{"query": tickets_df.iloc[0]["body"], "expected": ["T1"]}],
+            "k": 3, "min_recall": 1.0,
+        },
+    )
+    result = _materialize(component, tickets_df)
+    assert result.success
+    evs = {e.check_name: e for e in result.get_asset_check_evaluations()}
+    ev = evs["retrieval_quality"]
+    assert ev.asset_key.to_user_string() == "support_kb" and ev.passed
+
+
+def test_per_step_ops_sql_rejects_partitioning(mod):
+    """per_step_ops=True + execution_mode='sql' is supported (see test_sql_per_step_ops.py for the real,
+    executed coverage) but not yet combined with partitioning -- per-step-table partition staging is a
+    tracked follow-up, not built yet."""
     component = mod.ContextEngineeringPipelineComponent(
         asset_name="support_kb", id_column="id", text_column="body",
         per_step_ops=True, execution_mode="sql", sql_dialect="bigquery", output_table="ds.kb",
         source={"kind": "warehouse_query", "resource_key": "bq", "sql": "SELECT * FROM t"},
         steps=[{"id": "chunks", "op": "chunk"}],
+        partition_type="static", partition_values=["a", "b"],
     )
-    with pytest.raises(ValueError, match="per_step_ops=True is not supported with execution_mode='sql'"):
+    with pytest.raises(ValueError, match="per_step_ops=True with execution_mode='sql' does not support partitioning"):
         component.build_defs(context=None)
 
 

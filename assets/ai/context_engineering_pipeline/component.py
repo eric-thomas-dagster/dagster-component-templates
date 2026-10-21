@@ -60,6 +60,7 @@ per test.
 import ast
 import contextlib
 import hashlib
+import importlib
 import inspect
 import weakref
 import json
@@ -930,8 +931,28 @@ def _do_stamp(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
 
 # ── classify op ───────────────────────────────────────────────────────
 
+def _resolve_classify_fn(callable_path: str):
+    """Resolve a `module.path:function_name` reference for classify mode='custom'. Same
+    colon-separated convention as langgraph_agent's graph_fn / dynamic_fanout_asset / warm_scheduled_job's
+    own `_resolve` (duplicated, not imported -- no shared files across components in this repo)."""
+    if ":" not in callable_path:
+        raise ValueError(
+            f"classify op mode='custom': fn={callable_path!r} must be 'module.path:function_name' "
+            f"(colon-separated), e.g. 'myproject.classifiers:classify_ticket'."
+        )
+    module_path, fn_name = callable_path.split(":", 1)
+    try:
+        mod = importlib.import_module(module_path)
+    except ImportError as e:
+        raise ImportError(f"classify op mode='custom': cannot import module {module_path!r}: {e}") from e
+    try:
+        return getattr(mod, fn_name)
+    except AttributeError as e:
+        raise AttributeError(f"classify op mode='custom': module {module_path!r} has no attribute {fn_name!r}") from e
+
+
 def _do_classify(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
-    """Tag each chunk with a category before embedding/search -- two modes:
+    """Tag each chunk with a category before embedding/search -- three modes:
 
     - mode='zero_shot' (default): HuggingFace zero-shot classification --
       local, free, no API key. Same pattern as zero_shot_classifier
@@ -940,6 +961,12 @@ def _do_classify(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
       real completion call -- costs money per chunk, but can apply real
       judgment a fixed zero-shot label set can't (nuanced/ambiguous
       categories, multi-factor rules described in the prompt).
+    - mode='custom': bring your own classifier -- `fn` is a
+      'module.path:function_name' reference, called as
+      `fn(text, candidate_labels) -> str` once per chunk. For anything a
+      fixed zero-shot label set or a generic LLM prompt can't express: a
+      trained scikit-learn/XGBoost model, a rules engine, a call to an
+      in-house classification service, ensembling several of the above.
     """
     candidate_labels = step.get("candidate_labels")
     if not candidate_labels:
@@ -1022,8 +1049,28 @@ def _do_classify(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
                 category = None
             categories.append(category)
         out[output_column] = categories
+
+    elif mode == "custom":
+        fn_path = step.get("fn")
+        if not fn_path:
+            raise ValueError("classify op mode='custom' requires `fn` ('module.path:function_name').")
+        fn = _resolve_classify_fn(fn_path)
+
+        categories = []
+        for text in texts:
+            try:
+                category = fn(text, candidate_labels)
+            except Exception as e:
+                context.log.warning(f"classify (custom): fn={fn_path!r} failed for a chunk: {e}")
+                category = None
+            if category not in candidate_labels:
+                if category is not None:
+                    context.log.warning(f"classify (custom): fn={fn_path!r} returned {category!r}, not in candidate_labels; dropped to None")
+                category = None
+            categories.append(category)
+        out[output_column] = categories
     else:
-        raise ValueError(f"classify op: unsupported mode {mode!r}. Valid: 'zero_shot', 'llm'.")
+        raise ValueError(f"classify op: unsupported mode {mode!r}. Valid: 'zero_shot', 'llm', 'custom'.")
 
     return out
 
@@ -3339,6 +3386,13 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             python_only = sorted({s["op"] for s in steps_cfg} - {"chunk", "classify", "embed"})
             if python_only:
                 raise ValueError(f"execution_mode='sql' supports only chunk/classify/embed steps; python-mode-only op(s): {python_only}")
+            custom_classify = [s["id"] for s in steps_cfg if s["op"] == "classify" and s.get("mode") == "custom"]
+            if custom_classify:
+                raise ValueError(
+                    f"classify step(s) {custom_classify} use mode='custom', not supported with execution_mode='sql' "
+                    f"(a bring-your-own Python function can't run inside a warehouse-native SQL statement; use "
+                    f"execution_mode='python' for a custom classifier)."
+                )
         if execution_mode not in ("python", "sql"):
             raise ValueError(f"execution_mode must be 'python' or 'sql', got {execution_mode!r}.")
         if execution_mode == "sql":

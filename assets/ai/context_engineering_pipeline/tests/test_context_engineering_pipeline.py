@@ -102,6 +102,91 @@ def test_full_pipeline_chunk_classify_embed_write_vector_store(mod, tickets_df, 
 @requires_sentence_transformers
 @requires_transformers
 @requires_hf_models
+@requires_chromadb
+def test_per_step_ops_publishes_one_asset_per_step_with_real_lineage(mod, tickets_df, tmp_path):
+    """per_step_ops=True regression: `AssetsDefinition.from_graph`'s own default is "every
+    declared output depends on every graph input" (confirmed by reading its docstring directly) --
+    it does NOT infer lineage from the op-call topology inside the graph. Caught live during
+    development: without explicit internal_asset_deps, every per-step asset here showed up
+    depending only on the raw upstream, with no edges between the steps themselves."""
+    component = mod.ContextEngineeringPipelineComponent(
+        asset_name="support_kb",
+        upstream_asset_key="raw_tickets",
+        id_column="ticket_id",
+        text_column="body",
+        per_step_ops=True,
+        steps=[
+            {"id": "chunks", "op": "chunk", "chunk_size": 200},
+            {"id": "classified", "op": "classify", "candidate_labels": ["billing", "technical", "shipping"]},
+            {"id": "embedded", "op": "embed", "provider": "sentence_transformers", "model": "all-MiniLM-L6-v2"},
+            {"id": "indexed", "op": "write_vector_store", "provider": "chromadb",
+             "connection_string": str(tmp_path / "chroma"), "collection_name": "support_tickets"},
+        ],
+    )
+    defs = component.build_defs(context=None)
+    asset_def = list(defs.assets)[0]
+
+    # Real step-to-step lineage, not every step depending only on the raw upstream.
+    deps = {k.to_user_string(): {d.to_user_string() for d in v} for k, v in asset_def.asset_deps.items()}
+    assert deps == {
+        "support_kb_chunks": {"raw_tickets"},
+        "support_kb_classified": {"support_kb_chunks"},
+        "support_kb_embedded": {"support_kb_classified"},
+        "support_kb": {"support_kb_embedded"},  # the last step keeps the plain asset_name
+    }
+
+    result = _materialize(component, tickets_df)
+    assert result.success
+    # Ops live inside one op graph now (node handles like "support_kb_pipeline.support_kb_chunks"),
+    # so fetch by ASSET key instead of output_for_node's raw (and now nested) node handle.
+    chunks_out = result.asset_value("support_kb_chunks")
+    assert len(chunks_out) >= 3
+    final_out = result.asset_value("support_kb")
+    assert set(final_out["category"]) <= {"billing", "technical", "shipping"}
+    assert "embedding" in final_out.columns
+
+    import chromadb
+    collection = chromadb.PersistentClient(path=str(tmp_path / "chroma")).get_collection("support_tickets")
+    assert collection.count() == 3
+
+    # Cross-cutting pipeline metadata lands on the FINAL step; per-step metadata on each of its own.
+    final_md = next(
+        e.materialization.metadata for e in result.get_asset_materialization_events()
+        if e.materialization.asset_key == dg.AssetKey("support_kb")
+    )
+    assert "step_chain" in final_md and "n_steps" in final_md
+    chunks_md = next(
+        e.materialization.metadata for e in result.get_asset_materialization_events()
+        if e.materialization.asset_key == dg.AssetKey("support_kb_chunks")
+    )
+    assert "step_chain" not in chunks_md
+    assert chunks_md["op"].value == "chunk"
+
+
+def test_per_step_ops_rejects_execution_mode_sql(mod):
+    component = mod.ContextEngineeringPipelineComponent(
+        asset_name="support_kb", id_column="id", text_column="body",
+        per_step_ops=True, execution_mode="sql", sql_dialect="bigquery", output_table="ds.kb",
+        source={"kind": "warehouse_query", "resource_key": "bq", "sql": "SELECT * FROM t"},
+        steps=[{"id": "chunks", "op": "chunk"}],
+    )
+    with pytest.raises(ValueError, match="per_step_ops=True is not supported with execution_mode='sql'"):
+        component.build_defs(context=None)
+
+
+def test_per_step_ops_rejects_freshness_policy(mod):
+    component = mod.ContextEngineeringPipelineComponent(
+        asset_name="support_kb", upstream_asset_key="raw_tickets", id_column="id", text_column="body",
+        per_step_ops=True, freshness_max_lag_minutes=60,
+        steps=[{"id": "chunks", "op": "chunk"}],
+    )
+    with pytest.raises(ValueError, match="per_step_ops=True does not support freshness_max_lag_minutes"):
+        component.build_defs(context=None)
+
+
+@requires_sentence_transformers
+@requires_transformers
+@requires_hf_models
 def test_chunking_explodes_rows_and_carries_metadata(mod, tickets_df):
     component = mod.ContextEngineeringPipelineComponent(
         asset_name="chunks_only",

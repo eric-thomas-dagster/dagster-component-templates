@@ -154,6 +154,12 @@
         "dataset": { "type": "string", "label": "Receipt Dataset", "required": false, "description": "execution_mode='sql' only. Where the receipt tables live: 'project.dataset' (BigQuery), 'DATABASE.SCHEMA' (snowflake_cortex), 'catalog.schema' (databricks); a bare schema name is also accepted. They hold the receipt tables (context_receipts, context_receipt_items, context_receipt_events, context_item_scores). Required in SQL mode; not allowed in python mode." },
         "table_prefix": { "type": "string", "label": "Receipt Table Prefix", "required": false, "default": "", "description": "execution_mode='sql' only. Prefix on the receipt table names, e.g. 'prod_' reads prod_context_receipts. Letters, digits and underscore only." }
       }
+    },
+    "per_step_ops": {
+      "type": "boolean",
+      "label": "Per Step Ops",
+      "description": "When True (python mode only), emit each configured step as its own @dg.op inside one op graph instead of folding the whole chain into a single @asset -- one visible, individually re-executable-on-failure asset node per step (chunk/classify/embed/write_vector_store/...), same shape as AgenticPipelineComponent's per_step_ops. The asset key for the FINAL step stays `asset_name` unchanged (so any existing upstream_asset_key pointing at this component's output keeps working); every OTHER step publishes as `<asset_name>_<step id>`, with real step-to-step lineage between them (not just every step depending on the raw upstream). Not supported with execution_mode='sql' (one atomic warehouse statement has no discrete per-step structure to expose; a multi-table SQL-mode equivalent -- one table/asset per step instead of one combined statement -- is a tracked follow-up, not built yet).",
+      "required": false
     }
   }
 }

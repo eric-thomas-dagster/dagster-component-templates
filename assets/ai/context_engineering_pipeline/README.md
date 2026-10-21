@@ -241,6 +241,44 @@ real queries through `rag_pipeline` that record their own receipts, ratings, and
 
 Set exactly one — `upstream_asset_key` and `source` are mutually exclusive.
 
+## Per-step assets (`per_step_ops`)
+
+By default every configured step — `chunk`, `classify`, `embed`, `write_vector_store`, ... — runs inside
+one `@asset`'s compute function: a single node in the graph, one materialization per run, with each step's
+timing/row-count folded into that one asset's `step_metadata` field. Set `per_step_ops: true` (python mode
+only) to flip that: each step becomes its own `@dg.op` inside one op graph, so each one is its own visible
+asset node, with its own materialization history, its own metadata, and (via Dagster's native
+re-execution-from-failure) independently retryable — same shape as `AgenticPipelineComponent`'s
+`per_step_ops`.
+
+```yaml
+attributes:
+  asset_name: support_kb
+  per_step_ops: true
+  steps:
+    - {id: chunks, op: chunk, chunk_size: 500}
+    - {id: classified, op: classify, candidate_labels: [billing, technical, shipping, other]}
+    - {id: embedded, op: embed, provider: sentence_transformers, model: all-MiniLM-L6-v2}
+    - {id: indexed, op: write_vector_store, provider: chromadb, collection_name: support_kb}
+```
+
+Publishes four assets instead of one, with real step-to-step lineage between them:
+`support_kb_chunks → support_kb_classified → support_kb_embedded → support_kb`. The **last** step always
+keeps the plain `asset_name` ( `support_kb`, unsuffixed) — so any existing `upstream_asset_key: support_kb`
+pointing at this component's output elsewhere keeps working unchanged — and every other step publishes as
+`<asset_name>_<step id>`. The cross-cutting metadata (`n_steps`, `step_chain`, `context_version`,
+`receipts_feedback`, the retrieval-quality/recipe-outcomes asset checks) all still land on that one final
+asset, same as today; every step additionally gets its own `op` / `elapsed_seconds` / row-count metadata on
+its own node.
+
+Not supported with `execution_mode='sql'`: the whole chunk/classify/embed chain there is one atomic
+warehouse statement (the reason `execution_mode: sql` exists at all — zero round-trips), so there's no
+discrete per-step structure to expose without a genuine architecture change (one table per step instead of
+one combined statement). Also not supported together with `freshness_max_lag_minutes`: Dagster's
+`graph_multi_asset`/`AssetsDefinition.from_graph` machinery has no per-output freshness-policy plumbing
+today, confirmed directly against the installed `dagster` package — both together raise at `build_defs()`
+time rather than silently doing nothing.
+
 ## Scale: the corpus won't fit in memory, and that's expected
 
 A real corpus is almost never small enough to hold in one pandas DataFrame and process with one Python loop per chunk. Two levers, matching how every other pipeline component in this repo already handles this — not a bespoke rewrite:
@@ -362,6 +400,7 @@ Every field name and step shape here is meant to be as readable for a human anal
 | `owners` | `List[str]` | — | Asset owners — list of team names or email addresses. |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags to apply to the asset. |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Auto-inferred if unset. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'multi_run' launches one run per partition (optionally capped via backfill_policy_max_partitions_per_run); 'single_run' materializes a whole backfill range in one run… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -377,6 +416,7 @@ Every field name and step shape here is meant to be as readable for a human anal
 | `partition_type` | `str` | — | Partition type: 'daily'/'weekly'/'monthly'/'hourly'/'static'/'dynamic'/None. |
 | `partition_start` | `str` | — | Partition start date (ISO), required for time-based types. |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts (type: daily/weekly/monthly/hourly/static/dynamic). One entry is a single axis; several make a MultiPartitionsDefinition. Mutua… _(full docs in schema.json + component README)_ |
 
 ### Retry policy
 
@@ -401,19 +441,18 @@ Every field name and step shape here is meant to be as readable for a human anal
 | `metadata_columns` | `List[str]` | — | Additional source columns to carry forward onto every chunk row (e.g. customer_id, created_at) -- available to later steps and written as vector-store metadata for filtered search. |
 | `max_source_rows` | `int` | — | Safety cap on source rows processed per materialize (applied AFTER any SQL filtering, before chunking). A real corpus is typically far too large to process in one in-memory run -- pair this with partitioning (partition_t… _(full docs in schema.json + component README)_ |
 | `execution_mode` | `str` | `"python"` | 'python' (default): pulls rows into a DataFrame and calls chunk/classify/embed as Python/API calls -- works with every provider, but data leaves the database and the corpus must fit in memory (bound it with max_source_ro… _(full docs in schema.json + component README)_ |
-| `incremental` | `bool` | `true` | execution_mode='sql' only: reuse embeddings/categories already in `output_table` (matched on content_hash + embedding model / label set) so only new or changed chunks call the warehouse AI function. See [Incremental builds](#incremental-builds-in-sql-mode). |
 | `sql_dialect` | `str` | — | Required when execution_mode='sql'. One of: 'snowflake_cortex', 'bigquery', 'databricks'. Selects which warehouse-native AI SQL functions to emit. |
+| `incremental` | `bool` | `true` | execution_mode='sql' only (ignored in python mode, which has embed `reuse_from`). Re-use the embeddings and categories already in `output_table` instead of paying the warehouse AI function for the whole corpus on every r… _(full docs in schema.json + component README)_ |
 | `emit_data_version` | `bool` | `true` | Emit a content-derived Dagster data version (hash of every chunk id + content hash + the build recipe). Dagster's default data version derives from the asset's code version and its inputs' data versions, so it changes on… _(full docs in schema.json + component README)_ |
 | `stamp_provenance` | `bool` | `true` | Write source_asset_key, source_version (the emitted data version), source_partition, source_id, chunk_id, content_hash and embedding_model onto every chunk in the vector store, so a retrieval gateway can build receipts d… _(full docs in schema.json + component README)_ |
+| `per_step_ops` | `bool` | `false` | When True (python mode only), emit each configured step as its own @dg.op inside one op graph instead of folding the whole chain into a single @asset -- one visible, individually re-executable-on-failure asset node per s… _(full docs in schema.json + component README)_ |
 | `receipts` | `Dict[str, Any]` | — | Learn from real use: read the retrieval receipts recorded by resources/context_receipt_store back into every build. {resource_key: <registered ContextReceiptStoreComponent>, window_days: 30, min_retrievals: 5, min_outcom… _(full docs in schema.json + component README)_ |
 | `retrieval_eval` | `Dict[str, Any]` | — | A golden set that gates this knowledge base: {queries: [{query, expected: [chunk or source ids]}], k: 5, min_recall: 0.8, min_mrr: null, severity: ERROR\|WARN, blocking: false}. After the index is written, each query is… _(full docs in schema.json + component README)_ |
 | `context_policy` | `Dict[str, Any]` | — | Declare the governance policy a retrieval gateway should enforce for this knowledge base: {scope: <chunk metadata field naming the tenant>, sensitivity: public\|internal\|confidential\|restricted, max_age_hours, token_bu… _(full docs in schema.json + component README)_ |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when include_preview_metadata is True. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
-| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. One entry is a single axis; several make a MultiPartitionsDefinition. Mutually exclusive with the flat partition_* fields. See [Partitions and backfills in SQL mode](#partitions-and-backfills-in-sql-mode). |
-| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | 'multi_run' = one run per partition (cap with `backfill_policy_max_partitions_per_run`); 'single_run' = one run for a whole range (SQL mode: only when `source.sql` uses `{partition_start}` and `{partition_end}`). Ignored when not partitioned. |
-| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions per run (default 1). |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

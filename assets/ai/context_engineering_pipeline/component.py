@@ -85,9 +85,11 @@ from dagster import (
     MetadataValue,
     Model,
     Nothing,
+    OpExecutionContext,
     Output,
     Resolvable,
     asset,
+    op,
 )
 from pydantic import Field
 
@@ -2905,6 +2907,21 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             "receipts directly from index hits. Python mode: the write_vector_store step. SQL mode: columns chunk_id, content_hash, source_asset_key, source_version (content hash of the whole table), source_partition, source_code_version on the output table."
         ),
     )
+    per_step_ops: bool = Field(
+        default=False,
+        description=(
+            "When True (python mode only), emit each configured step as its own @dg.op inside one op graph "
+            "instead of folding the whole chain into a single @asset -- one visible, individually "
+            "re-executable-on-failure asset node per step (chunk/classify/embed/write_vector_store/...), same "
+            "shape as AgenticPipelineComponent's per_step_ops. The asset key for the FINAL step stays "
+            "`asset_name` unchanged (so any existing upstream_asset_key pointing at this component's output keeps "
+            "working); every OTHER step publishes as `<asset_name>_<step id>`, with real step-to-step lineage "
+            "between them (not just every step depending on the raw upstream). Not supported with "
+            "execution_mode='sql' (one atomic warehouse statement has no discrete per-step structure to expose; "
+            "a multi-table SQL-mode equivalent -- one table/asset per step instead of one combined statement -- "
+            "is a tracked follow-up, not built yet)."
+        ),
+    )
 
     receipts: Optional[Dict[str, Any]] = Field(
         default=None,
@@ -3033,6 +3050,8 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             raise ValueError("context_engineering_pipeline: set exactly one of `upstream_asset_key` or `source`, not both.")
         if not self.upstream_asset_key and not self.source:
             raise ValueError("context_engineering_pipeline: set one of `upstream_asset_key` or `source`.")
+        if self.per_step_ops and execution_mode == "sql":
+            raise ValueError("per_step_ops=True is not supported with execution_mode='sql'.")
 
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name, self.partition_dimensions,
@@ -3055,6 +3074,13 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         elif partitions_def is not None and self.backfill_policy == "multi_run":
             backfill_policy_obj = BackfillPolicy.multi_run(max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1)
 
+        if self.per_step_ops and self.freshness_max_lag_minutes is not None:
+            raise ValueError(
+                "per_step_ops=True does not support freshness_max_lag_minutes: Dagster's graph_multi_asset "
+                "has no per-output freshness_policy plumbing today (confirmed directly against the installed "
+                "dagster.AssetsDefinition.from_graph -- it accepts tags/owners/code_version/description/metadata "
+                "per output but not freshness), so setting both would silently do nothing rather than fail loudly."
+            )
         freshness_policy = None
         if self.freshness_max_lag_minutes is not None:
             from dagster import FreshnessPolicy
@@ -3154,6 +3180,18 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                     by_cv = _sql_fetch_outcomes_by_code_version(context, source_cfg, receipts_cfg, asset_name)
                     yield _run_recipe_outcomes_check(receipts_cfg, asset_name, recipe_code_version, context, outcomes_by_cv=by_cv)
             return Definitions(assets=[_sql_asset])
+
+        if self.per_step_ops:
+            return self._build_per_step_ops_defs(
+                steps_cfg=steps_cfg, asset_name=asset_name, id_column=id_column, text_column=text_column,
+                metadata_columns=metadata_columns, max_source_rows=max_source_rows,
+                recipe_code_version=recipe_code_version, emit_data_version=emit_data_version,
+                stamp_provenance=stamp_provenance, include_preview=include_preview, preview_rows=preview_rows,
+                source_cfg=source_cfg, receipts_cfg=receipts_cfg, retrieval_eval=retrieval_eval,
+                partitions_def=partitions_def, backfill_policy_obj=backfill_policy_obj,
+                freshness_policy=freshness_policy, retry_policy=retry_policy, all_tags=_all_tags,
+                check_specs=check_specs,
+            )
 
         @asset(**asset_kwargs)
         def _asset(context: AssetExecutionContext, **kwargs):
@@ -3260,6 +3298,250 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                 yield _run_recipe_outcomes_check(receipts_cfg, asset_name, recipe_code_version, context)
 
         return Definitions(assets=[_asset])
+
+    def _build_per_step_ops_defs(
+        self, *, steps_cfg: List[dict], asset_name: str, id_column: str, text_column: str,
+        metadata_columns: List[str], max_source_rows: Optional[int], recipe_code_version: str,
+        emit_data_version: bool, stamp_provenance: bool, include_preview: bool, preview_rows: int,
+        source_cfg: Optional[dict], receipts_cfg: Optional[Dict[str, Any]], retrieval_eval: Optional[Dict[str, Any]],
+        partitions_def, backfill_policy_obj, freshness_policy, retry_policy, all_tags: Dict[str, str],
+        check_specs: List[Any],
+    ) -> Definitions:
+        """`per_step_ops=True`: one @dg.op per configured step inside a single op graph, instead of
+        folding the whole chain into one @asset. Each step becomes its own asset node -- individually
+        visible, individually metadata'd, and (via Dagster's native re-execution-from-failure)
+        independently retryable.
+
+        Built directly on `dg.AssetsDefinition.from_graph` rather than the `@dg.graph_multi_asset`
+        convenience decorator, because that decorator's own default -- confirmed by reading
+        `AssetsDefinition.from_graph`'s docstring directly -- is "every declared output depends on
+        every graph INPUT," not on the op-call topology inside the graph; left alone, every per-step
+        asset here would show as depending only on `upstream_asset_key`, with no edges between the
+        steps themselves. `internal_asset_deps` is the documented fix, and `@graph_multi_asset` doesn't
+        expose that parameter at all, so the lower-level API is used instead.
+
+        The final step keeps the plain `asset_name` key (so existing `upstream_asset_key: <asset_name>`
+        references elsewhere keep working unchanged); every other step publishes as `<asset_name>_<step id>`.
+        """
+        last_step_id = steps_cfg[-1]["id"]
+
+        def _step_asset_key(step_id: str) -> str:
+            return asset_name if step_id == last_step_id else f"{asset_name}_{step_id}"
+
+        def _step_metadata(step_id: str, op_name: str, df: pd.DataFrame, elapsed: float) -> Dict[str, Any]:
+            md: Dict[str, Any] = {
+                "dagster/row_count": MetadataValue.int(len(df)),
+                "op": MetadataValue.text(op_name),
+                "elapsed_seconds": MetadataValue.float(round(elapsed, 3)),
+            }
+            for k, v in (df.attrs.get("stats") or {}).items():
+                with contextlib.suppress(Exception):
+                    md[k] = MetadataValue.text(str(v))
+            return md
+
+        # --- one @dg.op per step --------------------------------------------------------------
+        ops_by_id: Dict[str, Any] = {}
+        for i, step in enumerate(steps_cfg):
+            step_id = step["id"]
+            op_kind = step["op"]
+            op_name = f"{asset_name}_{step_id}"
+            is_first = i == 0
+            is_last = step_id == last_step_id
+            op_required_resource_keys = set()
+            if is_first and source_cfg and source_cfg.get("resource_key"):
+                op_required_resource_keys.add(source_cfg["resource_key"])
+            if op_kind == "write_vector_store" and receipts_cfg is not None:
+                op_required_resource_keys.add(receipts_cfg["resource_key"])
+
+            def _make_op(step=step, step_id=step_id, op_kind=op_kind, op_name=op_name,
+                         is_first=is_first, is_last=is_last, rrk=op_required_resource_keys):
+                def _compute(context: OpExecutionContext, upstream) -> "tuple[pd.DataFrame, Dict[str, Any]]":
+                    import time as _time
+                    t0 = _time.time()
+                    extra_md: Dict[str, Any] = {}
+
+                    if is_first:
+                        if upstream is None:
+                            upstream_df = _ingest_warehouse_query(source_cfg, context)
+                        else:
+                            upstream_df = upstream
+                            if hasattr(upstream_df, "value") and hasattr(upstream_df, "metadata"):
+                                upstream_df = upstream_df.value
+                            if isinstance(upstream_df, dict):
+                                _frames = [v for v in upstream_df.values() if isinstance(v, pd.DataFrame)]
+                                upstream_df = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
+                        if id_column not in upstream_df.columns:
+                            raise ValueError(f"id_column={id_column!r} not in upstream: {list(upstream_df.columns)}")
+                        if text_column not in upstream_df.columns:
+                            raise ValueError(f"text_column={text_column!r} not in upstream: {list(upstream_df.columns)}")
+                        source_rows_available = len(upstream_df)
+                        if max_source_rows is not None and source_rows_available > max_source_rows:
+                            context.log.warning(
+                                f"max_source_rows={max_source_rows} < {source_rows_available} available source rows -- "
+                                f"truncating this run. Pair with partitioning to process the full corpus over multiple "
+                                f"runs rather than silently dropping rows every time."
+                            )
+                            upstream_df = upstream_df.head(max_source_rows)
+                        df = _do_chunk(upstream_df, step, id_column, text_column, metadata_columns, context)
+                        extra_md["source_rows"] = MetadataValue.int(len(upstream_df))
+                        extra_md["source_rows_available"] = MetadataValue.int(source_rows_available)
+                    elif op_kind == "write_vector_store":
+                        write_input = upstream
+                        local_step = step
+                        receipts_summary = None
+                        if receipts_cfg is not None:
+                            write_input, local_step, receipts_summary = _apply_receipt_feedback(
+                                write_input, local_step, receipts_cfg, asset_name, recipe_code_version, context,
+                                source_id_column=id_column,
+                            )
+                        partition = context.partition_key if context.has_partition_key else None
+                        content_version = _content_version(write_input, local_step.get("text_column", "chunk_text"), steps_cfg)
+                        stamp = {
+                            "source_asset_key": asset_name,
+                            "source_version": content_version,
+                            "source_partition": partition,
+                            "source_code_version": recipe_code_version,
+                        } if stamp_provenance else None
+                        df = _do_write_vector_store(write_input, local_step, id_column, context, stamp)
+                        extra_md["context_version"] = MetadataValue.text(content_version)
+                        if receipts_summary is not None:
+                            extra_md["receipts_feedback"] = MetadataValue.json(receipts_summary)
+                            extra_md["receipts_quarantined"] = MetadataValue.int(receipts_summary["quarantined"])
+                            extra_md["receipts_chunks_with_feedback"] = MetadataValue.int(receipts_summary["chunks_with_feedback"])
+                    else:
+                        df = _FRAME_OPS[op_kind](upstream, step, context)
+
+                    if is_last:
+                        content_version = None
+                        if "chunk_id" in df.columns:
+                            content_version = _content_version(
+                                df, "chunk_text" if "chunk_text" in df.columns else df.columns[0], steps_cfg)
+                        extra_md["n_steps"] = MetadataValue.int(len(steps_cfg))
+                        extra_md["step_chain"] = MetadataValue.text(" → ".join(s["id"] for s in steps_cfg))
+                        if content_version is not None and op_kind != "write_vector_store":
+                            extra_md["context_version"] = MetadataValue.text(content_version)
+                        if include_preview and len(df) > 0:
+                            try:
+                                _prev_cols = [c for c in df.columns if c != "embedding"]
+                                _prev = df[_prev_cols]
+                                _prev = _prev.sample(min(preview_rows, len(_prev))) if len(_prev) > preview_rows * 10 else _prev.head(preview_rows)
+                                extra_md["preview"] = MetadataValue.md(_prev.to_markdown(index=False) or "")
+                            except Exception as e:
+                                context.log.warning(f"preview emission failed: {e}")
+
+                    elapsed = _time.time() - t0
+                    md = {**_step_metadata(step_id, op_kind, df, elapsed), **extra_md}
+                    context.log.info(f"step {step_id!r} ({op_kind}) → {len(df)} rows in {elapsed:.2f}s")
+                    return df, md
+
+                if is_last:
+                    # Generator form: the only step whose op may also yield AssetCheckResults
+                    # (retrieval_eval / regression_check both describe "the built index", i.e.
+                    # this step specifically). Mixing a plain `return` with `yield` elsewhere in
+                    # the same function would turn every call into a generator unconditionally,
+                    # so non-last steps get their own plain-return op below instead.
+                    @op(name=op_name, required_resource_keys=rrk or None, retry_policy=retry_policy)
+                    def _last_step_op(context: OpExecutionContext, upstream: pd.DataFrame = None):
+                        df, md = _compute(context, upstream)
+                        yield Output(df, metadata=md)
+                        if retrieval_eval is not None:
+                            yield _run_retrieval_eval(retrieval_eval, steps_cfg, asset_name, stamp_provenance, context)
+                        if receipts_cfg is not None and receipts_cfg.get("regression_check"):
+                            yield _run_recipe_outcomes_check(receipts_cfg, asset_name, recipe_code_version, context)
+
+                    return _last_step_op
+
+                @op(name=op_name, required_resource_keys=rrk or None, retry_policy=retry_policy)
+                def _step_op(context: OpExecutionContext, upstream: pd.DataFrame = None) -> pd.DataFrame:
+                    df, md = _compute(context, upstream)
+                    context.add_output_metadata(md)
+                    return df
+
+                return _step_op
+
+            ops_by_id[step_id] = _make_op()
+
+        # --- per-output metadata + real step-to-step lineage ------------------------------------
+        # graph_multi_asset's own default (confirmed by reading dagster's AssetsDefinition.from_graph
+        # source directly) is "every declared output depends on every graph INPUT" -- it does NOT
+        # infer lineage from the op-call topology inside the graph. Left alone, all N per-step assets
+        # here would show as depending only on upstream_asset_key, with no edges between the steps
+        # themselves. internal_asset_deps is the documented override (`from_graph`'s own docstring:
+        # "a corrected set of AssetKeys they depend on... either used as input to the asset or
+        # produced within the graph") -- the lower-level `AssetsDefinition.from_graph` API accepts it;
+        # the `@graph_multi_asset` convenience decorator does not expose it at all, so it's built
+        # directly here instead of via that decorator.
+        keys_by_output_name: Dict[str, AssetKey] = {}
+        code_versions_by_output_name: Dict[str, str] = {}
+        descriptions_by_output_name: Dict[str, str] = {}
+        owners_by_output_name: Dict[str, List[str]] = {}
+        tags_by_output_name: Dict[str, Dict[str, str]] = {}
+        internal_asset_deps: Dict[str, set] = {}
+        prev_id: Optional[str] = None
+        for i, step in enumerate(steps_cfg):
+            step_id = step["id"]
+            output_name = _step_asset_key(step_id)
+            keys_by_output_name[output_name] = AssetKey.from_user_string(output_name)
+            code_versions_by_output_name[output_name] = recipe_code_version
+            descriptions_by_output_name[output_name] = (
+                self.description or f"Context-engineering pipeline step {step_id!r} ({step['op']})")
+            if self.owners:
+                owners_by_output_name[output_name] = list(self.owners)
+            tags_by_output_name[output_name] = all_tags
+            if i == 0:
+                internal_asset_deps[output_name] = (
+                    {AssetKey.from_user_string(self.upstream_asset_key)} if self.upstream_asset_key else set()
+                )
+            else:
+                source_id = step.get("source") or prev_id
+                internal_asset_deps[output_name] = {AssetKey.from_user_string(_step_asset_key(source_id))}
+            prev_id = step_id
+
+        keys_by_input_name: Dict[str, AssetKey] = {}
+        if self.upstream_asset_key:
+            keys_by_input_name["upstream"] = AssetKey.from_user_string(self.upstream_asset_key)
+
+        from dagster import AssetsDefinition, GraphIn, GraphOut
+        from dagster import graph as _graph
+
+        op_graph = _graph(
+            name=f"{asset_name}_pipeline",
+            out={name: GraphOut() for name in keys_by_output_name},
+            ins={name: GraphIn() for name in keys_by_input_name},
+        )
+        def _pipeline_fn(**kwargs):
+            upstream_input = kwargs.get("upstream")
+            results: Dict[str, Any] = {}
+            prev_id: Optional[str] = None
+            for i, step in enumerate(steps_cfg):
+                step_id = step["id"]
+                source_id = step.get("source") or prev_id
+                step_op = ops_by_id[step_id]
+                if i == 0:
+                    results[step_id] = step_op(upstream_input) if self.upstream_asset_key else step_op()
+                else:
+                    if source_id is None or source_id not in results:
+                        raise ValueError(f"step {step_id!r} (op={step['op']!r}) has no source and is not preceded by another step.")
+                    results[step_id] = step_op(results[source_id])
+                prev_id = step_id
+            return {_step_asset_key(s["id"]): results[s["id"]] for s in steps_cfg}
+        op_graph = op_graph(_pipeline_fn)
+
+        pipeline_asset = AssetsDefinition.from_graph(
+            op_graph,
+            keys_by_input_name=keys_by_input_name or None,
+            keys_by_output_name=keys_by_output_name,
+            internal_asset_deps=internal_asset_deps,
+            partitions_def=partitions_def,
+            group_name=self.group_name,
+            backfill_policy=backfill_policy_obj,
+            check_specs=check_specs or None,
+            code_versions_by_output_name=code_versions_by_output_name,
+            descriptions_by_output_name=descriptions_by_output_name,
+            tags_by_output_name=tags_by_output_name,
+            owners_by_output_name=owners_by_output_name or None,
+        )
+        return Definitions(assets=[pipeline_asset])
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

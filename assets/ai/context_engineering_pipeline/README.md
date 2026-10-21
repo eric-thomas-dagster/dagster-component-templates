@@ -9,7 +9,7 @@ It does not *write* receipts itself: a receipt records what was actually retriev
 (`rag_pipeline` with its `receipts:` block, an MCP gateway, or your own retrieval code) via `ContextReceiptStore.record_retrieval(...)`. It does **read them back**:
 with `receipts:` set, every rebuild learns from what was retrieved and how it turned out. See [Learning from receipts](#learning-from-receipts).
 
-This is the "build the knowledge base" answer to what dbt Labs calls [context engineering](https://docs.getdbt.com/blog/dbt-context-engineering): chunk/embed/classify raw text, govern it, and make it citeable — the same discipline dbt applies to metrics, applied to unstructured text instead. Same "pipeline component" shape as `ml_pipeline`, `rag_pipeline`, `warehouse_pipeline`, `polars_pipeline`: one YAML, a `steps:` list in reading order, each step's output readable by the next via `source:` (or, if omitted, the immediately-prior step).
+This is the "build the knowledge base" half of context engineering: chunk/embed/classify raw text, govern it, and make it citeable — the same discipline-first treatment Dagster already applies to tables and metrics, applied to unstructured text instead. Same "pipeline component" shape as `ml_pipeline`, `rag_pipeline`, `warehouse_pipeline`, `polars_pipeline`: one YAML, a `steps:` list in reading order, each step's output readable by the next via `source:` (or, if omitted, the immediately-prior step).
 
 ```yaml
 type: dagster_component_templates.ContextEngineeringPipelineComponent

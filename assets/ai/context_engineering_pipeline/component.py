@@ -8,10 +8,9 @@ each step's output is a DataFrame the next step can read via `source:`
 (or, if omitted, the immediately-prior step — you don't have to repeat
 `source:` on every line).
 
-This is the "build the knowledge base" half of what the industry calls
-"context engineering" (dbt Labs' `dbt_context_engineering` package is
-the reference example: chunk → embed → classify → semantic search,
-governed the same way metrics are). It's designed to pair with the
+This is the "build the knowledge base" half of context engineering:
+chunk → embed → classify → semantic search, governed the same
+discipline-first way metrics are. It's designed to pair with the
 existing `rag_pipeline` component for the "query the knowledge base"
 half — this pipeline's `write_vector_store` step's output is exactly
 what `rag_pipeline`'s `retrieve`/`hybrid_search` ops expect to query

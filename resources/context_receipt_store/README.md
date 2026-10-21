@@ -16,6 +16,29 @@ settings (on by default) write the asset key, content-derived version, partition
 every indexed chunk, so a gateway can build receipt items straight from index hits and a no-op rebuild does not
 make receipts look stale. Any other pipeline works too if it stamps the same fields.
 
+## Scaffold these demos end-to-end
+
+- [`examples/context_engineering.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering.md) — the closed context-receipt loop: `context_engineering_pipeline` builds, `rag_pipeline` serves and records receipts here, real negative feedback, rebuild with the identical recipe excludes the chunks that kept failing.
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_context_engineering_demo.sh | bash
+  cd context-engineering-demo
+  uv run dg dev
+  ```
+- [`examples/context_engineering_mcp.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering_mcp.md) — same closed loop, but serving is a standalone FastMCP gateway reading/writing this store directly over real stdio MCP, no Dagster import in the serving path at all.
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_context_engineering_mcp_demo.sh | bash
+  cd context-engineering-mcp-demo
+  uv run dg dev
+  ```
+- [`examples/context_engineering_partitioned.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering_partitioned.md) — same closed loop, but the build is `partition_type: daily`; a rebuild only ever re-processes the one partition whose chunk picked up bad feedback, confirmed via this store that never-served partitions stay untouched.
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_context_engineering_partitioned_demo.sh | bash
+  cd context-engineering-partitioned-demo
+  uv run dg dev
+  ```
+
+All three free/local by default (local SQLite); all live-validated end to end, exit 0.
+
 ## Closing the loop: reading receipts back into the build
 
 Receipts are only useful if something learns from them. `rag_pipeline`'s `receipts:` block records every retrieval (and reranks with the learned item

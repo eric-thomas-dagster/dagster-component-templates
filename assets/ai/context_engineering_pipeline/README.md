@@ -56,7 +56,7 @@ Three runnable walkthroughs:
   cd context-engineering-mcp-demo
   uv run dg dev
   ```
-- [`examples/context_engineering_partitioned.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering_partitioned.md) — `partition_type: daily` + `per_step_ops: true`: one build per day, each reading only that day's new rows; the index grows a day at a time, no rebuild reprocesses a prior day.
+- [`examples/context_engineering_partitioned.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering_partitioned.md) — the same closed receipt loop as the first demo, but `partition_type: daily` + `per_step_ops: true`: one build per day, each reading only that day's new rows; a rebuild only re-processes the one partition whose chunk picked up real bad feedback, leaving never-served partitions untouched.
   ```bash
   curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_context_engineering_partitioned_demo.sh | bash
   cd context-engineering-partitioned-demo

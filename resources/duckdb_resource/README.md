@@ -46,6 +46,16 @@ attributes:
 
 DuckDB has no external credentials. Set `database` to a file path for persistent storage, or leave it as `":memory:"` for an ephemeral in-process database. The resource exposes `get_connection()` which returns a `duckdb.DuckDBPyConnection`.
 
+## Scaffold a demo end-to-end
+
+- [`examples/duckdb_warehouse.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/duckdb_warehouse.md) — DuckDB as a real local warehouse.
+- [`examples/context_engineering_partitioned.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering_partitioned.md) — a `context_engineering_pipeline` build reads a local DuckDB table through this resource, filtered per partition by the pipeline's `{partition_key}` placeholder.
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_context_engineering_partitioned_demo.sh | bash
+  cd context-engineering-partitioned-demo
+  uv run dg dev
+  ```
+
 ## Quack client mode (concurrent writers)
 
 In-process DuckDB doesn't support multiple writer processes safely. The [Quack remote protocol](https://duckdb.org/2026/05/12/quack-remote-protocol) (DuckDB v1.5.2+, May 2026) adds an HTTP-based client/server protocol that solves this. One DuckDB instance runs `quack_serve(...)`; everyone else connects as a client.

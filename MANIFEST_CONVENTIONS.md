@@ -94,3 +94,22 @@ Fields (all optional but strongly recommended for high-value components):
 - `output_type`: single word capturing the asset value shape (`dataframe`, `passthrough`, `dict`, `path`, `asset+sensor`).
 
 Agent planners (like `PlannedCatalogAgentComponent`) read these to make better picks.
+
+## Genie planner fields — which builders offer a component, and which checks apply
+
+Dagster Designer's planner (Genie) reads three optional top-level fields. Without them it falls back to defaults baked into the designer, so a new component only shows up in a guided builder after a designer release. Declare them and it shows up as soon as the manifest does. (Not to be confused with `agent_hints.requires_resources`, which is free-form documentation for planning agents; the field below is machine-read.)
+
+- `builders`: list of builder ids whose planning pool should include the component. Known: `agents_pipelines` (the Agent Builder), `rag` (RAG & Vector Search).
+- `genie_checks`: deterministic checks the designer runs on a plan that picks this component. Known: `model_provider` (every step that names a model also needs `model` + `api_key_env_var`), `per_row_misuse` (reject a plain per-row chain forced into a whole-pipeline component), `context_pipeline` (knowledge-base builds: first step `chunk`, `execution_mode: sql` limits, required models/keys). Use `[]` to switch the designer's defaults off for a component. Only add a check if your component's `steps` use the op names it assumes.
+- `requires_resources`: list of `{component_id, config_path, reason}`. When the planned config has a string at `config_path` (dotted, e.g. `receipts.resource_key`), the plan lists `component_id` as a resource that must be installed (resources are installed from the Resources tab, never planned as picks). `config_path` must exist in the component's `schema.json`.
+
+```json
+"builders": ["rag", "agents_pipelines"],
+"genie_checks": ["context_pipeline"],
+"requires_resources": [
+  {"component_id": "context_receipt_store", "config_path": "receipts.resource_key", "reason": "reads retrieval receipts back into every rebuild"}
+]
+```
+
+`tests/test_manifest_genie_fields.py` checks the shapes and that each `requires_resources` entry names a real resource component and a real config path.
+

@@ -4213,7 +4213,14 @@
         "key_template": "{asset_name_prefix}_{asset_id}"
       },
       "featured": true,
-      "icon": "Sparkles"
+      "icon": "Sparkles",
+      "builders": [
+        "agents_pipelines"
+      ],
+      "genie_checks": [
+        "model_provider",
+        "per_row_misuse"
+      ]
     },
     {
       "id": "aggregate_freshness_sensor",
@@ -13033,6 +13040,20 @@
         "retrieval receipt",
         "provenance",
         "receipt-ready"
+      ],
+      "builders": [
+        "rag",
+        "agents_pipelines"
+      ],
+      "genie_checks": [
+        "context_pipeline"
+      ],
+      "requires_resources": [
+        {
+          "component_id": "context_receipt_store",
+          "config_path": "receipts.resource_key",
+          "reason": "reads retrieval receipts back into every rebuild"
+        }
       ]
     },
     {
@@ -37789,6 +37810,9 @@
         "lite llm",
         "llm",
         "genai"
+      ],
+      "builders": [
+        "agents_pipelines"
       ]
     },
     {
@@ -40451,7 +40475,11 @@
         "key_template": "{asset_name_prefix}_{asset_id}"
       },
       "featured": true,
-      "icon": "BarChart2"
+      "icon": "BarChart2",
+      "genie_checks": [
+        "model_provider",
+        "per_row_misuse"
+      ]
     },
     {
       "id": "mlflow_experiment_sensor",
@@ -44643,6 +44671,9 @@
         "o3",
         "llm",
         "genai"
+      ],
+      "builders": [
+        "agents_pipelines"
       ]
     },
     {
@@ -44959,7 +44990,10 @@
         "llm",
         "genai"
       ],
-      "icon": "Sparkles"
+      "icon": "Sparkles",
+      "builders": [
+        "agents_pipelines"
+      ]
     },
     {
       "id": "opensearch_index_upsert",
@@ -48171,7 +48205,11 @@
         "backfill"
       ],
       "featured": true,
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "genie_checks": [
+        "model_provider",
+        "per_row_misuse"
+      ]
     },
     {
       "id": "polars_read_database",
@@ -51378,7 +51416,18 @@
         "llm",
         "genai"
       ],
-      "featured": true
+      "featured": true,
+      "builders": [
+        "rag",
+        "agents_pipelines"
+      ],
+      "requires_resources": [
+        {
+          "component_id": "context_receipt_store",
+          "config_path": "receipts.resource_key",
+          "reason": "records every retrieval so the knowledge base can learn from real use"
+        }
+      ]
     },
     {
       "id": "ramp_ingestion",
@@ -67192,7 +67241,11 @@
         "key_template": "{sinks[i].asset_name}"
       },
       "featured": true,
-      "icon": "Shuffle"
+      "icon": "Shuffle",
+      "genie_checks": [
+        "model_provider",
+        "per_row_misuse"
+      ]
     },
     {
       "id": "warehouse_schema_assets",

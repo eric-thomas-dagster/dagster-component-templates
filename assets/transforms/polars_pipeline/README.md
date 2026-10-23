@@ -32,6 +32,7 @@ Rule of thumb: if each step deserves its own catalog entry + lineage, use per-as
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run -- the partition_key token threaded through this pipeline's step templating becomes a comma-joined string… _(full docs in schema.json + component README)_ |
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
@@ -68,6 +69,7 @@ Rule of thumb: if each step deserves its own catalog entry + lineage, use per-as
 | `steps` | `List[Dict[str, Any]]` | — | Named steps. Each: {id, source: {kind: upstream\|ref, upstream_asset_key\|ref}, operations: [...]}. |
 | `sinks` | `List[Dict[str, Any]]` | — | Optional side-output writes. Each: {from: <step_id>, kind: parquet\|csv, path: '...'}. These run after the chain finishes; the asset's return value comes from primary_step. |
 | `primary_step` | `str` | — | Step id whose frame is returned as the asset's output (default: last step). |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. Must match the sensor's `dynamic_partitions_name`. |
 | `include_preview_metadata` | `bool` | `false` | — |
 | `preview_rows` | `int` | `25` | — |

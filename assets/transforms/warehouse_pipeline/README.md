@@ -35,6 +35,7 @@ Think of it as a YAML-defined view-building or stored-procedure-shape — analog
 |---|---|---|---|
 | `group_name` | `str` | — | — |
 | `deps` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run -- the partition_key token threaded through this pipeline's step templating becomes a comma-joined string… _(full docs in schema.json + component README)_ |
 | `owners` | `List[str]` | — | — |
 | `description` | `str` | — | — |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
@@ -75,6 +76,7 @@ Think of it as a YAML-defined view-building or stored-procedure-shape — analog
 | `operations` | `List[Dict[str, Any]]` | — | Flat shape: ordered list of ops applied to 'source'. Compiles to one anonymous step. |
 | `steps` | `List[Dict[str, Any]]` | — | Named steps. Each: {id, source: {kind: table\|ref\|sql, ...}, operations: [...]}. Required when using the multi-step form. |
 | `sinks` | `List[Dict[str, Any]]` | — | Output sinks. Each: {from: <step_id>, table: 'schema.table', mode: replace\|create_if_not_exists}. Required when using the multi-step form. Multiple sinks emit multiple CTAS statements. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 | `include_preview_metadata` | `bool` | `false` | — |
 | `preview_rows` | `int` | `25` | — |

@@ -1813,7 +1813,13 @@ class MLPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             # Partition-aware compute: read context.partition_key once + thread
             # into ingest + sink templates. Safe on unpartitioned assets
             # (partition_key is None; substitutions become no-ops).
-            partition_key = context.partition_key if context.has_partition_key else None
+            if context.has_partition_key:
+                partition_key = context.partition_key
+            elif context.has_partition_key_range:
+                # single_run backfill: represent the whole range as one joined token.
+                partition_key = ",".join(str(k) for k in context.partition_keys)
+            else:
+                partition_key = None
             if partition_key:
                 context.log.info(f"partition-aware materialization: partition_key={partition_key!r}")
 

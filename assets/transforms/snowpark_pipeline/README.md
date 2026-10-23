@@ -31,6 +31,7 @@ The simpler, single-step counterpart is `warehouse_summarize` (or the rest of th
 | `kinds` | `List[str]` | — | — |
 | `owners` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run -- the partition_key token threaded through this pipeline's step templating becomes a comma-joined string… _(full docs in schema.json + component README)_ |
 
 ### Partitions
 
@@ -59,6 +60,7 @@ The simpler, single-step counterpart is `warehouse_summarize` (or the rest of th
 | `sink` | `Dict[str, Any]` | — | Flat shape: {kind: table\|none, ...} |
 | `steps` | `List[Dict[str, Any]]` | — | Named steps. Each: {id, source: {kind: table\|sql\|ref, ...}, operations: [...]}. |
 | `sinks` | `List[Dict[str, Any]]` | — | Sinks. Each: {from: <step_id>, kind: table\|none, table: 'DB.SCH.T', mode}. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 
 [//]: # (FIELDS:END)

@@ -38,13 +38,14 @@ ALL ops, including across steps):
       # The asset's RETURN value is the last step's frame (or `primary_step`
       # if you name one explicitly).
 """
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Literal, Optional, Tuple
 
 import dagster as dg
 from dagster import (
     AssetExecutionContext,
     AssetIn,
     AssetKey,
+    BackfillPolicy,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -591,6 +592,27 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
         default="%Y-%m-%d",
         description="strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
     )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run -- the partition_key "
+            "token threaded through this pipeline's step templating becomes a "
+            "comma-joined string spanning the whole range (not a single key) when "
+            "the run covers a range. 'multi_run' launches one run per partition "
+            "(optionally capped via backfill_policy_max_partitions_per_run). Leave "
+            "unset for Dagster's default (one run per partition, uncapped). Ignored "
+            "when partition_type is not set. 'single_run' requires a partition-"
+            "range-aware IO manager (e.g. a DB-table IO manager with partition_expr "
+            "set) -- a generic filesystem/default IO manager cannot persist a "
+            "single_run output spanning multiple partitions and will raise a clear "
+            "error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
     partition_start: Optional[str] = Field(
         default=None,
         description="ISO date for time-based partition types (daily/weekly/monthly/hourly).",
@@ -764,6 +786,14 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
     cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
 )
 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            backfill_policy = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            backfill_policy = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
         # Auto-detect required Dagster resource keys from table-kind sinks.
         required_resource_keys: set = set()
         for sink in sinks:
@@ -782,6 +812,7 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
             kinds=set(kinds),
             partitions_def=partitions_def,
+            backfill_policy=backfill_policy,
             required_resource_keys=required_resource_keys or None,
             metadata=self.metadata or {},
         )
@@ -789,9 +820,15 @@ class PolarsPipelineComponent(Component, Model, Resolvable):
             import polars as pl
 
             # Partition-key substitution values for file/url path templating.
-            partition_key = context.partition_key if context.has_partition_key else None
+            if context.has_partition_key:
+                partition_key = context.partition_key
+            elif context.has_partition_key_range:
+                # single_run backfill: represent the whole range as one joined token.
+                partition_key = ",".join(str(k) for k in context.partition_keys)
+            else:
+                partition_key = None
             partition_map: Dict[str, str] = {}
-            if partition_key is not None:
+            if context.has_partition_key:
                 pk = context.partition_key
                 if hasattr(pk, "keys_by_dimension"):
                     partition_map = dict(pk.keys_by_dimension)

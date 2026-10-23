@@ -1073,6 +1073,7 @@ _CLASS_PATHS: dict[str, str] = {
     "PythonCallableJobComponent": "jobs/python_callable_job/component.py",
     "QdrantResourceComponent": "resources/qdrant_resource/component.py",
     "QuestdbSqlQueryComponent": "assets/sources/questdb_sql_query/component.py",
+    "PulsarTopicStatsQueryComponent": "assets/sources/pulsar_topic_stats_query/component.py",
     "QlikCloudAppReloadComponent": "integrations/qlik_cloud_app_reload/component.py",
     "QlikComposeResource": "resources/qlik_compose_resource/component.py",
     "QlikComposeResourceComponent": "resources/qlik_compose_resource/component.py",

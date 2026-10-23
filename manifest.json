@@ -70242,6 +70242,59 @@
         "analytics",
         "sql"
       ]
+    },
+    {
+      "id": "pulsar_topic_stats_query",
+      "name": "Pulsar Topic Stats",
+      "category": "source",
+      "description": "Fetch an Apache Pulsar topic's live stats via the broker's real Admin REST API and materialize one row per subscription as a Dagster asset.",
+      "path": "assets/sources/pulsar_topic_stats_query",
+      "tags": [
+        "pulsar",
+        "messaging",
+        "monitoring",
+        "observability",
+        "source"
+      ],
+      "icon": "si:apachepulsar",
+      "type": "dagster_component_templates.PulsarTopicStatsQueryComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/pulsar_topic_stats_query/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/pulsar_topic_stats_query/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/pulsar_topic_stats_query/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/pulsar_topic_stats_query/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/pulsar_topic_stats_query/requirements.txt",
+      "component_type": "dagster_component_templates.PulsarTopicStatsQueryComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-23"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "DataFrame",
+        "outputs": "pandas DataFrame, one row per Pulsar subscription (plus topic-level health fields joined onto every row).",
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "keywords": [
+        "pulsar",
+        "messaging",
+        "monitoring",
+        "observability",
+        "source"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

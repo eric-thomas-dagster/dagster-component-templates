@@ -1,0 +1,230 @@
+{
+  "component_type": "dagster_component_templates.PulsarTopicStatsQueryComponent",
+  "name": "Pulsar Topic Stats",
+  "category": "source",
+  "icon": "si:apachepulsar",
+  "description": "Fetch an Apache Pulsar topic's live stats via the broker's real Admin REST API and materialize one row per subscription as a Dagster asset.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {"type": "none", "required": false, "description": "Any deps are lineage-only"},
+    "outputs": {"type": "DataFrame", "description": "pandas DataFrame, one row per subscription (or one topic-level row if there are no subscriptions)"}
+  },
+  "attributes": {
+    "asset_name": {
+      "description": "Dagster asset key.",
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "admin_url": {
+      "description": "Base URL of the Pulsar broker's admin REST API, e.g. 'http://pulsar-broker:8080'.",
+      "type": "string",
+      "label": "Admin URL",
+      "required": true
+    },
+    "tenant": {
+      "description": "Pulsar tenant. {partition_key}/{partition_date}/{partition_start}/{partition_end} tokens are substituted on a partitioned run.",
+      "type": "string",
+      "label": "Tenant",
+      "required": true
+    },
+    "namespace": {
+      "description": "Pulsar namespace within the tenant.",
+      "type": "string",
+      "label": "Namespace",
+      "required": true
+    },
+    "topic": {
+      "description": "Topic name (without the persistent://tenant/namespace/ prefix).",
+      "type": "string",
+      "label": "Topic",
+      "required": true
+    },
+    "persistent": {
+      "type": "boolean",
+      "label": "Persistent",
+      "description": "True for a persistent topic (the common case), False for non-persistent.",
+      "required": false
+    },
+    "auth_token_env_var": {
+      "type": "string",
+      "label": "Auth Token Env Var",
+      "description": "Env var holding a bearer token, if the broker has token auth enabled.",
+      "required": false
+    },
+    "request_headers": {
+      "type": "object",
+      "label": "Request Headers",
+      "description": "Extra HTTP headers.",
+      "required": false
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "description": "HTTP request timeout.",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "include_preview_metadata": {
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include a markdown preview of the result in materialization metadata.",
+      "required": false
+    },
+    "preview_rows": {
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Max rows in the preview.",
+      "required": false
+    },
+    "partition_type": {
+      "default": null,
+      "description": "'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic' | 'cron' | None.",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "dynamic",
+        "cron"
+      ],
+      "label": "Partition Type",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "default": null,
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "label": "Partition Start Date",
+      "required": false,
+      "type": "string"
+    },
+    "partition_values": {
+      "default": null,
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "label": "Partition Values",
+      "required": false,
+      "type": "string"
+    },
+    "dynamic_partition_name": {
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "type": "string"
+    },
+    "partition_dimensions": {
+      "default": null,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "required": false,
+      "type": "array"
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only.",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'.",
+      "required": false
+    },
+    "freshness_max_lag_minutes": {
+      "default": null,
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "label": "Freshness Max Lag (minutes)",
+      "required": false,
+      "type": "integer"
+    },
+    "freshness_cron": {
+      "default": null,
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "label": "Freshness Cron Schedule",
+      "required": false,
+      "type": "string",
+      "x-dagster-widget": "cron"
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    }
+  },
+  "tags": ["pulsar", "messaging", "monitoring", "observability", "source"]
+}

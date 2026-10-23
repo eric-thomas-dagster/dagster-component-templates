@@ -22784,7 +22784,7 @@
       "name": "Enhanced Data Quality Checks",
       "category": "check",
       "description": "Comparison operators for validation checks.",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "author": "Dagster Community",
       "path": "asset_checks/enhanced_data_quality_checks",
       "tags": [
@@ -22810,7 +22810,7 @@
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/data_quality.md",
-        "last_validated": "2026-05-08"
+        "last_validated": "2026-10-23"
       },
       "produces": [
         "asset_check"

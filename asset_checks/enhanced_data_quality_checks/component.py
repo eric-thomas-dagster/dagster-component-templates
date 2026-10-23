@@ -1534,7 +1534,7 @@ class CrossTableValidationConfig(BaseCheckConfig):
     aggregate_function: AggregateFunction = Field(AggregateFunction.SUM, description="Aggregate function")
 
 
-class CustomSqlCheckConfig(BaseModel):
+class CustomSqlCheckConfig(BaseCheckConfig):
     """Configuration for custom SQL checks."""
     sql_query: str = Field(..., description="SQL query to execute")
     expected_result: Optional[Any] = Field(None, description="Expected result from the query")
@@ -1543,7 +1543,7 @@ class CustomSqlCheckConfig(BaseModel):
     severity: Optional[CheckSeverity] = Field(CheckSeverity.WARN, description="Severity level for the check")
 
 
-class DataframeQueryCheckConfig(BaseModel):
+class DataframeQueryCheckConfig(BaseCheckConfig):
     """Configuration for dataframe query checks."""
     query: str = Field(..., description="Dataframe query to execute")
     expected_result: Optional[Any] = Field(None, description="Expected result from the query")
@@ -1552,7 +1552,7 @@ class DataframeQueryCheckConfig(BaseModel):
     severity: Optional[CheckSeverity] = Field(CheckSeverity.WARN, description="Severity level for the check")
 
 
-class CustomDataframeCheckConfig(BaseModel):
+class CustomDataframeCheckConfig(BaseCheckConfig):
     """Configuration for custom dataframe checks."""
     python_code: str = Field(..., description="Python code to execute on the dataframe")
     expected_result: Optional[Any] = Field(None, description="Expected result from the code")
@@ -2481,7 +2481,26 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if hasattr(self, '_flat_config') and self._flat_config:
             return self._flat_config.get(field_name, default)
         return default
-    
+
+    @staticmethod
+    def _get_check_blocking(check_config) -> bool:
+        """Read `blocking` off a per-check config object (BaseCheckConfig subclass
+        or raw dict) for threading into `@asset_check(blocking=...)`.
+
+        `blocking` was declared on every check config with a clear "fails the
+        pipeline" intent (BaseCheckConfig.blocking, plus CustomSqlCheckConfig /
+        DataframeQueryCheckConfig / CustomDataframeCheckConfig once they gained
+        it) but was never actually read anywhere -- none of this component's
+        ~50 `@asset_check(...)` call sites passed Dagster's own `blocking`
+        param, so the field had zero effect regardless of what a user set it
+        to. This is the single read site all of them now share.
+        """
+        if check_config is None:
+            return False
+        if isinstance(check_config, dict):
+            return bool(check_config.get('blocking', False))
+        return bool(getattr(check_config, 'blocking', False))
+
     def _get_check_severity(self, check_config: dict):
         """Get severity level from check configuration, defaulting to WARN.
 
@@ -2524,24 +2543,25 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """Create row count check - can use SQL or dataframe."""
         if component is None:
             component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
 
         check_name = self._get_check_name(asset_key, component, "row_count")
 
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+            @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
             def dataframe_row_count_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_row_count(context, df)
             return dataframe_row_count_check
         else:
             # Database mode - only include required_resource_keys if database_resource_key is not None
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def database_row_count_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_row_count(context)
                 return database_row_count_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def dataframe_row_count_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_row_count(context, df)
                 return dataframe_row_count_check
@@ -2550,23 +2570,24 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """Create null check - can use SQL or dataframe."""
         if component is None:
             component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
             
         check_name = self._get_check_name(asset_key, component, "null_check")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+            @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
             def dataframe_null_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_null_check(context, df)
             return dataframe_null_check
         else:
             # Database mode - only include required_resource_keys if database_resource_key is not None
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def database_null_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_null_check(context)
                 return database_null_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def dataframe_null_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_null_check(context, df)
                 return dataframe_null_check
@@ -2575,23 +2596,24 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """Create static threshold check - can use SQL or dataframe."""
         if component is None:
             component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
             
         check_name = self._get_check_name(asset_key, component, "static_threshold")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+            @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
             def dataframe_static_threshold_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_static_threshold(context, df)
             return dataframe_static_threshold_check
         else:
             # Database mode - only include required_resource_keys if database_resource_key is not None
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def database_static_threshold_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_static_threshold(context)
                 return database_static_threshold_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def dataframe_static_threshold_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_static_threshold(context, df)
                 return dataframe_static_threshold_check
@@ -2600,23 +2622,24 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """Create Benford's Law check - ALWAYS requires dataframe processing."""
         if component is None:
             component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
             
         check_name = self._get_check_name(asset_key, component, "benford_law")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+            @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
             def dataframe_benford_law_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_benford_law(context, df)
             return dataframe_benford_law_check
         else:
             # Database source but complex check → fetch data and process as dataframe
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def database_benford_law_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_benford_law(context)
                 return database_benford_law_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def dataframe_benford_law_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_benford_law(context, df)
                 return dataframe_benford_law_check
@@ -2625,24 +2648,25 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """Create entropy check - ALWAYS requires dataframe processing."""
         if component is None:
             component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
             
         check_name = self._get_check_name(asset_key, component, "entropy_analysis")
         sanitized_name = self._sanitize_asset_key_name(asset_key)
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=f"{sanitized_name}_entropy", partitions_def=component._partitions_def_for_checks)
+            @asset_check(asset=asset_key, name=f"{sanitized_name}_entropy", blocking=blocking, partitions_def=component._partitions_def_for_checks)
             def dataframe_entropy_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_entropy(context, df)
             return dataframe_entropy_check
         else:
             # Database source but complex check → fetch data and process as dataframe
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_entropy", required_resource_keys={component.database_resource_key}, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=f"{sanitized_name}_entropy", required_resource_keys={component.database_resource_key}, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def database_entropy_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_entropy(context)
                 return database_entropy_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_entropy", partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=f"{sanitized_name}_entropy", blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def dataframe_entropy_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_entropy(context, df)
                 return dataframe_entropy_check
@@ -2651,24 +2675,25 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """Create correlation check - ALWAYS requires dataframe processing."""
         if component is None:
             component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
             
         check_name = self._get_check_name(asset_key, component, "correlation_check")
         sanitized_name = self._sanitize_asset_key_name(asset_key)
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=f"{sanitized_name}_correlation", partitions_def=component._partitions_def_for_checks)
+            @asset_check(asset=asset_key, name=f"{sanitized_name}_correlation", blocking=blocking, partitions_def=component._partitions_def_for_checks)
             def dataframe_correlation_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_correlation(context, df)
             return dataframe_correlation_check
         else:
             # Database source but complex check → fetch data and process as dataframe
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_correlation", required_resource_keys={component.database_resource_key}, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=f"{sanitized_name}_correlation", required_resource_keys={component.database_resource_key}, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def database_correlation_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_correlation(context)
                 return database_correlation_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_correlation", partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=f"{sanitized_name}_correlation", blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def dataframe_correlation_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_correlation(context, df)
                 return dataframe_correlation_check
@@ -2677,23 +2702,24 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """Create value set validation check - ALWAYS requires dataframe processing."""
         if component is None:
             component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
             
         check_name = self._get_check_name(asset_key, component, "value_set_validation")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+            @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
             def dataframe_value_set_validation_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_value_set_validation(context, df)
             return dataframe_value_set_validation_check
         else:
             # Database source but complex check → fetch data and process as dataframe
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def database_value_set_validation_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_value_set_validation(context)
                 return database_value_set_validation_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def dataframe_value_set_validation_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_value_set_validation(context, df)
                 return dataframe_value_set_validation_check
@@ -2702,23 +2728,24 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """Create pattern matching check - ALWAYS requires dataframe processing."""
         if component is None:
             component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
             
         check_name = self._get_check_name(asset_key, component, "pattern_matching")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+            @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
             def dataframe_pattern_matching_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_pattern_matching(context, df)
             return dataframe_pattern_matching_check
         else:
             # Database source but complex check → fetch data and process as dataframe
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def database_pattern_matching_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_pattern_matching(context)
                 return database_pattern_matching_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def dataframe_pattern_matching_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_pattern_matching(context, df)
                 return dataframe_pattern_matching_check
@@ -2727,23 +2754,24 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """Create predicted range check - ALWAYS requires dataframe processing."""
         if component is None:
             component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
             
         check_name = self._get_check_name(asset_key, component, "predicted_range")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+            @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
             def dataframe_predicted_range_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_predicted_range(context, df)
             return dataframe_predicted_range_check
         else:
             # Database source but complex check → fetch data and process as dataframe
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def database_predicted_range_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_predicted_range(context)
                 return database_predicted_range_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def dataframe_predicted_range_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_predicted_range(context, df)
                 return dataframe_predicted_range_check
@@ -2752,23 +2780,24 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """Create percent delta check - can use SQL or dataframe."""
         if component is None:
             component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
             
         check_name = self._get_check_name(asset_key, component, "percent_delta")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+            @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
             def dataframe_percent_delta_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_percent_delta(context, df)
             return dataframe_percent_delta_check
         else:
             # Database mode - only include required_resource_keys if database_resource_key is not None
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def database_percent_delta_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_percent_delta(context)
                 return database_percent_delta_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def dataframe_percent_delta_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_percent_delta(context, df)
                 return dataframe_percent_delta_check
@@ -2777,23 +2806,24 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """Create distribution change check - can use SQL or dataframe."""
         if component is None:
             component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
             
         check_name = self._get_check_name(asset_key, component, "distribution_change")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+            @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
             def dataframe_distribution_change_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_distribution_change(context, df)
             return dataframe_distribution_change_check
         else:
             # Database mode - only include required_resource_keys if database_resource_key is not None
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def database_distribution_change_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_distribution_change(context)
                 return database_distribution_change_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def dataframe_distribution_change_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_distribution_change(context, df)
                 return dataframe_distribution_change_check
@@ -2802,23 +2832,24 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """Create anomaly detection check - can use SQL or dataframe."""
         if component is None:
             component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
 
         check_name = self._get_check_name(asset_key, component, "anomaly_detection")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+            @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
             def dataframe_anomaly_detection_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_anomaly_detection(context, df)
             return dataframe_anomaly_detection_check
         else:
             # Database mode - only include required_resource_keys if database_resource_key is not None
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def database_anomaly_detection_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_anomaly_detection(context)
                 return database_anomaly_detection_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def dataframe_anomaly_detection_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_anomaly_detection(context, df)
                 return dataframe_anomaly_detection_check
@@ -2827,24 +2858,25 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """Create data type check - ALWAYS requires dataframe processing."""
         if component is None:
             component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
             
         check_name = self._get_check_name(asset_key, component, "predicted_range")
         sanitized_name = self._sanitize_asset_key_name(asset_key)
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=f"{sanitized_name}_data_type", partitions_def=component._partitions_def_for_checks)
+            @asset_check(asset=asset_key, name=f"{sanitized_name}_data_type", blocking=blocking, partitions_def=component._partitions_def_for_checks)
             def dataframe_data_type_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_data_type(context, df)
             return dataframe_data_type_check
         else:
             # Database source but complex check → fetch data and process as dataframe
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_data_type", required_resource_keys={component.database_resource_key}, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=f"{sanitized_name}_data_type", required_resource_keys={component.database_resource_key}, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def database_data_type_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_data_type(context)
                 return database_data_type_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_data_type", partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=f"{sanitized_name}_data_type", blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def dataframe_data_type_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_data_type(context, df)
                 return dataframe_data_type_check
@@ -2853,23 +2885,24 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """Create range check - can use SQL or dataframe processing."""
         if component is None:
             component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
             
         check_name = self._get_check_name(asset_key, component, "percent_delta")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+            @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
             def dataframe_range_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_range_check(context, df)
             return dataframe_range_check
         else:
             # Database source - can use SQL for simple range checks
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def database_range_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_range_check(context)
                 return database_range_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def dataframe_range_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_range_check(context, df)
                 return dataframe_range_check
@@ -2878,23 +2911,24 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """Create uniqueness check - ALWAYS requires dataframe processing."""
         if component is None:
             component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
             
         check_name = self._get_check_name(asset_key, component, "range_check")
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+            @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
             def dataframe_uniqueness_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_uniqueness_check(context, df)
             return dataframe_uniqueness_check
         else:
             # Database source but complex check → fetch data and process as dataframe
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, required_resource_keys={component.database_resource_key}, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def database_uniqueness_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_uniqueness_check(context)
                 return database_uniqueness_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def dataframe_uniqueness_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_uniqueness_check(context, df)
                 return dataframe_uniqueness_check
@@ -2903,24 +2937,25 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """Create custom dataframe check - ALWAYS requires dataframe processing."""
         if component is None:
             component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
             
         check_name = self._get_check_name(asset_key, component, "data_type_check")
         sanitized_name = self._sanitize_asset_key_name(asset_key)
         if component.data_source_type == "dataframe" or (component.data_source_type != "database" and not component.database_resource_key):
-            @asset_check(asset=asset_key, name=f"{sanitized_name}_custom_dataframe_check", partitions_def=component._partitions_def_for_checks)
+            @asset_check(asset=asset_key, name=f"{sanitized_name}_custom_dataframe_check", blocking=blocking, partitions_def=component._partitions_def_for_checks)
             def dataframe_custom_dataframe_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                 return component._execute_dataframe_custom_dataframe_check(context, df)
             return dataframe_custom_dataframe_check
         else:
             # Database source but complex check → fetch data and process as dataframe
             if component.database_resource_key:
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_custom_dataframe_check", required_resource_keys={component.database_resource_key}, partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=f"{sanitized_name}_custom_dataframe_check", required_resource_keys={component.database_resource_key}, blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def database_custom_dataframe_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                     return component._execute_database_to_dataframe_custom_dataframe_check(context)
                 return database_custom_dataframe_check
             else:
                 # Fallback to dataframe mode if no database resource is available
-                @asset_check(asset=asset_key, name=f"{sanitized_name}_custom_dataframe_check", partitions_def=component._partitions_def_for_checks)
+                @asset_check(asset=asset_key, name=f"{sanitized_name}_custom_dataframe_check", blocking=blocking, partitions_def=component._partitions_def_for_checks)
                 def dataframe_custom_dataframe_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
                     return component._execute_dataframe_custom_dataframe_check(context, df)
                 return dataframe_custom_dataframe_check
@@ -2938,8 +2973,9 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             
         if not db_key:
             raise ValueError("custom_sql_check requires a database_resource_key.")
-            
-        @asset_check(asset=asset_key, name=check_name, required_resource_keys={db_key}, partitions_def=self._partitions_def_for_checks)
+
+        blocking = self._get_check_blocking(check_cfg)
+        @asset_check(asset=asset_key, name=check_name, required_resource_keys={db_key}, blocking=blocking, partitions_def=self._partitions_def_for_checks)
         def custom_sql_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
             return self._execute_custom_sql_check(context, check_cfg, db_key)
         return custom_sql_check
@@ -2954,7 +2990,8 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             check_name = f"{sanitized_name}_dataframe_query_check_{idx+1}"
         
         # Dataframe query checks are always dataframe-only (no database fallback)
-        @asset_check(asset=asset_key, name=check_name, partitions_def=self._partitions_def_for_checks)
+        blocking = self._get_check_blocking(check_cfg)
+        @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=self._partitions_def_for_checks)
         def dataframe_query_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
             return self._execute_dataframe_query_check(context, df, check_cfg)
         return dataframe_query_check
@@ -2969,7 +3006,8 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             check_name = f"{sanitized_name}_custom_dataframe_check_{idx+1}"
         
         # Custom dataframe checks are always dataframe-only (no database fallback)
-        @asset_check(asset=asset_key, name=check_name, partitions_def=self._partitions_def_for_checks)
+        blocking = self._get_check_blocking(check_cfg)
+        @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=self._partitions_def_for_checks)
         def custom_dataframe_check(context: AssetCheckExecutionContext, df) -> AssetCheckResult:
             return self._execute_custom_dataframe_check(context, df, check_cfg)
         return custom_dataframe_check
@@ -2978,6 +3016,7 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """Create cross-table validation check."""
         if component is None:
             component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
             
         check_name = self._get_check_name(asset_key, component, "cross_table_validation")
         # Cross-table validation is database-only
@@ -2991,12 +3030,12 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             required_resource_keys.add(source_database)
             
         if required_resource_keys:
-            @asset_check(asset=asset_key, name=check_name, required_resource_keys=required_resource_keys, partitions_def=component._partitions_def_for_checks)
+            @asset_check(asset=asset_key, name=check_name, required_resource_keys=required_resource_keys, blocking=blocking, partitions_def=component._partitions_def_for_checks)
             def cross_table_validation_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                 return component._execute_cross_table_validation(context)
             return cross_table_validation_check
         else:
-            @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+            @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
             def cross_table_validation_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
                 return component._execute_cross_table_validation(context)
             return cross_table_validation_check
@@ -3011,10 +3050,11 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         """
         if component is None:
             component = self
+        blocking = self._get_check_blocking(getattr(component, '_current_check_config', None))
 
         check_name = self._get_check_name(asset_key, component, "duration_anomaly")
 
-        @asset_check(asset=asset_key, name=check_name, partitions_def=component._partitions_def_for_checks)
+        @asset_check(asset=asset_key, name=check_name, blocking=blocking, partitions_def=component._partitions_def_for_checks)
         def duration_anomaly_check(context: AssetCheckExecutionContext) -> AssetCheckResult:
             return component._execute_duration_anomaly_check(context, asset_key)
         return duration_anomaly_check
@@ -5388,7 +5428,25 @@ len(result['failed_column_names'])
                         # Standard execute pattern (DuckDB, PostgreSQL, etc.)
                         result = conn.execute(query)
                         if hasattr(result, 'fetchall'):
-                            return result.fetchall()
+                            # DuckDB's result object has BOTH fetchall and
+                            # fetchone, so this branch always wins over the
+                            # elif below -- meaning a single-value query (e.g.
+                            # SELECT COUNT(*)) always came back as [(n,)], a
+                            # list containing one 1-tuple, never as the bare
+                            # scalar `n` the `fetchone` branch below returns
+                            # for drivers that lack `fetchall`. Callers
+                            # throughout this component only unwrap ONE level
+                            # (`result[0]`), so they got the tuple `(n,)`
+                            # itself back and crashed with a TypeError the
+                            # first time they compared or summed it against a
+                            # plain int. Apply the same single-value unwrap
+                            # here that the `fetchone` branch already does,
+                            # so both branches return the same shape for the
+                            # same kind of query.
+                            rows = result.fetchall()
+                            if rows and len(rows) == 1 and isinstance(rows[0], (list, tuple)) and len(rows[0]) == 1:
+                                return rows[0][0]
+                            return rows
                         elif hasattr(result, 'fetchone'):
                             # For single-row results (like COUNT queries)
                             row = result.fetchone()

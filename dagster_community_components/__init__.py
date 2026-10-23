@@ -1062,6 +1062,7 @@ _CLASS_PATHS: dict[str, str] = {
     "PySparkResourceComponent": "resources/pyspark_resource/component.py",
     "PythonCallableJobComponent": "jobs/python_callable_job/component.py",
     "QdrantResourceComponent": "resources/qdrant_resource/component.py",
+    "QlikCloudAppReloadComponent": "integrations/qlik_cloud_app_reload/component.py",
     "QlikComposeResource": "resources/qlik_compose_resource/component.py",
     "QlikComposeResourceComponent": "resources/qlik_compose_resource/component.py",
     "QlikComposeWorkflowMetricsIngestionComponent": "assets/ingestion/qlik_compose_workflow_metrics_ingestion/component.py",

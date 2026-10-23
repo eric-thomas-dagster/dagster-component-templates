@@ -1,0 +1,9 @@
+type: dagster_component_templates.QlikCloudAppReloadComponent
+attributes:
+  asset_key: bi/finance_consolidated_app
+  app_id: <fill in>
+  tenant_url_env_var: QLIK_CLOUD_TENANT_URL
+  api_key_env_var: QLIK_CLOUD_API_KEY
+  deps:
+    - warehouse/finance_fact
+  group_name: bi

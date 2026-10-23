@@ -44835,7 +44835,7 @@
       "name": "openlineage_emitter",
       "category": "check",
       "description": "Asset check that emits OpenLineage START/COMPLETE events to OL-compatible backends (Marquez, DataHub, OpenMetadata) when an upstream asset materializes.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "asset_checks/openlineage_emitter",
       "tags": [],
@@ -44852,7 +44852,7 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/asset_checks/openlineage_emitter/requirements.txt",
       "validation": {
         "level": "live",
-        "last_validated": "2026-05-11"
+        "last_validated": "2026-10-23"
       },
       "produces": [
         "asset_check"
@@ -44877,7 +44877,7 @@
       "name": "openlineage_export_job",
       "category": "jobs",
       "description": "Op-shaped job that walks the live Dagster asset graph (or, with scope=deployment, the whole Dagster+ deployment via GraphQL) and emits one OpenLineage RunEvent per asset to a collector (Marquez, OpenLineage Proxy, Datakin), including a real columnLineage facet derived from each asset's materialization-time column lineage.",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "author": "Dagster Community",
       "path": "jobs/openlineage_export_job",
       "tags": [],
@@ -50555,6 +50555,53 @@
       "produces": [
         "job",
         "schedule"
+      ]
+    },
+    {
+      "id": "qlik_cloud_app_reload",
+      "name": "qlik_cloud_app_reload",
+      "component_type": "dagster_component_templates.QlikCloudAppReloadComponent",
+      "path": "integrations/qlik_cloud_app_reload",
+      "category": "integration",
+      "icon": "favicon:qlik.com",
+      "description": "Trigger a Qlik Cloud app reload and poll it to completion via the real Qlik Cloud REST API (POST /api/v1/reloads, GET /api/v1/reloads/{id}), surfacing status/duration/error as materialization metadata. Different product from Qlik Compose (qlik_compose_workspace) -- this is the registry's first Qlik Cloud / Qlik Sense coverage. Optional polling_sensor observes reloads this component did not itself trigger.",
+      "tags": [],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_app_reload/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_app_reload/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_app_reload/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_app_reload/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_app_reload/schema.json",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "component_only",
+        "last_validated": "2026-10-23"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "qlik_cloud_app_reload_asset"
+        ],
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "produces": [
+        "asset",
+        "sensor"
+      ],
+      "stateful": false,
+      "keywords": [
+        "qlik cloud",
+        "qlik sense",
+        "bi",
+        "reload",
+        "dashboard refresh"
       ]
     },
     {

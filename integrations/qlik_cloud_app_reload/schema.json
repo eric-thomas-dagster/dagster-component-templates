@@ -1,0 +1,127 @@
+{
+  "component_type": "dagster_component_templates.QlikCloudAppReloadComponent",
+  "description": "Trigger a Qlik Cloud app reload and poll it to completion, surfacing status/duration/error as materialization metadata.",
+  "category": "integration",
+  "icon": "RefreshCw",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "asset",
+      "description": "Materializable asset for a Qlik Cloud app reload"
+    }
+  },
+  "attributes": {
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Dagster asset key for the Qlik Cloud app.",
+      "required": true
+    },
+    "app_id": {
+      "type": "string",
+      "label": "App Id",
+      "description": "Qlik Cloud app id to reload.",
+      "required": true
+    },
+    "tenant_url_env_var": {
+      "type": "string",
+      "label": "Tenant Url Env Var",
+      "description": "Env var holding the tenant base URL, e.g. https://my-tenant.us.qlikcloud.com (Qlik Cloud is tenant-scoped -- there is no shared hostname).",
+      "required": false,
+      "default": "QLIK_CLOUD_TENANT_URL",
+      "ui:widget": "env_var"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "description": "Env var holding a Qlik Cloud API key (Bearer token -- see qlik.dev's 'generate your first API key').",
+      "required": false,
+      "default": "QLIK_CLOUD_API_KEY",
+      "ui:widget": "env_var"
+    },
+    "partial": {
+      "type": "boolean",
+      "label": "Partial",
+      "description": "Partial reload instead of a full reload.",
+      "required": false,
+      "default": false
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between reload-status polls.",
+      "required": false,
+      "default": 15
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Max seconds to wait for the reload to reach a terminal status before failing the run.",
+      "required": false,
+      "default": 1800
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Human-readable description.",
+      "required": false,
+      "default": null,
+      "ui:widget": "code"
+    },
+    "deps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Deps",
+      "description": "Upstream Dagster asset keys (e.g. the warehouse fact table this app reads).",
+      "required": false,
+      "default": null,
+      "ui:widget": "list"
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "description": "Asset owners.",
+      "required": false,
+      "default": null,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Catalog tags.",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "polling_sensor": {
+      "type": "boolean",
+      "label": "Polling Sensor",
+      "description": "If true, adds a sensor that polls GET /api/v1/reloads?appId=... for reloads this component did NOT trigger (e.g. a scheduled reload configured in Qlik Cloud itself, or someone reloading from the Qlik hub), and emits AssetObservation for each one -- distinguished from this asset's own triggers via the resourceId tag ('dagster') set on every reload this component starts. Off by default.",
+      "required": false,
+      "default": false
+    },
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique sensor name. Defaults to '{asset_key}__reload_observer'. Only used when polling_sensor=True.",
+      "required": false,
+      "default": null
+    },
+    "check_interval_seconds": {
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between sensor polls. Only used when polling_sensor=True.",
+      "required": false,
+      "default": 300
+    }
+  },
+  "tags": ["integration", "qlik", "bi", "reload"],
+  "name": "QlikCloudAppReload"
+}

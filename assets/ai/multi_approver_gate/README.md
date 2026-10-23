@@ -129,6 +129,7 @@ Second approval (`.bob@example.com.json`) unblocks the gate; the third is option
 | `owners` | `List[str]` | — | Asset owners |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Extra tags |
 | `kinds` | `List[str]` | — | Asset kinds (defaults to ['human', 'approval', 'quorum']). |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' sends ONE approval request covering the whole backfill range (the range's partition keys are joined into a single request/sidecar-state key, so one approv… _(full docs in schema.json + component README)_ |
 
 ### Partitions
 
@@ -151,5 +152,6 @@ Second approval (`.bob@example.com.json`) unblocks the gate; the third is option
 | `escalate_contact` | `str` | — | Contact shown in the escalation-timeout asset check message. Free-form (email, Slack handle, PagerDuty rotation ID). |
 | `default_approval_key` | `str` | `"default"` | Filename stem used when the asset is unpartitioned. |
 | `dynamic_partition_name` | `str` | — | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)

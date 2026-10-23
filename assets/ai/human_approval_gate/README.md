@@ -64,6 +64,7 @@ attributes:
 | `owners` | `List[str]` | — | Asset owners |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags |
 | `kinds` | `List[str]` | — | Asset kinds (defaults to ['human', 'approval']). |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' sends ONE approval request covering the whole backfill range (the range's partition keys are joined into a single request/sidecar-state key, so one approv… _(full docs in schema.json + component README)_ |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data loaded at runtime). |
 
 ### Freshness
@@ -98,6 +99,7 @@ attributes:
 |---|---|---|---|
 | `default_approval_key` | `str` | `"default"` | Token filename stem used when the asset is unpartitioned. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

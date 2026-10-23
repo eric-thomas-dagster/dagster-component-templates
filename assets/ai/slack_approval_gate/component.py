@@ -35,7 +35,7 @@ import json
 import os
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import dagster as dg
 from pydantic import Field
@@ -469,6 +469,25 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
     partition_values: Optional[Any] = Field(default=None)
     dynamic_partition_name: Optional[str] = Field(default=None)
     partition_dimensions: Optional[List[Dict[str, Any]]] = Field(default=None)
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "sends ONE approval request covering the whole backfill range "
+            "(the range's partition keys are joined into a single request/"
+            "sidecar-state key, so one approve/reject decision applies to the "
+            "entire range as a unit) rather than one request per partition. "
+            "'multi_run' launches one run -- and one separate approval request "
+            "-- per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for Dagster's "
+            "default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -529,6 +548,14 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
     cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
 )
 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            backfill_policy = dg.BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            backfill_policy = dg.BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
         # ── Asset: post to Slack + record state in a sidecar file ──────
         # Sidecar (per-partition) file: `<approval_dir>/<safe_key><suffix>` —
         # holds message_ts, channel_id, posted_at, escalated_at. Existing
@@ -542,10 +569,16 @@ class SlackApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
             owners=self.owners or [],
             tags=tag_map,
             partitions_def=partitions_def,
+            backfill_policy=backfill_policy,
             ins={"upstream": dg.AssetIn(key=dg.AssetKey.from_user_string(upstream_asset_key))},
         )
         def _posted_asset(context: dg.AssetExecutionContext, upstream):
-            raw_key = context.partition_key if context.has_partition_key else "default"
+            if context.has_partition_key:
+                raw_key = context.partition_key
+            elif context.has_partition_key_range:
+                raw_key = ",".join(str(k) for k in context.partition_keys)
+            else:
+                raw_key = "default"
             safe_key = _safe_partition_key(raw_key)
             fs = _ApprovalFS(approval_dir)
             fs.mkdir()

@@ -57,6 +57,7 @@ Right-click on a user in Slack → **View profile** → **⋮ More** → **Copy 
 | `owners` | `List[str]` | — | Asset owners. |
 | `tags` | `Union[Dict[str, Any], List[str]]` | — | Extra tags. |
 | `description` | `str` | — | Asset description. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' sends ONE approval request covering the whole backfill range (the range's partition keys are joined into a single request/sidecar-state key, so one approv… _(full docs in schema.json + component README)_ |
 
 ### Partitions
 
@@ -83,6 +84,7 @@ Right-click on a user in Slack → **View profile** → **⋮ More** → **Copy 
 | `on_timeout` | `str` | `"escalate"` | `escalate` (default — ping escalate_slack_user, keep waiting) \| `reject` (write approved=false token) \| `approve` (write approved=true — use with caution). |
 | `escalate_slack_user` | `str` | — | Slack user ID pinged when timeout escalates. Only used when `on_timeout: escalate`. |
 | `dynamic_partition_name` | `str` | — | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

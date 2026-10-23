@@ -36,7 +36,7 @@ re-materialize).
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import dagster as dg
 from pydantic import Field
@@ -312,6 +312,25 @@ class HumanApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name}.",
     )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "sends ONE approval request covering the whole backfill range "
+            "(the range's partition keys are joined into a single request/"
+            "sidecar-state key, so one approve/reject decision applies to the "
+            "entire range as a unit) rather than one request per partition. "
+            "'multi_run' launches one run -- and one separate approval request "
+            "-- per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for Dagster's "
+            "default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
 
     # Retry policy
     retry_policy_max_retries: Optional[int] = Field(
@@ -371,6 +390,14 @@ class HumanApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
     cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
 )
 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            backfill_policy = dg.BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            backfill_policy = dg.BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
         freshness = None
         if self.freshness_max_lag_minutes is not None:
             freshness = _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
@@ -407,6 +434,7 @@ class HumanApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
             owners=self.owners or [],
             tags=tags,
             partitions_def=partitions_def,
+            backfill_policy=backfill_policy,
             freshness_policy=freshness,
             retry_policy=retry_policy,
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
@@ -415,7 +443,12 @@ class HumanApprovalGateComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         def _gate(context: dg.AssetExecutionContext, upstream):
             import pandas as pd
-            raw_key = context.partition_key if context.has_partition_key else default_approval_key
+            if context.has_partition_key:
+                raw_key = context.partition_key
+            elif context.has_partition_key_range:
+                raw_key = ",".join(str(k) for k in context.partition_keys)
+            else:
+                raw_key = default_approval_key
             # Sanitize `/` `\` so composite partition keys like
             # `dagster-io/dagster#30000` land on a single-segment filename
             # rather than a nested path (which would silently write to a

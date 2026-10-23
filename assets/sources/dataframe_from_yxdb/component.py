@@ -10,7 +10,7 @@ the lower-level `yxdb` package if `import-yxdb` isn't available, iterating
 row-by-row.
 """
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import dagster as dg
 from dagster import (
@@ -144,6 +144,27 @@ class DataframeFromYxdbComponent(Component, Model, Resolvable):
     retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries.")
     retry_policy_backoff: str = Field(default="exponential", description="'linear' or 'exponential'.")
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "reads one file path covering the whole backfill range (file_path's "
+            "{partition_key} token reflects the full range, comma-joined) rather "
+            "than one read per partition. 'multi_run' launches one run per "
+            "partition (optionally capped via backfill_policy_max_partitions_per_run). "
+            "Leave unset for Dagster's default (one run per partition, uncapped). "
+            "Ignored when partition_type is not set. 'single_run' requires a "
+            "partition-range-aware IO manager (e.g. a DB-table IO manager with "
+            "partition_expr set) -- a generic filesystem/default IO manager cannot "
+            "persist a single_run output spanning multiple partitions and will "
+            "raise a clear error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
@@ -190,7 +211,17 @@ class DataframeFromYxdbComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
-        @asset(partitions_def=partitions_def, 
+        _backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            from dagster import BackfillPolicy
+            _backfill_policy = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            from dagster import BackfillPolicy
+            _backfill_policy = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        @asset(partitions_def=partitions_def,
             key=AssetKey.from_user_string(asset_name),
             group_name=group_name,
             description=description,
@@ -198,6 +229,7 @@ class DataframeFromYxdbComponent(Component, Model, Resolvable):
             tags=_all_tags,
             freshness_policy=_freshness_policy,
             retry_policy=_retry_policy,
+            backfill_policy=_backfill_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def _yxdb_asset(context: AssetExecutionContext):

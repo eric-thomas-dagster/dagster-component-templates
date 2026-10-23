@@ -113,28 +113,33 @@
       "label": "Lineage-Only Deps",
       "required": false
     },
-    "freshness_max_lag_minutes": {"label": "Freshness Max Lag Minutes", 
+    "freshness_max_lag_minutes": {
+      "label": "Freshness Max Lag Minutes",
       "description": "FreshnessPolicy max lag (min).",
       "type": "integer",
       "required": false
     },
-    "freshness_cron": {"label": "Freshness Cron", 
+    "freshness_cron": {
+      "label": "Freshness Cron",
       "description": "FreshnessPolicy deadline cron.",
       "type": "string",
       "required": false,
       "x-dagster-widget": "cron"
     },
-    "retry_policy_max_retries": {"label": "Retry Policy Max Retries", 
+    "retry_policy_max_retries": {
+      "label": "Retry Policy Max Retries",
       "description": "Retry on transient failures.",
       "type": "integer",
       "required": false
     },
-    "retry_policy_delay_seconds": {"label": "Retry Policy Delay Seconds", 
+    "retry_policy_delay_seconds": {
+      "label": "Retry Policy Delay Seconds",
       "description": "Seconds between retries.",
       "type": "integer",
       "required": false
     },
-    "retry_policy_backoff": {"label": "Retry Policy Backoff", 
+    "retry_policy_backoff": {
+      "label": "Retry Policy Backoff",
       "type": "string",
       "enum": [
         "exponential",
@@ -148,7 +153,7 @@
     "if_missing": {
       "type": "string",
       "label": "If Missing",
-      "description": "Behavior when the file_path doesn't exist: 'raise' (default — fail loudly), 'empty' (return an empty DataFrame and log a warning so downstream assets continue with empty inputs). Useful for importer-generated demos where the original Alteryx workflow referenced a Windows-only path that the customer hasn't restored yet.",
+      "description": "Behavior when the file_path doesn't exist: 'raise' (default \u2014 fail loudly), 'empty' (return an empty DataFrame and log a warning so downstream assets continue with empty inputs). Useful for importer-generated demos where the original Alteryx workflow referenced a Windows-only path that the customer hasn't restored yet.",
       "required": false
     },
     "partition_cron_schedule": {
@@ -162,6 +167,25 @@
       "label": "Partition Cron Fmt",
       "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
       "required": false
+    },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' fires one query covering the whole backfill range (partition_key/partition_date/partition_start/partition_end tokens reflect the full range, comma-joined for partition_key) rather than one query per partition. 'multi_run' launches one run per partition. Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is not set. 'single_run' requires a partition-range-aware IO manager (e.g. a DB-table IO manager with partition_expr set) -- a generic filesystem/default IO manager cannot persist a single_run output spanning multiple partitions and will raise a clear error at materialization time.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
+      "required": false,
+      "default": null
     }
   }
 }

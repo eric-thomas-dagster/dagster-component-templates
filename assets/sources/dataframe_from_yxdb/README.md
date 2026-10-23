@@ -40,6 +40,7 @@ dagster-component add dataframe_from_yxdb --auto-install
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags. |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['alteryx', 'yxdb']. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' reads one file path covering the whole backfill range (file_path's {partition_key} token reflects the full range, comma-joined) rather than one read per p… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -74,6 +75,7 @@ dagster-component add dataframe_from_yxdb --auto-install
 | `nrows` | `int` | — | Optional row limit; defaults to all rows. |
 | `if_missing` | `str` | `"raise"` | Behavior when the file_path doesn't exist: 'raise' (default — fail loudly), 'empty' (return an empty DataFrame and log a warning so downstream assets continue with empty inputs). Useful for importer-generated demos where… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

@@ -1008,6 +1008,7 @@ _CLASS_PATHS: dict[str, str] = {
     "PiiRedactorComponent": "assets/ai/pii_redactor/component.py",
     "PineconeAssetComponent": "assets/analytics/pinecone_asset/component.py",
     "PineconeReaderComponent": "assets/sources/pinecone_reader/component.py",
+    "PinotSqlQueryComponent": "assets/sources/pinot_sql_query/component.py",
     "PinterestAdsIngestionComponent": "assets/ingestion/pinterest_ads_ingestion/component.py",
     "PinterestAdsResourceComponent": "resources/pinterest_ads_resource/component.py",
     "PinterestAudienceUpsertComponent": "assets/reverse_etl/pinterest_audience_upsert/component.py",

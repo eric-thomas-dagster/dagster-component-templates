@@ -1,0 +1,7 @@
+type: dagster_component_templates.PinotSqlQueryComponent
+attributes:
+  asset_name: daily_active_users
+  broker_url: http://pinot-broker:8099
+  query: "SELECT day, COUNT(DISTINCT user_id) AS dau FROM events GROUP BY day"
+  group_name: analytics
+  kinds: [pinot]

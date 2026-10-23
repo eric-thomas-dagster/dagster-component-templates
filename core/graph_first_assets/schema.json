@@ -1,0 +1,31 @@
+{
+  "component_type": "dagster_component_templates.GraphFirstAssetsComponent",
+  "name": "Graph-First Assets",
+  "category": "core",
+  "icon": "Link",
+  "description": "Declare a list of assets from YAML with a no-op materialization body -- lineage, checks, freshness, and automation without real compute",
+  "x-dagster-io": {
+    "inputs": {"type": "none", "required": false, "description": "No data is read -- any deps are lineage-only"},
+    "outputs": {"type": "none", "description": "No data is written -- materializing logs a line and returns MaterializeResult"}
+  },
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "attributes": {
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "required": true,
+      "label": "Assets",
+      "description": "List of asset specs to declare. Each entry: `key` (required), plus optional `deps`, `group_name`, `description`, `kinds`, `owners`, `tags`, `metadata`, `code_version`, `skippable`, partition fields (`partition_type`/`partition_start`/`partition_values`/`dynamic_partition_name`), `automation_condition` ('eager'/'on_missing'/{kind: on_cron, cron_schedule}), `freshness_max_lag_minutes` + optional `freshness_cron`. Materializing one logs a line and returns MaterializeResult -- no data is read or written."
+    }
+  },
+  "tags": [
+    "core",
+    "graph-first",
+    "lineage",
+    "demo",
+    "no-op"
+  ]
+}

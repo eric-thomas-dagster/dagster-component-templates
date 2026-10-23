@@ -30160,6 +30160,48 @@
       }
     },
     {
+      "id": "graph_first_assets",
+      "name": "Graph-First Assets",
+      "category": "core",
+      "description": "Declare a list of assets from YAML with a no-op materialization body -- lineage, checks, freshness, and automation without real compute",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "core/graph_first_assets",
+      "tags": [
+        "core",
+        "graph-first",
+        "lineage",
+        "demo",
+        "no-op"
+      ],
+      "dependencies": {
+        "pip": []
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/graph_first_assets/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/graph_first_assets/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/graph_first_assets/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/graph_first_assets/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/core/graph_first_assets/requirements.txt",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-23"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "outputs": "Declare a list of assets from YAML with a no-op materialization body -- lineage, checks, freshness, and automation without real compute"
+      },
+      "keywords": [
+        "graph-first",
+        "no-op",
+        "placeholder",
+        "lineage-only",
+        "demo mode"
+      ],
+      "icon": "Link"
+    },
+    {
       "id": "graphql_ingestion",
       "name": "GraphQL Asset",
       "category": "ingestion",

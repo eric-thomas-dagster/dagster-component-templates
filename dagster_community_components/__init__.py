@@ -622,6 +622,7 @@ _CLASS_PATHS: dict[str, str] = {
     "GorgiasTicketsIngestionComponent": "assets/ingestion/gorgias_tickets_ingestion/component.py",
     "GradientBoostingModelComponent": "assets/analytics/gradient_boosting_model/component.py",
     "GrafanaCloudIngestionComponent": "assets/ingestion/grafana_cloud_ingestion/component.py",
+    "GraphFirstAssetsComponent": "core/graph_first_assets/component.py",
     "GraphQLIngestionComponent": "assets/ingestion/graphql_ingestion/component.py",
     "GreatExpectationsCheckComponent": "asset_checks/great_expectations_check/component.py",
     "GreenhouseCandidateUpdateComponent": "assets/reverse_etl/greenhouse_candidate_update/component.py",

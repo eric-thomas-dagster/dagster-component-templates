@@ -1,0 +1,14 @@
+type: dagster_component_templates.GraphFirstAssetsComponent
+attributes:
+  assets:
+    - key: warehouse/orders
+      group_name: warehouse
+      kinds: [snowflake]
+      description: Raw orders feed (graph-first placeholder)
+    - key: warehouse/customers
+      group_name: warehouse
+      deps: [warehouse/orders]
+      metadata:
+        owner: data-platform
+      automation_condition: eager
+      freshness_max_lag_minutes: 60

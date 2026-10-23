@@ -493,6 +493,7 @@ _CLASS_PATHS: dict[str, str] = {
     "ExternalGcsAsset": "external_assets/external_gcs_asset/component.py",
     "ExternalHuggingfaceSpaceAsset": "external_assets/external_huggingface_space/component.py",
     "ExternalIcebergTableAsset": "external_assets/external_iceberg_table/component.py",
+    "ExternalFlinkJobComponent": "external_assets/external_flink_job/component.py",
     "ExternalKafkaAsset": "external_assets/external_kafka_asset/component.py",
     "ExternalKinesisAsset": "external_assets/external_kinesis_asset/component.py",
     "ExternalMqttAsset": "external_assets/external_mqtt_asset/component.py",

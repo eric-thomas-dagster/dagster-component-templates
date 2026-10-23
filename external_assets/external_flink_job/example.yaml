@@ -1,0 +1,12 @@
+type: dagster_component_templates.ExternalFlinkJobComponent
+attributes:
+  jobmanager_url: http://flink-jobmanager:8081
+  jobs:
+    - key: streaming/clickstream_enrichment
+      job_name: clickstream-enrichment
+    - key: streaming/clickstream_aggregation
+      job_name: clickstream-aggregation
+  create_observation_sensor: true
+  sensor_name: flink_jobs_observation_sensor
+  check_interval_seconds: 60
+  group_name: streaming

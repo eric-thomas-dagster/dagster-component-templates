@@ -1,0 +1,142 @@
+{
+  "component_type": "dagster_component_templates.ExternalFlinkJobComponent",
+  "name": "External Flink Job",
+  "category": "external",
+  "icon": "si:apacheflink",
+  "description": "Declare one or several Flink jobs on a self-hosted cluster as external assets in the Dagster asset graph (jobs: for several jobs sharing one sensor/overview call) -- makes them visible for lineage without materializing them from Dagster.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "supports_partitions": true
+  },
+  "attributes": {
+    "jobmanager_url": {
+      "description": "Base URL of the Flink JobManager REST API, e.g. 'http://flink-jobmanager:8081'.",
+      "type": "string",
+      "label": "JobManager URL",
+      "required": true
+    },
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Dagster asset key for a single job. Mutually exclusive with `jobs:` -- use this (with `job_name:`) to declare exactly one job, or `jobs:` to declare several from one component instance sharing jobmanager_url and one observation sensor.",
+      "required": false
+    },
+    "job_name": {
+      "type": "string",
+      "label": "Job Name",
+      "description": "The job's configured name, as reported by GET /jobs/overview. Mutually exclusive with `jobs:`.",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Human-readable description.",
+      "required": false
+    },
+    "create_observation_sensor": {
+      "type": "boolean",
+      "label": "Create Observation Sensor",
+      "description": "Also create the polling sensor that keeps these external assets' status current. When False (default), this component only declares the AssetSpec(s).",
+      "required": false
+    },
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique sensor name. Defaults to '{job_name}__observation_sensor' in single-job mode. Required when using `jobs:`. Only used when create_observation_sensor=True.",
+      "required": false
+    },
+    "check_interval_seconds": {
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between status polls. Only used when create_observation_sensor=True.",
+      "required": false
+    },
+    "request_headers": {
+      "type": "object",
+      "label": "Request Headers",
+      "description": "Extra HTTP headers for every poll, e.g. an Authorization header if the JobManager sits behind an authenticating proxy.",
+      "required": false
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "description": "HTTP request timeout for each poll.",
+      "required": false
+    },
+    "emit_materialization": {
+      "default": true,
+      "description": "When True (default), the sensor emits AssetMaterialization. When False, emits AssetObservation instead. Only used when create_observation_sensor=True.",
+      "label": "Emit Materialization",
+      "required": false,
+      "type": "boolean"
+    },
+    "partition_type": {
+      "default": null,
+      "description": "'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic' | 'cron' | None.",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "dynamic",
+        "cron"
+      ],
+      "label": "Partition Type",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "default": null,
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "label": "Partition Start Date",
+      "required": false,
+      "type": "string"
+    },
+    "partition_values": {
+      "default": null,
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "label": "Partition Values",
+      "required": false,
+      "type": "string"
+    },
+    "dynamic_partition_name": {
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "type": "string"
+    },
+    "partition_dimensions": {
+      "default": null,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "required": false,
+      "type": "array"
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only.",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'.",
+      "required": false
+    }
+  },
+  "tags": ["external", "flink", "streaming", "self-hosted"]
+}

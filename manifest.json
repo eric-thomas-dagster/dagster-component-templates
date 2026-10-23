@@ -24254,6 +24254,57 @@
       ]
     },
     {
+      "id": "external_flink_job",
+      "name": "External Flink Job",
+      "category": "external",
+      "description": "Declare one or several Flink jobs on a self-hosted cluster as external assets (jobs: for several jobs sharing one sensor/overview call) -- makes them visible for lineage without materializing them from Dagster.",
+      "path": "external_assets/external_flink_job",
+      "tags": [
+        "external",
+        "flink",
+        "streaming",
+        "self-hosted"
+      ],
+      "icon": "si:apacheflink",
+      "type": "dagster_component_templates.ExternalFlinkJobComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_flink_job/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_flink_job/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_flink_job/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_flink_job/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_flink_job/requirements.txt",
+      "component_type": "dagster_component_templates.ExternalFlinkJobComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-23"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "produces": [
+        "asset",
+        "sensor"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "None",
+        "outputs": "External AssetSpec(s) for Flink jobs, optionally with an observation sensor.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "keywords": [
+        "external",
+        "flink",
+        "streaming",
+        "self-hosted",
+        "lineage"
+      ]
+    },
+    {
       "id": "external_kafka_asset",
       "name": "External Kafka Asset",
       "category": "external",

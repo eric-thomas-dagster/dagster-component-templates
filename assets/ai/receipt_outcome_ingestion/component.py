@@ -826,6 +826,7 @@ class ReceiptOutcomeIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
         grace_hours = self.unknown_receipt_grace_hours
         asset_key = dg.AssetKey.from_user_string(self.asset_name)
         tags = {**(self.asset_tags or {}), **{f"dagster/kind/{k}": "" for k in (self.kinds or ["python", "feedback"])}}
+        tags.setdefault("insights/metrics", "receipt_outcome_ingestion")  # opt-in for insights_custom_metrics_sync `presets: auto`
         required = {store_key} | ({src["resource_key"]} if src["kind"] == "sql" else set())
 
         freshness_policy = None

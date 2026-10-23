@@ -3813,6 +3813,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         _all_tags = dict(self.asset_tags or {})
         for _kind in _inferred_kinds:
             _all_tags[f"dagster/kind/{_kind}"] = ""
+        _all_tags.setdefault("insights/metrics", "context_engineering_pipeline")  # opt-in for insights_custom_metrics_sync `presets: auto`
 
         if context_policy is not None:
             _all_tags["context/sensitivity"] = context_policy.get("sensitivity", "internal")

@@ -144,7 +144,7 @@ def test_warn_default_reports_drift_but_still_syncs(fake, monkeypatch, capfd):
     assert any("metadataKey" in x for x in md["schema_problems"].value) and "schema drift detected" in capfd.readouterr().err
 
 
-def test_strict_drift_skips_all_writes_and_reports(fake, monkeypatch, caplog):
+def test_strict_drift_skips_all_writes_and_reports(fake, monkeypatch, caplog, capfd):
     fake.schema["objects"]["CustomMetric"]["key"] = fake.schema["objects"]["CustomMetric"].pop("metadataKey")
     r = dg.materialize(_comp(fake, monkeypatch, verify_schema="strict").assets)
     assert r.success and fake.mutations == [] and not any(o[0] == "ListCustomMetrics" for o in fake.ops)
@@ -152,6 +152,8 @@ def test_strict_drift_skips_all_writes_and_reports(fake, monkeypatch, caplog):
     assert md["status"].value == "schema_drift" and md["schema_check"].value == "drift"
     assert any("metadataKey" in x for x in md["schema_problems"].value)
     assert TOKEN not in repr({k: v.value for k, v in md.items()})
+    err = capfd.readouterr().err  # context.log -> stderr
+    assert "did not complete (on_error=warn)" in err and TOKEN not in err + caplog.text
     assert not fake.metrics
 
 
@@ -161,11 +163,12 @@ def test_drift_with_on_error_fail_raises(fake, monkeypatch):
     assert not r.success and fake.mutations == []
 
 
-def test_introspection_unavailable_does_not_block(fake, monkeypatch, caplog):
+def test_introspection_unavailable_does_not_block(fake, monkeypatch, caplog, capfd):
     caplog.set_level(logging.DEBUG)
     fake.introspection_enabled = False
     r = dg.materialize(_comp(fake, monkeypatch).assets)
     assert r.success and _md(r)["schema_check"].value == "unavailable" and _md(r)["created"].value == 1
+    assert "schema verification skipped" in capfd.readouterr().err  # the warning goes through context.log -> stderr, not caplog
 
 
 def test_verify_schema_false_skips_introspection(fake, monkeypatch):

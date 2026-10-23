@@ -58,3 +58,5 @@ than 200. Rules of thumb:
 - A retried load job reuses its job id and is counted once; a job that failed and was replaced counts again.
 
 Standard fields: `group_name`, `kinds`, `owners`, `asset_tags`, `deps`, `freshness_max_lag_minutes`/`freshness_cron`, `retry_policy_*`, `cron_schedule`.
+
+Opt-in Insights metrics: add insights_custom_metrics_sync with presets: auto (this component tags its asset(s) `insights/metrics`).

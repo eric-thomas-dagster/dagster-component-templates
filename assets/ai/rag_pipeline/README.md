@@ -427,3 +427,5 @@ provider: ollama    → model: ollama/llama3.2
 ## Reasoning models (Qwen3, DeepSeek-R1, ...)
 
 Reasoning models inline their chain of thought as `<think>...</think>`. The component strips it from the model's reply *before* parsing/storing, so the output is the clean answer (non-reasoning models are unaffected). Set `include_reasoning: true` to keep the thinking: adds an `<answer_column>_reasoning` column holding the final step's thinking (null when none). The thinking is stripped from `expand_query` (HyDE) output too, so it is never embedded for retrieval.
+
+Opt-in Insights metrics: add insights_custom_metrics_sync with presets: auto (this component tags its asset(s) `insights/metrics`).

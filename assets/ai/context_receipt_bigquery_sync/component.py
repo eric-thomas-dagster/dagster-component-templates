@@ -475,6 +475,7 @@ class ContextReceiptBigQuerySyncComponent(dg.Component, dg.Model, dg.Resolvable)
         comp = self
         asset_key = dg.AssetKey.from_user_string(self.asset_name)
         tags = {**(self.asset_tags or {}), **{f"dagster/kind/{k}": "" for k in (self.kinds or ["bigquery"])}}
+        tags.setdefault("insights/metrics", "receipts_sync")  # opt-in for insights_custom_metrics_sync `presets: auto`
         freshness = _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron) if self.freshness_max_lag_minutes is not None else None
         retry = None
         if self.retry_policy_max_retries is not None:

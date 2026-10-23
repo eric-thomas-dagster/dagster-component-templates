@@ -93,7 +93,7 @@ def test_custom_metric_error_clear_message_and_others_continue(fake):
     assert len(r["errors"]) == 1 and "bad_one" in r["errors"][0] and "unit not allowed" in r["errors"][0] and "CustomMetricError" in r["errors"][0]
 
 
-def test_401_clear_error_without_token(fake, caplog):
+def test_401_clear_error_without_token(fake):
     with pytest.raises(M.InsightsSyncError) as ei:
         M.sync_metrics(client(fake, token="WRONG-TOKEN-VALUE"), desired(ENTRY), dry_run=False)
     msg = str(ei.value)
@@ -191,7 +191,9 @@ def test_materialize_real_asset_and_idempotent(fake, monkeypatch, caplog, capfd)
     assert r.success and _md(r)["created"].value == 1 and _md(r)["status"].value == "ok"
     r2 = _run(defs)
     assert r2.success and _md(r2)["unchanged"].value == 1 and len(fake.mutations) == 1
-    assert TOKEN not in caplog.text + capfd.readouterr().err  # dagster's run logger writes to stderr
+    err = capfd.readouterr().err  # dagster's run logger (context.log) writes to STDERR, not caplog
+    assert "insights_custom_metrics_sync" in err  # guard against a vacuous check: the run really logged here
+    assert TOKEN not in caplog.text + err
     assert TOKEN not in repr({k: v.value for k, v in _md(r2).items()})
 
 
@@ -208,7 +210,9 @@ def test_on_error_warn_vs_fail_and_token_never_leaks(fake, monkeypatch, caplog, 
     r = _run(_defs(fake, monkeypatch))
     assert r.success and _md(r)["status"].value == "failed"
     errs = _md(r)["errors"].value
-    assert "401" in errs[0] and TOKEN not in repr(errs) and TOKEN not in caplog.text
+    assert "401" in errs[0] and TOKEN not in repr(errs)
+    err = capfd.readouterr().err  # context.log -> stderr (caplog alone would pass vacuously)
+    assert "did not complete (on_error=warn)" in err and TOKEN not in err + caplog.text
     r = _run(_defs(fake, monkeypatch, on_error="fail"))
     assert not r.success
     assert TOKEN not in caplog.text + capfd.readouterr().err

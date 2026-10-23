@@ -1790,6 +1790,7 @@ def _build_ops_mode(comp: "RAGPipelineComponent") -> Definitions:
     _all_tags = dict(comp.asset_tags or {})
     for _kind in _inferred_kinds:
         _all_tags[f"dagster/kind/{_kind}"] = ""
+    _all_tags.setdefault("insights/metrics", "rag_pipeline")  # opt-in for insights_custom_metrics_sync `presets: auto`
 
     _freshness_policy = None
     if comp.freshness_max_lag_minutes is not None:

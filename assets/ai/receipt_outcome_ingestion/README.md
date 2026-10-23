@@ -111,3 +111,5 @@ echoing anything).
 
 Tested against a real `ContextReceiptStore`, real csv/jsonl/json/parquet files, a real DuckDB resource and a local HTTP server
 (`python3 -m pytest assets/ai/receipt_outcome_ingestion/tests -q`).
+
+Opt-in Insights metrics: add insights_custom_metrics_sync with presets: auto (this component tags its asset(s) `insights/metrics`).

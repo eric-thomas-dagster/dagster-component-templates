@@ -69,6 +69,7 @@ packages = ["dagster_community_components"]
 "integrations" = "dagster_community_components/integrations"
 "asset_checks" = "dagster_community_components/asset_checks"
 "compute_log_managers" = "dagster_community_components/compute_log_managers"
+"log_redaction" = "dagster_community_components/log_redaction"
 "jobs" = "dagster_community_components/jobs"
 "sinks" = "dagster_community_components/sinks"
 "transforms" = "dagster_community_components/transforms"
@@ -91,6 +92,7 @@ include = [
     "/integrations",
     "/asset_checks",
     "/compute_log_managers",
+    "/log_redaction",
     "/core",
     "/jobs",
     "/sinks",
@@ -112,8 +114,10 @@ include = [
 #   pip install dagster-community-components[otlp]
 #   pip install dagster-community-components[tee]                  # no extra runtime deps; provided for symmetry
 #   pip install dagster-community-components[compute-log-managers] # bundle: splunk + otlp + tee
+#   pip install dagster-community-components[pii-redaction]        # log_redaction's enable_presidio=True option
 [project.optional-dependencies]
 splunk = ["requests>=2.28"]
 otlp = ["requests>=2.28"]
 tee = []
 compute-log-managers = ["requests>=2.28"]
+pii-redaction = ["presidio-analyzer", "presidio-anonymizer", "spacy"]

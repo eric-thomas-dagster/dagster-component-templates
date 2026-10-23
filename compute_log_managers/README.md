@@ -13,6 +13,8 @@ compute_logs:
 
 A Dagster instance has **exactly one** compute log manager. The default `LocalComputeLogManager` writes to local disk. Dagster+ uses `CloudComputeLogManager` (uploads to Dagster+'s managed storage). The dagster-aws / dagster-gcp / dagster-azure packages provide S3 / GCS / ADLS implementations. **This package adds:**
 
+**Important if you're on Dagster+ Serverless**: nothing here works for you. Serverless gives you no agent and no instance config to customize — there is no `dagster.yaml` a Serverless customer can edit. These are Hybrid-agent / self-hosted-OSS only. If you need PII/secret redaction on Serverless, see [`log_redaction/`](../log_redaction/) instead — a code-location-level alternative with a very different (and real) trade-off: it works everywhere including Serverless, but must be added to every code location individually rather than once at the instance.
+
 | Manager | What it does | When to use |
 |---|---|---|
 | [`splunk.SplunkComputeLogManager`](splunk/) | Streams op stdout/stderr to Splunk HEC. UI surfaces "View in Splunk →" deep-links per step. | Customers running Dagster OSS who want compute logs in Splunk and never touching Dagster+. Or Dagster+ customers who need a Splunk copy for compliance — compose via Tee. |

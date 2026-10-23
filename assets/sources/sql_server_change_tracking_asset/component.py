@@ -137,6 +137,52 @@ def _get_last_ct_version(instance, asset_key) -> Optional[int]:
     return int(value.value) if value is not None else None
 
 
+# BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)
+def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
+    """Build a FreshnessPolicy on the current Dagster API (time_window / cron) and on the older constructor."""
+    from datetime import timedelta
+
+    from dagster import FreshnessPolicy
+
+    lag = timedelta(minutes=max_lag_minutes)
+    if hasattr(FreshnessPolicy, "time_window"):
+        if cron_schedule:
+            return FreshnessPolicy.cron(deadline_cron=cron_schedule, lower_bound_delta=lag)
+        return FreshnessPolicy.time_window(fail_window=lag)
+    return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
+# END freshness-policy compat
+
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
+
+
 class SqlServerChangeTrackingAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     """Read changed rows from a SQL Server Change-Tracking-enabled table.
 
@@ -167,6 +213,11 @@ class SqlServerChangeTrackingAssetComponent(dg.Component, dg.Model, dg.Resolvabl
     retry_policy_delay_seconds: Optional[int] = Field(default=None)
     retry_policy_backoff: str = Field(default="exponential")
 
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, lists=('deps', 'owners', 'kinds'), tags=('asset_tags',))
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if not self.primary_key_columns:
             raise ValueError("primary_key_columns must be non-empty.")
@@ -182,16 +233,7 @@ class SqlServerChangeTrackingAssetComponent(dg.Component, dg.Model, dg.Resolvabl
 
         _freshness_policy = None
         if self.freshness_max_lag_minutes is not None:
-            from datetime import timedelta
-            from dagster import FreshnessPolicy
-            lag = timedelta(minutes=int(self.freshness_max_lag_minutes))
-            if hasattr(FreshnessPolicy, "time_window"):
-                _freshness_policy = (
-                    FreshnessPolicy.cron(deadline_cron=self.freshness_cron, lower_bound_delta=lag)
-                    if self.freshness_cron else FreshnessPolicy.time_window(fail_window=lag)
-                )
-            else:
-                _freshness_policy = FreshnessPolicy(maximum_lag_minutes=self.freshness_max_lag_minutes, cron_schedule=self.freshness_cron)
+            _freshness_policy = _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
 
         _retry_policy = None
         if self.retry_policy_max_retries is not None:

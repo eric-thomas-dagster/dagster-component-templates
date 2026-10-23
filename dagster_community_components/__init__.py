@@ -215,6 +215,7 @@ _CLASS_PATHS: dict[str, str] = {
     "ChurnZeroResourceComponent": "resources/churnzero_resource/component.py",
     "CircleCIIngestionComponent": "assets/ingestion/circleci_ingestion/component.py",
     "ClerkIngestionComponent": "assets/ingestion/clerk_ingestion/component.py",
+    "ClickhouseSqlQueryComponent": "assets/sources/clickhouse_sql_query/component.py",
     "ClickHouseResource": "resources/clickhouse_resource/component.py",
     "ClickHouseResourceComponent": "resources/clickhouse_resource/component.py",
     "ClickHouseTableObservationSensorComponent": "observations/clickhouse_table_observation_sensor/component.py",

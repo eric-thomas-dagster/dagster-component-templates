@@ -1,0 +1,14 @@
+type: dagster_component_templates.ClickhouseSqlQueryComponent
+attributes:
+  asset_name: daily_pageviews
+  host_url: http://clickhouse:8123
+  query: |
+    SELECT toDate(event_time) AS day, count() AS pageviews
+    FROM analytics.events
+    WHERE event_type = 'pageview'
+    GROUP BY day
+    ORDER BY day
+  username: default
+  password_env_var: CLICKHOUSE_PASSWORD
+  group_name: analytics
+  kinds: [clickhouse]

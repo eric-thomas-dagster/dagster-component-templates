@@ -70136,6 +70136,59 @@
         "zuora",
         "zuora resource"
       ]
+    },
+    {
+      "id": "clickhouse_sql_query",
+      "name": "ClickHouse SQL Query",
+      "category": "source",
+      "description": "Execute a SQL query against ClickHouse's real HTTP interface and materialize the result as a Dagster asset.",
+      "path": "assets/sources/clickhouse_sql_query",
+      "tags": [
+        "clickhouse",
+        "olap",
+        "real-time",
+        "analytics",
+        "sql"
+      ],
+      "icon": "si:clickhouse",
+      "type": "dagster_component_templates.ClickhouseSqlQueryComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/clickhouse_sql_query/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/clickhouse_sql_query/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/clickhouse_sql_query/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/clickhouse_sql_query/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/clickhouse_sql_query/requirements.txt",
+      "component_type": "dagster_component_templates.ClickhouseSqlQueryComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-23"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "DataFrame",
+        "outputs": "pandas DataFrame of the ClickHouse SQL query result.",
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "keywords": [
+        "clickhouse",
+        "olap",
+        "real-time",
+        "analytics",
+        "sql"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

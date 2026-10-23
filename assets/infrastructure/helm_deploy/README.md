@@ -39,6 +39,7 @@ Helm must be installed separately and available on `PATH`, or provide the full p
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
 | `kinds` | `List[str]` | — | Asset kinds for the catalog (e.g. ['snowflake', 'python']). Auto-inferred from component name when unset. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is `upstream_asset_key`, or th… _(full docs in schema.json + component README)_ |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' fires ONE external call covering the whole backfill range -- the partition_key/partition_start/partition_end tokens this component already supports are co… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -87,6 +88,7 @@ Helm must be installed separately and available on `PATH`, or provide the full p
 | `dry_run` | `bool` | `false` | Perform a dry run — render templates and validate but do not apply (--dry-run). |
 | `helm_bin` | `str` | `"helm"` | Path to the helm binary (default: 'helm', assumed to be on PATH). |
 | `env_vars` | `dict[str, str]` | — | Extra environment variables for the Helm subprocess (e.g. KUBECONFIG, HELM_KUBEAPISERVER, cloud provider auth vars). |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

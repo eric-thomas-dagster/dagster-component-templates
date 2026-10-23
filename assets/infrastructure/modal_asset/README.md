@@ -33,6 +33,7 @@ Modal lets you define Python functions that run on managed, scalable cloud infra
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
 | `kinds` | `List[str]` | — | Asset kinds for the catalog (e.g. ['snowflake', 'python']). Auto-inferred from component name when unset. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is `upstream_asset_key`, or th… _(full docs in schema.json + component README)_ |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' fires ONE external call covering the whole backfill range -- the partition_key/partition_start/partition_end tokens this component already supports are co… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -74,6 +75,7 @@ Modal lets you define Python functions that run on managed, scalable cloud infra
 | `modal_token_secret_env_var` | `str` | — | Name of the environment variable containing the Modal token secret. Paired with ``modal_token_id_env_var`` for non-default credential injection. |
 | `detach` | `bool` | `false` | When True, fire-and-forget: the asset completes as soon as the function is dispatched without waiting for it to finish. Metadata will not include return values. Use with care — Dagster will mark the asset as materialised… _(full docs in schema.json + component README)_ |
 | `environment_name` | `str` | — | Modal environment (workspace namespace) to target. Defaults to the environment configured in the active Modal profile. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

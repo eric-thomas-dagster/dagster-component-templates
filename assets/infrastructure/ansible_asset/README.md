@@ -40,6 +40,7 @@ Dagster pipelines often depend on infrastructure being in a known state before d
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
 | `kinds` | `List[str]` | — | Asset kinds for the catalog (e.g. ['snowflake', 'python']). Auto-inferred from component name when unset. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is `upstream_asset_key`, or th… _(full docs in schema.json + component README)_ |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' fires ONE external call covering the whole backfill range -- the partition_key/partition_start/partition_end tokens this component already supports are co… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -88,6 +89,7 @@ Dagster pipelines often depend on infrastructure being in a known state before d
 | `ansible_bin` | `str` | `"ansible-playbook"` | Path to the ansible-playbook binary. |
 | `working_dir` | `str` | — | Working directory for the subprocess. Defaults to the current process cwd. |
 | `env_vars` | `dict[str, str]` | — | Additional environment variables merged into the subprocess environment. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

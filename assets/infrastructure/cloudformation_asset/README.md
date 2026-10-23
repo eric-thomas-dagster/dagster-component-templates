@@ -86,6 +86,7 @@ Dagster will refuse to run `ingest_raw_events` until `provision_data_lake` has m
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
 | `kinds` | `List[str]` | — | Asset kinds for the catalog (e.g. ['snowflake', 'python']). Auto-inferred from component name when unset. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is `upstream_asset_key`, or th… _(full docs in schema.json + component README)_ |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' fires ONE external call covering the whole backfill range -- the partition_key/partition_start/partition_end tokens this component already supports are co… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -127,6 +128,7 @@ Dagster will refuse to run `ingest_raw_events` until `provision_data_lake` has m
 | `role_arn` | `str` | — | ARN of an IAM role for CloudFormation to assume when managing the stack. Requires iam:PassRole permission for the calling principal. |
 | `on_failure` | `str` | `"ROLLBACK"` | Action on stack creation failure: ROLLBACK, DO_NOTHING, or DELETE. |
 | `timeout_minutes` | `int` | `60` | Maximum minutes to wait for a stack operation to complete. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

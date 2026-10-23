@@ -13,7 +13,7 @@ Shares AbInitioResource with abinitio_job_sensor for connection config.
 EME REST API: https://{host}/abinitio/eme-rest-api/v1
 """
 import time
-from typing import Dict, List, Optional, Type, Union
+from typing import Dict, List, Literal, Optional, Type, Union
 import dagster as dg
 from dagster import AssetExecutionContext, ConfigurableResource, MaterializeResult
 from pydantic import Field
@@ -276,6 +276,25 @@ class AbInitioRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Backoff strategy: 'linear' or 'exponential'.",
     )
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "fires ONE external call covering the whole backfill range -- the "
+            "partition_key/partition_start/partition_end tokens this component "
+            "already supports are comma-joined/range-spanning rather than a "
+            "single key -- instead of one call per partition. 'multi_run' "
+            "launches one run per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for Dagster's "
+            "default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
@@ -314,7 +333,15 @@ class AbInitioRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         )
         _self = self
 
-        @dg.asset(partitions_def=partitions_def, retry_policy=_retry_policy_obj, freshness_policy=_freshness_policy_obj, 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            backfill_policy = dg.BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            backfill_policy = dg.BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        @dg.asset(partitions_def=partitions_def, retry_policy=_retry_policy_obj, freshness_policy=_freshness_policy_obj, backfill_policy=backfill_policy, 
             key=dg.AssetKey(self.asset_key.split("/")),
             description=self.description or (f"Run Ab Initio graph {self.job_path}"),
             group_name=self.group_name,

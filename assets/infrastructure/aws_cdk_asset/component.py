@@ -2,7 +2,7 @@ import json
 import os
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Literal, Optional, Set, Union
 
 import dagster as dg
 from pydantic import Field
@@ -245,6 +245,25 @@ class AWSCDKAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Backoff strategy: 'linear' or 'exponential'.",
     )
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "fires ONE external call covering the whole backfill range -- the "
+            "partition_key/partition_start/partition_end tokens this component "
+            "already supports are comma-joined/range-spanning rather than a "
+            "single key -- instead of one call per partition. 'multi_run' "
+            "launches one run per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for Dagster's "
+            "default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
@@ -308,7 +327,15 @@ class AWSCDKAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         # Resolve the effective outputs file path once.
         effective_outputs_file = outputs_file or f"/tmp/{asset_name}_outputs.json"
 
-        @dg.asset(partitions_def=partitions_def, retry_policy=_retry_policy_obj, freshness_policy=_freshness_policy_obj, 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            backfill_policy = dg.BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            backfill_policy = dg.BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        @dg.asset(partitions_def=partitions_def, retry_policy=_retry_policy_obj, freshness_policy=_freshness_policy_obj, backfill_policy=backfill_policy, 
             key=dg.AssetKey.from_user_string(asset_name),
             group_name=group_name,
             description=description,

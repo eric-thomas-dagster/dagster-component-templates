@@ -119,9 +119,20 @@ def _data(name, base):
         df[base["target_column"]] = np.round(rng.uniform(1, 4, n) * (1 + df[f[0]]) + shift * 2).astype(int) + 1
         df["ts"] = ts
         return df
+    if name == "stepwise":
+        # A uniform per-day shift cancels out in any model fit with an intercept, so it can't be relied on here:
+        # the target must be driven by a DIFFERENT feature each day, or forward selection can coincidentally pick
+        # the same subset both days (feature_columns/target_column here are pure noise otherwise).
+        f = base["feature_columns"]
+        df = pd.DataFrame({c: rng.normal(size=n) for c in f})
+        is_day2 = np.array([d == day[-1] for d in day])
+        driver = df[f[0]].where(~is_day2, df[f[1]])
+        df[base["target_column"]] = driver * 5 + rng.normal(scale=0.05, size=n)
+        df["ts"] = ts
+        return df
     cols = {s for s in _strings(base) if s.isidentifier() and len(s) < 40} - {"daily", "true", "false"}
     extras = {"target", "label", "y", "outcome", "treatment", "group", "cluster"}
-    df = pd.DataFrame({c: (rng.integers(0, 2, n) if c in extras else rng.normal(size=n)) for c in cols | extras})
+    df = pd.DataFrame({c: (rng.integers(0, 2, n) if c in extras else rng.normal(size=n) + shift) for c in cols | extras})
     df["ts"] = ts
     return df
 

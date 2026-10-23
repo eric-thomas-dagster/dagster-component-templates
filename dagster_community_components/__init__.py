@@ -533,6 +533,7 @@ _CLASS_PATHS: dict[str, str] = {
     "FigmentStakingRewardsIngestionComponent": "assets/ingestion/figment_staking_rewards_ingestion/component.py",
     "FileIngestionComponent": "assets/ingestion/file_ingestion/component.py",
     "FileListerComponent": "assets/source/file_lister/component.py",
+    "FlinkJobRunAssetComponent": "assets/infrastructure/flink_job_run_asset/component.py",
     "FileTransformerComponent": "assets/transforms/file_transformer/component.py",
     "FilesystemMonitorSensorComponent": "sensors/filesystem_monitor/component.py",
     "FilterComponent": "assets/transforms/filter/component.py",

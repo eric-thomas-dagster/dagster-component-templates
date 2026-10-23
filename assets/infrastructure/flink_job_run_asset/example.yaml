@@ -1,0 +1,10 @@
+type: dagster_component_templates.FlinkJobRunAssetComponent
+attributes:
+  asset_name: clickstream_enrichment_job
+  jobmanager_url: http://flink-jobmanager:8081
+  jar_path: /opt/flink/jobs/clickstream-enrichment.jar
+  entry_class: com.acme.ClickstreamEnrichmentJob
+  program_args: ['--kafka-topic', 'clickstream.raw']
+  wait_mode: until_running
+  group_name: streaming
+  kinds: [flink]

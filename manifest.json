@@ -60619,6 +60619,56 @@
       ]
     },
     {
+      "id": "flink_job_run_asset",
+      "name": "Flink Job Run",
+      "category": "infrastructure",
+      "description": "Submit (and optionally wait on) a job on a self-hosted Apache Flink cluster via its real JobManager REST API -- standalone, Kubernetes, or YARN-session, as distinct from AWS's managed runtime.",
+      "path": "assets/infrastructure/flink_job_run_asset",
+      "tags": [
+        "flink",
+        "streaming",
+        "infrastructure",
+        "self-hosted"
+      ],
+      "icon": "si:apacheflink",
+      "type": "dagster_component_templates.FlinkJobRunAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/flink_job_run_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/flink_job_run_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/flink_job_run_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/flink_job_run_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/flink_job_run_asset/requirements.txt",
+      "component_type": "dagster_component_templates.FlinkJobRunAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-23"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with the Flink job's final state in metadata.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "keywords": [
+        "infra",
+        "flink",
+        "streaming",
+        "self-hosted",
+        "jobmanager"
+      ]
+    },
+    {
       "id": "step_functions_asset",
       "name": "AWS Step Functions Asset",
       "category": "infrastructure",

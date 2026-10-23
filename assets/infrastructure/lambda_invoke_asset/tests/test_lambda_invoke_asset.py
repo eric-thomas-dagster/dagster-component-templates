@@ -156,3 +156,34 @@ def test_invalid_invocation_type_is_rejected():
     comp = _comp(invocation_type="Bogus")
     with pytest.raises(ValueError, match="invocation_type"):
         comp.build_defs(None)
+
+
+def test_backfill_policy_single_run_sets_a_real_backfill_policy():
+    comp = _comp(partition_type="daily", partition_start="2024-01-01", backfill_policy="single_run")
+    defs = comp.build_defs(None)
+    asset = list(defs.assets)[0]
+    assert asset.backfill_policy == dg.BackfillPolicy.single_run()
+
+
+def test_single_run_over_a_range_joins_partition_keys_into_one_invoke(monkeypatch):
+    """backfill_policy was missing entirely, and the payload_template only ever saw a single
+    partition_key (`if context.has_partition_key: auto_vars["partition_key"] = ...`) -- for a
+    single_run backfill's partition-key RANGE, has_partition_key is False, so the template silently
+    rendered with NO partition_key var at all instead of the range. Now it uses the canonical
+    range-safe _partition_vars helper like its infrastructure siblings."""
+    client = FakeLambdaClient(response={"StatusCode": 200, "Payload": _FakeStreamingBody(b"{}")})
+    _patch_client(monkeypatch, client)
+    comp = _comp(
+        payload=None,
+        payload_template='{"day": "{{ partition_key }}"}',
+        partition_type="daily", partition_start="2024-01-01",
+        backfill_policy="single_run",
+    )
+    defs = comp.build_defs(None)
+    asset = list(defs.assets)[0]
+    result = dg.materialize([asset], tags={
+        "dagster/asset_partition_range_start": "2024-01-01",
+        "dagster/asset_partition_range_end": "2024-01-03",
+    })
+    assert result.success
+    assert json.loads(client.calls[0]["Payload"]) == {"day": "2024-01-01,2024-01-02,2024-01-03"}

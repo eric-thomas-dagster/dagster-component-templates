@@ -93,6 +93,7 @@ Opt-in delegation to the official `dagster-prefect` package's `PipesPrefectDeplo
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags. |
 | `kinds` | `List[str]` | — | Asset kinds. Defaults to ['prefect']. |
 | `deps` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' fires ONE Prefect deployment run covering the whole backfill range -- the {partition_key}/{partition_window_start}/{partition_window_end} tokens this comp… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -140,5 +141,6 @@ Opt-in delegation to the official `dagster-prefect` package's `PipesPrefectDeplo
 | `check_names` | `List[str]` | — | Requires stream_artifacts=True, wait_for_result=True, and execution_mode='poll' (validated at build time). Declares these as AssetCheckSpecs on the asset. Convention: the flow writes a table artifact (create_table_artifa… _(full docs in schema.json + component README)_ |
 | `execution_mode` | `str` | `"poll"` | 'poll' (default) — trigger + poll via the plain Prefect SDK, zero flow code changes required. 'pipes' — delegate to dagster-prefect's PipesPrefectDeploymentClient for in-flight metadata/log streaming; requires `pip insta… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)

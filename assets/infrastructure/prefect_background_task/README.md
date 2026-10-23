@@ -79,6 +79,7 @@ Identical to `prefect_flow_run.check_names`, including the required translation:
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags. |
 | `kinds` | `List[str]` | — | Asset kinds. Defaults to ['prefect']. |
 | `deps` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' fires ONE background task submission covering the whole backfill range -- the {partition_key}/{partition_window_start}/{partition_window_end} tokens this… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -124,5 +125,6 @@ Identical to `prefect_flow_run.check_names`, including the required translation:
 | `check_names` | `List[str]` | — | Requires stream_artifacts=True, wait_for_result=True, and execution_mode='poll' (validated at build time). Same convention as prefect_flow_run.check_names: a table artifact whose KEY, READ WITH DASHES AS UNDERSCORES, mat… _(full docs in schema.json + component README)_ |
 | `execution_mode` | `str` | `"poll"` | 'poll' (default) — trigger + poll via the plain Prefect SDK, zero task code changes required. 'pipes' — delegate to dagster-prefect's PipesPrefectTaskClient; requires `pip install dagster-prefect` and the task to accept… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)

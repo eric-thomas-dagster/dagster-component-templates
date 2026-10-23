@@ -10,7 +10,7 @@ Real boto3 API, verified directly against the botocore reference:
 Qualifier=...)` -> `{'StatusCode', 'Payload': StreamingBody, 'FunctionError':
 'Unhandled'|'Handled' (absent on success), 'LogResult': base64, ...}`.
 """
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import dagster as dg
 from pydantic import Field, model_validator
@@ -59,6 +59,59 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
+
+
+# BEGIN partition-vars helper (inlined per component; keep copies identical, see tests/test_partition_vars.py)
+def _partition_vars(context):
+    """Tokens a partitioned run can use in its variables: {partition_key}, and for time partitions {partition_date}
+    (YYYY-MM-DD), {partition_start} and {partition_end} (ISO datetimes); for a multi-partition also
+    {partition_<dimension>}. Empty for an unpartitioned run."""
+    import re as _re
+
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return {}
+    keys = list(context.partition_keys)
+    tokens = {"partition_key": ",".join(str(k) for k in keys)}
+    try:
+        window = context.partition_time_window
+        tokens["partition_start"] = window.start.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_end"] = window.end.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_date"] = window.start.strftime("%Y-%m-%d")
+    except Exception:
+        pass  # static / dynamic partitions have no time window
+    if len(keys) == 1 and hasattr(keys[0], "keys_by_dimension"):
+        for dimension, value in keys[0].keys_by_dimension.items():
+            tokens["partition_" + _re.sub(r"\W", "_", str(dimension))] = str(value)
+    return tokens
+
+
+def _partition_env(tokens):
+    """DAGSTER_PARTITION_* environment variables for a partitioned run (empty when unpartitioned)."""
+    if not tokens:
+        return {}
+    env = {"DAGSTER_PARTITION_KEY": tokens["partition_key"]}
+    for token, name in (("partition_date", "DAGSTER_PARTITION_DATE"), ("partition_start", "DAGSTER_PARTITION_START"),
+                        ("partition_end", "DAGSTER_PARTITION_END")):
+        if token in tokens:
+            env[name] = tokens[token]
+    return env
+
+
+def _substitute_partition(value, tokens):
+    """Replace {partition_*} tokens inside strings, recursively through dicts and lists. Only known tokens are
+    replaced, so other braces (JSON, shell, templates) are left alone. A no-op for an unpartitioned run."""
+    import re as _re
+
+    if not tokens:
+        return value
+    if isinstance(value, str):
+        return _re.sub(r"\{(partition_\w+)\}", lambda m: tokens.get(m.group(1), m.group(0)), value)
+    if isinstance(value, dict):
+        return {k: _substitute_partition(v, tokens) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(_substitute_partition(v, tokens) for v in value)
+    return value
+# END partition-vars helper
 
 
 def _build_partitions_def(
@@ -293,6 +346,26 @@ class LambdaInvokeAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     retry_policy_delay_seconds: Optional[int] = Field(default=None)
     retry_policy_backoff: str = Field(default="exponential")
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "fires ONE Lambda invocation covering the whole backfill range -- "
+            "the partition_key/partition_date/partition_start/partition_end "
+            "Jinja variables available in payload_template are comma-joined/"
+            "range-spanning rather than a single key -- instead of one "
+            "invocation per partition. 'multi_run' launches one run per "
+            "partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for Dagster's "
+            "default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
@@ -330,6 +403,14 @@ class LambdaInvokeAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            backfill_policy = dg.BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            backfill_policy = dg.BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
         @dg.asset(
             name=self.asset_name,
             group_name=self.group_name,
@@ -341,6 +422,7 @@ class LambdaInvokeAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             partitions_def=partitions_def,
             freshness_policy=_freshness_policy,
             retry_policy=_retry_policy,
+            backfill_policy=backfill_policy,
         )
         def _lambda_invoke_asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
             self = _self
@@ -350,9 +432,7 @@ class LambdaInvokeAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             elif self.payload_template is not None:
                 import json as _json
                 from jinja2 import Template
-                auto_vars: Dict[str, Any] = {}
-                if context.has_partition_key:
-                    auto_vars["partition_key"] = context.partition_key
+                auto_vars: Dict[str, Any] = dict(_partition_vars(context))
                 rendered = Template(self.payload_template).render(**auto_vars)
                 payload = _json.loads(rendered)
 

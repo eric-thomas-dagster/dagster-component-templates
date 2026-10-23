@@ -28,6 +28,7 @@ By default a Lambda-side error (`FunctionError` in the real boto3 response -- th
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags. |
 | `kinds` | `List[str]` | — | Defaults to ['aws', 'lambda']. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' fires ONE Lambda invocation covering the whole backfill range -- the partition_key/partition_date/partition_start/partition_end Jinja variables available… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -67,6 +68,7 @@ By default a Lambda-side error (`FunctionError` in the real boto3 response -- th
 | `fail_on_function_error` | `bool` | `true` | Raise if the Lambda's own invocation errored (FunctionError in the response). False materializes anyway with the error payload in metadata. |
 | `include_logs` | `bool` | `false` | Request the last 4KB of CloudWatch logs (LogType=Tail) and surface them as metadata. Adds response overhead -- leave off unless debugging. |
 | `dynamic_partition_name` | `str` | — | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

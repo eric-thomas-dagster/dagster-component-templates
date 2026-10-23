@@ -34,7 +34,7 @@ Docs: https://docs.prefect.io/latest/develop/task-runners/
 """
 import json
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import dagster as dg
 from pydantic import Field
@@ -610,6 +610,26 @@ class PrefectBackgroundTaskAssetComponent(dg.Component, dg.Model, dg.Resolvable)
     retry_policy_delay_seconds: Optional[int] = Field(default=None)
     retry_policy_backoff: str = Field(default="exponential")
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "fires ONE background task submission covering the whole backfill "
+            "range -- the {partition_key}/{partition_window_start}/"
+            "{partition_window_end} tokens this component already supports are "
+            "comma-joined/range-spanning rather than a single key -- instead of "
+            "one task submission per partition. 'multi_run' launches one run "
+            "per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for Dagster's "
+            "default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
@@ -697,6 +717,14 @@ class PrefectBackgroundTaskAssetComponent(dg.Component, dg.Model, dg.Resolvable)
                 .replace("{partition_window_end}", window_end)
             )
 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            backfill_policy = dg.BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            backfill_policy = dg.BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
         @dg.asset(
             key=asset_key,
             description=self.description or f"Submit Prefect background task {self.task_import_path}",
@@ -706,6 +734,7 @@ class PrefectBackgroundTaskAssetComponent(dg.Component, dg.Model, dg.Resolvable)
             partitions_def=partitions_def,
             freshness_policy=freshness,
             retry_policy=retry_policy,
+            backfill_policy=backfill_policy,
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
             check_specs=check_specs,
         )
@@ -716,17 +745,12 @@ class PrefectBackgroundTaskAssetComponent(dg.Component, dg.Model, dg.Resolvable)
             _apply_env()
             task_fn = _import_task(_self.task_import_path)
 
-            partition_key = str(context.partition_key) if context.has_partition_key else ""
+            _tokens = _partition_vars(context)
+            partition_key = _tokens.get("partition_key", "")
             run_id = str(getattr(context, "run_id", "") or "")
 
-            window_start = window_end = ""
-            if context.has_partition_key:
-                try:
-                    time_window = context.partition_time_window
-                    window_start = time_window.start.isoformat()
-                    window_end = time_window.end.isoformat()
-                except dg.DagsterInvariantViolationError:
-                    pass
+            window_start = _tokens.get("partition_start", "")
+            window_end = _tokens.get("partition_end", "")
 
             params = {}
             for k, v in (_self.parameters or {}).items():
@@ -838,3 +862,56 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
+
+
+# BEGIN partition-vars helper (inlined per component; keep copies identical, see tests/test_partition_vars.py)
+def _partition_vars(context):
+    """Tokens a partitioned run can use in its variables: {partition_key}, and for time partitions {partition_date}
+    (YYYY-MM-DD), {partition_start} and {partition_end} (ISO datetimes); for a multi-partition also
+    {partition_<dimension>}. Empty for an unpartitioned run."""
+    import re as _re
+
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return {}
+    keys = list(context.partition_keys)
+    tokens = {"partition_key": ",".join(str(k) for k in keys)}
+    try:
+        window = context.partition_time_window
+        tokens["partition_start"] = window.start.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_end"] = window.end.strftime("%Y-%m-%dT%H:%M:%S")
+        tokens["partition_date"] = window.start.strftime("%Y-%m-%d")
+    except Exception:
+        pass  # static / dynamic partitions have no time window
+    if len(keys) == 1 and hasattr(keys[0], "keys_by_dimension"):
+        for dimension, value in keys[0].keys_by_dimension.items():
+            tokens["partition_" + _re.sub(r"\W", "_", str(dimension))] = str(value)
+    return tokens
+
+
+def _partition_env(tokens):
+    """DAGSTER_PARTITION_* environment variables for a partitioned run (empty when unpartitioned)."""
+    if not tokens:
+        return {}
+    env = {"DAGSTER_PARTITION_KEY": tokens["partition_key"]}
+    for token, name in (("partition_date", "DAGSTER_PARTITION_DATE"), ("partition_start", "DAGSTER_PARTITION_START"),
+                        ("partition_end", "DAGSTER_PARTITION_END")):
+        if token in tokens:
+            env[name] = tokens[token]
+    return env
+
+
+def _substitute_partition(value, tokens):
+    """Replace {partition_*} tokens inside strings, recursively through dicts and lists. Only known tokens are
+    replaced, so other braces (JSON, shell, templates) are left alone. A no-op for an unpartitioned run."""
+    import re as _re
+
+    if not tokens:
+        return value
+    if isinstance(value, str):
+        return _re.sub(r"\{(partition_\w+)\}", lambda m: tokens.get(m.group(1), m.group(0)), value)
+    if isinstance(value, dict):
+        return {k: _substitute_partition(v, tokens) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return type(value)(_substitute_partition(v, tokens) for v in value)
+    return value
+# END partition-vars helper

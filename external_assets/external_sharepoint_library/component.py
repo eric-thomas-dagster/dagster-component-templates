@@ -144,6 +144,57 @@ class ExternalSharePointLibraryAsset(dg.Component, dg.Model, dg.Resolvable):
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     description: Optional[str] = Field(default=None, description="Human-readable description")
 
+    create_observation_sensor: bool = Field(
+        default=False,
+        description=(
+            "Also create the polling sensor that keeps this external asset's health/data-version "
+            "current -- same trio as the sql/s3/sftp/kafka ExternalXAsset siblings. When False "
+            "(default), this component only declares the AssetSpec."
+        ),
+    )
+    sensor_name: Optional[str] = Field(
+        default=None,
+        description="Unique sensor name. Defaults to '{asset_key}__observation_sensor'. Only used when create_observation_sensor=True.",
+    )
+    check_interval_seconds: int = Field(
+        default=300,
+        description="Seconds between health checks. Only used when create_observation_sensor=True.",
+    )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster resource key exposing `.observe(source) -> dict` (source is "
+            "'site_url/library_name') that returns `{'data_version': str, **metadata}`. "
+            "Only used when create_observation_sensor=True; unset uses Microsoft Graph "
+            "directly (requires tenant_id_env_var/client_id_env_var/client_secret_env_var)."
+        ),
+    )
+    emit_materialization: bool = Field(
+        default=True,
+        description=(
+            "When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, "
+            "downstream AutomationCondition.eager() fires on parent updates). When False, emits "
+            "AssetObservation instead (no Dagster+ credit charge, but eager()-style conditions won't "
+            "fire). Only used when create_observation_sensor=True."
+        ),
+    )
+    tenant_id_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var with Azure tenant ID. Only used when create_observation_sensor=True and resource_key is unset.",
+    )
+    client_id_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var with Azure app client ID. Only used when create_observation_sensor=True and resource_key is unset.",
+    )
+    client_secret_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var with Azure app client secret. Only used when create_observation_sensor=True and resource_key is unset.",
+    )
+    folder_path: str = Field(
+        default="",
+        description="Optional subfolder path within the library to observe. Only used when create_observation_sensor=True and resource_key is unset.",
+    )
+
     partition_type: Optional[str] = Field(
         default=None,
         description="Partition type: 'daily'|'weekly'|'monthly'|'hourly'|'static'|'dynamic'|'multi', or None for unpartitioned.",
@@ -190,4 +241,136 @@ class ExternalSharePointLibraryAsset(dg.Component, dg.Model, dg.Resolvable):
             },
             partitions_def=partitions_def,
         )
-        return dg.Definitions(assets=[spec])
+
+        if not self.create_observation_sensor:
+            return dg.Definitions(assets=[spec])
+
+        import re as _re
+        _self = self
+        sensor_name = self.sensor_name or f"{_re.sub(r'[^A-Za-z0-9_]+', '_', self.asset_key).strip('_')}__observation_sensor"
+        resource_key = self.resource_key
+        required_resource_keys = {resource_key} if resource_key else set()
+
+        @dg.sensor(
+            name=sensor_name,
+            minimum_interval_seconds=self.check_interval_seconds,
+            required_resource_keys=required_resource_keys,
+            asset_selection=dg.AssetSelection.assets(dg.AssetKey.from_user_string(self.asset_key)),
+        )
+        def _sharepoint_obs(context: dg.SensorEvaluationContext, **_resources):
+            import os
+            from dagster._core.definitions.data_version import DATA_VERSION_TAG
+            _event_cls = dg.AssetMaterialization if _self.emit_materialization else dg.AssetObservation
+
+            # ── Resource-backed path (preferred) ────────────────────────────
+            if resource_key:
+                client = getattr(context.resources, resource_key, None)
+                if client is None:
+                    return dg.SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+                try:
+                    source = f"{_self.site_url}/{_self.library_name}"
+                    observed: dict = dict(client.observe(source))
+                except Exception as e:
+                    context.log.error(f"resource '{resource_key}'.observe failed: {e}")
+                    return dg.SensorResult(skip_reason=f"resource observe failed: {e}")
+                data_version = str(observed.pop("data_version", ""))
+                return dg.SensorResult(asset_events=[_event_cls(
+                    asset_key=dg.AssetKey.from_user_string(_self.asset_key),
+                    metadata=observed,
+                    tags={DATA_VERSION_TAG: data_version} if data_version else None,
+                )])
+
+            # ── Native Microsoft Graph path ──────────────────────────────────
+            try:
+                import requests
+            except ImportError:
+                return dg.SensorResult(skip_reason="requests not installed")
+
+            if not (_self.tenant_id_env_var and _self.client_id_env_var and _self.client_secret_env_var):
+                return dg.SensorResult(
+                    skip_reason=(
+                        "tenant_id_env_var/client_id_env_var/client_secret_env_var are required "
+                        "for the native Microsoft Graph path (or set resource_key instead)."
+                    )
+                )
+            tenant_id = os.environ.get(_self.tenant_id_env_var, "")
+            client_id = os.environ.get(_self.client_id_env_var, "")
+            client_secret = os.environ.get(_self.client_secret_env_var, "")
+
+            try:
+                token_resp = requests.post(
+                    f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token",
+                    data={"grant_type": "client_credentials", "client_id": client_id,
+                          "client_secret": client_secret,
+                          "scope": "https://graph.microsoft.com/.default"},
+                    timeout=30,
+                )
+                token_resp.raise_for_status()
+                access_token = token_resp.json()["access_token"]
+            except Exception as e:
+                return dg.SensorResult(skip_reason=f"Auth failed: {e}")
+
+            headers = {"Authorization": f"Bearer {access_token}"}
+
+            try:
+                hostname = _self.site_url.split("/")[2]
+                site_path = "/" + "/".join(_self.site_url.split("/")[3:])
+                site_resp = requests.get(
+                    f"https://graph.microsoft.com/v1.0/sites/{hostname}:{site_path}",
+                    headers=headers, timeout=30,
+                )
+                site_resp.raise_for_status()
+                site_id = site_resp.json()["id"]
+            except Exception as e:
+                return dg.SensorResult(skip_reason=f"Could not resolve site ID: {e}")
+
+            try:
+                drive_resp = requests.get(
+                    f"https://graph.microsoft.com/v1.0/sites/{site_id}/drives",
+                    headers=headers, timeout=30,
+                )
+                drive_resp.raise_for_status()
+                drives = drive_resp.json().get("value", [])
+                drive = next((d for d in drives if d["name"] == _self.library_name), None)
+                if not drive:
+                    return dg.SensorResult(skip_reason=f"Library '{_self.library_name}' not found")
+                drive_id = drive["id"]
+
+                folder = _self.folder_path.strip("/")
+                path_segment = f":/{folder}:" if folder else ""
+                items_resp = requests.get(
+                    f"https://graph.microsoft.com/v1.0/drives/{drive_id}/root{path_segment}/children",
+                    headers=headers, params={"$top": 200}, timeout=30,
+                )
+                items_resp.raise_for_status()
+                items = items_resp.json().get("value", [])
+            except Exception as e:
+                return dg.SensorResult(skip_reason=f"List files failed: {e}")
+
+            file_count = 0
+            total_size = 0
+            latest_modified = ""
+            for item in items:
+                if "folder" in item:
+                    continue
+                file_count += 1
+                total_size += item.get("size", 0)
+                modified = item.get("lastModifiedDateTime", "")
+                if modified > latest_modified:
+                    latest_modified = modified
+
+            data_version = f"{file_count}-{latest_modified}"
+            metadata = {
+                "file_count": file_count,
+                "total_size_bytes": total_size,
+                "latest_modified_iso": latest_modified,
+                "site_url": _self.site_url,
+                "library_name": _self.library_name,
+            }
+            return dg.SensorResult(asset_events=[_event_cls(
+                asset_key=dg.AssetKey.from_user_string(_self.asset_key),
+                metadata=metadata,
+                tags={DATA_VERSION_TAG: data_version},
+            )])
+
+        return dg.Definitions(assets=[spec], sensors=[_sharepoint_obs])

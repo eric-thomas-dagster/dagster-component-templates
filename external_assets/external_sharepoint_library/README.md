@@ -23,6 +23,14 @@ This component does not read from or write to Sharepoint Library. It is a **line
 | `site_url` | `str` | SharePoint site URL |
 | `library_name` | `str` | Document library name |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | — | Dagster resource key exposing `.observe(source) -> dict` (source is 'site_url/library_name') that returns `{'data_version': str, **metadata}`. Only used when create_observation_sensor=True; unset uses Microsoft Graph dir… _(full docs in schema.json + component README)_ |
+| `client_id_env_var` | `str` | — | Env var with Azure app client ID. Only used when create_observation_sensor=True and resource_key is unset. |
+| `client_secret_env_var` | `str` | — | Env var with Azure app client secret. Only used when create_observation_sensor=True and resource_key is unset. |
+
 ### Catalog metadata
 
 | Field | Type | Default | Description |
@@ -36,13 +44,24 @@ This component does not read from or write to Sharepoint Library. It is a **line
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily'\|'weekly'\|'monthly'\|'hourly'\|'static'\|'dynamic'\|'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | ISO start date for time-based partition types (e.g. '2024-01-01'). |
-| `partition_values` | `str` | — | Comma-separated values for static / multi partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static / multi partition types. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec; overrides flat fields when set. |
+
+### Sensor configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{asset_key}__observation_sensor'. Only used when create_observation_sensor=True. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `create_observation_sensor` | `bool` | `false` | Also create the polling sensor that keeps this external asset's health/data-version current -- same trio as the sql/s3/sftp/kafka ExternalXAsset siblings. When False (default), this component only declares the AssetSpec. |
+| `check_interval_seconds` | `int` | `300` | Seconds between health checks. Only used when create_observation_sensor=True. |
+| `emit_materialization` | `bool` | `true` | When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, downstream AutomationCondition.eager() fires on parent updates). When False, emits AssetObservation instead (no Dagster+ credit charg… _(full docs in schema.json + component README)_ |
+| `tenant_id_env_var` | `str` | — | Env var with Azure tenant ID. Only used when create_observation_sensor=True and resource_key is unset. |
+| `folder_path` | `str` | — | Optional subfolder path within the library to observe. Only used when create_observation_sensor=True and resource_key is unset. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 
 [//]: # (FIELDS:END)
@@ -58,27 +77,37 @@ attributes:
   # description: None  # optional
 ```
 
-## Pair with the observation sensor
+## Observation sensor
 
-Use the companion observation sensor to periodically health-check the library and record metrics as `AssetObservation` events:
+Set `create_observation_sensor: true` to also get the polling sensor that keeps this asset's
+health/data-version current — one component, one YAML, no manual `asset_key` wiring (same trio as
+the sql/s3/sftp/kafka `ExternalXAsset` siblings):
 
 ```yaml
-# 1. Declare the external asset (lineage node)
 type: dagster_component_templates.ExternalSharePointLibraryAsset
 attributes:
   asset_key: external/sharepoint_library
   site_url: SITE_URL
   library_name: my_library
+  create_observation_sensor: true
+  check_interval_seconds: 300
+  # Native Microsoft Graph path (client-credentials OAuth flow):
+  tenant_id_env_var: AZURE_TENANT_ID
+  client_id_env_var: AZURE_CLIENT_ID
+  client_secret_env_var: AZURE_CLIENT_SECRET
+```
 
----
+Or set `resource_key` to a Dagster resource exposing `.observe(source) -> dict` (source is
+`'site_url/library_name'`) instead of the native Graph path:
 
-# 2. Observe it on a schedule
-type: dagster_component_templates.SharePointLibraryObservationSensorComponent
+```yaml
+type: dagster_component_templates.ExternalSharePointLibraryAsset
 attributes:
-  sensor_name: sharepoint_library_observer
   asset_key: external/sharepoint_library
   site_url: SITE_URL
   library_name: my_library
+  create_observation_sensor: true
+  resource_key: sharepoint_client
 ```
 
 ## Requirements

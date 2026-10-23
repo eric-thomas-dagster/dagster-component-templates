@@ -90,6 +90,73 @@
       "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
       "required": false,
       "default": null
+    },
+    "create_observation_sensor": {
+      "type": "boolean",
+      "label": "Create Observation Sensor",
+      "description": "Also create the polling sensor that keeps this external asset's health/data-version current -- same trio as the sql/s3/sftp/kafka ExternalXAsset siblings. When False (default), this component only declares the AssetSpec.",
+      "required": false,
+      "default": false
+    },
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique sensor name. Defaults to '{asset_key}__observation_sensor'. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": null
+    },
+    "check_interval_seconds": {
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between health checks. Only used when create_observation_sensor=True.",
+      "required": false,
+      "default": 300
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Dagster resource key exposing `.observe(source) -> dict` (source is 'site_url/library_name') that returns `{'data_version': str, **metadata}`. Only used when create_observation_sensor=True; unset uses Microsoft Graph directly (requires tenant_id_env_var/client_id_env_var/client_secret_env_var).",
+      "required": false,
+      "default": null,
+      "ui:widget": "resource-picker"
+    },
+    "emit_materialization": {
+      "default": true,
+      "description": "When True (default), the sensor emits AssetMaterialization. When False, emits AssetObservation instead. Only used when create_observation_sensor=True.",
+      "label": "Emit Materialization",
+      "required": false,
+      "type": "boolean"
+    },
+    "tenant_id_env_var": {
+      "type": "string",
+      "label": "Tenant Id Env Var",
+      "description": "Env var with Azure tenant ID. Only used when create_observation_sensor=True and resource_key is unset.",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client Id Env Var",
+      "description": "Env var with Azure app client ID. Only used when create_observation_sensor=True and resource_key is unset.",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "description": "Env var with Azure app client secret. Only used when create_observation_sensor=True and resource_key is unset.",
+      "required": false,
+      "default": null,
+      "ui:widget": "env_var"
+    },
+    "folder_path": {
+      "type": "string",
+      "label": "Folder Path",
+      "description": "Optional subfolder path within the library to observe. Only used when create_observation_sensor=True and resource_key is unset.",
+      "required": false,
+      "default": ""
     }
   },
   "tags": [

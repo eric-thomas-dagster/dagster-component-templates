@@ -42,7 +42,7 @@
       "type": "string",
       "label": "Metric Kind",
       "required": false,
-      "description": "'gauge' | 'sum' (counter/up-down). Histograms are advanced — use a custom op for those.",
+      "description": "'gauge' | 'sum' (counter/up-down). Histograms are advanced \u2014 use a custom op for those.",
       "default": "gauge"
     },
     "metric_unit": {
@@ -80,7 +80,7 @@
       "type": "string",
       "label": "Service Name",
       "required": false,
-      "description": "OTel resource service.name attribute — identifies the producer",
+      "description": "OTel resource service.name attribute \u2014 identifies the producer",
       "default": "dagster"
     },
     "bearer_token_env_var": {
@@ -126,7 +126,7 @@
       },
       "label": "Owners",
       "required": false,
-      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
       "ui:widget": "list"
     },
     "asset_tags": {
@@ -191,7 +191,7 @@
       "label": "Partition Type",
       "required": false,
       "default": null,
-      "description": "Enable partitioning: 'daily'/'weekly'/'monthly'/'hourly' for time-based; 'static' for a fixed set of values; 'dynamic' for values added at runtime; 'multi' for date × static. Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily'/'weekly'/'monthly'/'hourly' for time-based; 'static' for a fixed set of values; 'dynamic' for values added at runtime; 'multi' for date \u00d7 static. Leave empty for unpartitioned.",
       "enum": [
         "daily",
         "weekly",
@@ -247,6 +247,25 @@
       "required": false,
       "default": null,
       "description": "Name for DynamicPartitionsDefinition when partition_type='dynamic'."
+    },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' fires one query covering the whole backfill range (partition_key/partition_date/partition_start/partition_end tokens reflect the full range, comma-joined for partition_key) rather than one query per partition. 'multi_run' launches one run per partition. Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is not set. 'single_run' requires a partition-range-aware IO manager (e.g. a DB-table IO manager with partition_expr set) -- a generic filesystem/default IO manager cannot persist a single_run output spanning multiple partitions and will raise a clear error at materialization time.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
+      "required": false,
+      "default": null
     }
   }
 }

@@ -22,7 +22,7 @@ support it; default is off.
 import math
 import os
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Literal
 from urllib.parse import quote
 
 import pandas as pd
@@ -329,6 +329,27 @@ class DataframeToODataComponent(Component, Model, Resolvable):
     retry_policy_delay_seconds: Optional[int] = Field(default=None)
     retry_policy_backoff: str = Field(default="exponential")
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "fires one write covering the whole backfill range (the partition "
+            "tokens reflect the full range, comma-joined for partition_key) "
+            "rather than one write per partition. 'multi_run' launches one run "
+            "per partition (optionally capped via backfill_policy_max_partitions_per_run). "
+            "Leave unset for Dagster's default (one run per partition, uncapped). "
+            "Ignored when partition_type is not set. 'single_run' requires a "
+            "partition-range-aware IO manager (e.g. a DB-table IO manager with "
+            "partition_expr set) -- a generic filesystem/default IO manager cannot "
+            "persist a single_run output spanning multiple partitions and will "
+            "raise a clear error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
@@ -435,6 +456,16 @@ class DataframeToODataComponent(Component, Model, Resolvable):
         partition_static_column = self.partition_static_column
         partition_static_dim = self.partition_static_dim
 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            from dagster import BackfillPolicy
+            backfill_policy = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            from dagster import BackfillPolicy
+            backfill_policy = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
         retry_policy = None
         if self.retry_policy_max_retries is not None:
             from dagster import Backoff, RetryPolicy
@@ -454,6 +485,7 @@ class DataframeToODataComponent(Component, Model, Resolvable):
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             partitions_def=partitions_def,
             retry_policy=retry_policy,
+            backfill_policy=backfill_policy,
             ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
             freshness_policy=freshness_policy,
         )

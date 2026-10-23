@@ -55,6 +55,7 @@ Non-SAP OData servers (Dynamics, MS Graph) usually don't need CSRF — leave it 
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' fires one write covering the whole backfill range (the partition tokens reflect the full range, comma-joined for partition_key) rather than one write per… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -109,6 +110,7 @@ Non-SAP OData servers (Dynamics, MS Graph) usually don't need CSRF — leave it 
 | `rate_limit_backoff_seconds` | `float` | `2.0` | — |
 | `request_timeout_seconds` | `int` | `120` | — |
 | `dynamic_partition_name` | `str` | — | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

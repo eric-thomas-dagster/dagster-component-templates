@@ -22,7 +22,7 @@ import ssl
 from email.message import EmailMessage
 from email.utils import formataddr
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 
 import pandas as pd
 
@@ -235,6 +235,27 @@ class SmtpSendAssetComponent(Component, Model, Resolvable):
         description="Backoff strategy: 'linear' or 'exponential'.",
     )
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "fires one write covering the whole backfill range (the partition "
+            "tokens reflect the full range, comma-joined for partition_key) "
+            "rather than one write per partition. 'multi_run' launches one run "
+            "per partition (optionally capped via backfill_policy_max_partitions_per_run). "
+            "Leave unset for Dagster's default (one run per partition, uncapped). "
+            "Ignored when partition_type is not set. 'single_run' requires a "
+            "partition-range-aware IO manager (e.g. a DB-table IO manager with "
+            "partition_expr set) -- a generic filesystem/default IO manager cannot "
+            "persist a single_run output spanning multiple partitions and will "
+            "raise a clear error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     freshness_max_lag_minutes: Optional[int] = Field(
         default=None,
         description="Maximum acceptable lag in minutes before the asset is considered stale.",
@@ -322,6 +343,16 @@ class SmtpSendAssetComponent(Component, Model, Resolvable):
 
             freshness_policy = _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            from dagster import BackfillPolicy
+            backfill_policy = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            from dagster import BackfillPolicy
+            backfill_policy = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
         retry_policy = None
         if self.retry_policy_max_retries is not None:
             from dagster import Backoff, RetryPolicy
@@ -362,6 +393,7 @@ class SmtpSendAssetComponent(Component, Model, Resolvable):
             owners=self.owners or None,
             ins={"upstream": AssetIn(key=upstream_key)},
             retry_policy=retry_policy,
+            backfill_policy=backfill_policy,
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
         )

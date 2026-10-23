@@ -26,8 +26,9 @@ See schema.json for full attribute reference.
 | `description` | `str` | — | — |
 | `deps` | `List[str]` | — | — |
 | `owners` | `List[str]` | — | — |
-| `asset_tags` | `Dict[str, str]` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' fires one write covering the whole backfill range (the partition tokens reflect the full range, comma-joined for partition_key) rather than one write per… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -42,7 +43,10 @@ See schema.json for full attribute reference.
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream rows to the current date partition (time partitions). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream rows to the current static/dynamic partition key (e.g. 'customer_id'). |
+| `partition_static_dim` | `str` | — | Name of the static axis in a multi-partition, e.g. 'customer' or 'region'. |
 
 ### Retry policy
 
@@ -63,6 +67,7 @@ See schema.json for full attribute reference.
 | `service_name` | `str` | `"dagster"` | OTel resource service.name attribute — identifies the producer |
 | `bearer_token_env_var` | `str` | — | Env var with Bearer token for Authorization header (most SaaS backends require this) |
 | `extra_headers` | `Dict[str, str]` | — | Extra HTTP headers, e.g. {x-honeycomb-dataset: production} or {api-key: ...} |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)

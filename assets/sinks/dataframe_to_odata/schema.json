@@ -131,7 +131,7 @@
       "x-dagster-widget": "columns"
     },
     "batch_mode": {
-      "description": "Use OData $batch protocol — bundles many writes into one HTTP request. Supported by S/4HANA and SuccessFactors. NOT supported by all OData servers; leave off unless you're sure.",
+      "description": "Use OData $batch protocol \u2014 bundles many writes into one HTTP request. Supported by S/4HANA and SuccessFactors. NOT supported by all OData servers; leave off unless you're sure.",
       "type": "boolean",
       "label": "Batch Mode ($batch)",
       "required": false,
@@ -323,6 +323,25 @@
       "label": "Partition Cron Fmt",
       "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
       "required": false
+    },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' fires one query covering the whole backfill range (partition_key/partition_date/partition_start/partition_end tokens reflect the full range, comma-joined for partition_key) rather than one query per partition. 'multi_run' launches one run per partition. Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is not set. 'single_run' requires a partition-range-aware IO manager (e.g. a DB-table IO manager with partition_expr set) -- a generic filesystem/default IO manager cannot persist a single_run output spanning multiple partitions and will raise a clear error at materialization time.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
+      "required": false,
+      "default": null
     }
   },
   "tags": [

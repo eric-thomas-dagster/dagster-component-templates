@@ -17139,7 +17139,7 @@
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/adls_round_trip.md",
-        "last_validated": "2026-05-06"
+        "last_validated": "2026-10-23"
       },
       "agent_hints": {
         "inputs": "TWO DataFrames \u2014 `left_asset_key` and `right_asset_key` referencing DIFFERENT prior assets.",
@@ -17147,7 +17147,7 @@
         "side_effects": "Row count changes per join type. left/right/inner/outer/cross behave per pandas.",
         "anti_uses": "NEVER join an asset with itself (left_asset_key == right_asset_key is rejected \u2014 degenerate self-join). For UNION (row stacking) use dataframe_union instead."
       },
-      "version": "1.0.0",
+      "version": "1.0.1",
       "author": "Dagster Community",
       "dependencies": {
         "pip": [
@@ -48166,7 +48166,7 @@
       "name": "polars_pipeline",
       "category": "transformation",
       "description": "Multi-step polars LazyFrame pipeline in a single Dagster asset (query-plan fusion across all steps).",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "author": "Dagster Community",
       "path": "assets/transforms/polars_pipeline",
       "tags": [],
@@ -48184,7 +48184,7 @@
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/polars_pipeline.md",
-        "last_validated": "2026-05-19"
+        "last_validated": "2026-10-23"
       },
       "agent_hints": {
         "inputs": "DataFrame(s) \u2014 accepts pandas or polars.",

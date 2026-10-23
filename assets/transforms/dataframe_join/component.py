@@ -154,6 +154,21 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+def _pl_join_with_order_fallback(left_pl, right_pl, join_kwargs: dict):
+    """`DataFrame.join(..., maintain_order=...)` -- added to polars well before 2.0,
+    but this component has no polars version floor (it's an optional backend), so a
+    sufficiently old install could still predate the kwarg. Retry once without it
+    (silently -- the only downside is the pre-2.0 row-order behavior this exists to
+    pin down in the first place, not a correctness error) rather than hard-failing
+    a join that would otherwise work fine."""
+    try:
+        return left_pl.join(right_pl, **join_kwargs)
+    except TypeError as e:
+        if "maintain_order" not in str(e):
+            raise
+        return left_pl.join(right_pl, **{k: v for k, v in join_kwargs.items() if k != "maintain_order"})
+
+
 class DataframeJoin(Component, Model, Resolvable):
     """Join two DataFrame assets on common or specified columns."""
 
@@ -584,21 +599,35 @@ class DataframeJoin(Component, Model, Resolvable):
                 # outer in pandas == 'full' in polars
                 _how_map = {"outer": "full"}
                 pl_how = _how_map.get(how, how)
+                # Polars' streaming query engine (default since 2.0) doesn't guarantee
+                # join output row order unless maintain_order is set -- a silent
+                # reordering, not an error. Map each `how` to the matching side(s)
+                # whose row order a caller of a pandas-shaped join component would
+                # reasonably still expect preserved.
+                _maintain_order_by_how = {
+                    "inner": "left", "left": "left", "semi": "left", "anti": "left",
+                    "right": "right", "full": "left_right",
+                }
                 left_pl = pl.from_pandas(left)
                 right_pl = pl.from_pandas(right)
                 join_kwargs = {"how": pl_how, "suffix": suffixes[1] if len(suffixes) > 1 else "_right"}
+                if pl_how in _maintain_order_by_how:
+                    join_kwargs["maintain_order"] = _maintain_order_by_how[pl_how]
                 if on:
                     join_kwargs["on"] = on
                 elif left_on and _right_on_local:
                     join_kwargs["left_on"] = left_on
                     join_kwargs["right_on"] = _right_on_local
-                merged_pl = left_pl.join(right_pl, **join_kwargs)
+                merged_pl = _pl_join_with_order_fallback(left_pl, right_pl, join_kwargs)
                 for slot in extra_slots:
                     nxt = extras.get(slot)
                     if nxt is None:
                         continue
                     nxt_pl = pl.from_pandas(nxt)
-                    merged_pl = merged_pl.join(nxt_pl, **({"how": pl_how, "suffix": suffixes[1] if len(suffixes) > 1 else "_right"} | ({"on": on} if on else {})))
+                    _nxt_kwargs = {"how": pl_how, "suffix": suffixes[1] if len(suffixes) > 1 else "_right"} | ({"on": on} if on else {})
+                    if pl_how in _maintain_order_by_how:
+                        _nxt_kwargs["maintain_order"] = _maintain_order_by_how[pl_how]
+                    merged_pl = _pl_join_with_order_fallback(merged_pl, nxt_pl, _nxt_kwargs)
                 if post_rename or post_drop or post_keep_only:
                     merged_pl = pl.from_pandas(_apply_post_merge(merged_pl.to_pandas()))
                 _merged_for_meta = merged_pl.to_pandas()
@@ -637,7 +666,7 @@ class DataframeJoin(Component, Model, Resolvable):
                         _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(
                             TableColumnLineage(_lineage_deps)
                         )
-                _emit_preview(context, merged, _include_preview, _preview_rows)
+                _emit_preview(context, _merged_for_meta, _include_preview, _preview_rows)
                 context.add_output_metadata(_metadata)
                 return merged_pl
             else:

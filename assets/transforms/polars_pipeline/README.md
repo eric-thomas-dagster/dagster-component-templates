@@ -126,6 +126,8 @@ Supported `agg` values in `group_by`: `sum / mean / avg / min / max / count / me
 
 Set `streaming: true` to use polars's streaming engine on the final `.collect()`. Works for out-of-core frames (larger than memory). No syntactic change to operations.
 
+Polars 2.0 made the streaming engine the default for `.collect()` regardless of this flag, and that engine doesn't guarantee row order for `group_by`/`join` unless `maintain_order` is set -- a silent reordering, not an error. `group_by` and `join` ops in this component always pass `maintain_order` (confirmed against a real, installed polars 2.0.0), so results stay deterministic either way.
+
 ## Output
 
 `output_type: polars` (default) returns a polars DataFrame so downstream polars-aware components can chain. `output_type: pandas` converts at the boundary for pandas-only downstream consumers.

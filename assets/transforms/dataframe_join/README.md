@@ -80,6 +80,7 @@ Join two upstream DataFrame assets using pandas merge. Supports all standard joi
 - Use `left_on` and `right_on` together when join key columns have different names.
 - For a cross join, set `how: cross` and leave `on`, `left_on`, `right_on` as null.
 - Overlapping non-key columns are disambiguated using `suffixes`.
+- `backend: polars` preserves row order (`maintain_order`) matching the driving side's order for every `how` -- required since Polars 2.0 made its streaming query engine the default, which doesn't guarantee join row order otherwise (confirmed against a real, installed polars 2.0.0). `backend: pandas` (default) is unaffected -- pandas' `.merge()` already preserves this.
 
 ## YAML Example
 

@@ -323,7 +323,12 @@ def _apply_op(pl, lf, op: Dict[str, Any], step_outputs: Dict[str, Any]):
                 aggs.append(_pl_agg(pl, spec["col"], out_col, spec["agg"]))
             else:
                 aggs.append(_pl_agg(pl, out_col, out_col, spec))
-        return lf.group_by(group_by).agg(aggs)
+        # maintain_order=True: polars' streaming engine (default since 2.0) doesn't
+        # guarantee group_by output order otherwise -- a silent reordering, not an
+        # error, and this pipeline's own `head`/`limit`/`sort` steps can run right
+        # after a group_by in the same config-driven chain (sort doesn't need the
+        # order kept, but an unsorted head/limit right after group_by absolutely does).
+        return lf.group_by(group_by, maintain_order=True).agg(aggs)
     if kind == "sort":
         return lf.sort(by=op["by"], descending=op.get("descending", False))
     if kind == "head" or kind == "limit":
@@ -356,12 +361,22 @@ def _apply_op(pl, lf, op: Dict[str, Any], step_outputs: Dict[str, Any]):
             raise ValueError(f"join.right.ref={right_id!r} doesn't match any earlier step id")
         right_lf = step_outputs[right_id]
         how = op.get("how", "inner").lower()
+        # maintain_order: polars' streaming engine (default since 2.0) doesn't
+        # guarantee join output row order otherwise -- a silent reordering, not
+        # an error. Preserve whichever side a pandas-trained user would still
+        # expect stable (left's order for inner/left/semi/anti, right's for a
+        # right join, both concatenated for a full join); not applicable to cross.
+        _maintain_order_by_how = {
+            "inner": "left", "left": "left", "semi": "left", "anti": "left",
+            "right": "right", "full": "left_right", "outer": "left_right",
+        }
+        _mo = {"maintain_order": _maintain_order_by_how[how]} if how in _maintain_order_by_how else {}
         on_cols = op.get("on_columns") or op.get("on")
         if on_cols:
-            return lf.join(right_lf, on=on_cols, how=how)
+            return lf.join(right_lf, on=on_cols, how=how, **_mo)
         left_on, right_on = op.get("left_on"), op.get("right_on")
         if left_on and right_on:
-            return lf.join(right_lf, left_on=left_on, right_on=right_on, how=how)
+            return lf.join(right_lf, left_on=left_on, right_on=right_on, how=how, **_mo)
         if how == "cross":
             return lf.join(right_lf, how="cross")
         raise ValueError("join op: provide 'on_columns' OR 'left_on' + 'right_on'")

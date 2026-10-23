@@ -19,6 +19,7 @@ import json
 import os
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
 import dagster as dg
@@ -82,16 +83,148 @@ def _build_payload_from_repo(repo_def) -> Dict[str, Any]:
     }
 
 
+def _build_payload_from_dagster_plus(log, dagster_plus_token_env: str) -> Optional[Dict[str, Any]]:
+    """Query Dagster+ GraphQL for the deployment-wide asset graph.
+
+    Mirrors lineage_graph_extractor's identically-named helper so the two
+    components' scope='deployment' behavior stays consistent. Returns None
+    (never raises) when Dagster+ env vars aren't set or the query fails --
+    callers fall back to the local code-location graph.
+    """
+    cloud_url = os.environ.get("DAGSTER_CLOUD_URL")
+    deployment = os.environ.get("DAGSTER_CLOUD_DEPLOYMENT_NAME", "prod")
+    token = os.environ.get(dagster_plus_token_env)
+    if not (cloud_url and token):
+        return None
+
+    try:
+        import requests
+        query = """
+        query AssetLineageQuery {
+            assetNodes {
+                assetKey { path }
+                groupName
+                computeKind
+                description
+                dependencyKeys { path }
+                repository { name location { name } }
+                freshnessPolicy { cronSchedule maximumLagMinutes }
+            }
+        }
+        """
+        resp = requests.post(
+            f"{cloud_url}/{deployment}/graphql",
+            json={"query": query},
+            headers={"Dagster-Cloud-Api-Token": token, "Content-Type": "application/json"},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        asset_nodes = resp.json().get("data", {}).get("assetNodes", [])
+        if not asset_nodes:
+            return None
+
+        nodes: List[Dict[str, Any]] = []
+        edges: List[Dict[str, str]] = []
+        for an in asset_nodes:
+            key_str = "/".join(an["assetKey"]["path"])
+            code_location = an.get("repository", {}).get("location", {}).get("name", "unknown")
+            nodes.append({
+                "asset_key": an["assetKey"]["path"],
+                "asset_key_string": key_str,
+                "group": an.get("groupName") or "ungrouped",
+                "kinds": [an["computeKind"]] if an.get("computeKind") else [],
+                "description": (an.get("description") or "")[:500],
+                "metadata": {"code_location": code_location},
+                "freshness_policy": str(an["freshnessPolicy"]) if an.get("freshnessPolicy") else None,
+            })
+            for dep in an.get("dependencyKeys", []):
+                edges.append({"upstream": "/".join(dep["path"]), "downstream": key_str})
+
+        log.info(f"GraphQL: fetched {len(nodes)} assets across deployment")
+        return {
+            "sync_metadata": {
+                "synced_at": time.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "source": "dagster_plus_graphql",
+                "total_nodes": len(nodes),
+                "total_edges": len(edges),
+            },
+            "nodes": nodes,
+            "edges": edges,
+        }
+    except Exception as e:
+        log.warning(f"GraphQL query failed, falling back to local graph: {e}")
+        return None
+
+
+# ── column lineage ───────────────────────────────────────────────────────
+def _column_lineage_facets(instance, asset_key_strings: List[str], namespace: str) -> Dict[str, Dict[str, Any]]:
+    """Batched lookup of each asset's REAL `dagster/column_lineage` metadata (set via
+    `context.add_output_metadata` on its most recent materialization -- this is NOT
+    visible on the static asset-graph definition `_build_payload_from_repo` walks,
+    since `TableColumnLineage` is runtime, per-materialization metadata, not a static
+    asset property), converted into the OpenLineage `columnLineage` dataset facet
+    (schema: https://openlineage.io/spec/facets/1-2-0/ColumnLineageDatasetFacet.json).
+
+    Returns {asset_key_string: facet_dict}, omitting assets with no column lineage
+    recorded, or whose `dagster/column_lineage` isn't a real TableColumnLineage value
+    (e.g. a component that sets it to a plain dict directly).
+    """
+    from dagster import AssetKey, TableColumnLineageMetadataValue
+
+    keys = [AssetKey.from_user_string(s) for s in asset_key_strings]
+    try:
+        records = instance.get_asset_records(keys)
+    except Exception:
+        return {}
+
+    out: Dict[str, Dict[str, Any]] = {}
+    for record in records:
+        entry = record.asset_entry
+        last_mat = entry.last_materialization_record
+        if last_mat is None:
+            continue
+        try:
+            metadata = last_mat.event_log_entry.dagster_event.event_specific_data.materialization.metadata
+        except Exception:
+            continue
+        lineage_md = metadata.get("dagster/column_lineage") if metadata else None
+        if not isinstance(lineage_md, TableColumnLineageMetadataValue):
+            continue
+        fields: Dict[str, Any] = {}
+        for out_col, deps in lineage_md.value.deps_by_column.items():
+            fields[out_col] = {
+                "inputFields": [
+                    {
+                        "namespace": namespace,
+                        "name": dep.asset_key.to_user_string(),
+                        "field": dep.column_name,
+                        "transformations": [{"type": "DIRECT"}],
+                    }
+                    for dep in deps
+                ]
+            }
+        if fields:
+            out[entry.asset_key.to_user_string()] = {
+                "_producer": namespace,
+                "_schemaURL": "https://openlineage.io/spec/facets/1-2-0/ColumnLineageDatasetFacet.json",
+                "fields": fields,
+            }
+    return out
+
+
 # ── OpenLineage transform ────────────────────────────────────────────────
-def _hash_structural(payload: Dict[str, Any]) -> str:
+def _hash_structural(payload: Dict[str, Any], column_lineage: Optional[Dict[str, Dict[str, Any]]] = None) -> str:
     structural = json.dumps(
-        {"nodes": payload["nodes"], "edges": payload["edges"]},
+        {"nodes": payload["nodes"], "edges": payload["edges"], "column_lineage": column_lineage or {}},
         sort_keys=True,
     )
     return hashlib.sha256(structural.encode()).hexdigest()[:16]
 
 
-def _datasets_for_asset(asset_key_str: str, namespace: str, node: Dict[str, Any]) -> Dict[str, Any]:
+def _datasets_for_asset(
+    asset_key_str: str, namespace: str, node: Dict[str, Any],
+    column_lineage_facet: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
     """Build a single OpenLineage Dataset reference for an asset."""
     facets: Dict[str, Any] = {
         "dagster_metadata": {
@@ -108,26 +241,35 @@ def _datasets_for_asset(asset_key_str: str, namespace: str, node: Dict[str, Any]
             "_schemaURL": "https://openlineage.io/spec/facets/1-0-1/SchemaDatasetFacet.json",
             "fields": [{"name": k, "type": str(type(v).__name__)} for k, v in node["metadata"].items()],
         }
+    if column_lineage_facet:
+        facets["columnLineage"] = column_lineage_facet
     return {"namespace": namespace, "name": asset_key_str, "facets": facets, "inputFacets": {}}
 
 
-def _build_per_asset_events(payload: Dict[str, Any], namespace: str, run_id: str, producer: str) -> List[Dict[str, Any]]:
+def _build_per_asset_events(
+    payload: Dict[str, Any], namespace: str, run_id: str, producer: str,
+    column_lineage: Optional[Dict[str, Dict[str, Any]]] = None,
+) -> List[Dict[str, Any]]:
     """Emit one OpenLineage RunEvent per asset, with this-asset as the output and parents as inputs.
 
     Each event is a self-contained COMPLETE for the asset's place in the
     graph. Collectors that index by job + run id will see the full
-    deployment lineage in one batch.
+    deployment lineage in one batch. `column_lineage` (output asset key
+    string -> columnLineage facet dict) attaches to the OUTPUT dataset only
+    -- the facet's own `inputFields` already name the upstream asset+column,
+    so it does not need to be duplicated onto input datasets.
     """
     nodes_by_key = {n["asset_key_string"]: n for n in payload["nodes"]}
     parents_by_key: Dict[str, List[str]] = {}
     for edge in payload["edges"]:
         parents_by_key.setdefault(edge["downstream"], []).append(edge["upstream"])
+    column_lineage = column_lineage or {}
 
     events: List[Dict[str, Any]] = []
     event_time = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     for node in payload["nodes"]:
         key_str = node["asset_key_string"]
-        outputs = [_datasets_for_asset(key_str, namespace, node)]
+        outputs = [_datasets_for_asset(key_str, namespace, node, column_lineage.get(key_str))]
         inputs = [
             _datasets_for_asset(p, namespace, nodes_by_key[p])
             for p in parents_by_key.get(key_str, [])
@@ -168,6 +310,22 @@ def _post(endpoint: str, headers: Dict[str, str], body: Dict[str, Any], log) -> 
     except urllib.error.URLError as e:
         log.warning(f"OpenLineage collector unreachable: {e.reason}")
         return False
+
+
+def _post_many(endpoint: str, headers: Dict[str, str], events: List[Dict[str, Any]], log, max_workers: int) -> int:
+    """Dispatch every event's POST, up to `max_workers` concurrently, and return the
+    failure count. The standard OpenLineage HTTP transport (Marquez's /api/v1/lineage,
+    and the v2 spec generally) accepts exactly one RunEvent per request -- there is no
+    standard batch/array endpoint to send many events in one call (confirmed against
+    Marquez's own docs: "record a single lineage event" is the operation this path
+    exposes). Concurrency is the real lever for export throughput here, not batching.
+    max_workers=1 recovers the original strictly-sequential behavior.
+    """
+    if max_workers <= 1 or len(events) <= 1:
+        return sum(0 if _post(endpoint, headers, ev, log) else 1 for ev in events)
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        results = list(pool.map(lambda ev: _post(endpoint, headers, ev, log), events))
+    return sum(0 if ok else 1 for ok in results)
 
 
 # ── component ────────────────────────────────────────────────────────────
@@ -240,17 +398,58 @@ class OpenLineageExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
         description="OpenLineage 'producer' URI — identifies the emitter implementation.",
     )
 
+    # Scope
+    scope: str = Field(
+        default="code_location",
+        description=(
+            "'code_location' (current location's asset graph) or 'deployment' (full "
+            "Dagster+ graph via GraphQL, same mechanism as lineage_graph_extractor). "
+            "Falls back to 'code_location' automatically if Dagster+ env vars aren't "
+            "set or the GraphQL query fails."
+        ),
+    )
+    dagster_plus_token_env: str = Field(
+        default="DAGSTER_PLUS_TOKEN",
+        description="Env var holding a Dagster+ user token (only used for scope='deployment').",
+    )
+
     # Behavior
     only_export_on_change: bool = Field(
         default=True,
         description=(
-            "If True, hash the structural payload and skip the export when the hash "
-            "matches the previous run's. Stored as job-tag metadata on the run."
+            "If True, hash the structural payload (plus column lineage) and skip the "
+            "export when the hash matches the previous run's. Stored as job-tag "
+            "metadata on the run."
         ),
     )
     fail_on_collector_error: bool = Field(
         default=False,
-        description="If True, an unreachable / errored collector fails the run. Default False (best-effort emit).",
+        description=(
+            "If True, any collector POST failure fails the run (checked after every "
+            "event has been attempted, not at the first failure -- with "
+            "max_concurrent_requests>1 there is no single 'first' failure to stop at). "
+            "Default False (best-effort emit)."
+        ),
+    )
+    max_concurrent_requests: int = Field(
+        default=8,
+        description=(
+            "Max concurrent POSTs to the collector. The OpenLineage HTTP transport "
+            "(Marquez's /api/v1/lineage) accepts one event per request -- there is no "
+            "standard batch endpoint to send many events in one call -- so concurrency, "
+            "not batching, is the real export-throughput lever for a large asset graph. "
+            "Set to 1 for strictly sequential POSTs."
+        ),
+    )
+    emit_column_lineage: bool = Field(
+        default=True,
+        description=(
+            "Emit a real OpenLineage columnLineage facet on each asset's output "
+            "dataset, built from its most recent materialization's "
+            "`dagster/column_lineage` metadata (e.g. set by sql_transform's own "
+            "column_lineage: field), when present. Requires one extra "
+            "instance.get_asset_records(...) call per export; set False to skip it."
+        ),
     )
 
     @model_validator(mode="before")
@@ -282,15 +481,47 @@ class OpenLineageExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 if token:
                     headers["Authorization"] = f"Bearer {token}"
 
-            # Walk the live asset graph from the current code location.
-            repo = getattr(context, "repository_def", None)
-            if repo is None:
-                raise RuntimeError(
-                    "context.repository_def is unavailable — this job must run inside a "
-                    "loaded code location."
-                )
-            payload = _build_payload_from_repo(repo)
-            payload_hash = _hash_structural(payload)
+            # Walk the asset graph: deployment-wide via Dagster+ GraphQL if scope
+            # requests it (and env vars are set + the query succeeds), else fall
+            # back to the current code location's live graph.
+            payload = None
+            if _self.scope == "deployment":
+                payload = _build_payload_from_dagster_plus(context.log, _self.dagster_plus_token_env)
+                if payload is not None:
+                    context.log.info(
+                        f"Deployment-wide graph via Dagster+ GraphQL "
+                        f"({payload['sync_metadata']['total_nodes']} assets)"
+                    )
+                else:
+                    context.log.info(
+                        "Dagster+ GraphQL unavailable (scope='deployment' requires "
+                        f"DAGSTER_CLOUD_URL + {_self.dagster_plus_token_env} set), "
+                        "falling back to current code location"
+                    )
+            if payload is None:
+                repo = getattr(context, "repository_def", None)
+                if repo is None:
+                    raise RuntimeError(
+                        "context.repository_def is unavailable — this job must run inside a "
+                        "loaded code location."
+                    )
+                payload = _build_payload_from_repo(repo)
+
+            # Real OpenLineage columnLineage facet, derived from each asset's most
+            # recent materialization's `dagster/column_lineage` metadata (NOT visible
+            # on the static definition payload._build_payload_from_repo walked above).
+            column_lineage: Dict[str, Dict[str, Any]] = {}
+            if _self.emit_column_lineage:
+                try:
+                    column_lineage = _column_lineage_facets(
+                        context.instance,
+                        [n["asset_key_string"] for n in payload["nodes"]],
+                        _self.namespace,
+                    )
+                except Exception as _exc:
+                    context.log.warning(f"Column lineage lookup failed, continuing without it ({type(_exc).__name__}: {_exc})")
+
+            payload_hash = _hash_structural(payload, column_lineage)
 
             # Change-detection: skip when the structural hash matches the
             # previous successful run (stored as a run tag).
@@ -320,22 +551,19 @@ class OpenLineageExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
                     context.instance.add_run_tags(context.run_id, {"openlineage_export/payload_hash": payload_hash})
                     return {"emitted": 0, "skipped_unchanged": True, "payload_hash": payload_hash}
 
-            # Build per-asset events and POST each.
+            # Build per-asset events and POST them (up to max_concurrent_requests at
+            # once -- there's no standard OpenLineage batch endpoint to send many
+            # events in one request, so concurrency is the real throughput lever).
             run_id = str(context.run_id) if context.run_id else str(uuid.uuid4())
-            events = _build_per_asset_events(payload, _self.namespace, run_id, _self.producer)
+            events = _build_per_asset_events(payload, _self.namespace, run_id, _self.producer, column_lineage)
 
-            ok = 0
-            failed = 0
-            for ev in events:
-                if _post(endpoint, headers, ev, context.log):
-                    ok += 1
-                else:
-                    failed += 1
-                    if _self.fail_on_collector_error:
-                        raise RuntimeError(
-                            f"OpenLineage emit failed at event {ok + failed}/{len(events)} — "
-                            "fail_on_collector_error=true"
-                        )
+            failed = _post_many(endpoint, headers, events, context.log, _self.max_concurrent_requests)
+            ok = len(events) - failed
+            if failed and _self.fail_on_collector_error:
+                raise RuntimeError(
+                    f"OpenLineage emit failed for {failed}/{len(events)} events — "
+                    "fail_on_collector_error=true"
+                )
 
             context.log.info(
                 f"OpenLineage export complete: {ok} emitted, {failed} failed, "
@@ -355,6 +583,7 @@ class OpenLineageExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 "payload_hash": payload_hash,
                 "total_nodes": payload["sync_metadata"]["total_nodes"],
                 "total_edges": payload["sync_metadata"]["total_edges"],
+                "assets_with_column_lineage": len(column_lineage),
             }
 
         @dg.job(name=self.job_name, tags=self.tags or None)

@@ -68,16 +68,47 @@
     "only_export_on_change": {
       "type": "boolean",
       "label": "Only Export on Change",
-      "description": "Hash the structural payload and skip emit when unchanged from the previous successful run.",
+      "description": "Hash the structural payload (plus column lineage) and skip emit when unchanged from the previous successful run.",
       "required": false,
       "default": true
     },
     "fail_on_collector_error": {
       "type": "boolean",
       "label": "Fail on Collector Error",
-      "description": "If true, fail the run when the collector is unreachable. Default false (best-effort emit).",
+      "description": "If True, any collector POST failure fails the run (checked after every event has been attempted, not at the first failure -- with max_concurrent_requests>1 there is no single 'first' failure to stop at). Default False (best-effort emit).",
       "required": false,
       "default": false
+    },
+    "scope": {
+      "type": "string",
+      "label": "Scope",
+      "description": "'code_location' (current location's asset graph) or 'deployment' (full Dagster+ graph via GraphQL, same mechanism as lineage_graph_extractor). Falls back to 'code_location' automatically if Dagster+ env vars aren't set or the GraphQL query fails.",
+      "required": false,
+      "default": "code_location",
+      "enum": ["code_location", "deployment"],
+      "ui:widget": "select"
+    },
+    "dagster_plus_token_env": {
+      "type": "string",
+      "label": "Dagster Plus Token Env",
+      "description": "Env var holding a Dagster+ user token (only used for scope='deployment').",
+      "required": false,
+      "default": "DAGSTER_PLUS_TOKEN",
+      "ui:widget": "env_var"
+    },
+    "max_concurrent_requests": {
+      "type": "integer",
+      "label": "Max Concurrent Requests",
+      "description": "Max concurrent POSTs to the collector. The OpenLineage HTTP transport (Marquez's /api/v1/lineage) accepts one event per request -- there is no standard batch endpoint to send many events in one call -- so concurrency, not batching, is the real export-throughput lever for a large asset graph. Set to 1 for strictly sequential POSTs.",
+      "required": false,
+      "default": 8
+    },
+    "emit_column_lineage": {
+      "type": "boolean",
+      "label": "Emit Column Lineage",
+      "description": "Emit a real OpenLineage columnLineage facet on each asset's output dataset, built from its most recent materialization's `dagster/column_lineage` metadata (e.g. set by sql_transform's own column_lineage: field), when present. Requires one extra instance.get_asset_records(...) call per export; set False to skip it.",
+      "required": false,
+      "default": true
     }
   }
 }

@@ -44876,14 +44876,15 @@
       "id": "openlineage_export_job",
       "name": "openlineage_export_job",
       "category": "jobs",
-      "description": "Op-shaped job that walks the live Dagster asset graph and emits one OpenLineage RunEvent per asset to a collector (Marquez, OpenLineage Proxy, Datakin).",
-      "version": "1.0.0",
+      "description": "Op-shaped job that walks the live Dagster asset graph (or, with scope=deployment, the whole Dagster+ deployment via GraphQL) and emits one OpenLineage RunEvent per asset to a collector (Marquez, OpenLineage Proxy, Datakin), including a real columnLineage facet derived from each asset's materialization-time column lineage.",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "jobs/openlineage_export_job",
       "tags": [],
       "dependencies": {
         "pip": [
-          "dagster>=1.7.0"
+          "dagster>=1.7.0",
+          "requests"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/openlineage_export_job/README.md",
@@ -44894,7 +44895,7 @@
       "component_type": "dagster_component_templates.OpenLineageExportJobComponent",
       "validation": {
         "level": "live",
-        "last_validated": "2026-05-11"
+        "last_validated": "2026-10-23"
       },
       "produces": [
         "job",

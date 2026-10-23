@@ -14,6 +14,8 @@ Each emitted event has:
 - `job.name` = `dagster.<asset_key>` (one OL "job" per asset, for clear
   per-asset history)
 - `dagster_metadata` facet on each Dataset = group, kinds, freshness policy
+- `columnLineage` facet on the output Dataset, when the asset's most recent
+  materialization set `dagster/column_lineage` metadata
 
 ## When to use this vs `lineage_to_openlineage`
 
@@ -49,7 +51,7 @@ asset overhead and a single dial to schedule.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `Dict[str, str]` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
 ### Sensor configuration
 
@@ -64,8 +66,12 @@ asset overhead and a single dial to schedule.
 | `schedule` | `str` | — | Cron schedule (None = manual / sensor-triggered). |
 | `namespace` | `str` | `"dagster"` | OpenLineage namespace. All datasets and jobs from this code location group under this string. |
 | `producer` | `str` | `"https://github.com/eric-thomas-dagster/dagster-component-templates/openlineage_export_job"` | OpenLineage 'producer' URI — identifies the emitter implementation. |
-| `only_export_on_change` | `bool` | `true` | If True, hash the structural payload and skip the export when the hash matches the previous run's. Stored as job-tag metadata on the run. |
-| `fail_on_collector_error` | `bool` | `false` | If True, an unreachable / errored collector fails the run. Default False (best-effort emit). |
+| `scope` | `str` | `"code_location"` | 'code_location' (current location's asset graph) or 'deployment' (full Dagster+ graph via GraphQL, same mechanism as lineage_graph_extractor). Falls back to 'code_location' automatically if Dagster+ env vars aren't set o… _(full docs in schema.json + component README)_ |
+| `dagster_plus_token_env` | `str` | `"DAGSTER_PLUS_TOKEN"` | Env var holding a Dagster+ user token (only used for scope='deployment'). |
+| `only_export_on_change` | `bool` | `true` | If True, hash the structural payload (plus column lineage) and skip the export when the hash matches the previous run's. Stored as job-tag metadata on the run. |
+| `fail_on_collector_error` | `bool` | `false` | If True, any collector POST failure fails the run (checked after every event has been attempted, not at the first failure -- with max_concurrent_requests>1 there is no single 'first' failure to stop at). Default False (best-effort emit). |
+| `max_concurrent_requests` | `int` | `8` | Max concurrent POSTs to the collector. The OpenLineage HTTP transport (Marquez's /api/v1/lineage) accepts one event per request -- there is no standard batch endpoint to send many events in one call -- so concurrency, no… _(full docs in schema.json + component README)_ |
+| `emit_column_lineage` | `bool` | `true` | Emit a real OpenLineage columnLineage facet on each asset's output dataset, built from its most recent materialization's `dagster/column_lineage` metadata (e.g. set by sql_transform's own column_lineage: field), when pre… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 
@@ -81,6 +87,10 @@ attributes:
   namespace: dagster.prod
   only_export_on_change: true
   fail_on_collector_error: false      # best-effort
+  max_concurrent_requests: 8          # concurrent POSTs -- see Behavior
+  emit_column_lineage: true
+  # scope: deployment                 # full Dagster+ graph via GraphQL instead of this code location
+  # dagster_plus_token_env: DAGSTER_PLUS_TOKEN
 ```
 
 ## Required env vars
@@ -89,41 +99,75 @@ attributes:
 OPENLINEAGE_URL=http://marquez:5000   # or full URL with /api/v1/lineage
 # Optional, if your collector requires auth:
 OPENLINEAGE_API_KEY=...
+# Only needed with scope: deployment
+DAGSTER_CLOUD_URL=https://my-org.dagster.cloud
+DAGSTER_CLOUD_DEPLOYMENT_NAME=prod
+DAGSTER_PLUS_TOKEN=...
 ```
 
 ## Behavior
 
-1. Walks `context.repository_def.asset_graph` to enumerate every asset
-   in the current code location.
-2. Hashes the structural payload (nodes + edges, no timestamps). If
-   `only_export_on_change=true` and the hash matches the previous
-   successful run's tag, the export is skipped — your collector
+1. Walks the asset graph: `scope='code_location'` (default) uses
+   `context.repository_def.asset_graph` for the current code location;
+   `scope='deployment'` queries Dagster+ GraphQL for the whole deployment
+   (same mechanism as `lineage_graph_extractor`), falling back to the
+   current code location automatically if the Dagster+ env vars aren't set
+   or the query fails.
+2. If `emit_column_lineage=true` (default), looks up each asset's most
+   recent materialization's `dagster/column_lineage` metadata via one
+   `instance.get_asset_records(...)` call, and builds a real OpenLineage
+   `columnLineage` facet from it (see below).
+3. Hashes the structural payload (nodes + edges + column lineage, no
+   timestamps). If `only_export_on_change=true` and the hash matches the
+   previous successful run's tag, the export is skipped — your collector
    doesn't see redundant events on every tick.
-3. Builds one OpenLineage `RunEvent` per asset, populating `inputs[]`
+4. Builds one OpenLineage `RunEvent` per asset, populating `inputs[]`
    with the asset's upstream parents and `outputs[0]` with the asset
    itself, both in the configured `namespace`.
-4. POSTs events sequentially to `{endpoint}/api/v1/lineage`. Bearer
-   token added if `api_key_env_var` is set.
-5. On success, tags the Dagster run with the structural hash so the
+5. POSTs events to `{endpoint}/api/v1/lineage`, up to `max_concurrent_requests`
+   at a time (default 8; set to 1 for strictly sequential). Bearer token
+   added if `api_key_env_var` is set.
+6. On success, tags the Dagster run with the structural hash so the
    next run's change-detection works.
+
+### Column lineage
+
+Dagster's real column-lineage metadata (`dagster/column_lineage`, set via
+`context.add_output_metadata(...)` — e.g. by `sql_transform`'s own
+`column_lineage:` field) is **materialization-time** data: it lives on the
+asset's most recent `AssetMaterialization` event, not on its static asset
+definition. That's why this needs a separate `instance.get_asset_records(...)`
+lookup rather than being visible on the asset-graph walk alone. Each asset
+that has it gets a real `columnLineage` dataset facet
+([spec](https://openlineage.io/spec/facets/1-2-0/ColumnLineageDatasetFacet.json))
+on its `outputs[0]` entry, naming each upstream asset+column by `namespace`.
 
 ## Limitations
 
-- **Sequential POSTs**: events are emitted one at a time, no batching.
-  Marquez happily accepts batches; a future iteration can group events.
 - **No FAIL events**: only `COMPLETE` events are emitted. The job is
   fire-and-forget — collectors learn that the asset graph exists, not
-  whether each asset's most recent run succeeded.
-- **No column-level lineage**: the event includes a `schema` facet with
-  metadata-derived field names, but Dagster's `column_lineage` metadata
-  isn't yet propagated as a `columnLineage` facet.
-- **Stdlib HTTP**: uses Python's `urllib.request`. No retry, no batching.
-  For prod, swap in the official `openlineage-python` client.
+  whether each asset's most recent run succeeded. Investigated for this
+  component: the two Dagster APIs that looked like a clean "did this asset's
+  last materialization attempt fail" signal
+  (`instance.get_asset_materialization_health_state_for_assets`,
+  `AssetEntry.last_failed_to_materialize_record`) either require Dagster+
+  streamline-read support or did not populate during direct local testing —
+  shipping a confidently-wrong FAIL/COMPLETE signal is worse than not having
+  the feature, so this stays open rather than guessed at.
+- **Stdlib HTTP**: uses Python's `urllib.request`. No retry on a single
+  POST's failure (though `max_concurrent_requests>1` means one slow/failed
+  request doesn't block the others). For prod, swap in the official
+  `openlineage-python` client.
 
 ## Roadmap (see [TODO.md](../../TODO.md))
 
-- Batched event emission (`/api/v1/lineage` accepts arrays)
-- `columnLineage` facet from Dagster's `column_lineage` metadata
-- FAIL events when an asset's most recent run failed
-- Optional Dagster+ deployment-wide scope (via GraphQL, like
-  `lineage_graph_extractor` does today)
+- FAIL events when an asset's most recent run failed (see Limitations above
+  for why this is harder than it looks, not just unbuilt)
+- Per-request retry with backoff for transient collector errors
+
+~~Batched event emission~~ — investigated and dropped: Marquez's own docs
+describe `/api/v1/lineage` as "record a **single** lineage event"; the
+OpenLineage HTTP transport has no standard endpoint that accepts an array of
+events. `max_concurrent_requests` (concurrent dispatch of single-event
+POSTs) is the real throughput lever for a large graph, and is implemented
+today.

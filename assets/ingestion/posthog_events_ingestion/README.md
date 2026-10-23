@@ -37,13 +37,25 @@ Pull events from a PostHog project into a pandas DataFrame. Handles cursor pagin
 | `description` | `str` | — | — |
 | `group_name` | `str` | `"posthog"` | — |
 
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. A partitioned run sends only the rows in its partition. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `api_host` | `str` | `"https://us.i.posthog.com"` | PostHog API host. Use 'https://us.i.posthog.com' (default) for US Cloud, 'https://eu.i.posthog.com' for EU Cloud, or your self-hosted URL. |
 | `event` | `str` | — | Filter by event name (e.g. '$pageview'). None = all events. |
-| `since_days` | `int` | `1` | Fetch events from the last N days (max 90). |
+| `since_days` | `int` | `1` | Fetch events from the last N days (max 90). Ignored on a partitioned time run, which fetches exactly its partition's window. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `true` | — |
 | `preview_rows` | `int` | `25` | — |
 

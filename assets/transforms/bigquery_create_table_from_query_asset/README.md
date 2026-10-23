@@ -43,8 +43,9 @@ Required SA roles: `roles/bigquery.dataEditor` on the destination dataset + `rol
 | `deps` | `List[str]` | — | — |
 | `description` | `str` | — | — |
 | `group_name` | `str` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `owners` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run: the query is formatted ONCE with partition_key_range_start/partition_key_range_end and partition_time_wi… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -57,10 +58,11 @@ Required SA roles: `roles/bigquery.dataEditor` on the destination dataset + `rol
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `table_partition_field` | `str` | — | BigQuery table partitioning: the column to partition the destination table by (e.g. 'order_date'). Adds PARTITION BY. |
 | `partition_type` | `str` | — | — |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | — |
-| `partition_values` | `str` | — | — |
+| `partition_values` | `Union[str, List[str]]` | — | — |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | — |
 
 ### Retry policy
@@ -76,6 +78,7 @@ Required SA roles: `roles/bigquery.dataEditor` on the destination dataset + `rol
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `table_options` | `Dict[str, Any]` | — | OPTIONS clause k/v map (e.g. `{description: 'cleaned orders', labels: {tier: gold}}`). |
+| `table_partition_field` | `str` | — | BigQuery table partitioning: the column to partition the destination TABLE by (e.g. 'order_date'); adds PARTITION BY. Unrelated to Dagster partitions (partition_type). |
 
 ### Other
 
@@ -89,5 +92,6 @@ Required SA roles: `roles/bigquery.dataEditor` on the destination dataset + `rol
 | `query_params` | `Dict[str, Any]` | `dict()` | — |
 | `cluster_fields` | `List[str]` | — | Columns to cluster on (max 4). Adds CLUSTER BY. |
 | `dynamic_partition_name` | `str` | — | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)

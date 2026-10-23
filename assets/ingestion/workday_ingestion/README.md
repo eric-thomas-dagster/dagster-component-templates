@@ -50,10 +50,11 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 | `description` | `str` | — | Asset description |
 | `group_name` | `str` | `"workday_ingestion"` | Asset group for organization |
 | `owners` | `List[str]` | — | Asset owners -- list of team names or email addresses, e.g. ['team:analytics', 'user@company.com'] |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'} |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'} |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Auto-inferred from destination and asset name if not set. |
 | `deps` | `List[str]` | — | Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset']) |
-| `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column -> list of upstream columns it derives from. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill strategy for a partitioned asset. 'single_run' materializes a whole backfill range in one run (rows are filtered to the whole range); 'multi_run' launches one run per partition, optionally capped by backfill_pol… _(full docs in schema.json + component README)_ |
+| `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is `upstream_asset_key`, or th… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -67,9 +68,15 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the returned DataFrame to the current date partition (time partitions). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the returned DataFrame to the current static/dynamic partition key. |
+| `partition_window_params` | `Dict[str, str]` | — | Push the partition's time window into the API requests so each partition fetches only its own slice, instead of the full extract: {start_param: <request param for the window start>, end_param: <request param for the wind… _(full docs in schema.json + component README)_ |
+| `partition_window_resources` | `List[str]` | — | Resources that take partition_window_params (default: all of them). List only the resources whose endpoint filters by time. |
 
 ### Retry policy
 
@@ -101,6 +108,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run (default 1). |
 
 [//]: # (FIELDS:END)
 

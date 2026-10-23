@@ -20,8 +20,10 @@ Wraps the official `pandas` package.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | Set this to match the checked asset's own partitioning (e.g. 'daily'), or the check can't resolve which partition's data to load. 'daily'\|'weekly'\|'monthly'\|'hourly'\|'static'\|'dynamic'\|'multi', or None for an unpartitioned target. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | ISO start date for time-based partition types (e.g. '2024-01-01'). Must match the checked asset's partition_start. |
-| `partition_values` | `str` | — | Comma-separated values for static / multi partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static / multi partition types. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec; overrides flat fields when set. |
 
 ### Other

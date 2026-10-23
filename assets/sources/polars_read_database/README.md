@@ -17,7 +17,7 @@ Execute a SQL query against a database and get a polars DataFrame back. The data
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `query` | `str` | SQL query to execute on the database. The query IS the pushdown — write WHERE clauses, joins, aggregations into the SQL and the database engine optimizes + executes. |
+| `query` | `str` | SQL query to execute on the database. The query IS the pushdown — write WHERE clauses, joins, aggregations into the SQL and the database engine optimizes + executes. On a partitioned run {partition_key}, {partition_date}… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -25,10 +25,21 @@ Execute a SQL query against a database and get a polars DataFrame back. The data
 |---|---|---|---|
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
-| `asset_tags` | `Dict[str, str]` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
 | `owners` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. A partitioned run sends only the rows in its partition. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields. |
 
 ### Source / target
 
@@ -43,6 +54,7 @@ Execute a SQL query against a database and get a polars DataFrame back. The data
 | `connection_uri` | `str` | — | Database connection URI (literal). polars uses connectorx by default for fast typed results. Examples: 'postgresql://user:pass@host:5432/db', 'mysql://...', 'sqlite:///path/to/file.db', 'snowflake://...'. Set this OR connection_uri_env_var. |
 | `connection_uri_env_var` | `str` | — | Env var with the database connection URI. Set this OR connection_uri. |
 | `engine` | `str` | `"connectorx"` | Polars read engine: 'connectorx' (default, fast, typed) or 'adbc' (Arrow Database Connectivity). |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | — |
 | `preview_rows` | `int` | `25` | — |
 

@@ -40,9 +40,10 @@ PyIceberg's MERGE / upsert support is limited. For upserts, use Spark / Trino / 
 | `description` | `str` | — | — |
 | `group_name` | `str` | `"iceberg_sink"` | — |
 | `owners` | `List[str]` | — | — |
-| `asset_tags` | `Dict[str, str]` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in ONE run. When overwrite_filter is templated on the partition key, one write per key in the range is issued (each… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -56,8 +57,10 @@ PyIceberg's MERGE / upsert support is limited. For upserts, use Spark / Trino / 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | — |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | — |
-| `partition_values` | `str` | — | — |
+| `partition_values` | `Union[str, List[str]]` | — | — |
 
 ### Retry policy
 
@@ -84,6 +87,7 @@ PyIceberg's MERGE / upsert support is limited. For upserts, use Spark / Trino / 
 | `skip_columns` | `List[str]` | — | Columns to drop from the DataFrame before writing (e.g. internal pandas cols). |
 | `schema_evolution` | `bool` | `false` | Allow Iceberg schema evolution if the DataFrame has new columns the table lacks. Use cautiously — Iceberg writers may fail if the table schema is locked. |
 | `dynamic_partition_name` | `str` | — | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

@@ -74,6 +74,18 @@
     "owners":                {"description": "Asset owners.", "label": "Owners", "type": "array", "items": {"type": "string"}},
     "deps":                  {"description": "Lineage-only upstream asset keys (no data passed at runtime).", "label": "Deps", "type": "array", "items": {"type": "string"}},
     "include_preview_metadata": {"description": "Include a preview of the output data in metadata (sample rows) for builder UIs.", "label": "Include Preview Metadata", "type": "boolean", "default": false},
-    "preview_rows":          {"description": "Rows to include in the preview metadata when `include_preview_metadata` is True.", "label": "Preview Rows", "type": "integer", "default": 25, "minimum": 1, "maximum": 500}
+    "preview_rows":          {"description": "Rows to include in the preview metadata when `include_preview_metadata` is True.", "label": "Preview Rows", "type": "integer", "default": 25, "minimum": 1, "maximum": 500},
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
+    }
   }
 }

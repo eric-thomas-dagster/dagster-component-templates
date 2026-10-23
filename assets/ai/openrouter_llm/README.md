@@ -60,7 +60,7 @@ OpenRouter ids are `<provider>/<model>`. Browse + pricing at https://openrouter.
 | `description` | `str` | — | — |
 | `group_name` | `str` | — | — |
 | `deps` | `List[str]` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `owners` | `List[str]` | — | — |
 
 ### Freshness
@@ -75,8 +75,13 @@ OpenRouter ids are `<provider>/<model>`. Browse + pricing at https://openrouter.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | — |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | — |
-| `partition_values` | `str` | — | — |
+| `partition_values` | `Union[str, List[str]]` | — | — |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream rows to the current date partition (time partitions). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream rows to the current static/dynamic partition key (e.g. 'customer_id'). |
+| `partition_static_dim` | `str` | — | Name of the static axis in a multi-partition, e.g. 'customer' or 'region'. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | — |
 
 ### Retry policy

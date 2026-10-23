@@ -105,7 +105,7 @@ See `example.yaml`.
 | `group_name` | `str` | — | — |
 | `kinds` | `List[str]` | — | Asset kinds. Default: ['human', 'approval', 'teams']. |
 | `owners` | `List[str]` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `description` | `str` | — | — |
 
 ### Partitions
@@ -113,6 +113,8 @@ See `example.yaml`.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | — |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | — |
 | `partition_values` | `Any` | — | — |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | — |

@@ -78,14 +78,14 @@ Dagster will refuse to run `ingest_raw_events` until `provision_data_lake` has m
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict[str, str]` | — | AWS resource tags to apply to the stack (and all resources it creates). |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | AWS resource tags to apply to the stack (and all resources it creates). |
 | `group_name` | `str` | `"infrastructure"` | Dagster asset group name. |
 | `description` | `str` | — | Human-readable description of what this stack provisions. |
 | `deps` | `list[str]` | — | Dagster asset keys that this asset depends on (slash-separated, e.g. 'upstream/my_asset'). |
 | `owners` | `List[str]` | — | Asset owners — team names ('team:analytics') or email addresses. |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
 | `kinds` | `List[str]` | — | Asset kinds for the catalog (e.g. ['snowflake', 'python']). Auto-inferred from component name when unset. |
-| `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
+| `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is `upstream_asset_key`, or th… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -99,9 +99,11 @@ Dagster will refuse to run `ingest_raw_events` until `provision_data_lake` has m
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Not used by this component, which has no input rows to filter. Use {partition_key}, {partition_date}, {partition_start} and {partition_end} in `stack_name` and `parameters` instead. |
-| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
 | `partition_static_column` | `Union[str, int]` | — | Not used by this component, which has no input rows to filter. Use {partition_key}, {partition_date}, {partition_start} and {partition_end} in `stack_name` and `parameters` instead. |
 

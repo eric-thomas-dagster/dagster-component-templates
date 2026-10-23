@@ -52,7 +52,7 @@ Also: the **Drive API has to be enabled** on the SA's GCP project. If it's not, 
 | `description` | `str` | — | — |
 | `group_name` | `str` | — | — |
 | `deps` | `List[str]` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `owners` | `List[str]` | — | — |
 
 ### Freshness
@@ -67,8 +67,10 @@ Also: the **Drive API has to be enabled** on the SA's GCP project. If it's not, 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | — |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | — |
-| `partition_values` | `str` | — | — |
+| `partition_values` | `Union[str, List[str]]` | — | — |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | — |
 
 ### Retry policy
@@ -86,7 +88,7 @@ Also: the **Drive API has to be enabled** on the SA's GCP project. If it's not, 
 | `credentials` | `Dict[str, Any]` | — | Service account credentials as a dict. Set this OR credentials_path OR rely on GOOGLE_APPLICATION_CREDENTIALS. |
 | `credentials_path` | `str` | — | Path to the service-account JSON file. |
 | `folder_id` | `str` | — | Drive folder ID to list. Mutually exclusive with `query`. |
-| `query` | `str` | — | Drive search query (Drive's `q` syntax). Examples: `mimeType='application/pdf'`, `name contains 'report'`. Mutually exclusive with `folder_id`. |
+| `query` | `str` | — | Drive search query (Drive's `q` syntax). Examples: `mimeType='application/pdf'`, `name contains 'report'`. Mutually exclusive with `folder_id`. On a partitioned run {partition_key}, {partition_date}, {partition_start} an… _(full docs in schema.json + component README)_ |
 | `mime_type_filter` | `List[str]` | — | Optional list of MIME types to keep (e.g. ['application/pdf']). |
 | `include_trashed` | `bool` | `false` | Include trashed files in the listing. |
 | `max_files` | `int` | `100` | Stop after this many files (avoids accidental full-Drive scans). |

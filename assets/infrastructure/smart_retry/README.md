@@ -301,10 +301,11 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `asset_name` | `str` | — | Dagster asset name. Required when NOT using `wraps:` (inherited from inner in wraps mode). |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run; for compute.kind=shell the command is run once per partition in the range with its own DAGSTER_PARTITION… _(full docs in schema.json + component README)_ |
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | Asset kinds. Default: ['python', 'retry']. |
 
 ### Partitions
@@ -312,6 +313,8 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | — |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | — |
 | `partition_values` | `Any` | — | — |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | — |
@@ -333,6 +336,7 @@ curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-communi
 | `llm_fallback` | `Dict[str, Any]` | — | OPTIONAL. LLM classification for unclassified errors — one API call per un-rule-matched exception. Shape: `{model: 'gpt-4o-mini', api_key_env_var: 'OPENAI_API_KEY', timeout_seconds: 10}`. Omit to skip LLM fallback (uncla… _(full docs in schema.json + component README)_ |
 | `rate_limit` | `Dict[str, Any]` | — | OPTIONAL. Sliding-window rate limit ON RETRIES. Prevents runaway retry loops. Shape: `{max_events: 3, window_seconds: 60, mode: fail\|wait, key: null}`. `key` defaults to `asset_name`; set explicitly to share a limit acr… _(full docs in schema.json + component README)_ |
 | `circuit_breaker` | `Dict[str, Any]` | — | OPTIONAL. Cross-materialization circuit breaker. After `threshold` failures in `observation_window_seconds`, opens the circuit for `cooldown_seconds` — any new attempt during that window fails IMMEDIATELY without touchin… _(full docs in schema.json + component README)_ |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | — |
 
 [//]: # (FIELDS:END)

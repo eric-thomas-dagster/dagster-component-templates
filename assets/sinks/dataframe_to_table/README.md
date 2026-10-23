@@ -22,17 +22,19 @@ Writes a Pandas DataFrame to a relational database table. This is a terminal sin
 |---|---|---|---|
 | `database_url_env_var` | `str` | `"DATABASE_URL"` | Env var containing the SQLAlchemy database URL. Defaults to DATABASE_URL. Set this OR database_url. |
 | `schema` | `str` | — | Database schema |
+| `resource_key` | `str` | — | Optional key of a registered SQL resource component exposing get_engine() or a SQLAlchemy-URL connection_string (e.g. PostgresResourceComponent, MssqlResourceComponent, ClickHouseResourceComponent). When set, connection… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | — | Dagster asset group name |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in ONE run: the upstream frame (loaded once, spanning the whole range) is filtered to every partition key in the ran… _(full docs in schema.json + component README)_ |
 | `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com'] |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'} |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'} |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set. |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
-| `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
+| `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is `upstream_asset_key`, or th… _(full docs in schema.json + component README)_ |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
 
 ### Freshness
@@ -47,10 +49,12 @@ Writes a Pandas DataFrame to a relational database table. This is a terminal sin
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
-| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
 | `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
@@ -76,6 +80,7 @@ Writes a Pandas DataFrame to a relational database table. This is a terminal sin
 | `drop_timezone` | `bool` | `true` | Drop tz from tz-aware datetime columns before INSERT. Default True because SQLite has no native tz, MySQL silently truncates, and even Postgres-bound users often want a normalized UTC. Set False to keep tz info (works on… _(full docs in schema.json + component README)_ |
 | `chunksize` | `int` | — | Rows per batch when writing to the database |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

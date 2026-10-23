@@ -51,7 +51,7 @@ There are two ways to pull SAP data into Dagster. Pick based on what your custom
 | `description` | `str` | — | Asset description |
 | `group_name` | `str` | `"sap_hana"` | Asset group |
 | `owners` | `List[str]` | — | Asset owners (team or email list) |
-| `asset_tags` | `Dict[str, str]` | — | Additional key/value tags |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key/value tags |
 | `kinds` | `List[str]` | — | Asset kinds. Defaults to ['hana', 'sql']. |
 | `deps` | `List[str]` | — | Upstream asset keys |
 | `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (one query per partition in the range, each with its own {partition_key} substitution, concatenated toget… _(full docs in schema.json + component README)_ |
@@ -68,8 +68,10 @@ There are two ways to pull SAP data into Dagster. Pick based on what your custom
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' \| None |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | ISO start date for time-based partitions |
-| `partition_values` | `str` | — | Comma-separated values for static partitions |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitions |
 
 ### Retry policy
 

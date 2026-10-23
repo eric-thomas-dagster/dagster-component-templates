@@ -86,7 +86,7 @@ For Elastic Cloud, set `api_key_env_var` in addition to `elasticsearch_url_env_v
 | `owners` | `List[str]` | — | Asset owners — team names ('team:analytics') or email addresses. |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
 | `kinds` | `List[str]` | — | Asset kinds for the catalog (e.g. ['snowflake', 'python']). Auto-inferred from component name when unset. |
-| `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
+| `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is `upstream_asset_key`, or th… _(full docs in schema.json + component README)_ |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
 
 ### Freshness
@@ -101,6 +101,8 @@ For Elastic Cloud, set `api_key_env_var` in addition to `elasticsearch_url_env_v
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
@@ -131,7 +133,7 @@ For Elastic Cloud, set `api_key_env_var` in addition to `elasticsearch_url_env_v
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset: {kind: warehouse_query, resource_key: <registered resource> OR database_url_env_var: <env var>, sql: <query>}. Mutually exclusive with `upstream_asset_key` -- set exactly one. |
 | `upstream_asset_key` | `Union[str, List[str]]` | — | Asset key of the upstream asset providing a pandas DataFrame. In ``index`` mode the DataFrame rows are indexed as ES documents. In ``query`` mode this field is optional (lineage only; the upstream value is not used). Mut… _(full docs in schema.json + component README)_ |
 | `id_field` | `str` | — | Column/field to use as the Elasticsearch document ``_id``. If omitted, Elasticsearch auto-generates IDs. |
-| `query` | `str` | `"{}"` | JSON string representing the Elasticsearch query DSL body sent in ``query`` mode. Defaults to ``{}`` which Elasticsearch treats as ``match_all``. |
+| `query` | `str` | `"{}"` | JSON string representing the Elasticsearch query DSL body sent in ``query`` mode. Defaults to ``{}`` which Elasticsearch treats as ``match_all``. In a partitioned asset, {partition_key}, {partition_date}, {partition_star… _(full docs in schema.json + component README)_ |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the data being written / produced in metadata, so builder UIs can show output shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. Random sample if len > 10x preview_rows; else head. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |

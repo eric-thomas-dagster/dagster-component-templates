@@ -27,10 +27,21 @@ For small frames or single-machine work, `polars_pipeline` is lighter weight. Fo
 |---|---|---|---|
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
-| `asset_tags` | `Dict[str, str]` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
 | `owners` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. A partitioned run sends only the rows in its partition. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields. |
 
 ### Other
 
@@ -46,6 +57,7 @@ For small frames or single-machine work, `polars_pipeline` is lighter weight. Fo
 | `sinks` | `List[Dict[str, Any]]` | — | Sinks. Each: {from: <step_id>, kind: parquet\|csv\|json\|delta\|table\|jdbc, path/table/url, mode}. |
 | `variables` | `Dict[str, Any]` | — | Feed-level constants available at run time via {{ vars.<key> }} in condition when: / for_each over: / SQL where relevant. Merged with prior-run `checkpoint.*` values (see checkpoint_dir). |
 | `checkpoint_dir` | `str` | — | Directory (relative to project root, or absolute) where `type: checkpoint` steps persist named values across runs. Default `checkpoints/` under the project root. On each run, `checkpoints/<asset_name>.json` is loaded and… _(full docs in schema.json + component README)_ |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)
 

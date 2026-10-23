@@ -50,7 +50,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 |---|---|---|---|
 | `group_name` | `str` | — | Dagster asset group name applied to all output assets. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `asset_tags` | `Dict[str, str]` | — | Additional asset tags. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional asset tags. |
 | `kinds` | `List[str]` | — | Asset kinds for the catalog. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage (auto-inferred when empty: each output column maps 1:1 to upstream). |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
@@ -68,9 +68,11 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
-| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
 | `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
 

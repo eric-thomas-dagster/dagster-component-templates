@@ -34,7 +34,7 @@ Rule of thumb: if each step deserves its own catalog entry + lineage, use per-as
 |---|---|---|---|
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
-| `asset_tags` | `Dict[str, str]` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
 | `owners` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
@@ -45,6 +45,8 @@ Rule of thumb: if each step deserves its own catalog entry + lineage, use per-as
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' \| 'multi' \| None for unpartitioned. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | ISO date for time-based partition types (daily/weekly/monthly/hourly). |
 | `partition_values` | `Any` | — | Comma-separated string OR list — the fixed partition keys for static/multi partitioning. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec (list of {name, type, start, values, dynamic_partition_name} dicts). Set INSTEAD of partition_type for multi-dimensional partitioning. |

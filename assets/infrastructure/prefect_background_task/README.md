@@ -76,7 +76,7 @@ Identical to `prefect_flow_run.check_names`, including the required translation:
 | `group_name` | `str` | — | Asset group. |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `asset_tags` | `Dict[str, str]` | — | Extra asset tags. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags. |
 | `kinds` | `List[str]` | — | Asset kinds. Defaults to ['prefect']. |
 | `deps` | `List[str]` | — | — |
 
@@ -92,8 +92,10 @@ Identical to `prefect_flow_run.check_names`, including the required translation:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | 'daily'\|'weekly'\|'monthly'\|'hourly'\|'static'\|'dynamic'\|'multi'\|None |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | — |
-| `partition_values` | `str` | — | — |
+| `partition_values` | `Union[str, List[str]]` | — | — |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | — |
 
 ### Retry policy

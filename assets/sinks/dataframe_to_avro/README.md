@@ -45,6 +45,7 @@ attributes:
 | `description` | `str` | — | — |
 | `group_name` | `str` | — | — |
 | `deps` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in ONE run. If file_path is templated on the partition key (e.g. {partition_key}), one file is written per key in th… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -57,9 +58,11 @@ attributes:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_type` | `str` | — | daily \| weekly \| monthly \| hourly \| static \| dynamic \| None |
+| `partition_type` | `str` | — | daily \| weekly \| monthly \| hourly \| static \| dynamic \| cron \| None |
 | `partition_start` | `str` | — | — |
-| `partition_values` | `str` | — | — |
+| `partition_values` | `Union[str, List[str]]` | — | — |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only. |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. |
 
 ### Retry policy
 
@@ -77,6 +80,7 @@ attributes:
 | `record_name` | `str` | `"Record"` | Name embedded in the inferred Avro schema's `name` field. Ignored if `avro_schema:` is set. |
 | `avro_schema` | `Dict[str, Any]` | — | Optional explicit Avro schema dict (overrides inference). Use when the downstream consumer needs a specific schema name / namespace / non-nullable typing. Example: `{type: record, name: Event, namespace: com.acme, fields: [...]}` |
 | `dynamic_partition_name` | `str` | — | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

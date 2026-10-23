@@ -289,6 +289,18 @@
       "label": "Inject Dq Issues",
       "description": "If True, seed intentional data-quality issues into the output DataFrame — approximately 5% nulls per numeric column, ~3% duplicate rows, ~2% outliers (10x-50x scale) on the first numeric column, and ~5% trailing-whitespace corruption on the first string column. Used to demo agentic DQ pipelines (data_remediation_asset).",
       "required": false
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
     }
   },
   "tags": [

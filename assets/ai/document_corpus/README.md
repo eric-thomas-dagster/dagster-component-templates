@@ -27,9 +27,9 @@ Materialize a directory of documents as a versioned Dagster asset. Every materia
 | `group_name` | `str` | — | Asset group |
 | `description` | `str` | — | Asset description |
 | `owners` | `List[str]` | — | Asset owners |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags |
 | `kinds` | `List[str]` | — | Asset kinds (defaults to ['rag']) |
-| `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage (output col → list of upstream cols). |
+| `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is `upstream_asset_key`, or th… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -43,8 +43,10 @@ Materialize a directory of documents as a versioned Dagster asset. Every materia
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' \| 'multi' \| None |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | ISO date for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static/multi partitioning. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static/multi partitioning. |
 | `partition_date_column` | `Union[str, int]` | — | Column to filter to the current date partition. |
 | `partition_static_dim` | `str` | — | Dimension name for static axis in multi-partitioning. |
 | `partition_static_column` | `Union[str, int]` | — | Column to filter to the current static partition. |

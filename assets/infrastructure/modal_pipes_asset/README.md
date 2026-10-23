@@ -76,14 +76,17 @@ Uses whatever credentials the Modal CLI has. Two options:
 | `group_name` | `str` | — | Asset group name. |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Asset tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Asset tags. |
 | `kinds` | `List[str]` | — | Asset kinds. Default: ['modal', 'pipes', 'external']. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one Dagster run, launching the Modal function once per partition in the range (metadata the function reports is f… _(full docs in schema.json + component README)_ |
 
 ### Partitions
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | — |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | — |
 | `partition_values` | `Any` | — | — |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | — |
@@ -98,6 +101,7 @@ Uses whatever credentials the Modal CLI has. Two options:
 | `modal_env` | `str` | — | Modal environment name (`modal run --env=<value>`). Optional. |
 | `modal_extra_flags` | `List[str]` | — | Extra flags forwarded to `modal run` (e.g. `--detach`, `--tag=x`). Passed after `run` and before `app_file::function_name`. |
 | `dynamic_partition_name` | `str` | — | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

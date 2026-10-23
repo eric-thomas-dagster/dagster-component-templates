@@ -42,8 +42,21 @@ Matches → updated (name, description, status, priority, assignees, tags). Miss
 | `group_name` | `str` | `"clickup"` | Dagster asset group name. |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Catalog tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'clickup'). |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. A partitioned run sends only the rows in its partition. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the rows to send to the current date partition (time partitions). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the rows to send to the current static/dynamic partition key. |
 
 ### Other
 
@@ -56,6 +69,7 @@ Matches → updated (name, description, status, priority, assignees, tags). Miss
 | `priority_column` | `str` | — | Column holding priority. Accepts ClickUp's int encoding (1=Urgent, 2=High, 3=Normal, 4=Low) or the name directly. |
 | `assignees_column` | `str` | — | Column holding ClickUp user IDs to assign. Accepts a list, or a comma-separated string of ints. |
 | `tags_column` | `str` | — | Column holding tag names. Accepts a list, or a comma-separated string. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)
 

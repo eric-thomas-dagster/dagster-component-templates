@@ -47,16 +47,18 @@ InferenceCostReportComponent
 | `group_name` | `str` | `"ab_test"` | Asset group. |
 | `kinds` | `List[str]` | — | Asset kinds. Default: ['llm', 'ab-test']. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Extra tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Extra tags. |
 | `description` | `str` | — | Asset description. |
 
 ### Partitions
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_type` | `str` | — | Partition type: 'daily' \| 'static' \| 'dynamic' \| None. |
+| `partition_type` | `str` | — | Partition type: 'daily' \| 'static' \| 'dynamic' \| 'cron' \| None. |
 | `partition_start` | `str` | — | ISO start date for daily partitions. |
 | `partition_values` | `Any` | — | Values for static partitioning (comma string OR list). |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only. |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. |
 
 ### Other
 
@@ -65,6 +67,7 @@ InferenceCostReportComponent
 | `system_prompt` | `str` | — | Default system prompt applied to any provider that doesn't set its own. |
 | `temperature` | `float` | `0.1` | Default temperature. Providers can override. |
 | `max_tokens` | `int` | `500` | Default max_tokens. Providers can override. |
+| `include_reasoning` | `bool` | `false` | Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped from the stored text/content; when true it is also exposed as a 'reasoning' key on each provider's output dict. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)

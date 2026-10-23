@@ -58,7 +58,7 @@ google-api-python-client>=2.0.0
 | `description` | `str` | — | — |
 | `group_name` | `str` | — | — |
 | `deps` | `List[str]` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `owners` | `List[str]` | — | — |
 
 ### Freshness
@@ -73,8 +73,10 @@ google-api-python-client>=2.0.0
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | — |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | — |
-| `partition_values` | `str` | — | — |
+| `partition_values` | `Union[str, List[str]]` | — | — |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | — |
 
 ### Retry policy
@@ -92,8 +94,8 @@ google-api-python-client>=2.0.0
 | `credentials` | `Dict[str, Any]` | — | — |
 | `credentials_path` | `str` | — | Path to service-account JSON. Falls back to GOOGLE_APPLICATION_CREDENTIALS. |
 | `calendar_id` | `str` | `"primary"` | Calendar ID. Use 'primary' for the SA's own (empty) calendar, OR a user's email address (the SA must be shared on that user's calendar). Note: the SA can't see a user's `primary` calendar without delegation; use the user… _(full docs in schema.json + component README)_ |
-| `time_min` | `str` | — | RFC3339 lower bound (e.g. '2026-05-01T00:00:00Z'). Defaults to now. |
-| `time_max` | `str` | — | RFC3339 upper bound. Defaults to now + 30 days. |
+| `time_min` | `str` | — | RFC3339 lower bound (e.g. '2026-05-01T00:00:00Z'). Defaults to now. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted. |
+| `time_max` | `str` | — | RFC3339 upper bound. Defaults to now + 30 days. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted. |
 | `days_ahead` | `int` | `30` | Used when time_max is unset: now → now+days_ahead. |
 | `max_results` | `int` | `250` | Cap on returned events. Calendar API hard-caps at 2500/page. |
 | `single_events` | `bool` | `true` | Expand recurring events into individual instances. Recommended True. |

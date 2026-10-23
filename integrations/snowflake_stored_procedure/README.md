@@ -57,7 +57,7 @@ Use whichever side matches the source of truth for each entity. Mix freely — b
 |---|---|---|---|
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
-| `asset_tags` | `Dict[str, str]` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
 | `owners` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
@@ -67,8 +67,10 @@ Use whichever side matches the source of truth for each entity. Mix freely — b
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'dynamic', 'multi'. Partition key is substituted into call_args + the procedure body via `<<partition_key>>` placeholders. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning. |
 
 ### Retry policy
 

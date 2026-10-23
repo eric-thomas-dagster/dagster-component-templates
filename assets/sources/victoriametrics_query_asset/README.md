@@ -13,7 +13,7 @@ Run a PromQL query against VictoriaMetrics's Prometheus-compatible API; emit the
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name. |
-| `query` | `str` | PromQL query string. |
+| `query` | `str` | PromQL query string. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted. |
 
 ### Connection
 
@@ -28,9 +28,20 @@ Run a PromQL query against VictoriaMetrics's Prometheus-compatible API; emit the
 | `group_name` | `str` | `"victoriametrics"` | Dagster asset group name. |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. A partitioned run sends only the rows in its partition. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields. |
 
 ### Other
 
@@ -41,6 +52,7 @@ Run a PromQL query against VictoriaMetrics's Prometheus-compatible API; emit the
 | `step_seconds` | `int` | `60` | For query_range: PromQL step (seconds between samples). |
 | `bearer_token_env_var` | `str` | — | Env var with bearer token. |
 | `request_timeout_seconds` | `int` | `60` | — |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)
 

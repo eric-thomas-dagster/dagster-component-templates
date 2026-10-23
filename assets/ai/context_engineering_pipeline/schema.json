@@ -160,6 +160,18 @@
       "label": "Per Step Ops",
       "description": "When True, emit each configured step as its own @dg.op inside one op graph instead of folding the whole chain into a single @asset -- one visible, individually re-executable-on-failure asset node per step (chunk/classify/embed/write_vector_store/...), same shape as AgenticPipelineComponent's per_step_ops. The asset key for the FINAL step stays `asset_name` unchanged (so any existing upstream_asset_key pointing at this component's output keeps working); every OTHER step publishes as `<asset_name>_<step id>`, with real step-to-step lineage between them (not just every step depending on the raw upstream). Supported with execution_mode='sql' too: each participating step (chunk always, classify/embed if configured) becomes its own real warehouse table instead of one combined CREATE OR REPLACE TABLE statement, with incremental reuse preserved per table (write_vector_store has no SQL equivalent either way, so a SQL-mode pipeline tops out at 3 steps/tables). Not yet supported combined with partitioning in sql mode (per-table partition staging is a tracked follow-up), nor with freshness_max_lag_minutes in either mode (AssetsDefinition.from_graph has no per-output freshness-policy plumbing).",
       "required": false
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
     }
   }
 }

@@ -83,8 +83,21 @@ Sigma documents a hard cap of **2,000 rows per Insert row(s) action** when fed f
 | `group_name` | `str` | `"sigma"` | Dagster asset group name. |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Catalog tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'sigma'). |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. A partitioned run sends only the rows in its partition. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the rows to send to the current date partition (time partitions). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the rows to send to the current static/dynamic partition key. |
 
 ### Source / target
 
@@ -102,6 +115,7 @@ Sigma documents a hard cap of **2,000 rows per Insert row(s) action** when fed f
 | `static_parameters` | `Dict[str, Any]` | — | Extra scalar webhook parameters sent on every call alongside rows_parameter_name (e.g. a batch marker), if your webhook trigger defines any beyond the rows array. |
 | `rows_per_request` | `int` | `2000` | Rows per webhook call. Capped at 2,000 -- Sigma's documented limit for an Insert row(s) action fed from a single multi-value source. |
 | `validate_schema_before_write` | `bool` | `true` | Before sending any data, call `GET /v2/webhooks/{workbookId}/{sequenceId}/schema` and fail fast with a clear error if rows_parameter_name (or any static_parameters key) isn't among the webhook's declared parameters -- ch… _(full docs in schema.json + component README)_ |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)
 

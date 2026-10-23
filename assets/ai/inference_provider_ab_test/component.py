@@ -230,7 +230,8 @@ def _now_iso() -> str:
 # ── Partition helper ───────────────────────────────────────────────────
 
 def _build_partitions_def(
-    partition_type, partition_start, partition_values, dynamic_partition_name
+    partition_type, partition_start, partition_values, dynamic_partition_name,
+    cron_schedule=None, cron_fmt="%Y-%m-%d",
 ):
     """Same shape as AgenticPipelineComponent's helper — small subset."""
     from dagster import (
@@ -244,6 +245,13 @@ def _build_partitions_def(
         if not partition_start:
             raise ValueError("partition_type='daily' requires partition_start")
         return DailyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "cron":
+        from dagster import TimeWindowPartitionsDefinition
+        if not partition_start:
+            raise ValueError("partition_type='cron' requires partition_start")
+        if not cron_schedule:
+            raise ValueError("partition_type='cron' requires cron_schedule, e.g. '0 0 * * 1-5' for weekdays only.")
+        return TimeWindowPartitionsDefinition(start=partition_start, fmt=cron_fmt, cron_schedule=cron_schedule)
     if partition_type == "static":
         vals = partition_values
         if isinstance(vals, str):
@@ -355,7 +363,7 @@ class InferenceProviderABTestComponent(dg.Component, dg.Model, dg.Resolvable):
     # Partitioning — pair with a per-prompt dataset for scale demos.
     partition_type: Optional[str] = Field(
         default=None,
-        description="Partition type: 'daily' | 'static' | 'dynamic' | None."
+        description="Partition type: 'daily' | 'static' | 'dynamic' | 'cron' | None."
     )
     partition_start: Optional[str] = Field(
         default=None, description="ISO start date for daily partitions."
@@ -365,6 +373,13 @@ class InferenceProviderABTestComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     dynamic_partition_name: Optional[str] = Field(
         default=None, description="Name for DynamicPartitionsDefinition."
+    )
+    partition_cron_schedule: Optional[str] = Field(
+        default=None,
+        description="Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only.",
+    )
+    partition_cron_fmt: Optional[str] = Field(
+        default="%Y-%m-%d", description="strftime format for partition keys produced by partition_type='cron'."
     )
 
     @model_validator(mode="before")
@@ -403,6 +418,8 @@ class InferenceProviderABTestComponent(dg.Component, dg.Model, dg.Resolvable):
             self.partition_start,
             self.partition_values,
             self.dynamic_partition_name,
+            cron_schedule=self.partition_cron_schedule,
+            cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
         )
 
         outs = {

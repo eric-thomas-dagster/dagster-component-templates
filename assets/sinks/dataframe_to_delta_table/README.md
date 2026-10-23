@@ -72,9 +72,10 @@ The component does `when_matched_update_all()` + `when_not_matched_insert_all()`
 | `description` | `str` | — | — |
 | `group_name` | `str` | `"delta_sink"` | — |
 | `owners` | `List[str]` | — | — |
-| `asset_tags` | `Dict[str, str]` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in ONE run. When overwrite_partition_filter is templated on the partition key, one write per key in the range is iss… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -89,8 +90,10 @@ The component does `when_matched_update_all()` + `when_not_matched_insert_all()`
 |---|---|---|---|
 | `partition_by` | `List[str]` | — | Partition columns. Set ONCE at table creation — must match the table's existing partitioning. |
 | `partition_type` | `str` | — | — |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | — |
-| `partition_values` | `str` | — | — |
+| `partition_values` | `Union[str, List[str]]` | — | — |
 
 ### Retry policy
 
@@ -116,6 +119,7 @@ The component does `when_matched_update_all()` + `when_not_matched_insert_all()`
 | `schema_mode` | `str` | — | Schema evolution. 'merge' allows new columns to be added; None enforces the existing schema. Use 'merge' cautiously — it can mask upstream bugs. |
 | `skip_columns` | `List[str]` | — | — |
 | `dynamic_partition_name` | `str` | — | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

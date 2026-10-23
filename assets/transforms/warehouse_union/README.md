@@ -54,8 +54,22 @@ attributes:
 | `deps` | `List[str]` | — | — |
 | `owners` | `List[str]` | — | — |
 | `description` | `str` | — | — |
-| `asset_tags` | `Dict[str, str]` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'dynamic', or None for unpartitioned. A partitioned run reads only its slice of the source and replaces only that slice of the output (delete the slice, insert the new rows). |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time partitions. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated keys for static partitions, e.g. 'customer_a,customer_b'. |
+| `partition_date_column` | `str` | — | Column holding each row's date. A time-partitioned run reads only the source rows in its window and replaces only those rows of the output, so the output must keep this column. |
+| `partition_static_column` | `str` | — | Column holding each row's partition key (static/dynamic partitions). |
+| `partition_column_type` | `str` | `"timestamp"` | 'timestamp' (default) or 'date': the type of partition_date_column, which decides how the window is compared (UTC). |
+| `partition_output_column` | `str` | — | Column of the output table that identifies a row's partition (default: the date/static column). Set it when the transform renames or derives that column. |
 
 ### Source / target
 
@@ -70,6 +84,7 @@ attributes:
 |---|---|---|---|
 | `database_url` | `str` | — | — |
 | `distinct` | `bool` | `false` | True → UNION (drops duplicates). False (default) → UNION ALL. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 | `include_preview_metadata` | `bool` | `false` | — |
 | `preview_rows` | `int` | `25` | — |
 

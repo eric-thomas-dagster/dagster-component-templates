@@ -272,6 +272,18 @@
       "label": "Filename Strip Extension",
       "description": "If True, the auto-added filename column contains the basename WITHOUT extension (e.g. `bodies_karts` instead of `bodies_karts.csv`). Matches Alteryx's Input Data 'Output File Name as Field' semantics. Only meaningful when add_filename_column=True.",
       "required": false
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
     }
   },
   "tags": [

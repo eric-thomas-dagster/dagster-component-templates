@@ -47,7 +47,7 @@ It feels old because SharePoint OData specifically is old — SharePoint is a 20
 | `description` | `str` | — | — |
 | `group_name` | `str` | `"odata"` | — |
 | `owners` | `List[str]` | — | — |
-| `asset_tags` | `Dict[str, str]` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | Defaults to ['odata']. |
 | `deps` | `List[str]` | — | — |
 | `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (one full paginated fetch per partition in the range, each with its own $filter {partition_key} substitut… _(full docs in schema.json + component README)_ |
@@ -64,8 +64,10 @@ It feels old because SharePoint OData specifically is old — SharePoint is a 20
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | — |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | — |
-| `partition_values` | `str` | — | — |
+| `partition_values` | `Union[str, List[str]]` | — | — |
 
 ### Retry policy
 

@@ -62,7 +62,7 @@ attributes:
 | `group_name` | `str` | — | Asset group |
 | `description` | `str` | — | Asset description |
 | `owners` | `List[str]` | — | Asset owners |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags |
 | `kinds` | `List[str]` | — | Asset kinds (defaults to ['human', 'approval']). |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data loaded at runtime). |
 
@@ -78,8 +78,10 @@ attributes:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' \| 'multi' \| None |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | ISO date for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static/multi partitioning. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static/multi partitioning. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name}. |
 
 ### Retry policy

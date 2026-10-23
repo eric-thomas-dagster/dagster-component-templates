@@ -274,6 +274,18 @@
       "description": "Optional list of sinks that write the read DataFrame to a warehouse table via an existing Dagster resource, in addition to returning the DataFrame -- skips needing a separate downstream writer asset. Each: {kind: table, resource_key: <name>, table: <name>, schema: <optional>, if_exists: append|replace, mode: upsert_on_match, match: [col, col]}. mode:upsert_on_match gives partition-rewrite idempotency (DELETE-then-INSERT keyed by match, in a transaction). Auto-detects DuckDB .register() fast path; falls back to SQLAlchemy for postgres/snowflake/bigquery/mysql/mssql. The resource named by resource_key must already be configured elsewhere in the project (e.g. a snowflake_resource or postgres_resource component instance).",
       "required": false,
       "default": null
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
     }
   },
   "tags": [

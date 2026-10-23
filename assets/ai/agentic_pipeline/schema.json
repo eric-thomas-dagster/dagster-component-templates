@@ -154,6 +154,18 @@
       "label": "Policy",
       "description": "Guardrails on what this pipeline will do on the agent's behalf; omitted = no restrictions. Sections (all optional): `on_violation: fail|warn` (default fail); `env.allow: [NAME, 'PREFIX_*']` (env vars the pipeline may read, and the ONLY ones -- plus a minimal PATH/HOME baseline -- handed to MCP stdio subprocesses); `filesystem.read` / `filesystem.write: [paths]` (allowed roots for file sources and text/json sinks); `network.allow_hosts: [host, '*.corp.com']` (sources, MCP http/sse servers, remote agents, LLM api_base); `tools.allow` / `tools.deny: [patterns]` (the model is only shown permitted tools), `tools.max_calls_per_run: N`, `tools.arg_rules: [{tool, arg, under\\|hosts\\|allow_regex\\|deny_regex}]` (refuse calls whose arguments leave the sandbox: e.g. a path outside ./data); `components.allow: [ClassName]` (invoke_component targets); `budget.max_cost_usd\\|max_tokens\\|max_llm_calls\\|max_seconds`. Denied tool calls are returned to the model as an error so it can adapt; other violations raise PolicyViolation (or just log under on_violation: warn). Violations and usage are recorded as step metadata. NOTE: this is enforcement at the component boundary, not an OS sandbox -- an MCP stdio server still runs with the worker's OS permissions.",
       "required": false
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
     }
   }
 }

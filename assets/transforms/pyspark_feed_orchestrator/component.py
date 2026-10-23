@@ -544,6 +544,19 @@ class _PySparkPipelineImpl(Component, Model, Resolvable):
         default=None,
         description="Partition type of this feed's asset ('daily', 'weekly', 'monthly', 'hourly', 'static', 'dynamic'), from the feed's `partitions:` block.",
     )
+
+    partition_cron_schedule: Optional[str] = Field(
+        default=None,
+        description=(
+            "Required when partition_type='cron'. A cron expression restricting the date axis to a "
+            "custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on "
+            "Dagster's TimeWindowPartitionsDefinition(cron_schedule=...)."
+        ),
+    )
+    partition_cron_fmt: Optional[str] = Field(
+        default="%Y-%m-%d",
+        description="strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+    )
     partition_start: Optional[str] = Field(default=None, description="Start date for time partitions (ISO).")
     partition_values: Optional[Union[str, List[str]]] = Field(default=None, description="Keys for static partitions.")
     dynamic_partition_name: Optional[str] = Field(default=None, description="Name for dynamic partitions.")
@@ -1120,12 +1133,15 @@ def _feed_partitions(feed_name, feed):
     changes what a run writes (use {partition_date} etc. in the feed's paths and SQL)."""
     block = feed.get("partitions")
     if not block:
-        return {"partition_type": None, "partition_start": None, "partition_values": None, "dynamic_partition_name": None}
-    unknown = set(block) - {"type", "start", "values", "dynamic_partition_name"}
+        return {
+            "partition_type": None, "partition_start": None, "partition_values": None,
+            "dynamic_partition_name": None, "partition_cron_schedule": None, "partition_cron_fmt": None,
+        }
+    unknown = set(block) - {"type", "start", "values", "dynamic_partition_name", "cron_schedule", "cron_fmt"}
     if unknown:
-        raise ValueError(f"feed {feed_name!r}: unknown partitions keys {sorted(unknown)}; use type, start, values, dynamic_partition_name")
+        raise ValueError(f"feed {feed_name!r}: unknown partitions keys {sorted(unknown)}; use type, start, values, dynamic_partition_name, cron_schedule, cron_fmt")
     if not block.get("type"):
-        raise ValueError(f"feed {feed_name!r}: partitions needs a `type` (daily, weekly, monthly, hourly, static, dynamic)")
+        raise ValueError(f"feed {feed_name!r}: partitions needs a `type` (daily, weekly, monthly, hourly, static, dynamic, cron)")
     if "{partition_" not in json.dumps({k: feed.get(k) for k in ("steps", "sinks", "variables")}, default=str):
         raise ValueError(
             f"feed {feed_name!r} is partitioned but never uses a {{partition_*}} token in its steps, sinks or variables, so every "
@@ -1138,14 +1154,18 @@ def _feed_partitions(feed_name, feed):
                 "`asset_key:` (for example asset_key: events_daily)."
             )
     return {"partition_type": block["type"], "partition_start": block.get("start"), "partition_values": block.get("values"),
-            "dynamic_partition_name": block.get("dynamic_partition_name")}
+            "dynamic_partition_name": block.get("dynamic_partition_name"),
+            "partition_cron_schedule": block.get("cron_schedule"), "partition_cron_fmt": block.get("cron_fmt")}
 
 
 def _partitioned_schedule(name, cron, target, timezone, feed_name, parts):
     """A cron schedule for a partitioned feed: each tick runs the latest completed partition (time partitions only)."""
-    if parts["partition_type"] not in ("daily", "weekly", "monthly", "hourly"):
-        raise ValueError(f"feed {feed_name!r}: a `schedule` needs a time partition (daily/weekly/monthly/hourly), not {parts['partition_type']!r}")
-    partitions_def = _build_partitions_def(parts["partition_type"], parts["partition_start"], parts["partition_values"], parts["dynamic_partition_name"], None)
+    if parts["partition_type"] not in ("daily", "weekly", "monthly", "hourly", "cron"):
+        raise ValueError(f"feed {feed_name!r}: a `schedule` needs a time partition (daily/weekly/monthly/hourly/cron), not {parts['partition_type']!r}")
+    partitions_def = _build_partitions_def(parts["partition_type"], parts["partition_start"], parts["partition_values"], parts["dynamic_partition_name"], None,
+    cron_schedule=parts["partition_cron_schedule"],
+    cron_fmt=parts["partition_cron_fmt"] or "%Y-%m-%d",
+)
 
     @dg.schedule(name=name, cron_schedule=cron, target=target, execution_timezone=timezone)
     def _schedule(context):
@@ -1175,6 +1195,8 @@ def _build_partitions_def(
     partition_values,
     dynamic_partition_name,
     partition_dimensions,
+    cron_schedule=None,
+    cron_fmt="%Y-%m-%d",
 ):
     """Construct a Dagster partitions_def from the canonical partition fields.
 
@@ -1210,6 +1232,15 @@ def _build_partitions_def(
             return MonthlyPartitionsDefinition(start_date=spec["start"])
         if t == "hourly":
             return HourlyPartitionsDefinition(start_date=spec["start"])
+        if t == "cron":
+            from dagster import TimeWindowPartitionsDefinition
+            if not spec.get("start"):
+                raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
+            if not spec.get("cron_schedule"):
+                raise ValueError("partition dimension type='cron' requires 'cron_schedule'")
+            return TimeWindowPartitionsDefinition(
+                start=spec["start"], fmt=spec.get("fmt") or "%Y-%m-%d", cron_schedule=spec["cron_schedule"],
+            )
         if t == "static":
             vals = spec.get("values") or []
             if isinstance(vals, str):
@@ -1236,7 +1267,7 @@ def _build_partitions_def(
         _values = [str(v).strip() for v in partition_values if str(v).strip()]
     else:
         _values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
-    if partition_type in ("daily", "weekly", "monthly", "hourly") and not partition_start:
+    if partition_type in ("daily", "weekly", "monthly", "hourly", "cron") and not partition_start:
         raise ValueError(
             f"partition_type={partition_type!r} requires partition_start (ISO date, e.g. '2024-01-01')."
         )
@@ -1248,6 +1279,13 @@ def _build_partitions_def(
         return MonthlyPartitionsDefinition(start_date=partition_start)
     if partition_type == "hourly":
         return HourlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "cron":
+        from dagster import TimeWindowPartitionsDefinition
+        if not cron_schedule:
+            raise ValueError(
+                "partition_type='cron' requires cron_schedule, e.g. '0 0 * * 1-5' for weekdays only."
+            )
+        return TimeWindowPartitionsDefinition(start=partition_start, fmt=cron_fmt, cron_schedule=cron_schedule)
     if partition_type == "static":
         if not _values:
             raise ValueError("partition_type='static' requires partition_values (comma-separated).")

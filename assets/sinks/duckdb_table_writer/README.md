@@ -56,17 +56,24 @@ This component expects to receive a DataFrame from an upstream asset. Use the **
 | `asset_name` | `str` | Name of the asset to create |
 | `table` | `str` | Name of the table to write data to |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | — | Optional key of a registered DuckDBResourceComponent (resources/duckdb_resource). When set, connection credentials are read from that resource at run time instead of the inline database_path -- lets one credential serve… _(full docs in schema.json + component README)_ |
+
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `description` | `str` | — | Description of the asset |
 | `group_name` | `str` | — | Asset group name for organization |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in ONE run: the upstream frame (loaded once, spanning the whole range) is filtered to every partition key in the ran… _(full docs in schema.json + component README)_ |
 | `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com'] |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'} |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'} |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set. |
 | `automation_condition` | `Any` | — | AutomationCondition for this asset. In YAML, write as a Jinja template against the dg namespace, e.g. '{{ dg.AutomationCondition.eager() }}' — Dagster's component loader resolves it to the actual AutomationCondition obje… _(full docs in schema.json + component README)_ |
-| `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
+| `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is `upstream_asset_key`, or th… _(full docs in schema.json + component README)_ |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
 
 ### Freshness
@@ -81,10 +88,12 @@ This component expects to receive a DataFrame from an upstream asset. Use the **
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
-| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
 | `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
 
@@ -108,6 +117,7 @@ This component expects to receive a DataFrame from an upstream asset. Use the **
 |---|---|---|---|
 | `database_path` | `str` | `"data.duckdb"` | Path to the DuckDB database file (will be created if doesn't exist) |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `upstream_asset_key` | `Union[str, List[str]]` | — | Single upstream asset key. Convenience field for the common single-source case. |
 | `upstream_asset_keys` | `Union[str, List[str]]` | — | Multiple upstream asset keys for multi-source writes. |
 

@@ -37,9 +37,20 @@ Also requires a `MetronomeResourceComponent` on the same code location for authe
 | `description` | `str` | — | Asset description |
 | `group_name` | `str` | `"metronome"` | Asset group for organization |
 | `owners` | `List[str]` | — | Asset owners -- list of team names or email addresses, e.g. ['team:finance', 'user@company.com'] |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags to apply to the asset |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['metronome', 'python']. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime) |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. A partitioned run sends only the rows in its partition. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields. |
 
 ### Other
 
@@ -47,11 +58,12 @@ Also requires a `MetronomeResourceComponent` on the same code location for authe
 |---|---|---|---|
 | `customer_ids` | `List[str]` | — | Specific Metronome customer IDs to fetch invoices for. If unset, all customers are listed via GET /customers and invoices are fetched for each. |
 | `invoice_status` | `str` | — | Filter invoices by status (e.g. 'DRAFT', 'FINALIZED', 'VOID'). Unset fetches all statuses. |
-| `starting_on` | `str` | — | Only include invoices starting on/after this ISO-8601 timestamp. |
-| `ending_before` | `str` | — | Only include invoices ending before this ISO-8601 timestamp. |
+| `starting_on` | `str` | — | Only include invoices starting on/after this ISO-8601 timestamp. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted. |
+| `ending_before` | `str` | — | Only include invoices ending before this ISO-8601 timestamp. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted. |
 | `customers_page_limit` | `int` | `100` | Page size for the GET /customers listing (only used when customer_ids is unset). |
 | `invoices_page_limit` | `int` | `100` | Page size for the GET /customers/{id}/invoices listing, per customer. |
 | `max_customers` | `int` | — | Safety cap on the number of distinct customers to fetch invoices for in a single run (only applies when customer_ids is unset and the account has many customers). |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
 

@@ -44,9 +44,23 @@ both inputs. On column-name collisions, suffixes `_1` / `_2` are appended
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
-| `asset_tags` | `Dict[str, str]` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. A partitioned run sends only the rows in its partition. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the rows upstream rows to the current date partition (time partitions). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream rows to the current static/dynamic partition key. |
+| `partition_static_dim` | `str` | — | Name of the static axis in a multi-partition, e.g. 'customer' or 'region'. |
 
 ### Other
 
@@ -55,6 +69,7 @@ both inputs. On column-name collisions, suffixes `_1` / `_2` are appended
 | `how` | `str` | `"intersection"` | Set operation: 'intersection' (only where both overlap), 'union' (everywhere either has coverage), 'difference' (left minus right), 'symmetric_difference' (xor), 'identity' (left intersect right + remainder of left). Def… _(full docs in schema.json + component README)_ |
 | `keep_geom_type` | `bool` | `true` | Only keep result features whose geometry type matches the left input. Avoids the GeoDataFrame mixed-type quirk where overlay can leave behind stray points / lines from polygon ops. |
 | `geometry_column` | `Union[str, int]` | `"geometry"` | — |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)
 

@@ -174,6 +174,19 @@ class KlaviyoProfileUpsertComponent(Component, Model, Resolvable):
     freshness_max_lag_minutes: Optional[int] = Field(default=None)
     freshness_cron: Optional[str] = Field(default=None)
     partition_type: Optional[str] = Field(default=None)
+
+    partition_cron_schedule: Optional[str] = Field(
+        default=None,
+        description=(
+            "Required when partition_type='cron'. A cron expression restricting the date axis to a "
+            "custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on "
+            "Dagster's TimeWindowPartitionsDefinition(cron_schedule=...)."
+        ),
+    )
+    partition_cron_fmt: Optional[str] = Field(
+        default="%Y-%m-%d",
+        description="strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+    )
     partition_start: Optional[str] = Field(default=None)
     partition_values: Optional[Union[str, List[str]]] = Field(default=None)
     dynamic_partition_name: Optional[str] = Field(default=None)
@@ -210,7 +223,10 @@ class KlaviyoProfileUpsertComponent(Component, Model, Resolvable):
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start,
             self.partition_values, self.dynamic_partition_name,
-        )
+        
+    cron_schedule=self.partition_cron_schedule,
+    cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
+)
         retry_policy = None
         if self.retry_policy_max_retries is not None:
             retry_policy = RetryPolicy(
@@ -499,7 +515,10 @@ def _build_profiles(records: List[Dict[str, Any]], cfg: KlaviyoProfileUpsertComp
     return profiles
 
 
-def _build_partitions_def(partition_type, partition_start, partition_values, dynamic_partition_name):
+def _build_partitions_def(partition_type, partition_start, partition_values, dynamic_partition_name,
+    cron_schedule=None,
+    cron_fmt="%Y-%m-%d",
+):
     if not partition_type:
         return None
     from dagster import (DailyPartitionsDefinition, WeeklyPartitionsDefinition,
@@ -513,6 +532,11 @@ def _build_partitions_def(partition_type, partition_start, partition_values, dyn
     if _pt == "weekly": return WeeklyPartitionsDefinition(start_date=partition_start)
     if _pt == "monthly": return MonthlyPartitionsDefinition(start_date=partition_start)
     if _pt == "hourly": return HourlyPartitionsDefinition(start_date=partition_start)
+    if _pt == "cron":
+        from dagster import TimeWindowPartitionsDefinition
+        if not cron_schedule:
+            raise ValueError("partition_type='cron' requires cron_schedule, e.g. '0 0 * * 1-5' for weekdays only.")
+        return TimeWindowPartitionsDefinition(start=partition_start, fmt=cron_fmt, cron_schedule=cron_schedule)
     if _pt == "static":
         if not _values: raise ValueError("partition_type='static' requires partition_values.")
         return StaticPartitionsDefinition(_values)

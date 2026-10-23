@@ -42,7 +42,19 @@
     "partition_values":   {"type": "any",    "label": "Partition Values",
                            "description": "Comma-separated string OR list for static partitioning."},
     "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name",
-                           "description": "Name for the DynamicPartitionsDefinition when partition_type='dynamic'."}
+                           "description": "Name for the DynamicPartitionsDefinition when partition_type='dynamic'."},
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only.",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'.",
+      "required": false
+    }
   },
   "tags": ["ai", "llm", "ab-test", "cost-analysis", "provider-comparison"],
   "name": "Inference Provider A/B Test"

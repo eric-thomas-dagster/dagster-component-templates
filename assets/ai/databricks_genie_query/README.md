@@ -50,7 +50,7 @@ Natural-language → SQL → result via Databricks AI/BI Genie spaces. The compo
 | `group_name` | `str` | — | Dagster asset group name. |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `asset_tags` | `Dict[str, str]` | — | Extra asset tags. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags. |
 | `kinds` | `List[str]` | — | Defaults to ['databricks', 'genie', 'sql']. |
 | `deps` | `List[str]` | — | Lineage-only deps. |
 
@@ -66,8 +66,10 @@ Natural-language → SQL → result via Databricks AI/BI Genie spaces. The compo
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic'. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | — |
-| `partition_values` | `str` | — | — |
+| `partition_values` | `Union[str, List[str]]` | — | — |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | — |
 
 ### Retry policy

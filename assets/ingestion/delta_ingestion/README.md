@@ -45,7 +45,7 @@ All values support `${ENV_VAR}` expansion at runtime.
 | `description` | `str` | — | — |
 | `group_name` | `str` | `"delta"` | — |
 | `owners` | `List[str]` | — | — |
-| `asset_tags` | `Dict[str, str]` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
 | `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (one to_pandas() read per partition in the range, each with its own partition_filters substitution, conca… _(full docs in schema.json + component README)_ |
@@ -63,8 +63,10 @@ All values support `${ENV_VAR}` expansion at runtime.
 |---|---|---|---|
 | `partition_filters` | `List[List[str]]` | — | List of [column, op, value] partition predicates pushed down to delta-rs. Example: [['event_date', '=', '{partition_key}']]. Supports `{partition_key}`. |
 | `partition_type` | `str` | — | — |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | — |
-| `partition_values` | `str` | — | — |
+| `partition_values` | `Union[str, List[str]]` | — | — |
 
 ### Retry policy
 

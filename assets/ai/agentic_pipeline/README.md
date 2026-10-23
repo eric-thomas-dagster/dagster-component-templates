@@ -1155,6 +1155,8 @@ This is the "compose it all yourself in one YAML" alternative — the AI-side ma
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' \| 'multi' \| None (unpartitioned). |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | ISO date for time-based partition types (daily/weekly/monthly/hourly/multi). |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated string OR list — the fixed partition keys for static/multi partitioning. e.g. ['NVDA', 'TSLA', 'META'] or 'NVDA,TSLA,META'. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name}. Set instead of partition_type for multi-dimensional partitioning. |

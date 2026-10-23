@@ -32,7 +32,7 @@ Separate calls per candidate suffer from **judge-drift**: the same rubric criter
 | `group_name` | `str` | `"ab_test"` | Asset group. |
 | `kinds` | `List[str]` | — | Asset kinds. Default: ['llm', 'evaluator', 'ab-test']. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Extra tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Extra tags. |
 | `description` | `str` | — | Asset description. |
 
 ### Partitions
@@ -40,6 +40,8 @@ Separate calls per candidate suffer from **judge-drift**: the same rubric criter
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' \| 'multi' \| None. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | ISO date for time-based partition types. |
 | `partition_values` | `Any` | — | Comma-separated string OR list for static/multi partitioning. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name}. |
@@ -50,6 +52,7 @@ Separate calls per candidate suffer from **judge-drift**: the same rubric criter
 |---|---|---|---|
 | `min_winner_score` | `int` | — | 0-100. When set, emits an asset check `winner_meets_threshold` that fails ERROR when the winner's score is below this. Wire into branch-deploy CI to gate merges on quality holding above a baseline. |
 | `baseline_alias` | `str` | — | Optional baseline candidate alias for delta metrics. When set, the payload includes `delta_vs_baseline: {alias: score_delta}` — useful for 'how much did switching to Ollama drop us vs OpenAI'. |
+| `include_reasoning` | `bool` | `false` | Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped; when true it is also returned as a 'judge_reasoning' key on the output dict (distinct from the per-candidate 'reasoni… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)

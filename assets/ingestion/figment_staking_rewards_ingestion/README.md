@@ -36,23 +36,35 @@ Also requires a `FigmentResourceComponent` on the same code location for authent
 | `description` | `str` | — | Asset description |
 | `group_name` | `str` | `"figment"` | Asset group for organization |
 | `owners` | `List[str]` | — | Asset owners -- list of team names or email addresses, e.g. ['team:finance', 'user@company.com'] |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags to apply to the asset |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['figment', 'python']. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime) |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. A partitioned run sends only the rows in its partition. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `time_rollup` | `str` | `"epoch"` | Granularity for network='ethereum' (and passed through for others): 'epoch' (most granular), 'daily', or 'all_time' (aggregated). Not used for network='solana'. |
-| `start` | `str` | — | Inclusive start of the reward window (ISO-8601). ethereum-only filter. |
-| `end` | `str` | — | Inclusive end of the reward window (ISO-8601). ethereum-only filter. |
+| `start` | `str` | — | Inclusive start of the reward window (ISO-8601). ethereum-only filter. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted. |
+| `end` | `str` | — | Inclusive end of the reward window (ISO-8601). ethereum-only filter. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted. |
 | `pubkeys` | `List[str]` | — | Filter to specific validator public keys. ethereum-only filter. |
 | `withdrawal_addresses` | `List[str]` | — | Filter to validators by withdrawal address. ethereum-only filter. |
 | `accounts` | `List[str]` | — | Stake-account or system-account addresses. REQUIRED for network='solana' (max 50 per request). |
 | `extra_query_params` | `Dict[str, Any]` | — | Escape hatch: additional fields merged into the request body, for networks/params not modeled explicitly above. |
 | `include_aggregate_summary` | `bool` | `false` | When true (network='ethereum' only), issues a second request with time_rollup='all_time' and attaches the aggregate summary as asset metadata (not merged into the main granular DataFrame, to avoid a schema mismatch betwe… _(full docs in schema.json + component README)_ |
 | `max_pages` | `int` | `20` | Safety cap on pagination pages followed via a 'next_page' cursor, if the response includes one. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
 | `preview_rows` | `int` | `10` | Rows to include in the preview metadata |
 

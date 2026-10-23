@@ -498,6 +498,8 @@ Every field name and step shape here is meant to be as readable for a human anal
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily'/'weekly'/'monthly'/'hourly'/'static'/'dynamic'/None. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | Partition start date (ISO), required for time-based types. |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts (type: daily/weekly/monthly/hourly/static/dynamic). One entry is a single axis; several make a MultiPartitionsDefinition. Mutua… _(full docs in schema.json + component README)_ |

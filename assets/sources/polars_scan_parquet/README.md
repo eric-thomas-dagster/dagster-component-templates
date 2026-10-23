@@ -18,7 +18,7 @@ Read parquet via polars's lazy scanner. When you supply `predicate:` and/or `col
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
-| `path` | `str` | Path or glob pattern. Local: '/data/orders/*.parquet'. S3: 's3://bucket/orders/**/*.parquet'. GCS: 'gs://bucket/...'. ADLS: 'az://container@account.dfs.core.windows.net/...'. |
+| `path` | `str` | Path or glob pattern. Local: '/data/orders/*.parquet'. S3: 's3://bucket/orders/**/*.parquet'. GCS: 'gs://bucket/...'. ADLS: 'az://container@account.dfs.core.windows.net/...'. On a partitioned run {partition_key}, {partit… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -26,10 +26,21 @@ Read parquet via polars's lazy scanner. When you supply `predicate:` and/or `col
 |---|---|---|---|
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
-| `asset_tags` | `Dict[str, str]` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
 | `owners` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. A partitioned run sends only the rows in its partition. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields. |
 
 ### Source / target
 
@@ -46,6 +57,7 @@ Read parquet via polars's lazy scanner. When you supply `predicate:` and/or `col
 | `predicate` | `str` | — | SQL predicate to push down to the parquet reader. Polars's query planner can skip whole row groups whose stats don't match. Example: "status = 'paid' AND amount > 100". |
 | `storage_options` | `Dict[str, str]` | — | Cloud auth options passed through to polars/object_store. Example for S3: {aws_access_key_id: ..., aws_secret_access_key: ..., region: us-east-1}. |
 | `n_rows` | `int` | — | Hard row limit (LIMIT). Pushed down — reader stops after this many. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | — |
 | `preview_rows` | `int` | `25` | — |
 

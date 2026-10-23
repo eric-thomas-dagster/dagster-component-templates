@@ -27,7 +27,7 @@ provider, projected daily savings — all queryable + PR-linkable.
 | `group_name` | `str` | `"ab_test"` | Asset group. |
 | `kinds` | `List[str]` | — | Asset kinds. Default: ['report', 'ab-test']. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Extra tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Extra tags. |
 | `description` | `str` | — | Asset description. |
 
 ### Partitions
@@ -35,6 +35,8 @@ provider, projected daily savings — all queryable + PR-linkable.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' \| 'multi' \| None. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | ISO date for time-based partition types. |
 | `partition_values` | `Any` | — | Comma-separated string OR list. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec. |

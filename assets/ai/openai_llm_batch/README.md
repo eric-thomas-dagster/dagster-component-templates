@@ -116,9 +116,22 @@ environment.
 |---|---|---|---|
 | `group_name` | `str` | — | Dagster asset group name. |
 | `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com'] |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the assets, e.g. {'domain': 'support', 'tier': 'gold'} |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags to apply to the assets, e.g. {'domain': 'support', 'tier': 'gold'} |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog, e.g. ['openai', 'llm']. Defaults to ['openai', 'llm'] if not set. |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. A partitioned run submits one batch of only the rows in its partition. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the rows to submit to the current date partition (time partitions). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the rows to submit to the current static/dynamic partition key. |
 
 ### Retry policy
 
@@ -150,6 +163,7 @@ environment.
 | `completion_window` | `str` | `"24h"` | OpenAI batch completion window. Currently '24h' is the only value OpenAI accepts, but this stays a field for forward-compat. |
 | `sensor_minimum_interval_seconds` | `int` | `60` | Minimum seconds between the auto-created status sensor's evaluations. Only used when wait_for_completion=False. |
 | `sensor_default_status` | `str` | `"running"` | 'running' or 'stopped' -- initial status of the auto-created sensor. Only used when wait_for_completion=False. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)
 

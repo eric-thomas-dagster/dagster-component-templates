@@ -207,6 +207,8 @@ def _ingest_warehouse_query(source_config: dict, context) -> "pd.DataFrame":
 
 def _build_partitions_def(
     partition_type, partition_start, partition_values, dynamic_partition_name, partition_dimensions=None,
+    cron_schedule=None,
+    cron_fmt="%Y-%m-%d",
 ):
     """Construct a Dagster partitions_def from the canonical partition fields: either the flat fields (partition_type / partition_start /
     partition_values / dynamic_partition_name) or `partition_dimensions` (one axis, or several axes -> MultiPartitionsDefinition).
@@ -232,6 +234,15 @@ def _build_partitions_def(
             return MonthlyPartitionsDefinition(start_date=spec["start"])
         if t == "hourly":
             return HourlyPartitionsDefinition(start_date=spec["start"])
+        if t == "cron":
+            from dagster import TimeWindowPartitionsDefinition
+            if not spec.get("start"):
+                raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
+            if not spec.get("cron_schedule"):
+                raise ValueError("partition dimension type='cron' requires 'cron_schedule'")
+            return TimeWindowPartitionsDefinition(
+                start=spec["start"], fmt=spec.get("fmt") or "%Y-%m-%d", cron_schedule=spec["cron_schedule"],
+            )
         if t == "static":
             vals = spec.get("values") or []
             if isinstance(vals, str):
@@ -260,7 +271,7 @@ def _build_partitions_def(
         _values = [str(v).strip() for v in partition_values if str(v).strip()]
     else:
         _values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
-    if partition_type in ("daily", "weekly", "monthly", "hourly") and not partition_start:
+    if partition_type in ("daily", "weekly", "monthly", "hourly", "cron") and not partition_start:
         raise ValueError(f"partition_type={partition_type!r} requires partition_start (ISO date).")
     if partition_type == "daily":
         return DailyPartitionsDefinition(start_date=partition_start)
@@ -270,6 +281,13 @@ def _build_partitions_def(
         return MonthlyPartitionsDefinition(start_date=partition_start)
     if partition_type == "hourly":
         return HourlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "cron":
+        from dagster import TimeWindowPartitionsDefinition
+        if not cron_schedule:
+            raise ValueError(
+                "partition_type='cron' requires cron_schedule, e.g. '0 0 * * 1-5' for weekdays only."
+            )
+        return TimeWindowPartitionsDefinition(start=partition_start, fmt=cron_fmt, cron_schedule=cron_schedule)
     if partition_type == "static":
         if not _values:
             raise ValueError("partition_type='static' requires partition_values.")
@@ -3601,6 +3619,19 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
     freshness_cron: Optional[str] = Field(default=None, description="Cron schedule string for the freshness policy.")
 
     partition_type: Optional[str] = Field(default=None, description="Partition type: 'daily'/'weekly'/'monthly'/'hourly'/'static'/'dynamic'/None.")
+
+    partition_cron_schedule: Optional[str] = Field(
+        default=None,
+        description=(
+            "Required when partition_type='cron'. A cron expression restricting the date axis to a "
+            "custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on "
+            "Dagster's TimeWindowPartitionsDefinition(cron_schedule=...)."
+        ),
+    )
+    partition_cron_fmt: Optional[str] = Field(
+        default="%Y-%m-%d",
+        description="strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+    )
     partition_start: Optional[str] = Field(default=None, description="Partition start date (ISO), required for time-based types.")
     partition_values: Optional[Union[str, List[str]]] = Field(default=None, description="Comma-separated values for static partitioning.")
     dynamic_partition_name: Optional[str] = Field(default=None, description="Name for DynamicPartitionsDefinition.")
@@ -3701,7 +3732,10 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
 
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name, self.partition_dimensions,
-        )
+        
+    cron_schedule=self.partition_cron_schedule,
+    cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
+)
         if self.source and self.source.get("sql"):
             _validate_partition_placeholders(self.source["sql"], partitions_def)
         backfill_policy_obj = None

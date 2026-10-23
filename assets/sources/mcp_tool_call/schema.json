@@ -149,6 +149,19 @@
       "label": "Partition Start (ISO)",
       "required": false
     },
+    "partition_cron_schedule": {
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "default": "%Y-%m-%d",
+      "required": false
+    },
     "partition_values": {
       "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
       "type": "string",

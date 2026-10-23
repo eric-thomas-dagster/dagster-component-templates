@@ -63,8 +63,21 @@ Reverse-ETL sink: **create one Asana task per row** of an upstream DataFrame.
 | `group_name` | `str` | `"asana"` | Dagster asset group name. |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Catalog tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'asana'). |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. A partitioned run sends only the rows in its partition. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the rows to send to the current date partition (time partitions). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the rows to send to the current static/dynamic partition key. |
 
 ### Other
 
@@ -76,6 +89,7 @@ Reverse-ETL sink: **create one Asana task per row** of an upstream DataFrame.
 | `project_gids` | `List[str]` | — | Asana project GIDs to add every created task to. Required if the resource has no workspace_gid configured. |
 | `assignee_column` | `str` | — | Upstream column holding an Asana user GID or email to assign the task to. |
 | `custom_fields_map` | `Dict[str, str]` | `dict()` | Upstream column -> Asana custom_field GID. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)
 

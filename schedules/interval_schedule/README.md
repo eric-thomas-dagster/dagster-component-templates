@@ -85,15 +85,17 @@ If you need a non-boundary fire time (e.g. hourly partitions firing at `:15`), u
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `Dict[str, str]` | — | Tags applied to runs created by this schedule. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Tags applied to runs created by this schedule. |
 
 ### Partitions
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. Only time-based types ('hourly'/'daily'/'weekly'/'monthly') work with the partitioned-job path; 'static' /… _(full docs in schema.json + component README)_ |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_start` | `str` | — | Partition start in ISO format (e.g. '2024-01-01' or '2024-01-01-00:00' for hourly). Required for time-based types. |
-| `partition_values` | `str` | — | Comma-separated values for multi-axis partitioning (unused in flat time-based mode). |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for multi-axis partitioning (unused in flat time-based mode). |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 
 ### Sensor configuration

@@ -171,6 +171,18 @@
       "label": "Metadata",
       "description": "Asset-level metadata dict — passed straight through to `@asset(metadata=...)`. Useful for keys the IO manager reads at handle_output time (e.g. `{partition_expr: created_at}` for `DuckDBPolarsIOManagerComponent`, or `{dagster/column_schema: <schema>}` for a hand-authored schema). Kept separate from `asset_tags` — tags are for catalog filtering, metadata is arbitrary key-value data consumed by tooling.",
       "required": false
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
     }
   }
 }

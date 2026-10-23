@@ -50,8 +50,21 @@ For creating brand-new pages on every run, use `notion_resource` directly from y
 | `group_name` | `str` | `"notion"` | Dagster asset group name. |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Catalog tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'notion'). |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. A partitioned run sends only the rows in its partition. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides the flat partition fields. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the rows to send to the current date partition (time partitions). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the rows to send to the current static/dynamic partition key. |
 
 ### Other
 
@@ -62,6 +75,7 @@ For creating brand-new pages on every run, use `notion_resource` directly from y
 | `properties_map` | `Dict[str, str]` | `dict()` | Upstream column → Notion property name. Values are serialized based on the page's existing property types (title, rich_text, number, select, multi_select, checkbox, date, url, email, phone_number, status). Leave empty to… _(full docs in schema.json + component README)_ |
 | `markdown_column` | `str` | — | Optional column whose value (from row 0) is written to the page body as markdown, replacing the current content. |
 | `row_index` | `int` | `0` | Which upstream row to sync from. Defaults to 0 (first row). A page_sync is single-page — pass a filtered upstream if you need a specific row. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)
 

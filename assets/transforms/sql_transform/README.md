@@ -98,8 +98,10 @@ When the asset runs, the following are available in the template (no need to dec
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'cron', or None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
@@ -154,6 +156,24 @@ attributes:
     source_table: ANALYTICS.PUBLIC.ORDERS
   partition_type: daily
   partition_start: '2024-01-01'
+```
+
+### Weekdays-only cadence (business-day reconciliation)
+
+For data that doesn't exist on weekends (market data, bank feeds), `partition_type: cron` restricts the date axis to any cron expression instead of every calendar day:
+
+```yaml
+type: dagster_component_templates.SqlTransformComponent
+attributes:
+  asset_name: daily_reconciliation
+  connection_url_env_var: SNOWFLAKE_URL
+  sql: |
+    {% raw %}
+    SELECT * FROM staging.trades WHERE trade_date = '{{ partition_key }}'
+    {% endraw %}
+  partition_type: cron
+  partition_start: '2024-01-01'
+  partition_cron_schedule: '0 0 * * 1-5'  # Mon-Fri only
 ```
 
 ### Inline read mode (DataFrame for downstream pandas)

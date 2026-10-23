@@ -196,7 +196,7 @@
       "required": false
     },
     "partition_type": {
-      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned.",
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'cron', or None for unpartitioned.",
       "type": "string",
       "label": "Partition Type",
       "required": false,
@@ -207,7 +207,8 @@
         "monthly",
         "static",
         "multi",
-        "dynamic"
+        "dynamic",
+        "cron"
       ],
       "ui:widget": "select"
     },
@@ -215,6 +216,19 @@
       "description": "Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
       "type": "string",
       "label": "Partition Start",
+      "required": false
+    },
+    "partition_cron_schedule": {
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "default": "%Y-%m-%d",
       "required": false
     },
     "partition_date_column": {

@@ -262,12 +262,26 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
 
     partition_type: Optional[str] = Field(
         default=None,
-        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned.",
+        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'cron', or None for unpartitioned.",
     )
 
     partition_start: Optional[str] = Field(
         default=None,
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
+    )
+
+    partition_cron_schedule: Optional[str] = Field(
+        default=None,
+        description=(
+            "Required when partition_type='cron'. A cron expression restricting the date axis to a "
+            "custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on "
+            "Dagster's TimeWindowPartitionsDefinition(cron_schedule=...)."
+        ),
+    )
+
+    partition_cron_fmt: Optional[str] = Field(
+        default="%Y-%m-%d",
+        description="strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
     )
 
     partition_date_column: Optional[Union[str, int]] = Field(
@@ -388,6 +402,8 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
             self.partition_type, self.partition_start, self.partition_values,
             None, self.partition_dimensions,
             static_dim_name=self.partition_static_dim,
+            cron_schedule=self.partition_cron_schedule,
+            cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
         )
         _backfill_policy_obj = None
         if partitions_def is not None and self.backfill_policy == "single_run":
@@ -548,6 +564,8 @@ def _build_partitions_def(
     dynamic_partition_name,
     partition_dimensions,
     static_dim_name=None,
+    cron_schedule=None,
+    cron_fmt="%Y-%m-%d",
 ):
     """Construct a Dagster partitions_def from the canonical partition fields.
 
@@ -562,7 +580,7 @@ def _build_partitions_def(
         DailyPartitionsDefinition, WeeklyPartitionsDefinition,
         MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
         StaticPartitionsDefinition, MultiPartitionsDefinition,
-        DynamicPartitionsDefinition,
+        DynamicPartitionsDefinition, TimeWindowPartitionsDefinition,
     )
 
     # Both shapes set: ambiguous. Pick one.
@@ -584,6 +602,14 @@ def _build_partitions_def(
             return MonthlyPartitionsDefinition(start_date=spec["start"])
         if t == "hourly":
             return HourlyPartitionsDefinition(start_date=spec["start"])
+        if t == "cron":
+            if not spec.get("start"):
+                raise ValueError("partition dimension type='cron' requires 'start' (ISO date)")
+            if not spec.get("cron_schedule"):
+                raise ValueError("partition dimension type='cron' requires 'cron_schedule'")
+            return TimeWindowPartitionsDefinition(
+                start=spec["start"], fmt=spec.get("fmt") or "%Y-%m-%d", cron_schedule=spec["cron_schedule"],
+            )
         if t == "static":
             vals = spec.get("values") or []
             if isinstance(vals, str):
@@ -610,7 +636,7 @@ def _build_partitions_def(
         _values = [str(v).strip() for v in partition_values if str(v).strip()]
     else:
         _values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
-    if partition_type in ("daily", "weekly", "monthly", "hourly") and not partition_start:
+    if partition_type in ("daily", "weekly", "monthly", "hourly", "cron") and not partition_start:
         raise ValueError(
             f"partition_type={partition_type!r} requires partition_start (ISO date, e.g. '2024-01-01')."
         )
@@ -622,6 +648,12 @@ def _build_partitions_def(
         return MonthlyPartitionsDefinition(start_date=partition_start)
     if partition_type == "hourly":
         return HourlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "cron":
+        if not cron_schedule:
+            raise ValueError(
+                "partition_type='cron' requires cron_schedule, e.g. '0 0 * * 1-5' for weekdays only."
+            )
+        return TimeWindowPartitionsDefinition(start=partition_start, fmt=cron_fmt, cron_schedule=cron_schedule)
     if partition_type == "static":
         if not _values:
             raise ValueError("partition_type='static' requires partition_values (comma-separated).")

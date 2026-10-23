@@ -1,0 +1,13 @@
+type: dagster_component_templates.ComfyUIWorkflowRunAssetComponent
+attributes:
+  asset_name: product_hero_image
+  comfyui_url: http://comfyui-server:8188
+  workflow_path: workflows/product_hero.json
+  node_overrides:
+    "6":
+      text: "a studio product photo on a white background, {partition_key}"
+  partition_type: dynamic
+  dynamic_partition_name: products
+  output_dir: /data/comfyui_output
+  group_name: creative
+  kinds: [comfyui, image]

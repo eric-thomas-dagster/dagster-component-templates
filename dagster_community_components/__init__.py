@@ -246,6 +246,7 @@ _CLASS_PATHS: dict[str, str] = {
     "CognosWorkspaceComponent": "integrations/cognos_workspace/component.py",
     "CohortAnalysisComponent": "assets/analytics/cohort_analysis/component.py",
     "CollibraExportJobComponent": "jobs/collibra_export_job/component.py",
+    "ComfyUIWorkflowRunAssetComponent": "assets/ai/comfyui_workflow_run_asset/component.py",
     "CommunityComponentInstallerComponent": "assets/infrastructure/community_component_installer/component.py",
     "ComposerAirflowAuthBackendResourceComponent": "resources/composer_airflow_auth_backend/component.py",
     "ConcurIngestionComponent": "assets/ingestion/concur_ingestion/component.py",

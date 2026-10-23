@@ -1,0 +1,242 @@
+{
+  "component_type": "dagster_component_templates.ComfyUIWorkflowRunAssetComponent",
+  "name": "ComfyUI Workflow Run",
+  "category": "ai",
+  "icon": "Image",
+  "description": "Submit a ComfyUI workflow (exported in API format) as a Dagster asset: queue, poll to completion, and download the generated image(s) -- LoRA/ControlNet/inpainting/img2img/batching all live in the workflow graph itself.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {"type": "none", "required": false, "description": "Any deps are lineage-only"},
+    "outputs": {"type": "Any", "description": "MaterializeResult with generated image paths in metadata"}
+  },
+  "attributes": {
+    "asset_name": {
+      "description": "Dagster asset key.",
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "comfyui_url": {
+      "description": "Base URL of the ComfyUI server, e.g. 'http://comfyui-server:8188'.",
+      "type": "string",
+      "label": "ComfyUI URL",
+      "required": true
+    },
+    "workflow_path": {
+      "type": "string",
+      "label": "Workflow Path",
+      "description": "Local path to an API-format workflow JSON file (exported from ComfyUI's UI). Mutually exclusive with workflow.",
+      "required": false
+    },
+    "workflow": {
+      "type": "object",
+      "label": "Workflow",
+      "description": "Inline API-format workflow graph. Mutually exclusive with workflow_path.",
+      "required": false
+    },
+    "node_overrides": {
+      "type": "object",
+      "label": "Node Overrides",
+      "description": "Override specific node inputs before submission, e.g. {'6': {'text': 'a cat in space'}} to set a CLIPTextEncode node's prompt. {partition_key}/{partition_date}/{partition_start}/{partition_end} tokens are substituted into string values on a partitioned run.",
+      "required": false
+    },
+    "client_id": {
+      "type": "string",
+      "label": "Client Id",
+      "description": "ComfyUI client id. Defaults to a fresh UUID per materialization.",
+      "required": false
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "description": "Env var holding a Comfy Cloud API key (api_key_comfy_org), for workflows using hosted API nodes.",
+      "required": false
+    },
+    "output_dir": {
+      "type": "string",
+      "label": "Output Dir",
+      "description": "Local directory generated images are saved to.",
+      "required": false
+    },
+    "poll_interval_seconds": {
+      "type": "number",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between history polls.",
+      "required": false
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Max time to wait for the workflow to complete.",
+      "required": false
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "description": "HTTP request timeout.",
+      "required": false
+    },
+    "fail_on_node_errors": {
+      "type": "boolean",
+      "label": "Fail On Node Errors",
+      "description": "Raise if ComfyUI rejects the graph at submission (node_errors in the /prompt response).",
+      "required": false
+    },
+    "fail_on_execution_error": {
+      "type": "boolean",
+      "label": "Fail On Execution Error",
+      "description": "Raise if the workflow's status_str is 'error' once completed.",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "partition_type": {
+      "default": null,
+      "description": "'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic' | 'cron' | None.",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "dynamic",
+        "cron"
+      ],
+      "label": "Partition Type",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "default": null,
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "label": "Partition Start Date",
+      "required": false,
+      "type": "string"
+    },
+    "partition_values": {
+      "default": null,
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "label": "Partition Values",
+      "required": false,
+      "type": "string"
+    },
+    "dynamic_partition_name": {
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "type": "string"
+    },
+    "partition_dimensions": {
+      "default": null,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "required": false,
+      "type": "array"
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only.",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'.",
+      "required": false
+    },
+    "freshness_max_lag_minutes": {
+      "default": null,
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "label": "Freshness Max Lag (minutes)",
+      "required": false,
+      "type": "integer"
+    },
+    "freshness_cron": {
+      "default": null,
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "label": "Freshness Cron Schedule",
+      "required": false,
+      "type": "string",
+      "x-dagster-widget": "cron"
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    }
+  },
+  "tags": ["comfyui", "image", "generative-ai", "stable-diffusion", "ai"]
+}

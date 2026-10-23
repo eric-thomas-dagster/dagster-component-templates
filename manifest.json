@@ -12654,6 +12654,57 @@
       "icon": "favicon:collibra.com"
     },
     {
+      "id": "comfyui_workflow_run_asset",
+      "name": "ComfyUI Workflow Run",
+      "category": "ai",
+      "description": "Submit a ComfyUI workflow (exported in API format) as a Dagster asset: queue, poll to completion, and download the generated image(s) -- LoRA/ControlNet/inpainting/img2img/batching all live in the workflow graph itself.",
+      "path": "assets/ai/comfyui_workflow_run_asset",
+      "tags": [
+        "comfyui",
+        "image",
+        "generative-ai",
+        "stable-diffusion",
+        "ai"
+      ],
+      "icon": "Image",
+      "type": "dagster_component_templates.ComfyUIWorkflowRunAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/comfyui_workflow_run_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/comfyui_workflow_run_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/comfyui_workflow_run_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/comfyui_workflow_run_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/comfyui_workflow_run_asset/requirements.txt",
+      "component_type": "dagster_component_templates.ComfyUIWorkflowRunAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-23"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with generated image paths in metadata.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "keywords": [
+        "comfyui",
+        "image",
+        "generative-ai",
+        "stable-diffusion",
+        "workflow"
+      ]
+    },
+    {
       "id": "community_component_installer",
       "name": "Community Component Installer",
       "category": "infrastructure",

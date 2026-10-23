@@ -75,6 +75,12 @@
       "required": false,
       "default": "partition_key",
       "x-dagster-widget": "column"
+    },
+    "statement_timeout_seconds": {
+      "type": "integer",
+      "label": "Statement Timeout Seconds",
+      "description": "Per-transaction statement timeout, applied via `SET LOCAL statement_timeout` -- safe under a pgbouncer-style transaction-pooled connection, unlike a plain session-level SET (see https://github.com/dagster-io/dagster/issues/33416).",
+      "required": false
     }
   },
   "tags": [

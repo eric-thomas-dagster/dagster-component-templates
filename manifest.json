@@ -48496,8 +48496,8 @@
       "id": "postgres_io_manager",
       "name": "PostgreSQL IO Manager",
       "category": "io_manager",
-      "description": "Register a PostgreSQL IO manager so assets are automatically stored in and loaded from Postgres tables",
-      "version": "0.1.0",
+      "description": "Register a PostgreSQL IO manager so assets are automatically stored in and loaded from Postgres tables pgbouncer-safe statement_timeout_seconds (SET LOCAL, not session-level SET); engine uses NullPool.",
+      "version": "0.2.0",
       "author": "Dagster Labs",
       "path": "io_managers/postgres_io_manager",
       "tags": [

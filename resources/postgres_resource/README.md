@@ -67,3 +67,11 @@ Set the corresponding environment variable before running Dagster:
 ```bash
 export PASSWORD_ENV_VAR_VALUE="your-secret-here"
 ```
+
+## pgbouncer / transaction-pooled Postgres
+
+`host`/`port` can point at a pgbouncer (or RDS Proxy / Neon pooler / etc.) listener instead of Postgres directly -- `PostgresResource.get_connection()` is a plain `psycopg2.connect()`, nothing more. This component itself never runs any SQL, so there's nothing in it that could hit the transaction-mode footgun from [dagster-io/dagster#33416](https://github.com/dagster-io/dagster/issues/33416) (a session-level `SET` silently not applying because different statements land on different backend connections).
+
+That said, **whatever code you write against the connection this resource hands back** can still hit it. Under transaction-mode pooling:
+- Don't run a plain `SET ...` (e.g. `SET statement_timeout = ...`) expecting it to stick across multiple queries -- use `SET LOCAL ...` inside an explicit transaction instead, right before the query it should apply to.
+- Don't rely on `LISTEN`/`NOTIFY`, an advisory lock, or a temp table surviving between separate queries -- all are session-scoped and may silently stop working once a later query lands on a different backend connection.

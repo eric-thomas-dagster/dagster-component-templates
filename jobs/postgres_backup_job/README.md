@@ -48,5 +48,11 @@ A **Dagster job** (no asset materialized) — the component installs a `dg.job`
 plus an optional schedule. Lineage graph stays clean; the work happens
 behind the scenes.
 
+## pgbouncer / transaction-pooled Postgres
+
+This runs the real `pg_dump` binary (no `--jobs`/parallel flag), which holds one connection open for the entire dump inside one long-running transaction -- that's exactly the mode a pgbouncer transaction-pooled endpoint supports: a backend connection is only handed back once the client's transaction ends. Plain `pg_host`/`pg_port` pointed at pgbouncer works fine as-is.
+
+Do **not** add a parallel `--jobs > 1` flag against a transaction-pooled endpoint: parallel `pg_dump` needs several worker connections sharing one consistent snapshot (via `pg_export_snapshot()`), which requires each worker to keep its own session alive for the whole dump -- transaction-mode pooling doesn't guarantee that.
+
 ## See also
 - [Schema](schema.json) · [Example config](example.yaml)

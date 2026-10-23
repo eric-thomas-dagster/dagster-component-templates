@@ -121,12 +121,35 @@ class PostgresIOManager(dg.ConfigurableIOManager):
         default="partition_key",
         description="Column name used to scope per-partition DELETE+INSERT writes",
     )
+    statement_timeout_seconds: Optional[int] = Field(
+        default=None,
+        description=(
+            "Per-transaction statement timeout, applied via `SET LOCAL statement_timeout` inside the "
+            "same transaction as the actual query -- NOT a plain `SET` or a connection-string `options=` "
+            "param, both of which are session-scoped and silently stop applying under a pgbouncer-style "
+            "transaction-pooled connection (each statement in transaction-pooling mode can land on a "
+            "different backend connection, so a session-level SET from an earlier statement may not be "
+            "visible to a later one -- https://github.com/dagster-io/dagster/issues/33416). `SET LOCAL` "
+            "resets automatically at transaction end regardless of pooling mode, so it's safe here."
+        ),
+    )
 
     def _get_engine(self):
         import sqlalchemy as sa
         password = self.password or ""
         url = f"postgresql+psycopg2://{self.user}:{password}@{self.host}:{self.port}/{self.database}"
-        return sa.create_engine(url)
+        # NullPool: this component already creates a fresh Engine per call (handle_output/load_input)
+        # and never reuses it, so SQLAlchemy's own default QueuePool would just hold idle connections
+        # open against the target until garbage collection disposes them -- wasteful at best, and a real
+        # problem pointed at a pgbouncer (or similar) pool with a small max_client_conn. NullPool opens a
+        # connection only for the `with engine.begin()/connect()` block and closes it immediately after,
+        # leaving all actual pooling to pgbouncer where one is in front of Postgres.
+        return sa.create_engine(url, poolclass=sa.pool.NullPool)
+
+    def _set_statement_timeout(self, conn) -> None:
+        if self.statement_timeout_seconds is not None:
+            import sqlalchemy as sa
+            conn.execute(sa.text(f"SET LOCAL statement_timeout = {int(self.statement_timeout_seconds) * 1000}"))
 
     def _table_name(self, context) -> tuple[str, str]:
         """Return ``(schema, table)`` for an asset.
@@ -159,36 +182,40 @@ class PostgresIOManager(dg.ConfigurableIOManager):
         partition_keys = [str(context.partition_key)] if context.has_partition_key else range_keys
         row_count = len(obj)
 
-        with engine.begin() as conn:  # transaction
-            # Ensure schema exists.
-            conn.execute(sa.text(f'CREATE SCHEMA IF NOT EXISTS "{schema}"'))
+        try:
+            with engine.begin() as conn:  # transaction
+                self._set_statement_timeout(conn)
+                # Ensure schema exists.
+                conn.execute(sa.text(f'CREATE SCHEMA IF NOT EXISTS "{schema}"'))
 
-            if partition_keys is not None:
-                df = _build_partitioned_frame(
-                    obj, partition_keys, self.partition_column, single=range_keys is None
-                )
-                # First write may need to create the table; use append after that.
-                exists = conn.execute(
-                    sa.text(
-                        "SELECT 1 FROM information_schema.tables "
-                        "WHERE table_schema = :s AND table_name = :t"
-                    ),
-                    {"s": schema, "t": table},
-                ).first()
-                if exists:
-                    conn.execute(
-                        sa.text(
-                            f'DELETE FROM "{schema}"."{table}" '
-                            f'WHERE "{self.partition_column}" IN :pks'
-                        ).bindparams(sa.bindparam("pks", expanding=True)),
-                        {"pks": partition_keys},
+                if partition_keys is not None:
+                    df = _build_partitioned_frame(
+                        obj, partition_keys, self.partition_column, single=range_keys is None
                     )
-                    df.to_sql(table, conn, schema=schema, if_exists="append", index=False)
+                    # First write may need to create the table; use append after that.
+                    exists = conn.execute(
+                        sa.text(
+                            "SELECT 1 FROM information_schema.tables "
+                            "WHERE table_schema = :s AND table_name = :t"
+                        ),
+                        {"s": schema, "t": table},
+                    ).first()
+                    if exists:
+                        conn.execute(
+                            sa.text(
+                                f'DELETE FROM "{schema}"."{table}" '
+                                f'WHERE "{self.partition_column}" IN :pks'
+                            ).bindparams(sa.bindparam("pks", expanding=True)),
+                            {"pks": partition_keys},
+                        )
+                        df.to_sql(table, conn, schema=schema, if_exists="append", index=False)
+                    else:
+                        df.to_sql(table, conn, schema=schema, if_exists="replace", index=False)
+                    row_count = len(df)
                 else:
-                    df.to_sql(table, conn, schema=schema, if_exists="replace", index=False)
-                row_count = len(df)
-            else:
-                obj.to_sql(table, conn, schema=schema, if_exists=self.if_exists, index=False)
+                    obj.to_sql(table, conn, schema=schema, if_exists=self.if_exists, index=False)
+        finally:
+            engine.dispose()
 
         context.add_output_metadata(
             {
@@ -206,18 +233,22 @@ class PostgresIOManager(dg.ConfigurableIOManager):
         upstream = context.upstream_output
         schema, table = self._table_name(upstream)
         engine = self._get_engine()
-        with engine.connect() as conn:
-            load_keys = [str(upstream.partition_key)] if upstream.has_partition_key else _range_keys(upstream)
-            if load_keys is not None:
-                return pd.read_sql(
-                    sa.text(
-                        f'SELECT * FROM "{schema}"."{table}" '
-                        f'WHERE "{self.partition_column}" IN :pks'
-                    ).bindparams(sa.bindparam("pks", expanding=True)),
-                    conn,
-                    params={"pks": load_keys},
-                )
-            return pd.read_sql(sa.text(f'SELECT * FROM "{schema}"."{table}"'), conn)
+        try:
+            with engine.begin() as conn:  # transaction -- see statement_timeout_seconds
+                self._set_statement_timeout(conn)
+                load_keys = [str(upstream.partition_key)] if upstream.has_partition_key else _range_keys(upstream)
+                if load_keys is not None:
+                    return pd.read_sql(
+                        sa.text(
+                            f'SELECT * FROM "{schema}"."{table}" '
+                            f'WHERE "{self.partition_column}" IN :pks'
+                        ).bindparams(sa.bindparam("pks", expanding=True)),
+                        conn,
+                        params={"pks": load_keys},
+                    )
+                return pd.read_sql(sa.text(f'SELECT * FROM "{schema}"."{table}"'), conn)
+        finally:
+            engine.dispose()
 
 
 
@@ -256,6 +287,14 @@ class PostgresIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         default="partition_key",
         description="Column name used to scope per-partition DELETE+INSERT writes",
     )
+    statement_timeout_seconds: Optional[int] = Field(
+        default=None,
+        description=(
+            "Per-transaction statement timeout, applied via `SET LOCAL statement_timeout` -- safe under "
+            "a pgbouncer-style transaction-pooled connection, unlike a plain session-level SET "
+            "(see https://github.com/dagster-io/dagster/issues/33416)."
+        ),
+    )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         io_manager = PostgresIOManager(
@@ -267,5 +306,6 @@ class PostgresIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
             default_schema=self.default_schema,
             if_exists=self.if_exists,
             partition_column=self.partition_column,
+            statement_timeout_seconds=self.statement_timeout_seconds,
         )
         return dg.Definitions(resources={self.resource_key: io_manager})

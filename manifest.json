@@ -4257,7 +4257,7 @@
       "consumes": [],
       "produces": [
         "sensor",
-        "check"
+        "asset_check"
       ],
       "agent_hints": {
         "when_to_use": "Alert when an entire group of assets has gone silent (e.g. a replication feed with hundreds of tables on mixed cadences going fully dark) -- not when one asset individually misses its own SLA. Pair with a Dagster+ 'asset check failed' alert policy on the declared rollup_asset_key.",
@@ -15699,7 +15699,7 @@
       },
       "produces": [
         "asset",
-        "check"
+        "asset_check"
       ],
       "keywords": [
         "data contract",
@@ -32243,7 +32243,7 @@
         "anti_uses": "Don't use if the customer runs HVR through the Fivetran dashboard (that's dagster-fivetran territory). Don't use for triggering ad-hoc refresh jobs \u2014 v1 is read-only observation; roadmap: hvr_channel_refresh."
       },
       "produces": [
-        "external_asset",
+        "asset",
         "sensor",
         "asset_check"
       ],
@@ -36699,7 +36699,7 @@
       },
       "produces": [
         "asset",
-        "check"
+        "asset_check"
       ],
       "keywords": [
         "wap",

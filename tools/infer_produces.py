@@ -66,17 +66,16 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Optional
 
+sys.path.insert(0, str(Path(__file__).parent))
+from produces_vocabulary import ALLOWED_KINDS  # noqa: E402
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = REPO_ROOT / "manifest.json"
 REPORT_PATH = REPO_ROOT / "infer_produces_report.json"
 
 
 # ─── Enum ──────────────────────────────────────────────────────────────────
-PRIMITIVES = {
-    "asset", "multi_asset", "asset_check",
-    "job", "schedule", "sensor",
-    "resource", "io_manager", "partitions_def", "other",
-}
+PRIMITIVES = set(ALLOWED_KINDS)
 
 
 # ─── Signal extraction ─────────────────────────────────────────────────────

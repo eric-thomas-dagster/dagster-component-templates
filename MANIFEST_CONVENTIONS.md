@@ -8,17 +8,31 @@ The manifest is the source of truth for the catalog UI, agent planners, and down
 
 ## `produces` — what kinds of Dagster objects the component emits
 
-Values:
+The values are Dagster's own component kinds (`ComponentTypeSpec(produces=...)`, validated against `ComponentProducesKind`), plus four the manifest adds. The single source for the list is `tools/produces_vocabulary.py`; `tests/test_manifest_produces_vocabulary.py` fails on anything else.
+
+Dagster-native:
 
 | Value | Meaning |
 |---|---|
 | `asset` | Emits exactly ONE `@dg.asset` or equivalent — a single asset key. |
-| `multi_asset` | Emits N assets from ONE `@dg.multi_asset` or `@dg.graph_multi_asset`. Use ALSO when the component emits multiple SEPARATE `@dg.asset` decorators in one `Definitions` — the intent is "one component, many assets." |
+| `asset_check` | Emits `@dg.asset_check` (asset checks decoupled from asset materializations). |
+| `schedule` | Emits `@dg.schedule`. |
 | `sensor` | Emits `@dg.sensor`. Often paired with `asset` or `multi_asset`. |
 | `job` | Emits `@dg.job` (op-shaped, not asset-graph-shaped). |
 | `resource` | Emits a `dg.ConfigurableResource` for other components to depend on. |
-| `check` | Emits `@dg.asset_check` (asset checks decoupled from asset materializations). |
+
+Manifest-only (no Dagster equivalent):
+
+| Value | Meaning |
+|---|---|
+| `multi_asset` | Refines `asset`: emits N assets from ONE `@dg.multi_asset` or `@dg.graph_multi_asset`. Use ALSO when the component emits multiple SEPARATE `@dg.asset` decorators in one `Definitions` — the intent is "one component, many assets." Dagster itself only has `asset`. |
 | `io_manager` | Emits an `IOManager` implementation. |
+| `partitions_def` | Emits a partitions definition for other components to use. |
+| `other` | None of the above (e.g. a patch or a compute log manager). |
+
+`to_native_produces()` in `tools/produces_vocabulary.py` maps a manifest list to Dagster's own kinds (`multi_asset` becomes `asset`, manifest-only values are dropped). `consumes` is manifest-only; Dagster has no equivalent.
+
+The older spellings `check` (now `asset_check`) and `external_asset` (now `asset`) are not valid.
 
 A single component can emit multiple kinds; use a list. Example:
 

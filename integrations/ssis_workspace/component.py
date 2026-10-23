@@ -70,6 +70,48 @@ from dagster_shared.record import record
 from pydantic import Field
 
 
+def _build_partitions_def(partition_type, partition_start, partition_values, dynamic_partition_name):
+    """Construct a Dagster partitions_def from the canonical flat partition fields.
+
+    Strict: raises ValueError on misconfigured combinations rather than silently
+    picking a default (time-based types need partition_start; static needs
+    partition_values; dynamic needs dynamic_partition_name).
+    """
+    from dagster import (
+        DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+        MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+        StaticPartitionsDefinition, DynamicPartitionsDefinition,
+    )
+
+    if not partition_type:
+        return None
+    if partition_type in ("daily", "weekly", "monthly", "hourly") and not partition_start:
+        raise ValueError(
+            f"partition_type={partition_type!r} requires partition_start (ISO date, e.g. '2024-01-01')."
+        )
+    if partition_type == "daily":
+        return DailyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "weekly":
+        return WeeklyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "monthly":
+        return MonthlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "hourly":
+        return HourlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "static":
+        if isinstance(partition_values, (list, tuple)):
+            values = [str(v).strip() for v in partition_values if str(v).strip()]
+        else:
+            values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
+        if not values:
+            raise ValueError("partition_type='static' requires partition_values (comma-separated).")
+        return StaticPartitionsDefinition(values)
+    if partition_type == "dynamic":
+        if not dynamic_partition_name:
+            raise ValueError("partition_type='dynamic' requires dynamic_partition_name.")
+        return DynamicPartitionsDefinition(name=dynamic_partition_name)
+    raise ValueError(f"unknown partition_type: {partition_type!r}")
+
+
 # ── Status code → human string ──────────────────────────────────────
 SSIS_STATUS: Dict[int, str] = {
     1: "Created",
@@ -258,6 +300,7 @@ class SsisComponentTranslator:
                 "ssis/package": props.package_name,
                 "ssis/project_id": props.project_id,
             },
+            partitions_def=self._component._partitions_def,
         )
 
 
@@ -434,10 +477,44 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         "servers don't collide.",
     )
 
+    partition_type: Optional[str] = Field(
+        default=None,
+        description=(
+            "Applies the SAME partitions_def to every imported package: "
+            "'daily'|'weekly'|'monthly'|'hourly'|'static'|'dynamic', or None for "
+            "unpartitioned (default). Real per-package execution history ("
+            "`SSISDB.catalog.executions`) has no native partition concept, so the "
+            "observation sensor can only derive a partition key for time-based "
+            "types (from each execution's end_time) -- static/dynamic partition "
+            "types attach the partitions_def to the asset (for lineage/backfill "
+            "UI purposes) but the sensor cannot auto-tag observations against "
+            "them; emit AssetObservation(partition=...) yourself via a subclass "
+            "if you need that."
+        ),
+    )
+    partition_start: Optional[str] = Field(
+        default=None,
+        description="ISO start date for time-based partition types (e.g. '2024-01-01').",
+    )
+    partition_values: Optional[Union[str, List[str]]] = Field(
+        default=None,
+        description="Comma-separated values for partition_type='static'.",
+    )
+    dynamic_partition_name: Optional[str] = Field(
+        default=None,
+        description="Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('kinds', 'owners'), csv=(), tags=('tags',))
+
+    @property
+    def _partitions_def(self):
+        return _build_partitions_def(
+            self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name,
+        )
 
     # ── Base translator (cached per instance) ─────────────────────
     @property
@@ -835,7 +912,29 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         action = (self.action or "noop").lower()
 
         if action == "noop":
-            assets = list(specs)
+            # A genuine no-op executable (not a bare AssetSpec): SSISDB.catalog's
+            # packages are observe-only here -- Dagster never triggers them -- but
+            # `freshness_lag_threshold_seconds` checks still need SOME executable
+            # node to attach to. Dagster can't build a job (nor does `dg launch`
+            # offer anything to click) for a check-only selection over a bare
+            # AssetSpec with zero executable nodes
+            # (`DagsterInvalidDefinitionError: Selected keys must be a subset of
+            # existing executable asset keys`) -- this was invisible until a check
+            # was actually run through a job, since an external AssetSpec still
+            # shows up in the catalog fine on its own. The real activity signal
+            # still comes from the observation sensor; materializing this just
+            # logs and does nothing to SSIS.
+            if specs:
+                @dg.multi_asset(specs=specs)
+                def _ssis_noop(context: dg.AssetExecutionContext):
+                    context.log.info(
+                        f"SSIS workspace action=noop: {len(specs)} package(s) are "
+                        "observe-only; materializing here does not trigger SSIS."
+                    )
+
+                assets = [_ssis_noop]
+            else:
+                assets = []
         elif action == "execute":
             _self = self
 
@@ -888,11 +987,6 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
     def _build_observation_sensor(self, specs: List[AssetSpec], server_host: str):
         _self = self
-        # Rebuild the prefix from workspace so sensor + specs agree.
-        prefix = self.asset_key_prefix or [
-            "ssis",
-            (server_host or "hub").split(".")[0].split("\\")[0].lower(),
-        ]
 
         @dg.sensor(
             name="ssis_workspace_observation_sensor",
@@ -901,6 +995,7 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             asset_selection=dg.AssetSelection.assets(*(s.key for s in specs)),
         )
         def _observation_sensor(context: dg.SensorEvaluationContext):
+            from datetime import timezone
             cursor_val = int(context.cursor) if context.cursor and context.cursor.isdigit() else 0
             engine = _self._build_engine()
             from sqlalchemy import text as sa_text
@@ -927,15 +1022,54 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                 pkg_name = r["package_name"] or ""
                 if pkg_name.lower().endswith(".dtsx"):
                     pkg_name = pkg_name[:-5]
-                key_path = [*prefix, r["folder_name"], r["project_name"], pkg_name]
+                # Resolve the REAL asset key via get_asset_spec -- the documented
+                # override point this component's own docstring calls out -- instead
+                # of independently reconstructing [*prefix, folder, project, pkg].
+                # A subclass overriding get_asset_spec (e.g. to pin asset keys to the
+                # source system's own naming, per the demo_mode_pattern convention)
+                # used to silently split sensor identity from asset identity: the
+                # observation landed on a key nothing in the graph has, and the UI
+                # showed no activity on the actual asset.
+                props = SsisPackageProps(
+                    folder_name=r["folder_name"],
+                    project_name=r["project_name"],
+                    # SSISDB.catalog.executions doesn't carry project_id (would need an
+                    # extra join to catalog.projects) -- 0 is a placeholder. Only matters
+                    # if a user's own `translation:` callable keys off project_id, which
+                    # the default translator does not (key is folder/project/package name
+                    # only; project_id is metadata-only).
+                    project_id=0,
+                    package_name=pkg_name,
+                    description=None,
+                    server_host=server_host,
+                )
+                resolved_key = _self.get_asset_spec(props).key
+
+                # Best-effort partition tag: SSISDB.catalog.executions has no native
+                # partition concept, but for a TIME-based partitions_def we can derive
+                # the partition key from the execution's own end_time. Not possible for
+                # static/dynamic partition types (no timestamp-to-key mapping exists) --
+                # those stay unpartitioned observations even if the asset itself is
+                # partitioned (documented on the partition_type field).
+                partition_kwargs: Dict[str, Any] = {}
+                pdef = _self._partitions_def
+                end_time = r["end_time"]
+                if pdef is not None and hasattr(pdef, "get_partition_key_for_timestamp") and end_time is not None:
+                    try:
+                        ts = end_time.replace(tzinfo=end_time.tzinfo or timezone.utc).timestamp()
+                        partition_kwargs["partition"] = pdef.get_partition_key_for_timestamp(ts)
+                    except Exception:
+                        pass  # static/dynamic defs, or an out-of-range timestamp -- leave unpartitioned
+
                 observations.append(
                     dg.AssetObservation(
-                        asset_key=dg.AssetKey(key_path),
+                        asset_key=resolved_key,
                         metadata={
                             "ssis/execution_id": exec_id,
                             "ssis/status": SSIS_STATUS.get(int(r["status"]), str(r["status"])),
                             "ssis/end_time": str(r["end_time"]),
                         },
+                        **partition_kwargs,
                     )
                 )
             return dg.SensorResult(
@@ -950,8 +1084,21 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         _self = self
         threshold = self.freshness_lag_threshold_seconds
 
-        checks = []
-        for spec in specs:
+        # Factory function, not a default-argument trick (`def _check(_spec_key=spec.key)`):
+        # Dagster's asset-check machinery treats any non-`context` parameter on an
+        # `@asset_check` function as an input to load from the checked asset via the
+        # project's default IO manager. The old default-argument trick avoided Python's
+        # closure late-binding bug (every `_check` would otherwise see the LAST loop
+        # iteration's `spec`) but, since `_spec_key` isn't named `context`, Dagster tried
+        # to load it as a real input -- invisible under `action: noop` (the check never
+        # ran through a job at all -- see the noop-executable-stub fix below), but a real
+        # crash under `action: execute` the moment the project's default io_manager is
+        # type-specific (e.g. an Iceberg IO manager for other assets in the same
+        # project): `CheckError: <IOManager> does not have a handler for type
+        # 'typing.Any'`, for a check with nothing to do with that IO manager at all.
+        def _make_check(spec):
+            pkg_meta = spec.metadata
+
             @dg.asset_check(
                 asset=spec.key,
                 name="ssis_freshness_lag",
@@ -960,10 +1107,7 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                     f"this package is older than {threshold}s."
                 ),
             )
-            def _check(_spec_key=spec.key):
-                pkg_meta = next(
-                    s.metadata for s in specs if s.key == _spec_key
-                )
+            def _check(context):
                 from sqlalchemy import text as sa_text
                 engine = _self._build_engine()
                 with engine.connect() as conn:
@@ -999,5 +1143,9 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                     description=f"lag={int(lag)}s (threshold={threshold}s)",
                     metadata={"ssis/last_success_at": str(end_time), "ssis/lag_seconds": int(lag)},
                 )
-            checks.append(_check)
+            return _check
+
+        checks = []
+        for spec in specs:
+            checks.append(_make_check(spec))
         return checks

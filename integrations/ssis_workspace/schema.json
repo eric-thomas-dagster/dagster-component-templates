@@ -123,6 +123,36 @@
       "label": "Owners",
       "required": false,
       "ui:widget": "list"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Applies the SAME partitions_def to every imported package: 'daily'|'weekly'|'monthly'|'hourly'|'static'|'dynamic', or None for unpartitioned (default). The observation sensor can only derive a partition key for time-based types (from each execution's end_time) -- static/dynamic types attach the partitions_def to the asset but the sensor cannot auto-tag observations against them.",
+      "required": false,
+      "default": null,
+      "enum": ["daily", "weekly", "monthly", "hourly", "static", "dynamic"],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "ISO start date for time-based partition types (e.g. '2024-01-01').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for partition_type='static'.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
+      "required": false,
+      "default": null
     }
   },
   "tags": [

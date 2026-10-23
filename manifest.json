@@ -60182,7 +60182,7 @@
       "name": "SSIS Workspace",
       "category": "integration",
       "description": "SSIS packages as Dagster assets. Discovers SSISDB.catalog.packages + optionally executes via create_execution/start_execution + polls to completion. Fivetran-shape workspace: block for connection + selector for filtering + polling_sensor + freshness_lag_threshold_seconds.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "integrations/ssis_workspace",
       "tags": [
@@ -60205,7 +60205,7 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/ssis_workspace/requirements.txt",
       "validation": {
         "level": "code",
-        "last_validated": "2026-08-27",
+        "last_validated": "2026-10-23",
         "notes": "Live-validated at the shape level (Phase 2 upgrade: StateBackedComponent + translation callable + @record props + @public annotations) via mocked SQLAlchemy engine (component internals, discovery filtering, polling_sensor + freshness_check attachment). Full SSISDB-catalog live validation requires a Windows SQL Server + SSIS installation (SSISDB catalog is Windows-only per MS Linux support matrix). Roadmap: Windows CI job for `live` promotion."
       },
       "produces": [

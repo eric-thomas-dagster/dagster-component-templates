@@ -1262,6 +1262,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SortComponent": "assets/transforms/sort/component.py",
     "SpannerQueryAssetComponent": "assets/source/spanner_query_asset/component.py",
     "SparkK8sOperatorAssetComponent": "assets/infrastructure/spark_k8s_operator_asset/component.py",
+    "SparkLivyBatchAssetComponent": "assets/infrastructure/spark_livy_batch_asset/component.py",
     "SpatialClusterComponent": "assets/analytics/spatial_cluster/component.py",
     "SpatialInfoComponent": "assets/transforms/spatial_info/component.py",
     "SpatialJoinComponent": "assets/analytics/spatial_join/component.py",

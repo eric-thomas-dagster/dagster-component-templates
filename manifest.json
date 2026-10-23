@@ -59496,6 +59496,58 @@
       ]
     },
     {
+      "id": "spark_livy_batch_asset",
+      "name": "Spark Livy Batch",
+      "category": "infrastructure",
+      "description": "Submit a Spark batch job to a standalone/YARN cluster via Apache Livy's REST API, and poll to completion -- the classic on-prem submission path, distinct from spark_k8s_operator_asset (Kubernetes).",
+      "path": "assets/infrastructure/spark_livy_batch_asset",
+      "tags": [
+        "spark",
+        "livy",
+        "infrastructure",
+        "self-hosted",
+        "yarn"
+      ],
+      "icon": "si:apachespark",
+      "type": "dagster_component_templates.SparkLivyBatchAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/spark_livy_batch_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/spark_livy_batch_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/spark_livy_batch_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/spark_livy_batch_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/spark_livy_batch_asset/requirements.txt",
+      "component_type": "dagster_component_templates.SparkLivyBatchAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-23"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with the Livy batch's final state in metadata.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "keywords": [
+        "infra",
+        "spark",
+        "livy",
+        "yarn",
+        "self-hosted",
+        "batch"
+      ]
+    },
+    {
       "id": "spatial_cluster",
       "name": "Spatial Cluster",
       "category": "analytics",

@@ -75,8 +75,8 @@ class SnowflakeOpenflowStatusSensorComponent(Component, Model, Resolvable):
         description="Optional Dagster job to trigger via RunRequest on each activity advance.",
     )
 
-    account_env_var: str = Field(description="Env var with Snowflake account.")
-    user_env_var: str = Field(description="Env var with Snowflake username.")
+    account_env_var: str = Field(default="SNOWFLAKE_ACCOUNT", description="Env var with Snowflake account.")
+    user_env_var: str = Field(default="SNOWFLAKE_USER", description="Env var with Snowflake username.")
     password_env_var: Optional[str] = Field(default=None, description="Env var with Snowflake password.")
     pat_env_var: Optional[str] = Field(default=None, description="Env var with Snowflake PAT.")
     private_key_path_env_var: Optional[str] = Field(default=None, description="Env var with RSA private key path.")
@@ -109,6 +109,14 @@ class SnowflakeOpenflowStatusSensorComponent(Component, Model, Resolvable):
             kwargs["password"] = os.environ.get(self.password_env_var, "")
         return kwargs
 
+    def _connect(self):
+        """Single seam point for the Snowflake connection -- a demo/test subclass can
+        override just this method to return a fake connection, instead of needing real
+        Snowflake credentials just to exercise the sensor's query/cursor logic."""
+        import snowflake.connector
+
+        return snowflake.connector.connect(**self._connection_kwargs())
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _self = self
         default_status = (
@@ -124,12 +132,12 @@ class SnowflakeOpenflowStatusSensorComponent(Component, Model, Resolvable):
         )
         def snowflake_openflow_status_sensor(context: SensorEvaluationContext, **_resources):
             try:
-                import snowflake.connector
+                import snowflake.connector  # noqa: F401
             except ImportError:
                 return SensorResult(skip_reason="snowflake-connector-python not installed")
 
             try:
-                conn = snowflake.connector.connect(**_self._connection_kwargs())
+                conn = _self._connect()
             except Exception as e:
                 return SensorResult(skip_reason=f"Snowflake connect failed: {e}")
 

@@ -22,13 +22,13 @@ OpenFlow owns the schedule and the runtime; Dagster surfaces flow activity in th
 |---|---|---|
 | `sensor_name` | `str` | Unique sensor name. |
 | `flow_name` | `str` | OpenFlow process-group name. |
-| `account_env_var` | `str` | Env var with Snowflake account. |
-| `user_env_var` | `str` | Env var with Snowflake username. |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `account_env_var` | `str` | `"SNOWFLAKE_ACCOUNT"` | Env var with Snowflake account. |
+| `user_env_var` | `str` | `"SNOWFLAKE_USER"` | Env var with Snowflake username. |
 | `password_env_var` | `str` | — | Env var with Snowflake password. |
 | `warehouse_env_var` | `str` | — | Env var with Snowflake warehouse. |
 | `role_env_var` | `str` | — | Env var with Snowflake role. |

@@ -10,23 +10,35 @@
     }
   },
   "attributes": {
-    "asset_key": {
-      "type": "string",
-      "label": "Asset Key",
-      "description": "Dagster asset key",
-      "required": true
-    },
     "bootstrap_servers": {
       "type": "string",
       "label": "Bootstrap Servers",
       "description": "Comma-separated Kafka broker addresses",
       "required": true
     },
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Dagster asset key for a single topic. Mutually exclusive with `topics:` -- use this (with `topic:`) to declare exactly one topic, or `topics:` to declare several from one component instance sharing bootstrap_servers and one observation sensor.",
+      "required": false,
+      "default": null
+    },
     "topic": {
       "type": "string",
       "label": "Topic",
-      "description": "Kafka topic name",
-      "required": true
+      "description": "Kafka topic name for a single topic. Mutually exclusive with `topics:`.",
+      "required": false,
+      "default": null
+    },
+    "topics": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Topics",
+      "description": "Declare several Kafka topics as external assets from one component instance, instead of one ExternalKafkaAsset YAML block (and, with create_observation_sensor=true, one polling sensor and one Kafka connection) per topic. Each entry: `key` (Dagster asset key, required), `topic` (Kafka topic name, required), plus optional `deps` (list of upstream asset key strings), `owners` (list of strings), `metadata` (dict), `group_name`, `description`. All entries share this component's bootstrap_servers, partitioning config, and (if enabled) ONE sensor that polls every topic's offsets over a single Kafka connection per tick -- set `sensor_name` explicitly when using `topics:` with create_observation_sensor=true (there's no single topic name to derive a default from). Mutually exclusive with the top-level `asset_key`/`topic` fields.",
+      "required": false,
+      "default": null
     },
     "group_name": {
       "type": "string",
@@ -53,7 +65,7 @@
     "sensor_name": {
       "type": "string",
       "label": "Sensor Name",
-      "description": "Unique sensor name. Defaults to '{topic}__observation_sensor'. Only used when create_observation_sensor=True.",
+      "description": "Unique sensor name. Defaults to '{topic}__observation_sensor' in single-topic mode (asset_key/topic). Required when using `topics:` (no single topic name to derive a default from). Only used when create_observation_sensor=True.",
       "required": false,
       "default": null
     },

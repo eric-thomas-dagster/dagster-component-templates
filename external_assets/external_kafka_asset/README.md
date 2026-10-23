@@ -19,9 +19,7 @@ This component does not read from or write to Kafka. It is a **lineage declarati
 
 | Field | Type | Description |
 |---|---|---|
-| `asset_key` | `str` | Dagster asset key |
 | `bootstrap_servers` | `str` | Comma-separated Kafka broker addresses |
-| `topic` | `str` | Kafka topic name |
 
 ### Connection
 
@@ -33,6 +31,7 @@ This component does not read from or write to Kafka. It is a **lineage declarati
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_key` | `str` | — | Dagster asset key for a single topic. Mutually exclusive with `topics:` -- use this (with `topic:`) to declare exactly one topic, or `topics:` to declare several from one component instance sharing bootstrap_servers and… _(full docs in schema.json + component README)_ |
 | `group_name` | `str` | — | Dagster asset group name |
 | `description` | `str` | — | Human-readable description |
 
@@ -42,14 +41,21 @@ This component does not read from or write to Kafka. It is a **lineage declarati
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily'\|'weekly'\|'monthly'\|'hourly'\|'static'\|'dynamic'\|'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | ISO start date for time-based partition types (e.g. '2024-01-01'). |
-| `partition_values` | `str` | — | Comma-separated values for static / multi partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static / multi partition types. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec; overrides flat fields when set. |
 
 ### Sensor configuration
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{topic}__observation_sensor'. Only used when create_observation_sensor=True. |
+| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{topic}__observation_sensor' in single-topic mode (asset_key/topic). Required when using `topics:` (no single topic name to derive a default from). Only used when create_observation_sensor=True. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `topic` | `str` | — | Kafka topic name for a single topic. Mutually exclusive with `topics:`. |
+| `topics` | `List[Dict[str, Any]]` | — | Declare several Kafka topics as external assets from one component instance, instead of one ExternalKafkaAsset YAML block (and, with create_observation_sensor=true, one polling sensor and one Kafka connection) per topic… _(full docs in schema.json + component README)_ |
 
 ### Other
 
@@ -72,6 +78,38 @@ attributes:
   # group_name: None  # optional
   # description: None  # optional
 ```
+
+## Several topics from one component instance
+
+Use `topics:` instead of the top-level `asset_key`/`topic` fields to declare several Kafka topics
+from one `ExternalKafkaAsset` instance, instead of one YAML block per topic:
+
+```yaml
+type: dagster_component_templates.ExternalKafkaAsset
+attributes:
+  bootstrap_servers: BOOTSTRAP_SERVERS
+  group_name: kafka_sources
+  topics:
+    - key: streaming/orders
+      topic: orders
+    - key: streaming/payments
+      topic: payments
+      owners: ["team:payments"]
+    - key: streaming/shipments
+      topic: shipments
+      deps: ["streaming/orders"]
+  create_observation_sensor: true
+  sensor_name: kafka_sources_observer  # required with topics: -- no single topic name to default from
+```
+
+All topics share this instance's `bootstrap_servers` and partitioning config. With
+`create_observation_sensor: true`, they also share **one** sensor that polls every topic's
+offsets over a **single** Kafka connection per tick (or a single resource-backed `.observe()`
+loop — see below), instead of one sensor and one connection per topic. A topic whose offset query
+fails doesn't block the rest — it's skipped for that tick and reported again next time.
+
+`asset_key`/`topic` and `topics:` are mutually exclusive on one component instance; use several
+component instances if different groups of topics need different partitioning.
 
 ## Observation sensor
 

@@ -24207,8 +24207,8 @@
       "id": "external_kafka_asset",
       "name": "External Kafka Asset",
       "category": "external",
-      "description": "Declare a Kafka topic as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
-      "version": "1.0.0",
+      "description": "Declare one or several Kafka topics as external assets in the Dagster asset graph (topics: for several topics sharing one sensor/connection) \u2014 makes them visible for lineage without materializing them from Dagster.",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "external_assets/external_kafka_asset",
       "tags": [
@@ -24230,10 +24230,11 @@
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
-        "last_validated": "2026-05-08"
+        "last_validated": "2026-10-23"
       },
       "produces": [
-        "asset"
+        "asset",
+        "sensor"
       ],
       "agent_hints": {
         "output_type": "AssetSpec",

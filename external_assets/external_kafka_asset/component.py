@@ -151,9 +151,35 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 
 
 class ExternalKafkaAsset(dg.Component, dg.Model, dg.Resolvable):
-    asset_key: str = Field(description="Dagster asset key")
     bootstrap_servers: str = Field(description="Comma-separated Kafka broker addresses")
-    topic: str = Field(description="Kafka topic name")
+    asset_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster asset key for a single topic. Mutually exclusive with `topics:` -- use "
+            "this (with `topic:`) to declare exactly one topic, or `topics:` to declare several "
+            "from one component instance sharing bootstrap_servers and one observation sensor."
+        ),
+    )
+    topic: Optional[str] = Field(
+        default=None,
+        description="Kafka topic name for a single topic. Mutually exclusive with `topics:`.",
+    )
+    topics: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Declare several Kafka topics as external assets from one component instance, "
+            "instead of one ExternalKafkaAsset YAML block (and, with "
+            "create_observation_sensor=true, one polling sensor and one Kafka connection) per "
+            "topic. Each entry: `key` (Dagster asset key, required), `topic` (Kafka topic name, "
+            "required), plus optional `deps` (list of upstream asset key strings), `owners` "
+            "(list of strings), `metadata` (dict), `group_name`, `description`. All entries "
+            "share this component's bootstrap_servers, partitioning config, and (if enabled) ONE "
+            "sensor that polls every topic's offsets over a single Kafka connection per tick -- "
+            "set `sensor_name` explicitly when using `topics:` with create_observation_sensor=true "
+            "(there's no single topic name to derive a default from). Mutually exclusive with the "
+            "top-level `asset_key`/`topic` fields."
+        ),
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     description: Optional[str] = Field(default=None, description="Human-readable description")
 
@@ -168,7 +194,11 @@ class ExternalKafkaAsset(dg.Component, dg.Model, dg.Resolvable):
     )
     sensor_name: Optional[str] = Field(
         default=None,
-        description="Unique sensor name. Defaults to '{topic}__observation_sensor'. Only used when create_observation_sensor=True.",
+        description=(
+            "Unique sensor name. Defaults to '{topic}__observation_sensor' in single-topic mode "
+            "(asset_key/topic). Required when using `topics:` (no single topic name to derive a "
+            "default from). Only used when create_observation_sensor=True."
+        ),
     )
     check_interval_seconds: int = Field(
         default=300,
@@ -219,7 +249,59 @@ class ExternalKafkaAsset(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=(), csv=('partition_values',), tags=())
 
+    def _resolve_topic_entries(self) -> List[Dict[str, Any]]:
+        """Normalize the single-topic (asset_key/topic) and multi-topic (topics:) shapes
+        into one list of `{key, topic, deps, owners, metadata, group_name, description}` dicts.
+        """
+        has_single = bool(self.asset_key or self.topic)
+        has_multi = bool(self.topics)
+        if has_single and has_multi:
+            raise ValueError(
+                "Set either asset_key/topic (single topic) or topics: (several topics), not both."
+            )
+        if not has_single and not has_multi:
+            raise ValueError("Set either asset_key/topic (single topic) or topics: (several topics).")
+
+        if has_single:
+            if not self.asset_key or not self.topic:
+                raise ValueError("Both asset_key and topic are required in single-topic mode.")
+            return [{
+                "key": self.asset_key,
+                "topic": self.topic,
+                "deps": None,
+                "owners": None,
+                "metadata": None,
+                "group_name": self.group_name,
+                "description": self.description,
+            }]
+
+        entries = []
+        seen_keys = set()
+        for i, raw in enumerate(self.topics):
+            if not isinstance(raw, dict):
+                raise ValueError(f"topics[{i}] must be a mapping, got {type(raw).__name__}")
+            key = raw.get("key")
+            topic = raw.get("topic")
+            if not key:
+                raise ValueError(f"topics[{i}] is missing required field 'key'")
+            if not topic:
+                raise ValueError(f"topics[{i}] ({key!r}) is missing required field 'topic'")
+            if key in seen_keys:
+                raise ValueError(f"topics: duplicate key {key!r}")
+            seen_keys.add(key)
+            entries.append({
+                "key": key,
+                "topic": topic,
+                "deps": raw.get("deps"),
+                "owners": raw.get("owners"),
+                "metadata": raw.get("metadata"),
+                "group_name": raw.get("group_name", self.group_name),
+                "description": raw.get("description"),
+            })
+        return entries
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        entries = self._resolve_topic_entries()
         partitions_def = _build_partitions_def(
             self.partition_type,
             self.partition_start,
@@ -227,54 +309,75 @@ class ExternalKafkaAsset(dg.Component, dg.Model, dg.Resolvable):
             self.dynamic_partition_name,
             self.partition_dimensions,
         )
-        spec = dg.AssetSpec(
-            key=dg.AssetKey.from_user_string(self.asset_key),
-            group_name=self.group_name,
-            description=self.description or f"Kafka topic {self.topic}",
-            kinds={"kafka", "streaming"},
-            metadata={
+
+        specs = []
+        for e in entries:
+            metadata = {
                 "bootstrap_servers": self.bootstrap_servers,
-                "topic": self.topic,
+                "topic": e["topic"],
                 "dagster.observability_type": "external",
-            },
-            partitions_def=partitions_def,
-        )
+            }
+            if e["metadata"]:
+                metadata.update(e["metadata"])
+            specs.append(dg.AssetSpec(
+                key=dg.AssetKey.from_user_string(e["key"]),
+                group_name=e["group_name"],
+                description=e["description"] or f"Kafka topic {e['topic']}",
+                kinds={"kafka", "streaming"},
+                deps=[dg.AssetKey.from_user_string(d) for d in e["deps"]] if e["deps"] else None,
+                owners=e["owners"] or None,
+                metadata=metadata,
+                partitions_def=partitions_def,
+            ))
 
         if not self.create_observation_sensor:
-            return dg.Definitions(assets=[spec])
+            return dg.Definitions(assets=specs)
 
-        _self = self
-        sensor_name = self.sensor_name or f"{_safe_sensor_name_part(self.topic)}__observation_sensor"
+        is_multi = self.topics is not None
+        if is_multi and not self.sensor_name:
+            raise ValueError(
+                "sensor_name is required when using topics: with create_observation_sensor=true "
+                "(there's no single topic name to derive a default from)."
+            )
+        sensor_name = self.sensor_name or f"{_safe_sensor_name_part(entries[0]['topic'])}__observation_sensor"
         resource_key = self.resource_key
         required_resource_keys = {resource_key} if resource_key else set()
+        _entries = entries
+        _self = self
 
         @dg.sensor(
             name=sensor_name,
             minimum_interval_seconds=self.check_interval_seconds,
             required_resource_keys=required_resource_keys,
-            asset_selection=dg.AssetSelection.keys(dg.AssetKey.from_user_string(self.asset_key)),
+            asset_selection=dg.AssetSelection.assets(*[dg.AssetKey.from_user_string(e["key"]) for e in _entries]),
         )
         def _kafka_obs(context: dg.SensorEvaluationContext, **_resources):
             from dagster._core.definitions.data_version import DATA_VERSION_TAG
             _event_cls = dg.AssetMaterialization if _self.emit_materialization else dg.AssetObservation
-            # ── Resource-backed path (preferred) ────────────────────────────
+            events = []
+
+            # ── Resource-backed path (preferred): one client.observe() call per topic ──
             if resource_key:
                 client = getattr(context.resources, resource_key, None)
                 if client is None:
                     return dg.SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
-                try:
-                    observed: dict[str, Any] = dict(client.observe(_self.topic))
-                except Exception as e:
-                    context.log.error(f"resource '{resource_key}'.observe failed: {e}")
-                    return dg.SensorResult(skip_reason=f"resource observe failed: {e}")
-                data_version = str(observed.pop("data_version", ""))
-                return dg.SensorResult(asset_events=[_event_cls(
-                    asset_key=dg.AssetKey.from_user_string(_self.asset_key),
-                    metadata=observed,
-                    tags={DATA_VERSION_TAG: data_version} if data_version else None,
-                )])
+                for e in _entries:
+                    try:
+                        observed: dict[str, Any] = dict(client.observe(e["topic"]))
+                    except Exception as ex:
+                        context.log.error(f"resource '{resource_key}'.observe({e['topic']!r}) failed: {ex}")
+                        continue
+                    data_version = str(observed.pop("data_version", ""))
+                    events.append(_event_cls(
+                        asset_key=dg.AssetKey.from_user_string(e["key"]),
+                        metadata=observed,
+                        tags={DATA_VERSION_TAG: data_version} if data_version else None,
+                    ))
+                if not events:
+                    return dg.SensorResult(skip_reason="no topics observed this tick")
+                return dg.SensorResult(asset_events=events)
 
-            # ── Native kafka-python path ────────────────────────────────────
+            # ── Native kafka-python path: ONE connection, polled for every topic ──
             try:
                 from kafka import KafkaConsumer, TopicPartition
             except ImportError:
@@ -282,28 +385,39 @@ class ExternalKafkaAsset(dg.Component, dg.Model, dg.Resolvable):
 
             try:
                 consumer = KafkaConsumer(bootstrap_servers=_self.bootstrap_servers)
-                partitions = consumer.partitions_for_topic(_self.topic) or set()
-                tps = [TopicPartition(_self.topic, p) for p in partitions]
-                end_offsets = consumer.end_offsets(tps) if tps else {}
-                total_messages = sum(end_offsets.values())
+            except Exception as ex:
+                return dg.SensorResult(skip_reason=f"Kafka connection failed: {ex}")
+
+            try:
+                for e in _entries:
+                    topic = e["topic"]
+                    try:
+                        partitions = consumer.partitions_for_topic(topic) or set()
+                        tps = [TopicPartition(topic, p) for p in partitions]
+                        end_offsets = consumer.end_offsets(tps) if tps else {}
+                    except Exception as ex:
+                        context.log.error(f"Offset query for topic {topic!r} failed: {ex}")
+                        continue
+                    total_messages = sum(end_offsets.values())
+                    # Per-partition offsets → repartition-safe DataVersion.
+                    offsets_by_partition = {str(tp.partition): int(off) for tp, off in end_offsets.items()}
+                    data_version = json.dumps(offsets_by_partition, sort_keys=True)
+                    obs_metadata = {
+                        "partition_count": len(partitions),
+                        "total_end_offset": total_messages,
+                        "topic": topic,
+                        "bootstrap_servers": _self.bootstrap_servers,
+                    }
+                    events.append(_event_cls(
+                        asset_key=dg.AssetKey.from_user_string(e["key"]),
+                        metadata=obs_metadata,
+                        tags={DATA_VERSION_TAG: data_version},
+                    ))
+            finally:
                 consumer.close()
-            except Exception as e:
-                return dg.SensorResult(skip_reason=f"Offset query failed: {e}")
 
-            # Per-partition offsets → repartition-safe DataVersion.
-            offsets_by_partition = {str(tp.partition): int(off) for tp, off in end_offsets.items()}
-            data_version = json.dumps(offsets_by_partition, sort_keys=True)
+            if not events:
+                return dg.SensorResult(skip_reason="no topics observed this tick")
+            return dg.SensorResult(asset_events=events)
 
-            obs_metadata = {
-                "partition_count": len(partitions),
-                "total_end_offset": total_messages,
-                "topic": _self.topic,
-                "bootstrap_servers": _self.bootstrap_servers,
-            }
-            return dg.SensorResult(asset_events=[_event_cls(
-                asset_key=dg.AssetKey.from_user_string(_self.asset_key),
-                metadata=obs_metadata,
-                tags={DATA_VERSION_TAG: data_version},
-            )])
-
-        return dg.Definitions(assets=[spec], sensors=[_kafka_obs])
+        return dg.Definitions(assets=specs, sensors=[_kafka_obs])

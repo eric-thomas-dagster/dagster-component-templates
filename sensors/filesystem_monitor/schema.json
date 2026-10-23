@@ -50,6 +50,13 @@
       "default": false,
       "ui:widget": "checkbox"
     },
+    "batch_into_one_run": {
+      "type": "boolean",
+      "label": "Batch Into One Run",
+      "description": "Launch ONE run per check that found new files, instead of one per file -- for a job that processes the whole folder each time (e.g. an extractor listing a directory), where a run per file would repeat the same work. While a run of the job is still going the sensor waits (without moving its cursor), so files that arrive meanwhile are picked up by the next run rather than processed twice. Only with partition_mode='run_config'.",
+      "required": false,
+      "default": false
+    },
     "default_status": {
       "type": "string",
       "label": "Default Status",

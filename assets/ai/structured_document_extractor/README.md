@@ -143,7 +143,6 @@ output_fields: [invoice_number, vendor, total_amount, po_reference]  # your own 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `api_key_env_var` | `str` | `"OPENAI_API_KEY"` | Environment variable name holding the API key |
-| `api_base_env_var` | `str` | — | Optional environment variable holding an API base URL, for a self-hosted or local OpenAI-compatible model (Ollama, LM Studio, vLLM...), e.g. `OLLAMA_API_BASE=http://localhost:11434` with `model: ollama/llava`. Unset = the provider's default endpoint. |
 
 ### Execution
 
@@ -211,11 +210,13 @@ output_fields: [invoice_number, vendor, total_amount, po_reference]  # your own 
 | `download_dir` | `str` | — | When using `path` with download=true: local cache directory. Auto-generated under the system temp dir if unset. |
 | `max_files` | `int` | — | When using `path`: safety cap on how many matched files to process in one materialize. |
 | `document_type` | `str` | `"custom"` | `'Picks a default output_fields preset: ' + ', '.join(sorted(_PRESET_FIELDS.keys())) + ", or 'custom' (requires output_fields to be set explicitly)."` |
+| `api_base_env_var` | `str` | — | Optional environment variable holding an API base URL, for a self-hosted or local OpenAI-compatible model (Ollama, LM Studio, vLLM...), e.g. OLLAMA_API_BASE=http://localhost:11434 with model 'ollama/llava'. Unset = the p… _(full docs in schema.json + component README)_ |
 | `llm_max_retries` | `int` | `2` | Retry a document's LLM call up to this many times on transient errors (rate limits, timeouts) before giving up on that row -- forwarded to litellm's own num_retries. |
 | `max_content_chars` | `int` | `20000` | Truncate extracted document text to this many characters before prompting the LLM -- guards against blowing the model's context window or racking up cost on unusually large text-PDF/text-input rows. Doesn't apply to imag… _(full docs in schema.json + component README)_ |
 | `field_regions` | `Dict[str, Dict[str, float]]` | — | Optional per-field bounding boxes (fractional 0-1 coordinates: x, y, width, height) marking approximately where each field appears on the document, e.g. {'invoice_number': {'x': 0.6, 'y': 0.05, 'width': 0.3, 'height': 0… _(full docs in schema.json + component README)_ |
 | `post_process` | `str` | `"none"` | What to do with each SOURCE file (not the LLM output) once it's been successfully extracted: 'none' (leave in place -- the same files get reprocessed on every materialize, so `path` mode with 'none' is only really safe f… _(full docs in schema.json + component README)_ |
 | `post_process_dir` | `str` | — | Destination directory when post_process='move'. Same fsspec scheme as the source file (local, s3://, gs://, ...). Required when post_process='move'. |
+| `validation` | `Dict[str, Any]` | — | Flag documents that need a person to look at them, and emit one asset check (`extraction_quality`) on the share that passed. `{required_fields: [...], reconcile: {total_field, items_field, item_amount_key: amount, add_fi… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when include_preview_metadata is True. |
@@ -233,3 +234,24 @@ output_fields: [invoice_number, vendor, total_amount, po_reference]  # your own 
 ## Validation
 
 `validation.level: code` — verified end-to-end against a real Dagster materialization (with litellm's `completion` call mocked to avoid real API spend during testing), both input modes: `upstream_asset_key` mode (file_lister → this component) and `path` mode (this component listing files directly, no separate asset). Preset resolution, the `custom` + no `output_fields` error path, the unknown-`document_type` error path, and the both-modes/neither-mode-set error path all behave as documented. Also verified against REAL files (not just mocked content): a real PNG is base64-encoded correctly into a vision content block (decoded bytes checked against the real PNG header), a real digitally-generated PDF has its actual embedded text (via `pdfplumber`) reach the prompt instead of raw PDF bytes, a PDF with no extractable text fails that row cleanly with a clear reason instead of sending empty/garbage content, `llm_max_retries` is forwarded to litellm's `num_retries`, a non-object or malformed LLM JSON response is handled as a clean per-row failure rather than a crash, and `max_content_chars` truncates oversized text content before it reaches the prompt (verified it does not apply to image rows, which go through the vision content block instead). Also verified `field_regions`: a region crop was checked pixel-by-pixel (a red/blue split test image) to confirm the CORRECT area is cropped, sent as an extra labeled content block alongside the full image, with no field_regions set producing exactly the prior (unchanged) message shape. Has NOT been run against a real LLM API call yet — live-test that before trusting it in production, and flip `validation.level` to `live` once confirmed.
+
+## Validation and review
+
+Set `validation` to make an unattended run safe to leave alone. Each output row gets `_validation_status` (`ok` / `needs_review`) and `_validation_issues`, and the asset gets one warning-level check, `extraction_quality`, that fails when fewer than `min_pass_rate` of the documents passed. The check's metadata lists the documents to review (up to 50, with the reasons). Unset, nothing changes: no extra columns, no check.
+
+```yaml
+validation:
+  required_fields: [invoice_number, vendor, total_amount]   # must come back non-empty
+  reconcile:                                                # line items must add up to the total
+    total_field: total_amount
+    items_field: line_items
+    item_amount_key: amount        # default
+    add_fields: [tax]              # added to the items' sum before comparing to the total
+    tolerance: 0.01                # default
+  min_pass_rate: 0.9               # default
+```
+
+Issues: `extraction_failed` (the model call or its JSON failed), `missing:<field>`, and `totals_mismatch:items+adjustments=<x>,total=<y>`. A document whose total or line items can't be read as numbers is not flagged for the mismatch (a missing required field catches the absence); money formatting like `$1,250.50` is understood.
+
+Downstream assets can keep only the good rows with `df[df["_validation_status"] == "ok"]`.
+

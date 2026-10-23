@@ -102,6 +102,16 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
         ),
     )
 
+    batch_into_one_run: bool = Field(
+        default=False,
+        description=(
+            "Launch ONE run per check that found new files, instead of one per file -- for a job that processes the whole "
+            "folder each time (e.g. an extractor listing a directory), where a run per file would repeat the same work. "
+            "While a run of the job is still going the sensor waits (without moving its cursor), so files that arrive "
+            "meanwhile are picked up by the next run rather than processed twice. Only with partition_mode='run_config'."
+        ),
+    )
+
     @classmethod
     def get_form_config(cls):
         """UI-editable via the Dagster / Dagster+ Components tab
@@ -121,6 +131,13 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
         partition_mode = self.partition_mode
         partition_key_template = self.partition_key_template
         dynamic_partitions_name = self.dynamic_partitions_name
+        batch_into_one_run = self.batch_into_one_run
+
+        if batch_into_one_run and partition_mode != "run_config":
+            raise ValueError(
+                "filesystem_monitor: batch_into_one_run launches a single unpartitioned run per check, so it needs "
+                f"partition_mode='run_config' (got {partition_mode!r})."
+            )
 
         if partition_mode == "dynamic_partition" and not dynamic_partitions_name:
             raise ValueError(
@@ -153,6 +170,21 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
             if not os.path.isdir(directory_path):
                 context.log.warning(f"Path is not a directory: {directory_path}")
                 return SensorResult(skip_reason=f"Path is not a directory: {directory_path}")
+
+            if batch_into_one_run:
+                from dagster import DagsterRunStatus, RunsFilter
+
+                in_progress = [
+                    DagsterRunStatus.QUEUED,
+                    DagsterRunStatus.NOT_STARTED,
+                    DagsterRunStatus.MANAGED,
+                    DagsterRunStatus.STARTING,
+                    DagsterRunStatus.STARTED,
+                ]
+                if context.instance.get_runs(filters=RunsFilter(job_name=job_name, statuses=in_progress), limit=1):
+                    return SensorResult(
+                        skip_reason=f"A run of {job_name} is still in progress; new files are picked up when it finishes"
+                    )
 
             # Get cursor (last processed file timestamp)
             cursor = context.cursor or "0"
@@ -240,6 +272,8 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
 
             if run_requests:
                 context.log.info(f"Found {len(run_requests)} new file(s) matching pattern")
+                if batch_into_one_run:
+                    run_requests = [RunRequest(run_key=f"batch-{latest_mtime}-{len(run_requests)}")]
                 dynamic_partitions_requests = (
                     [AddDynamicPartitionsRequest(
                         partitions_def_name=dynamic_partitions_name or "",

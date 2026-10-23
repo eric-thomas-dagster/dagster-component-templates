@@ -479,6 +479,126 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+_VALIDATION_KEYS = {"required_fields", "reconcile", "min_pass_rate"}
+_RECONCILE_KEYS = {"total_field", "items_field", "item_amount_key", "add_fields", "tolerance"}
+QUALITY_CHECK_NAME = "extraction_quality"
+STATUS_COLUMN = "_validation_status"
+ISSUES_COLUMN = "_validation_issues"
+
+
+def _to_number(value: Any) -> Optional[float]:
+    """A float from a number or a money-ish string ("$1,250.50"); None when it isn't one."""
+    import re
+
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value) if value == value else None
+    if isinstance(value, str):
+        cleaned = re.sub(r"[$€£¥,\s]", "", value.strip())
+        if re.fullmatch(r"[-+]?\d+(\.\d+)?", cleaned):
+            return float(cleaned)
+    return None
+
+
+def _is_empty(value: Any) -> bool:
+    return value is None or (isinstance(value, str) and not value.strip()) or (isinstance(value, (list, dict)) and not value)
+
+
+def _line_items(value: Any) -> Optional[list]:
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str) and value.strip().startswith("["):
+        import json
+
+        try:
+            parsed = json.loads(value)
+            return parsed if isinstance(parsed, list) else None
+        except ValueError:
+            return None
+    return None
+
+
+def normalize_validation(asset_name: str, raw: Optional[Dict[str, Any]], output_fields: List[str]) -> Optional[Dict[str, Any]]:
+    """Validate and complete the `validation` setting. None means no validation was asked for."""
+    if raw is None:
+        return None
+    if not isinstance(raw, dict):
+        raise ValueError(f"{asset_name}: validation must be a mapping, got {type(raw).__name__}.")
+    unknown = set(raw) - _VALIDATION_KEYS
+    if unknown:
+        raise ValueError(f"{asset_name}: unknown validation key(s) {sorted(unknown)}; allowed: {sorted(_VALIDATION_KEYS)}.")
+    required = list(raw.get("required_fields") or [])
+    missing = [f for f in required if f not in output_fields]
+    if missing:
+        raise ValueError(f"{asset_name}: validation.required_fields {missing} are not in output_fields {output_fields}.")
+    min_pass_rate = raw.get("min_pass_rate", 0.9)
+    if not isinstance(min_pass_rate, (int, float)) or isinstance(min_pass_rate, bool) or not 0 <= min_pass_rate <= 1:
+        raise ValueError(f"{asset_name}: validation.min_pass_rate must be between 0 and 1, got {min_pass_rate!r}.")
+    reconcile = raw.get("reconcile")
+    if reconcile is not None:
+        if not isinstance(reconcile, dict):
+            raise ValueError(f"{asset_name}: validation.reconcile must be a mapping.")
+        bad = set(reconcile) - _RECONCILE_KEYS
+        if bad:
+            raise ValueError(f"{asset_name}: unknown validation.reconcile key(s) {sorted(bad)}; allowed: {sorted(_RECONCILE_KEYS)}.")
+        for key in ("total_field", "items_field"):
+            if reconcile.get(key) not in output_fields:
+                raise ValueError(f"{asset_name}: validation.reconcile.{key} must name one of output_fields {output_fields}.")
+        extra = [f for f in (reconcile.get("add_fields") or []) if f not in output_fields]
+        if extra:
+            raise ValueError(f"{asset_name}: validation.reconcile.add_fields {extra} are not in output_fields.")
+        tolerance = reconcile.get("tolerance", 0.01)
+        if not isinstance(tolerance, (int, float)) or isinstance(tolerance, bool) or tolerance < 0:
+            raise ValueError(f"{asset_name}: validation.reconcile.tolerance must be >= 0, got {tolerance!r}.")
+        reconcile = {
+            "total_field": reconcile["total_field"],
+            "items_field": reconcile["items_field"],
+            "item_amount_key": reconcile.get("item_amount_key", "amount"),
+            "add_fields": list(reconcile.get("add_fields") or []),
+            "tolerance": float(tolerance),
+        }
+    return {"required_fields": required, "reconcile": reconcile, "min_pass_rate": float(min_pass_rate)}
+
+
+def validate_extraction(fields: Dict[str, Any], extracted_ok: bool, validation: Dict[str, Any]) -> List[str]:
+    """Reasons one document needs a person to look at it (empty = fine). `validation` comes from normalize_validation."""
+    if not extracted_ok:
+        return ["extraction_failed"]
+    issues = [f"missing:{f}" for f in validation["required_fields"] if _is_empty(fields.get(f))]
+    reconcile = validation["reconcile"]
+    if reconcile:
+        total = _to_number(fields.get(reconcile["total_field"]))
+        items = _line_items(fields.get(reconcile["items_field"]))
+        amounts = [_to_number(i.get(reconcile["item_amount_key"])) for i in (items or []) if isinstance(i, dict)]
+        if total is not None and items and amounts and all(a is not None for a in amounts):
+            adjustments = [_to_number(fields.get(f)) or 0.0 for f in reconcile["add_fields"]]
+            expected = sum(amounts) + sum(adjustments)
+            if abs(expected - total) > reconcile["tolerance"]:
+                issues.append(f"totals_mismatch:items+adjustments={expected:g},total={total:g}")
+    return issues
+
+
+def quality_summary(df: "pd.DataFrame", source_column: str, min_pass_rate: float, max_listed: int = 50) -> Dict[str, Any]:
+    """Pass rate and the documents to review, from the validation columns of an output frame."""
+    total = len(df)
+    flagged = df[df[STATUS_COLUMN] != "ok"] if total else df
+    passed_count = total - len(flagged)
+    pass_rate = (passed_count / total) if total else 1.0
+    review = [
+        {"source": str(row[source_column]), "issues": str(row[ISSUES_COLUMN])}
+        for _, row in flagged.head(max_listed).iterrows()
+    ]
+    return {
+        "documents": total,
+        "ok": passed_count,
+        "needs_review": len(flagged),
+        "pass_rate": pass_rate,
+        "passed": pass_rate >= min_pass_rate,
+        "review": review,
+    }
+
+
 class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
     """Extract structured fields from any document type using an LLM.
 
@@ -617,6 +737,18 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
     post_process_dir: Optional[str] = Field(
         default=None,
         description="Destination directory when post_process='move'. Same fsspec scheme as the source file (local, s3://, gs://, ...). Required when post_process='move'.",
+    )
+    validation: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Flag documents that need a person to look at them, and emit one asset check (`extraction_quality`) on the "
+            "share that passed. `{required_fields: [...], reconcile: {total_field, items_field, item_amount_key: amount, "
+            "add_fields: [tax], tolerance: 0.01}, min_pass_rate: 0.9}`. `required_fields` must come back non-empty; "
+            "`reconcile` requires the line items' amounts (plus `add_fields`, e.g. tax) to add up to the total. Adds "
+            "`_validation_status` ('ok' / 'needs_review') and `_validation_issues` columns to the output so downstream "
+            "assets can filter on them. The check is a warning (not blocking) and fails when fewer than `min_pass_rate` "
+            "of the documents pass. Unset = no validation, no extra columns, no check."
+        ),
     )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     partition_type: Optional[str] = Field(
@@ -765,6 +897,7 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
                 f"{asset_name}: document_type='custom' requires output_fields to be set explicitly "
                 f"(no preset exists for 'custom')."
             )
+        validation_cfg = normalize_validation(asset_name, self.validation, list(output_fields))
 
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values,
@@ -801,7 +934,7 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
 
         _doc_label = document_type.replace("_", " ") if document_type != "custom" else "document"
 
-        def _do_extraction(context: AssetExecutionContext, df: pd.DataFrame) -> pd.DataFrame:
+        def _do_extraction(context: AssetExecutionContext, df: pd.DataFrame, meta: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
             """Shared extraction logic for both input modes -- given a
             DataFrame with `input_column` already populated (file paths or
             raw text), extract `output_fields` from each row via LLM and
@@ -813,6 +946,14 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
                 from litellm import completion
             except ImportError:
                 raise ImportError("litellm required: pip install litellm")
+
+            def _add_meta(values: Dict[str, Any]) -> None:
+                # An asset with a check has several outputs, where add_output_metadata can't tell which one is meant,
+                # so the caller passes a dict and attaches it to the Output itself.
+                if meta is not None:
+                    meta.update(values)
+                else:
+                    context.add_output_metadata(values)
 
             _original_cols = set(df.columns)
             results = []
@@ -860,6 +1001,11 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
             for col in extracted_df.columns:
                 df[col] = extracted_df[col].values
 
+            if validation_cfg is not None:
+                _issues = [validate_extraction(r, ok, validation_cfg) for r, (_, ok) in zip(results, _post_process_rows)]
+                df[STATUS_COLUMN] = ["ok" if not i else "needs_review" for i in _issues]
+                df[ISSUES_COLUMN] = [", ".join(i) for i in _issues]
+
             if post_process != "none":
                 import fsspec
 
@@ -882,14 +1028,14 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
                         failed += 1
                         context.log.warning(f"post_process={post_process!r} failed for {source_path!r}: {e}")
                 context.log.info(f"post_process={post_process!r}: moved={moved} deleted={deleted} failed={failed}")
-                context.add_output_metadata({
+                _add_meta({
                     "post_process_moved": moved,
                     "post_process_deleted": deleted,
                     "post_process_failed": failed,
                 })
 
             extraction_failures = sum(1 for _, ok in _post_process_rows if not ok)
-            context.add_output_metadata({
+            _add_meta({
                 "num_documents": total,
                 "document_type": document_type,
                 "extracted_fields": output_fields,
@@ -903,7 +1049,7 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
             if include_preview and len(df) > 0:
                 try:
                     _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
-                    context.add_output_metadata({"preview": MetadataValue.md(_prev.to_markdown(index=False))})
+                    _add_meta({"preview": MetadataValue.md(_prev.to_markdown(index=False))})
                 except Exception as e:
                     context.log.warning(f"preview emission failed: {e}")
 
@@ -928,7 +1074,7 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
                     for out_col, in_cols in _effective_lineage.items()
                 }
                 _metadata["dagster/column_lineage"] = MetadataValue.column_lineage(TableColumnLineage(_lineage_deps))
-            context.add_output_metadata(_metadata)
+            _add_meta(_metadata)
             return df
 
         asset_kwargs = dict(
@@ -942,34 +1088,76 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
 
-        if direct_path:
-            @asset(description=self.description, **asset_kwargs)
-            def _asset(context: AssetExecutionContext) -> pd.DataFrame:
-                context.log.info(f"Listing files matching {direct_path!r}")
-                df = _list_files_direct(direct_path, direct_max_files, direct_download, direct_download_dir)
-                context.log.info(f"Found {len(df)} file(s)")
-                return _do_extraction(context, df)
+        def _run_direct(context: AssetExecutionContext, meta: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
+            context.log.info(f"Listing files matching {direct_path!r}")
+            df = _list_files_direct(direct_path, direct_max_files, direct_download, direct_download_dir)
+            context.log.info(f"Found {len(df)} file(s)")
+            return _do_extraction(context, df, meta)
+
+        def _run_upstream(context: AssetExecutionContext, upstream: Any, meta: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
+            if hasattr(upstream, "value") and hasattr(upstream, "metadata"):
+                upstream = upstream.value
+            if isinstance(upstream, dict):
+                _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
+                upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
+            if context.has_partition_key:
+                _pk = context.partition_key
+                _is_multi = hasattr(_pk, "keys_by_dimension")
+                _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
+                _static_key = next((_pk.keys_by_dimension[_d] for _d in (partition_static_dim, "static_dim", "segment") if _d and _d in _pk.keys_by_dimension), "") if _is_multi else None
+                if partition_date_column and partition_date_column in upstream.columns and _date_key:
+                    _col_dates = pd.to_datetime(upstream[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
+                    upstream = upstream[_col_dates == _date_key]
+                if partition_static_column and partition_static_column in upstream.columns and _static_key:
+                    upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
+                elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
+                    upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
+            return _do_extraction(context, upstream.copy(), meta)
+
+        _source_column = "path" if direct_path else input_column
+
+        def _emit_with_quality_check(df: pd.DataFrame, meta: Dict[str, Any]):
+            from dagster import AssetCheckResult, AssetCheckSeverity, Output
+
+            summary = quality_summary(df, _source_column if _source_column in df.columns else df.columns[0], validation_cfg["min_pass_rate"])
+            yield Output(df, metadata=meta)
+            yield AssetCheckResult(
+                check_name=QUALITY_CHECK_NAME,
+                passed=summary["passed"],
+                severity=AssetCheckSeverity.WARN,
+                description=f"{summary['ok']}/{summary['documents']} documents passed validation ({summary['pass_rate']:.0%}; need {validation_cfg['min_pass_rate']:.0%})",
+                metadata={
+                    "documents": MetadataValue.int(summary["documents"]),
+                    "ok": MetadataValue.int(summary["ok"]),
+                    "needs_review": MetadataValue.int(summary["needs_review"]),
+                    "pass_rate": MetadataValue.float(summary["pass_rate"]),
+                    "review": MetadataValue.json(summary["review"]),
+                },
+            )
+
+        if validation_cfg is None:
+            if direct_path:
+                @asset(description=self.description, **asset_kwargs)
+                def _asset(context: AssetExecutionContext) -> pd.DataFrame:
+                    return _run_direct(context)
+            else:
+                @asset(description=self.description, ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}, **asset_kwargs)
+                def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
+                    return _run_upstream(context, upstream)
         else:
-            @asset(description=self.description, ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}, **asset_kwargs)
-            def _asset(context: AssetExecutionContext, upstream: Any) -> pd.DataFrame:
-                if hasattr(upstream, "value") and hasattr(upstream, "metadata"):
-                    upstream = upstream.value
-                if isinstance(upstream, dict):
-                    _frames = [v for v in upstream.values() if isinstance(v, pd.DataFrame)]
-                    upstream = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
-                if context.has_partition_key:
-                    _pk = context.partition_key
-                    _is_multi = hasattr(_pk, "keys_by_dimension")
-                    _date_key = _pk.keys_by_dimension.get("date", "") if _is_multi else str(_pk)
-                    _static_key = next((_pk.keys_by_dimension[_d] for _d in (partition_static_dim, "static_dim", "segment") if _d and _d in _pk.keys_by_dimension), "") if _is_multi else None
-                    if partition_date_column and partition_date_column in upstream.columns and _date_key:
-                        _col_dates = pd.to_datetime(upstream[partition_date_column], errors="coerce").dt.strftime("%Y-%m-%d")
-                        upstream = upstream[_col_dates == _date_key]
-                    if partition_static_column and partition_static_column in upstream.columns and _static_key:
-                        upstream = upstream[upstream[partition_static_column].astype(str) == _static_key]
-                    elif partition_static_column and partition_static_column in upstream.columns and not _is_multi:
-                        upstream = upstream[upstream[partition_static_column].astype(str) == str(_pk)]
-                return _do_extraction(context, upstream.copy())
+            from dagster import AssetCheckSpec
+
+            _check_specs = [AssetCheckSpec(name=QUALITY_CHECK_NAME, asset=AssetKey.from_user_string(asset_name))]
+            if direct_path:
+                @asset(description=self.description, check_specs=_check_specs, **asset_kwargs)
+                def _asset(context: AssetExecutionContext):
+                    meta: Dict[str, Any] = {}
+                    yield from _emit_with_quality_check(_run_direct(context, meta), meta)
+            else:
+                @asset(description=self.description, check_specs=_check_specs, ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}, **asset_kwargs)
+                def _asset(context: AssetExecutionContext, upstream: Any):
+                    meta: Dict[str, Any] = {}
+                    yield from _emit_with_quality_check(_run_upstream(context, upstream, meta), meta)
 
         from dagster import build_column_schema_change_checks
         _schema_checks = build_column_schema_change_checks(assets=[_asset])

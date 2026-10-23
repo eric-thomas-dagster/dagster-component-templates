@@ -45,6 +45,7 @@ Perfect for:
 | `file_pattern` | `str` | `".*"` | Regex pattern to match files (e.g., '.*\.csv$' for CSV files) |
 | `recursive` | `bool` | `false` | Whether to recursively search subdirectories |
 | `dynamic_partitions_name` | `str` | — | Required when partition_mode='dynamic_partition'. Must match the downstream asset's `dynamic_partition_name:` field. |
+| `batch_into_one_run` | `bool` | `false` | Launch ONE run per check that found new files, instead of one per file -- for a job that processes the whole folder each time (e.g. an extractor listing a directory), where a run per file would repeat the same work. Whil… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 
@@ -397,3 +398,25 @@ Found a bug or have a feature request?
 ## License
 
 MIT License
+
+## One run per batch (`batch_into_one_run`)
+
+By default the sensor launches one run for every new file. That suits a job that handles the file named in its run. A job that processes the whole folder each time (for example `structured_document_extractor` reading `path: /data/invoices/*.pdf`) would repeat the same work once per file, and several of those runs could read the same files at once.
+
+Set `batch_into_one_run: true` for that kind of job:
+
+- one run per check that found new files, however many arrived;
+- while a run of the job is still going, the sensor waits and leaves its cursor alone, so files that arrive in the meantime are picked up by the next run instead of being read twice.
+
+It needs `partition_mode: run_config` (the default).
+
+```yaml
+type: dagster_component_templates.FilesystemMonitorSensorComponent
+attributes:
+  sensor_name: invoice_fields_new_files
+  directory_path: /data/invoices
+  file_pattern: "(?i).*\\.(?:pdf|png)$"
+  job_name: invoice_fields_job
+  batch_into_one_run: true
+```
+

@@ -40,6 +40,13 @@
       "type": "string",
       "label": "Warehouse",
       "required": false
+    },
+    "bootstrap_namespace": {
+      "type": "boolean",
+      "label": "Bootstrap Namespace",
+      "description": "Create `namespace` in the catalog if it doesn't already exist, before the IO manager's first write. Without this, a brand-new catalog/namespace (a fresh warehouse, or a real deploy's first run) fails every asset's first write with pyiceberg.exceptions.NoSuchNamespaceError -- PyArrowIcebergIOManager checks the namespace exists but never creates it. Set False if the namespace is already guaranteed to exist (e.g. provisioned out of band) and you'd rather not pay for one extra catalog round trip at defs-load time.",
+      "required": false,
+      "default": true
     }
   },
   "tags": [

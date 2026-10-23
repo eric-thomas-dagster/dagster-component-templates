@@ -278,6 +278,26 @@ Dagster. This enables:
 - Historical tracking in the Dagster UI
 - Alerting on pipeline failures
 
+Emits against each pipeline's real, `assets_by_pipeline_name`-resolved asset key(s) --
+not a re-derived `adf_pipeline_<name>` guess -- so a `key:` override (or a list override
+that expands one pipeline into several assets) is always reflected correctly, and the
+sensor's observations always land on the asset actually visible in the graph.
+
+## Execution seam
+
+`get_adf_client(subscription_id, tenant_id, client_id, client_secret)` is the single
+method every ADF management-client construction goes through (pipeline trigger+poll,
+trigger start, the observation sensor). Override it in a subclass to return a fake
+client for a demo or test:
+
+```python
+class DemoAzureDataFactoryComponent(AzureDataFactoryComponent):
+    def get_adf_client(self, subscription_id, tenant_id, client_id, client_secret):
+        return FakeAdfClient(...)
+```
+
+No monkeypatching of a private module function required.
+
 ## Required Azure Permissions
 
 Assign the **Data Factory Contributor** role (or the individual actions below):

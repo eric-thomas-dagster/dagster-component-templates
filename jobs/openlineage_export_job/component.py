@@ -289,42 +289,67 @@ def _build_per_asset_events(
 
 
 # ── HTTP emit ────────────────────────────────────────────────────────────
-def _post(endpoint: str, headers: Dict[str, str], body: Dict[str, Any], log) -> bool:
-    """POST a single event. Returns True on success, False on failure (logs warning)."""
+def _post(
+    endpoint: str, headers: Dict[str, str], body: Dict[str, Any], log,
+    max_attempts: int = 3, backoff_seconds: float = 1.0,
+) -> bool:
+    """POST a single event, retrying transient failures with exponential backoff.
+    Returns True on success, False once every attempt has failed.
+
+    Retries a connection failure/timeout (URLError) and a 5xx response (server-side,
+    plausibly transient) up to `max_attempts` times, sleeping `backoff_seconds *
+    2**attempt` between tries. Does NOT retry a 4xx (client error -- a malformed
+    event or bad auth won't fix itself by resending), so a schema/auth problem
+    fails fast instead of silently retrying 3x for nothing.
+    """
+    import time as _time
     import urllib.error
     import urllib.request
 
     data = json.dumps(body).encode("utf-8")
-    req = urllib.request.Request(
-        endpoint,
-        data=data,
-        method="POST",
-        headers={"Content-Type": "application/json", **headers},
-    )
-    try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            return 200 <= resp.status < 300
-    except urllib.error.HTTPError as e:
-        log.warning(f"OpenLineage collector returned {e.code}: {e.read()[:200]!r}")
-        return False
-    except urllib.error.URLError as e:
-        log.warning(f"OpenLineage collector unreachable: {e.reason}")
-        return False
+    last_error = ""
+    for attempt in range(max_attempts):
+        req = urllib.request.Request(
+            endpoint,
+            data=data,
+            method="POST",
+            headers={"Content-Type": "application/json", **headers},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                return 200 <= resp.status < 300
+        except urllib.error.HTTPError as e:
+            if e.code < 500:
+                log.warning(f"OpenLineage collector returned {e.code}: {e.read()[:200]!r}")
+                return False
+            last_error = f"HTTP {e.code}: {e.read()[:200]!r}"
+        except urllib.error.URLError as e:
+            last_error = f"unreachable: {e.reason}"
+
+        if attempt < max_attempts - 1:
+            _time.sleep(backoff_seconds * (2 ** attempt))
+
+    log.warning(f"OpenLineage collector POST failed after {max_attempts} attempts: {last_error}")
+    return False
 
 
-def _post_many(endpoint: str, headers: Dict[str, str], events: List[Dict[str, Any]], log, max_workers: int) -> int:
-    """Dispatch every event's POST, up to `max_workers` concurrently, and return the
-    failure count. The standard OpenLineage HTTP transport (Marquez's /api/v1/lineage,
-    and the v2 spec generally) accepts exactly one RunEvent per request -- there is no
-    standard batch/array endpoint to send many events in one call (confirmed against
-    Marquez's own docs: "record a single lineage event" is the operation this path
-    exposes). Concurrency is the real lever for export throughput here, not batching.
-    max_workers=1 recovers the original strictly-sequential behavior.
+def _post_many(
+    endpoint: str, headers: Dict[str, str], events: List[Dict[str, Any]], log, max_workers: int,
+    max_attempts: int = 3, backoff_seconds: float = 1.0,
+) -> int:
+    """Dispatch every event's POST (each retried on transient failure -- see `_post`),
+    up to `max_workers` concurrently, and return the failure count. The standard
+    OpenLineage HTTP transport (Marquez's /api/v1/lineage, and the v2 spec generally)
+    accepts exactly one RunEvent per request -- there is no standard batch/array
+    endpoint to send many events in one call (confirmed against Marquez's own docs:
+    "record a single lineage event" is the operation this path exposes). Concurrency
+    is the real lever for export throughput here, not batching. max_workers=1
+    recovers strictly-sequential dispatch (retries still apply per event).
     """
     if max_workers <= 1 or len(events) <= 1:
-        return sum(0 if _post(endpoint, headers, ev, log) else 1 for ev in events)
+        return sum(0 if _post(endpoint, headers, ev, log, max_attempts, backoff_seconds) else 1 for ev in events)
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        results = list(pool.map(lambda ev: _post(endpoint, headers, ev, log), events))
+        results = list(pool.map(lambda ev: _post(endpoint, headers, ev, log, max_attempts, backoff_seconds), events))
     return sum(0 if ok else 1 for ok in results)
 
 
@@ -440,6 +465,19 @@ class OpenLineageExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
             "not batching, is the real export-throughput lever for a large asset graph. "
             "Set to 1 for strictly sequential POSTs."
         ),
+    )
+    retry_max_attempts: int = Field(
+        default=3,
+        description=(
+            "Max attempts per event POST. Retries a connection failure/timeout or a "
+            "5xx response (both plausibly transient); a 4xx fails immediately without "
+            "retrying (a malformed event or bad auth won't fix itself by resending). "
+            "Set to 1 to disable retries entirely."
+        ),
+    )
+    retry_backoff_seconds: float = Field(
+        default=1.0,
+        description="Base delay between retry attempts; doubles each attempt (1s, 2s, 4s, ...).",
     )
     emit_column_lineage: bool = Field(
         default=True,
@@ -557,7 +595,10 @@ class OpenLineageExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
             run_id = str(context.run_id) if context.run_id else str(uuid.uuid4())
             events = _build_per_asset_events(payload, _self.namespace, run_id, _self.producer, column_lineage)
 
-            failed = _post_many(endpoint, headers, events, context.log, _self.max_concurrent_requests)
+            failed = _post_many(
+                endpoint, headers, events, context.log, _self.max_concurrent_requests,
+                _self.retry_max_attempts, _self.retry_backoff_seconds,
+            )
             ok = len(events) - failed
             if failed and _self.fail_on_collector_error:
                 raise RuntimeError(

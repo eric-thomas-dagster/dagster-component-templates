@@ -109,6 +109,20 @@
       "description": "Emit a real OpenLineage columnLineage facet on each asset's output dataset, built from its most recent materialization's `dagster/column_lineage` metadata (e.g. set by sql_transform's own column_lineage: field), when present. Requires one extra instance.get_asset_records(...) call per export; set False to skip it.",
       "required": false,
       "default": true
+    },
+    "retry_max_attempts": {
+      "type": "integer",
+      "label": "Retry Max Attempts",
+      "description": "Max attempts per event POST. Retries a connection failure/timeout or a 5xx response (both plausibly transient); a 4xx fails immediately without retrying (a malformed event or bad auth won't fix itself by resending). Set to 1 to disable retries entirely.",
+      "required": false,
+      "default": 3
+    },
+    "retry_backoff_seconds": {
+      "type": "number",
+      "label": "Retry Backoff Seconds",
+      "description": "Base delay between retry attempts; doubles each attempt (1s, 2s, 4s, ...).",
+      "required": false,
+      "default": 1.0
     }
   }
 }

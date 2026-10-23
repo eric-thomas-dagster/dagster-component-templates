@@ -92,6 +92,20 @@
       "description": "Timeout Seconds",
       "required": false,
       "default": 30
+    },
+    "retry_max_attempts": {
+      "type": "integer",
+      "label": "Retry Max Attempts",
+      "description": "Max attempts per event POST. Retries a connection failure/timeout or a 5xx response; a 4xx fails immediately without retrying. Set to 1 to disable retries entirely.",
+      "required": false,
+      "default": 3
+    },
+    "retry_backoff_seconds": {
+      "type": "number",
+      "label": "Retry Backoff Seconds",
+      "description": "Base delay between retry attempts; doubles each attempt (1s, 2s, 4s, ...).",
+      "required": false,
+      "default": 1.0
     }
   }
 }

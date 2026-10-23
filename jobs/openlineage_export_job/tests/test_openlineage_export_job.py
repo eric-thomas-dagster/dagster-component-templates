@@ -177,6 +177,98 @@ def test_column_lineage_attaches_only_to_the_output_dataset(mod):
     assert "columnLineage" not in by_name["dagster.revenue"]["inputs"][0]["facets"]
 
 
+# ── retry-with-backoff (real local HTTP server, no mocks) ───────────────────
+
+class _FlakyHandler(http.server.BaseHTTPRequestHandler):
+    """Fails the first N requests to a given event id with a 503, then succeeds --
+    a real server round trip, not a mocked urlopen."""
+    fail_times: dict = {}
+    received: list = []
+
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", 0))
+        body = json.loads(self.rfile.read(length))
+        key = body["i"]
+        remaining = type(self).fail_times.get(key, 0)
+        if remaining > 0:
+            type(self).fail_times[key] = remaining - 1
+            self.send_response(503)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        type(self).received.append(body)
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def log_message(self, *a):
+        pass
+
+
+@pytest.fixture
+def flaky_server():
+    _FlakyHandler.received = []
+    _FlakyHandler.fail_times = {}
+    server = _TestServer(("127.0.0.1", 0), _FlakyHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    yield _FlakyHandler, f"http://127.0.0.1:{server.server_address[1]}/api/v1/lineage"
+    server.shutdown()
+    thread.join(timeout=5)
+
+
+def test_post_retries_a_5xx_and_eventually_succeeds(mod, flaky_server):
+    handler, endpoint = flaky_server
+    handler.fail_times = {0: 2}  # fails twice, succeeds on the 3rd attempt
+    ok = mod._post(endpoint, {}, {"i": 0}, _FakeLog(), max_attempts=3, backoff_seconds=0.01)
+    assert ok is True
+    assert handler.received == [{"i": 0}]
+
+
+def test_post_gives_up_after_max_attempts(mod, flaky_server):
+    handler, endpoint = flaky_server
+    handler.fail_times = {0: 10}  # always fails within the attempt budget
+    ok = mod._post(endpoint, {}, {"i": 0}, _FakeLog(), max_attempts=3, backoff_seconds=0.01)
+    assert ok is False
+    assert handler.received == []
+
+
+def test_post_does_not_retry_a_4xx(mod):
+    """A client error (bad event shape, bad auth) won't fix itself by resending --
+    confirm _post fails fast instead of sleeping through retry_max_attempts for nothing."""
+    import time as _time
+
+    class _BadRequestHandler(http.server.BaseHTTPRequestHandler):
+        calls = 0
+
+        def do_POST(self):
+            type(self).calls += 1
+            length = int(self.headers.get("Content-Length", 0))
+            self.rfile.read(length)
+            self.send_response(400)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, *a):
+            pass
+
+    server = _TestServer(("127.0.0.1", 0), _BadRequestHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    endpoint = f"http://127.0.0.1:{server.server_address[1]}/api/v1/lineage"
+    try:
+        start = _time.monotonic()
+        ok = mod._post(endpoint, {}, {"i": 0}, _FakeLog(), max_attempts=5, backoff_seconds=5.0)
+        elapsed = _time.monotonic() - start
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+
+    assert ok is False
+    assert _BadRequestHandler.calls == 1  # no retry
+    assert elapsed < 1.0  # didn't sleep through any backoff
+
+
 # ── _post_many (real local HTTP server, no mocks) ───────────────────────────
 
 def test_post_many_sequential_emits_every_event(mod, collector):

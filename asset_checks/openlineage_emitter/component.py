@@ -26,6 +26,7 @@ see backend docs.
 
 import json
 import os
+import time
 import datetime as dt
 from typing import Optional
 from uuid import uuid4
@@ -33,6 +34,30 @@ from uuid import uuid4
 import dagster as dg
 import pandas as pd
 from pydantic import Field
+
+
+def _post_with_retry(url, json_body, headers, timeout, max_attempts=3, backoff_seconds=1.0):
+    """POST an OpenLineage event, retrying a connection failure/timeout or a 5xx
+    response (both plausibly transient) with exponential backoff. A 4xx fails
+    immediately without retrying -- a malformed event or bad auth won't fix
+    itself by resending. Returns (ok, error_message_or_None)."""
+    import requests
+
+    last_error = None
+    for attempt in range(max_attempts):
+        try:
+            r = requests.post(url, json=json_body, headers=headers, timeout=timeout)
+        except Exception as exc:
+            last_error = f"{type(exc).__name__}: {exc}"
+        else:
+            if r.status_code < 300:
+                return True, None
+            if r.status_code < 500:
+                return False, f"HTTP {r.status_code} — {r.text[:200]}"
+            last_error = f"HTTP {r.status_code} — {r.text[:200]}"
+        if attempt < max_attempts - 1:
+            time.sleep(backoff_seconds * (2 ** attempt))
+    return False, last_error
 
 
 
@@ -118,6 +143,18 @@ class OpenlineageEmitterComponent(dg.Component, dg.Model, dg.Resolvable):
     description: Optional[str] = Field(default=None)
     blocking: bool = Field(default=False, description="Block downstream when emit fails")
     timeout_seconds: int = Field(default=30)
+    retry_max_attempts: int = Field(
+        default=3,
+        description=(
+            "Max attempts per event POST. Retries a connection failure/timeout or a "
+            "5xx response; a 4xx fails immediately without retrying. Set to 1 to "
+            "disable retries entirely."
+        ),
+    )
+    retry_backoff_seconds: float = Field(
+        default=1.0,
+        description="Base delay between retry attempts; doubles each attempt (1s, 2s, 4s, ...).",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -134,8 +171,6 @@ class OpenlineageEmitterComponent(dg.Component, dg.Model, dg.Resolvable):
             description=self.description or "Emit OpenLineage events for this asset",
         )
         def _check(df: pd.DataFrame) -> dg.AssetCheckResult:
-            import requests
-
             run_id = str(uuid4())
             now_iso = dt.datetime.now(dt.timezone.utc).isoformat()
             job_namespace = _self.job_namespace or _self.namespace
@@ -198,12 +233,12 @@ class OpenlineageEmitterComponent(dg.Component, dg.Model, dg.Resolvable):
             errors = []
             for event_type in ("START", "COMPLETE"):
                 event = {**base_event, "eventType": event_type, "eventTime": dt.datetime.now(dt.timezone.utc).isoformat()}
-                try:
-                    r = requests.post(_self.openlineage_url, json=event, headers=headers, timeout=_self.timeout_seconds)
-                    if r.status_code >= 300:
-                        errors.append(f"{event_type}: HTTP {r.status_code} — {r.text[:200]}")
-                except Exception as exc:
-                    errors.append(f"{event_type}: {type(exc).__name__}: {exc}")
+                ok, err = _post_with_retry(
+                    _self.openlineage_url, event, headers, _self.timeout_seconds,
+                    _self.retry_max_attempts, _self.retry_backoff_seconds,
+                )
+                if not ok:
+                    errors.append(f"{event_type}: {err}")
 
             passed = not errors
             return dg.AssetCheckResult(

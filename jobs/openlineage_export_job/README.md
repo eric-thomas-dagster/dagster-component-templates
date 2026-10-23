@@ -53,6 +53,13 @@ asset overhead and a single dial to schedule.
 |---|---|---|---|
 | `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_max_attempts` | `int` | `3` | Max attempts per event POST. Retries a connection failure/timeout or a 5xx response (both plausibly transient); a 4xx fails immediately without retrying (a malformed event or bad auth won't fix itself by resending). Set… _(full docs in schema.json + component README)_ |
+| `retry_backoff_seconds` | `float` | `1.0` | Base delay between retry attempts; doubles each attempt (1s, 2s, 4s, ...). |
+
 ### Sensor configuration
 
 | Field | Type | Default | Description |
@@ -88,6 +95,8 @@ attributes:
   only_export_on_change: true
   fail_on_collector_error: false      # best-effort
   max_concurrent_requests: 8          # concurrent POSTs -- see Behavior
+  retry_max_attempts: 3               # per-event retry on transient failure -- see Reliability
+  retry_backoff_seconds: 1.0
   emit_column_lineage: true
   # scope: deployment                 # full Dagster+ graph via GraphQL instead of this code location
   # dagster_plus_token_env: DAGSTER_PLUS_TOKEN
@@ -154,16 +163,32 @@ on its `outputs[0]` entry, naming each upstream asset+column by `namespace`.
   streamline-read support or did not populate during direct local testing —
   shipping a confidently-wrong FAIL/COMPLETE signal is worse than not having
   the feature, so this stays open rather than guessed at.
-- **Stdlib HTTP**: uses Python's `urllib.request`. No retry on a single
-  POST's failure (though `max_concurrent_requests>1` means one slow/failed
-  request doesn't block the others). For prod, swap in the official
-  `openlineage-python` client.
+- **Stdlib HTTP, not a connection pool**: uses Python's `urllib.request` — a
+  new TCP connection per POST, no keep-alive reuse across events. Each POST
+  retries on a transient failure (see below), so this component is meant to
+  be used in production as-is, not a placeholder for swapping in a
+  different client later. The one thing a dedicated client (the official
+  `openlineage-python`, or `requests.Session` with an `HTTPAdapter`) would
+  add on top is connection pooling for very large graphs (hundreds+ assets
+  per export) where per-request TCP/TLS setup becomes the bottleneck ahead
+  of the collector's own response time — not a correctness or reliability
+  gap, a throughput one.
+
+## Reliability
+
+Each event POST retries up to `retry_max_attempts` times (default 3) with
+exponential backoff (`retry_backoff_seconds`, default 1s → 1s, 2s, 4s, ...)
+on a connection failure/timeout or a 5xx response — both plausibly
+transient. A 4xx (malformed event, bad auth) fails immediately without
+retrying, since resending an invalid request can't fix it. Retries apply
+per event under `max_concurrent_requests` concurrency too, so one flaky
+request being retried doesn't block the others.
 
 ## Roadmap (see [TODO.md](../../TODO.md))
 
 - FAIL events when an asset's most recent run failed (see Limitations above
   for why this is harder than it looks, not just unbuilt)
-- Per-request retry with backoff for transient collector errors
+- Connection pooling for very large graphs (see Limitations above)
 
 ~~Batched event emission~~ — investigated and dropped: Marquez's own docs
 describe `/api/v1/lineage` as "record a **single** lineage event"; the

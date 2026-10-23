@@ -7818,7 +7818,7 @@
       "component_type": "dagster_community_components.AzureDataFactoryComponent",
       "category": "integration",
       "description": "Azure Data Factory workspace component \u2014 one Dagster asset per ADF pipeline, trigger, and (untested) linked_service / dataset / data_flow / integration_runtime. Canonical `workspace:` block (AzureDataFactoryResource), `translation:` callable per-asset customization hook, `@public get_asset_spec(props)` subclass override, `AzureDataFactoryObjectProps` + `AzureDataFactoryComponentTranslator`. StateBackedComponent \u2014 discovery cached to disk; auto-refreshes on first `dg dev` OR run `dg utils refresh-defs-state` explicitly.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "integrations/azure_data_factory",
       "tags": [
@@ -7845,7 +7845,7 @@
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/azure_data_factory.md",
-        "last_validated": "2026-05-06"
+        "last_validated": "2026-10-23"
       },
       "vendor": "Microsoft",
       "produces": [

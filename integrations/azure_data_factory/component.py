@@ -22,7 +22,7 @@ import re
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Annotated, Any, Callable, Dict, List, Optional
 
 import dagster as dg
 from dagster import AssetSpec, ComponentLoadContext, Definitions, Model, Resolvable, Resolver
@@ -359,10 +359,26 @@ def _build_adf_defs(
     retry_policy_max_retries: Optional[int] = None,
     retry_policy_delay_seconds: Optional[int] = None,
     retry_policy_backoff: str = "exponential",
+    get_client_fn: Optional[Callable[..., Any]] = None,
 ) -> dg.Definitions:
-    """Build Dagster Definitions from pre-fetched ADF metadata (no network calls)."""
+    """Build Dagster Definitions from pre-fetched ADF metadata (no network calls).
+
+    `get_client_fn(subscription_id, tenant_id, client_id, client_secret) -> client`
+    is the ONE execution seam for every ADF management-client construction below
+    (pipeline trigger+poll, trigger start, observation sensor) -- defaults to the
+    real `_get_adf_client`, but a caller (AzureDataFactoryComponent.get_adf_client,
+    itself overridable by a subclass) can swap in a fake client for a demo/test,
+    without monkeypatching a private module function.
+    """
+    _get_client = get_client_fn or _get_adf_client
     assets: list = []
     sensors: list = []
+    # Populated by the pipeline-asset loop below with the FINAL,
+    # assets_by_pipeline_name-resolved AssetKey(s) each pipeline actually got
+    # (a pipeline can expand to several specs) -- consumed by the observation
+    # sensor so it never re-derives `adf_pipeline_<name>` independently and
+    # drifts from the real asset identity under an override.
+    pipeline_name_to_keys: Dict[str, List[dg.AssetKey]] = {}
 
     # Build the PartitionsDefinition once (shared across all pipeline assets)
     _partitions_def = None
@@ -445,6 +461,7 @@ def _build_adf_defs(
             expanded_specs = _apply_pipeline_overrides(
                 default_spec, pipeline_name, assets_by_pipeline_name
             )
+            pipeline_name_to_keys[pipeline_name] = [spec.key for spec in expanded_specs]
 
             # Build a spec_key_path tuple -> pipeline_name mapping for the execution body
             spec_key_to_pipeline: Dict[tuple, str] = {
@@ -476,7 +493,7 @@ def _build_adf_defs(
                     retry_policy=_retry_policy,
                 )
                 def pipeline_multi_asset(context: dg.AssetExecutionContext):
-                    adf_client = _get_adf_client(
+                    adf_client = _get_client(
                         _subscription_id, _tenant_id, _client_id, _client_secret
                     )
 
@@ -664,7 +681,7 @@ def _build_adf_defs(
                 _client_secret: Optional[str] = client_secret,
             ):
                 """Start an Azure Data Factory trigger (no-op if already running)."""
-                adf_client = _get_adf_client(
+                adf_client = _get_client(
                     _subscription_id, _tenant_id, _client_id, _client_secret
                 )
 
@@ -714,7 +731,7 @@ def _build_adf_defs(
             """
             from azure.mgmt.datafactory.models import RunFilterParameters
 
-            adf_client = _get_adf_client(subscription_id, tenant_id, client_id, client_secret)
+            adf_client = _get_client(subscription_id, tenant_id, client_id, client_secret)
 
             cursor = context.cursor
             last_check = (
@@ -761,10 +778,23 @@ def _build_adf_defs(
                 if run.status == "Failed" and getattr(run, "message", None):
                     meta["error"] = dg.MetadataValue.text(run.message)
 
-                asset_events.append(dg.AssetMaterialization(
-                    asset_key=f"adf_pipeline_{run_pipeline_name}",
-                    metadata=meta,
-                ))
+                # Resolved AssetKey(s) for this pipeline -- NOT a re-derived
+                # f"adf_pipeline_{name}" guess, which silently drifts from the
+                # real asset identity under an assets_by_pipeline_name override
+                # (and can't express the override expanding to several specs).
+                resolved_keys = pipeline_name_to_keys.get(run_pipeline_name)
+                if not resolved_keys:
+                    context.log.warning(
+                        f"ADF run for pipeline {run_pipeline_name!r} has no matching "
+                        "imported asset (not in import_pipelines' pipeline list, or "
+                        "filtered out) -- skipping observation."
+                    )
+                    continue
+                for key in resolved_keys:
+                    asset_events.append(dg.AssetMaterialization(
+                        asset_key=key,
+                        metadata=meta,
+                    ))
 
             # Log trigger run activity (not asset-shaped, just log)
             trigger_runs = adf_client.trigger_runs.query_by_factory(
@@ -1249,6 +1279,21 @@ class AzureDataFactoryComponent(StateBackedComponent, Model, Resolvable):
 
         state_path.write_text(json.dumps(state, indent=2))
 
+    def get_adf_client(
+        self,
+        subscription_id: str,
+        tenant_id: Optional[str],
+        client_id: Optional[str],
+        client_secret: Optional[str],
+    ):
+        """Build the Azure Data Factory management client used for every pipeline
+        trigger+poll, trigger start, and observation-sensor call this component
+        makes. The ONE execution seam for this component -- override it in a
+        subclass to return a fake client for a demo or test, instead of
+        monkeypatching the private module-level `_get_adf_client` function.
+        """
+        return _get_adf_client(subscription_id, tenant_id, client_id, client_secret)
+
     def build_defs_from_state(
         self, context: ComponentLoadContext, state_path: Optional[Path]
     ) -> Definitions:
@@ -1310,6 +1355,7 @@ class AzureDataFactoryComponent(StateBackedComponent, Model, Resolvable):
             retry_policy_max_retries=self.retry_policy_max_retries,
             retry_policy_delay_seconds=self.retry_policy_delay_seconds,
             retry_policy_backoff=self.retry_policy_backoff,
+            get_client_fn=self.get_adf_client,
         )
 
         # Extend with UNTESTED external-asset kinds.

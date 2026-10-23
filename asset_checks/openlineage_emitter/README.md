@@ -30,6 +30,13 @@ Asset check that emits OpenLineage START/COMPLETE events to OL-compatible backen
 |---|---|---|---|
 | `description` | `str` | — | — |
 
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_max_attempts` | `int` | `3` | Max attempts per event POST. Retries a connection failure/timeout or a 5xx response; a 4xx fails immediately without retrying. Set to 1 to disable retries entirely. |
+| `retry_backoff_seconds` | `float` | `1.0` | Base delay between retry attempts; doubles each attempt (1s, 2s, 4s, ...). |
+
 ### Other
 
 | Field | Type | Default | Description |
@@ -45,6 +52,13 @@ Asset check that emits OpenLineage START/COMPLETE events to OL-compatible backen
 | `blocking` | `bool` | `false` | Block downstream when emit fails |
 
 [//]: # (FIELDS:END)
+
+## Reliability
+
+Each START/COMPLETE POST retries up to `retry_max_attempts` times (default 3)
+with exponential backoff on a connection failure/timeout or a 5xx response;
+a 4xx fails immediately without retrying. Meant to be used in production
+as-is, not a placeholder for a different client.
 
 ## See also
 - [Schema](schema.json) · [Example](example.yaml)

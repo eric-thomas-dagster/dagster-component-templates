@@ -1,0 +1,142 @@
+{
+  "component_type": "dagster_component_templates.SqlServerChangeTrackingAssetComponent",
+  "name": "SQL Server Change Tracking",
+  "category": "source",
+  "icon": "si:microsoftsqlserver",
+  "description": "Read changed rows from a SQL Server table with Change Tracking enabled, using CHANGETABLE(CHANGES ...) -- the real native SQL Server CDC-lite mechanism, not a generic polling diff.",
+  "version": "1.0.0",
+  "author": "Dagster Community",
+  "x-dagster-io": {
+    "inputs": {"type": "none", "required": false, "description": "Any deps are lineage-only"},
+    "outputs": {"type": "DataFrame", "description": "pandas DataFrame of changed rows, with a sys_change_operation column (I/U/D)"}
+  },
+  "attributes": {
+    "asset_name": {
+      "description": "Dagster asset key.",
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "connection_url_env_var": {
+      "description": "Env var holding a SQLAlchemy connection URL, e.g. 'mssql+pyodbc://user:pass@dsn'.",
+      "type": "string",
+      "label": "Connection URL Env Var",
+      "required": true
+    },
+    "schema_name": {
+      "description": "SQL Server schema the table lives in, e.g. 'dbo'.",
+      "type": "string",
+      "label": "Schema Name",
+      "required": true
+    },
+    "table_name": {
+      "description": "Table name (without schema).",
+      "type": "string",
+      "label": "Table Name",
+      "required": true
+    },
+    "primary_key_columns": {
+      "description": "The table's primary key column(s), in order. Required -- CHANGETABLE only carries these plus change metadata; other columns are joined back from the base table.",
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Primary Key Columns",
+      "required": true
+    },
+    "columns": {
+      "description": "Every column to read, including primary_key_columns. Required -- CHANGETABLE can't be queried with SELECT *.",
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Columns",
+      "required": true
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
+      "required": false
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description.",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value tags applied to the asset in the Dagster catalog, e.g. {\"domain\": \"finance\"}.",
+      "label": "Asset Tags",
+      "required": false,
+      "type": "object",
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "type": "array"
+    },
+    "freshness_max_lag_minutes": {
+      "default": null,
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "label": "Freshness Max Lag (minutes)",
+      "required": false,
+      "type": "integer"
+    },
+    "freshness_cron": {
+      "default": null,
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "label": "Freshness Cron Schedule",
+      "required": false,
+      "type": "string",
+      "x-dagster-widget": "cron"
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    }
+  },
+  "tags": ["mssql", "sql-server", "cdc", "change-tracking", "source"]
+}

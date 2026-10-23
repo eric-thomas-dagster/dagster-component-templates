@@ -1,0 +1,10 @@
+type: dagster_component_templates.SqlServerChangeTrackingAssetComponent
+attributes:
+  asset_name: orders_changes
+  connection_url_env_var: MSSQL_URL
+  schema_name: dbo
+  table_name: orders
+  primary_key_columns: [order_id]
+  columns: [order_id, customer_id, total, status]
+  group_name: cdc
+  kinds: [mssql, cdc]

@@ -64951,6 +64951,60 @@
       ]
     },
     {
+      "id": "sql_server_change_tracking_asset",
+      "name": "SQL Server Change Tracking",
+      "category": "source",
+      "description": "Read changed rows from a SQL Server table with Change Tracking enabled, using CHANGETABLE(CHANGES ...) -- the real native SQL Server CDC-lite mechanism, not a generic polling diff.",
+      "path": "assets/sources/sql_server_change_tracking_asset",
+      "tags": [
+        "mssql",
+        "sql-server",
+        "cdc",
+        "change-tracking",
+        "source"
+      ],
+      "icon": "si:microsoftsqlserver",
+      "type": "dagster_component_templates.SqlServerChangeTrackingAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/sql_server_change_tracking_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/sql_server_change_tracking_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/sql_server_change_tracking_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/sql_server_change_tracking_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/sql_server_change_tracking_asset/requirements.txt",
+      "component_type": "dagster_component_templates.SqlServerChangeTrackingAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-23"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "sqlalchemy",
+          "pyodbc",
+          "pandas"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "DataFrame",
+        "outputs": "pandas DataFrame of changed rows with a sys_change_operation column.",
+        "requires_pip": [
+          "sqlalchemy",
+          "pyodbc",
+          "pandas"
+        ]
+      },
+      "keywords": [
+        "mssql",
+        "cdc",
+        "change-tracking",
+        "sql-server"
+      ]
+    },
+    {
       "id": "trino_resource",
       "name": "Trino Resource",
       "category": "resource",

@@ -23,7 +23,7 @@ Materialize a DataFrame from a KQL query against an Azure Log Analytics workspac
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `workspace_id` | `str` | Log Analytics workspace ID (GUID, NOT the resource ID — find it in workspace overview) |
-| `query` | `str` | KQL query to run. Example: 'AzureActivity \| where TimeGenerated > ago(1h) \| take 1000' |
+| `query` | `str` | KQL query to run. Example: 'AzureActivity \| where TimeGenerated > ago(1h) \| take 1000' On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for mult… _(full docs in schema.json + component README)_ |
 
 ### Connection
 
@@ -40,8 +40,9 @@ Materialize a DataFrame from a KQL query against an Azure Log Analytics workspac
 | `description` | `str` | — | — |
 | `deps` | `List[str]` | — | — |
 | `owners` | `List[str]` | — | — |
-| `asset_tags` | `Dict[str, str]` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' fires one query covering the whole backfill range (the partition_key/partition_date/partition_start/partition_end tokens reflect the full range, comma-joi… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -56,7 +57,7 @@ Materialize a DataFrame from a KQL query against an Azure Log Analytics workspac
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
 
 ### Retry policy
 
@@ -70,8 +71,9 @@ Materialize a DataFrame from a KQL query against an Azure Log Analytics workspac
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `timespan_iso8601` | `str` | — | Optional time-range filter as ISO 8601 duration (e.g. 'PT1H' for 1h, 'P1D' for 1d, 'P30D' for 30d). Acts as a query-level timespan parameter independent of the KQL itself. |
+| `timespan_iso8601` | `str` | — | Optional time-range filter as ISO 8601 duration (e.g. 'PT1H' for 1h, 'P1D' for 1d, 'P30D' for 30d). Acts as a query-level timespan parameter independent of the KQL itself. On a partitioned run {partition_key}, {partition… _(full docs in schema.json + component README)_ |
 | `tenant_id_env_var` | `str` | — | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)

@@ -36,6 +36,7 @@ Plain HTTP+JSON API -- no native Druid Python client required.
 | `kinds` | `List[str]` | — | Defaults to ['druid']. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Output column -> input column names, recorded against every key in deps. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' fires one query covering the whole backfill range (the partition_key/partition_date/partition_start/partition_end tokens reflect the full range, comma-joi… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -72,6 +73,7 @@ Plain HTTP+JSON API -- no native Druid Python client required.
 | `include_preview_metadata` | `bool` | `true` | Include a markdown preview of the result in materialization metadata. |
 | `preview_rows` | `int` | `20` | Max rows in the preview. |
 | `dynamic_partition_name` | `str` | — | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

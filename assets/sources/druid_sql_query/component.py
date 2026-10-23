@@ -11,7 +11,7 @@ JSON array of objects -- one per row, column name -> value -- when
 `resultFormat: "object"` (the default here). No native Druid Python client
 needed; this is a plain HTTP+JSON API.
 """
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, Literal
 
 import pandas as pd
 import dagster as dg
@@ -284,6 +284,28 @@ class DruidSqlQueryComponent(dg.Component, dg.Model, dg.Resolvable):
     retry_policy_delay_seconds: Optional[int] = Field(default=None)
     retry_policy_backoff: str = Field(default="exponential")
 
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "fires one query covering the whole backfill range (the "
+            "partition_key/partition_date/partition_start/partition_end tokens "
+            "reflect the full range, comma-joined for partition_key) rather than "
+            "one query per partition. 'multi_run' launches one run per partition "
+            "(optionally capped via backfill_policy_max_partitions_per_run). Leave "
+            "unset for Dagster's default (one run per partition, uncapped). Ignored "
+            "when partition_type is not set. 'single_run' requires a partition-"
+            "range-aware IO manager (e.g. a DB-table IO manager with partition_expr "
+            "set) -- a generic filesystem/default IO manager cannot persist a "
+            "single_run output spanning multiple partitions and will raise a clear "
+            "error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
@@ -306,6 +328,14 @@ class DruidSqlQueryComponent(dg.Component, dg.Model, dg.Resolvable):
         if self.freshness_max_lag_minutes is not None:
             freshness_policy = _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            backfill_policy = dg.BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            backfill_policy = dg.BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
         retry_policy = None
         if self.retry_policy_max_retries is not None:
             from dagster import Backoff, RetryPolicy
@@ -327,6 +357,7 @@ class DruidSqlQueryComponent(dg.Component, dg.Model, dg.Resolvable):
             partitions_def=partitions_def,
             freshness_policy=freshness_policy,
             retry_policy=retry_policy,
+            backfill_policy=backfill_policy,
         )
         def druid_sql_query_asset(context: dg.AssetExecutionContext) -> pd.DataFrame:
             self = _self

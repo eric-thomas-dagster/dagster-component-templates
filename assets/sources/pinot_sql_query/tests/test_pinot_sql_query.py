@@ -124,3 +124,25 @@ def test_weekday_cron_partition_builds_a_real_time_window_partitions_def(pinot_s
     comp = _comp(pinot_server, partition_type="cron", partition_start="2024-01-01", partition_cron_schedule="0 0 * * 1-5")
     pdef = list(comp.build_defs(None).assets)[0].partitions_def
     assert isinstance(pdef, dg.TimeWindowPartitionsDefinition)
+
+
+def test_backfill_policy_single_run_sets_a_real_backfill_policy(pinot_server):
+    comp = _comp(pinot_server, partition_type="daily", partition_start="2024-01-01", backfill_policy="single_run")
+    asset = list(comp.build_defs(None).assets)[0]
+    assert asset.backfill_policy == dg.BackfillPolicy.single_run()
+
+
+def test_single_run_over_a_range_joins_partition_keys_into_the_query(pinot_server):
+    comp = _comp(
+        pinot_server,
+        query="SELECT * FROM counts WHERE day IN ('{partition_key}')",
+        partition_type="daily", partition_start="2024-01-01",
+        backfill_policy="single_run",
+    )
+    asset = list(comp.build_defs(None).assets)[0]
+    result = dg.materialize([asset], resources={"io_manager": dg.InMemoryIOManager()}, tags={
+        "dagster/asset_partition_range_start": "2024-01-01",
+        "dagster/asset_partition_range_end": "2024-01-03",
+    })
+    assert result.success
+    assert "2024-01-01,2024-01-02,2024-01-03" in _PinotHandler.requests_received[0]["sql"]

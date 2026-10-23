@@ -23,7 +23,7 @@ Works against any Prometheus-compatible HTTP API:
 |---|---|---|
 | `asset_name` | `str` | Output Dagster asset name |
 | `server_url` | `str` | Prometheus base URL (no trailing slash), e.g. 'https://prometheus.demo.do.prometheus.io', 'https://my-managed-prometheus.eastus.prometheus.monitor.azure.com', 'http://localhost:9090' |
-| `query` | `str` | PromQL query, e.g. 'rate(http_requests_total[5m])' or 'up{job="node"}' |
+| `query` | `str` | PromQL query, e.g. 'rate(http_requests_total[5m])' or 'up{job="node"}' On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted. |
 
 ### Catalog metadata
 
@@ -33,8 +33,9 @@ Works against any Prometheus-compatible HTTP API:
 | `description` | `str` | — | — |
 | `deps` | `List[str]` | — | — |
 | `owners` | `List[str]` | — | — |
-| `asset_tags` | `Dict[str, str]` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' fires one query covering the whole backfill range (the partition_key/partition_date/partition_start/partition_end tokens reflect the full range, comma-joi… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -49,7 +50,7 @@ Works against any Prometheus-compatible HTTP API:
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
 
 ### Retry policy
 
@@ -70,6 +71,7 @@ Works against any Prometheus-compatible HTTP API:
 | `basic_auth_user_env_var` | `str` | — | — |
 | `basic_auth_pass_env_var` | `str` | — | — |
 | `extra_headers` | `Dict[str, str]` | — | Optional headers (e.g. X-Scope-OrgID for Cortex/Mimir tenants) |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)

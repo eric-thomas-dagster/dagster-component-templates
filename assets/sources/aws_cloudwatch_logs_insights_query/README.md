@@ -15,7 +15,7 @@ See schema.json for full attribute reference.
 | `asset_name` | `str` | Output Dagster asset name |
 | `region` | `str` | AWS region |
 | `log_group_names` | `List[str]` | One or more log group names to query |
-| `query_string` | `str` | Logs Insights query (e.g. 'fields @timestamp, @message \| filter @message like /ERROR/ \| limit 100') |
+| `query_string` | `str` | Logs Insights query (e.g. 'fields @timestamp, @message \| filter @message like /ERROR/ \| limit 100') On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimensi… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -25,8 +25,9 @@ See schema.json for full attribute reference.
 | `description` | `str` | — | — |
 | `deps` | `List[str]` | — | — |
 | `owners` | `List[str]` | — | — |
-| `asset_tags` | `Dict[str, str]` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' fires one query covering the whole backfill range (the partition_key/partition_date/partition_start/partition_end tokens reflect the full range, comma-joi… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -41,7 +42,7 @@ See schema.json for full attribute reference.
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
 
 ### Retry policy
 
@@ -59,6 +60,7 @@ See schema.json for full attribute reference.
 | `aws_access_key_id_env_var` | `str` | — | — |
 | `aws_secret_access_key_env_var` | `str` | — | — |
 | `max_wait_seconds` | `int` | `60` | Max wait for query to complete |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)

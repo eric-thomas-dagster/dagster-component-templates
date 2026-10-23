@@ -18,17 +18,12 @@ Plain HTTP+text API -- no native ClickHouse Python driver required.
 | `host_url` | `str` | Base URL of the ClickHouse HTTP interface, e.g. 'http://clickhouse:8123'. |
 | `query` | `str` | ClickHouse SQL query to execute. 'FORMAT JSON' is appended automatically if not already present. {partition_key}/{partition_date}/{partition_start}/{partition_end} tokens are substituted on a partitioned run. |
 
-### Optional
+### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `username` | `str` | — | HTTP basic auth username (ClickHouse user), e.g. 'default'. |
 | `password_env_var` | `str` | — | Env var holding the HTTP basic auth password. |
-| `request_headers` | `Dict[str, str]` | — | Extra HTTP headers, e.g. a bearer token if ClickHouse sits behind an authenticating proxy. |
-| `request_timeout_seconds` | `int` | `120` | HTTP request timeout. |
-| `column_lineage` | `Dict[str, List[str]]` | — | Output column -> input column names, recorded against every key in deps. |
-| `include_preview_metadata` | `bool` | `True` | Include a markdown preview of the result in materialization metadata. |
-| `preview_rows` | `int` | `20` | Max rows in the preview. |
 
 ### Catalog metadata
 
@@ -40,18 +35,8 @@ Plain HTTP+text API -- no native ClickHouse Python driver required.
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags. |
 | `kinds` | `List[str]` | — | Defaults to ['clickhouse']. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys. |
-
-### Partitioning
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' \| 'cron' \| None. |
-| `partition_start` | `str` | — | — |
-| `partition_values` | `Union[str, List[str]]` | — | — |
-| `dynamic_partition_name` | `str` | — | — |
-| `partition_dimensions` | `List[Dict[str, Any]]` | — | — |
-| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only. |
-| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. |
+| `column_lineage` | `Dict[str, List[str]]` | — | Output column -> input column names, recorded against every key in deps. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' fires one query covering the whole backfill range (the partition_key/partition_date/partition_start/partition_end tokens reflect the full range, comma-joi… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -60,6 +45,17 @@ Plain HTTP+text API -- no native ClickHouse Python driver required.
 | `freshness_max_lag_minutes` | `int` | — | — |
 | `freshness_cron` | `str` | — | — |
 
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' \| 'cron' \| None. |
+| `partition_start` | `str` | — | — |
+| `partition_values` | `Union[str, List[str]]` | — | — |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | — |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only. |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. |
+
 ### Retry policy
 
 | Field | Type | Default | Description |
@@ -67,6 +63,17 @@ Plain HTTP+text API -- no native ClickHouse Python driver required.
 | `retry_policy_max_retries` | `int` | — | — |
 | `retry_policy_delay_seconds` | `int` | — | — |
 | `retry_policy_backoff` | `str` | `"exponential"` | — |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `request_headers` | `Dict[str, str]` | — | Extra HTTP headers, e.g. a bearer token if ClickHouse sits behind an authenticating proxy. |
+| `request_timeout_seconds` | `int` | `120` | HTTP request timeout. |
+| `include_preview_metadata` | `bool` | `true` | Include a markdown preview of the result in materialization metadata. |
+| `preview_rows` | `int` | `20` | Max rows in the preview. |
+| `dynamic_partition_name` | `str` | — | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

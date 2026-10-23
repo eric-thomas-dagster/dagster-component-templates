@@ -123,11 +123,13 @@ def test_enrich_validates(mod, step, match):
         mod._do_enrich(_frame(["t"]), step, Ctx)
 
 
-def test_enrich_is_python_mode_only(mod):
+def test_write_vector_store_is_python_mode_only(mod):
+    """enrich now has a real execution_mode='sql' path (ML.GENERATE_TEXT / CORTEX.COMPLETE / ai_query,
+    see test_sql_enrich.py); write_vector_store still has no warehouse-native equivalent."""
     comp = mod.ContextEngineeringPipelineComponent(
         asset_name="kb", id_column="id", text_column="body", execution_mode="sql", sql_dialect="snowflake_cortex",
         output_table="db.s.t", source={"kind": "warehouse_query", "resource_key": "r", "sql": "select 1"},
-        steps=[{"id": "c", "op": "chunk"}, {"id": "e", "op": "enrich", "model": "m"}])
+        steps=[{"id": "c", "op": "chunk"}, {"id": "w", "op": "write_vector_store", "provider": "chromadb"}])
     with pytest.raises(ValueError, match="python-mode-only"):
         comp.build_defs(None)
 

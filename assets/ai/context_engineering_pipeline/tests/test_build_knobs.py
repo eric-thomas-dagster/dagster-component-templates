@@ -209,14 +209,14 @@ def test_embedding_reuse_only_embeds_new_or_changed_chunks(mod, tmp_path):
         assert len(calls) == 3  # new embedding model: nothing reusable
 
 
-def test_enrich_rejected_in_sql_mode(mod):
-    """enrich has no warehouse-native equivalent (an arbitrary per-chunk LLM prompt) and stays
-    python-mode-only; filter/dedupe/sensitivity/stamp are real execution_mode='sql' steps now
-    (see test_sql_filter_dedupe_sensitivity_stamp.py for their real, executed coverage)."""
+def test_write_vector_store_rejected_in_sql_mode(mod):
+    """write_vector_store has no warehouse-native equivalent and stays python-mode-only;
+    filter/dedupe/sensitivity/stamp/enrich are all real execution_mode='sql' steps now (see
+    test_sql_filter_dedupe_sensitivity_stamp.py / test_sql_enrich.py for their real, executed coverage)."""
     comp = mod.ContextEngineeringPipelineComponent(
         asset_name="kb", id_column="id", text_column="body", execution_mode="sql", sql_dialect="snowflake_cortex",
         output_table="db.s.t", source={"kind": "warehouse_query", "resource_key": "r", "sql": "select 1"},
-        steps=[{"id": "c", "op": "chunk"}, {"id": "e", "op": "enrich", "mode": "summary", "model": "gpt-4o-mini"}])
+        steps=[{"id": "c", "op": "chunk"}, {"id": "w", "op": "write_vector_store", "provider": "chromadb"}])
     with pytest.raises(ValueError, match="python-mode-only"):
         comp.build_defs(None)
 

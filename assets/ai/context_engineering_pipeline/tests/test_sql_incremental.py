@@ -326,8 +326,8 @@ def test_probe_reports_missing_and_incomplete_tables_per_dialect(mod, h):
     from types import SimpleNamespace
     ctx = SimpleNamespace(log=SimpleNamespace(warning=lambda m: None, info=lambda m: None))
     with mod._sql_session(h.resource, "wh") as s:
-        assert mod._sql_probe_prior_table(s, h.dialect, h.table, cls, emb, ctx) == ({"embed": False, "classify": False}, 0)
+        assert mod._sql_probe_prior_table(s, h.dialect, h.table, cls, emb, ctx) == ({"embed": False, "classify": False, "enrich": False}, 0)
     h.run()
     with mod._sql_session(h.resource, "wh") as s:
-        assert mod._sql_probe_prior_table(s, h.dialect, h.table, cls, emb, ctx) == ({"embed": True, "classify": True}, 6)
-        assert mod._sql_probe_prior_table(s, h.dialect, h.table, None, emb, ctx)[0] == {"embed": True, "classify": False}
+        assert mod._sql_probe_prior_table(s, h.dialect, h.table, cls, emb, ctx) == ({"embed": True, "classify": True, "enrich": False}, 6)
+        assert mod._sql_probe_prior_table(s, h.dialect, h.table, None, emb, ctx)[0] == {"embed": True, "classify": False, "enrich": False}

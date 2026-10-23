@@ -1726,6 +1726,28 @@ def _sql_embed_expr(dialect: str, text_expr: str, model: Optional[str]) -> str:
     raise ValueError(f"unsupported sql_dialect: {dialect!r}")
 
 
+def _sql_enrich_prompt_expr(mode: str, text_expr: str) -> str:
+    """The fixed prompt + passage text every enrich mode sends to the model (see _ENRICH_PROMPTS) --
+    CONCAT is the same call in all 3 dialects, so this one expression covers both BigQuery's
+    ML.GENERATE_TEXT prompt column and the Snowflake/Databricks scalar form. SQL mode never has
+    parent-child chunking, so there is no parent_text to show the model -- always the plain
+    "Passage:\\n<text>" shape, same as python mode's own fallback when a chunk has no parent."""
+    return f"CONCAT({_sql_str(_ENRICH_PROMPTS[mode])}, {_sql_str(chr(10) + chr(10) + 'Passage:' + chr(10))}, {text_expr})"
+
+
+def _sql_enrich_expr(dialect: str, text_expr: str, model: str, mode: str) -> str:
+    """Scalar text-generation expression (Snowflake, Databricks). BigQuery's ML.GENERATE_TEXT is a
+    TABLE function: see _build_sql_mode_query."""
+    prompt = _sql_enrich_prompt_expr(mode, text_expr)
+    if dialect == "snowflake_cortex":
+        return f"SNOWFLAKE.CORTEX.COMPLETE({_sql_str(model)}, {prompt})"
+    if dialect == "databricks":
+        return f"ai_query({_sql_str(model)}, {prompt})"
+    if dialect == "bigquery":
+        raise ValueError("BigQuery generates text with the ML.GENERATE_TEXT table function, not a scalar expression")
+    raise ValueError(f"unsupported sql_dialect: {dialect!r}")
+
+
 def _sql_embed_model_id(dialect: str, model: Optional[str]) -> str:
     """The model identity stored next to every embedding (column embedding_model): a stored vector is only reused under the same one."""
     if dialect == "bigquery":
@@ -2116,6 +2138,7 @@ def _build_sql_mode_query(
     chunk_step = next(s for s in steps_cfg if s["op"] == "chunk")
     classify_step = next((s for s in steps_cfg if s["op"] == "classify"), None)
     embed_step = next((s for s in steps_cfg if s["op"] == "embed"), None)
+    enrich_step = next((s for s in steps_cfg if s["op"] == "enrich"), None)
     out_tbl = _sql_table(output_table, "output_table", dialect)
     target = {"replace_table": f"CREATE OR REPLACE TABLE {out_tbl}", "create_table": f"CREATE TABLE {out_tbl}",
               "stage": f"CREATE OR REPLACE TABLE {stage_table}"}[write]
@@ -2362,8 +2385,27 @@ def _build_sql_mode_query(
         if dialect == "bigquery" and (not isinstance(model, str) or not _MODEL_RE.match(model)):
             raise ValueError(f"execution_mode='sql': embed model {model!r} is not a valid BigQuery model reference (project.dataset.model)")
         embed_model_id = _sql_embed_model_id(dialect, embed_step.get("model"))
+    enrich_model = enrich_mode = enrich_output_col = enrich_sig = None
+    if enrich_step is not None:
+        enrich_mode = enrich_step.get("mode", "context")
+        if enrich_mode not in _ENRICH_PROMPTS:
+            raise ValueError(f"enrich op: mode must be one of {sorted(_ENRICH_PROMPTS)}, got {enrich_mode!r}")
+        if enrich_step.get("prepend"):
+            raise ValueError(
+                "execution_mode='sql': enrich prepend=True is not supported (it would require re-hashing "
+                "content_hash mid-statement); use execution_mode='python', or drop `prepend`."
+            )
+        enrich_model = enrich_step.get("model")
+        if not enrich_model:
+            raise ValueError("enrich op requires `model` (any warehouse-native generation model reference).")
+        if dialect == "bigquery" and (not isinstance(enrich_model, str) or not _MODEL_RE.match(enrich_model)):
+            raise ValueError(f"execution_mode='sql': enrich model {enrich_model!r} is not a valid BigQuery model reference (project.dataset.model)")
+        enrich_output_col = enrich_step.get("output_column", f"enrichment_{enrich_mode}")
+        enrich_sig = f"{enrich_model}:{enrich_mode}"
 
-    if incremental and (classify_step is not None or embed_step is not None):
+    _TAG_PLURAL = {"category": "categories", "embedding": "embeddings", "enrichment": "enrichments"}
+
+    if incremental and (classify_step is not None or embed_step is not None or enrich_step is not None):
         sel = [cols_sql("b", cols)]
         joins: List[str] = []
         counts: List[str] = [f"(SELECT COUNT(*) FROM {cur}) AS total_rows"]
@@ -2380,7 +2422,7 @@ def _build_sql_mode_query(
                     f"  LEFT JOIN prior_{tag} AS p ON p.content_hash = b.content_hash\n  WHERE p.content_hash IS NULL")))
             else:
                 ctes.append((f"todo_{tag}", f"SELECT DISTINCT b.content_hash, b.chunk_text\n  FROM {cur} AS b"))
-            counts.append(f"(SELECT COUNT(*) FROM {cur} AS b JOIN todo_{tag} AS t ON t.content_hash = b.content_hash) AS new_{'categories' if tag == 'category' else 'embeddings'}")
+            counts.append(f"(SELECT COUNT(*) FROM {cur} AS b JOIN todo_{tag} AS t ON t.content_hash = b.content_hash) AS new_{_TAG_PLURAL[tag]}")
             if counts_only:
                 return
             ctes.append((f"new_{tag}", fresh_select))
@@ -2388,13 +2430,24 @@ def _build_sql_mode_query(
             if can_reuse:
                 union = f"SELECT content_hash, {value_col} FROM prior_{tag}\n  UNION ALL\n  {union}"
             ctes.append((f"all_{tag}", union))
-            joins.append(f"LEFT JOIN all_{tag} AS {tag[0]}_ ON {tag[0]}_.content_hash = b.content_hash")
+            joins.append(f"LEFT JOIN all_{tag} AS {tag}_ ON {tag}_.content_hash = b.content_hash")
 
         if classify_step is not None:
             feature("category", "category", "category_signature", sig,
                     f"SELECT content_hash, {classify_expr_for('todo_category.chunk_text')} AS category\n  FROM todo_category",
                     bool(reuse.get("classify")))
-            sel += ["c_.category AS category", f"{_sql_str(sig)} AS category_signature"]
+            sel += ["category_.category AS category", f"{_sql_str(sig)} AS category_signature"]
+        if enrich_step is not None:
+            if dialect == "bigquery":
+                fresh = (f"SELECT content_hash, ml_generate_text_llm_result AS {enrich_output_col}\n"
+                         f"  FROM ML.GENERATE_TEXT(MODEL `{enrich_model}`,\n"
+                         f"    (SELECT content_hash, {_sql_enrich_prompt_expr(enrich_mode, 'todo_enrichment.chunk_text')} AS prompt FROM todo_enrichment),\n"
+                         f"    STRUCT(TRUE AS flatten_json_output))")
+            else:
+                fresh = (f"SELECT content_hash, {_sql_enrich_expr(dialect, 'todo_enrichment.chunk_text', enrich_model, enrich_mode)} AS {enrich_output_col}\n"
+                         f"  FROM todo_enrichment")
+            feature("enrichment", enrich_output_col, "enrichment_signature", enrich_sig, fresh, bool(reuse.get("enrich")))
+            sel += [f"enrichment_.{enrich_output_col} AS {enrich_output_col}", f"{_sql_str(enrich_sig)} AS enrichment_signature"]
         if embed_step is not None:
             if dialect == "bigquery":
                 fresh = (f"SELECT content_hash, ml_generate_embedding_result AS embedding\n"
@@ -2405,7 +2458,7 @@ def _build_sql_mode_query(
                 fresh = f"SELECT content_hash, {_sql_embed_expr(dialect, 'todo_embedding.chunk_text', embed_step.get('model'))} AS embedding\n  FROM todo_embedding"
             feature("embedding", "embedding", "embedding_model", embed_model_id, fresh, bool(reuse.get("embed")),
                     " AND ARRAY_LENGTH(embedding) > 0" if dialect == "bigquery" else "")
-            sel += ["e_.embedding AS embedding", f"{_sql_str(embed_model_id)} AS embedding_model"]
+            sel += ["embedding_.embedding AS embedding", f"{_sql_str(embed_model_id)} AS embedding_model"]
         with_ = ",\n".join(f"{n} AS (\n  {b}\n)" for n, b in ctes)
         if counts_only:
             return f"WITH {with_}\nSELECT {', '.join(counts)}"
@@ -2413,22 +2466,48 @@ def _build_sql_mode_query(
         return f"{target} AS\nWITH {with_}\n{final}"
 
     if counts_only:
-        raise ValueError("counts_only needs incremental=True and a classify or embed step")
+        raise ValueError("counts_only needs incremental=True and a classify, embed or enrich step")
     scalar_extra: List[str] = []
+    # Fixed pipeline position classify -> enrich -> embed (same as the incremental path above,
+    # regardless of steps_cfg order -- see the module comment on filter/dedupe/sensitivity/stamp for
+    # why SQL mode uses fixed positions rather than python mode's flexible step ordering). On BigQuery,
+    # AI.CLASSIFY/ML.GENERATE_TEXT/ML.GENERATE_EMBEDDING are all table functions, and a FROM clause can
+    # only directly wrap one: whichever of these three is LAST in that fixed order wraps the final
+    # SELECT: every earlier one materializes as its own CTE first.
+    bq_last_is_embed = dialect == "bigquery" and embed_step is not None
+    bq_last_is_enrich = dialect == "bigquery" and enrich_step is not None and embed_step is None
     if classify_step is not None:
         classify_expr = classify_expr_for(f"{cur}.chunk_text")
-        if dialect == "bigquery" and embed_step is not None:
+        if dialect == "bigquery" and (enrich_step is not None or embed_step is not None):
             ctes.append(("classified", f"SELECT {cols_sql(cur, cols)}, {classify_expr} AS category, {_sql_str(sig)} AS category_signature\n  FROM {cur}"))
             cols += ["category", "category_signature"]
             cur = "classified"
         else:
             scalar_extra += [f"{classify_expr} AS category", f"{_sql_str(sig)} AS category_signature"]
+    if enrich_step is not None and not bq_last_is_enrich:
+        if dialect == "bigquery":
+            ctes.append(("enriched", (
+                f"SELECT {cols_sql(cur, cols)},\n"
+                f"         ml_generate_text_llm_result AS {enrich_output_col}, {_sql_str(enrich_sig)} AS enrichment_signature\n"
+                f"  FROM ML.GENERATE_TEXT(MODEL `{enrich_model}`,\n"
+                f"    (SELECT {cols_sql(cur, cols)}, {_sql_enrich_prompt_expr(enrich_mode, f'{cur}.chunk_text')} AS prompt FROM {cur}),\n"
+                f"    STRUCT(TRUE AS flatten_json_output))")))
+            cols += [enrich_output_col, "enrichment_signature"]
+            cur = "enriched"
+        else:
+            scalar_extra += [f"{_sql_enrich_expr(dialect, f'{cur}.chunk_text', enrich_model, enrich_mode)} AS {enrich_output_col}",
+                             f"{_sql_str(enrich_sig)} AS enrichment_signature"]
 
     with_ = ",\n".join(f"{n} AS (\n  {b}\n)" for n, b in ctes)
-    if embed_step is not None and dialect == "bigquery":
+    if bq_last_is_embed:
         final = (f"SELECT {', '.join(cols)}, ml_generate_embedding_result AS embedding, {_sql_str(embed_model_id)} AS embedding_model\n"
                  f"FROM ML.GENERATE_EMBEDDING(MODEL `{model}`,\n"
                  f"  (SELECT {cols_sql(cur, cols)}, {cur}.chunk_text AS content FROM {cur}),\n"
+                 f"  STRUCT(TRUE AS flatten_json_output))")
+    elif bq_last_is_enrich:
+        final = (f"SELECT {', '.join(cols)}, ml_generate_text_llm_result AS {enrich_output_col}, {_sql_str(enrich_sig)} AS enrichment_signature\n"
+                 f"FROM ML.GENERATE_TEXT(MODEL `{enrich_model}`,\n"
+                 f"  (SELECT {cols_sql(cur, cols)}, {_sql_enrich_prompt_expr(enrich_mode, f'{cur}.chunk_text')} AS prompt FROM {cur}),\n"
                  f"  STRUCT(TRUE AS flatten_json_output))")
     else:
         if embed_step is not None:
@@ -2903,20 +2982,22 @@ def _sql_table_columns(session, dialect: str, tbl: str, context=None) -> List[st
 
 
 def _sql_probe_prior_table(session, dialect: str, out_tbl: str, classify_step: Optional[dict], embed_step: Optional[dict], context,
-                           columns: Optional[List[str]] = None) -> Tuple[Dict[str, bool], int]:
-    """Which features can read their prior values from the existing output table: {"embed": bool, "classify": bool}, plus its row count.
-    A missing table (first run) or one without the needed columns (built by an older version of this component, or before the step existed)
-    reports False for the feature, so that feature is built in full."""
+                           columns: Optional[List[str]] = None, enrich_step: Optional[dict] = None) -> Tuple[Dict[str, bool], int]:
+    """Which features can read their prior values from the existing output table: {"embed": bool, "classify": bool, "enrich": bool},
+    plus its row count. A missing table (first run) or one without the needed columns (built by an older version of this component, or
+    before the step existed) reports False for the feature, so that feature is built in full."""
     if columns is None:
         try:
             columns = _sql_table_columns(session, dialect, out_tbl, context)
         except ValueError as e:
             context.log.warning(f"incremental: {e}; building in full")
-            return {"embed": False, "classify": False}, 0
+            return {"embed": False, "classify": False, "enrich": False}, 0
     have = {c.lower() for c in columns}
     base = {"chunk_id", "content_hash"}
+    enrich_output_col = enrich_step.get("output_column", f"enrichment_{enrich_step.get('mode', 'context')}") if enrich_step is not None else None
     reuse = {"embed": embed_step is not None and (base | {"embedding", "embedding_model"}) <= have,
-             "classify": classify_step is not None and (base | {"category", "category_signature"}) <= have}
+             "classify": classify_step is not None and (base | {"category", "category_signature"}) <= have,
+             "enrich": enrich_step is not None and (base | {enrich_output_col.lower(), "enrichment_signature"}) <= have}
     prior_rows = int(session.fetch(f"SELECT COUNT(*) FROM {out_tbl}")[0][0]) if any(reuse.values()) else 0
     if have and not any(reuse.values()):
         context.log.info(f"incremental: {out_tbl} exists but lacks the columns needed for reuse (built by an older version?); rebuilding in full")
@@ -3099,7 +3180,8 @@ def _run_sql_mode(
     out_tbl = _sql_table(output_table, "output_table", dialect)
     classify_step = next((s for s in steps_cfg if s["op"] == "classify"), None)
     embed_step = next((s for s in steps_cfg if s["op"] == "embed"), None)
-    incremental = bool(incremental and (classify_step or embed_step))
+    enrich_step = next((s for s in steps_cfg if s["op"] == "enrich"), None)
+    incremental = bool(incremental and (classify_step or embed_step or enrich_step))
     kw = dict(asset_name=asset_name, code_version=code_version, partition=partition, stamp_provenance=stamp_provenance, receipts=receipts_cfg)
     q = (receipts_cfg or {}).get("quarantine")
     prune = (receipts_cfg or {}).get("prune")
@@ -3126,18 +3208,20 @@ def _run_sql_mode(
             if prune:
                 prune_counts = session.fetch(pv("counts"))[0]
         if incremental:
-            reuse, prior_rows = _sql_probe_prior_table(session, dialect, out_tbl, classify_step, embed_step, context, columns=columns)
+            reuse, prior_rows = _sql_probe_prior_table(session, dialect, out_tbl, classify_step, embed_step, context, columns=columns, enrich_step=enrich_step)
         build = lambda **extra: _build_sql_mode_query(  # noqa: E731
             steps_cfg, source_cfg, dialect, output_table, id_column, text_column, metadata_columns,
             incremental=incremental, reuse=reuse, **kw, **extra)
         if incremental and any(reuse.values()):
-            # chunks that will pay for an AI call, counted BEFORE the table is changed (afterwards the prior values are gone)
+            # chunks that will pay for an AI call, counted BEFORE the table is changed (afterwards the prior values are gone).
+            # Order must match feature()'s own call order inside _build_sql_mode_query (classify -> enrich -> embed): the
+            # counts SELECT lists its columns in that same order, and this reads them back by position.
             row = session.fetch(build(counts_only=True))[0]
-            names = [n for n, on in (("categories", classify_step), ("embeddings", embed_step)) if on]
+            names = [n for n, on in (("categories", classify_step), ("enrichments", enrich_step), ("embeddings", embed_step)) if on]
             inc_counts = {"total": int(row[0])}
             for i, name in enumerate(names, start=1):
                 inc_counts[name] = int(row[i])
-        context.log.info(f"execution_mode='sql' ({dialect}): running server-side chunk/classify/embed into {output_table}"
+        context.log.info(f"execution_mode='sql' ({dialect}): running server-side chunk/classify/enrich/embed into {output_table}"
                          + (f" (partition {partition!r})" if partition is not None else "")
                          + (f" (incremental, reusing prior: {reuse})" if incremental else ""))
         if partition is None:
@@ -3194,7 +3278,8 @@ def _run_sql_mode(
     if content_version is not None:
         metadata["context_version"] = MetadataValue.text(str(content_version))
     if incremental:
-        for name, step, key in (("embeddings", embed_step, "embed"), ("categories", classify_step, "classify")):
+        what_changed = {"embed": "embed model", "classify": "candidate_labels", "enrich": "enrich model/mode"}
+        for name, step, key in (("embeddings", embed_step, "embed"), ("categories", classify_step, "classify"), ("enrichments", enrich_step, "enrich")):
             if step is None:
                 continue
             new = inc_counts[name] if inc_counts else row_count
@@ -3203,7 +3288,7 @@ def _run_sql_mode(
             if reuse.get(key) and prior_rows > 0 and row_count - new == 0 and row_count > 0:
                 context.log.warning(
                     f"incremental: the prior {output_table} has {prior_rows} row(s) but none of their {name} could be reused. "
-                    f"Expected only if the {'embed model' if key == 'embed' else 'candidate_labels'} changed or every chunk's text changed; "
+                    f"Expected only if the {what_changed[key]} changed or every chunk's text changed; "
                     "otherwise check that chunking/ids are stable and the table was not rebuilt by another recipe.")
     if receipts_cfg is not None:
         summary: Dict[str, Any] = {
@@ -3397,10 +3482,12 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             "names a prior step's id to read from; if omitted, defaults to the immediately "
             "preceding step (so you don't have to repeat `source:` on every line). "
             "Valid ops: 'chunk' (must be first), 'filter', 'dedupe', 'sensitivity', 'stamp', 'enrich', 'classify', 'embed', "
-            "'write_vector_store'. 'write_vector_store' and 'enrich' are python-mode only (no warehouse-native "
-            "equivalent); 'filter'/'dedupe'/'sensitivity'/'stamp' also work with execution_mode='sql' (each with its "
-            "own sub-validation for the specific parts that have no portable warehouse-SQL equivalent, e.g. "
-            "sensitivity's phone/credit_card detectors and action='redact', filter's lookahead/lookbehind patterns)."
+            "'write_vector_store'. 'write_vector_store' is python-mode only (no warehouse-native equivalent); the "
+            "rest also work with execution_mode='sql' ('classify'/'embed'/'enrich' each map onto a warehouse-native "
+            "AI function; 'filter'/'dedupe'/'sensitivity'/'stamp' are plain SQL), each with its own sub-validation "
+            "for the specific parts that have no portable warehouse-SQL equivalent, e.g. sensitivity's "
+            "phone/credit_card detectors and action='redact', filter's lookahead/lookbehind patterns, enrich's "
+            "prepend=True."
         )
     )
 
@@ -3556,25 +3643,26 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
 
         execution_mode = self.execution_mode
         if execution_mode == "sql":
-            # chunk/classify/embed map onto each warehouse's own AI functions; filter/dedupe/sensitivity/stamp
-            # are expressible as plain SQL (see _build_sql_mode_query) and so are also offered here, each with
-            # its own sub-validation (e.g. sensitivity's phone/credit_card detectors and redact action, filter's
-            # exclude_patterns) rejecting the specific parts that have no portable warehouse-SQL equivalent.
-            # enrich has no warehouse-native equivalent at all (an arbitrary per-chunk LLM prompt) -- python mode only.
-            sql_capable_ops = {"chunk", "classify", "embed", "filter", "dedupe", "sensitivity", "stamp"}
+            # chunk/classify/embed/enrich each map onto a warehouse-native AI function (enrich onto
+            # ML.GENERATE_TEXT / CORTEX.COMPLETE / ai_query, the same text-generation family as
+            # classify's AI.CLASSIFY/CLASSIFY_TEXT); filter/dedupe/sensitivity/stamp are expressible as
+            # plain SQL (see _build_sql_mode_query). Each has its own sub-validation (e.g. sensitivity's
+            # phone/credit_card detectors and redact action, filter's exclude_patterns, enrich's
+            # prepend=True) rejecting the specific parts that have no portable warehouse-SQL equivalent.
+            sql_capable_ops = {"chunk", "classify", "embed", "enrich", "filter", "dedupe", "sensitivity", "stamp"}
             python_only = sorted({s["op"] for s in steps_cfg} - sql_capable_ops)
             if python_only:
                 raise ValueError(
-                    f"execution_mode='sql' supports chunk/classify/embed/filter/dedupe/sensitivity/stamp steps; "
-                    f"python-mode-only op(s): {python_only} (enrich has no warehouse-native equivalent)."
+                    f"execution_mode='sql' supports chunk/classify/embed/enrich/filter/dedupe/sensitivity/stamp steps; "
+                    f"python-mode-only op(s): {python_only}."
                 )
             if self.per_step_ops:
                 per_step_sql_only = sorted({s["op"] for s in steps_cfg} - {"chunk", "classify", "embed"})
                 if per_step_sql_only:
                     raise ValueError(
                         f"execution_mode='sql' with per_step_ops=True supports only chunk/classify/embed steps "
-                        f"(one real table per step); filter/dedupe/sensitivity/stamp aren't available as their own "
-                        f"per-step SQL tables yet: {per_step_sql_only}. Drop per_step_ops, or drop those steps."
+                        f"(one real table per step); filter/dedupe/sensitivity/stamp/enrich aren't available as "
+                        f"their own per-step SQL tables yet: {per_step_sql_only}. Drop per_step_ops, or drop those steps."
                     )
             custom_classify = [s["id"] for s in steps_cfg if s["op"] == "classify" and s.get("mode") == "custom"]
             if custom_classify:

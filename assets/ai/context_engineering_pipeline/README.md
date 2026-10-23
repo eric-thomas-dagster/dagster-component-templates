@@ -76,10 +76,10 @@ All three free/local by default (sentence-transformers + HuggingFace zero-shot +
 
 Everything below is YAML `steps` and component settings; none of it needs Python code. "Python mode" is
 `execution_mode: python` (the default), where the steps run in Python. `execution_mode: sql` instead runs steps inside
-the warehouse as one atomic statement: chunk, classify and embed always (mapped onto each warehouse's own AI functions),
-plus `filter`/`dedupe`/`sensitivity`/`stamp` (plain SQL, with specific unsupported parts called out and rejected per op
-below). `enrich`, parent-child chunking and everything else on this page needs python mode (`retrieval_eval` works in
-both, see below).
+the warehouse as one atomic statement: chunk, classify, embed and enrich always (each mapped onto a warehouse-native AI
+function), plus `filter`/`dedupe`/`sensitivity`/`stamp` (plain SQL, with specific unsupported parts called out and
+rejected per op below). `write_vector_store`, parent-child chunking and everything else on this page needs python mode
+(`retrieval_eval` works in both, see below).
 
 **Every knob in one runnable pipeline:** [`example_all_knobs.yaml`](example_all_knobs.yaml). It is exercised end to end by
 `tests/test_example_all_knobs.py`, so it stays correct.
@@ -102,8 +102,14 @@ passage changes the version.
 **`enrich`**: an LLM-written field on every chunk: `mode: summary | keywords | questions | context` (a situating
 sentence, the "contextual retrieval" technique; it is shown the chunk's `parent_text` when there is one), `model` (any
 litellm model, required), `prepend: true` to put the text in front of the chunk so it is embedded and hashed,
-`on_error: raise | skip`. One model call per chunk: it costs money and time. **Python mode only** — an arbitrary
-per-chunk LLM prompt has no warehouse-native equivalent.
+`on_error: raise | skip`. One model call per chunk: it costs money and time. **Also works in `execution_mode: sql`**
+(`model` becomes a warehouse-native model reference instead — BigQuery `ML.GENERATE_TEXT`, Snowflake Cortex
+`COMPLETE`, Databricks `ai_query`; same incremental reuse as classify/embed, invalidated by a model **or** mode
+change) — except `prepend: true`, rejected with a clear error (it would need `content_hash` re-hashed
+mid-statement, the same reason `sensitivity`'s `action: redact` is rejected), and `parent_text` (SQL mode never
+has parent-child chunking, so `mode: context` always uses the plain passage, same as python mode's own fallback
+when a chunk has no parent). `on_error` has no effect in SQL mode: the whole statement succeeds or fails together,
+there is no per-row skip.
 
 **`filter`**: drop by `min_chars`, `max_chars`, `min_alnum_ratio`, `exclude_patterns` (regexes for boilerplate, footers,
 signatures); reasons are counted in the step metadata. **Also works in `execution_mode: sql`** (plain `LENGTH`/
@@ -132,9 +138,13 @@ Python format specs like `{x:.2f}`); `ttl_days` is computed once at build time a
 per-dialect date-arithmetic function is needed.
 
 All four of `filter`/`dedupe`/`sensitivity`/`stamp` in SQL mode are inserted right after chunk-id/content-hash
-assignment and before receipts feedback and classify/embed, regardless of where they're listed in `steps:` — so
-dropped or deduped chunks never pay for a receipts-feedback join or a warehouse AI function call. Not yet supported
-together with `per_step_ops: true` in SQL mode (that path stays chunk/classify/embed-only, one table per step).
+assignment and before receipts feedback and classify/embed/enrich, regardless of where they're listed in `steps:` —
+so dropped or deduped chunks never pay for a receipts-feedback join or a warehouse AI function call. `classify` /
+`enrich` / `embed` themselves also run in that fixed order regardless of `steps:` order (on BigQuery specifically,
+each is its own warehouse-native table function, and only the last one in that order can wrap the final `SELECT`;
+the earlier ones materialize as their own CTE first). None of `filter`/`dedupe`/`sensitivity`/`stamp`/`enrich` is
+yet supported together with `per_step_ops: true` in SQL mode (that path stays chunk/classify/embed-only, one table
+per step).
 
 **`embed`**: `reuse_from: {connection_string, collection_name}` (chromadb) skips chunks whose `chunk_id`, `content_hash`
 and embedding model already exist in the index, so only new or changed chunks pay for an embedding call. Every embedded
@@ -548,3 +558,4 @@ Every field name and step shape here is meant to be as readable for a human anal
 - `execution_mode: sql` + `per_step_ops: true` — same DuckDB-backed execution path (`tests/test_sql_per_step_ops.py`): real `dg.materialize()` builds three real, separate physical tables, asserts the per-step asset lineage (`AssetsDefinition.asset_deps`) and that incremental reuse is scoped per table, not shared across them. Also caught (and fixed, both execution modes) a real Dagster `AssetsDefinition.from_graph` gap along the way: a check declared via `check_specs` needs a literally-named graph output (`AssetCheckSpec.get_python_identifier()`), not just a bare `yield AssetCheckResult(...)` — `retrieval_quality`/`recipe_outcomes` would otherwise crash `build_defs()` the first time they were combined with `per_step_ops` in either mode.
 - `per_step_ops: true` (python mode) + `source: {kind: warehouse_query}` + partitioning, all three together — real against DuckDB (`test_per_step_ops_with_source_warehouse_query_and_no_upstream_asset_key`, `test_per_step_ops_partitioned_source_reads_only_its_own_partition`). Caught and fixed a real bug: the first step's op always declared an `upstream: pd.DataFrame = None` parameter, even with `source:` (no `upstream_asset_key`) wired to it — `_pipeline_fn` calls it with zero args, but Dagster still gives that declared-but-unconnected parameter a real input slot (default value `None`) and type-checks it against the `pd.DataFrame` annotation, raising `DagsterTypeCheckDidNotPass`. Every existing committed `per_step_ops` test only ever used `upstream_asset_key`, so this combination had never actually been exercised. Fixed by omitting the `upstream` parameter entirely from the first step's op when there's no `upstream_asset_key` to connect to it.
 - `execution_mode: sql` + `filter`/`dedupe`/`sensitivity`/`stamp` — real against DuckDB, all 3 dialects (`tests/test_sql_filter_dedupe_sensitivity_stamp.py`): min/max_chars, min_alnum_ratio, portable `exclude_patterns`, both dedupe modes, `within`-scoped dedupe, sensitivity `tag`/`drop` for the email/ssn/ipv4 detectors, stamp's `columns` templating and `ttl_days`, and all four combined in one build alongside classify/embed. Also real, executed rejections (not just structural): `exclude_patterns` using lookahead/lookbehind/backreferences, the `phone`/`credit_card` sensitivity detectors, `action: redact`, a stamp template with a Python format spec, and `per_step_ops: true` combined with any of these four (that path stays chunk/classify/embed-only). Fixing the hardcoded `FROM stamped` references these new steps needed to interpose before also surfaced that the receipts-feedback join previously assumed "stamped" was always literally the frontmost CTE -- now driven off a `cur` pointer like the rest of the statement.
+- `execution_mode: sql` + `enrich` — real against DuckDB for Snowflake (`SNOWFLAKE.CORTEX.COMPLETE`) and Databricks (`ai_query`, the SAME function Databricks' real `ai_query` already serves embed with -- `tests/test_sql_enrich.py` tells the two calls apart by argument shape, the same way a real model-agnostic endpoint dispatch would): incremental reuse invalidated by a model **or** mode change (not just model, unlike embed), custom `output_column`, combined with classify/embed in one build, and `prepend: true` rejected with a clear error. **BigQuery's `ML.GENERATE_TEXT`/`AI.GENERATE_TEXT` is checked structurally only** (string assertions on the generated SQL, checked by hand against the real BigQuery docs) -- confirmed directly that sqlglot 28.0.0 has no parser support for either spelling's `MODEL`/`TABLE`/`STRUCT` table-function syntax (`sqlglot.parse_one` raises `ParseError` on both), so there is no fake client to execute it against, unlike every other BigQuery path in this component.

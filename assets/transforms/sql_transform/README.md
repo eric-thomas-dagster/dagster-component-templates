@@ -38,6 +38,17 @@ WHERE order_date = '{{ partition_key }}'
 {% endif %}
 ```
 
+**In YAML, wrap every `{{ partition_key }}`-style reference in `{% raw %}...{% endraw %}`.** Dagster's component YAML is itself resolved as Jinja2 at load time, before this component ever sees the `sql:` string -- so an unescaped `{{ partition_key }}` gets evaluated (and fails) by dg's own templating pass, which runs long before a partition exists to fill it in. `{% raw %}` tells dg's pass to leave that span untouched, so the literal text reaches this component's own, separate render at materialization time:
+
+```yaml
+attributes:
+  sql: |
+    SELECT * FROM orders
+    WHERE order_date = '{% raw %}{{ partition_key }}{% endraw %}'
+```
+
+This applies to every auto-injected variable below (`partition_key`, `partition_keys`, `partition_key_range_start`/`_end`, `partition_time_window_start`/`_end`, `asset_key`, `run_id`) and to any `template_vars` key -- dg's own templating pass doesn't know about this component's `template_vars:` either, so those need the same `{% raw %}` protection to reach this component's own render instead of being resolved (and likely failing) at load time.
+
 ### Auto-injected context vars
 
 When the asset runs, the following are available in the template (no need to declare in `template_vars`):
@@ -61,8 +72,7 @@ When the asset runs, the following are available in the template (no need to dec
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `connection_url_env_var` | `str` | Env var holding a SQLAlchemy URL. Examples: SNOWFLAKE_URL, BIGQUERY_URL, REDSHIFT_URL, POSTGRES_URL. |
-| `sql` | `str` | The SELECT body. Will be wrapped in `CREATE TABLE <dest> AS <sql>` or `INSERT INTO <dest> <sql>` based on if_exists. |
+| `sql` | `str` | The SELECT body. Will be wrapped in `CREATE TABLE <dest> AS <sql>` or `INSERT INTO <dest> <sql>` based on if_exists. This string is resolved by dg's own component-YAML Jinja templating BEFORE this component ever sees it… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -71,10 +81,11 @@ When the asset runs, the following are available in the template (no need to dec
 | `kinds` | `List[str]` | — | Asset kinds for the catalog. Auto-inferred from the connection URL scheme if unset (e.g. 'snowflake', 'bigquery', 'redshift'). |
 | `group_name` | `str` | `"warehouse_transforms"` | Dagster asset group name. |
 | `description` | `str` | — | Asset description shown in the catalog. |
-| `asset_tags` | `Dict[str, str]` | — | Key-value tags for the catalog. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Key-value tags for the catalog. |
 | `owners` | `List[str]` | — | Asset owners — team names or email addresses. |
-| `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage: output column → list of upstream columns it derives from, e.g. {'revenue': ['price', 'quantity']}. |
+| `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is `upstream_asset_key`, or th… _(full docs in schema.json + component README)_ |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run: the SQL template is rendered ONCE with partition_key_range_start/partition_key_range_end and partition_t… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -90,9 +101,10 @@ When the asset runs, the following are available in the template (no need to dec
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
-| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer'. |
 | `partition_static_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current static partition value. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts (same shape as the ExternalXAsset components). Overrides partition_type/partition_values/partition_static_dim when set -- use t… _(full docs in schema.json + component README)_ |
 
 ### Retry policy
 
@@ -112,10 +124,12 @@ When the asset runs, the following are available in the template (no need to dec
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `connection_url_env_var` | `str` | `"DATABASE_URL"` | Env var holding a SQLAlchemy URL. Examples: SNOWFLAKE_URL, BIGQUERY_URL, REDSHIFT_URL, POSTGRES_URL, or DATABASE_URL (default) pointed at a local file for a zero-setup demo, e.g. 'duckdb:///demo.db'. |
 | `destination_table` | `str` | — | Fully-qualified destination table. Format depends on the warehouse: 'DB.SCHEMA.TABLE' for Snowflake, 'project.dataset.table' (or backticked) for BigQuery, 'schema.table' for Redshift. Required when return_dataframe=false. |
 | `template_vars` | `Dict[str, str]` | — | Variables to interpolate into the SQL template. Rendered via Jinja2 when installed (so `{% if ... %}` / `{% for ... %}` work), otherwise a simple `{{ name }}` str.replace fallback. |
 | `return_dataframe` | `bool` | `false` | When true, execute the SQL as a SELECT and return its result as a DataFrame asset (no CTAS / INSERT). Useful for inline reads downstream of pandas transforms. When false (default), the SQL is wrapped in CREATE TABLE / IN… _(full docs in schema.json + component README)_ |
 | `upstream_asset_keys` | `Union[str, List[str]]` | — | Upstream Dagster asset keys this transform depends on. Typically external_snowflake_table / external_bigquery_table assets that represent the source warehouse tables. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 
@@ -130,10 +144,12 @@ attributes:
   connection_url_env_var: SNOWFLAKE_URL
   destination_table: ANALYTICS.PUBLIC.DAILY_REVENUE
   sql: |
+    {% raw %}
     SELECT region, SUM(amount) AS revenue
     FROM {{ source_table }}
     WHERE order_date = '{{ partition_key }}'
     GROUP BY region
+    {% endraw %}
   template_vars:
     source_table: ANALYTICS.PUBLIC.ORDERS
   partition_type: daily
@@ -149,11 +165,13 @@ attributes:
   connection_url_env_var: SNOWFLAKE_URL
   return_dataframe: true
   sql: |
+    {% raw %}
     SELECT customer_id, SUM(amount) AS lifetime_value
     FROM {{ orders }}
     GROUP BY customer_id
     ORDER BY lifetime_value DESC
     LIMIT 100
+    {% endraw %}
   template_vars:
     orders: ANALYTICS.PUBLIC.ORDERS
 ```
@@ -164,6 +182,7 @@ attributes:
 
 ```yaml
 sql: |
+  {% raw %}
   SELECT *
   FROM {{ source_table }}
   {% if partition_key %}
@@ -171,7 +190,10 @@ sql: |
   {% else %}
   WHERE event_date >= CURRENT_DATE - INTERVAL '30 days'
   {% endif %}
+  {% endraw %}
 ```
+
+The `{% raw %}` block above has to wrap the WHOLE templated body, including the `{% if %}`/`{% else %}`/`{% endif %}` control structure, not just the `{{ }}` variable references inside it -- dg's own load-time pass parses the full Jinja grammar, so an unescaped `{% if partition_key %}` would also be evaluated (and fail, since `partition_key` isn't one of dg's own built-in template scopes) before this component's own render ever runs.
 
 ### BigQuery aggregation
 
@@ -182,6 +204,7 @@ attributes:
   connection_url_env_var: BIGQUERY_URL
   destination_table: "`my-project.analytics.daily_revenue`"
   sql: |
+    {% raw %}
     SELECT
       DATE(created_at) AS day,
       SUM(amount) AS total_revenue,
@@ -189,6 +212,7 @@ attributes:
     FROM {{ orders }}
     GROUP BY 1
     ORDER BY 1
+    {% endraw %}
   template_vars:
     orders: "`my-project.raw.orders`"
   if_exists: replace

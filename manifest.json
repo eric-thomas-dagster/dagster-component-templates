@@ -24658,7 +24658,7 @@
       "name": "External S3 Asset",
       "category": "external",
       "description": "Declare an S3 bucket as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "external_assets/external_s3_asset",
       "tags": [
@@ -24679,7 +24679,7 @@
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
-        "last_validated": "2026-05-08"
+        "last_validated": "2026-10-23"
       },
       "vendor": "AWS",
       "produces": [
@@ -24762,7 +24762,7 @@
       "name": "External SFTP Path",
       "category": "external",
       "description": "Declare an SFTP directory as an observable external asset.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "external_assets/external_sftp_path",
       "tags": [
@@ -24784,7 +24784,7 @@
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
-        "last_validated": "2026-05-08"
+        "last_validated": "2026-10-23"
       },
       "produces": [
         "asset"
@@ -24814,7 +24814,7 @@
       "name": "External SharePoint Library",
       "category": "external",
       "description": "Declare a SharePoint document library as an observable external asset.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "external_assets/external_sharepoint_library",
       "tags": [
@@ -24836,7 +24836,7 @@
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
-        "last_validated": "2026-05-08"
+        "last_validated": "2026-10-23"
       },
       "vendor": "Microsoft",
       "produces": [
@@ -24878,10 +24878,10 @@
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/snowflake_single_entity.md",
-        "last_validated": "2026-05-22"
+        "last_validated": "2026-10-23"
       },
       "vendor": "Snowflake",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "dependencies": {
         "pip": []
@@ -24963,7 +24963,7 @@
       "name": "External SQL Asset",
       "category": "external",
       "description": "Declare an SQL table as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "external_assets/external_sql_asset",
       "tags": [
@@ -24985,7 +24985,7 @@
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/external_assets.md",
-        "last_validated": "2026-05-08"
+        "last_validated": "2026-10-23"
       },
       "produces": [
         "asset"
@@ -58316,7 +58316,7 @@
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/snowflake_single_entity.md",
-        "last_validated": "2026-05-22"
+        "last_validated": "2026-10-23"
       },
       "dependencies": {
         "pip": [
@@ -58324,7 +58324,7 @@
         ]
       },
       "vendor": "Snowflake",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "produces": [
         "sensor"
@@ -59857,7 +59857,7 @@
       "validation": {
         "level": "live",
         "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/transformations.md",
-        "last_validated": "2026-05-08"
+        "last_validated": "2026-10-23"
       },
       "agent_hints": {
         "inputs": "DataFrame(s) referenced in the SQL via `upstream_asset_key` (single) or `upstream_asset_keys` (multiple). Available in-query as table names.",
@@ -59867,7 +59867,7 @@
         "input_type": "pd.DataFrame",
         "output_type": "pd.DataFrame"
       },
-      "version": "1.0.0",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "produces": [
         "asset"

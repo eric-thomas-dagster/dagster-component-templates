@@ -4,6 +4,7 @@ attributes:
   connection_url_env_var: SNOWFLAKE_URL
   destination_table: ANALYTICS.PUBLIC.ORDERS_DEDUP
   sql: |
+    {% raw %}
     SELECT *
     FROM {{ upstream }}
     {% if partition_key %}
@@ -12,6 +13,7 @@ attributes:
     QUALIFY ROW_NUMBER() OVER (
       PARTITION BY order_id ORDER BY updated_at DESC
     ) = 1
+    {% endraw %}
   template_vars:
     upstream: ANALYTICS.PUBLIC.ORDERS_RAW
   if_exists: replace
@@ -22,6 +24,12 @@ attributes:
   # --- Inline read mode (no CTAS) — returns DataFrame for downstream pandas:
   # return_dataframe: true
   # (destination_table optional in this mode; the result becomes the asset value)
+
+  # --- Wrap in {% raw %}...{% endraw %} (as above): dg resolves this YAML's own
+  #     Jinja syntax at load time, before this component ever sees the sql: string,
+  #     so an unescaped {{ partition_key }} (or {% if partition_key %}) gets
+  #     evaluated -- and fails -- by dg's pass instead of reaching this
+  #     component's own, separate render at materialization time.
 
   # --- Auto-injected template vars (no need to declare):
   #   {{ partition_key }}                    set when context.has_partition_key

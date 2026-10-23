@@ -141,9 +141,11 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
 
     asset_name: str = Field(description="Dagster asset name")
     connection_url_env_var: str = Field(
+        default="DATABASE_URL",
         description=(
             "Env var holding a SQLAlchemy URL. Examples: SNOWFLAKE_URL, "
-            "BIGQUERY_URL, REDSHIFT_URL, POSTGRES_URL."
+            "BIGQUERY_URL, REDSHIFT_URL, POSTGRES_URL, or DATABASE_URL (default) "
+            "pointed at a local file for a zero-setup demo, e.g. 'duckdb:///demo.db'."
         ),
     )
     destination_table: Optional[str] = Field(
@@ -158,7 +160,15 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
     sql: str = Field(
         description=(
             "The SELECT body. Will be wrapped in `CREATE TABLE <dest> AS <sql>` "
-            "or `INSERT INTO <dest> <sql>` based on if_exists."
+            "or `INSERT INTO <dest> <sql>` based on if_exists. This string is "
+            "resolved by dg's own component-YAML Jinja templating BEFORE this "
+            "component ever sees it, same as every other field. A `{{ partition_key }}` "
+            "(or `partition_keys`/`partition_key_range_start`/etc.) reference -- which "
+            "this component's OWN, separate Jinja render fills in at materialization "
+            "time -- must be wrapped in `{% raw %}...{% endraw %}` in the YAML so dg's "
+            "pass leaves it untouched: e.g. `WHERE dt = '{% raw %}{{ partition_key }}{% endraw %}'`. "
+            "Without it, dg tries to resolve `partition_key` itself at load time (before "
+            "a run/partition exists) and fails."
         ),
     )
     template_vars: Optional[Dict[str, str]] = Field(
@@ -280,6 +290,17 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )
 
+    partition_dimensions: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} "
+            "dicts (same shape as the ExternalXAsset components). Overrides partition_type/"
+            "partition_values/partition_static_dim when set -- use this instead of "
+            "partition_type='multi' for full control over axis names (partition_type='multi' always "
+            "names its two axes 'date' and 'static_dim'/partition_static_dim)."
+        ),
+    )
+
     backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
         default=None,
         description=(
@@ -365,7 +386,8 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
 
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values,
-            None, None,
+            None, self.partition_dimensions,
+            static_dim_name=self.partition_static_dim,
         )
         _backfill_policy_obj = None
         if partitions_def is not None and self.backfill_policy == "single_run":
@@ -525,6 +547,7 @@ def _build_partitions_def(
     partition_values,
     dynamic_partition_name,
     partition_dimensions,
+    static_dim_name=None,
 ):
     """Construct a Dagster partitions_def from the canonical partition fields.
 
@@ -616,7 +639,7 @@ def _build_partitions_def(
             raise ValueError("partition_type='multi' requires partition_start (the date axis start).")
         return MultiPartitionsDefinition({
             "date": DailyPartitionsDefinition(start_date=partition_start),
-            "static_dim": StaticPartitionsDefinition(_values),
+            (static_dim_name or "static_dim"): StaticPartitionsDefinition(_values),
         })
     raise ValueError(f"unknown partition_type: {partition_type!r}")
 

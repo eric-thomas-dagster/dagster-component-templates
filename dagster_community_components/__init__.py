@@ -752,6 +752,7 @@ _CLASS_PATHS: dict[str, str] = {
     "LabelEncoderComponent": "assets/transforms/label_encoder/component.py",
     "LakeFSAssetComponent": "assets/analytics/lakefs_asset/component.py",
     "LakeFSIOManagerComponent": "io_managers/lakefs_io_manager/component.py",
+    "LambdaInvokeAssetComponent": "assets/infrastructure/lambda_invoke_asset/component.py",
     "LanceIOManagerComponent": "io_managers/lance_io_manager/component.py",
     "LangChainChainAssetComponent": "assets/ai/langchain_chain_asset/component.py",
     "LangGraphAgentComponent": "assets/ai/langgraph_agent/component.py",

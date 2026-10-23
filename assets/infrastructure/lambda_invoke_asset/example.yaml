@@ -1,0 +1,12 @@
+type: dagster_component_templates.LambdaInvokeAssetComponent
+attributes:
+  asset_name: score_transaction
+  function_name: fraud-scoring-fn
+  region_name: us-east-1
+  payload_template: |
+    {"transaction_id": "{{ partition_key }}"}
+  partition_type: cron
+  partition_start: '2024-01-01'
+  partition_cron_schedule: '0 0 * * 1-5'
+  group_name: risk
+  kinds: [aws, lambda]

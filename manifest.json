@@ -60466,6 +60466,58 @@
       }
     },
     {
+      "id": "lambda_invoke_asset",
+      "name": "Lambda Invoke",
+      "category": "infrastructure",
+      "description": "Invoke an AWS Lambda function as a Dagster asset -- synchronous (parses the JSON response) or async fire-and-forget, fails loudly on a Lambda-side FunctionError unless told not to.",
+      "path": "assets/infrastructure/lambda_invoke_asset",
+      "tags": [
+        "aws",
+        "lambda",
+        "infrastructure",
+        "invoke"
+      ],
+      "icon": "si:awslambda",
+      "type": "dagster_component_templates.LambdaInvokeAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/lambda_invoke_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/lambda_invoke_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/lambda_invoke_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/lambda_invoke_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/lambda_invoke_asset/requirements.txt",
+      "component_type": "dagster_component_templates.LambdaInvokeAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-23"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "boto3",
+          "jinja2"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with the parsed Lambda response in metadata.",
+        "requires_pip": [
+          "boto3",
+          "jinja2"
+        ]
+      },
+      "keywords": [
+        "infra",
+        "aws",
+        "lambda",
+        "invoke",
+        "serverless"
+      ]
+    },
+    {
       "id": "step_functions_asset",
       "name": "AWS Step Functions Asset",
       "category": "infrastructure",

@@ -13,21 +13,31 @@
     "asset_key": {
       "type": "string",
       "label": "Asset Key",
-      "description": "Dagster asset key for this source",
-      "required": true
+      "description": "Dagster asset key for a single source. Mutually exclusive with `sources:` -- use this (with `bucket_name:`/`prefix:`) for one bucket/prefix, or `sources:` to declare several from one component instance sharing region_name and one observation sensor.",
+      "required": false,
+      "default": null
     },
     "bucket_name": {
       "type": "string",
       "label": "Bucket Name",
-      "description": "S3 bucket name",
-      "required": true
+      "description": "S3 bucket name for a single source. Mutually exclusive with `sources:`.",
+      "required": false,
+      "default": null
     },
     "prefix": {
       "type": "string",
       "label": "Prefix",
-      "description": "Key prefix",
+      "description": "Key prefix for a single source. Mutually exclusive with `sources:`.",
       "required": false,
       "default": ""
+    },
+    "sources": {
+      "type": "array",
+      "items": { "type": "object" },
+      "label": "Sources",
+      "description": "Declare several S3 bucket/prefix sources as external assets from one component instance, instead of one ExternalS3Asset YAML block (and, with create_observation_sensor=true, one polling sensor) per source. Each entry: `key` (Dagster asset key, required), `bucket_name` (required), `prefix` (optional), plus optional `deps`, `owners`, `metadata`, `group_name`, `description`. All entries share this component's region_name and (if enabled) ONE sensor that lists every source's objects per tick -- set `sensor_name` explicitly when using `sources:` with create_observation_sensor=true. Mutually exclusive with the top-level `asset_key`/`bucket_name`/`prefix` fields.",
+      "required": false,
+      "default": null
     },
     "region_name": {
       "type": "string",
@@ -61,7 +71,7 @@
     "sensor_name": {
       "type": "string",
       "label": "Sensor Name",
-      "description": "Unique sensor name. Defaults to '{bucket_name}__observation_sensor' (sanitized to valid sensor-name characters). Only used when create_observation_sensor=True.",
+      "description": "Unique sensor name. Defaults to '{bucket_name}__observation_sensor' (sanitized) in single-source mode. Required when using `sources:` (no single bucket to derive a default from). Only used when create_observation_sensor=True.",
       "required": false,
       "default": null
     },

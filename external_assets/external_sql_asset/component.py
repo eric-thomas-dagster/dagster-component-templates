@@ -145,9 +145,33 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 
 
 class ExternalSqlAsset(dg.Component, dg.Model, dg.Resolvable):
-    asset_key: str = Field(description="Dagster asset key")
-    table_name: str = Field(description="Table name (use schema.table for non-default schemas)")
     connection_string_env_var: str = Field(description="Env var containing the SQLAlchemy connection string")
+    asset_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster asset key for a single table. Mutually exclusive with `tables:` -- use "
+            "this (with `table_name:`) for one table, or `tables:` to declare several from one "
+            "component instance sharing connection_string_env_var and one observation sensor."
+        ),
+    )
+    table_name: Optional[str] = Field(
+        default=None,
+        description="Table name (use schema.table for non-default schemas) for a single table. Mutually exclusive with `tables:`.",
+    )
+    tables: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Declare several tables as external assets from one component instance, instead of "
+            "one ExternalSqlAsset YAML block (and, with create_observation_sensor=true, one "
+            "polling sensor) per table. Each entry: `key` (Dagster asset key, required), "
+            "`table_name` (required), plus optional `watermark_column`, `deps`, `owners`, "
+            "`metadata`, `group_name`, `description`. All entries share this component's "
+            "connection_string_env_var and (if enabled) ONE sensor that queries every table's "
+            "row count/watermark per tick -- set `sensor_name` explicitly when using `tables:` "
+            "with create_observation_sensor=true. Mutually exclusive with the top-level "
+            "`asset_key`/`table_name` fields."
+        ),
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     description: Optional[str] = Field(default=None, description="Human-readable description")
 
@@ -162,13 +186,18 @@ class ExternalSqlAsset(dg.Component, dg.Model, dg.Resolvable):
     )
     sensor_name: Optional[str] = Field(
         default=None,
-        description="Unique sensor name. Defaults to '{asset_key}__observation_sensor'. Only used when create_observation_sensor=True.",
+        description=(
+            "Unique sensor name. Defaults to '{asset_key}__observation_sensor' in single-table mode. "
+            "Required when using `tables:` (no single table name to derive a default from). "
+            "Only used when create_observation_sensor=True."
+        ),
     )
     watermark_column: Optional[Union[str, int]] = Field(
         default=None,
         description=(
             "Column for latest value metric (e.g. updated_at). Used to derive the DataVersion in the "
-            "native path. Only used when create_observation_sensor=True."
+            "native path. Single-table mode only -- set per-entry `watermark_column` under `tables:`. "
+            "Only used when create_observation_sensor=True."
         ),
     )
     check_interval_seconds: int = Field(
@@ -219,7 +248,56 @@ class ExternalSqlAsset(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=(), csv=('partition_values',), tags=())
 
+    def _resolve_table_entries(self) -> List[Dict[str, Any]]:
+        has_single = bool(self.asset_key or self.table_name)
+        has_multi = bool(self.tables)
+        if has_single and has_multi:
+            raise ValueError("Set either asset_key/table_name (single table) or tables: (several tables), not both.")
+        if not has_single and not has_multi:
+            raise ValueError("Set either asset_key/table_name (single table) or tables: (several tables).")
+
+        if has_single:
+            if not self.asset_key or not self.table_name:
+                raise ValueError("Both asset_key and table_name are required in single-table mode.")
+            return [{
+                "key": self.asset_key,
+                "table_name": self.table_name,
+                "watermark_column": self.watermark_column,
+                "deps": None,
+                "owners": None,
+                "metadata": None,
+                "group_name": self.group_name,
+                "description": self.description,
+            }]
+
+        entries = []
+        seen_keys = set()
+        for i, raw in enumerate(self.tables):
+            if not isinstance(raw, dict):
+                raise ValueError(f"tables[{i}] must be a mapping, got {type(raw).__name__}")
+            key = raw.get("key")
+            table_name = raw.get("table_name")
+            if not key:
+                raise ValueError(f"tables[{i}] is missing required field 'key'")
+            if not table_name:
+                raise ValueError(f"tables[{i}] ({key!r}) is missing required field 'table_name'")
+            if key in seen_keys:
+                raise ValueError(f"tables: duplicate key {key!r}")
+            seen_keys.add(key)
+            entries.append({
+                "key": key,
+                "table_name": table_name,
+                "watermark_column": raw.get("watermark_column"),
+                "deps": raw.get("deps"),
+                "owners": raw.get("owners"),
+                "metadata": raw.get("metadata"),
+                "group_name": raw.get("group_name", self.group_name),
+                "description": raw.get("description"),
+            })
+        return entries
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        entries = self._resolve_table_entries()
         partitions_def = _build_partitions_def(
             self.partition_type,
             self.partition_start,
@@ -227,99 +305,118 @@ class ExternalSqlAsset(dg.Component, dg.Model, dg.Resolvable):
             self.dynamic_partition_name,
             self.partition_dimensions,
         )
-        spec = dg.AssetSpec(
-            key=dg.AssetKey.from_user_string(self.asset_key),
-            group_name=self.group_name,
-            description=self.description or f"SQL table {self.table_name}",
-            kinds={"sql", "database"},
-            metadata={
-                "table_name": self.table_name,
+
+        specs = []
+        for e in entries:
+            metadata = {
+                "table_name": e["table_name"],
                 "connection_string_env_var": self.connection_string_env_var,
                 "dagster.observability_type": "external",
-            },
-            partitions_def=partitions_def,
-        )
+            }
+            if e["metadata"]:
+                metadata.update(e["metadata"])
+            specs.append(dg.AssetSpec(
+                key=dg.AssetKey.from_user_string(e["key"]),
+                group_name=e["group_name"],
+                description=e["description"] or f"SQL table {e['table_name']}",
+                kinds={"sql", "database"},
+                deps=[dg.AssetKey.from_user_string(d) for d in e["deps"]] if e["deps"] else None,
+                owners=e["owners"] or None,
+                metadata=metadata,
+                partitions_def=partitions_def,
+            ))
 
         if not self.create_observation_sensor:
-            return dg.Definitions(assets=[spec])
+            return dg.Definitions(assets=specs)
 
-        _self = self
-        sensor_name = self.sensor_name or f"{re.sub(r'[^A-Za-z0-9_]+', '_', self.asset_key).strip('_')}__observation_sensor"
+        is_multi = self.tables is not None
+        if is_multi and not self.sensor_name:
+            raise ValueError(
+                "sensor_name is required when using tables: with create_observation_sensor=true "
+                "(there's no single table name to derive a default from)."
+            )
+        sensor_name = self.sensor_name or f"{re.sub(r'[^A-Za-z0-9_]+', '_', entries[0]['key']).strip('_')}__observation_sensor"
         resource_key = self.resource_key
         required_resource_keys = {resource_key} if resource_key else set()
+        _entries = entries
+        _self = self
 
         @dg.sensor(
             name=sensor_name,
             minimum_interval_seconds=self.check_interval_seconds,
             required_resource_keys=required_resource_keys,
-            asset_selection=dg.AssetSelection.keys(dg.AssetKey.from_user_string(self.asset_key)),
+            asset_selection=dg.AssetSelection.assets(*[dg.AssetKey.from_user_string(e["key"]) for e in _entries]),
         )
-        def _sql_obs(context: dg.SensorEvaluationContext):
+        def _sql_obs(context: dg.SensorEvaluationContext, **_resources):
             import os
             from dagster._core.definitions.data_version import DATA_VERSION_TAG
             _event_cls = dg.AssetMaterialization if _self.emit_materialization else dg.AssetObservation
+            events = []
 
-            # ── Resource-backed path (preferred) ────────────────────────────
+            # ── Resource-backed path (preferred): one client.observe() call per table ──
             if resource_key:
                 client = getattr(context.resources, resource_key, None)
                 if client is None:
                     return dg.SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
-                try:
-                    observed: dict[str, Any] = dict(client.observe(_self.table_name))
-                except Exception as e:
-                    context.log.error(f"resource '{resource_key}'.observe failed: {e}")
-                    return dg.SensorResult(skip_reason=f"resource observe failed: {e}")
-                data_version = str(observed.pop("data_version", ""))
-                return dg.SensorResult(asset_events=[_event_cls(
-                    asset_key=dg.AssetKey.from_user_string(_self.asset_key),
-                    metadata=observed,
-                    tags={DATA_VERSION_TAG: data_version} if data_version else None,
-                )])
+                for e in _entries:
+                    try:
+                        observed: dict[str, Any] = dict(client.observe(e["table_name"]))
+                    except Exception as ex:
+                        context.log.error(f"resource '{resource_key}'.observe({e['table_name']!r}) failed: {ex}")
+                        continue
+                    data_version = str(observed.pop("data_version", ""))
+                    events.append(_event_cls(
+                        asset_key=dg.AssetKey.from_user_string(e["key"]),
+                        metadata=observed,
+                        tags={DATA_VERSION_TAG: data_version} if data_version else None,
+                    ))
+                if not events:
+                    return dg.SensorResult(skip_reason="no tables observed this tick")
+                return dg.SensorResult(asset_events=events)
 
-            # ── Native SQLAlchemy path ──────────────────────────────────────
+            # ── Native SQLAlchemy path: ONE engine, queried for every table ──
             try:
                 import sqlalchemy as sa
             except ImportError:
                 return dg.SensorResult(skip_reason="sqlalchemy not installed")
 
+            conn_str = os.environ.get(_self.connection_string_env_var, "")
+            if not conn_str:
+                return dg.SensorResult(skip_reason=f"env var '{_self.connection_string_env_var}' not set")
             try:
-                conn_str = os.environ.get(_self.connection_string_env_var, "")
-                if not conn_str:
-                    return dg.SensorResult(skip_reason=f"env var '{_self.connection_string_env_var}' not set")
                 engine = sa.create_engine(conn_str)
-            except Exception as e:
-                return dg.SensorResult(skip_reason=f"Connect failed: {e}")
+            except Exception as ex:
+                return dg.SensorResult(skip_reason=f"Connect failed: {ex}")
 
             try:
                 with engine.connect() as conn:
-                    row_count = conn.execute(
-                        sa.text(f"SELECT COUNT(*) FROM {_self.table_name}")
-                    ).scalar()
-                    latest_watermark = None
-                    if _self.watermark_column:
-                        latest_watermark = conn.execute(
-                            sa.text(f"SELECT MAX({_self.watermark_column}) FROM {_self.table_name}")
-                        ).scalar()
-            except Exception as e:
-                return dg.SensorResult(skip_reason=f"Query failed: {e}")
+                    for e in _entries:
+                        table_name = e["table_name"]
+                        try:
+                            row_count = conn.execute(sa.text(f"SELECT COUNT(*) FROM {table_name}")).scalar()
+                            latest_watermark = None
+                            if e["watermark_column"]:
+                                latest_watermark = conn.execute(
+                                    sa.text(f"SELECT MAX({e['watermark_column']}) FROM {table_name}")
+                                ).scalar()
+                        except Exception as ex:
+                            context.log.error(f"Query for table {table_name!r} failed: {ex}")
+                            continue
 
-            metadata: dict[str, Any] = {
-                "row_count": row_count,
-                "table_name": _self.table_name,
-            }
-            if latest_watermark is not None:
-                metadata["latest_watermark"] = str(latest_watermark)
+                        metadata: dict[str, Any] = {"row_count": row_count, "table_name": table_name}
+                        if latest_watermark is not None:
+                            metadata["latest_watermark"] = str(latest_watermark)
+                        data_version = str(latest_watermark) if latest_watermark is not None else str(row_count if row_count is not None else 0)
+                        events.append(_event_cls(
+                            asset_key=dg.AssetKey.from_user_string(e["key"]),
+                            metadata=metadata,
+                            tags={DATA_VERSION_TAG: data_version},
+                        ))
+            finally:
+                engine.dispose()
 
-            # Prefer watermark for data_version; fall back to row_count.
-            if latest_watermark is not None:
-                data_version = str(latest_watermark)
-            else:
-                data_version = str(row_count if row_count is not None else 0)
+            if not events:
+                return dg.SensorResult(skip_reason="no tables observed this tick")
+            return dg.SensorResult(asset_events=events)
 
-            return dg.SensorResult(asset_events=[_event_cls(
-                asset_key=dg.AssetKey.from_user_string(_self.asset_key),
-                metadata=metadata,
-                tags={DATA_VERSION_TAG: data_version},
-            )])
-
-        return dg.Definitions(assets=[spec], sensors=[_sql_obs])
+        return dg.Definitions(assets=specs, sensors=[_sql_obs])

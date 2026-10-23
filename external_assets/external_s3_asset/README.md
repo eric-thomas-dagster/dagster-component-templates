@@ -15,13 +15,6 @@ This component does not read from or write to S3. It is a **lineage declaration 
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `asset_key` | `str` | Dagster asset key for this source |
-| `bucket_name` | `str` | S3 bucket name |
-
 ### Connection
 
 | Field | Type | Default | Description |
@@ -32,6 +25,7 @@ This component does not read from or write to S3. It is a **lineage declaration 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_key` | `str` | — | Dagster asset key for a single source. Mutually exclusive with `sources:` -- use this (with `bucket_name:`/`prefix:`) for one bucket/prefix, or `sources:` to declare several from one component instance sharing region_nam… _(full docs in schema.json + component README)_ |
 | `group_name` | `str` | — | Dagster asset group name |
 | `description` | `str` | — | Human-readable description |
 
@@ -41,25 +35,27 @@ This component does not read from or write to S3. It is a **lineage declaration 
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily'\|'weekly'\|'monthly'\|'hourly'\|'static'\|'dynamic'\|'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | ISO start date for time-based partition types (e.g. '2024-01-01'). |
-| `partition_values` | `str` | — | Comma-separated values for static / multi partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static / multi partition types. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec; overrides flat fields when set. |
 
 ### Sensor configuration
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{bucket_name}__observation_sensor' (sanitized to valid sensor-name characters). Only used when create_observation_sensor=True. |
+| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{bucket_name}__observation_sensor' (sanitized) in single-source mode. Required when using `sources:` (no single bucket to derive a default from). Only used when create_observation_sensor=True. |
 
 ### Source / target
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `prefix` | `str` | — | Key prefix |
+| `bucket_name` | `str` | — | S3 bucket name for a single source. Mutually exclusive with `sources:`. |
+| `prefix` | `str` | — | Key prefix for a single source. Mutually exclusive with `sources:`. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `sources` | `List[Dict[str, Any]]` | — | Declare several S3 bucket/prefix sources as external assets from one component instance, instead of one ExternalS3Asset YAML block (and, with create_observation_sensor=true, one polling sensor) per source. Each entry: `k… _(full docs in schema.json + component README)_ |
 | `region_name` | `str` | — | AWS region |
 | `create_observation_sensor` | `bool` | `false` | Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone s3_observation_sensor component). When False (default), this component only declares the AssetSpec… _(full docs in schema.json + component README)_ |
 | `check_interval_seconds` | `int` | `300` | Seconds between health checks. Only used when create_observation_sensor=True. |
@@ -114,6 +110,35 @@ attributes:
   asset_key: external/s3
   bucket_name: my_bucket
 ```
+
+## Several sources from one component instance
+
+Use `sources:` instead of the top-level `asset_key`/`bucket_name`/`prefix` fields to declare
+several bucket/prefix sources from one `ExternalS3Asset` instance, instead of one YAML block per
+source:
+
+```yaml
+type: dagster_component_templates.ExternalS3Asset
+attributes:
+  group_name: s3_sources
+  sources:
+    - key: lake/orders
+      bucket_name: my-bucket
+      prefix: orders/
+    - key: lake/invoices
+      bucket_name: my-bucket
+      prefix: invoices/
+      owners: ["team:finance"]
+  create_observation_sensor: true
+  sensor_name: s3_sources_observer  # required with sources: -- no single bucket to default from
+```
+
+All sources share this instance's `region_name`. With `create_observation_sensor: true`, they also
+share **one** sensor that lists every source's objects per tick instead of one sensor per source. A
+source whose listing fails doesn't block the rest — it's skipped for that tick and reported again
+next time.
+
+`asset_key`/`bucket_name`/`prefix` and `sources:` are mutually exclusive on one component instance.
 
 ## Requirements
 

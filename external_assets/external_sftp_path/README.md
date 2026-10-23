@@ -19,9 +19,7 @@ This component does not read from or write to Sftp Path. It is a **lineage decla
 
 | Field | Type | Description |
 |---|---|---|
-| `asset_key` | `str` | Dagster asset key |
 | `host` | `str` | SFTP host |
-| `remote_path` | `str` | Remote directory path |
 
 ### Connection
 
@@ -37,6 +35,7 @@ This component does not read from or write to Sftp Path. It is a **lineage decla
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_key` | `str` | — | Dagster asset key for a single path. Mutually exclusive with `paths:` -- use this (with `remote_path:`) for one directory, or `paths:` to declare several from one component instance sharing host and one observation sensor. |
 | `group_name` | `str` | — | Dagster asset group name |
 | `description` | `str` | — | Human-readable description |
 
@@ -46,19 +45,21 @@ This component does not read from or write to Sftp Path. It is a **lineage decla
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily'\|'weekly'\|'monthly'\|'hourly'\|'static'\|'dynamic'\|'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | ISO start date for time-based partition types (e.g. '2024-01-01'). |
-| `partition_values` | `str` | — | Comma-separated values for static / multi partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static / multi partition types. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec; overrides flat fields when set. |
 
 ### Sensor configuration
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{asset_key}__observation_sensor'. Only used when create_observation_sensor=True. |
+| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{asset_key}__observation_sensor' in single-path mode. Required when using `paths:` (no single path to derive a default from). Only used when create_observation_sensor=True. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `remote_path` | `str` | — | Remote directory path for a single path. Mutually exclusive with `paths:`. |
+| `paths` | `List[Dict[str, Any]]` | — | Declare several remote directories as external assets from one component instance, instead of one ExternalSftpPathAsset YAML block (and, with create_observation_sensor=true, one polling sensor and one SSH connection) per… _(full docs in schema.json + component README)_ |
 | `create_observation_sensor` | `bool` | `false` | Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone sftp_path_observation_sensor component). When False (default), this component only declares the As… _(full docs in schema.json + component README)_ |
 | `check_interval_seconds` | `int` | `300` | Seconds between health checks. Only used when create_observation_sensor=True. |
 | `emit_materialization` | `bool` | `true` | When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, downstream AutomationCondition.eager() fires on parent updates). When False, emits AssetObservation instead (no Dagster+ credit charg… _(full docs in schema.json + component README)_ |
@@ -118,6 +119,33 @@ attributes:
   username_env_var: SFTP_USERNAME
   password_env_var: SFTP_PASSWORD
 ```
+
+## Several paths from one component instance
+
+Use `paths:` instead of the top-level `asset_key`/`remote_path` fields to declare several remote
+directories from one `ExternalSftpPathAsset` instance, instead of one YAML block per path:
+
+```yaml
+type: dagster_component_templates.ExternalSftpPathAsset
+attributes:
+  host: SFTP_HOST
+  group_name: sftp_sources
+  paths:
+    - key: files/orders
+      remote_path: /orders
+    - key: files/invoices
+      remote_path: /invoices
+      owners: ["team:finance"]
+  create_observation_sensor: true
+  sensor_name: sftp_sources_observer  # required with paths: -- no single path to default from
+```
+
+All paths share this instance's `host`/port/credentials. With `create_observation_sensor: true`,
+they also share **one** sensor that polls every path over a **single** SSH connection per tick,
+instead of one sensor and one connection per path. A path whose listing fails doesn't block the
+rest — it's skipped for that tick and reported again next time.
+
+`asset_key`/`remote_path` and `paths:` are mutually exclusive on one component instance.
 
 ## Requirements
 

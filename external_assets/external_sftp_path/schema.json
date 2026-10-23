@@ -10,23 +10,33 @@
     }
   },
   "attributes": {
-    "asset_key": {
-      "type": "string",
-      "label": "Asset Key",
-      "description": "Dagster asset key",
-      "required": true
-    },
     "host": {
       "type": "string",
       "label": "Host",
       "description": "SFTP host",
       "required": true
     },
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Dagster asset key for a single path. Mutually exclusive with `paths:` -- use this (with `remote_path:`) for one directory, or `paths:` to declare several from one component instance sharing host and one observation sensor.",
+      "required": false,
+      "default": null
+    },
     "remote_path": {
       "type": "string",
       "label": "Remote Path",
-      "description": "Remote directory path",
-      "required": true
+      "description": "Remote directory path for a single path. Mutually exclusive with `paths:`.",
+      "required": false,
+      "default": null
+    },
+    "paths": {
+      "type": "array",
+      "items": { "type": "object" },
+      "label": "Paths",
+      "description": "Declare several remote directories as external assets from one component instance, instead of one ExternalSftpPathAsset YAML block (and, with create_observation_sensor=true, one polling sensor and one SSH connection) per path. Each entry: `key` (Dagster asset key, required), `remote_path` (required), plus optional `deps`, `owners`, `metadata`, `group_name`, `description`. All entries share this component's host/port/credentials and (if enabled) ONE sensor that polls every path over a single SSH connection per tick -- set `sensor_name` explicitly when using `paths:` with create_observation_sensor=true. Mutually exclusive with the top-level `asset_key`/`remote_path` fields.",
+      "required": false,
+      "default": null
     },
     "group_name": {
       "type": "string",
@@ -53,7 +63,7 @@
     "sensor_name": {
       "type": "string",
       "label": "Sensor Name",
-      "description": "Unique sensor name. Defaults to '{asset_key}__observation_sensor'. Only used when create_observation_sensor=True.",
+      "description": "Unique sensor name. Defaults to '{asset_key}__observation_sensor' in single-path mode. Required when using `paths:` (no single path to derive a default from). Only used when create_observation_sensor=True.",
       "required": false,
       "default": null
     },

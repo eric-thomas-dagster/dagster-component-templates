@@ -60,44 +60,114 @@ class ExternalSnowflakeOpenflowFlowAsset(dg.Component, dg.Model, dg.Resolvable):
         ```
     """
 
-    asset_key: str = Field(description="Dagster asset key (e.g. 'snowflake/openflow/customer_sync').")
-    flow_name: str = Field(description="OpenFlow process-group name.")
-    runtime_id: Optional[str] = Field(default=None, description="OpenFlow runtime id (optional metadata).")
+    asset_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster asset key (e.g. 'snowflake/openflow/customer_sync') for a single flow. "
+            "Mutually exclusive with `flows:` -- use this (with `flow_name:`) for one flow, or "
+            "`flows:` to declare several from one component instance."
+        ),
+    )
+    flow_name: Optional[str] = Field(default=None, description="OpenFlow process-group name for a single flow. Mutually exclusive with `flows:`.")
+    flows: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Declare several OpenFlow process groups as external assets from one component "
+            "instance, instead of one block per flow. Each entry: `key` (Dagster asset key, "
+            "required), `flow_name` (OpenFlow process-group name, required), plus optional "
+            "`runtime_id`, `deps`, `owners`, `tags`, `kinds`, `group_name`, `description`. "
+            "Mutually exclusive with the top-level `asset_key`/`flow_name` fields."
+        ),
+    )
+    runtime_id: Optional[str] = Field(default=None, description="OpenFlow runtime id (optional metadata). Single-flow mode only.")
     group_name: Optional[str] = Field(default="snowflake", description="Dagster asset group name.")
-    description: Optional[str] = Field(default=None, description="Asset description.")
-    owners: Optional[List[str]] = Field(default=None, description="Asset owners.")
-    tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Catalog tags.")
-    kinds: Optional[List[str]] = Field(default=None, description="Asset kinds (auto-includes 'snowflake', 'openflow').")
-    deps: Optional[List[str]] = Field(default=None, description="Upstream Dagster asset keys.")
+    description: Optional[str] = Field(default=None, description="Asset description. Single-flow mode only.")
+    owners: Optional[List[str]] = Field(default=None, description="Asset owners. Single-flow mode only.")
+    tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Catalog tags. Single-flow mode only.")
+    kinds: Optional[List[str]] = Field(default=None, description="Asset kinds (auto-includes 'snowflake', 'openflow'). Single-flow mode only.")
+    deps: Optional[List[str]] = Field(default=None, description="Upstream Dagster asset keys. Single-flow mode only.")
 
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=(), tags=('tags',))
 
+    def _resolve_flow_entries(self) -> List[Dict[str, Any]]:
+        has_single = bool(self.asset_key or self.flow_name)
+        has_multi = bool(self.flows)
+        if has_single and has_multi:
+            raise ValueError("Set either asset_key/flow_name (single flow) or flows: (several flows), not both.")
+        if not has_single and not has_multi:
+            raise ValueError("Set either asset_key/flow_name (single flow) or flows: (several flows).")
+
+        if has_single:
+            if not self.asset_key or not self.flow_name:
+                raise ValueError("Both asset_key and flow_name are required in single-flow mode.")
+            return [{
+                "key": self.asset_key,
+                "flow_name": self.flow_name,
+                "runtime_id": self.runtime_id,
+                "deps": self.deps,
+                "owners": self.owners,
+                "tags": self.tags,
+                "kinds": self.kinds,
+                "group_name": self.group_name,
+                "description": self.description,
+            }]
+
+        entries = []
+        seen_keys = set()
+        for i, raw in enumerate(self.flows):
+            if not isinstance(raw, dict):
+                raise ValueError(f"flows[{i}] must be a mapping, got {type(raw).__name__}")
+            key = raw.get("key")
+            flow_name = raw.get("flow_name")
+            if not key:
+                raise ValueError(f"flows[{i}] is missing required field 'key'")
+            if not flow_name:
+                raise ValueError(f"flows[{i}] ({key!r}) is missing required field 'flow_name'")
+            if key in seen_keys:
+                raise ValueError(f"flows: duplicate key {key!r}")
+            seen_keys.add(key)
+            entries.append({
+                "key": key,
+                "flow_name": flow_name,
+                "runtime_id": raw.get("runtime_id"),
+                "deps": raw.get("deps"),
+                "owners": raw.get("owners"),
+                "tags": raw.get("tags"),
+                "kinds": raw.get("kinds"),
+                "group_name": raw.get("group_name", self.group_name),
+                "description": raw.get("description"),
+            })
+        return entries
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        kinds = set(self.kinds) if self.kinds else set()
-        kinds.add("snowflake")
-        kinds.add("openflow")
+        entries = self._resolve_flow_entries()
+        specs = []
+        for e in entries:
+            kinds = set(e["kinds"]) if e["kinds"] else set()
+            kinds.add("snowflake")
+            kinds.add("openflow")
 
-        metadata: Dict[str, object] = {
-            "openflow_flow_name": self.flow_name,
-            "dagster.observability_type": "external",
-        }
-        if self.runtime_id:
-            metadata["openflow_runtime_id"] = self.runtime_id
+            metadata: Dict[str, object] = {
+                "openflow_flow_name": e["flow_name"],
+                "dagster.observability_type": "external",
+            }
+            if e["runtime_id"]:
+                metadata["openflow_runtime_id"] = e["runtime_id"]
 
-        spec = dg.AssetSpec(
-            key=dg.AssetKey.from_user_string(self.asset_key),
-            group_name=self.group_name,
-            description=self.description or (
-                f"Snowflake OpenFlow process group {self.flow_name} — "
-                f"declared external; updated via snowflake_openflow_status_sensor."
-            ),
-            kinds=kinds,
-            owners=self.owners,
-            tags=self.tags,
-            metadata=metadata,
-            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
-        )
-        return dg.Definitions(assets=[spec])
+            specs.append(dg.AssetSpec(
+                key=dg.AssetKey.from_user_string(e["key"]),
+                group_name=e["group_name"],
+                description=e["description"] or (
+                    f"Snowflake OpenFlow process group {e['flow_name']} — "
+                    f"declared external; updated via snowflake_openflow_status_sensor."
+                ),
+                kinds=kinds,
+                owners=e["owners"],
+                tags=e["tags"],
+                metadata=metadata,
+                deps=[dg.AssetKey.from_user_string(k) for k in (e["deps"] or [])],
+            ))
+        return dg.Definitions(assets=specs)

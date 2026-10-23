@@ -10,23 +10,33 @@
     }
   },
   "attributes": {
-    "asset_key": {
-      "type": "string",
-      "label": "Asset Key",
-      "description": "Dagster asset key",
-      "required": true
-    },
-    "table_name": {
-      "type": "string",
-      "label": "Table Name",
-      "description": "Table name (use schema.table for non-default schemas)",
-      "required": true
-    },
     "connection_string_env_var": {
       "type": "string",
       "label": "Connection String Env Var",
       "description": "Env var containing the SQLAlchemy connection string",
       "required": true
+    },
+    "asset_key": {
+      "type": "string",
+      "label": "Asset Key",
+      "description": "Dagster asset key for a single table. Mutually exclusive with `tables:` -- use this (with `table_name:`) for one table, or `tables:` to declare several from one component instance sharing connection_string_env_var and one observation sensor.",
+      "required": false,
+      "default": null
+    },
+    "table_name": {
+      "type": "string",
+      "label": "Table Name",
+      "description": "Table name (use schema.table for non-default schemas) for a single table. Mutually exclusive with `tables:`.",
+      "required": false,
+      "default": null
+    },
+    "tables": {
+      "type": "array",
+      "items": { "type": "object" },
+      "label": "Tables",
+      "description": "Declare several tables as external assets from one component instance, instead of one ExternalSqlAsset YAML block (and, with create_observation_sensor=true, one polling sensor) per table. Each entry: `key` (Dagster asset key, required), `table_name` (required), plus optional `watermark_column`, `deps`, `owners`, `metadata`, `group_name`, `description`. All entries share this component's connection_string_env_var and (if enabled) ONE sensor that queries every table's row count/watermark per tick -- set `sensor_name` explicitly when using `tables:` with create_observation_sensor=true. Mutually exclusive with the top-level `asset_key`/`table_name` fields.",
+      "required": false,
+      "default": null
     },
     "group_name": {
       "type": "string",
@@ -53,14 +63,14 @@
     "sensor_name": {
       "type": "string",
       "label": "Sensor Name",
-      "description": "Unique sensor name. Defaults to '{asset_key}__observation_sensor'. Only used when create_observation_sensor=True.",
+      "description": "Unique sensor name. Defaults to '{asset_key}__observation_sensor' in single-table mode. Required when using `tables:` (no single table name to derive a default from). Only used when create_observation_sensor=True.",
       "required": false,
       "default": null
     },
     "watermark_column": {
       "type": "string",
       "label": "Watermark Column",
-      "description": "Column for latest value metric (e.g. updated_at). Used to derive the DataVersion in the native path. Only used when create_observation_sensor=True.",
+      "description": "Column for latest value metric (e.g. updated_at). Used to derive the DataVersion in the native path. Single-table mode only -- set per-entry `watermark_column` under `tables:`. Only used when create_observation_sensor=True.",
       "required": false,
       "default": null,
       "x-dagster-widget": "column"

@@ -7,9 +7,10 @@
     "outputs": { "type": "AssetSpec", "description": "Declare-only external asset" }
   },
   "attributes": {
-    "asset_key": {"description": "Dagster asset key (e.g. 'snowflake/openflow/customer_sync').", "type": "string", "label": "Asset Key", "required": true },
-    "flow_name": { "type": "string", "label": "Flow Name", "description": "OpenFlow process-group name", "required": true },
-    "runtime_id": {"description": "OpenFlow runtime id (optional metadata).", "type": "string", "label": "Runtime ID", "required": false, "default": null },
+    "asset_key": {"description": "Dagster asset key (e.g. 'snowflake/openflow/customer_sync') for a single flow. Mutually exclusive with `flows:` -- use this (with `flow_name:`) for one flow, or `flows:` to declare several from one component instance.", "type": "string", "label": "Asset Key", "required": false, "default": null },
+    "flow_name": { "type": "string", "label": "Flow Name", "description": "OpenFlow process-group name for a single flow. Mutually exclusive with `flows:`.", "required": false, "default": null },
+    "flows": {"description": "Declare several OpenFlow process groups as external assets from one component instance, instead of one block per flow. Each entry: `key` (Dagster asset key, required), `flow_name` (OpenFlow process-group name, required), plus optional `runtime_id`, `deps`, `owners`, `tags`, `kinds`, `group_name`, `description`. Mutually exclusive with the top-level `asset_key`/`flow_name` fields.", "type": "array", "items": { "type": "object" }, "label": "Flows", "required": false, "default": null },
+    "runtime_id": {"description": "OpenFlow runtime id (optional metadata). Single-flow mode only.", "type": "string", "label": "Runtime ID", "required": false, "default": null },
     "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name", "required": false, "default": "snowflake" },
     "description": {"description": "Asset description.", "type": "string", "label": "Description", "required": false },
     "owners": {"description": "Asset owners.", "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },

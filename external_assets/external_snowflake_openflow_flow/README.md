@@ -24,6 +24,27 @@ Declares a Snowflake [OpenFlow](https://docs.snowflake.com/en/user-guide/openflo
 
 The sensor polls `SNOWFLAKE.TELEMETRY.EVENTS` for `openflow_metric` rows; on completion it emits `AssetMaterialization` for the asset_key — lighting up this external asset's materialization history.
 
+## Several flows from one component instance
+
+Use `flows:` instead of the top-level `asset_key`/`flow_name` fields to declare several OpenFlow
+process groups from one instance, instead of one YAML block per flow:
+
+```yaml
+type: dagster_community_components.ExternalSnowflakeOpenflowFlowAsset
+attributes:
+  group_name: snowflake
+  flows:
+    - key: snowflake/openflow/customer_sync
+      flow_name: customer_sync
+    - key: snowflake/openflow/order_sync
+      flow_name: order_sync
+      runtime_id: my-runtime
+```
+
+Each flow is still paired with its own `snowflake_openflow_status_sensor` instance (same
+`asset_key`/`flow_name`) — this component just declares several catalog nodes in one block.
+`asset_key`/`flow_name` and `flows:` are mutually exclusive on one component instance.
+
 ## See also
 
 - [`snowflake_openflow_status_sensor`](https://dagster-component-ui.vercel.app/c/snowflake_openflow_status_sensor) — paired sensor
@@ -33,28 +54,24 @@ The sensor polls `SNOWFLAKE.TELEMETRY.EVENTS` for `openflow_metric` rows; on com
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `asset_key` | `str` | Dagster asset key (e.g. 'snowflake/openflow/customer_sync'). |
-| `flow_name` | `str` | OpenFlow process-group name. |
-
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_key` | `str` | — | Dagster asset key (e.g. 'snowflake/openflow/customer_sync') for a single flow. Mutually exclusive with `flows:` -- use this (with `flow_name:`) for one flow, or `flows:` to declare several from one component instance. |
 | `group_name` | `str` | `"snowflake"` | Dagster asset group name. |
-| `description` | `str` | — | Asset description. |
-| `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Catalog tags. |
-| `kinds` | `List[str]` | — | Asset kinds (auto-includes 'snowflake', 'openflow'). |
-| `deps` | `List[str]` | — | Upstream Dagster asset keys. |
+| `description` | `str` | — | Asset description. Single-flow mode only. |
+| `owners` | `List[str]` | — | Asset owners. Single-flow mode only. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags. Single-flow mode only. |
+| `kinds` | `List[str]` | — | Asset kinds (auto-includes 'snowflake', 'openflow'). Single-flow mode only. |
+| `deps` | `List[str]` | — | Upstream Dagster asset keys. Single-flow mode only. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `runtime_id` | `str` | — | OpenFlow runtime id (optional metadata). |
+| `flow_name` | `str` | — | OpenFlow process-group name for a single flow. Mutually exclusive with `flows:`. |
+| `flows` | `List[Dict[str, Any]]` | — | Declare several OpenFlow process groups as external assets from one component instance, instead of one block per flow. Each entry: `key` (Dagster asset key, required), `flow_name` (OpenFlow process-group name, required)… _(full docs in schema.json + component README)_ |
+| `runtime_id` | `str` | — | OpenFlow runtime id (optional metadata). Single-flow mode only. |
 
 [//]: # (FIELDS:END)

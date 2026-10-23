@@ -146,9 +146,33 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 
 class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
     """Declare an SFTP directory as an observable external asset."""
-    asset_key: str = Field(description="Dagster asset key")
     host: str = Field(description="SFTP host")
-    remote_path: str = Field(description="Remote directory path")
+    asset_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Dagster asset key for a single path. Mutually exclusive with `paths:` -- use this "
+            "(with `remote_path:`) for one directory, or `paths:` to declare several from one "
+            "component instance sharing host and one observation sensor."
+        ),
+    )
+    remote_path: Optional[str] = Field(
+        default=None,
+        description="Remote directory path for a single path. Mutually exclusive with `paths:`.",
+    )
+    paths: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Declare several remote directories as external assets from one component instance, "
+            "instead of one ExternalSftpPathAsset YAML block (and, with "
+            "create_observation_sensor=true, one polling sensor and one SSH connection) per path. "
+            "Each entry: `key` (Dagster asset key, required), `remote_path` (required), plus "
+            "optional `deps`, `owners`, `metadata`, `group_name`, `description`. All entries "
+            "share this component's host/port/credentials and (if enabled) ONE sensor that polls "
+            "every path over a single SSH connection per tick -- set `sensor_name` explicitly "
+            "when using `paths:` with create_observation_sensor=true. Mutually exclusive with the "
+            "top-level `asset_key`/`remote_path` fields."
+        ),
+    )
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     description: Optional[str] = Field(default=None, description="Human-readable description")
 
@@ -163,7 +187,11 @@ class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
     )
     sensor_name: Optional[str] = Field(
         default=None,
-        description="Unique sensor name. Defaults to '{asset_key}__observation_sensor'. Only used when create_observation_sensor=True.",
+        description=(
+            "Unique sensor name. Defaults to '{asset_key}__observation_sensor' in single-path mode. "
+            "Required when using `paths:` (no single path to derive a default from). Only used "
+            "when create_observation_sensor=True."
+        ),
     )
     port: int = Field(default=22, description="SFTP port. Only used when create_observation_sensor=True.")
     username_env_var: str = Field(
@@ -226,7 +254,54 @@ class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=(), csv=('partition_values',), tags=())
 
+    def _resolve_path_entries(self) -> List[Dict[str, Any]]:
+        has_single = bool(self.asset_key or self.remote_path)
+        has_multi = bool(self.paths)
+        if has_single and has_multi:
+            raise ValueError("Set either asset_key/remote_path (single path) or paths: (several paths), not both.")
+        if not has_single and not has_multi:
+            raise ValueError("Set either asset_key/remote_path (single path) or paths: (several paths).")
+
+        if has_single:
+            if not self.asset_key or not self.remote_path:
+                raise ValueError("Both asset_key and remote_path are required in single-path mode.")
+            return [{
+                "key": self.asset_key,
+                "remote_path": self.remote_path,
+                "deps": None,
+                "owners": None,
+                "metadata": None,
+                "group_name": self.group_name,
+                "description": self.description,
+            }]
+
+        entries = []
+        seen_keys = set()
+        for i, raw in enumerate(self.paths):
+            if not isinstance(raw, dict):
+                raise ValueError(f"paths[{i}] must be a mapping, got {type(raw).__name__}")
+            key = raw.get("key")
+            remote_path = raw.get("remote_path")
+            if not key:
+                raise ValueError(f"paths[{i}] is missing required field 'key'")
+            if not remote_path:
+                raise ValueError(f"paths[{i}] ({key!r}) is missing required field 'remote_path'")
+            if key in seen_keys:
+                raise ValueError(f"paths: duplicate key {key!r}")
+            seen_keys.add(key)
+            entries.append({
+                "key": key,
+                "remote_path": remote_path,
+                "deps": raw.get("deps"),
+                "owners": raw.get("owners"),
+                "metadata": raw.get("metadata"),
+                "group_name": raw.get("group_name", self.group_name),
+                "description": raw.get("description"),
+            })
+        return entries
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        entries = self._resolve_path_entries()
         partitions_def = _build_partitions_def(
             self.partition_type,
             self.partition_start,
@@ -234,56 +309,77 @@ class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
             self.dynamic_partition_name,
             self.partition_dimensions,
         )
-        spec = dg.AssetSpec(
-            key=dg.AssetKey.from_user_string(self.asset_key),
-            group_name=self.group_name,
-            description=self.description or f"SFTP {self.host}{self.remote_path}",
-            kinds={"sftp", "files"},
-            metadata={
+
+        specs = []
+        for e in entries:
+            metadata = {
                 "host": self.host,
-                "remote_path": self.remote_path,
-                "dagster/uri": f"sftp://{self.host}{self.remote_path}",
+                "remote_path": e["remote_path"],
+                "dagster/uri": f"sftp://{self.host}{e['remote_path']}",
                 "dagster.observability_type": "external",
-            },
-            partitions_def=partitions_def,
-        )
+            }
+            if e["metadata"]:
+                metadata.update(e["metadata"])
+            specs.append(dg.AssetSpec(
+                key=dg.AssetKey.from_user_string(e["key"]),
+                group_name=e["group_name"],
+                description=e["description"] or f"SFTP {self.host}{e['remote_path']}",
+                kinds={"sftp", "files"},
+                deps=[dg.AssetKey.from_user_string(d) for d in e["deps"]] if e["deps"] else None,
+                owners=e["owners"] or None,
+                metadata=metadata,
+                partitions_def=partitions_def,
+            ))
 
         if not self.create_observation_sensor:
-            return dg.Definitions(assets=[spec])
+            return dg.Definitions(assets=specs)
 
-        _self = self
-        sensor_name = self.sensor_name or f"{re.sub(r'[^A-Za-z0-9_]+', '_', self.asset_key).strip('_')}__observation_sensor"
+        is_multi = self.paths is not None
+        if is_multi and not self.sensor_name:
+            raise ValueError(
+                "sensor_name is required when using paths: with create_observation_sensor=true "
+                "(there's no single path to derive a default from)."
+            )
+        sensor_name = self.sensor_name or f"{re.sub(r'[^A-Za-z0-9_]+', '_', entries[0]['key']).strip('_')}__observation_sensor"
         resource_key = self.resource_key
         required_resource_keys = {resource_key} if resource_key else set()
+        _entries = entries
+        _self = self
 
         @dg.sensor(
             name=sensor_name,
             minimum_interval_seconds=self.check_interval_seconds,
             required_resource_keys=required_resource_keys,
-            asset_selection=dg.AssetSelection.keys(dg.AssetKey.from_user_string(self.asset_key)),
+            asset_selection=dg.AssetSelection.assets(*[dg.AssetKey.from_user_string(e["key"]) for e in _entries]),
         )
-        def _sftp_obs(context: dg.SensorEvaluationContext):
+        def _sftp_obs(context: dg.SensorEvaluationContext, **_resources):
             import os
             from datetime import datetime, timezone
             from dagster._core.definitions.data_version import DATA_VERSION_TAG
             _event_cls = dg.AssetMaterialization if _self.emit_materialization else dg.AssetObservation
+            events = []
 
+            # ── Resource-backed path (preferred): one client.observe() call per directory ──
             if resource_key:
                 client = getattr(context.resources, resource_key, None)
                 if client is None:
                     return dg.SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
-                try:
-                    source = f"{_self.host}:{_self.remote_path}"
-                    observed: dict[str, Any] = dict(client.observe(source))
-                except Exception as e:
-                    context.log.error(f"resource '{resource_key}'.observe failed: {e}")
-                    return dg.SensorResult(skip_reason=f"resource observe failed: {e}")
-                data_version = str(observed.pop("data_version", ""))
-                return dg.SensorResult(asset_events=[_event_cls(
-                    asset_key=dg.AssetKey.from_user_string(_self.asset_key),
-                    metadata=observed,
-                    tags={DATA_VERSION_TAG: data_version} if data_version else None,
-                )])
+                for e in _entries:
+                    try:
+                        source = f"{_self.host}:{e['remote_path']}"
+                        observed: dict[str, Any] = dict(client.observe(source))
+                    except Exception as ex:
+                        context.log.error(f"resource '{resource_key}'.observe({e['remote_path']!r}) failed: {ex}")
+                        continue
+                    data_version = str(observed.pop("data_version", ""))
+                    events.append(_event_cls(
+                        asset_key=dg.AssetKey.from_user_string(e["key"]),
+                        metadata=observed,
+                        tags={DATA_VERSION_TAG: data_version} if data_version else None,
+                    ))
+                if not events:
+                    return dg.SensorResult(skip_reason="no paths observed this tick")
+                return dg.SensorResult(asset_events=events)
 
             try:
                 import paramiko
@@ -303,29 +399,43 @@ class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
                 if key_path:
                     kwargs["key_filename"] = key_path
                 ssh.connect(_self.host, **kwargs)
+            except Exception as ex:
+                return dg.SensorResult(skip_reason=f"SSH connect failed: {ex}")
+
+            try:
                 sftp = ssh.open_sftp()
-                attrs = sftp.listdir_attr(_self.remote_path)
-                file_count = sum(1 for a in attrs if not (a.st_mode & 0o040000))
-                total_size = sum(a.st_size or 0 for a in attrs if not (a.st_mode & 0o040000))
-                latest = max((a.st_mtime or 0 for a in attrs), default=0)
-                sftp.close()
+                try:
+                    for e in _entries:
+                        remote_path = e["remote_path"]
+                        try:
+                            attrs = sftp.listdir_attr(remote_path)
+                        except Exception as ex:
+                            context.log.error(f"SFTP listdir for {remote_path!r} failed: {ex}")
+                            continue
+                        file_count = sum(1 for a in attrs if not (a.st_mode & 0o040000))
+                        total_size = sum(a.st_size or 0 for a in attrs if not (a.st_mode & 0o040000))
+                        latest = max((a.st_mtime or 0 for a in attrs), default=0)
+                        latest_iso = datetime.fromtimestamp(latest, tz=timezone.utc).isoformat() if latest else ""
+                        data_version = f"{file_count}-{latest_iso}"
+                        obs_metadata: dict[str, Any] = {
+                            "file_count": file_count,
+                            "total_size_bytes": total_size,
+                            "latest_mtime_iso": latest_iso,
+                            "host": _self.host,
+                            "remote_path": remote_path,
+                        }
+                        events.append(_event_cls(
+                            asset_key=dg.AssetKey.from_user_string(e["key"]),
+                            metadata=obs_metadata,
+                            tags={DATA_VERSION_TAG: data_version},
+                        ))
+                finally:
+                    sftp.close()
+            finally:
                 ssh.close()
-            except Exception as e:
-                return dg.SensorResult(skip_reason=f"SFTP failed: {e}")
 
-            latest_iso = datetime.fromtimestamp(latest, tz=timezone.utc).isoformat() if latest else ""
-            data_version = f"{file_count}-{latest_iso}"
-            obs_metadata: dict[str, Any] = {
-                "file_count": file_count,
-                "total_size_bytes": total_size,
-                "latest_mtime_iso": latest_iso,
-                "host": _self.host,
-                "remote_path": _self.remote_path,
-            }
-            return dg.SensorResult(asset_events=[_event_cls(
-                asset_key=dg.AssetKey.from_user_string(_self.asset_key),
-                metadata=obs_metadata,
-                tags={DATA_VERSION_TAG: data_version},
-            )])
+            if not events:
+                return dg.SensorResult(skip_reason="no paths observed this tick")
+            return dg.SensorResult(asset_events=events)
 
-        return dg.Definitions(assets=[spec], sensors=[_sftp_obs])
+        return dg.Definitions(assets=specs, sensors=[_sftp_obs])

@@ -19,8 +19,6 @@ This component does not read from or write to Sql. It is a **lineage declaration
 
 | Field | Type | Description |
 |---|---|---|
-| `asset_key` | `str` | Dagster asset key |
-| `table_name` | `str` | Table name (use schema.table for non-default schemas) |
 | `connection_string_env_var` | `str` | Env var containing the SQLAlchemy connection string |
 
 ### Connection
@@ -33,6 +31,7 @@ This component does not read from or write to Sql. It is a **lineage declaration
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_key` | `str` | — | Dagster asset key for a single table. Mutually exclusive with `tables:` -- use this (with `table_name:`) for one table, or `tables:` to declare several from one component instance sharing connection_string_env_var and on… _(full docs in schema.json + component README)_ |
 | `group_name` | `str` | — | Dagster asset group name |
 | `description` | `str` | — | Human-readable description |
 
@@ -42,21 +41,28 @@ This component does not read from or write to Sql. It is a **lineage declaration
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily'\|'weekly'\|'monthly'\|'hourly'\|'static'\|'dynamic'\|'multi', or None for unpartitioned. |
 | `partition_start` | `str` | — | ISO start date for time-based partition types (e.g. '2024-01-01'). |
-| `partition_values` | `str` | — | Comma-separated values for static / multi partition types. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static / multi partition types. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec; overrides flat fields when set. |
 
 ### Sensor configuration
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{asset_key}__observation_sensor'. Only used when create_observation_sensor=True. |
+| `sensor_name` | `str` | — | Unique sensor name. Defaults to '{asset_key}__observation_sensor' in single-table mode. Required when using `tables:` (no single table name to derive a default from). Only used when create_observation_sensor=True. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `table_name` | `str` | — | Table name (use schema.table for non-default schemas) for a single table. Mutually exclusive with `tables:`. |
+| `tables` | `List[Dict[str, Any]]` | — | Declare several tables as external assets from one component instance, instead of one ExternalSqlAsset YAML block (and, with create_observation_sensor=true, one polling sensor) per table. Each entry: `key` (Dagster asset… _(full docs in schema.json + component README)_ |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `create_observation_sensor` | `bool` | `false` | Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone sql_observation_sensor component). When False (default), this component only declares the AssetSpe… _(full docs in schema.json + component README)_ |
-| `watermark_column` | `Union[str, int]` | — | Column for latest value metric (e.g. updated_at). Used to derive the DataVersion in the native path. Only used when create_observation_sensor=True. |
+| `watermark_column` | `Union[str, int]` | — | Column for latest value metric (e.g. updated_at). Used to derive the DataVersion in the native path. Single-table mode only -- set per-entry `watermark_column` under `tables:`. Only used when create_observation_sensor=True. |
 | `check_interval_seconds` | `int` | `300` | Seconds between health checks. Only used when create_observation_sensor=True. |
 | `emit_materialization` | `bool` | `true` | When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, downstream AutomationCondition.eager() fires on parent updates). When False, emits AssetObservation instead (no Dagster+ credit charg… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
@@ -113,6 +119,34 @@ attributes:
   connection_string_env_var: CONNECTION_STRING_ENV_VAR
   watermark_column: updated_at
 ```
+
+## Several tables from one component instance
+
+Use `tables:` instead of the top-level `asset_key`/`table_name` fields to declare several tables
+from one `ExternalSqlAsset` instance, instead of one YAML block per table:
+
+```yaml
+type: dagster_component_templates.ExternalSqlAsset
+attributes:
+  connection_string_env_var: CONNECTION_STRING_ENV_VAR
+  group_name: warehouse_sources
+  tables:
+    - key: warehouse/orders
+      table_name: orders
+    - key: warehouse/customers
+      table_name: customers
+      watermark_column: updated_at
+      owners: ["team:data"]
+  create_observation_sensor: true
+  sensor_name: warehouse_sources_observer  # required with tables: -- no single table name to default from
+```
+
+All tables share this instance's `connection_string_env_var`. With `create_observation_sensor:
+true`, they also share **one** sensor that queries every table's row count/watermark over a
+**single** engine connection per tick, instead of one sensor and one connection per table. A table
+whose query fails doesn't block the rest — it's skipped for that tick and reported again next time.
+
+`asset_key`/`table_name` and `tables:` are mutually exclusive on one component instance.
 
 ## Requirements
 

@@ -391,7 +391,14 @@ class _LockConflictSkip(Exception):
 def _get_partition_key(context: Any, override: Optional[str]) -> str:
     if override:
         return override
+    # A single_run backfill hands this a partition-key RANGE: context.partition_key itself raises
+    # (DagsterInvariantViolationError) for a range, so check has_partition_key_range FIRST and build a
+    # real range-specific lock name -- otherwise every key in the range would silently collapse onto
+    # the same "__unpartitioned__" lock, losing per-partition isolation and letting two unrelated
+    # backfill ranges collide on one lock.
     try:
+        if getattr(context, "has_partition_key_range", False) and not getattr(context, "has_partition_key", False):
+            return ",".join(str(k) for k in context.partition_keys)
         pk = getattr(context, "partition_key", None)
         if pk:
             return str(pk)
@@ -953,6 +960,7 @@ class PartitionLockAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         @dg.asset(
             key=key,
             partitions_def=asset_def.partitions_def,
+            backfill_policy=asset_def.backfill_policy,
             deps=inner_deps,
             group_name=(spec.group_name if spec else None),
             kinds=merged_kinds,

@@ -24,7 +24,7 @@ Glob patterns, local paths, and cloud URIs (s3://, gs://, az://) all
 work — polars's `scan_parquet` handles them natively. For cloud paths,
 pass storage_options the way polars expects.
 """
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import dagster as dg
 from dagster import (
@@ -153,6 +153,27 @@ class PolarsScanParquetComponent(Component, Model, Resolvable):
     deps: Optional[List[str]] = Field(default=None)
     include_preview_metadata: bool = Field(default=False)
     preview_rows: int = Field(default=25, ge=1, le=500)
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "scans one path covering the whole backfill range (the "
+            "partition_key/partition_date/partition_start/partition_end tokens "
+            "reflect the full range, comma-joined for partition_key) rather than "
+            "one scan per partition. 'multi_run' launches one run per partition "
+            "(optionally capped via backfill_policy_max_partitions_per_run). Leave "
+            "unset for Dagster's default (one run per partition, uncapped). Ignored "
+            "when partition_type is not set. 'single_run' requires a partition-"
+            "range-aware IO manager (e.g. a DB-table IO manager with partition_expr "
+            "set) -- a generic filesystem/default IO manager cannot persist a "
+            "single_run output spanning multiple partitions and will raise a clear "
+            "error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -190,7 +211,15 @@ class PolarsScanParquetComponent(Component, Model, Resolvable):
         for k in kinds:
             all_tags[f"dagster/kind/{k}"] = ""
 
-        @asset(partitions_def=partitions_def, 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            backfill_policy = dg.BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            backfill_policy = dg.BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        @asset(partitions_def=partitions_def,
             key=dg.AssetKey.from_user_string(asset_name),
             description=self.description or self.get_description(),
             owners=self.owners or [],
@@ -198,6 +227,7 @@ class PolarsScanParquetComponent(Component, Model, Resolvable):
             group_name=self.group_name,
             deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])],
             kinds=set(kinds),
+            backfill_policy=backfill_policy,
         )
         def _polars_scan_parquet_asset(context: AssetExecutionContext) -> Any:
             import polars as pl

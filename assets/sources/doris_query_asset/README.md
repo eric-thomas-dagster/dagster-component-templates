@@ -35,6 +35,7 @@ Run a SQL query against Apache Doris and emit the result as a Pandas DataFrame a
 | `tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'doris'). |
 | `deps` | `List[str]` | — | Upstream Dagster asset keys. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' fires one query covering the whole backfill range (the partition_key/partition_date/partition_start/partition_end tokens reflect the full range, comma-joi… _(full docs in schema.json + component README)_ |
 
 ### Partitions
 
@@ -55,6 +56,7 @@ Run a SQL query against Apache Doris and emit the result as a Pandas DataFrame a
 | `ssl` | `bool` | `false` | Connect via TLS. |
 | `chunksize` | `int` | — | Optional pandas read_sql chunksize for streaming-large-result-set reads. Leave unset for full-materialize-in-memory (typical). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

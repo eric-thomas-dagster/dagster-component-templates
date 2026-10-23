@@ -13,7 +13,7 @@ Docs: https://docs.victoriametrics.com/single-server-victoriametrics/#prometheus
 """
 import os
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 import dagster as dg
 import pandas as pd
@@ -141,6 +141,27 @@ class VictoriaMetricsQueryAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None)
     kinds: Optional[List[str]] = Field(default=None)
     deps: Optional[List[str]] = Field(default=None)
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "fires one PromQL query covering the whole backfill range (the "
+            "partition_key/partition_date/partition_start/partition_end tokens "
+            "reflect the full range, comma-joined for partition_key) rather than "
+            "one query per partition. 'multi_run' launches one run per partition "
+            "(optionally capped via backfill_policy_max_partitions_per_run). Leave "
+            "unset for Dagster's default (one run per partition, uncapped). Ignored "
+            "when partition_type is not set. 'single_run' requires a partition-"
+            "range-aware IO manager (e.g. a DB-table IO manager with partition_expr "
+            "set) -- a generic filesystem/default IO manager cannot persist a "
+            "single_run output spanning multiple partitions and will raise a clear "
+            "error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -159,7 +180,15 @@ class VictoriaMetricsQueryAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         kinds = set(self.kinds) if self.kinds else set()
         kinds.add("victoriametrics")
 
-        @dg.asset(partitions_def=partitions_def, 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            backfill_policy = dg.BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            backfill_policy = dg.BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        @dg.asset(partitions_def=partitions_def,
             key=dg.AssetKey.from_user_string(_self.asset_name),
             group_name=_self.group_name,
             kinds=kinds,
@@ -169,6 +198,7 @@ class VictoriaMetricsQueryAssetComponent(dg.Component, dg.Model, dg.Resolvable):
                 f"PromQL query against VictoriaMetrics → DataFrame: `{_self.query[:80]}`"
             ),
             deps=[dg.AssetKey.from_user_string(k) for k in (_self.deps or [])],
+            backfill_policy=backfill_policy,
         )
         def _asset(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
             try:

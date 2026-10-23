@@ -10,16 +10,53 @@
     }
   },
   "attributes": {
-    "asset_name":            {"description": "Output Dagster asset name", "type": "string", "required": true, "label": "Asset Name"},
-    "query":                 {"type": "string", "required": true, "label": "SQL Query",
-                              "description": "Database-side SQL — write WHERE / joins / aggregations IN the query for pushdown. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted."},
-    "connection_uri":        {"type": "string", "label": "Connection URI (literal)",
-                              "description": "Set this OR connection_uri_env_var."},
-    "connection_uri_env_var": {"type": "string", "label": "Connection URI Env Var",
-                               "description": "Set this OR connection_uri."},
-    "output_type":           {"description": "'polars' (default) or 'pandas'. Auto-converts at boundary if pandas.", "type": "string", "label": "Output Type", "enum": ["polars", "pandas"], "default": "polars"},
-    "engine":                {"description": "Polars read engine: 'connectorx' (default, fast, typed) or 'adbc' (Arrow Database Connectivity).", "type": "string", "label": "Read Engine", "enum": ["connectorx", "adbc"], "default": "connectorx"},
-    "group_name":            {"description": "Dagster asset group name.", "type": "string", "label": "Asset Group"},
+    "asset_name": {
+      "description": "Output Dagster asset name",
+      "type": "string",
+      "required": true,
+      "label": "Asset Name"
+    },
+    "query": {
+      "type": "string",
+      "required": true,
+      "label": "SQL Query",
+      "description": "Database-side SQL \u2014 write WHERE / joins / aggregations IN the query for pushdown. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted."
+    },
+    "connection_uri": {
+      "type": "string",
+      "label": "Connection URI (literal)",
+      "description": "Set this OR connection_uri_env_var."
+    },
+    "connection_uri_env_var": {
+      "type": "string",
+      "label": "Connection URI Env Var",
+      "description": "Set this OR connection_uri."
+    },
+    "output_type": {
+      "description": "'polars' (default) or 'pandas'. Auto-converts at boundary if pandas.",
+      "type": "string",
+      "label": "Output Type",
+      "enum": [
+        "polars",
+        "pandas"
+      ],
+      "default": "polars"
+    },
+    "engine": {
+      "description": "Polars read engine: 'connectorx' (default, fast, typed) or 'adbc' (Arrow Database Connectivity).",
+      "type": "string",
+      "label": "Read Engine",
+      "enum": [
+        "connectorx",
+        "adbc"
+      ],
+      "default": "connectorx"
+    },
+    "group_name": {
+      "description": "Dagster asset group name.",
+      "type": "string",
+      "label": "Asset Group"
+    },
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
@@ -68,13 +105,54 @@
       "required": false,
       "default": null
     },
-    "description":           {"description": "Asset description.", "label": "Description", "type": "string"},
-    "asset_tags":            {"description": "Additional key-value tags applied to the asset in the Dagster catalog.", "label": "Asset Tags", "type": "object"},
-    "kinds":                 {"description": "Asset kinds for the Dagster catalog.", "label": "Kinds", "type": "array", "items": {"type": "string"}},
-    "owners":                {"description": "Asset owners.", "label": "Owners", "type": "array", "items": {"type": "string"}},
-    "deps":                  {"description": "Lineage-only upstream asset keys (no data passed at runtime).", "label": "Deps", "type": "array", "items": {"type": "string"}},
-    "include_preview_metadata": {"description": "Include a preview of the output data in metadata (sample rows) for builder UIs.", "label": "Include Preview Metadata", "type": "boolean", "default": false},
-    "preview_rows":          {"description": "Rows to include in the preview metadata when `include_preview_metadata` is True.", "label": "Preview Rows", "type": "integer", "default": 25, "minimum": 1, "maximum": 500},
+    "description": {
+      "description": "Asset description.",
+      "label": "Description",
+      "type": "string"
+    },
+    "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
+      "label": "Asset Tags",
+      "type": "object"
+    },
+    "kinds": {
+      "description": "Asset kinds for the Dagster catalog.",
+      "label": "Kinds",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "label": "Owners",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "label": "Deps",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "include_preview_metadata": {
+      "description": "Include a preview of the output data in metadata (sample rows) for builder UIs.",
+      "label": "Include Preview Metadata",
+      "type": "boolean",
+      "default": false
+    },
+    "preview_rows": {
+      "description": "Rows to include in the preview metadata when `include_preview_metadata` is True.",
+      "label": "Preview Rows",
+      "type": "integer",
+      "default": 25,
+      "minimum": 1,
+      "maximum": 500
+    },
     "partition_cron_schedule": {
       "type": "string",
       "label": "Partition Cron Schedule",
@@ -86,6 +164,25 @@
       "label": "Partition Cron Fmt",
       "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
       "required": false
+    },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' fires one query covering the whole backfill range (partition_key/partition_date/partition_start/partition_end tokens reflect the full range, comma-joined for partition_key) rather than one query per partition. 'multi_run' launches one run per partition. Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is not set. 'single_run' requires a partition-range-aware IO manager (e.g. a DB-table IO manager with partition_expr set) -- a generic filesystem/default IO manager cannot persist a single_run output spanning multiple partitions and will raise a clear error at materialization time.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
+      "required": false,
+      "default": null
     }
   }
 }

@@ -31,6 +31,7 @@ Run a PromQL query against VictoriaMetrics's Prometheus-compatible API; emit the
 | `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' fires one PromQL query covering the whole backfill range (the partition_key/partition_date/partition_start/partition_end tokens reflect the full range, co… _(full docs in schema.json + component README)_ |
 
 ### Partitions
 
@@ -53,6 +54,7 @@ Run a PromQL query against VictoriaMetrics's Prometheus-compatible API; emit the
 | `bearer_token_env_var` | `str` | — | Env var with bearer token. |
 | `request_timeout_seconds` | `int` | `60` | — |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

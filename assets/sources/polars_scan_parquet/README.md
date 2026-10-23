@@ -30,6 +30,7 @@ Read parquet via polars's lazy scanner. When you supply `predicate:` and/or `col
 | `kinds` | `List[str]` | — | — |
 | `owners` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' scans one path covering the whole backfill range (the partition_key/partition_date/partition_start/partition_end tokens reflect the full range, comma-join… _(full docs in schema.json + component README)_ |
 
 ### Partitions
 
@@ -60,6 +61,7 @@ Read parquet via polars's lazy scanner. When you supply `predicate:` and/or `col
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | — |
 | `preview_rows` | `int` | `25` | — |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

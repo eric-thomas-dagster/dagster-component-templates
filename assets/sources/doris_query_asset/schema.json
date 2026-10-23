@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_component_templates.DorisQueryAssetComponent",
-  "description": "Run a SQL query against Apache Doris and emit the result as a DataFrame asset.\n\nExample:\n\n    ```yaml\n    type: dagster_community_components.DorisQueryAssetComponent\n    attributes:\n      asset_name: doris_orders_recent\n      query: |\n        SELECT order_id, customer_id, total, order_date\n          FROM analytics.orders\n         WHERE order_date >= CURRENT_DATE - INTERVAL 7 DAY\n      host_env_var: DORIS_FE_HOST\n      query_port: 9030\n      database: analytics\n      username_env_var: DORIS_USER\n      password_env_var: DORIS_PASSWORD\n    ```\n\nPair with ``doris_resource`` if you have multiple Doris assets — they\ncan share one connection via ``connection_string_env_var``. For a\nsingle asset, the env-var fields below are enough.",
+  "description": "Run a SQL query against Apache Doris and emit the result as a DataFrame asset.\n\nExample:\n\n    ```yaml\n    type: dagster_community_components.DorisQueryAssetComponent\n    attributes:\n      asset_name: doris_orders_recent\n      query: |\n        SELECT order_id, customer_id, total, order_date\n          FROM analytics.orders\n         WHERE order_date >= CURRENT_DATE - INTERVAL 7 DAY\n      host_env_var: DORIS_FE_HOST\n      query_port: 9030\n      database: analytics\n      username_env_var: DORIS_USER\n      password_env_var: DORIS_PASSWORD\n    ```\n\nPair with ``doris_resource`` if you have multiple Doris assets \u2014 they\ncan share one connection via ``connection_string_env_var``. For a\nsingle asset, the env-var fields below are enough.",
   "category": "source",
   "x-dagster-io": {
     "outputs": {
@@ -145,7 +145,7 @@
       },
       "label": "Owners",
       "required": false,
-      "description": "Asset owners — team names (team:analytics) or email addresses.",
+      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
       "ui:widget": "list"
     },
     "tags": {
@@ -185,6 +185,25 @@
       "label": "Partition Cron Fmt",
       "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
       "required": false
+    },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' fires one query covering the whole backfill range (partition_key/partition_date/partition_start/partition_end tokens reflect the full range, comma-joined for partition_key) rather than one query per partition. 'multi_run' launches one run per partition. Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is not set. 'single_run' requires a partition-range-aware IO manager (e.g. a DB-table IO manager with partition_expr set) -- a generic filesystem/default IO manager cannot persist a single_run output spanning multiple partitions and will raise a clear error at materialization time.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
+      "required": false,
+      "default": null
     }
   }
 }

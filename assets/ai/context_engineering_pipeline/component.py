@@ -2214,7 +2214,16 @@ def _build_sql_mode_query(
             if _mode == "exact":
                 _key = f"{cur}.content_hash"
             else:
-                _norm = f"TRIM({_sql_regexp_replace(dialect, _sql_regexp_replace(dialect, f'LOWER({cur}.chunk_text)', _sql_str(r'[^\w\s]'), _sql_str('')), _sql_str(r'\s+'), _sql_str(' '))})"
+                # Built via plain variables, not nested f-string expressions: a literal
+                # backslash (as in r"\s+") inside an f-string's {...} part is a SyntaxError
+                # on Python < 3.12 (PEP 701 only relaxed this in 3.12).
+                _lower_text = f"LOWER({cur}.chunk_text)"
+                _strip_non_word = _sql_str(r"[^\w\s]")
+                _empty = _sql_str("")
+                _collapse_ws = _sql_str(r"\s+")
+                _single_space = _sql_str(" ")
+                _strip_punct = _sql_regexp_replace(dialect, _lower_text, _strip_non_word, _empty)
+                _norm = f"TRIM({_sql_regexp_replace(dialect, _strip_punct, _collapse_ws, _single_space)})"
                 _key = _sql_hash_expr(dialect, _norm)
             _partition_by = ", ".join([_key] + [f"{cur}.{_w}" for _w in _within])
             ctes.append(("deduped", (

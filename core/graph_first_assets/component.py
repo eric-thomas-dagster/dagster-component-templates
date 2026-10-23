@@ -23,7 +23,7 @@ from pydantic import Field
 
 
 # BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
-from typing import Union  # noqa: E402,F401
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
 from pydantic import model_validator  # noqa: E402,F401
 
 
@@ -52,7 +52,7 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
-# BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_compat.py)
+# BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)
 def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
     """Build a FreshnessPolicy on the current Dagster API (time_window / cron) and on the older constructor."""
     from datetime import timedelta

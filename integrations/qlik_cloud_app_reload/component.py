@@ -27,6 +27,10 @@ from pydantic import Field, model_validator
 
 
 # BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
 def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
     """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
     if not isinstance(data, dict):

@@ -54,6 +54,7 @@ family with a different API surface.
 | `exclude_name_pattern` | `str` | — | Regex applied to Fabric item display names for exclusion. |
 | `upstream_asset_keys` | `Union[str, List[str]]` | — | Asset keys that all imported assets wait for (lineage-only). |
 | `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects new Fabric item job completions and emits AssetObservation events. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceComponent. Off by d… _(full docs in schema.json + component README)_ |
+| `sensor_check_interval_seconds` | `int` | `300` | Seconds between polling-sensor ticks. Only used when polling_sensor=True. Distinct from workspace.poll_interval_seconds, which governs the in-asset trigger-and-wait loop for runs Dagster itself kicks off. |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
 
 [//]: # (FIELDS:END)
@@ -70,8 +71,34 @@ The component calls:
 - `GET /v1/workspaces/{workspace_id}/items` — list items
 - `POST /v1/workspaces/{workspace_id}/items/{item_id}/jobs/instances?jobType={Pipeline|RunNotebook|Refresh}` — trigger a run
 - `GET <Location>` — poll job status
+- `GET /v1/workspaces/{workspace_id}/items/{item_id}/jobs/instances` — list job-run history (polling sensor only; see below)
 
 Reference: https://learn.microsoft.com/rest/api/fabric/
+
+## Observation sensor
+
+Set `polling_sensor: true` to also get a sensor that detects Notebook /
+DataPipeline / Dataflow job completions Dagster didn't itself trigger —
+another scheduler, or someone running it manually in the Fabric UI — and
+emits `AssetObservation` for them, the same `polling_sensor` convention as
+`FivetranAccountComponent` / `SnowflakeWorkspaceComponent`:
+
+```yaml
+type: dagster_component_templates.FabricWorkspaceComponent
+attributes:
+  workspace:
+    workspace_id: "{{ env.FABRIC_WORKSPACE_ID }}"
+  import_pipelines: true
+  polling_sensor: true
+  sensor_check_interval_seconds: 300
+```
+
+One shared sensor polls every imported item's job-run history per tick
+(one token fetch, reused across items), deduping on each Fabric job
+instance's own `id` via the sensor cursor. It observes against each
+item's final, `translation:`-resolved asset key, not a re-derived default
+— so a `translation:` key override never splits sensor identity from
+asset identity.
 
 ## Companion components
 

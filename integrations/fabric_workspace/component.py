@@ -328,6 +328,14 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         ),
         alias="generate_sensor",
     )
+    sensor_check_interval_seconds: int = Field(
+        default=300,
+        description=(
+            "Seconds between polling-sensor ticks. Only used when polling_sensor=True. "
+            "Distinct from workspace.poll_interval_seconds, which governs the in-asset "
+            "trigger-and-wait loop for runs Dagster itself kicks off."
+        ),
+    )
 
     defs_state: ResolvedDefsStateConfig = Field(
         default_factory=DefsStateConfigArgs.local_filesystem,
@@ -597,6 +605,14 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
         upstream_keys = [dg.AssetKey.from_user_string(k) for k in (self.upstream_asset_keys or [])]
         assets = []
+        # Populated by _build_runnable_asset below with the FINAL,
+        # translation-resolved AssetKey each runnable item actually got (not
+        # a re-derived default) -- consumed by the polling sensor further
+        # down so sensor/asset identity never splits, the same class of bug
+        # found in azure_data_factory's and ssis_workspace's observation
+        # sensors (component-feedback/2026-09-03-azure-data-factory-demo-mode-seam.md,
+        # component-feedback/2026-09-24-ssis-workspace-gaps.md).
+        runnable_items: List[Dict[str, Any]] = []
 
         if self.import_lakehouses:
             for row in state.get("lakehouses", []):
@@ -614,20 +630,95 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         if self.import_notebooks:
             for row in state.get("notebooks", []):
                 assets.append(
-                    self._build_runnable_asset(row, "Notebook", "notebook", upstream_keys)
+                    self._build_runnable_asset(row, "Notebook", "notebook", upstream_keys, runnable_items)
                 )
         if self.import_pipelines:
             for row in state.get("pipelines", []):
                 assets.append(
-                    self._build_runnable_asset(row, "DataPipeline", "data_pipeline", upstream_keys)
+                    self._build_runnable_asset(row, "DataPipeline", "data_pipeline", upstream_keys, runnable_items)
                 )
         if self.import_dataflows:
             for row in state.get("dataflows", []):
                 assets.append(
-                    self._build_runnable_asset(row, "Dataflow", "dataflow", upstream_keys)
+                    self._build_runnable_asset(row, "Dataflow", "dataflow", upstream_keys, runnable_items)
                 )
 
-        return Definitions(assets=assets)
+        sensors = []
+        if self.polling_sensor and runnable_items:
+            sensors.append(self._build_polling_sensor(runnable_items))
+
+        return Definitions(assets=assets, sensors=sensors)
+
+    def _build_polling_sensor(self, runnable_items: List[Dict[str, Any]]):
+        """Poll every imported Notebook/DataPipeline/Dataflow's Fabric job-run
+        history and emit AssetObservation for completions Dagster didn't itself
+        trigger (another scheduler, or a user running it manually in Fabric).
+
+        One token fetch per tick, shared across every item. Cursor is a JSON
+        dict of {item_id: last-seen COMPLETED job instance id}, so a rerun of
+        the same instance id (job history keeps ~100 recent entries per
+        Fabric's own API limit) is never re-emitted.
+        """
+        _self = self
+
+        @dg.sensor(
+            name=f"{self.group_name}_fabric_job_observation_sensor",
+            minimum_interval_seconds=self.sensor_check_interval_seconds,
+            asset_selection=dg.AssetSelection.assets(*[i["key"] for i in runnable_items]),
+        )
+        def _fabric_job_observation_sensor(context: dg.SensorEvaluationContext):
+            import requests
+
+            try:
+                prev_seen: Dict[str, str] = json.loads(context.cursor) if context.cursor else {}
+            except Exception:
+                prev_seen = {}
+            new_seen = dict(prev_seen)
+
+            try:
+                token = _self.workspace.get_token()
+            except Exception as e:
+                return dg.SensorResult(skip_reason=f"Fabric auth failed: {e}")
+            headers = {"Authorization": f"Bearer {token}"}
+
+            events = []
+            for item in runnable_items:
+                url = (
+                    f"{_FABRIC_API_BASE}/workspaces/{_self.workspace.workspace_id}"
+                    f"/items/{item['item_id']}/jobs/instances"
+                )
+                try:
+                    resp = requests.get(url, headers=headers, timeout=30)
+                    resp.raise_for_status()
+                    instances = resp.json().get("value", [])
+                except Exception as e:
+                    context.log.warning(f"Fabric job-instance poll failed for {item['item_id']!r}: {e}")
+                    continue
+
+                completed = [i for i in instances if i.get("status") == "Completed"]
+                if not completed:
+                    continue
+                # Instances aren't guaranteed sorted; pick the most recently started.
+                latest = max(completed, key=lambda i: i.get("startTimeUtc") or "")
+                if prev_seen.get(item["item_id"]) == latest["id"]:
+                    continue
+                new_seen[item["item_id"]] = latest["id"]
+                events.append(dg.AssetObservation(
+                    asset_key=item["key"],
+                    metadata={
+                        "fabric_job_instance_id": latest["id"],
+                        "fabric_invoke_type": latest.get("invokeType"),
+                        "fabric_start_time_utc": latest.get("startTimeUtc"),
+                        "fabric_end_time_utc": latest.get("endTimeUtc"),
+                    },
+                    tags={"dagster/data_version": str(latest["id"])},
+                ))
+
+            if not events:
+                return dg.SensorResult(skip_reason="No new Fabric job completions", cursor=json.dumps(new_seen))
+            return dg.SensorResult(asset_events=events, cursor=json.dumps(new_seen))
+
+        return _fabric_job_observation_sensor
 
     def _build_dataset_asset(self, row: dict, item_type: str, kind: str):
         """Build an observable_source_asset for a Lakehouse / Warehouse /
@@ -672,9 +763,14 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
         return _ext
 
-    def _build_runnable_asset(self, row: dict, item_type: str, kind: str, upstream_keys):
+    def _build_runnable_asset(self, row: dict, item_type: str, kind: str, upstream_keys, runnable_items: Optional[List[Dict[str, Any]]] = None):
         """Build a materializable @asset that triggers a Fabric notebook /
         pipeline / dataflow job and polls it to completion.
+
+        When `runnable_items` is passed, appends this item's FINAL,
+        translation-resolved {item_id, item_type, key} -- consumed by the
+        polling sensor so it observes against the asset's real key, not a
+        re-derived default that can drift from a translation: override.
         """
         item_id = row.get("id")
         name = row.get("displayName") or "unnamed"
@@ -708,6 +804,9 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                 "workspace_id": row.get("workspaceId"),
             },
         )
+
+        if runnable_items is not None:
+            runnable_items.append({"item_id": item_id, "item_type": item_type, "key": asset_kwargs["key"]})
 
         @dg.asset(**asset_kwargs)
         def _runnable(context: dg.AssetExecutionContext):

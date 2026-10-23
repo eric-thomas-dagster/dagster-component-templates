@@ -82,6 +82,20 @@
       "label": "Upstream Asset Keys",
       "required": false,
       "default": null
+    },
+    "polling_sensor": {
+      "type": "boolean",
+      "label": "Polling Sensor",
+      "description": "If true, adds a polling sensor that detects new Fabric item job completions and emits AssetObservation events. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceComponent. Off by default -- opt in explicitly.",
+      "required": false,
+      "default": false
+    },
+    "sensor_check_interval_seconds": {
+      "type": "integer",
+      "label": "Sensor Check Interval Seconds",
+      "description": "Seconds between polling-sensor ticks. Only used when polling_sensor=True. Distinct from workspace.poll_interval_seconds, which governs the in-asset trigger-and-wait loop for runs Dagster itself kicks off.",
+      "required": false,
+      "default": 300
     }
   }
 }

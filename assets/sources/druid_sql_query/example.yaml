@@ -1,0 +1,10 @@
+type: dagster_component_templates.DruidSqlQueryComponent
+attributes:
+  asset_name: daily_pageviews
+  broker_url: http://druid-broker:8082
+  query: |
+    SELECT FLOOR(__time TO DAY) AS day, COUNT(*) AS pageviews
+    FROM pageviews_datasource
+    GROUP BY 1
+  group_name: analytics
+  kinds: [druid]

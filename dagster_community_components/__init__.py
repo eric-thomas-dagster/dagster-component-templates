@@ -432,6 +432,7 @@ _CLASS_PATHS: dict[str, str] = {
     "DriftConversationsIngestionComponent": "assets/ingestion/drift_conversations_ingestion/component.py",
     "DriftResourceComponent": "resources/drift_resource/component.py",
     "DriveTimeComponent": "assets/transforms/drive_time/component.py",
+    "DruidSqlQueryComponent": "assets/sources/druid_sql_query/component.py",
     "DropboxIngestionComponent": "assets/ingestion/dropbox_ingestion/component.py",
     "DropboxSignIngestionComponent": "assets/ingestion/dropbox_sign_ingestion/component.py",
     "DryRunAssetComponent": "assets/infrastructure/dry_run_asset/component.py",

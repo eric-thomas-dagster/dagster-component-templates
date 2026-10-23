@@ -64794,6 +64794,59 @@
       ]
     },
     {
+      "id": "druid_sql_query",
+      "name": "Druid SQL Query",
+      "category": "source",
+      "description": "Execute a SQL query against an Apache Druid broker's real-time OLAP SQL API and materialize the result as a Dagster asset.",
+      "path": "assets/sources/druid_sql_query",
+      "tags": [
+        "druid",
+        "olap",
+        "real-time",
+        "streaming",
+        "sql"
+      ],
+      "icon": "si:apachedruid",
+      "type": "dagster_component_templates.DruidSqlQueryComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/druid_sql_query/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/druid_sql_query/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/druid_sql_query/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/druid_sql_query/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/druid_sql_query/requirements.txt",
+      "component_type": "dagster_component_templates.DruidSqlQueryComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-23"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "DataFrame",
+        "outputs": "pandas DataFrame of the Druid SQL query result.",
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "keywords": [
+        "druid",
+        "olap",
+        "real-time",
+        "streaming",
+        "sql"
+      ]
+    },
+    {
       "id": "trino_resource",
       "name": "Trino Resource",
       "category": "resource",

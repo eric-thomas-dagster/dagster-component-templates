@@ -1271,6 +1271,10 @@
                 "api_key_env_var"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -1319,6 +1323,10 @@
                 "api_key_env_var"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -1367,6 +1375,10 @@
                 "mcp_tool_name"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -1447,6 +1459,10 @@
                 "specialists"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -1519,6 +1535,10 @@
                 "arbitrator"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -1584,6 +1604,10 @@
                 "iterations"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -1647,6 +1671,10 @@
                 "mcp_servers"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -1722,6 +1750,10 @@
                 "entry_callable"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -1768,6 +1800,10 @@
                 "picker"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -1866,6 +1902,10 @@
                 "attributes"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -1915,6 +1955,10 @@
                 "approval_dir"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -2057,6 +2101,10 @@
                 "op"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -2348,6 +2396,10 @@
                 "op"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -2578,6 +2630,10 @@
                 "models"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -2787,6 +2843,10 @@
                 "op"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -2933,6 +2993,10 @@
                 "op"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -3083,6 +3147,10 @@
                 "outcomes"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -3218,6 +3286,10 @@
                 "default"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -3381,6 +3453,10 @@
                 "model"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -3517,6 +3593,10 @@
                 "output_schema"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -3638,6 +3718,10 @@
                 "labels"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -3761,6 +3845,10 @@
                 "model"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -3882,6 +3970,10 @@
                 "model"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -3994,6 +4086,10 @@
                 "steps"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -4070,6 +4166,10 @@
                       "op"
                     ],
                     "properties": {
+                      "version": {
+                        "type": "string",
+                        "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                      },
                       "id": {
                         "type": "string"
                       },
@@ -4100,6 +4200,10 @@
                 "agent"
               ],
               "properties": {
+                "version": {
+                  "type": "string",
+                  "description": "Optional human name for this step's prompt version (e.g. v3); emitted as agentic_prompt_version. Default: a stable hash of the prompt template, persona, model and params."
+                },
                 "id": {
                   "type": "string"
                 },
@@ -32151,6 +32255,146 @@
         "csat",
         "thumbs",
         "learning loop"
+      ]
+    },
+    {
+      "id": "dagster_instance_tools",
+      "name": "dagster_instance_tools",
+      "category": "ai",
+      "description": "Read-only tools that let an agent answer 'why is this asset stale or failing?' with real Dagster data: recent failures, run summaries and logs (secrets redacted), asset status, lineage, staleness and receipt stats. Ships as a resource and a stdio MCP server for agentic_pipeline's mcp_servers.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/dagster_instance_tools",
+      "tags": [],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "mcp"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_instance_tools/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_instance_tools/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_instance_tools/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_instance_tools/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_instance_tools/requirements.txt",
+      "icon": "MagnifyingGlass",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-23",
+        "evidence": "tests/ in the component dir: real on-disk Dagster instance with succeeding, failing, partitioned and failing-check assets; stdio MCP server driven by the real mcp client and by agentic_pipeline's own MCP discovery. Some answers are impossible without definitions_module; Dagster+ and remote instances not exercised."
+      },
+      "agent_hints": {
+        "inputs": "allow (tool allow-list), max_result_chars, definitions_module (optional; unlocks downstream lineage and partition totals), DAGSTER_HOME for the MCP server.",
+        "outputs": "JSON dicts per tool; errors returned as {error: ...}.",
+        "side_effects": "Read-only against the Dagster instance; one audit log line per call (tool and args, never results).",
+        "anti_uses": "Not a control plane: it cannot launch, retry or terminate runs.",
+        "requires_resources": [],
+        "output_type": "none",
+        "requires_pip": [
+          "mcp"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "agents",
+        "mcp",
+        "observability",
+        "lineage",
+        "failures",
+        "staleness"
+      ]
+    },
+    {
+      "id": "insights_custom_metrics_sync",
+      "name": "insights_custom_metrics_sync",
+      "category": "ai",
+      "description": "Registers Dagster+ Insights custom metric definitions (by metadata_key and unit) through the Dagster+ GraphQL API, idempotently, with presets for the numeric metadata our components emit and an opt-in presets: auto that registers only what the loaded assets declare. Includes a schema-drift check.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/insights_custom_metrics_sync",
+      "tags": [],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/insights_custom_metrics_sync/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/insights_custom_metrics_sync/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/insights_custom_metrics_sync/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/insights_custom_metrics_sync/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/insights_custom_metrics_sync/requirements.txt",
+      "icon": "ChartLine",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-23",
+        "evidence": "tests/ in the component dir against a local fake Dagster+ GraphQL server mirroring cli/sync_custom_metrics shapes (create/update/no-op/prune safelist/retries/redaction/schema validator). Not run against a live Dagster+; token permissions and the real schema are unverified."
+      },
+      "agent_hints": {
+        "inputs": "deployment_url, token_env_var, presets (or auto) and/or explicit metrics, dry_run (default true), verify_schema off|warn|strict (default warn).",
+        "outputs": "Metadata: created/updated/unchanged metrics, planned changes in dry-run, schema_check result.",
+        "side_effects": "Creates or updates Insights custom metric definitions in the Dagster+ deployment when dry_run is false; deletes only with prune plus an explicit prefix safelist.",
+        "anti_uses": "Needs a Dagster+ user API token; not for OSS Dagster.",
+        "requires_resources": [],
+        "output_type": "none",
+        "requires_pip": []
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "insights",
+        "metrics",
+        "dagster-plus",
+        "observability",
+        "cost"
+      ]
+    },
+    {
+      "id": "run_failure_remediation",
+      "name": "run_failure_remediation",
+      "category": "ai",
+      "description": "Self-healing runs with a safety gate: a run-failure sensor writes redacted evidence and launches a triage job on a dynamic partition; the triage agent's proposal waits for approval (same store as agentic_pipeline's approve) and only allow-listed actions run. Outcomes (fixed or not) feed the next triage.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/ai/run_failure_remediation",
+      "tags": [],
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/run_failure_remediation/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/run_failure_remediation/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/run_failure_remediation/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/run_failure_remediation/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/run_failure_remediation/requirements.txt",
+      "icon": "FirstAidKit",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-23",
+        "evidence": "tests/ in the component dir with a real Dagster instance and real failing runs; triage example runs end to end with only the model faked; token compatibility with agentic_pipeline.approve_pending and agent_review_queue. No daemon, no live LLM, and code-location reload behaviour unverified."
+      },
+      "agent_hints": {
+        "inputs": "evidence_dir, proposals_dir, approval_dir, results_dir, triage_job, remediation_jobs {name: asset selection}, allowed action kinds, optional auto_approve limits.",
+        "outputs": "Evidence, pending-approval and result JSON files; run requests for approved retries and reruns.",
+        "side_effects": "Launches runs and writes tickets or webhooks, only after a valid approval token unless auto_approve is explicitly configured.",
+        "anti_uses": "Retries only run in the sensor's own code location; not a replacement for Dagster's built-in retry policies.",
+        "requires_resources": [],
+        "output_type": "none",
+        "requires_pip": []
+      },
+      "produces": [
+        "asset"
+      ],
+      "keywords": [
+        "self-healing",
+        "remediation",
+        "agents",
+        "approval",
+        "incident",
+        "sensor"
       ]
     },
     {

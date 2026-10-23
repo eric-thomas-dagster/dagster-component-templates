@@ -1,0 +1,55 @@
+# The TRIAGE pipeline run_failure_remediation launches for every failed run (one dynamic partition per failed run id).
+# It reads the redacted evidence the failure sensor wrote, asks a model for a diagnosis + proposed actions, and writes the
+# proposal JSON the approval sensor watches. Nothing here executes anything: a human (or your auto_approve policy) decides.
+#
+# Wire-up: component.dynamic_partitions_name == dynamic_partition_name below; component.triage_asset_selection selects these assets
+# (group: triage); component.evidence_dir / proposals_dir == the two paths below (local paths: agentic_pipeline's file source and
+# json sinks are local).
+type: dagster_community_components.AgenticPipelineComponent
+attributes:
+  asset_name_prefix: run_triage
+  group_name: triage
+  partition_type: dynamic
+  dynamic_partition_name: run_failures
+
+  source:
+    kind: file
+    path: ./evidence/{partition_key}.json
+
+  steps:
+    - id: proposal
+      op: extract
+      model: gpt-4o-mini                 # any litellm model, incl. ollama/qwen3 for a fully local triage
+      api_key_env_var: OPENAI_API_KEY
+      system_prompt: >
+        You triage a failed Dagster run. The input is JSON evidence: the failed steps, the root-cause error, which assets
+        did not materialize, the last materialization of their upstream assets, the job's recent runs, and `recent_outcomes`
+        (what earlier remediations of this job/error did, fixed or not_fixed -- do not repeat an action that already
+        failed to fix the same error signature). Diagnose the root cause and propose the SMALLEST safe set of actions.
+        Allowed action kinds: retry_run (params {}), rerun_partition (params {partition_key?, asset_keys?}),
+        open_ticket (params {title, body, severity: low|medium|high|critical}). Use open_ticket when the failure is a code or
+        data bug a retry cannot fix. Set confidence honestly in 0..1. Never include credentials in any field.
+      prompt_template: "Evidence:\n{text}"
+      output_schema:
+        type: object
+        properties:
+          summary: {type: string}
+          root_cause: {type: string}
+          confidence: {type: number}
+          actions:
+            type: array
+            items:
+              type: object
+              properties:
+                kind: {type: string, enum: [retry_run, rerun_partition, open_ticket]}
+                params: {type: object}
+                reason: {type: string}
+              required: [kind, params, reason]
+        required: [summary, root_cause, confidence, actions]
+
+  outputs:
+    assets: [proposal]
+    json_sinks:
+      # the approval sensor reads <proposals_dir>/<run_id>.json
+      - from: proposal
+        path: ./proposals/{partition_key}.json

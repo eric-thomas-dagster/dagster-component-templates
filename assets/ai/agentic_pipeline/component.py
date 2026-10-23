@@ -138,6 +138,8 @@ def _require_env(name: str, purpose: Optional[str] = None) -> str:
 
 import contextlib
 import contextvars
+import threading
+import uuid
 import fnmatch
 import logging
 from types import SimpleNamespace
@@ -150,8 +152,18 @@ _POLICY_SECTIONS = {
     "network": {"allow_hosts"},
     "tools": {"allow", "deny", "max_calls_per_run", "arg_rules"},
     "components": {"allow"},
-    "budget": {"max_cost_usd", "max_tokens", "max_llm_calls", "max_seconds"},
+    "budget": {"max_cost_usd", "max_tokens", "max_llm_calls", "max_seconds",
+               "max_cost_usd_per_day", "max_tokens_per_day", "max_cost_usd_per_partition", "max_cost_usd_per_month",
+               "ledger", "breaker", "on_unknown_cost"},
 }
+# Cross-run caps: (budget key, ledger scope, usage field). They need `budget.ledger` (the durable record they are summed from).
+_LEDGER_CAPS = (
+    ("max_cost_usd_per_day", "day", "cost_usd"),
+    ("max_tokens_per_day", "day", "tokens"),
+    ("max_cost_usd_per_month", "month", "cost_usd"),
+    ("max_cost_usd_per_partition", "partition", "cost_usd"),
+)
+_COST_CAP_KEYS = ("max_cost_usd", "max_cost_usd_per_day", "max_cost_usd_per_month", "max_cost_usd_per_partition")
 _ARG_RULE_KEYS = {"tool", "arg", "under", "hosts", "allow_regex", "deny_regex"}
 # What a stdio MCP subprocess always gets when `policy.env.allow` is set (so `npx`, `uvx`, etc. still run).
 _SAFE_SUBPROCESS_ENV = (
@@ -164,7 +176,37 @@ class PolicyViolation(RuntimeError):
     """The pipeline tried to do something its `policy:` does not allow (and `on_violation` is `fail`)."""
 
 
-def _validate_policy(cfg: Any) -> Dict[str, Any]:
+def _validate_budget_extras(sub: str, v: Any, root: bool) -> None:
+    where = f"policy.budget.{sub}"
+    if sub in ("ledger", "breaker") and not root:
+        raise ValueError(f"{where} is only valid in the pipeline-level policy (a step policy shares the pipeline's ledger)")
+    if sub == "ledger":
+        if not isinstance(v, dict) or not isinstance(v.get("dir"), str) or not v["dir"]:
+            raise ValueError("policy.budget.ledger must be a mapping with a non-empty `dir` (local path or fsspec URL)")
+        bad = set(v) - {"dir", "compact_after_days"}
+        if bad:
+            raise ValueError(f"unknown policy.budget.ledger key(s) {sorted(bad)}; valid: ['compact_after_days', 'dir']")
+        c = v.get("compact_after_days")
+        if c is not None and (not isinstance(c, (int, float)) or isinstance(c, bool) or c <= 0):
+            raise ValueError("policy.budget.ledger.compact_after_days must be a number > 0")
+    elif sub == "breaker":
+        if not isinstance(v, dict):
+            raise ValueError("policy.budget.breaker must be a mapping")
+        bad = set(v) - {"trip_after_violations", "cool_down_minutes", "window_minutes"}
+        if bad:
+            raise ValueError(f"unknown policy.budget.breaker key(s) {sorted(bad)}")
+        n = v.get("trip_after_violations")
+        if not isinstance(n, int) or isinstance(n, bool) or n < 1:
+            raise ValueError("policy.budget.breaker.trip_after_violations must be an integer >= 1")
+        for k in ("cool_down_minutes", "window_minutes"):
+            x = v.get(k)
+            if (k == "cool_down_minutes" and x is None) or (x is not None and (not isinstance(x, (int, float)) or isinstance(x, bool) or x <= 0)):
+                raise ValueError(f"policy.budget.breaker.{k} must be a number > 0")
+    elif sub == "on_unknown_cost" and v not in ("warn", "fail"):
+        raise ValueError("policy.budget.on_unknown_cost must be 'warn' or 'fail'")
+
+
+def _validate_policy(cfg: Any, root: bool = True) -> Dict[str, Any]:
     """Reject typos loudly: a misspelled `filesystm:` silently allowing everything would be a security footgun."""
     if cfg in (None, {}):
         return {}
@@ -182,8 +224,14 @@ def _validate_policy(cfg: Any) -> Dict[str, Any]:
         bad = set(val) - _POLICY_SECTIONS[key]
         if bad:
             raise ValueError(f"unknown policy.{key} key(s) {sorted(bad)}; valid: {sorted(_POLICY_SECTIONS[key])}")
+        if key == "budget" and root and any(k in val for k, _, _ in _LEDGER_CAPS) and "ledger" not in val:
+            raise ValueError("policy.budget per-day/per-month/per-partition caps need policy.budget.ledger: {dir: ...} "
+                             "(the durable record they are summed from)")
         for sub, v in val.items():
-            if sub in ("max_cost_usd", "max_tokens", "max_llm_calls", "max_seconds", "max_calls_per_run"):
+            if key == "budget" and sub in ("ledger", "breaker", "on_unknown_cost"):
+                _validate_budget_extras(sub, v, root)
+            elif sub in ("max_cost_usd", "max_tokens", "max_llm_calls", "max_seconds", "max_calls_per_run",
+                         "max_cost_usd_per_day", "max_tokens_per_day", "max_cost_usd_per_partition", "max_cost_usd_per_month"):
                 if not isinstance(v, (int, float)) or isinstance(v, bool) or v < 0:
                     raise ValueError(f"policy.{key}.{sub} must be a non-negative number")
             elif sub == "arg_rules":
@@ -230,6 +278,8 @@ class _Policy:
     def violate(self, kind: str, detail: str, *, hard: bool = True) -> None:
         """Record a violation; raise unless on_violation is 'warn' (or the caller handles refusal itself)."""
         self.usage["violations"].append({"kind": kind, "detail": detail, "at": _now_iso()})
+        if kind == "budget":
+            self._breaker_record(detail)
         if hard and self._mode() != "warn":
             raise PolicyViolation(f"[policy:{kind}] {detail}")
         logging.getLogger(__name__).warning("[policy:%s] %s", kind, detail)
@@ -287,9 +337,82 @@ class _Policy:
             self.violate("components", f"invoking component {name!r} is not in policy.components.allow {list(allow)}")
 
     # budget
+    def _root(self) -> "_Policy":
+        p = self
+        while p.parent is not None:
+            p = p.parent
+        return p
+
+    def _ledger(self) -> Optional["_SpendLedger"]:
+        r = self._root()
+        if not hasattr(r, "_ledger_obj"):
+            cfg = r._sec("budget").get("ledger")
+            r._ledger_obj = _SpendLedger(cfg) if cfg else None
+        return r._ledger_obj
+
+    def _breaker_cfg(self) -> Optional[Dict[str, Any]]:
+        return self._root()._sec("budget").get("breaker")
+
+    def _breaker_record(self, detail: str) -> None:
+        cfg, ld = self._breaker_cfg(), self._ledger()
+        if cfg and ld is not None:
+            ld.breaker_record(detail, cfg)
+
+    def _breaker_check(self) -> None:
+        cfg, ld = self._breaker_cfg(), self._ledger()
+        if not cfg or ld is None:
+            return
+        until = ld.breaker_open_until(cfg)
+        if until is not None:
+            detail = (f"circuit breaker open: {cfg['trip_after_violations']} budget violations within "
+                      f"{cfg.get('window_minutes', cfg['cool_down_minutes'])} min; no LLM calls until {until.isoformat()} "
+                      f"(cool_down_minutes={cfg['cool_down_minutes']})")
+            self.usage["violations"].append({"kind": "breaker", "detail": detail, "at": _now_iso()})
+            raise PolicyViolation(f"[policy:breaker] {detail}")  # a tripped breaker refuses regardless of on_violation
+
+    def _cost_caps_here(self) -> bool:
+        b = self._sec("budget")
+        return any(b.get(k) is not None for k in _COST_CAP_KEYS)
+
+    def _unknown_cost_mode(self) -> str:
+        p: Optional[_Policy] = self
+        while p is not None:
+            m = p._sec("budget").get("on_unknown_cost")
+            if m:
+                return m
+            p = p.parent
+        return "warn"
+
+    def _check_ledger_caps(self, after: bool) -> None:
+        b = self._sec("budget")
+        wanted = [(k, sc, fld) for k, sc, fld in _LEDGER_CAPS if b.get(k) is not None]
+        if not wanted:
+            return
+        ld = self._ledger()
+        if ld is None:
+            raise ValueError("policy.budget per-day/month/partition caps need the pipeline policy to set budget.ledger")
+        now = _ledger_now()
+        pk = self.usage.get("partition_key")
+        for k, scope, fld in wanted:
+            key = ld.scope_key(scope, now, pk)
+            if key is None:
+                continue  # per-partition cap on an unpartitioned run: nothing to sum
+            spent = ld.total(scope, key)[fld]
+            cap = b[k]
+            if (spent > cap) if after else (spent >= cap):
+                shown = f"{spent:.4f}" if fld == "cost_usd" else str(int(spent))
+                self.violate("budget", f"policy.budget.{k}={cap} {'exceeded' if after else 'reached'} for {scope} "
+                                       f"{key!r} (spent {shown} across all runs sharing the ledger)")
+
     def before_llm_call(self) -> None:
         if self.parent is not None:
             self.parent.before_llm_call()
+        else:
+            self._breaker_check()
+            ld = self._ledger()
+            if ld is not None and not self.usage.get("ledger_compacted"):
+                self.usage["ledger_compacted"] = True
+                ld.compact(self._root()._sec("budget").get("ledger", {}).get("compact_after_days"))
         b, u = self._sec("budget"), self._spent()
         if b.get("max_llm_calls") is not None and u["llm_calls"] >= b["max_llm_calls"]:
             self.violate("budget", f"policy.budget.max_llm_calls={b['max_llm_calls']} reached")
@@ -299,15 +422,31 @@ class _Policy:
             self.violate("budget", f"policy.budget.max_cost_usd={b['max_cost_usd']} reached (spent {u['cost_usd']:.4f})")
         if b.get("max_tokens") is not None and u["tokens"] >= b["max_tokens"]:
             self.violate("budget", f"policy.budget.max_tokens={b['max_tokens']} reached (used {u['tokens']})")
+        self._check_ledger_caps(after=False)
 
-    def after_llm_call(self, cost_usd: Optional[float], tokens: Optional[int]) -> None:
+    def after_llm_call(self, cost_usd: Optional[float], tokens: Optional[int], model: Optional[str] = None) -> None:
         if self.parent is not None:
-            self.parent.after_llm_call(cost_usd, tokens)  # the root accumulates the shared counters exactly once
+            self.parent.after_llm_call(cost_usd, tokens, model)  # the root accumulates the shared counters exactly once
         else:
             u0 = self.usage
             u0["llm_calls"] += 1
             u0["tokens"] += int(tokens or 0)
             u0["cost_usd"] += float(cost_usd or 0.0)
+            if cost_usd is None:
+                u0["unknown_cost_calls"] = u0.get("unknown_cost_calls", 0) + 1
+            ld = self._ledger()
+            if ld is not None:
+                ld.record_call(self.usage)
+        if cost_usd is None and self._cost_caps_here():
+            msg = (f"cost of model {model!r} is unknown (litellm has no price for it), so the cost cap(s) in this policy "
+                   f"cannot be enforced for this call; token caps still apply (policy.budget.on_unknown_cost)")
+            if self._unknown_cost_mode() == "fail":
+                self.usage["violations"].append({"kind": "budget", "detail": msg, "at": _now_iso()})
+                raise PolicyViolation(f"[policy:budget] {msg}")
+            if model not in self.usage.setdefault("unknown_cost_warned", []):
+                self.usage["unknown_cost_warned"].append(model)
+                logging.getLogger(__name__).warning("[policy:budget] %s", msg)
+        self._check_ledger_caps(after=True)
         u = self._spent()
         b = self._sec("budget")
         if b.get("max_cost_usd") is not None and u["cost_usd"] > b["max_cost_usd"]:
@@ -367,6 +506,241 @@ class _Policy:
         if reason is None:
             self.usage["tool_calls"] += 1
         return reason
+
+
+
+# ── Cross-run spend ledger ────────────────────────────────────────────────────
+#
+# Durable, append-only record of LLM spend so budgets can span runs (per UTC day / month / partition) and a circuit
+# breaker can remember. Layout under `budget.ledger.dir` (local path or any fsspec URL):
+#
+#   day/<YYYY-MM-DD>/<run_id>__<step>.json     one file per (run, step); only that run's step ever writes it
+#   month/<YYYY-MM>/...        partition/<key>/...        breaker/<ts>-<uuid>.json
+#
+# Because each entry file has exactly ONE writer there is no read-modify-write race between concurrent runs: a reader
+# just sums the directory. Re-writing the same (run_id, step) overwrites (per-field max), so a re-delivered/retried step
+# is never counted twice. The cost is read cost: a cap check lists + reads every entry in the scope's directory, up to 3
+# directories per LLM call -- set `ledger.compact_after_days` to fold old entries into one `_compacted-*.json` file.
+
+_LEDGER_FIELDS = ("cost_usd", "tokens", "llm_calls", "unknown_cost_calls")
+
+
+def _ledger_now() -> datetime:
+    """UTC 'now' for the ledger and breaker (a module-level seam so tests can move the clock)."""
+    return datetime.now(timezone.utc)
+
+
+class _SpendLedger:
+    def __init__(self, cfg: Dict[str, Any]):
+        self.store = _ApprovalStore(cfg["dir"])
+        self.compact_after_days = cfg.get("compact_after_days")
+
+    # -- layout
+    @staticmethod
+    def scope_key(scope: str, now: datetime, partition_key: Optional[str]) -> Optional[str]:
+        if scope == "day":
+            return now.strftime("%Y-%m-%d")
+        if scope == "month":
+            return now.strftime("%Y-%m")
+        if scope == "partition":
+            return None if partition_key is None else _approval_key(partition_key)
+        raise ValueError(scope)
+
+    def _names(self, dirpath: str) -> List[str]:
+        st = self.store
+        try:
+            if st.is_uri:
+                return [x.rstrip("/").rsplit("/", 1)[-1] for x in st.fs.ls(dirpath, detail=False)]
+            return os.listdir(dirpath)
+        except (OSError, FileNotFoundError):
+            return []
+
+    def _write_atomic(self, path: str, text: str) -> None:
+        st = self.store
+        if st.is_uri:
+            st.fs.makedirs(path.rsplit("/", 1)[0], exist_ok=True)
+            st.fs.pipe_file(path, text.encode("utf-8"))
+            return
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        tmp = f"{path}.{uuid.uuid4().hex}.tmp"
+        with open(tmp, "w") as f:
+            f.write(text)
+        os.replace(tmp, path)
+
+    def _read_json(self, path: str) -> Optional[Dict[str, Any]]:
+        try:
+            return json.loads(self.store.read_text(path))
+        except (OSError, ValueError):
+            return None  # half-written / unreadable entry: skipped, never fatal
+
+    # -- entries
+    @staticmethod
+    def _merge(a: Dict[str, Any], b: Dict[str, Any]) -> Dict[str, Any]:
+        out = dict(a)
+        for k, v in b.items():
+            out[k] = max(out.get(k, 0), v) if k in _LEDGER_FIELDS else v
+        return out
+
+    def write_entry(self, scope: str, key: str, entry_id: str, values: Dict[str, Any]) -> None:
+        path = self.store.path(scope, key, f"{entry_id}.json")
+        if self.store.exists(path):
+            old = self._read_json(path)
+            if old:
+                values = self._merge(old, values)  # a retried step starts from 0 again: never shrink what was recorded
+        self._write_atomic(path, json.dumps(values))
+
+    def entries(self, scope: str, key: str) -> Dict[str, Dict[str, Any]]:
+        d = self.store.path(scope, key)
+        out: Dict[str, Dict[str, Any]] = {}
+        for name in self._names(d):
+            if not name.endswith(".json"):
+                continue
+            data = self._read_json(self.store.path(scope, key, name))
+            if not data:
+                continue
+            for eid, vals in (data["entries"].items() if "entries" in data else [(name[:-5], data)]):
+                out[eid] = self._merge(out[eid], vals) if eid in out else dict(vals)
+        return out
+
+    def total(self, scope: str, key: str) -> Dict[str, float]:
+        tot = {k: 0 for k in _LEDGER_FIELDS}
+        for vals in self.entries(scope, key).values():
+            for k in _LEDGER_FIELDS:
+                tot[k] += vals.get(k, 0)
+        return tot
+
+    def record_call(self, usage: Dict[str, Any]) -> None:
+        """Persist the current step's own spend (cumulative for this attempt) under every scope this run counts toward."""
+        spend, step_key = _STEP_SPEND.get(), "/".join(_STEP_STACK.get()) or "_"
+        if spend is None:
+            return
+        slots = usage.setdefault("ledger_slots", {})
+        now = _ledger_now()
+        slot = slots.setdefault(step_key, {"ts": now.isoformat(), "day": self.scope_key("day", now, None),
+                                           "month": self.scope_key("month", now, None)})
+        run_id = str(usage.get("run_id") or "local")
+        eid = f"{_approval_key(run_id)}__{_approval_key(step_key)}"
+        with _SPEND_LOCK:
+            vals = {k: spend[k] for k in _LEDGER_FIELDS}
+            vals.update(ts=slot["ts"], run_id=run_id, step=step_key)
+            self.write_entry("day", slot["day"], eid, vals)
+            self.write_entry("month", slot["month"], eid, vals)
+            pk = self.scope_key("partition", now, usage.get("partition_key"))
+            if pk is not None:
+                self.write_entry("partition", pk, eid, vals)
+
+    def snapshot(self, caps: Dict[str, Any], partition_key: Optional[str]) -> Dict[str, float]:
+        now = _ledger_now()
+        out: Dict[str, float] = {}
+        day, month = self.total("day", self.scope_key("day", now, None)), self.total("month", self.scope_key("month", now, None))
+        out["spent_today_usd"], out["spent_month_usd"], out["tokens_today"] = day["cost_usd"], month["cost_usd"], day["tokens"]
+        if caps.get("max_cost_usd_per_day") is not None:
+            out["remaining_today_usd"] = max(0.0, caps["max_cost_usd_per_day"] - day["cost_usd"])
+        if caps.get("max_cost_usd_per_month") is not None:
+            out["remaining_month_usd"] = max(0.0, caps["max_cost_usd_per_month"] - month["cost_usd"])
+        pk = self.scope_key("partition", now, partition_key)
+        if pk is not None:
+            out["spent_partition_usd"] = self.total("partition", pk)["cost_usd"]
+        return out
+
+    def compact(self, after_days: Optional[float]) -> None:
+        """Fold entries older than `after_days` into one `_compacted-*.json` per directory. Idempotent under races: the
+        compacted file keeps entry ids, and readers merge by id, so two compactors folding the same entries cannot double count."""
+        if not after_days:
+            return
+        cutoff = _ledger_now().timestamp() - float(after_days) * 86400
+        for scope in ("day", "month", "partition"):
+            for key in self._names(self.store.path(scope)):
+                old: Dict[str, Dict[str, Any]] = {}
+                files: List[str] = []
+                for name in self._names(self.store.path(scope, key)):
+                    if not name.endswith(".json") or name.startswith("_compacted-"):
+                        continue
+                    data = self._read_json(self.store.path(scope, key, name))
+                    try:
+                        ts = datetime.fromisoformat(data["ts"]).timestamp() if data else None
+                    except (KeyError, ValueError):
+                        ts = None
+                    if ts is not None and ts < cutoff:
+                        old[name[:-5]] = data
+                        files.append(name)
+                if len(files) < 2:
+                    continue
+                self._write_atomic(self.store.path(scope, key, f"_compacted-{uuid.uuid4().hex[:12]}.json"),
+                                   json.dumps({"entries": old}))
+                for name in files:
+                    self.store.remove(self.store.path(scope, key, name))
+
+    # -- circuit breaker
+    def breaker_record(self, detail: str, cfg: Dict[str, Any]) -> None:
+        now = _ledger_now()
+        self._write_atomic(self.store.path("breaker", f"{now.strftime('%Y%m%dT%H%M%S%f')}-{uuid.uuid4().hex[:8]}.json"),
+                           json.dumps({"ts": now.isoformat(), "detail": detail}))
+        horizon = (cfg.get("window_minutes") or cfg["cool_down_minutes"]) + cfg["cool_down_minutes"]
+        for name in self._names(self.store.path("breaker")):  # events older than window+cool-down can never matter again
+            d = self._read_json(self.store.path("breaker", name))
+            try:
+                if d and (now - datetime.fromisoformat(d["ts"])).total_seconds() > horizon * 60:
+                    self.store.remove(self.store.path("breaker", name))
+            except (KeyError, ValueError):
+                pass
+
+    def breaker_open_until(self, cfg: Dict[str, Any]) -> Optional[datetime]:
+        n, cool = int(cfg["trip_after_violations"]), float(cfg["cool_down_minutes"]) * 60
+        window = float(cfg.get("window_minutes") or cfg["cool_down_minutes"]) * 60
+        ts: List[datetime] = []
+        for name in self._names(self.store.path("breaker")):
+            d = self._read_json(self.store.path("breaker", name))
+            try:
+                ts.append(datetime.fromisoformat(d["ts"]))
+            except (TypeError, KeyError, ValueError):
+                continue
+        ts.sort()
+        trip = None
+        for i in range(n - 1, len(ts)):
+            if (ts[i] - ts[i - n + 1]).total_seconds() <= window:
+                trip = ts[i]  # the latest moment N violations sat inside one window
+        if trip is None:
+            return None
+        until = trip.timestamp() + cool
+        return datetime.fromtimestamp(until, tz=timezone.utc) if _ledger_now().timestamp() < until else None
+
+
+# Per-step spend, tracked ALWAYS (policy or not): `_STEP_SPEND` is the innermost running step's own counters; a step
+# nested in a sub_pipeline rolls its total up into its parent's `children`.
+_SPEND_LOCK = threading.Lock()
+_STEP_SPEND: "contextvars.ContextVar[Optional[Dict[str, Any]]]" = contextvars.ContextVar("agentic_step_spend", default=None)
+_STEP_STACK: "contextvars.ContextVar[tuple]" = contextvars.ContextVar("agentic_step_stack", default=())
+
+
+def _new_spend() -> Dict[str, Any]:
+    return {"cost_usd": 0.0, "tokens": 0, "llm_calls": 0, "unknown_cost_calls": 0, "tool_calls": 0,
+            "children": {"cost_usd": 0.0, "tokens": 0, "llm_calls": 0, "unknown_cost_calls": 0, "tool_calls": 0}}
+
+
+def _note_spend(cost_usd: Optional[float], tokens: Optional[int]) -> None:
+    sp = _STEP_SPEND.get()
+    if sp is None:
+        return
+    with _SPEND_LOCK:
+        sp["llm_calls"] += 1
+        sp["tokens"] += int(tokens or 0)
+        if cost_usd is None:
+            sp["unknown_cost_calls"] += 1
+        else:
+            sp["cost_usd"] += float(cost_usd)
+
+
+def _note_tool_call() -> None:
+    sp = _STEP_SPEND.get()
+    if sp is not None:
+        with _SPEND_LOCK:
+            sp["tool_calls"] += 1
+
+
+def _spend_total(sp: Dict[str, Any]) -> Dict[str, Any]:
+    return {k: (round(sp[k] + sp["children"][k], 6) if k == "cost_usd" else sp[k] + sp["children"][k])
+            for k in ("cost_usd", "tokens", "llm_calls", "unknown_cost_calls", "tool_calls")}
 
 
 @contextlib.contextmanager
@@ -993,8 +1367,9 @@ def _completion(
                 cache_creation_tokens = int(v)
                 break
 
+    _note_spend(cost_usd, tokens_total)
     if _p is not None:
-        _p.after_llm_call(cost_usd, tokens_total)
+        _p.after_llm_call(cost_usd, tokens_total, effective_model)
 
     return {
         "content": content,
@@ -2386,6 +2761,7 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         _refusal = _p.guard_tool(f"{server_cfg.get('name', 'mcp')}__{tool_name}", tool_name, resolved_args)
         if _refusal:
             raise PolicyViolation(f"[policy:tools] mcp_call step {step.get('id')!r}: {_refusal}")
+    _note_tool_call()
 
     t0 = time.time()
     try:
@@ -2901,6 +3277,7 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
                     n_tool_calls += 1
                     continue
 
+            _note_tool_call()
             t_tool = _time.time()
             try:
                 tool_result = asyncio.run(_call_mcp_tool_async(
@@ -3288,8 +3665,9 @@ def _do_map(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
 
     if max_concurrent > 1 and len(items) > 1:
         from concurrent.futures import ThreadPoolExecutor
+        _cctx = contextvars.copy_context()  # workers must see the active policy + spend counters (they did not)
         with ThreadPoolExecutor(max_workers=max_concurrent) as pool:
-            for i, item, result in pool.map(_run_one, enumerate(items)):
+            for i, item, result in pool.map(lambda pair: _cctx.copy().run(_run_one, pair), enumerate(items)):
                 results[i] = _to_result_entry(item, result)
                 all_llm_results.append(result)
     else:
@@ -4845,6 +5223,121 @@ def _code_version(obj: Any) -> str:
     return hashlib.sha1(json.dumps(obj, sort_keys=True, default=str).encode()).hexdigest()[:12]
 
 
+# Keys that wire a step into the graph or gate it at run time; they do not change what the model is asked, so they are
+# not part of its prompt version.
+_PROMPT_VERSION_EXCLUDE = ("id", "source", "sources", "inputs", "when", "policy", "version", "persona", "description")
+
+
+def _policy_for_version(policy: Any) -> Any:
+    """The policy minus `budget`: spend limits change often and do not change what a step computes, so tuning a cap must
+    not mark every asset stale."""
+    if not isinstance(policy, dict):
+        return policy
+    return {k: v for k, v in policy.items() if k != "budget"}
+
+
+def _has_model(node: Any) -> bool:
+    if isinstance(node, dict):
+        return bool(node.get("model")) or any(_has_model(v) for v in node.values())
+    if isinstance(node, list):
+        return any(_has_model(v) for v in node)
+    return False
+
+
+def prompt_versions(component_attrs: Dict[str, Any]) -> Dict[str, Dict[str, str]]:
+    """Pure: `{step_id: {"version": ..., "hash": ...}}` for every step that makes an LLM call.
+
+    `hash` (`p-` + 8 hex chars) covers everything that shapes the request and nothing that is run-time data: the declared
+    prompt template(s) / system prompt(s) with placeholders left as written (`{text}`, `{partition_key}`), the model,
+    temperature and the other LLM params, persona fields merged in, and every nested sub-config. Wiring (id, source,
+    inputs, when, policy) is excluded. `version` is the human name when given -- `version: "v3"` on the step, else on the
+    step's top-level `persona` -- otherwise it equals `hash`. Steps without a model (mcp_call, approve, ...) are omitted."""
+    personas = component_attrs.get("personas") or {}
+    out: Dict[str, Dict[str, str]] = {}
+    for st in component_attrs.get("steps") or []:
+        if not isinstance(st, dict) or not st.get("id"):
+            continue
+        resolved = _resolve_persona(st, personas)
+        if not _has_model(resolved):
+            continue
+        core = {k: v for k, v in resolved.items() if k not in _PROMPT_VERSION_EXCLUDE}
+        h = "p-" + _code_version({"op": st.get("op"), "core": core})[:8]
+        named = st.get("version")
+        if named is None and isinstance(st.get("persona"), str):
+            named = (personas.get(st["persona"]) or {}).get("version")
+        out[str(st["id"])] = {"version": str(named) if named is not None else h, "hash": h}
+    return out
+
+
+def _step_code_version(step: Optional[dict], personas: Any, policy: Any) -> str:
+    """Dagster `code_version` of one step: the step as written with ITS persona resolved (not every persona) plus the
+    non-budget policy. Editing one step's prompt changes only that step's version."""
+    resolved = _resolve_persona(step, personas or {}) if step else step
+    pname = step.get("persona") if isinstance(step, dict) else None
+    pver = (personas or {}).get(pname, {}).get("version") if isinstance(pname, str) else None  # a renamed persona version counts
+    return _code_version({"step": resolved, "policy": _policy_for_version(policy), "persona_version": pver})
+
+
+# Dagster+ Insights custom metrics this component emits as NUMERIC asset metadata, under exactly these keys. Register
+# them once per deployment (unit_type is what Insights formats them with); after that Insights aggregates every
+# asset that emits the key. The pipeline-level totals are attached to ONE emitted asset per materialization (the first), so
+# summing across assets does not multiply them; per-step numbers use `agentic_step_*` keys (not listed here).
+INSIGHTS_METRICS = [
+    {"metadata_key": "agentic_cost_usd", "unit_type": "FLOAT", "display_name": "Agentic pipeline cost (USD)", "description": "Total LLM spend of one pipeline materialization, in USD (litellm pricing; calls on unpriced models count as 0)."},
+    {"metadata_key": "agentic_tokens", "unit_type": "INTEGER", "display_name": "Agentic pipeline tokens", "description": "Total tokens used by all LLM calls in one pipeline materialization."},
+    {"metadata_key": "agentic_llm_calls", "unit_type": "INTEGER", "display_name": "Agentic pipeline LLM calls", "description": "Number of LLM calls made by one pipeline materialization."},
+    {"metadata_key": "agentic_tool_calls", "unit_type": "INTEGER", "display_name": "Agentic pipeline tool calls", "description": "Number of tool / MCP calls executed by one pipeline materialization."},
+    {"metadata_key": "agentic_latency_ms", "unit_type": "TIME_MS", "display_name": "Agentic pipeline wall time", "description": "Wall-clock time of the pipeline body for one materialization, in milliseconds."},
+    {"metadata_key": "agentic_budget_violations", "unit_type": "INTEGER", "display_name": "Agentic budget violations", "description": "Budget violations recorded during one pipeline materialization (cap reached/exceeded, breaker refusals)."},
+    {"metadata_key": "agentic_spent_today_usd", "unit_type": "FLOAT", "display_name": "Agentic spend today (USD, ledger)", "description": "Cumulative UTC-day spend across all runs sharing the policy.budget.ledger, at the end of this materialization."},
+    {"metadata_key": "agentic_remaining_today_usd", "unit_type": "FLOAT", "display_name": "Agentic budget remaining today (USD)", "description": "max_cost_usd_per_day minus the ledger's spend today (only emitted when a daily cap is set)."},
+]
+
+
+def _ledger_snapshot(policy: Optional[Dict[str, Any]], state: Dict[str, Any]) -> Dict[str, float]:
+    b = (policy or {}).get("budget") or {}
+    if not b.get("ledger"):
+        return {}
+    return _SpendLedger(b["ledger"]).snapshot(b, (state.get("__ctx__") or {}).get("partition_key"))
+
+
+def _agentic_metadata(aid: str, entry: Any, state: Dict[str, Any], *, first: bool, pv: Dict[str, Dict[str, str]],
+                      snapshot: Dict[str, float]) -> Dict[str, Any]:
+    """Spend + version metadata for one emitted asset. Always emitted (zeros included), numeric where it can be charted:
+    per-step `agentic_step_*`; pipeline totals `agentic_*` (see INSIGHTS_METRICS) on the first emitted asset only."""
+    import dagster as dg
+    md: Dict[str, Any] = {}
+    sp = (entry.get("agentic_spend") if isinstance(entry, dict) else None) or {}
+    md["agentic_step_cost_usd"] = dg.MetadataValue.float(float(sp.get("cost_usd", 0.0)))
+    md["agentic_step_tokens"] = dg.MetadataValue.int(int(sp.get("tokens", 0)))
+    md["agentic_step_llm_calls"] = dg.MetadataValue.int(int(sp.get("llm_calls", 0)))
+    md["agentic_step_tool_calls"] = dg.MetadataValue.int(int(sp.get("tool_calls", 0)))
+    md["agentic_step_unknown_cost_calls"] = dg.MetadataValue.int(int(sp.get("unknown_cost_calls", 0)))
+    if aid in pv:
+        md["agentic_prompt_version"] = dg.MetadataValue.text(pv[aid]["version"])
+        md["agentic_prompt_hash"] = dg.MetadataValue.text(pv[aid]["hash"])
+    md["agentic_prompt_versions"] = dg.MetadataValue.json({k: v["version"] for k, v in pv.items()})
+    if first:
+        tot = {k: 0 for k in ("cost_usd", "tokens", "llm_calls", "tool_calls", "unknown_cost_calls")}
+        for v in (state.get("__spend__") or {}).values():
+            for k in tot:
+                tot[k] += v.get(k, 0)
+        md["agentic_cost_usd"] = dg.MetadataValue.float(round(float(tot["cost_usd"]), 6))
+        md["agentic_tokens"] = dg.MetadataValue.int(int(tot["tokens"]))
+        md["agentic_llm_calls"] = dg.MetadataValue.int(int(tot["llm_calls"]))
+        md["agentic_tool_calls"] = dg.MetadataValue.int(int(tot["tool_calls"]))
+        md["agentic_unknown_cost_calls"] = dg.MetadataValue.int(int(tot["unknown_cost_calls"]))
+        if state.get("__t0__") is not None:
+            md["agentic_latency_ms"] = dg.MetadataValue.int(int((time.time() - state["__t0__"]) * 1000))
+        md["agentic_budget_violations"] = dg.MetadataValue.int(len((state.get("__policy_usage__") or {}).get("violations", [])))
+        for src, dst in (("spent_today_usd", "agentic_spent_today_usd"), ("remaining_today_usd", "agentic_remaining_today_usd"),
+                         ("spent_month_usd", "agentic_spent_month_usd"), ("remaining_month_usd", "agentic_remaining_month_usd"),
+                         ("spent_partition_usd", "agentic_spent_partition_usd"), ("tokens_today", "agentic_tokens_today")):
+            if src in snapshot:
+                md[dst] = dg.MetadataValue.float(float(snapshot[src])) if src.endswith("usd") else dg.MetadataValue.int(int(snapshot[src]))
+    return md
+
+
 def _parse_json_loose(text: Optional[str]) -> Any:
     """Parse the JSON a model produced even when it wrapped it in a code fence or added a sentence around it."""
     t = (text or "").strip()
@@ -5843,6 +6336,12 @@ def _run_step(step: dict, state: Dict[str, Any], context) -> None:
 
     context.log.info(f"[step {step_id!r}] op={op!r}")
 
+    # Spend accounting (always on, policy or not): this step's own counters; nested steps roll up into their parent.
+    _parent_spend = _STEP_SPEND.get()
+    _spend = _new_spend()
+    _sp_token = _STEP_SPEND.set(_spend)
+    _st_token = _STEP_STACK.set(_STEP_STACK.get() + (str(step_id),))
+
     # Agent policy (optional): installed for the duration of this step. Usage counters live in `state` (plain
     # dict) so budgets accumulate across steps -- including per-step ops, where state is passed between ops.
     policy_cfg = state.get("__policy__")
@@ -5852,10 +6351,12 @@ def _run_step(step: dict, state: Dict[str, Any], context) -> None:
     if policy_cfg or step_policy_cfg:
         _active = _pol()  # an enclosing scope (ingest/sinks body) already owns the run's counters: share them
         usage = state.setdefault("__policy_usage__", _active.usage if _active is not None else {})
+        usage.setdefault("run_id", getattr(context, "run_id", None) or "local")
+        usage.setdefault("partition_key", _ctx.get("partition_key"))
         policy = _Policy(policy_cfg, usage) if policy_cfg else None
         if step_policy_cfg:
             # A step can only be MORE restricted than the pipeline: every check passes the pipeline policy first.
-            policy = _Policy(_validate_policy(step_policy_cfg), usage, parent=policy, scoped=True)
+            policy = _Policy(_validate_policy(step_policy_cfg, root=False), usage, parent=policy, scoped=True)
         n_before = len(usage["violations"])
         p_token = _ACTIVE_POLICY.set(policy)
     r_token = _REASONING_TRACE.set([])
@@ -5866,7 +6367,18 @@ def _run_step(step: dict, state: Dict[str, Any], context) -> None:
         _REASONING_TRACE.reset(r_token)
         if p_token is not None:
             _ACTIVE_POLICY.reset(p_token)
+        _STEP_SPEND.reset(_sp_token)
+        _STEP_STACK.reset(_st_token)
+        # roll up even when the step failed: money spent by a failed attempt is still spent
+        _tot = _spend_total(_spend)
+        if _parent_spend is not None:
+            with _SPEND_LOCK:
+                for _k, _v in _tot.items():
+                    _parent_spend["children"][_k] += _v
+        else:
+            state.setdefault("__spend__", {})[str(step_id)] = _tot
     if isinstance(result, dict):
+        result["agentic_spend"] = _tot
         if trace:
             result["reasoning"] = trace
             result["reasoning_chars"] = sum(len(r["text"]) for r in trace)
@@ -6040,7 +6552,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "agents, LLM api_base); `tools.allow` / `tools.deny: [patterns]` (the model is only shown permitted "
             "tools), `tools.max_calls_per_run: N`, `tools.arg_rules: [{tool, arg, under|hosts|allow_regex|deny_regex}]` "
             "(refuse calls whose arguments leave the sandbox: e.g. a path outside ./data); `components.allow: "
-            "[ClassName]` (invoke_component targets); `budget.max_cost_usd|max_tokens|max_llm_calls|max_seconds`. "
+            "[ClassName]` (invoke_component targets); `budget.max_cost_usd|max_tokens|max_llm_calls|max_seconds` (per run) and, with `budget.ledger: {dir, compact_after_days}`, cross-run caps `max_cost_usd_per_day|max_tokens_per_day|max_cost_usd_per_partition|max_cost_usd_per_month`, `budget.breaker: {trip_after_violations, cool_down_minutes, window_minutes}`, `budget.on_unknown_cost: warn|fail`. "
             "Denied tool calls are returned to the model as an error so it can adapt; other violations raise "
             "PolicyViolation (or just log under on_violation: warn). Violations and usage are recorded as step "
             "metadata. NOTE: this is enforcement at the component boundary, not an OS sandbox -- an MCP stdio "
@@ -6254,10 +6766,8 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             if op:
                 per_asset_tags[f"dagster/kind/{op}"] = ""
             outs[f"{prefix}_{aid}"] = dg.AssetOut(
-                code_version=_code_version({
-                    "step": next((st for st in steps if st.get("id") == aid), None),
-                    "personas": self.personas, "policy": self.policy,
-                }),
+                code_version=_step_code_version(
+                    next((st for st in steps if st.get("id") == aid), None), self.personas, self.policy),
                 group_name=group_name,
                 description=self.description,
                 owners=self.owners or None,
@@ -6427,6 +6937,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             return [s["id"] for s in steps if s.get("id") in need]
 
         def _pipeline_impl(context: dg.AssetExecutionContext, **kwargs):
+            _t0 = time.time()
             _require_one_partition(context, _partitions_def is not None)
             partition_key = context.partition_key if context.has_partition_key else None
             if partition_key:
@@ -6495,6 +7006,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 "__policy__": self.policy or {},
                 "__agents__": self.agents or {},
                 "__sibling_agent_cards__": discovered_sibling_cards,
+                "__t0__": _t0,
             }
 
             steps_to_run_set = set(steps_to_run_ids)
@@ -6561,6 +7073,8 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             # positional tuple return would need to line up with declared
             # outs order, which subset mode breaks. Yielding is the modern
             # multi_asset pattern anyway.
+            _pv = prompt_versions({"steps": steps, "personas": self.personas})
+            _snap = _ledger_snapshot(self.policy, state)
             for aid in asset_ids_to_emit:
                 entry = state[aid]
                 md: Dict[str, Any] = {}
@@ -6622,7 +7136,8 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                             md[f"{aid}__{k}"] = dg.MetadataValue.text(str(v))
                 md[f"{aid}__pipeline_version"] = dg.MetadataValue.text(_code_version({
                     "steps": steps, "source": source_config, "outputs": outputs, "personas": self.personas,
-                    "agents": self.agents, "policy": self.policy}))
+                    "agents": self.agents, "policy": _policy_for_version(self.policy)}))
+                md.update(_agentic_metadata(aid, entry, state, first=(aid == asset_ids_to_emit[0]), pv=_pv, snapshot=_snap))
                 yield dg.Output(value=entry, output_name=f"{prefix}_{aid}", metadata=md)
 
         @dg.multi_asset(
@@ -6708,6 +7223,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     "__policy__": _self.policy or {},
                     "__agents__": _self.agents or {},
                     "__sibling_agent_cards__": discovered_sibling_cards,
+                    "__t0__": time.time(),
                 }
         else:
             @dg.op(name=f"{prefix}_ingest")
@@ -6737,6 +7253,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     "__policy_usage__": _usage,
                     "__agents__": _self.agents or {},
                     "__sibling_agent_cards__": discovered_sibling_cards,
+                    "__t0__": time.time(),
                 }
 
         # --- step ops (one per step) ---
@@ -6805,12 +7322,15 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             if missing:
                 raise ValueError(f"outputs.assets references unknown step ids: {missing}")
 
+            _pv = prompt_versions({"steps": steps, "personas": _self.personas})
+            _snap = _ledger_snapshot(_self.policy, state)
             for aid in asset_ids:
                 entry = state[aid]
                 md = _build_step_metadata(aid, entry, partition_key)
                 md[f"{aid}__pipeline_version"] = dg.MetadataValue.text(_code_version({
                     "steps": steps, "source": source_config, "outputs": dict(_self.outputs), "personas": _self.personas,
-                    "agents": _self.agents, "policy": _self.policy}))
+                    "agents": _self.agents, "policy": _policy_for_version(_self.policy)}))
+                md.update(_agentic_metadata(aid, entry, state, first=(aid == asset_ids[0]), pv=_pv, snapshot=_snap))
                 yield dg.Output(
                     entry, output_name=f"{prefix}_{aid}", metadata=md,
                 )

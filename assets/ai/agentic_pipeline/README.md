@@ -47,6 +47,61 @@ policy:
   budget: {max_cost_usd: 0.50, max_llm_calls: 40, max_seconds: 300}
 ```
 
+### Cross-run budgets, circuit breaker, spend metadata
+
+`budget.max_cost_usd` etc. cap ONE run. To cap spend across runs, give the budget a durable `ledger` and add per-day / month /
+partition caps:
+
+```yaml
+policy:
+  budget:
+    max_cost_usd: 0.50                      # per run (unchanged)
+    max_cost_usd_per_day: 25                # UTC day, summed over every run sharing the ledger
+    max_tokens_per_day: 5000000
+    max_cost_usd_per_month: 400
+    max_cost_usd_per_partition: 2.00        # all runs of one partition key
+    ledger: {dir: s3://my-bucket/agentic-ledger, compact_after_days: 7}   # local path or any fsspec URL
+    breaker: {trip_after_violations: 3, cool_down_minutes: 60}            # optional, window_minutes defaults to the cool-down
+    on_unknown_cost: warn                   # warn (default) | fail
+```
+
+- Before every LLM call the ledger total (which already includes this run's earlier calls) is checked against each cap: spent >= cap
+  refuses the call; after a call, spent > cap reports "exceeded". Both go through the normal `on_violation` (`fail` raises `PolicyViolation`
+  naming the cap, the spent amount and the scope key such as `day '2026-10-23'`; `warn` logs and continues). There is no `skip` mode.
+- **Ledger layout / concurrency.** One small JSON file per (run, step) under `day/<date>/`, `month/<yyyy-mm>/`, `partition/<key>/`, written with
+  atomic replace by that run only, so concurrent runs never lose each other's entries; readers sum the directory. Re-writing the same
+  (run_id, step) is idempotent (per-field max), so a retried or re-delivered step is not double counted; the flip side is that a retry
+  inside the same run that spends more than the failed attempt only adds the difference. **Read cost:** every cap check lists and reads the
+  entries of up to three directories, per LLM call. `compact_after_days` folds older entries into one `_compacted-*.json` (idempotent even if two
+  runs compact at once). Caps are enforced against what is in the ledger: a ledger that is unreachable fails the run (fail closed).
+- **Circuit breaker.** Every budget violation (per-run or cross-run) is recorded in the ledger. After `trip_after_violations` of them within the
+  window no LLM call starts until `cool_down_minutes` after the tripping violation; the error says when it re-opens. The breaker refuses even
+  under `on_violation: warn`.
+- **Unknown cost.** `litellm.completion_cost` has no price for some models (local, new, custom). Token caps still work. If a cost cap is set,
+  such a call logs ONE warning per run (`warn`) or raises (`fail`); it is counted as `agentic_step_unknown_cost_calls` and contributes $0 to
+  every total, so cost caps under-count for those models.
+- Step policies may use the per-day/month/partition caps (checked against the pipeline's ledger) but not `ledger`/`breaker` themselves.
+
+**Spend metadata (always emitted, no policy needed).** Every asset gets `agentic_step_cost_usd`, `agentic_step_tokens`,
+`agentic_step_llm_calls`, `agentic_step_tool_calls`, `agentic_step_unknown_cost_calls`. The first emitted asset also carries the run totals as
+numeric metadata: `agentic_cost_usd`, `agentic_tokens`, `agentic_llm_calls`, `agentic_tool_calls`, `agentic_latency_ms`,
+`agentic_budget_violations`, and with a ledger `agentic_spent_today_usd` (+ `agentic_remaining_today_usd` when a daily cap is set, plus month /
+partition equivalents). Those keys are the module-level `INSIGHTS_METRICS` list in `component.py` (key, unit_type, display name): register
+them as Dagster+ Insights custom metrics (by metadata key) and Insights aggregates them across assets. Totals ride one asset on purpose, so summing
+across assets does not multiply them. That Insights actually ingests them needs a live Dagster+ deployment and is not verified here.
+
+### Prompt versions
+
+Each LLM step carries `agentic_prompt_version` and `agentic_prompt_hash` (and every asset `agentic_prompt_versions`, a `{step: version}` map).
+The hash (`p-` + 8 hex) covers the declared prompt template(s) and system prompt (placeholders unsubstituted, so no run-time data), model,
+temperature and other LLM params, merged persona fields and nested sub-configs; wiring (`id`, `source`, `inputs`, `when`, `policy`) is
+excluded. Name a version yourself with `version: v3` on the step (or on its `persona`); the hash is still emitted so an un-bumped edit is
+detectable. `prompt_versions({"steps": [...], "personas": {...}})` is a pure module-level helper returning `{step_id: {version, hash}}`.
+Each step's Dagster `code_version` hashes that step with *its own* persona resolved plus the non-budget policy, so editing one prompt (or
+one persona) changes only the steps that use it, and Dagster then marks that asset stale and, once it is re-materialized, its downstream;
+tuning a budget cap changes no version. A later A/B feature keys outcomes by `(step_id, agentic_prompt_version)` read from materialization
+metadata.
+
 This is enforcement at the component boundary, **not an OS sandbox**: an MCP stdio server still runs with the worker's OS
 permissions (the policy controls its environment and which of its tools the model may call). In `per_step_ops` mode the
 usage counters travel with the pipeline state, so budgets are still run-wide.

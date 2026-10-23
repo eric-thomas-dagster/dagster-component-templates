@@ -1,0 +1,254 @@
+{
+  "component_type": "dagster_community_components.RunFailureRemediationComponent",
+  "description": "Self-healing runs with a safety gate: a run-failure sensor gathers redacted evidence and requests a triage run on a dynamic partition; an approval sensor turns the triage pipeline's proposal into a pending approval (agentic_pipeline/agent_review_queue compatible) and, only with a token bound to that exact proposal, executes allow-listed actions (retry_run, rerun_partition, materialize_assets, open_ticket, notify) and records whether they fixed the failure.",
+  "category": "ai",
+  "icon": "ShieldCheck",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "none",
+      "description": "Failed runs (run-failure sensor) and triage proposals (JSON files in proposals_dir)."
+    },
+    "outputs": {
+      "type": "none",
+      "description": "Sensors + jobs: evidence JSON, triage run requests, approval records, remediation run requests, results JSON with fixed/not_fixed outcomes."
+    }
+  },
+  "attributes": {
+    "name_prefix": {
+      "type": "string",
+      "label": "Name Prefix",
+      "description": "Prefix for the sensor names (<prefix>_failure_sensor, <prefix>_approval_sensor).",
+      "required": false
+    },
+    "evidence_dir": {
+      "type": "string",
+      "label": "Evidence Dir",
+      "description": "Where evidence JSON is written (<dir>/<run_id>.json): a local path or fsspec URI (s3://, gs://, abfs://). The triage pipeline reads it (agentic_pipeline: `source: {kind: file, path: <dir>/{partition_key}.json}`, local paths only).",
+      "required": true
+    },
+    "proposals_dir": {
+      "type": "string",
+      "label": "Proposals Dir",
+      "description": "Where the triage pipeline writes proposals (<dir>/<run_id>.json): {run_id, summary, root_cause, confidence, actions:[{kind, params, reason}]}.",
+      "required": true
+    },
+    "approval_dir": {
+      "type": "string",
+      "label": "Approval Dir",
+      "description": "Approval directory (same layout as agentic_pipeline's `approve` op): pending records in <dir>/pending/<run_id>.json, tokens at <dir>/<run_id>.json. agent_review_queue can list it.",
+      "required": true
+    },
+    "results_dir": {
+      "type": "string",
+      "label": "Results Dir",
+      "description": "Where execution results + outcomes are recorded (<dir>/<run_id>.json).",
+      "required": true
+    },
+    "tickets_dir": {
+      "type": "string",
+      "label": "Tickets Dir",
+      "description": "Where `open_ticket` writes ticket JSON. Default: <results_dir>/tickets.",
+      "required": false
+    },
+    "triage_job_name": {
+      "type": "string",
+      "label": "Triage Job Name",
+      "description": "Name of the TRIAGE job this component defines over `triage_asset_selection` (a job request per failed run, partition = the failed run id).",
+      "required": false
+    },
+    "triage_asset_selection": {
+      "type": "string",
+      "label": "Triage Asset Selection",
+      "description": "Asset selection string for the triage job (e.g. 'key:run_triage*' or 'group:triage'): the dynamically partitioned assets of your triage pipeline.",
+      "required": true
+    },
+    "triage_run_config": {
+      "type": "object",
+      "label": "Triage Run Config",
+      "description": "Run config passed to every triage run request.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "dynamic_partitions_name": {
+      "type": "string",
+      "label": "Dynamic Partitions Name",
+      "description": "Name of the DynamicPartitionsDefinition the failed run ids are registered on. The triage assets must use this same name (agentic_pipeline: partition_type: dynamic, dynamic_partition_name: <this>).",
+      "required": false
+    },
+    "only_jobs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Only Jobs",
+      "description": "Only triage failures of these jobs (default: all jobs in all code locations).",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "ignore_jobs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Ignore Jobs",
+      "description": "Never triage failures of these jobs. The triage job itself is always ignored (no recursion).",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "triage_remediation_runs": {
+      "type": "boolean",
+      "label": "Triage Remediation Runs",
+      "description": "Also triage failures of runs this component launched. Off by default so a failing retry cannot start another triage.",
+      "required": false
+    },
+    "max_triage_per_hour": {
+      "type": "number",
+      "label": "Max Triage Per Hour",
+      "description": "Rate limit: at most this many triage runs requested per rolling hour.",
+      "required": false
+    },
+    "cooldown_minutes": {
+      "type": "number",
+      "label": "Cooldown Minutes",
+      "description": "After a triage for (job, error signature), further failures with the same signature are suppressed for this long.",
+      "required": false
+    },
+    "history_runs": {
+      "type": "number",
+      "label": "History Runs",
+      "description": "How many recent runs of the same job to include in the evidence.",
+      "required": false
+    },
+    "recent_outcomes": {
+      "type": "number",
+      "label": "Recent Outcomes",
+      "description": "How many recent remediation outcomes (same job or error signature) to include in the evidence.",
+      "required": false
+    },
+    "log_tail_chars": {
+      "type": "number",
+      "label": "Log Tail Chars",
+      "description": "Max characters of each step's error message kept (the tail).",
+      "required": false
+    },
+    "redact_patterns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Redact Patterns",
+      "description": "Extra regexes to redact from evidence, results, tickets and webhook payloads (on top of the built-in token/key/password/Authorization/base64/env-secret rules).",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "allowed_actions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Allowed Actions",
+      "description": "Allow-list of action kinds a proposal may use: retry_run, rerun_partition, materialize_assets, open_ticket, notify. Anything else is rejected with a recorded reason. Default: the safe ones (retry_run, rerun_partition, open_ticket).",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "allowed_materialize_assets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Allowed Materialize Assets",
+      "description": "When materialize_assets is allowed, restrict it to these asset keys (e.g. ['raw/orders']). Default: any asset in the code location.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "max_actions_per_proposal": {
+      "type": "number",
+      "label": "Max Actions Per Proposal",
+      "description": "Actions beyond this count in one proposal are rejected.",
+      "required": false
+    },
+    "max_retries_per_run": {
+      "type": "number",
+      "label": "Max Retries Per Run",
+      "description": "retry_run launches at most this many retries for one failure (the chain's root run).",
+      "required": false
+    },
+    "remediation_jobs": {
+      "type": "object",
+      "label": "Remediation Jobs",
+      "description": "The jobs retry_run / rerun_partition / materialize_assets launch runs through: {name: asset selection string}, e.g. {core: 'group:core', daily: 'group:daily'}. Each becomes job `<name_prefix>_remediate_<name>`. A Dagster sensor can only request runs for the jobs it targets, and one job needs assets with one partitions definition (unpartitioned assets mix freely), so group your assets accordingly. Without this, those three actions are rejected with a recorded reason (open_ticket / notify still work).",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "approval_step_id": {
+      "type": "string",
+      "label": "Approval Step Id",
+      "description": "Step id used in the approval fingerprint / pending record (shown by agent_review_queue).",
+      "required": false
+    },
+    "approval_max_age_hours": {
+      "type": "number",
+      "label": "Approval Max Age Hours",
+      "description": "An approval token older than this is expired. Default: no expiry.",
+      "required": false
+    },
+    "auto_approve": {
+      "type": "object",
+      "label": "Auto Approve",
+      "description": "OFF by default. {kinds: [retry_run], max_per_hour: 3, min_confidence: 0.8}: proposals whose every action is in `kinds` and whose confidence is high enough are approved by the policy itself (token approver: auto_approve), at most max_per_hour per rolling hour.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "webhook_url_env_var": {
+      "type": "string",
+      "label": "Webhook Url Env Var",
+      "description": "Name of the environment variable holding the webhook URL used by `notify` (never logged or written).",
+      "required": false
+    },
+    "ticket_webhook_url_env_var": {
+      "type": "string",
+      "label": "Ticket Webhook Url Env Var",
+      "description": "Name of the environment variable holding a webhook URL that also receives each `open_ticket` ticket (never logged or written).",
+      "required": false
+    },
+    "webhook_timeout_seconds": {
+      "type": "number",
+      "label": "Webhook Timeout Seconds",
+      "description": "Timeout for webhook POSTs.",
+      "required": false
+    },
+    "outcome_check_after_minutes": {
+      "type": "number",
+      "label": "Outcome Check After Minutes",
+      "description": "How long after an action launched runs to judge whether it fixed the failure (outcome: fixed | not_fixed).",
+      "required": false
+    },
+    "store_resource_key": {
+      "type": "string",
+      "label": "Store Resource Key",
+      "description": "Optional resource key of a ContextReceiptStore: when a proposal carries a `receipt_id`, the outcome is also recorded with `record_outcome`. Skipped cleanly when absent.",
+      "required": false
+    },
+    "minimum_interval_seconds": {
+      "type": "number",
+      "label": "Minimum Interval Seconds",
+      "description": "Sensor tick interval.",
+      "required": false
+    },
+    "default_status": {
+      "type": "string",
+      "label": "Default Status",
+      "description": "Initial sensor status: STOPPED (default) or RUNNING.",
+      "required": false
+    }
+  },
+  "tags": [
+    "agents",
+    "self-healing",
+    "remediation",
+    "run failure",
+    "human in the loop",
+    "sensor"
+  ],
+  "name": "run_failure_remediation"
+}

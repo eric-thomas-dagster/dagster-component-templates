@@ -1,0 +1,15 @@
+type: dagster_community_components.InsightsCustomMetricsSyncComponent
+attributes:
+  asset_name: insights_custom_metrics_sync
+  deployment_url: https://acme.dagster.cloud/prod     # required
+  token_env_var: DAGSTER_CLOUD_API_TOKEN
+  presets:
+    - auto                     # register presets for components whose assets carry the `insights/metrics` tag
+    - agentic_pipeline         # ...and/or name presets explicitly
+  metrics:
+    - metadata_key: rows_ingested
+      unit_type: INTEGER
+      display_name: Rows ingested
+  dry_run: true                # plan only; set false to write
+  on_error: warn
+  cron_schedule: "0 * * * *"

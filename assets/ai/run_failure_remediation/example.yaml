@@ -1,0 +1,23 @@
+type: dagster_community_components.RunFailureRemediationComponent
+attributes:
+  name_prefix: run_remediation
+  evidence_dir: ./evidence            # read by the triage pipeline (see examples/triage_pipeline.yaml)
+  proposals_dir: ./proposals          # written by the triage pipeline
+  approval_dir: ./approvals           # agent_review_queue can list <dir>/pending
+  results_dir: ./remediation_results
+  triage_asset_selection: "group:triage"
+  dynamic_partitions_name: run_failures
+  # retry_run / rerun_partition / materialize_assets launch runs through these jobs (one partitions definition per job)
+  remediation_jobs:
+    core: "group:core"
+    daily: "group:daily"
+  allowed_actions: [retry_run, rerun_partition, open_ticket]    # the safe default
+  max_triage_per_hour: 10
+  cooldown_minutes: 60                # one triage per (job, error signature) per hour
+  ignore_jobs: []
+  outcome_check_after_minutes: 30
+  # auto_approve:                     # OFF unless you uncomment it
+  #   kinds: [retry_run]
+  #   max_per_hour: 3
+  #   min_confidence: 0.8
+  default_status: STOPPED             # start the two sensors from the UI once reviewed

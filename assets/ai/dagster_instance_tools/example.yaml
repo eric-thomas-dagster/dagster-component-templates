@@ -1,0 +1,7 @@
+type: dagster_community_components.DagsterInstanceToolsComponent
+attributes:
+  resource_key: dagster_instance_tools
+  # allow: [list_recent_failures, get_run_summary, get_run_logs, asset_status]   # hard allow-list (default: all)
+  max_result_chars: 8000
+  definitions_module: my_project.definitions   # optional: downstream lineage, partition totals/missing, data-version staleness
+  # store_resource_key: context_receipt_store  # optional: enables receipt_stats

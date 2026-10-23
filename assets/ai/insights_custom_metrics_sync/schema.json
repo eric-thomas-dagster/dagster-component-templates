@@ -1,0 +1,122 @@
+{
+  "component_type": "dagster_community_components.InsightsCustomMetricsSyncComponent",
+  "description": "Idempotently registers Dagster+ Insights custom metrics (by metadata_key) via the Dagster+ GraphQL API: presets for this repo's components, `presets: auto` discovery from asset tags, explicit metrics, safelisted prune, dry-run by default.",
+  "category": "ai",
+  "icon": "ChartLine",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "metadata",
+      "description": "status, dry_run, created/updated/deleted/unchanged counts, planned, errors, auto_discovered, auto_scope."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Dagster asset name",
+      "required": false
+    },
+    "deployment_url": {
+      "type": "string",
+      "label": "Deployment URL",
+      "description": "Full Dagster+ deployment URL, e.g. https://acme.dagster.cloud/prod (required; not derived from the environment).",
+      "required": true
+    },
+    "token_env_var": {
+      "type": "string",
+      "label": "Token Env Var",
+      "description": "Env var holding a Dagster+ API token that can manage custom metrics (default DAGSTER_CLOUD_API_TOKEN).",
+      "required": false
+    },
+    "presets": {
+      "type": "array",
+      "label": "Presets",
+      "description": "Preset names (agentic_pipeline, context_engineering_pipeline, rag_pipeline, receipt_outcome_ingestion, receipts_sync) and/or `auto` (discover from `insights/metrics` asset tags at run time).",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "metrics": {
+      "type": "array",
+      "label": "Metrics",
+      "description": "Explicit entries: {metadata_key, unit_type INTEGER|FLOAT|TIME_MS|TIME_SECONDS|BYTES, display_name?, description?}.",
+      "required": false,
+      "items": {
+        "type": "object"
+      }
+    },
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "description": "Plan only: no mutations (default true). Set false to write.",
+      "required": false
+    },
+    "prune": {
+      "type": "boolean",
+      "label": "Prune",
+      "description": "Delete metrics not in the desired set, only keys starting with a prune_prefixes entry.",
+      "required": false
+    },
+    "prune_prefixes": {
+      "type": "array",
+      "label": "Prune Prefixes",
+      "description": "Safelist of key prefixes eligible for deletion; required when prune is true.",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "on_error": {
+      "type": "string",
+      "label": "On Error",
+      "description": "warn (default: log + record in metadata, run succeeds) or fail.",
+      "required": false,
+      "enum": [
+        "warn",
+        "fail"
+      ]
+    },
+    "timeout_seconds": {
+      "type": "number",
+      "label": "Timeout Seconds",
+      "description": "Per-request HTTP timeout.",
+      "required": false
+    },
+    "max_retries": {
+      "type": "number",
+      "label": "Max Retries",
+      "description": "Retries for HTTP 429/5xx/network errors.",
+      "required": false
+    },
+    "retry_backoff_seconds": {
+      "type": "number",
+      "label": "Retry Backoff Seconds",
+      "description": "Base for jittered exponential backoff.",
+      "required": false
+    },
+    "cron_schedule": {
+      "type": "string",
+      "label": "Cron Schedule",
+      "description": "Optional cron expression to re-run the sync.",
+      "required": false
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group",
+      "required": false
+    },
+    "verify_schema": {
+      "type": "string",
+      "label": "Verify Schema",
+      "description": "off | warn | strict (default warn). warn: introspect once, record schema_check/schema_problems and log a warning on drift, but still sync. strict: on drift skip all writes (status schema_drift). Introspection failure never blocks.",
+      "enum": [
+        "off",
+        "warn",
+        "strict"
+      ],
+      "required": false
+    }
+  }
+}

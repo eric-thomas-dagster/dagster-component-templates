@@ -1,5 +1,5 @@
 name: Snowflake Workspace
 description: Comprehensive Snowflake workspace integration - import 10 entity types including tasks, stored procedures, dynamic tables, materialized views, streams, Snowpipes, stages, external tables, alerts, and OpenFlow flows. Full orchestration and observation for your Snowflake environment.
 category: orchestration
-version: 1.0.0
+version: 1.0.1
 author: Dagster Community

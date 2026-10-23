@@ -59001,7 +59001,7 @@
       "name": "Snowflake Workspace",
       "category": "integration",
       "description": "Import Snowflake tasks / dynamic tables / stored procedures / streams / views / alerts as Dagster assets. Canonical `workspace:` block IS a dagster_snowflake.SnowflakeResource \u2014 same shape as dagster-databricks / dagster-fivetran / dagster-powerbi workspace components. Legacy flat account/user/password fields still accepted (mutually exclusive).",
-      "version": "2.1.0",
+      "version": "2.1.1",
       "author": "Dagster Community",
       "path": "integrations/snowflake_workspace",
       "tags": [
@@ -59025,7 +59025,7 @@
       "validation": {
         "level": "live",
         "evidence": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/snowflake_workspace.md",
-        "last_validated": "2026-05-11"
+        "last_validated": "2026-10-23"
       },
       "vendor": "Snowflake",
       "produces": [

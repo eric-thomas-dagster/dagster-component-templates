@@ -1144,9 +1144,12 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
         # Collected during the DT import loop and consumed by the dedicated
         # DT-refresh sensor below. Hoisted out of the try-block so the sensor
-        # block can read them even if an earlier import path raised.
-        dt_asset_keys: list = []
-        dt_name_to_asset_key: Dict[str, str] = {}
+        # block can read them even if an earlier import path raised. Values
+        # are the FINAL, override-resolved AssetKey each DT actually got (not
+        # the default dynamic_table_<name> shape) -- see the key-override fix
+        # in the import loop below for why that distinction matters.
+        dt_asset_keys: List[AssetKey] = []
+        dt_name_to_asset_key: Dict[str, AssetKey] = {}
 
         # The try/finally shape below is retained from the original build_defs
         # so per-kind error handling reads the same. The outer conn = ... is
@@ -1766,9 +1769,13 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
                         # Asset key shape is identical across both modes so
                         # downstream `deps:` references don't break on flip.
+                        # NOTE: this is only the DEFAULT shape -- the actual
+                        # key each DT ends up with may be overridden below
+                        # (assets_by_name.<name>.key, or a translation:
+                        # callable); dt_asset_keys/dt_name_to_asset_key are
+                        # populated with the FINAL resolved key further down,
+                        # once both branches have applied overrides/translation.
                         asset_key = f"dynamic_table_{re.sub(r'[^a-zA-Z0-9_]', '_', dt_name.lower())}"
-                        dt_asset_keys.append(asset_key)
-                        dt_name_to_asset_key[dt_name] = asset_key
 
                         base_metadata = {
                             "snowflake_table_name": dt_name,
@@ -1801,8 +1808,16 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                                 k: v for k, v in _dt_ext_kwargs.items()
                                 if k in ("group_name", "description", "kinds", "metadata", "tags", "owners", "deps")
                             }
-                            _spec_kwargs["key"] = AssetKey([_dt_ext_kwargs["name"]])
+                            # An override/translation may have already supplied
+                            # `key` directly (in which case `name` was popped by
+                            # _apply_asset_overrides/_apply_translation) -- only
+                            # fall back to building one from `name` when neither
+                            # resolved a key.
+                            _resolved_key = _dt_ext_kwargs.get("key") or AssetKey([_dt_ext_kwargs["name"]])
+                            _spec_kwargs["key"] = _resolved_key
                             assets_list.append(AssetSpec(**_spec_kwargs))
+                            dt_asset_keys.append(_resolved_key)
+                            dt_name_to_asset_key[dt_name] = _resolved_key
                         else:
                             # Legacy @asset path: manual REFRESH from Dagster.
                             # NOTE: the DT-refresh sensor still runs, so manual
@@ -1822,6 +1837,12 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                             assets_list.append(_make_dynamic_table_asset(
                                 dt_name, dt['DATABASE_NAME'], dt['SCHEMA_NAME'], _dt_kwargs, self,
                             ))
+                            # Dagster's @asset accepts either name= or key= directly, so this
+                            # branch never crashes on a key override -- but we still need the
+                            # FINAL resolved key (not the pre-override default) for the sensor.
+                            _resolved_key = _dt_kwargs.get("key") or AssetKey([_dt_kwargs["name"]])
+                            dt_asset_keys.append(_resolved_key)
+                            dt_name_to_asset_key[dt_name] = _resolved_key
 
                 except Exception as e:
                     _logger.error(f"Error importing Snowflake dynamic tables: {e}")
@@ -1869,10 +1890,15 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                             k: v for k, v in _stream_kwargs.items()
                             if k in ("group_name", "description", "kinds", "metadata", "tags", "owners", "deps")
                         }
-                        _stream_spec_kwargs["key"] = AssetKey([_stream_kwargs["name"]])
+                        _stream_resolved_key = _stream_kwargs.get("key") or AssetKey([_stream_kwargs["name"]])
+                        _stream_spec_kwargs["key"] = _stream_resolved_key
                         assets_list.append(AssetSpec(**_stream_spec_kwargs))
-                        # Stash probe context for the observation sensor.
-                        stream_metadata[_stream_kwargs["name"]] = {
+                        # Stash probe context for the observation sensor, keyed by the
+                        # FINAL, override-resolved key's user string (not the pre-override
+                        # name) -- the sensor's cursor is JSON, so the dict key must stay a
+                        # plain string; AssetKey.from_user_string reconstructs multi-segment
+                        # keys correctly at emission time (see below), unlike AssetKey([s]).
+                        stream_metadata[_stream_resolved_key.to_user_string()] = {
                             "stream_name": stream_name,
                             "database":    stream['DATABASE_NAME'],
                             "schema":      stream['SCHEMA_NAME'],
@@ -2147,9 +2173,10 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                             k: v for k, v in _stage_kwargs.items()
                             if k in ("group_name", "description", "kinds", "metadata", "tags", "owners", "deps")
                         }
-                        _stage_spec_kwargs["key"] = AssetKey([_stage_kwargs["name"]])
+                        _stage_resolved_key = _stage_kwargs.get("key") or AssetKey([_stage_kwargs["name"]])
+                        _stage_spec_kwargs["key"] = _stage_resolved_key
                         assets_list.append(AssetSpec(**_stage_spec_kwargs))
-                        stage_metadata[_stage_kwargs["name"]] = {
+                        stage_metadata[_stage_resolved_key.to_user_string()] = {
                             "stage_name": stage_name,
                             "database":   stage.get('DATABASE_NAME', self.workspace.database),
                             "schema":     stage.get('SCHEMA_NAME', self.workspace.schema_),
@@ -2380,9 +2407,10 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                             k: v for k, v in _alert_kwargs.items()
                             if k in ("group_name", "description", "kinds", "metadata", "tags", "owners", "deps")
                         }
-                        _alert_spec_kwargs["key"] = AssetKey([_alert_kwargs["name"]])
+                        _alert_resolved_key = _alert_kwargs.get("key") or AssetKey([_alert_kwargs["name"]])
+                        _alert_spec_kwargs["key"] = _alert_resolved_key
                         assets_list.append(AssetSpec(**_alert_spec_kwargs))
-                        alert_metadata[_alert_kwargs["name"]] = {
+                        alert_metadata[_alert_resolved_key.to_user_string()] = {
                             "alert_name": alert_name,
                             "database":   alert['DATABASE_NAME'],
                             "schema":     alert['SCHEMA_NAME'],
@@ -2429,9 +2457,10 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                             k: v for k, v in _flow_kwargs.items()
                             if k in ("group_name", "description", "kinds", "metadata", "tags", "owners", "deps")
                         }
-                        _flow_spec_kwargs["key"] = AssetKey([_flow_kwargs["name"]])
+                        _flow_resolved_key = _flow_kwargs.get("key") or AssetKey([_flow_kwargs["name"]])
+                        _flow_spec_kwargs["key"] = _flow_resolved_key
                         assets_list.append(AssetSpec(**_flow_spec_kwargs))
-                        openflow_metadata[_flow_kwargs["name"]] = {
+                        openflow_metadata[_flow_resolved_key.to_user_string()] = {
                             "flow_name":  flow_name,
                             "runtime_id": runtime_id,
                         }
@@ -2723,7 +2752,7 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                             # eager resolves through via
                             # AutomationCondition.eager().resolve_through_virtual().
                             spec_kwargs = dict(
-                                key=AssetKey([_table_kwargs["name"]]),
+                                key=_table_kwargs.get("key") or AssetKey([_table_kwargs["name"]]),
                                 group_name=_table_kwargs.get("group_name"),
                                 description=_table_kwargs.get("description"),
                                 metadata=_table_kwargs.get("metadata") or {},
@@ -3101,7 +3130,11 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                             continue   # unchanged — don't re-emit
                         new_streams[asset_key] = sig
                         events.append(AssetMaterialization(
-                            asset_key=AssetKey([asset_key]),
+                            # asset_key here is the resolved key's user string (see
+                            # stream/stage/alert/flow metadata population above) --
+                            # from_user_string correctly reconstructs a multi-segment
+                            # override key, unlike AssetKey([asset_key]).
+                            asset_key=AssetKey.from_user_string(asset_key),
                             metadata=s_meta,
                             tags={"dagster/data_version": sig},
                         ))
@@ -3140,7 +3173,11 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                             continue
                         new_stages[asset_key] = sig
                         events.append(AssetMaterialization(
-                            asset_key=AssetKey([asset_key]),
+                            # asset_key here is the resolved key's user string (see
+                            # stream/stage/alert/flow metadata population above) --
+                            # from_user_string correctly reconstructs a multi-segment
+                            # override key, unlike AssetKey([asset_key]).
+                            asset_key=AssetKey.from_user_string(asset_key),
                             metadata=st_meta,
                             tags={"dagster/data_version": sig},
                         ))
@@ -3211,7 +3248,11 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                             continue
                         new_alerts[asset_key] = sig
                         events.append(AssetMaterialization(
-                            asset_key=AssetKey([asset_key]),
+                            # asset_key here is the resolved key's user string (see
+                            # stream/stage/alert/flow metadata population above) --
+                            # from_user_string correctly reconstructs a multi-segment
+                            # override key, unlike AssetKey([asset_key]).
+                            asset_key=AssetKey.from_user_string(asset_key),
                             metadata=a_meta,
                             tags={"dagster/data_version": sig},
                         ))
@@ -3255,7 +3296,11 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                             continue
                         new_flows[asset_key] = sig
                         events.append(AssetMaterialization(
-                            asset_key=AssetKey([asset_key]),
+                            # asset_key here is the resolved key's user string (see
+                            # stream/stage/alert/flow metadata population above) --
+                            # from_user_string correctly reconstructs a multi-segment
+                            # override key, unlike AssetKey([asset_key]).
+                            asset_key=AssetKey.from_user_string(asset_key),
                             metadata=f_meta,
                             tags={"dagster/data_version": sig},
                         ))
@@ -3294,7 +3339,11 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         # is SUCCEEDED. Skips ticks with no change (de-dupe).
         if self.import_dynamic_tables and dt_asset_keys:
             _dt_name_to_asset_key = dict(dt_name_to_asset_key)
-            _dt_asset_selection = [AssetKey([k]) for k in dt_asset_keys]
+            # dt_asset_keys/_dt_name_to_asset_key already hold the FINAL,
+            # override-resolved AssetKey objects -- do not re-wrap them in a
+            # single-segment AssetKey([...]), which would silently clobber a
+            # multi-segment override key.
+            _dt_asset_selection = list(dt_asset_keys)
             _self_for_sensor = self
 
             @sensor(
@@ -3462,7 +3511,8 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                         # failure.
                         new_state[dt_name] = cur_tuple
 
-                        asset_key_str = _dt_name_to_asset_key[dt_name]
+                        # Already the final, override-resolved AssetKey -- not a bare string.
+                        resolved_asset_key = _dt_name_to_asset_key[dt_name]
                         metadata: Dict[str, Any] = {
                             "last_refresh_status": status,
                             "refresh_mode": rd.get("refresh_mode"),
@@ -3481,7 +3531,7 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                         # the eager-cascade storm on TARGET_LAG refreshes.
                         _sig = f"{_rows_val}:{_bytes_val}:{_ts_str}"
                         asset_events.append(AssetMaterialization(
-                            asset_key=AssetKey([asset_key_str]),
+                            asset_key=resolved_asset_key,
                             metadata=metadata,
                             tags={"dagster/data_version": _sig},
                         ))

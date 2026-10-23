@@ -253,6 +253,8 @@ Supported override keys (all optional):
 
 The mapping key is the **Snowflake entity name** as it appears in `INFORMATION_SCHEMA` (case-matters depending on your Snowflake configuration — typically uppercase). Works for any of the imported entity types: Tasks, Dynamic Tables, Stored Procedures, Streams, Snowpipes, Stages, Materialized Views, External Tables, Alerts, OpenFlow Flows.
 
+A `key:` override is fully supported for every entity kind that can be emitted as an external `AssetSpec` (Dynamic Tables in `dt_modeling: external`, Streams, Stages, Alerts, OpenFlow Flows, and tables/views in `table_modeling`/`view_modeling: virtual`) as well as the `@asset`-based kinds — including when the override's key is multi-segment (as in the `CUSTOMER_METRICS` example above). The shared observation sensor and the dedicated DT-refresh sensor both emit materialization events against the overridden key, not the default `<kind>_<name>` shape.
+
 ## Task `config:` and `config_schema:`
 
 Snowflake tasks accept a JSON config blob via `EXECUTE TASK ... WITH CONFIG => '<json>'`, readable inside the task body via `SYSTEM$GET_TASK_GRAPH_CONFIG('<field>')`. `assets_by_name` exposes two ways to wire it — they're mutually exclusive on the same asset (setting both raises `ValueError` at component build time):

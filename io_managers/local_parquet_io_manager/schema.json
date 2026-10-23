@@ -30,13 +30,22 @@
       "label": "Create Directory",
       "default": true,
       "required": false
+    },
+    "backend": {
+      "description": "'pandas' or 'polars'. 'polars' reads/writes via DataFrame.write_parquet/pl.read_parquet directly -- not through the dagster-polars package, so it isn't affected by that package's Polars 2.0 incompatibility (community-integrations#359).",
+      "type": "string",
+      "label": "Backend",
+      "default": "pandas",
+      "required": false,
+      "enum": ["pandas", "polars"]
     }
   },
   "tags": [
     "io_manager",
     "parquet",
     "local",
-    "dev"
+    "dev",
+    "polars"
   ],
   "name": "LocalParquetIOManager"
 }

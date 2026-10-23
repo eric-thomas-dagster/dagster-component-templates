@@ -2,6 +2,18 @@
 
 YAML/Component wrapper around `LocalParquetIOManager`. Use `resource_key:
 io_manager` to make this the default IO manager for the project.
+
+`backend: polars` reads/writes real polars DataFrames via
+`DataFrame.write_parquet`/`pl.read_parquet` -- eager, direct calls, not
+`pl.scan_parquet`, so this never touches the upstream `dagster-polars`
+package or its `PolarsParquetIOManager` wrapper at all. That matters
+because the currently-released `dagster-polars` crashes under Polars 2.0
+(`ArgumentRemovedError: rechunk ... removed in version 2.0`, confirmed by
+reproducing it directly) -- a real, open upstream bug
+(community-integrations#359), not something this repo can fix. This
+backend sidesteps it entirely rather than waiting on that PR to merge.
+No polars version floor here either (it's an optional backend, like
+`dataframe_join`'s).
 """
 import dagster as dg
 from pydantic import Field
@@ -27,7 +39,7 @@ def _range_label(context) -> str:
     return f"{keys[0]}...{keys[-1]}" if len(keys) > 1 else str(keys[0])
 
 
-def _range_items(context, obj, who: str):
+def _range_items(context, obj, who: str, df_type):
     """Validate a range write: obj must be {partition_key: DataFrame} for exactly the range's keys."""
     keys = list(context.asset_partition_keys)
     if not isinstance(obj, Mapping):
@@ -44,7 +56,7 @@ def _range_items(context, obj, who: str):
             f"Missing: {missing}; unexpected: {extra}."
         )
     for k in keys:
-        if not isinstance(obj[k], pd.DataFrame):
+        if not isinstance(obj[k], df_type):
             raise TypeError(f"{who}: value for partition {k!r} must be a DataFrame; got {type(obj[k]).__name__}.")
     return [(k, obj[k]) for k in keys]
 
@@ -62,6 +74,13 @@ class LocalParquetIOManager(dg.ConfigurableIOManager):
 
     base_dir: str = Field(default="dagster_storage", description="Local directory under which to store assets.")
     create_dir: bool = Field(default=True, description="Create base_dir if missing.")
+    backend: str = Field(default="pandas", description="'pandas' or 'polars'. Determines the DataFrame type read/written.")
+
+    def _df_type(self):
+        if self.backend == "polars":
+            import polars as pl
+            return pl.DataFrame
+        return pd.DataFrame
 
     def _path_for(self, context, partition_key=None) -> Path:
         parts = list(context.asset_key.path)
@@ -72,16 +91,25 @@ class LocalParquetIOManager(dg.ConfigurableIOManager):
         sanitized = [_sanitize(str(p)) for p in parts]
         return Path(self.base_dir) / Path(*sanitized).with_suffix(".parquet")
 
-    def _write(self, path: Path, obj: pd.DataFrame) -> None:
+    def _write(self, path: Path, obj) -> None:
         if self.create_dir:
             path.parent.mkdir(parents=True, exist_ok=True)
-        obj.to_parquet(path, index=False)
+        if self.backend == "polars":
+            obj.write_parquet(path)
+        else:
+            obj.to_parquet(path, index=False)
 
-    def handle_output(self, context, obj: pd.DataFrame) -> None:
+    def _read(self, path: Path):
+        if self.backend == "polars":
+            import polars as pl
+            return pl.read_parquet(path)
+        return pd.read_parquet(path)
+
+    def handle_output(self, context, obj) -> None:
         if obj is None:
             return
         if _is_partition_range(context):
-            items = _range_items(context, obj, "LocalParquetIOManager")
+            items = _range_items(context, obj, "LocalParquetIOManager", self._df_type())
             paths = []
             for key, df in items:
                 path = self._path_for(context, key)
@@ -104,11 +132,11 @@ class LocalParquetIOManager(dg.ConfigurableIOManager):
         upstream = context.upstream_output
         if _is_partition_range(upstream):
             return {
-                key: pd.read_parquet(self._path_for(upstream, key))
+                key: self._read(self._path_for(upstream, key))
                 for key in upstream.asset_partition_keys
             }
         path = self._path_for(upstream)
-        return pd.read_parquet(path)
+        return self._read(path)
 
 
 class LocalParquetIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -126,10 +154,24 @@ class LocalParquetIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         default=True,
         description="Create base_dir if it doesn't exist.",
     )
+    backend: str = Field(
+        default="pandas",
+        description="'pandas' or 'polars'. 'polars' reads/writes via `DataFrame.write_parquet`/`pl.read_parquet` directly -- not through the `dagster-polars` package, so it isn't affected by that package's Polars 2.0 incompatibility (community-integrations#359).",
+    )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        backend = (self.backend or "pandas").lower()
+        if backend not in ("pandas", "polars"):
+            raise ValueError(f"backend must be 'pandas' or 'polars', got {self.backend!r}")
+        if backend == "polars":
+            try:
+                import polars  # noqa: F401
+            except ImportError:
+                raise ImportError("backend='polars' requested but `polars` is not installed.")
+
         io_manager = LocalParquetIOManager(
             base_dir=self.base_dir,
             create_dir=self.create_dir,
+            backend=backend,
         )
         return dg.Definitions(resources={self.resource_key: io_manager})

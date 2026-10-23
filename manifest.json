@@ -38326,15 +38326,16 @@
       "id": "local_parquet_io_manager",
       "name": "LocalParquetIOManager",
       "category": "io_manager",
-      "description": "Store DataFrames as Parquet files on the local filesystem (dev / no-warehouse).",
-      "version": "1.0.0",
+      "description": "Store DataFrames as Parquet files on the local filesystem (dev / no-warehouse). backend: polars reads/writes real polars DataFrames directly, with no dependency on the dagster-polars package (so it's unaffected by that package's current Polars 2.0 incompatibility).",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "io_managers/local_parquet_io_manager",
       "tags": [
         "io_manager",
         "parquet",
         "local",
-        "dev"
+        "dev",
+        "polars"
       ],
       "dependencies": {
         "pip": [

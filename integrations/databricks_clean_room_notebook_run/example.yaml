@@ -1,0 +1,9 @@
+type: dagster_component_templates.DatabricksCleanRoomNotebookRunComponent
+attributes:
+  asset_name: shared_attribution_analysis
+  clean_room_name: acme_retail_media_room
+  notebook_name: attribution_report
+  notebook_base_parameters:
+    report_month: '2026-10'
+  group_name: clean_rooms
+  kinds: [databricks, clean_rooms]

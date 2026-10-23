@@ -331,6 +331,7 @@ _CLASS_PATHS: dict[str, str] = {
     "DatabaseViewMigrationComponent": "assets/ingestion/database_view_migration/component.py",
     "DatabaseViewsMigrationComponent": "assets/ingestion/database_views_migration/component.py",
     "DatabricksAssetBundleComponent": "integrations/databricks_asset_bundle/component.py",
+    "DatabricksCleanRoomNotebookRunComponent": "integrations/databricks_clean_room_notebook_run/component.py",
     "DatabricksGenieQueryComponent": "assets/ai/databricks_genie_query/component.py",
     "DatabricksIOManagerComponent": "io_managers/databricks_io_manager/component.py",
     "DatabricksResourceComponent": "resources/databricks_resource/component.py",

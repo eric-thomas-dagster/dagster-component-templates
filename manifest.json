@@ -16333,6 +16333,56 @@
       }
     },
     {
+      "id": "databricks_clean_room_notebook_run",
+      "name": "Databricks Clean Room Notebook Run",
+      "category": "integrations",
+      "description": "Run a Databricks Clean Room notebook as a Dagster asset, via the Jobs API's clean_rooms_notebook_task (Clean Rooms itself has no submit-a-run REST endpoint).",
+      "path": "integrations/databricks_clean_room_notebook_run",
+      "tags": [
+        "databricks",
+        "clean_rooms",
+        "privacy",
+        "collaboration",
+        "jobs"
+      ],
+      "icon": "si:databricks",
+      "type": "dagster_component_templates.DatabricksCleanRoomNotebookRunComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_clean_room_notebook_run/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_clean_room_notebook_run/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_clean_room_notebook_run/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_clean_room_notebook_run/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/databricks_clean_room_notebook_run/requirements.txt",
+      "component_type": "dagster_component_templates.DatabricksCleanRoomNotebookRunComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-23"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "databricks-sdk"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with the clean room notebook run's final state in metadata.",
+        "requires_pip": [
+          "databricks-sdk"
+        ]
+      },
+      "keywords": [
+        "databricks",
+        "clean-rooms",
+        "privacy",
+        "jobs-api"
+      ]
+    },
+    {
       "id": "databricks_genie_query",
       "name": "databricks_genie_query",
       "category": "ai",

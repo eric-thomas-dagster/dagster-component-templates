@@ -1,0 +1,58 @@
+name: full test suite
+
+# The per-push `tests` workflow only runs a small CURATED subset of this repo's ~500+ per-component
+# `tests/` directories (see TEST_DIRS in tests.yml), to keep every push/PR fast. This workflow runs
+# ALL of them -- real coverage of every component's own committed test suite, not just the curated
+# set -- on a schedule instead, so it never slows down a push or blocks a merge. Triggers:
+#   - nightly, 06:00 UTC
+#   - workflow_dispatch (run on demand from the Actions tab)
+# A failure here means some component's own test suite is broken -- check which job/component in the
+# run summary, it does NOT mean a push should be blocked (this workflow never runs on push/PR).
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch: {}
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  full-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install ffmpeg (synthetic video generator tests)
+        uses: awalsh128/cache-apt-pkgs-action@v1.4.3
+        with:
+          packages: ffmpeg
+          version: 1.0
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          # sqlglot and duckdb are PINNED to the versions the fake-warehouse tests (bq_fake.py / sql_fake.py) were written against:
+          # they patch sqlglot's BigQuery/Snowflake/Databricks -> DuckDB translation, which differs between releases.
+          pip install "dagster>=1.10.0" dagster-duckdb pandas pytest pyyaml chromadb "duckdb==1.5.6" "duckdb-engine==0.17.0" "sqlalchemy>=2" \
+                      "sqlglot==28.0.0" jsonschema tabulate pyarrow litellm requests fsspec \
+                      dlt cryptography scikit-learn geopandas \
+                      google-auth google-api-python-client google-cloud-bigquery reportlab pillow
+      - name: Install vendor client libraries (library-contract tests skip any that is missing)
+        # best effort per package: a wheel that is unavailable for this Python must not fail the job, the matching contract tests just skip
+        run: |
+          for pkg in dagster-gcp snowflake-connector-python databricks-sql-connector psycopg2-binary pymysql; do
+            pip install "$pkg" || echo "::warning::could not install $pkg; its contract tests will skip"
+          done
+      - name: Discover every committed tests/ directory
+        run: |
+          find . -type d \( -name ".venv" -o -name "node_modules" -o -name "__pycache__" -o -name "site-packages" -o -name "dist" \) -prune \
+                 -o -type d -name "tests" -print | sort > all_test_dirs.txt
+          echo "Found $(wc -l < all_test_dirs.txt) tests/ directories"
+      - name: Run every component's own test suite
+        run: python -m pytest $(cat all_test_dirs.txt) -q -p no:cacheprovider -W ignore

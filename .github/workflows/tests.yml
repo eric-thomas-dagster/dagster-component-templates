@@ -1,8 +1,10 @@
 name: tests
 
 # Runs the repo-level tests plus the suites for the context-engineering / receipts / agentic stack on every push and PR,
-# and the registry + manifest consistency checks. (There are ~460 per-component tests/ directories; this is a curated set,
-# not all of them. Add a directory to TEST_DIRS below when a component gets a committed test suite you want gated.)
+# and the registry + manifest consistency checks. (There are 500+ per-component tests/ directories; this is a curated
+# set, not all of them, kept small so every push/PR stays fast. ALL of them run nightly instead, see
+# full-test-suite.yml. Add a directory to TEST_DIRS below when a component gets a committed test suite you want
+# gated on every push too, not just nightly.)
 
 on:
   push:

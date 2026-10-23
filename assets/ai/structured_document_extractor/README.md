@@ -143,6 +143,7 @@ output_fields: [invoice_number, vendor, total_amount, po_reference]  # your own 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `api_key_env_var` | `str` | `"OPENAI_API_KEY"` | Environment variable name holding the API key |
+| `api_base_env_var` | `str` | — | Optional environment variable holding an API base URL, for a self-hosted or local OpenAI-compatible model (Ollama, LM Studio, vLLM...), e.g. `OLLAMA_API_BASE=http://localhost:11434` with `model: ollama/llava`. Unset = the provider's default endpoint. |
 
 ### Execution
 
@@ -223,7 +224,11 @@ output_fields: [invoice_number, vendor, total_amount, po_reference]  # your own 
 
 ## Requirements
 
-`litellm` is a hard dependency. Works with any litellm-compatible model (OpenAI, Anthropic, etc.) — set `model` + `api_key_env_var` to match.
+`litellm` is a hard dependency. Works with any litellm-compatible model (OpenAI, Anthropic, etc.) — set `model` + `api_key_env_var` to match. For a local model, use a litellm `ollama/...` (or other self-hosted) model name and, if the server isn't at litellm's default address, `api_base_env_var`.
+
+### Calling it from Python
+
+`extract_one(path, output_fields=[...], model=...)` in `component.py` extracts from a single document and returns `(fields, raw_model_reply)`; `build_extraction_messages` returns the exact prompt. The asset uses these, so a builder UI previewing a sample sends what production sends.
 
 ## Validation
 

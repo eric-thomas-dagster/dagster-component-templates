@@ -223,3 +223,58 @@ def test_custom_document_type_without_output_fields_raises(mod):
     )
     with pytest.raises(ValueError, match="output_fields"):
         component.build_defs(load_context=None)
+
+
+def test_extract_one_returns_fields_and_the_raw_reply(mod, fake_litellm, tmp_path):
+    calls, state = fake_litellm
+    state["response_text"] = '```json\n{"total": 12.5, "extra": "dropped"}\n```'
+    doc = tmp_path / "a.txt"
+    doc.write_text("Total due: 12.50")
+    fields, raw = mod.extract_one(str(doc), output_fields=["total", "vendor"], model="gpt-4o", api_key="k")
+    assert fields == {"total": 12.5, "vendor": None}  # extras dropped, omitted fields None
+    assert "```" in raw
+    assert calls[0]["kwargs"]["num_retries"] == 2
+    assert "api_base" not in calls[0]["kwargs"]
+
+
+def test_extract_one_raises_on_a_bad_reply_so_callers_can_show_it(mod, fake_litellm, tmp_path):
+    _, state = fake_litellm
+    state["response_text"] = "not json"
+    doc = tmp_path / "a.txt"
+    doc.write_text("x")
+    with pytest.raises(Exception):
+        mod.extract_one(str(doc), output_fields=["a"], model="m")
+
+
+def test_api_base_reaches_litellm_only_when_set(mod, fake_litellm, tmp_path, monkeypatch):
+    calls, _ = fake_litellm
+    doc = tmp_path / "a.txt"
+    doc.write_text("x")
+    mod.extract_one(str(doc), output_fields=["field_a"], model="ollama/llava", api_base="http://localhost:11434")
+    assert calls[0]["kwargs"]["api_base"] == "http://localhost:11434"
+
+
+def test_component_resolves_api_base_from_the_named_env_var(mod, fake_litellm, tmp_path, monkeypatch):
+    calls, _ = fake_litellm
+    monkeypatch.setenv("MY_BASE", "http://localhost:1234/v1")
+    doc = tmp_path / "a.txt"
+    doc.write_text("hello")
+    component = mod.StructuredDocumentExtractorComponent(
+        asset_name="extracted", upstream_asset_key="docs_in", input_column="local_path",
+        document_type="custom", output_fields=["field_a"], model="openai/local", api_base_env_var="MY_BASE",
+    )
+    assert _materialize_one_row(mod, component, str(doc)).success
+    assert calls[0]["kwargs"]["api_base"] == "http://localhost:1234/v1"
+
+
+def test_prompt_preview_matches_what_the_asset_sends(mod, fake_litellm, tmp_path):
+    calls, _ = fake_litellm
+    doc = tmp_path / "a.txt"
+    doc.write_text("hello")
+    msgs = mod.build_extraction_messages(str(doc), input_type="file", output_fields=["field_a"], doc_label="invoice")
+    component = mod.StructuredDocumentExtractorComponent(
+        asset_name="extracted", upstream_asset_key="docs_in", input_column="local_path",
+        document_type="invoice", output_fields=["field_a"],
+    )
+    assert _materialize_one_row(mod, component, str(doc)).success
+    assert calls[0]["messages"] == msgs

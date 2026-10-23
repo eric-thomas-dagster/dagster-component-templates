@@ -254,6 +254,115 @@ def _crop_region_blocks(path: str, field_regions: Dict[str, Dict[str, float]]) -
     return blocks
 
 
+def build_extraction_messages(
+    file_ref: str,
+    *,
+    input_type: str,
+    output_fields: List[str],
+    doc_label: str = "document",
+    max_content_chars: Optional[int] = None,
+    field_regions: Optional[Dict[str, Dict[str, float]]] = None,
+    warn: Any = None,
+) -> List[dict]:
+    """The exact chat messages sent to the model for one document.
+
+    Module-level (not buried in the asset) so anything that wants to preview an extraction, such as a builder UI's "try it on
+    these samples", sends the SAME prompt production will -- a preview that differs from the real run is worse than none.
+    """
+    image_block = None
+    if input_type == "file":
+        text_content, image_block = _extract_file_content(file_ref)
+        content = text_content if text_content is not None else file_ref
+    else:
+        content = file_ref
+
+    if image_block is None and max_content_chars is not None and len(content) > max_content_chars:
+        content = content[:max_content_chars]
+
+    if image_block is not None:
+        prompt_text = (
+            f"Extract the following fields from this {doc_label} image as JSON: {output_fields}\n\n"
+            "Return only a JSON object with the requested fields. Use null for missing fields."
+        )
+        message_content: Any = [{"type": "text", "text": prompt_text}, image_block]
+        if field_regions:
+            try:
+                message_content += _crop_region_blocks(file_ref, field_regions)
+            except Exception as e:
+                if warn:
+                    warn(f"Could not build field-location crops for {file_ref!r}: {e}")
+    else:
+        message_content = (
+            f"Extract the following fields from this {doc_label} as JSON: {output_fields}\n\n"
+            f"Document content:\n{content}\n\n"
+            "Return only a JSON object with the requested fields. Use null for missing fields."
+        )
+    return [{"role": "user", "content": message_content}]
+
+
+def parse_extraction_response(raw: str, output_fields: List[str]) -> Dict[str, Any]:
+    """Parse the model's reply into exactly `output_fields` (anything it omitted becomes None, anything extra is dropped)."""
+    import json
+
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    extracted = json.loads(raw)
+    if not isinstance(extracted, dict):
+        raise ValueError(f"LLM returned {type(extracted).__name__}, expected a JSON object")
+    # Keeps every row's dict shape identical regardless of what the model chose to include.
+    return {f: extracted.get(f) for f in output_fields}
+
+
+def extract_one(
+    file_ref: str,
+    *,
+    input_type: str = "file",
+    output_fields: List[str],
+    doc_label: str = "document",
+    model: str,
+    api_key: Optional[str] = None,
+    api_base: Optional[str] = None,
+    llm_max_retries: int = 2,
+    max_content_chars: Optional[int] = 20000,
+    field_regions: Optional[Dict[str, Dict[str, float]]] = None,
+    warn: Any = None,
+) -> "tuple[Dict[str, Any], str]":
+    """Extract `output_fields` from ONE document. Returns (fields, raw model reply); raises on any failure.
+
+    The asset calls this per row and turns an exception into an all-None row; a builder UI calls it directly to show a
+    sample's result (and the raw reply when it goes wrong).
+    """
+    try:
+        from litellm import completion
+    except ImportError:
+        raise ImportError("litellm required: pip install litellm")
+
+    messages = build_extraction_messages(
+        file_ref,
+        input_type=input_type,
+        output_fields=output_fields,
+        doc_label=doc_label,
+        max_content_chars=max_content_chars,
+        field_regions=field_regions,
+        warn=warn,
+    )
+    extra: Dict[str, Any] = {}
+    if api_base:
+        extra["api_base"] = api_base
+    resp = completion(
+        model=model,
+        messages=messages,
+        api_key=api_key,
+        num_retries=llm_max_retries,
+        **extra,
+    )
+    raw = resp.choices[0].message.content
+    return parse_extraction_response(raw, output_fields), raw
+
+
 def _list_files_direct(path: str, max_files: Optional[int], download: bool, download_dir: Optional[str]) -> "pd.DataFrame":
     """List (and by default download) files matching `path` directly --
     same logic as file_lister's own _list_files, duplicated rather than
@@ -452,6 +561,14 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
         default="OPENAI_API_KEY",
         description="Environment variable name holding the API key",
     )
+    api_base_env_var: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional environment variable holding an API base URL, for a self-hosted or local OpenAI-compatible model "
+            "(Ollama, LM Studio, vLLM...), e.g. OLLAMA_API_BASE=http://localhost:11434 with model 'ollama/llava'. "
+            "Unset = the provider's default endpoint."
+        ),
+    )
     output_fields: Optional[List[str]] = Field(
         default=None,
         description=(
@@ -610,6 +727,7 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
         input_type = self.input_type
         model = self.model_id
         api_key_env_var = self.api_key_env_var
+        api_base_env_var = self.api_base_env_var
         document_type = self.document_type
         batch_size = self.batch_size
         llm_max_retries = self.llm_max_retries
@@ -718,55 +836,19 @@ class StructuredDocumentExtractorComponent(Component, Model, Resolvable):
                     source_path = str(row["path"]) if has_path_col and pd.notna(row["path"]) else file_ref
                     success = False
                     try:
-                        image_block = None
-                        if input_type == "file":
-                            text_content, image_block = _extract_file_content(file_ref)
-                            content = text_content if text_content is not None else file_ref
-                        else:
-                            content = file_ref
-
-                        if image_block is None and max_content_chars is not None and len(content) > max_content_chars:
-                            content = content[:max_content_chars]
-
-                        if image_block is not None:
-                            prompt_text = (
-                                f"Extract the following fields from this {_doc_label} image as JSON: {output_fields}\n\n"
-                                "Return only a JSON object with the requested fields. Use null for missing fields."
-                            )
-                            message_content: Any = [{"type": "text", "text": prompt_text}, image_block]
-                            if field_regions:
-                                try:
-                                    message_content += _crop_region_blocks(file_ref, field_regions)
-                                except Exception as e:
-                                    context.log.warning(f"Could not build field-location crops for {file_ref!r}: {e}")
-                        else:
-                            prompt_text = (
-                                f"Extract the following fields from this {_doc_label} as JSON: {output_fields}\n\n"
-                                f"Document content:\n{content}\n\n"
-                                "Return only a JSON object with the requested fields. Use null for missing fields."
-                            )
-                            message_content = prompt_text
-
-                        resp = completion(
+                        extracted, _raw = extract_one(
+                            file_ref,
+                            input_type=input_type,
+                            output_fields=output_fields,
+                            doc_label=_doc_label,
                             model=model,
-                            messages=[{"role": "user", "content": message_content}],
                             api_key=os.environ.get(api_key_env_var),
-                            num_retries=llm_max_retries,
+                            api_base=os.environ.get(api_base_env_var) if api_base_env_var else None,
+                            llm_max_retries=llm_max_retries,
+                            max_content_chars=max_content_chars,
+                            field_regions=field_regions,
+                            warn=context.log.warning,
                         )
-                        raw = resp.choices[0].message.content
-                        raw = raw.strip()
-                        if raw.startswith("```"):
-                            raw = raw.split("```")[1]
-                            if raw.startswith("json"):
-                                raw = raw[4:]
-                        extracted = json.loads(raw)
-                        if not isinstance(extracted, dict):
-                            raise ValueError(f"LLM returned {type(extracted).__name__}, expected a JSON object")
-                        # Fill any field the LLM omitted with None -- keeps
-                        # every row's dict shape identical regardless of
-                        # what the model chose to include, so the output
-                        # DataFrame always has consistent columns.
-                        extracted = {f: extracted.get(f) for f in output_fields}
                         success = True
                     except Exception as e:
                         context.log.warning(f"Extraction failed for {source_path!r}: {e}")

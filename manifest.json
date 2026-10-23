@@ -70189,6 +70189,59 @@
         "analytics",
         "sql"
       ]
+    },
+    {
+      "id": "questdb_sql_query",
+      "name": "QuestDB SQL Query",
+      "category": "source",
+      "description": "Execute a SQL query against QuestDB's real HTTP REST API and materialize the result as a Dagster asset.",
+      "path": "assets/sources/questdb_sql_query",
+      "tags": [
+        "questdb",
+        "time-series",
+        "real-time",
+        "analytics",
+        "sql"
+      ],
+      "icon": "si:questdb",
+      "type": "dagster_component_templates.QuestdbSqlQueryComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/questdb_sql_query/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/questdb_sql_query/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/questdb_sql_query/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/questdb_sql_query/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sources/questdb_sql_query/requirements.txt",
+      "component_type": "dagster_component_templates.QuestdbSqlQueryComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-23"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "DataFrame",
+        "outputs": "pandas DataFrame of the QuestDB SQL query result.",
+        "requires_pip": [
+          "pandas",
+          "requests"
+        ]
+      },
+      "keywords": [
+        "questdb",
+        "time-series",
+        "real-time",
+        "analytics",
+        "sql"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

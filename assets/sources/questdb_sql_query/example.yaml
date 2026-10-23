@@ -1,0 +1,10 @@
+type: dagster_component_templates.QuestdbSqlQueryComponent
+attributes:
+  asset_name: daily_sensor_readings
+  host_url: http://questdb:9000
+  query: |
+    SELECT timestamp, sensor_id, avg(value) AS avg_value
+    FROM sensor_readings
+    SAMPLE BY 1d
+  group_name: iot
+  kinds: [questdb]

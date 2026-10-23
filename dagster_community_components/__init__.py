@@ -828,6 +828,7 @@ _CLASS_PATHS: dict[str, str] = {
     "MagentoIngestionComponent": "assets/ingestion/magento_ingestion/component.py",
     "MagentoProductUpsertComponent": "assets/reverse_etl/magento_product_upsert/component.py",
     "MagentoResourceComponent": "resources/magento_resource/component.py",
+    "ManagedFlinkApplicationAssetComponent": "assets/infrastructure/managed_flink_application_asset/component.py",
     "MailchimpIngestionComponent": "assets/ingestion/mailchimp_ingestion/component.py",
     "MailchimpMemberUpsertComponent": "assets/reverse_etl/mailchimp_member_upsert/component.py",
     "MailchimpResourceComponent": "resources/mailchimp_resource/component.py",

@@ -60518,6 +60518,57 @@
       ]
     },
     {
+      "id": "managed_flink_application_asset",
+      "name": "Managed Flink Application",
+      "category": "infrastructure",
+      "description": "Ensure an AWS Managed Service for Apache Flink application is running or stopped -- describe/start/stop_application, polled until it settles.",
+      "path": "assets/infrastructure/managed_flink_application_asset",
+      "tags": [
+        "aws",
+        "flink",
+        "streaming",
+        "infrastructure",
+        "kinesis"
+      ],
+      "icon": "si:apacheflink",
+      "type": "dagster_component_templates.ManagedFlinkApplicationAssetComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/managed_flink_application_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/managed_flink_application_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/managed_flink_application_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/managed_flink_application_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/managed_flink_application_asset/requirements.txt",
+      "component_type": "dagster_component_templates.ManagedFlinkApplicationAssetComponent",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-23"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "boto3"
+        ]
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "input_type": "None",
+        "output_type": "Any",
+        "outputs": "MaterializeResult with the application's final status in metadata.",
+        "requires_pip": [
+          "boto3"
+        ]
+      },
+      "keywords": [
+        "infra",
+        "aws",
+        "flink",
+        "streaming",
+        "kinesisanalytics"
+      ]
+    },
+    {
       "id": "step_functions_asset",
       "name": "AWS Step Functions Asset",
       "category": "infrastructure",

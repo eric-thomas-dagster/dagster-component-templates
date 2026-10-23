@@ -1,0 +1,9 @@
+type: dagster_component_templates.ManagedFlinkApplicationAssetComponent
+attributes:
+  asset_name: clickstream_flink_app
+  application_name: clickstream-enrichment
+  region_name: us-east-1
+  desired_state: running
+  application_restore_type: RESTORE_FROM_LATEST_SNAPSHOT
+  group_name: streaming
+  kinds: [aws, flink]

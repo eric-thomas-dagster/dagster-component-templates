@@ -3865,17 +3865,25 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         if execution_mode == "sql":
             # The table IS the output; there is nothing for an IO manager to persist (and a single_run backfill needs that: an IO manager
             # cannot store one value for several partitions). dagster_type=Nothing opts out.
-            @asset(dagster_type=Nothing, **asset_kwargs)
-            def _sql_asset(context: AssetExecutionContext):
+            def _sql_asset_body(context: AssetExecutionContext, fs: Dict[str, str]):
+                fs["step"] = "sql_mode"
                 yield _run_sql_mode(context, steps_cfg, source_cfg, sql_dialect, output_table, id_column, text_column, metadata_columns,
                                     asset_name=asset_name, code_version=recipe_code_version, stamp_provenance=stamp_provenance,
                                     emit_data_version=emit_data_version, receipts_cfg=receipts_cfg, incremental=incremental)
                 if retrieval_eval is not None:
+                    fs["step"] = "retrieval_eval"
                     yield _run_sql_retrieval_eval(retrieval_eval, steps_cfg, source_cfg, sql_dialect, output_table, id_column, asset_name,
                                                   stamp_provenance, context)
                 if receipts_cfg is not None and receipts_cfg.get("regression_check"):
+                    fs["step"] = "recipe_outcomes"
                     by_cv = _sql_fetch_outcomes_by_code_version(context, source_cfg, receipts_cfg, asset_name)
                     yield _run_recipe_outcomes_check(receipts_cfg, asset_name, recipe_code_version, context, outcomes_by_cv=by_cv)
+
+            @asset(dagster_type=Nothing, **asset_kwargs)
+            def _sql_asset(context: AssetExecutionContext):
+                _fs: Dict[str, str] = {}
+                yield from _fo_gen(context, _sql_asset_body(context, _fs), counter=_FO_COUNTER,
+                                   asset_keys=[AssetKey.from_user_string(asset_name)], failed_step=_fs)
             return Definitions(assets=[_sql_asset])
 
         if self.per_step_ops:
@@ -3890,8 +3898,8 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                 check_specs=check_specs,
             )
 
-        @asset(**asset_kwargs)
-        def _asset(context: AssetExecutionContext, **kwargs):
+        def _asset_body(context: AssetExecutionContext, fs: Dict[str, str], **kwargs):
+            fs["step"] = "ingest"
             upstream = kwargs.get("upstream")
             if upstream is not None:
                 if hasattr(upstream, "value") and hasattr(upstream, "metadata"):
@@ -3903,9 +3911,9 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                 upstream = _ingest_warehouse_query(source_cfg, context)
 
             if id_column not in upstream.columns:
-                raise ValueError(f"id_column={id_column!r} not in upstream: {list(upstream.columns)}")
+                raise UpstreamError(f"id_column={id_column!r} not in upstream: {list(upstream.columns)}")
             if text_column not in upstream.columns:
-                raise ValueError(f"text_column={text_column!r} not in upstream: {list(upstream.columns)}")
+                raise UpstreamError(f"text_column={text_column!r} not in upstream: {list(upstream.columns)}")
 
             source_rows_available = len(upstream)
             if max_source_rows is not None and source_rows_available > max_source_rows:
@@ -3928,6 +3936,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                 t0 = _time.time()
                 step_id = step["id"]
                 op = step["op"]
+                fs["step"] = step_id
                 source_id = step.get("source") or last_frame_id
 
                 if op == "chunk":
@@ -3990,9 +3999,17 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                 data_version=DataVersion(content_version) if (emit_data_version and content_version) else None,
             )
             if retrieval_eval is not None:
+                fs["step"] = "retrieval_eval"
                 yield _run_retrieval_eval(retrieval_eval, steps_cfg, asset_name, stamp_provenance, context)
             if receipts_cfg is not None and receipts_cfg.get("regression_check"):
+                fs["step"] = "recipe_outcomes"
                 yield _run_recipe_outcomes_check(receipts_cfg, asset_name, recipe_code_version, context)
+
+        @asset(**asset_kwargs)
+        def _asset(context: AssetExecutionContext, **kwargs):
+            _fs: Dict[str, str] = {}
+            yield from _fo_gen(context, _asset_body(context, _fs, **kwargs), counter=_FO_COUNTER,
+                               asset_keys=[AssetKey.from_user_string(asset_name)], failed_step=_fs)
 
         return Definitions(assets=[_asset])
 
@@ -4057,7 +4074,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
 
             def _make_op(step=step, step_id=step_id, op_kind=op_kind, op_name=op_name,
                          is_first=is_first, is_last=is_last, rrk=op_required_resource_keys):
-                def _compute(context: OpExecutionContext, upstream) -> "tuple[pd.DataFrame, Dict[str, Any]]":
+                def _compute_inner(context: OpExecutionContext, upstream) -> "tuple[pd.DataFrame, Dict[str, Any]]":
                     import time as _time
                     t0 = _time.time()
                     extra_md: Dict[str, Any] = {}
@@ -4073,9 +4090,9 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                                 _frames = [v for v in upstream_df.values() if isinstance(v, pd.DataFrame)]
                                 upstream_df = pd.concat(_frames, ignore_index=True) if _frames else pd.DataFrame()
                         if id_column not in upstream_df.columns:
-                            raise ValueError(f"id_column={id_column!r} not in upstream: {list(upstream_df.columns)}")
+                            raise UpstreamError(f"id_column={id_column!r} not in upstream: {list(upstream_df.columns)}")
                         if text_column not in upstream_df.columns:
-                            raise ValueError(f"text_column={text_column!r} not in upstream: {list(upstream_df.columns)}")
+                            raise UpstreamError(f"text_column={text_column!r} not in upstream: {list(upstream_df.columns)}")
                         source_rows_available = len(upstream_df)
                         if max_source_rows is not None and source_rows_available > max_source_rows:
                             context.log.warning(
@@ -4135,6 +4152,15 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                     md = {**_step_metadata(step_id, op_kind, df, elapsed), **extra_md}
                     context.log.info(f"step {step_id!r} ({op_kind}) → {len(df)} rows in {elapsed:.2f}s")
                     return df, md
+
+                def _compute(context: OpExecutionContext, upstream) -> "tuple[pd.DataFrame, Dict[str, Any]]":
+                    try:
+                        return _compute_inner(context, upstream)
+                    except Exception as exc:
+                        # the failing step's own asset did not materialize; assets of later steps never ran (not marked)
+                        _fo_emit(context, exc, counter=_FO_COUNTER, asset_keys=[AssetKey.from_user_string(_step_asset_key(step_id))],
+                                 failed_step=step_id)
+                        raise
 
                 # The first step's op takes a real `upstream` INPUT only when self.upstream_asset_key is
                 # set (the graph wires a real predecessor to it). With `source:` instead, _pipeline_fn
@@ -4358,7 +4384,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                 # never threads a real value between ops either, it just needs the dependency edge for
                 # ordering, and real step-to-step ASSET lineage comes from internal_asset_deps below,
                 # not from this op-call wiring.
-                def _compute(context: OpExecutionContext) -> Dict[str, Any]:
+                def _compute_inner(context: OpExecutionContext) -> Dict[str, Any]:
                     if op_kind == "chunk":
                         md, _cols = _run_sql_chunks_stage(
                             context, resource_key, step, source_cfg, sql_dialect, this_table,
@@ -4381,6 +4407,14 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                         md["n_steps"] = MetadataValue.int(len(steps_cfg))
                         md["step_chain"] = MetadataValue.text(" → ".join(s["id"] for s in steps_cfg))
                     return md
+
+                def _compute(context: OpExecutionContext) -> Dict[str, Any]:
+                    try:
+                        return _compute_inner(context)
+                    except Exception as exc:
+                        _fo_emit(context, exc, counter=_FO_COUNTER, asset_keys=[AssetKey.from_user_string(_step_asset_key(step_id))],
+                                 failed_step=step_id)
+                        raise
 
                 if is_last:
                     # Generator form: the only step whose op may also yield AssetCheckResults
@@ -4474,6 +4508,167 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             owners_by_output_name=owners_by_output_name or None,
         )
         return Definitions(assets=[pipeline_asset])
+
+
+class UpstreamError(ValueError):
+    """The upstream asset's data does not have the shape this pipeline needs (maps to failure_reason UPSTREAM_ERROR)."""
+
+
+# BEGIN failure-observation contract (inlined per component; keep copies identical -- see tests/test_failure_observation_contract.py)
+# Open-source Dagster never emits ASSET_FAILED_TO_MATERIALIZE when an asset step fails, so a failed asset is visible only as a failed
+# RUN. This contract logs an AssetObservation per asset the failing step was producing (metadata: failure_status, failure_reason,
+# error_class, error_message [redacted, <=500 chars], will_retry, failed_step, run_id, plus the component's numeric `<prefix>_failures`)
+# BEFORE the original exception is re-raised untouched. Emission can never mask the failure: it has its own try/except.
+import re as _fo_re
+
+_FO_REASONS = ("FAILED_TO_MATERIALIZE", "POLICY_VIOLATION", "BUDGET_EXCEEDED", "APPROVAL_REJECTED", "UPSTREAM_ERROR", "UNKNOWN")
+_FO_URL_CRED = _fo_re.compile(r"([A-Za-z][A-Za-z0-9+.\-]*://)[^/\s:@]+:[^/\s@]+@")
+_FO_AUTH = _fo_re.compile(r"(?i)(authorization[\"']?\s*[:=]\s*[\"']?)(?:(bearer|basic|token)\s+)?[^\s\"',;]+")
+_FO_BEARER = _fo_re.compile(r"(?i)\b(bearer|basic)\s+[A-Za-z0-9._~+/=\-]{8,}")
+_FO_KV = _fo_re.compile(
+    r"(?i)\b([\w.\-]*(?:password|passwd|pwd|secret|token|api[_\-]?key|apikey|access[_\-]?key|private[_\-]?key|credential|auth[_\-]?key)[\w.\-]*"
+    r"[\"']?\s*[:=]\s*[\"']?)[^\s\"',;&]+")
+_FO_TOKENS = _fo_re.compile(
+    r"\b(?:sk-[A-Za-z0-9_\-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|xox[abprs]-[A-Za-z0-9\-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_\-]{30,}"
+    r"|eyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]*)")
+_FO_BLOB = _fo_re.compile(r"[A-Za-z0-9+/_=\-]{40,}")
+
+
+def _fo_blob(m) -> str:
+    s = m.group(0)
+    # a long unbroken run with a digit and a letter, and not mostly path separators, is a key / base64 / hash, not prose or a path
+    if any(c.isdigit() for c in s) and any(c.isalpha() for c in s) and s.count("/") / len(s) < 0.05:
+        return "[REDACTED]"
+    return s
+
+
+def _fo_redact(text: Any, limit: int = 500) -> str:
+    """Strip credentials from an error message, THEN truncate (so a secret cut in half can never survive)."""
+    s = str(text)[:5000]
+    s = _FO_URL_CRED.sub(r"\1[REDACTED]@", s)
+    s = _FO_AUTH.sub(lambda m: m.group(1) + ((m.group(2) + " ") if m.group(2) else "") + "[REDACTED]", s)
+    s = _FO_BEARER.sub(lambda m: m.group(1) + " [REDACTED]", s)
+    s = _FO_KV.sub(lambda m: m.group(1) + "[REDACTED]", s)
+    s = _FO_TOKENS.sub("[REDACTED]", s)
+    s = _FO_BLOB.sub(_fo_blob, s)
+    return s[:limit]
+
+
+def _fo_reason(exc: BaseException) -> str:
+    """Map an exception to a Dagster-AssetMaterializationFailureReason-style name."""
+    try:
+        import dagster as dg
+        if isinstance(exc, dg.Failure):
+            for k, v in (exc.metadata or {}).items():
+                if k == "failure_reason" and str(getattr(v, "value", v)) in _FO_REASONS:
+                    return str(getattr(v, "value", v))
+        names = {c.__name__ for c in type(exc).__mro__}
+        if "ApprovalRejected" in names:
+            return "APPROVAL_REJECTED"
+        if "PolicyViolation" in names:
+            return "BUDGET_EXCEEDED" if _fo_re.match(r"\s*\[policy:(budget|breaker)\]", str(exc)) else "POLICY_VIOLATION"
+        if "BudgetExceeded" in names:
+            return "BUDGET_EXCEEDED"
+        if "UpstreamError" in names:
+            return "UPSTREAM_ERROR"
+        return "FAILED_TO_MATERIALIZE"
+    except Exception:
+        return "UNKNOWN"
+
+
+def _fo_will_retry(context: Any, exc: BaseException) -> Optional[str]:
+    """'true'/'false' when the run's retry policy makes it knowable (op RetryPolicy, else run-retry tags), else None."""
+    try:
+        import dagster as dg
+        if isinstance(exc, dg.Failure) and exc.allow_retries is False:
+            return "false"
+        oc = getattr(context, "op_execution_context", context)
+        pol = oc.op_def.retry_policy
+        if pol is not None:
+            return "true" if oc.retry_number < pol.max_retries else "false"
+        tags = oc.run.tags or {}
+        if tags.get("dagster/max_retries") is not None:
+            return "true" if int(tags.get("dagster/retry_number", 0)) < int(tags["dagster/max_retries"]) else "false"
+    except Exception:
+        pass
+    return None
+
+
+def _fo_partitions(context: Any) -> list:
+    try:
+        if context.has_partition_key:
+            return [context.partition_key]
+        if context.has_partition_key_range:
+            ks = list(context.partition_keys)
+            return ks if 0 < len(ks) <= 100 else [None]
+    except Exception:
+        pass
+    return [None]
+
+
+def _fo_emit(context: Any, exc: BaseException, *, counter: Dict[str, Any], asset_keys: Any, failed_step: Any = None,
+             reason: Optional[str] = None, skip: Any = ()) -> None:
+    """Log the failure AssetObservation(s). NEVER raises: a problem here is a warning, the caller re-raises the original.
+    `asset_keys`: list or callable; `failed_step`: str, {"step": id} or callable; `skip`: asset keys already materialized
+    (the marker "*" = all of them)."""
+    try:
+        import dagster as dg
+        if isinstance(exc, dg.RetryRequested):
+            return  # a requested retry is not a failure
+        if "*" in skip:
+            return
+        keys = [k for k in (asset_keys() if callable(asset_keys) else asset_keys) if k not in skip]
+        failed_step = failed_step() if callable(failed_step) else (failed_step.get("step") if isinstance(failed_step, dict) else failed_step)
+        msg = getattr(exc, "description", None) if isinstance(exc, dg.Failure) else None
+        md: Dict[str, Any] = {
+            "failure_status": dg.MetadataValue.text("failed"),
+            "failure_reason": dg.MetadataValue.text(reason or _fo_reason(exc)),
+            "error_class": dg.MetadataValue.text(type(exc).__name__),
+            "error_message": dg.MetadataValue.text(_fo_redact(msg or str(exc) or type(exc).__name__)),
+        }
+        wr = _fo_will_retry(context, exc)
+        if wr is not None:
+            md["will_retry"] = dg.MetadataValue.text(wr)
+        if failed_step:
+            md["failed_step"] = dg.MetadataValue.text(str(failed_step))
+        try:
+            md["run_id"] = dg.MetadataValue.text(str(context.run.run_id))
+        except Exception:
+            pass
+        md.update(counter)
+        parts = _fo_partitions(context)
+        for key in keys:
+            for p in parts:
+                try:
+                    context.log_event(dg.AssetObservation(asset_key=key, partition=p, metadata=md))
+                except Exception as e:  # noqa: BLE001
+                    context.log.warning(f"failure observation for {key} could not be logged: {e!r}")
+    except Exception as e:  # noqa: BLE001
+        try:
+            context.log.warning(f"failure observation could not be emitted: {e!r}")
+        except Exception:
+            pass
+
+
+def _fo_gen(context: Any, gen: Any, *, counter: Dict[str, Any], asset_keys: Any, output_key: Any = None, failed_step: Any = None):
+    """Pass a generator asset body's events through; on an exception log the failure observation for every asset that had not
+    been yielded yet, then re-raise the ORIGINAL exception (bare `raise`). `output_key(name)` maps a yielded Output's name to its
+    asset key (default: any Output/MaterializeResult marks every key done); `failed_step` is a dict {"step": id} or a callable."""
+    done: set = set()
+    try:
+        for ev in gen:
+            name = getattr(ev, "output_name", None)
+            if name is not None or type(ev).__name__ == "MaterializeResult":
+                k = getattr(ev, "asset_key", None) or (output_key(name) if output_key else None)
+                done.add(k if k is not None else "*")
+            yield ev
+    except Exception as exc:
+        _fo_emit(context, exc, counter=counter, asset_keys=asset_keys, failed_step=failed_step, skip=done)
+        raise
+# END failure-observation contract
+
+# Insights counter for this component (a numeric MetadataValue, so Insights can chart failures).
+_FO_COUNTER = {"context_pipeline_failures": MetadataValue.int(1)}
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

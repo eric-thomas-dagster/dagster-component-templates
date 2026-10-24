@@ -352,6 +352,37 @@ class DagsterInstanceTools:
             out.append({"step_key": sk, **_error_chain(err), "asset_keys": step_assets.get(sk, [])})
         return out
 
+    def _run_asset_failures(self, run_id: str) -> List[Dict[str, Any]]:
+        """Per-asset failure observations (and any real failure events) the run itself logged: reason, error class, will_retry."""
+        out: List[Dict[str, Any]] = []
+        seen = set()
+        try:
+            for et in (dg.DagsterEventType.ASSET_FAILED_TO_MATERIALIZE, dg.DagsterEventType.ASSET_OBSERVATION):
+                for r in self.instance.get_records_for_run(run_id, of_type=et).records:
+                    ev = r.event_log_entry.dagster_event
+                    if et == dg.DagsterEventType.ASSET_OBSERVATION:
+                        o = ev.event_specific_data.asset_observation
+                        md = {k: getattr(v, "value", v) for k, v in (o.metadata or {}).items()}
+                        if md.get("failure_status") != "failed":
+                            continue
+                        row = {"asset_key": _key_str(o.asset_key), "partition": o.partition, "reason": md.get("failure_reason"),
+                               "error_class": md.get("error_class"), "error_message": _first_line(md.get("error_message") or ""),
+                               "failed_step": md.get("failed_step")}
+                        wr = md.get("will_retry")
+                        row["will_retry"] = (wr == "true") if wr in ("true", "false") else None
+                    else:
+                        d = ev.event_specific_data
+                        err = _error_chain(getattr(d, "error", None))
+                        row = {"asset_key": _key_str(d.asset_key), "partition": d.partition, "reason": getattr(d.reason, "value", None),
+                               **err, "failed_step": ev.step_key, "will_retry": d.asset_materialization_failure.will_retry}
+                    sig = (row["asset_key"], row["partition"], row["error_class"], row["failed_step"])
+                    if sig not in seen:  # one row per failing attempt would repeat under retries
+                        seen.add(sig)
+                        out.append(row)
+        except Exception:
+            pass
+        return out
+
     # -- tools ---------------------------------------------------------------------------------------------------
     def t_list_recent_failures(self, hours: Any = 24, limit: Any = 10) -> Dict[str, Any]:
         hours_f = _num(hours, "hours", 0.01, 24 * 90, 24)
@@ -369,7 +400,7 @@ class DagsterInstanceTools:
             runs.append({
                 "run_id": run.run_id, "job_name": run.job_name, "status": run.status.value,
                 "started_at": _iso(rec.start_time), "ended_at": _iso(rec.end_time),
-                "failed_steps": failed, "asset_keys": keys,
+                "failed_steps": failed, "asset_keys": keys, "asset_failures": self._run_asset_failures(run.run_id),
             })
         return {"window_hours": hours_f, "count": len(runs), "runs": runs}
 
@@ -496,6 +527,69 @@ class DagsterInstanceTools:
                 return {"run_id": run.run_id, "at": _iso(r.timestamp), "failed_steps": steps[:3]}
         return None
 
+    # -- failures: Dagster (OSS) never emits ASSET_FAILED_TO_MATERIALIZE, so a failed asset is visible only as a failed RUN. Components that
+    # follow the failure observation contract (docs/failure_observation_contract.md) log an AssetObservation with failure_* metadata
+    # before re-raising; this reads either source, newest evidence first.
+    def _materialized_after(self, key: "dg.AssetKey", partition: Optional[str], ts: float) -> bool:
+        """True if the asset (that partition, when the failure names one) materialized after `ts`."""
+        try:
+            f = dg.EventRecordsFilter(event_type=dg.DagsterEventType.ASSET_MATERIALIZATION, asset_key=key, after_cursor=None,
+                                      asset_partitions=[partition] if partition else None)
+            recs = self.instance.get_event_records(f, limit=1, ascending=False)
+            return bool(recs) and recs[0].timestamp > ts
+        except Exception:
+            return False
+
+    def _last_failure(self, key: "dg.AssetKey", after_ts: Optional[float] = None) -> Optional[Dict[str, Any]]:
+        """The most recent failure of `key` newer than `after_ts` (its last good materialization), or None.
+        1. a real ASSET_FAILED_TO_MATERIALIZE event (forward compatible: only storages with can_store_asset_failure_events keep one);
+        2. else the newest failure observation (failure_status == 'failed') logged by a component following the contract;
+        3. else the failed run that planned the asset (no reason / will_retry: Dagster does not record them)."""
+        try:
+            recs = self.instance.get_event_records(
+                dg.EventRecordsFilter(event_type=dg.DagsterEventType.ASSET_FAILED_TO_MATERIALIZE, asset_key=key), limit=5, ascending=False)
+            for r in recs or []:
+                data = r.event_log_entry.dagster_event.event_specific_data
+                fail = data.asset_materialization_failure
+                err = _error_chain(getattr(data, "error", None))
+                # an unpartitioned failure is cleared by any later materialization; a partition's only by that partition's own
+                if fail.partition is None and after_ts and r.timestamp <= after_ts:
+                    continue
+                if self._materialized_after(key, fail.partition, r.timestamp):
+                    continue
+                return {"source": "asset_failed_to_materialize_event", "asset_key": _key_str(key), "at": _iso(r.timestamp),
+                        "partition": fail.partition, "reason": getattr(fail.reason, "value", str(fail.reason)),
+                        "error_class": err["error_class"], "error_message": err["error_message"], "run_id": r.run_id,
+                        "will_retry": fail.will_retry}
+        except Exception:
+            pass
+        try:
+            recs = self.instance.get_event_records(
+                dg.EventRecordsFilter(event_type=dg.DagsterEventType.ASSET_OBSERVATION, asset_key=key), limit=100, ascending=False)
+            for r in recs or []:
+                o = r.event_log_entry.dagster_event.asset_observation_data.asset_observation
+                md = {k: getattr(v, "value", v) for k, v in (o.metadata or {}).items()}
+                if md.get("failure_status") != "failed":
+                    continue
+                if o.partition is None and after_ts and r.timestamp <= after_ts:
+                    continue
+                if self._materialized_after(key, o.partition, r.timestamp):
+                    continue
+                wr = md.get("will_retry")
+                return {"source": "failure_observation", "asset_key": _key_str(key), "at": _iso(r.timestamp), "partition": o.partition,
+                        "reason": md.get("failure_reason"), "error_class": md.get("error_class"),
+                        "error_message": _first_line(md.get("error_message") or ""), "run_id": md.get("run_id") or r.run_id,
+                        "failed_step": md.get("failed_step"), "will_retry": (wr == "true") if wr in ("true", "false") else None}
+        except Exception:
+            pass
+        failed = self._latest_failed_run_after(key, after_ts)
+        if failed is None:
+            return None
+        step = (failed.get("failed_steps") or [{}])[0]
+        return {"source": "failed_run", "asset_key": _key_str(key), "at": failed["at"], "partition": None, "reason": None,
+                "error_class": step.get("error_class"), "error_message": step.get("error_message"), "run_id": failed["run_id"],
+                "failed_step": step.get("step_key"), "will_retry": None}
+
     def t_asset_status(self, asset_key: Any = None) -> Dict[str, Any]:
         key = parse_asset_key(asset_key)
         entry, rec = self._materialization_info(key)
@@ -503,7 +597,7 @@ class DagsterInstanceTools:
         known_in_defs = bool(g is not None and g.has(key))
         if entry is None and not known_in_defs:
             # an asset that only failed has no asset record in some storages; still check for planned-and-failed runs
-            failed = self._latest_failed_run_after(key, None)
+            failed = self._latest_failed_run_after(key, None) or self._last_failure(key, None)
             if failed is None:
                 return {"asset_key": _key_str(key), "found": False,
                         "message": "no materialization events, no failed runs and not in the loaded definitions"}
@@ -516,6 +610,7 @@ class DagsterInstanceTools:
             "age_hours": round((time.time() - rec.timestamp) / 3600, 2),
         }
         out["latest_failed_run_since"] = self._latest_failed_run_after(key, rec.timestamp if rec else None)
+        out["last_failure"] = self._last_failure(key, rec.timestamp if rec else None)
         out["partitions"] = self._partition_summary(key)
         out["checks"] = self._check_results(key)
         try:
@@ -630,6 +725,10 @@ class DagsterInstanceTools:
                     if status == StaleStatus.STALE:
                         causes = [{"category": c.category.value, "reason": _first_line(c.reason)} for c in resolver.get_stale_causes(k)[:3]]
                         rows.append({"asset_key": _key_str(k), "status": "STALE", "causes": causes})
+                for row in rows[:n]:
+                    k = dg.AssetKey.from_user_string(row["asset_key"])
+                    _, mrec = self._materialization_info(k)
+                    row["last_failure"] = self._last_failure(k, mrec.timestamp if mrec else None)
                 return {"source": "data_version_staleness", "count": len(rows), "assets": rows[:n]}
             except ImportError:
                 pass
@@ -646,7 +745,8 @@ class DagsterInstanceTools:
                 rows.append({"asset_key": _key_str(key), "last_materialized_at": _iso(ts),
                              "age_hours": round((now - ts) / 3600, 2) if ts else None,
                              "reason": "latest run failed after last materialization" if failed else f"older than {age:g}h",
-                             "failed_run_id": failed["run_id"] if failed else None})
+                             "failed_run_id": failed["run_id"] if failed else None,
+                             "last_failure": self._last_failure(key, ts)})
         rows.sort(key=lambda r: -(r["age_hours"] if r["age_hours"] is not None else 1e9))
         return {"source": "age_based", "max_age_hours": age, "count": len(rows), "assets": rows[:n],
                 "note": "no definitions loaded: staleness judged by time since last materialization / a later failed run"}

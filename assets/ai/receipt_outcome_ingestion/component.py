@@ -849,9 +849,8 @@ class ReceiptOutcomeIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
         if self.deps:
             kw["deps"] = [dg.AssetKey.from_user_string(d) for d in self.deps]
 
-        @dg.asset(key=asset_key, group_name=self.group_name, owners=self.owners or None, tags=tags, required_resource_keys=required,
-                  description=self.description or "Feedback ingested as context-receipt outcomes (idempotent, incremental).", **kw)
-        def _ingest(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+        def _ingest_body(context: dg.AssetExecutionContext, fs: Dict[str, str]) -> dg.MaterializeResult:
+            fs["step"] = "read_source"
             store = getattr(context.resources, store_key)
             prev_cursor_s: Optional[str] = None
             event = context.instance.get_latest_materialization_event(asset_key)
@@ -867,12 +866,14 @@ class ReceiptOutcomeIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
             # The whole read finishes BEFORE anything is recorded, and the cursor lives in this run's materialization: a read that fails
             # after its retries (e.g. page 2 of 3) raises here, so nothing is recorded and no new cursor is written -- the next run
             # starts again from the old cursor (re-reading is safe: outcome_ref idempotency).
+            fs["step"] = f"read_{kind}"
             if kind == "http_json":
                 rows, truncated = _read_http(src, since, context, retry_cfg)
             elif kind == "sql":
                 rows = _read_sql(src, since, context, retry_cfg)
             else:
                 rows, read_bad = _read_file(src, retry_cfg)
+            fs["step"] = "ingest_feedback"
             rep = ingest_feedback(store, rows, mapping, cursor=cursor, on_bad_row=on_bad, on_unknown_receipt=on_unknown, max_rows=max_rows,
                                   read_truncated=truncated, order=src.get("order", "asc"), unknown_receipt_grace_hours=grace_hours,
                                   read_bad=read_bad)
@@ -911,8 +912,175 @@ class ReceiptOutcomeIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
                 context.log.warning(f"{rep['bad_total']} bad row(s), e.g. {rep['bad'][:5]}")
             return dg.MaterializeResult(metadata=md)
 
+        @dg.asset(key=asset_key, group_name=self.group_name, owners=self.owners or None, tags=tags, required_resource_keys=required,
+                  description=self.description or "Feedback ingested as context-receipt outcomes (idempotent, incremental).", **kw)
+        def _ingest(context: dg.AssetExecutionContext) -> dg.MaterializeResult:
+            fs: Dict[str, str] = {"step": "read_source"}
+            try:
+                return _ingest_body(context, fs)
+            except Exception as exc:
+                _fo_emit(context, exc, counter=_FO_COUNTER, asset_keys=[asset_key], failed_step=fs["step"])
+                raise
+
         schedules = []
         if self.cron_schedule:
             schedules.append(dg.ScheduleDefinition(name=f"{self.asset_name}_schedule", cron_schedule=self.cron_schedule,
                                                    target=dg.AssetSelection.assets(asset_key)))
         return dg.Definitions(assets=[_ingest], schedules=schedules)
+
+
+# BEGIN failure-observation contract (inlined per component; keep copies identical -- see tests/test_failure_observation_contract.py)
+# Open-source Dagster never emits ASSET_FAILED_TO_MATERIALIZE when an asset step fails, so a failed asset is visible only as a failed
+# RUN. This contract logs an AssetObservation per asset the failing step was producing (metadata: failure_status, failure_reason,
+# error_class, error_message [redacted, <=500 chars], will_retry, failed_step, run_id, plus the component's numeric `<prefix>_failures`)
+# BEFORE the original exception is re-raised untouched. Emission can never mask the failure: it has its own try/except.
+import re as _fo_re
+
+_FO_REASONS = ("FAILED_TO_MATERIALIZE", "POLICY_VIOLATION", "BUDGET_EXCEEDED", "APPROVAL_REJECTED", "UPSTREAM_ERROR", "UNKNOWN")
+_FO_URL_CRED = _fo_re.compile(r"([A-Za-z][A-Za-z0-9+.\-]*://)[^/\s:@]+:[^/\s@]+@")
+_FO_AUTH = _fo_re.compile(r"(?i)(authorization[\"']?\s*[:=]\s*[\"']?)(?:(bearer|basic|token)\s+)?[^\s\"',;]+")
+_FO_BEARER = _fo_re.compile(r"(?i)\b(bearer|basic)\s+[A-Za-z0-9._~+/=\-]{8,}")
+_FO_KV = _fo_re.compile(
+    r"(?i)\b([\w.\-]*(?:password|passwd|pwd|secret|token|api[_\-]?key|apikey|access[_\-]?key|private[_\-]?key|credential|auth[_\-]?key)[\w.\-]*"
+    r"[\"']?\s*[:=]\s*[\"']?)[^\s\"',;&]+")
+_FO_TOKENS = _fo_re.compile(
+    r"\b(?:sk-[A-Za-z0-9_\-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|xox[abprs]-[A-Za-z0-9\-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_\-]{30,}"
+    r"|eyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]*)")
+_FO_BLOB = _fo_re.compile(r"[A-Za-z0-9+/_=\-]{40,}")
+
+
+def _fo_blob(m) -> str:
+    s = m.group(0)
+    # a long unbroken run with a digit and a letter, and not mostly path separators, is a key / base64 / hash, not prose or a path
+    if any(c.isdigit() for c in s) and any(c.isalpha() for c in s) and s.count("/") / len(s) < 0.05:
+        return "[REDACTED]"
+    return s
+
+
+def _fo_redact(text: Any, limit: int = 500) -> str:
+    """Strip credentials from an error message, THEN truncate (so a secret cut in half can never survive)."""
+    s = str(text)[:5000]
+    s = _FO_URL_CRED.sub(r"\1[REDACTED]@", s)
+    s = _FO_AUTH.sub(lambda m: m.group(1) + ((m.group(2) + " ") if m.group(2) else "") + "[REDACTED]", s)
+    s = _FO_BEARER.sub(lambda m: m.group(1) + " [REDACTED]", s)
+    s = _FO_KV.sub(lambda m: m.group(1) + "[REDACTED]", s)
+    s = _FO_TOKENS.sub("[REDACTED]", s)
+    s = _FO_BLOB.sub(_fo_blob, s)
+    return s[:limit]
+
+
+def _fo_reason(exc: BaseException) -> str:
+    """Map an exception to a Dagster-AssetMaterializationFailureReason-style name."""
+    try:
+        import dagster as dg
+        if isinstance(exc, dg.Failure):
+            for k, v in (exc.metadata or {}).items():
+                if k == "failure_reason" and str(getattr(v, "value", v)) in _FO_REASONS:
+                    return str(getattr(v, "value", v))
+        names = {c.__name__ for c in type(exc).__mro__}
+        if "ApprovalRejected" in names:
+            return "APPROVAL_REJECTED"
+        if "PolicyViolation" in names:
+            return "BUDGET_EXCEEDED" if _fo_re.match(r"\s*\[policy:(budget|breaker)\]", str(exc)) else "POLICY_VIOLATION"
+        if "BudgetExceeded" in names:
+            return "BUDGET_EXCEEDED"
+        if "UpstreamError" in names:
+            return "UPSTREAM_ERROR"
+        return "FAILED_TO_MATERIALIZE"
+    except Exception:
+        return "UNKNOWN"
+
+
+def _fo_will_retry(context: Any, exc: BaseException) -> Optional[str]:
+    """'true'/'false' when the run's retry policy makes it knowable (op RetryPolicy, else run-retry tags), else None."""
+    try:
+        import dagster as dg
+        if isinstance(exc, dg.Failure) and exc.allow_retries is False:
+            return "false"
+        oc = getattr(context, "op_execution_context", context)
+        pol = oc.op_def.retry_policy
+        if pol is not None:
+            return "true" if oc.retry_number < pol.max_retries else "false"
+        tags = oc.run.tags or {}
+        if tags.get("dagster/max_retries") is not None:
+            return "true" if int(tags.get("dagster/retry_number", 0)) < int(tags["dagster/max_retries"]) else "false"
+    except Exception:
+        pass
+    return None
+
+
+def _fo_partitions(context: Any) -> list:
+    try:
+        if context.has_partition_key:
+            return [context.partition_key]
+        if context.has_partition_key_range:
+            ks = list(context.partition_keys)
+            return ks if 0 < len(ks) <= 100 else [None]
+    except Exception:
+        pass
+    return [None]
+
+
+def _fo_emit(context: Any, exc: BaseException, *, counter: Dict[str, Any], asset_keys: Any, failed_step: Any = None,
+             reason: Optional[str] = None, skip: Any = ()) -> None:
+    """Log the failure AssetObservation(s). NEVER raises: a problem here is a warning, the caller re-raises the original.
+    `asset_keys`: list or callable; `failed_step`: str, {"step": id} or callable; `skip`: asset keys already materialized
+    (the marker "*" = all of them)."""
+    try:
+        import dagster as dg
+        if isinstance(exc, dg.RetryRequested):
+            return  # a requested retry is not a failure
+        if "*" in skip:
+            return
+        keys = [k for k in (asset_keys() if callable(asset_keys) else asset_keys) if k not in skip]
+        failed_step = failed_step() if callable(failed_step) else (failed_step.get("step") if isinstance(failed_step, dict) else failed_step)
+        msg = getattr(exc, "description", None) if isinstance(exc, dg.Failure) else None
+        md: Dict[str, Any] = {
+            "failure_status": dg.MetadataValue.text("failed"),
+            "failure_reason": dg.MetadataValue.text(reason or _fo_reason(exc)),
+            "error_class": dg.MetadataValue.text(type(exc).__name__),
+            "error_message": dg.MetadataValue.text(_fo_redact(msg or str(exc) or type(exc).__name__)),
+        }
+        wr = _fo_will_retry(context, exc)
+        if wr is not None:
+            md["will_retry"] = dg.MetadataValue.text(wr)
+        if failed_step:
+            md["failed_step"] = dg.MetadataValue.text(str(failed_step))
+        try:
+            md["run_id"] = dg.MetadataValue.text(str(context.run.run_id))
+        except Exception:
+            pass
+        md.update(counter)
+        parts = _fo_partitions(context)
+        for key in keys:
+            for p in parts:
+                try:
+                    context.log_event(dg.AssetObservation(asset_key=key, partition=p, metadata=md))
+                except Exception as e:  # noqa: BLE001
+                    context.log.warning(f"failure observation for {key} could not be logged: {e!r}")
+    except Exception as e:  # noqa: BLE001
+        try:
+            context.log.warning(f"failure observation could not be emitted: {e!r}")
+        except Exception:
+            pass
+
+
+def _fo_gen(context: Any, gen: Any, *, counter: Dict[str, Any], asset_keys: Any, output_key: Any = None, failed_step: Any = None):
+    """Pass a generator asset body's events through; on an exception log the failure observation for every asset that had not
+    been yielded yet, then re-raise the ORIGINAL exception (bare `raise`). `output_key(name)` maps a yielded Output's name to its
+    asset key (default: any Output/MaterializeResult marks every key done); `failed_step` is a dict {"step": id} or a callable."""
+    done: set = set()
+    try:
+        for ev in gen:
+            name = getattr(ev, "output_name", None)
+            if name is not None or type(ev).__name__ == "MaterializeResult":
+                k = getattr(ev, "asset_key", None) or (output_key(name) if output_key else None)
+                done.add(k if k is not None else "*")
+            yield ev
+    except Exception as exc:
+        _fo_emit(context, exc, counter=counter, asset_keys=asset_keys, failed_step=failed_step, skip=done)
+        raise
+# END failure-observation contract
+
+# Insights counter for this component (a numeric MetadataValue, so Insights can chart failures).
+_FO_COUNTER = {"outcome_ingestion_failures": dg.MetadataValue.int(1)}

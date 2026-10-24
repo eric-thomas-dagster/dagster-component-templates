@@ -7,7 +7,7 @@
 | `list_recent_failures(hours, limit)` | failed runs: failed step keys, innermost error class + first message line, asset keys |
 | `get_run_summary(run_id)` | status, timings, steps, failed-step error excerpt (redacted, truncated), tags |
 | `get_run_logs(run_id, level, max_lines)` | tail of event-log messages, secrets redacted |
-| `asset_status(asset_key)` | last materialization (time/run/data+code version), later failed run, partition counts, latest check results |
+| `asset_status(asset_key)` | last materialization (time/run/data+code version), later failed run, `last_failure` (reason, error class/message, run, partition; from a real failure event if the storage keeps one, else a failure observation logged by our components, else the failed run; see `docs/failure_observation_contract.md`), partition counts, latest check results |
 | `asset_lineage(asset_key, depth, direction)` | upstream/downstream assets |
 | `stale_assets(limit, max_age_hours)` | stale assets (data-version staleness, or age/failed-run based) |
 | `receipt_stats(asset_key, window_hours)` | optional: how answers built from the asset turned out (ContextReceiptStore) |

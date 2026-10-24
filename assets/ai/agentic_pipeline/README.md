@@ -90,6 +90,8 @@ partition equivalents). Those keys are the module-level `INSIGHTS_METRICS` list 
 them as Dagster+ Insights custom metrics (by metadata key) and Insights aggregates them across assets. Totals ride one asset on purpose, so summing
 across assets does not multiply them. That Insights actually ingests them needs a live Dagster+ deployment and is not verified here.
 
+**Failures.** Open-source Dagster logs no per-asset failure event, so when a step raises, every selected asset that was not yet emitted gets an `AssetObservation` with `failure_status`, `failure_reason` (`FAILED_TO_MATERIALIZE` / `POLICY_VIOLATION` / `BUDGET_EXCEEDED` / `APPROVAL_REJECTED`), `error_class`, a redacted `error_message`, `will_retry`, `failed_step`, `run_id` and the numeric `agentic_failures` = 1, and then the original exception propagates unchanged. A parked run is not a failure. See `docs/failure_observation_contract.md`.
+
 ### Prompt versions
 
 Each LLM step carries `agentic_prompt_version` and `agentic_prompt_hash` (and every asset `agentic_prompt_versions`, a `{step: version}` map).

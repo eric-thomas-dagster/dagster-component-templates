@@ -51,6 +51,7 @@ PRESETS: Dict[str, List[Dict[str, str]]] = {
         _m("agentic_budget_violations", "INTEGER", "Agentic budget violations", "Budget policy violations in a run."),
         _m("agentic_spent_today_usd", "FLOAT", "Agentic spent today (USD)", "Cumulative spend today against the daily budget."),
         _m("agentic_remaining_today_usd", "FLOAT", "Agentic remaining today (USD)", "Remaining daily budget."),
+        _m("agentic_failures", "INTEGER", "Agentic failures", "1 on the failure observation logged when an agentic_pipeline step fails."),
     ],
     "context_engineering_pipeline": [
         _m("receipts_quarantined", "INTEGER", "Chunks quarantined", "Chunks quarantined by receipt feedback."),
@@ -62,6 +63,7 @@ PRESETS: Dict[str, List[Dict[str, str]]] = {
         _m("new_categories", "INTEGER", "New categories", "Category labels computed fresh."),
         _m("reused_enrichments", "INTEGER", "Reused enrichments", "Enrichments reused from the prior build."),
         _m("new_enrichments", "INTEGER", "New enrichments", "Enrichments computed fresh."),
+        _m("context_pipeline_failures", "INTEGER", "Context pipeline failures", "1 on the failure observation logged when a context_engineering_pipeline step fails."),
     ],
     "receipts_sync": [
         _m("rows_context_receipts", "INTEGER", "Receipt rows shipped", "context_receipts rows shipped to the warehouse."),
@@ -69,6 +71,7 @@ PRESETS: Dict[str, List[Dict[str, str]]] = {
         _m("rows_context_receipt_excluded", "INTEGER", "Receipt excluded rows shipped", "context_receipt_excluded rows shipped."),
         _m("rows_context_receipt_events", "INTEGER", "Receipt event rows shipped", "context_receipt_events rows shipped."),
         _m("load_jobs", "INTEGER", "Receipt load jobs", "Warehouse load jobs run by a receipts sync."),
+        _m("receipts_sync_failures", "INTEGER", "Receipts sync failures", "1 on the failure observation logged when a receipts sync fails."),
         _m("retries", "INTEGER", "Retries", "Retries performed (GLOBAL key: any asset emitting `retries` is aggregated)."),
         _m("lag_seconds", "TIME_SECONDS", "Lag", "Age of the newest shipped/ingested record (GLOBAL key)."),
     ],
@@ -76,6 +79,7 @@ PRESETS: Dict[str, List[Dict[str, str]]] = {
         _m("outcomes_recorded", "INTEGER", "Outcomes recorded", "Outcome rows recorded against receipts."),
         _m("unknown_receipts_pending", "INTEGER", "Unknown receipts pending", "Outcomes referencing receipts not seen yet."),
         _m("bad_rows", "INTEGER", "Bad outcome rows", "Outcome rows rejected as malformed."),
+        _m("outcome_ingestion_failures", "INTEGER", "Outcome ingestion failures", "1 on the failure observation logged when an outcome ingestion fails."),
         _m("lag_seconds", "TIME_SECONDS", "Lag", "Age of the newest shipped/ingested record (GLOBAL key)."),
     ],
     "rag_pipeline": [
@@ -88,6 +92,7 @@ PRESETS: Dict[str, List[Dict[str, str]]] = {
         _m("total_tokens", "INTEGER", "RAG tokens", "Total tokens of a rag_pipeline run (GLOBAL key)."),
         _m("cache_read_tokens", "INTEGER", "Cache read tokens", "Prompt-cache read tokens (GLOBAL key)."),
         _m("cache_creation_tokens", "INTEGER", "Cache creation tokens", "Prompt-cache creation tokens (GLOBAL key)."),
+        _m("rag_failures", "INTEGER", "RAG failures", "1 on the failure observation logged when a rag_pipeline run fails."),
     ],
     # TODO: run_failure_remediation -- component.py did not exist when this was written.
 }

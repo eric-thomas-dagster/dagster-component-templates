@@ -176,6 +176,10 @@ class PolicyViolation(RuntimeError):
     """The pipeline tried to do something its `policy:` does not allow (and `on_violation` is `fail`)."""
 
 
+class ApprovalRejected(RuntimeError):
+    """An approve step was rejected (by a reviewer, or by on_timeout: reject | fail) and `on_reject: stop` ends the pipeline."""
+
+
 def _validate_budget_extras(sub: str, v: Any, root: bool) -> None:
     where = f"policy.budget.{sub}"
     if sub in ("ledger", "breaker") and not root:
@@ -5293,6 +5297,7 @@ INSIGHTS_METRICS = [
     {"metadata_key": "agentic_latency_ms", "unit_type": "TIME_MS", "display_name": "Agentic pipeline wall time", "description": "Wall-clock time of the pipeline body for one materialization, in milliseconds."},
     {"metadata_key": "agentic_budget_violations", "unit_type": "INTEGER", "display_name": "Agentic budget violations", "description": "Budget violations recorded during one pipeline materialization (cap reached/exceeded, breaker refusals)."},
     {"metadata_key": "agentic_spent_today_usd", "unit_type": "FLOAT", "display_name": "Agentic spend today (USD, ledger)", "description": "Cumulative UTC-day spend across all runs sharing the policy.budget.ledger, at the end of this materialization."},
+    {"metadata_key": "agentic_failures", "unit_type": "INTEGER", "display_name": "Agentic pipeline failures", "description": "1 on the failure observation logged when a pipeline step fails (see the failure observation contract): chart or alert on failures per asset."},
     {"metadata_key": "agentic_remaining_today_usd", "unit_type": "FLOAT", "display_name": "Agentic budget remaining today (USD)", "description": "max_cost_usd_per_day minus the ledger's spend today (only emitted when a daily cap is set)."},
 ]
 
@@ -6180,7 +6185,7 @@ def _do_approve(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         detail = (tok or {}).get("reason") or (why if tok is None and why else None) or "not approved"
         if resuming:
             _resume_archive(state, context, status)  # a rejection is a FINAL decision: the checkpoint is done, not "resumable"
-        raise RuntimeError(f"[approve:{step['id']}] {status}: {detail} -- stopping the pipeline here")
+        raise ApprovalRejected(f"[approve:{step['id']}] {status}: {detail} -- stopping the pipeline here")
     return {
         "text": text if approved else "", "op": "approve", "approved": approved, "status": status,
         "approver": (tok or {}).get("approver"), "approval_reason": (tok or {}).get("reason"), "waited_seconds": waited,
@@ -8026,6 +8031,8 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             return [s["id"] for s in steps if s.get("id") in need]
 
         def _pipeline_impl(context: dg.AssetExecutionContext, **kwargs):
+            _fs = kwargs.pop("_fo_fs")  # {"step": id}: names the failing step on the failure observation
+            _fs["step"] = "ingest"
             _t0 = time.time()
             _require_one_partition(context, _partitions_def is not None)
             partition_key = context.partition_key if context.has_partition_key else None
@@ -8116,10 +8123,12 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 if step.get("id") in steps_to_run_set:
                     if resume_id and step.get("id") in state:
                         continue  # done by the parked run: its result came back with the checkpoint
+                    _fs["step"] = step.get("id")
                     _run_step(step, state, context)
                     if state.get("__parked__"):
                         break  # a park gate ended this run's work; the rest runs in the resumed run
 
+            _fs["step"] = "sinks_and_emit"
             # Text sinks (partition-aware paths). Creates parent dirs so
             # {partition_key}-templated subdirs Just Work — matters both
             # locally and for Serverless container filesystems.
@@ -8283,8 +8292,13 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             # File/URL/database ingest and the text/json sinks run in here, outside any step, so the policy
             # must be active for the whole body (steps re-activate it with the same shared usage counters).
             usage: Dict[str, Any] = {}
+            _fs: Dict[str, str] = {"step": "ingest"}
+            # A failure logs a failure observation for every selected asset that was not yielded yet, then re-raises the original
+            # exception. A park gate is NOT a failure: it ends the run successfully without raising.
             with _policy_scope(self.policy, usage):
-                yield from _pipeline_impl(context, **kwargs)
+                yield from _fo_gen(context, _pipeline_impl(context, _fo_fs=_fs, **kwargs), counter=_FO_COUNTER,
+                                   asset_keys=lambda: context.selected_asset_keys, output_key=lambda n: dg.AssetKey([n]),
+                                   failed_step=_fs)
 
         return self._with_park(dg.Definitions(assets=[_pipeline], asset_checks=_asset_checks),
                                steps=steps, prefix=prefix, asset_ids=asset_ids, partitions_def=_partitions_def)
@@ -8363,6 +8377,22 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             return {"__personas__": _self.personas or {}, "__policy__": _self.policy or {}, "__agents__": _self.agents or {},
                     "__sibling_agent_cards__": discovered_sibling_cards, "__pipeline__": {"prefix": prefix, "asset": receipt_asset}}
 
+        def _fo_op_guard(step_label: str):
+            """Per-step op wrapper: when the op raises, log the failure observation for every selected asset (in per-step mode all
+            assets are emitted by the terminal extract op, so none of them completed), then re-raise the original exception."""
+            def deco(fn):
+                import functools
+
+                @functools.wraps(fn)
+                def wrapper(context, *a, **kw):
+                    try:
+                        return fn(context, *a, **kw)
+                    except Exception as exc:
+                        _fo_emit(context, exc, counter=_FO_COUNTER, asset_keys=lambda: context.selected_asset_keys, failed_step=step_label)
+                        raise
+                return wrapper
+            return deco
+
         def _maybe_resume(context, partition_key):
             """The resumed run's state (claimed + loaded from the checkpoint) when this run carries the resume tag, else None."""
             rid = _resume_tag(context) if _park_cfg_dirs else None
@@ -8383,6 +8413,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             upstream_key = source_config["upstream_asset_key"]
 
             @dg.op(name=f"{prefix}_ingest", ins={"source": dg.In(dagster_type=Any)}, required_resource_keys=required_keys)
+            @_fo_op_guard(f"{prefix}_ingest")
             def _ingest_op(context: dg.OpExecutionContext, source):
                 _require_one_partition(context, partitions_def is not None)
                 partition_key = context.partition_key if context.has_partition_key else None
@@ -8416,6 +8447,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 return _st
         else:
             @dg.op(name=f"{prefix}_ingest", required_resource_keys=required_keys)
+            @_fo_op_guard(f"{prefix}_ingest")
             def _ingest_op(context: dg.OpExecutionContext):
                 _require_one_partition(context, partitions_def is not None)
                 partition_key = context.partition_key if context.has_partition_key else None
@@ -8459,6 +8491,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             op_name = f"{prefix}_{step_id}"
 
             @dg.op(name=op_name, required_resource_keys=required_keys)
+            @_fo_op_guard(step_id)
             def _step_op(context: dg.OpExecutionContext, state: Dict[str, Any]) -> Dict[str, Any]:
                 # State comes in from the IO manager (a fresh dict each hop
                 # is what we want anyway). _run_step mutates in place.
@@ -8487,6 +8520,11 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
 
         @dg.op(name=f"{prefix}_extract", out=extract_outs, required_resource_keys=required_keys)
         def _extract_op(context: dg.OpExecutionContext, state: Dict[str, Any]):
+            yield from _fo_gen(context, _extract_body(context, state), counter=_FO_COUNTER,
+                               asset_keys=lambda: context.selected_asset_keys, output_key=lambda n: dg.AssetKey([n]),
+                               failed_step=f"{prefix}_extract")
+
+        def _extract_body(context: dg.OpExecutionContext, state: Dict[str, Any]):
             partition_key = context.partition_key if context.has_partition_key else None
             partition_fields = _parse_partition_key(partition_key, partition_key_parser)
 
@@ -8581,3 +8619,160 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             return _extract_op(state)
 
         return dg.Definitions(assets=[_pipeline_graph], asset_checks=asset_checks or [])
+
+
+# BEGIN failure-observation contract (inlined per component; keep copies identical -- see tests/test_failure_observation_contract.py)
+# Open-source Dagster never emits ASSET_FAILED_TO_MATERIALIZE when an asset step fails, so a failed asset is visible only as a failed
+# RUN. This contract logs an AssetObservation per asset the failing step was producing (metadata: failure_status, failure_reason,
+# error_class, error_message [redacted, <=500 chars], will_retry, failed_step, run_id, plus the component's numeric `<prefix>_failures`)
+# BEFORE the original exception is re-raised untouched. Emission can never mask the failure: it has its own try/except.
+import re as _fo_re
+
+_FO_REASONS = ("FAILED_TO_MATERIALIZE", "POLICY_VIOLATION", "BUDGET_EXCEEDED", "APPROVAL_REJECTED", "UPSTREAM_ERROR", "UNKNOWN")
+_FO_URL_CRED = _fo_re.compile(r"([A-Za-z][A-Za-z0-9+.\-]*://)[^/\s:@]+:[^/\s@]+@")
+_FO_AUTH = _fo_re.compile(r"(?i)(authorization[\"']?\s*[:=]\s*[\"']?)(?:(bearer|basic|token)\s+)?[^\s\"',;]+")
+_FO_BEARER = _fo_re.compile(r"(?i)\b(bearer|basic)\s+[A-Za-z0-9._~+/=\-]{8,}")
+_FO_KV = _fo_re.compile(
+    r"(?i)\b([\w.\-]*(?:password|passwd|pwd|secret|token|api[_\-]?key|apikey|access[_\-]?key|private[_\-]?key|credential|auth[_\-]?key)[\w.\-]*"
+    r"[\"']?\s*[:=]\s*[\"']?)[^\s\"',;&]+")
+_FO_TOKENS = _fo_re.compile(
+    r"\b(?:sk-[A-Za-z0-9_\-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|xox[abprs]-[A-Za-z0-9\-]{10,}|AKIA[0-9A-Z]{16}|AIza[0-9A-Za-z_\-]{30,}"
+    r"|eyJ[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]{8,}\.[A-Za-z0-9_\-]*)")
+_FO_BLOB = _fo_re.compile(r"[A-Za-z0-9+/_=\-]{40,}")
+
+
+def _fo_blob(m) -> str:
+    s = m.group(0)
+    # a long unbroken run with a digit and a letter, and not mostly path separators, is a key / base64 / hash, not prose or a path
+    if any(c.isdigit() for c in s) and any(c.isalpha() for c in s) and s.count("/") / len(s) < 0.05:
+        return "[REDACTED]"
+    return s
+
+
+def _fo_redact(text: Any, limit: int = 500) -> str:
+    """Strip credentials from an error message, THEN truncate (so a secret cut in half can never survive)."""
+    s = str(text)[:5000]
+    s = _FO_URL_CRED.sub(r"\1[REDACTED]@", s)
+    s = _FO_AUTH.sub(lambda m: m.group(1) + ((m.group(2) + " ") if m.group(2) else "") + "[REDACTED]", s)
+    s = _FO_BEARER.sub(lambda m: m.group(1) + " [REDACTED]", s)
+    s = _FO_KV.sub(lambda m: m.group(1) + "[REDACTED]", s)
+    s = _FO_TOKENS.sub("[REDACTED]", s)
+    s = _FO_BLOB.sub(_fo_blob, s)
+    return s[:limit]
+
+
+def _fo_reason(exc: BaseException) -> str:
+    """Map an exception to a Dagster-AssetMaterializationFailureReason-style name."""
+    try:
+        import dagster as dg
+        if isinstance(exc, dg.Failure):
+            for k, v in (exc.metadata or {}).items():
+                if k == "failure_reason" and str(getattr(v, "value", v)) in _FO_REASONS:
+                    return str(getattr(v, "value", v))
+        names = {c.__name__ for c in type(exc).__mro__}
+        if "ApprovalRejected" in names:
+            return "APPROVAL_REJECTED"
+        if "PolicyViolation" in names:
+            return "BUDGET_EXCEEDED" if _fo_re.match(r"\s*\[policy:(budget|breaker)\]", str(exc)) else "POLICY_VIOLATION"
+        if "BudgetExceeded" in names:
+            return "BUDGET_EXCEEDED"
+        if "UpstreamError" in names:
+            return "UPSTREAM_ERROR"
+        return "FAILED_TO_MATERIALIZE"
+    except Exception:
+        return "UNKNOWN"
+
+
+def _fo_will_retry(context: Any, exc: BaseException) -> Optional[str]:
+    """'true'/'false' when the run's retry policy makes it knowable (op RetryPolicy, else run-retry tags), else None."""
+    try:
+        import dagster as dg
+        if isinstance(exc, dg.Failure) and exc.allow_retries is False:
+            return "false"
+        oc = getattr(context, "op_execution_context", context)
+        pol = oc.op_def.retry_policy
+        if pol is not None:
+            return "true" if oc.retry_number < pol.max_retries else "false"
+        tags = oc.run.tags or {}
+        if tags.get("dagster/max_retries") is not None:
+            return "true" if int(tags.get("dagster/retry_number", 0)) < int(tags["dagster/max_retries"]) else "false"
+    except Exception:
+        pass
+    return None
+
+
+def _fo_partitions(context: Any) -> list:
+    try:
+        if context.has_partition_key:
+            return [context.partition_key]
+        if context.has_partition_key_range:
+            ks = list(context.partition_keys)
+            return ks if 0 < len(ks) <= 100 else [None]
+    except Exception:
+        pass
+    return [None]
+
+
+def _fo_emit(context: Any, exc: BaseException, *, counter: Dict[str, Any], asset_keys: Any, failed_step: Any = None,
+             reason: Optional[str] = None, skip: Any = ()) -> None:
+    """Log the failure AssetObservation(s). NEVER raises: a problem here is a warning, the caller re-raises the original.
+    `asset_keys`: list or callable; `failed_step`: str, {"step": id} or callable; `skip`: asset keys already materialized
+    (the marker "*" = all of them)."""
+    try:
+        import dagster as dg
+        if isinstance(exc, dg.RetryRequested):
+            return  # a requested retry is not a failure
+        if "*" in skip:
+            return
+        keys = [k for k in (asset_keys() if callable(asset_keys) else asset_keys) if k not in skip]
+        failed_step = failed_step() if callable(failed_step) else (failed_step.get("step") if isinstance(failed_step, dict) else failed_step)
+        msg = getattr(exc, "description", None) if isinstance(exc, dg.Failure) else None
+        md: Dict[str, Any] = {
+            "failure_status": dg.MetadataValue.text("failed"),
+            "failure_reason": dg.MetadataValue.text(reason or _fo_reason(exc)),
+            "error_class": dg.MetadataValue.text(type(exc).__name__),
+            "error_message": dg.MetadataValue.text(_fo_redact(msg or str(exc) or type(exc).__name__)),
+        }
+        wr = _fo_will_retry(context, exc)
+        if wr is not None:
+            md["will_retry"] = dg.MetadataValue.text(wr)
+        if failed_step:
+            md["failed_step"] = dg.MetadataValue.text(str(failed_step))
+        try:
+            md["run_id"] = dg.MetadataValue.text(str(context.run.run_id))
+        except Exception:
+            pass
+        md.update(counter)
+        parts = _fo_partitions(context)
+        for key in keys:
+            for p in parts:
+                try:
+                    context.log_event(dg.AssetObservation(asset_key=key, partition=p, metadata=md))
+                except Exception as e:  # noqa: BLE001
+                    context.log.warning(f"failure observation for {key} could not be logged: {e!r}")
+    except Exception as e:  # noqa: BLE001
+        try:
+            context.log.warning(f"failure observation could not be emitted: {e!r}")
+        except Exception:
+            pass
+
+
+def _fo_gen(context: Any, gen: Any, *, counter: Dict[str, Any], asset_keys: Any, output_key: Any = None, failed_step: Any = None):
+    """Pass a generator asset body's events through; on an exception log the failure observation for every asset that had not
+    been yielded yet, then re-raise the ORIGINAL exception (bare `raise`). `output_key(name)` maps a yielded Output's name to its
+    asset key (default: any Output/MaterializeResult marks every key done); `failed_step` is a dict {"step": id} or a callable."""
+    done: set = set()
+    try:
+        for ev in gen:
+            name = getattr(ev, "output_name", None)
+            if name is not None or type(ev).__name__ == "MaterializeResult":
+                k = getattr(ev, "asset_key", None) or (output_key(name) if output_key else None)
+                done.add(k if k is not None else "*")
+            yield ev
+    except Exception as exc:
+        _fo_emit(context, exc, counter=counter, asset_keys=asset_keys, failed_step=failed_step, skip=done)
+        raise
+# END failure-observation contract
+
+# Insights counter for this component (a numeric MetadataValue, so Insights can chart failures).
+_FO_COUNTER = {"agentic_failures": dg.MetadataValue.int(1)}

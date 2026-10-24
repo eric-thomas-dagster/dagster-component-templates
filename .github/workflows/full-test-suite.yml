@@ -44,10 +44,13 @@ jobs:
                       dlt cryptography scikit-learn geopandas \
                       google-auth google-api-python-client google-cloud-bigquery reportlab pillow
       - name: Install vendor client libraries (library-contract tests skip any that is missing)
-        # best effort per package: a wheel that is unavailable for this Python must not fail the job, the matching contract tests just skip
+        # best effort per package: a wheel that is unavailable for this Python must not fail the job, the matching contract tests just skip.
+        # Wider list than tests.yml's -- this job also exercises components the curated fast suite never touches
+        # (Snowflake/Databricks/Delta/Iceberg/Google Speech), so it needs their real client libraries too.
         run: |
-          for pkg in dagster-gcp snowflake-connector-python databricks-sql-connector psycopg2-binary pymysql; do
-            pip install "$pkg" || echo "::warning::could not install $pkg; its contract tests will skip"
+          for pkg in dagster-gcp snowflake-connector-python databricks-sql-connector psycopg2-binary pymysql \
+                     dagster-snowflake "deltalake>=0.15.0" "pyiceberg[sql-sqlite]>=0.6.0" databricks-sdk "google-cloud-speech>=2.20.0"; do
+            pip install $pkg || echo "::warning::could not install $pkg; its contract tests will skip"
           done
       - name: Discover every committed tests/ directory
         run: |
@@ -55,4 +58,11 @@ jobs:
                  -o -type d -name "tests" -print | sort > all_test_dirs.txt
           echo "Found $(wc -l < all_test_dirs.txt) tests/ directories"
       - name: Run every component's own test suite
-        run: python -m pytest $(cat all_test_dirs.txt) -q -p no:cacheprovider -W ignore
+        # --import-mode=importlib: hundreds of these directories are all literally named "tests" with no
+        # __init__.py. The default "prepend" import mode resolves modules by inserting each file's parent dir
+        # into sys.path and importing by bare basename, which collides the first time two different "tests"
+        # packages fight over the same sys.modules entry (observed: quickstarts/receipts_learning_loop/tests
+        # failing with "No module named 'tests.test_demo'" once every tests/ dir in the repo is collected
+        # together). importlib mode gives each file a unique fully-qualified module name instead, avoiding
+        # the collision entirely -- this is the documented fix for exactly this class of pytest problem.
+        run: python -m pytest $(cat all_test_dirs.txt) -q -p no:cacheprovider -W ignore --import-mode=importlib

@@ -15,15 +15,18 @@ from .conftest import load_component_module
 pytest.importorskip("mcp")
 
 SERVER = textwrap.dedent('''
-    from mcp.server.fastmcp import FastMCP
-    mcp = FastMCP("tools")
+    try:
+        from mcp.server.mcpserver import MCPServer as _Server  # mcp 2.x renamed FastMCP
+    except ImportError:
+        from mcp.server.fastmcp import FastMCP as _Server  # mcp 1.x
+    mcp = _Server("tools")
 
     @mcp.tool()
     def add(a: int, b: int) -> int:
         """Add two numbers."""
         return a + b
 
-    mcp.run()
+    mcp.run(transport="stdio")
 ''')
 
 

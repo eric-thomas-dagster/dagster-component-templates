@@ -49,7 +49,8 @@ jobs:
         # (Snowflake/Databricks/Delta/Iceberg/Google Speech), so it needs their real client libraries too.
         run: |
           for pkg in dagster-gcp snowflake-connector-python databricks-sql-connector psycopg2-binary pymysql \
-                     dagster-snowflake "deltalake>=0.15.0" "pyiceberg[sql-sqlite]>=0.6.0" databricks-sdk "google-cloud-speech>=2.20.0"; do
+                     dagster-snowflake "deltalake>=0.15.0" "pyiceberg[sql-sqlite]>=0.6.0" databricks-sdk \
+                     "google-cloud-speech>=2.20.0" dagster-iceberg; do
             pip install $pkg || echo "::warning::could not install $pkg; its contract tests will skip"
           done
       - name: Discover every committed tests/ directory
@@ -65,4 +66,7 @@ jobs:
         # failing with "No module named 'tests.test_demo'" once every tests/ dir in the repo is collected
         # together). importlib mode gives each file a unique fully-qualified module name instead, avoiding
         # the collision entirely -- this is the documented fix for exactly this class of pytest problem.
-        run: python -m pytest $(cat all_test_dirs.txt) -q -p no:cacheprovider -W ignore --import-mode=importlib
+        # --continue-on-collection-errors: there will always be a long tail of rare optional deps not
+        # worth chasing one at a time -- one component's missing/broken import should skip that file,
+        # not abort collection of the other 500+ directories' worth of real tests.
+        run: python -m pytest $(cat all_test_dirs.txt) -q -p no:cacheprovider -W ignore --import-mode=importlib --continue-on-collection-errors

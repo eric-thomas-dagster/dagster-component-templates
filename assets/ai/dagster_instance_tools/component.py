@@ -857,10 +857,13 @@ class DagsterInstanceToolsComponent(dg.Component, dg.Model, dg.Resolvable):
 
 # ── stdio MCP server entrypoint:  python component.py  (reads DAGSTER_HOME) ─────────────────────────────────────────
 def build_mcp_server(tools: DagsterInstanceTools):
-    """FastMCP server (official `mcp` package) exposing exactly the allowed tools."""
-    from mcp.server.fastmcp import FastMCP
+    """MCP server (official `mcp` package) exposing exactly the allowed tools. Works on mcp 1.x and 2.x."""
+    try:  # mcp 2.x renamed FastMCP -> MCPServer (mcp.server.fastmcp now raises ModuleNotFoundError)
+        from mcp.server.mcpserver import MCPServer as _Server
+    except ImportError:  # mcp 1.x
+        from mcp.server.fastmcp import FastMCP as _Server
 
-    mcp = FastMCP("dagster-instance-tools")
+    mcp = _Server("dagster-instance-tools")
     allowed = set(tools.tool_names())
 
     def _tool(fn):

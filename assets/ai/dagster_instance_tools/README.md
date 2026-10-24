@@ -16,7 +16,7 @@ Every result is a compact dict; failures come back as `{"error": "..."}` (bad ru
 
 ## Wiring it into agentic_pipeline
 
-`tool_use_loop`, `mcp_call` and `agent_call` get tools **only from MCP servers** (stdio / http / sse / fastmcp); there is no plain-callable tool mechanism. So `component.py` is itself a stdio MCP server (`pip install mcp`). It finds the instance through `DAGSTER_HOME`.
+`tool_use_loop`, `mcp_call` and `agent_call` get tools **only from MCP servers** (stdio / http / sse / fastmcp); there is no plain-callable tool mechanism. So `component.py` is itself a stdio MCP server (`pip install mcp`; verified with mcp 1.30.0 and 2.3.0 -- the server picks `MCPServer` (2.x) or `FastMCP` (1.x) automatically). It finds the instance through `DAGSTER_HOME`.
 
 ```yaml
 - id: diagnose

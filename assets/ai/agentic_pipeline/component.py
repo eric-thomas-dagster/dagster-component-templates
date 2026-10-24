@@ -2526,6 +2526,26 @@ def _validate_tool_args_against_schema(
         ) from e
 
 
+async def _open_mcp_streamable_http(stack, url: str, headers: Optional[Dict[str, str]]):
+    """Enter a streamable-HTTP MCP client on `stack`; returns (read, write). Works on mcp 1.x and 2.x.
+
+    mcp 2.x removed `streamablehttp_client(url, headers=...)` (headers now ride on an `httpx2.AsyncClient` passed as
+    `http_client=`) and yields a 2-tuple instead of 1.x's (read, write, get_session_id). mcp >=1.24 also has
+    `streamable_http_client(url, http_client=...)`; older 1.x only has the deprecated `streamablehttp_client`."""
+    try:
+        from mcp.client.streamable_http import streamable_http_client
+    except ImportError:  # older mcp 1.x
+        from mcp.client.streamable_http import streamablehttp_client
+        streams = await stack.enter_async_context(streamablehttp_client(url, headers=headers or None))
+        return streams[0], streams[1]
+    http_client = None
+    if headers:
+        from mcp.shared._httpx_utils import create_mcp_http_client  # httpx on 1.x, httpx2 on 2.x
+        http_client = await stack.enter_async_context(create_mcp_http_client(headers=dict(headers)))
+    streams = await stack.enter_async_context(streamable_http_client(url, http_client=http_client))
+    return streams[0], streams[1]
+
+
 async def _call_mcp_tool_async(
     *,
     log,
@@ -2588,16 +2608,13 @@ async def _call_mcp_tool_async(
             await session.initialize()
         elif transport in ("http", "streamable_http", "streamable-http"):
             from mcp import ClientSession
-            from mcp.client.streamable_http import streamablehttp_client
 
             url = server_cfg.get("url")
             if not url:
                 raise ValueError(f"MCP server {name!r} is http but url is empty.")
             headers = _resolve_mcp_headers(server_cfg, name)
             _pol_url(url)
-            read, write, _sid = await stack.enter_async_context(
-                streamablehttp_client(url, headers=headers or None)
-            )
+            read, write = await _open_mcp_streamable_http(stack, url, headers)
             session = await stack.enter_async_context(ClientSession(read, write))
             await session.initialize()
         elif transport == "sse":
@@ -2688,9 +2705,7 @@ async def _call_mcp_tool_async(
                 raise ValueError(
                     f"MCP server {name!r} has no tool named {tool_name!r} -- available: {available}"
                 )
-            schema = getattr(matching, "inputSchema", None) or (
-                matching.get("inputSchema") if isinstance(matching, dict) else None
-            )
+            schema = _mcp_field(matching, "inputSchema", None)
             _validate_tool_args_against_schema(tool_args, schema, tool_name)
 
         call_result = await session.call_tool(tool_name, tool_args)
@@ -2699,7 +2714,11 @@ async def _call_mcp_tool_async(
             text = getattr(c, "text", None)
             parts.append(text if text is not None else str(c))
         raw = "\n".join(parts) if parts else ""
-        is_error = bool(getattr(call_result, "isError", False))
+        if not parts:  # tool returned only structured content (mcp 2.x / fastmcp)
+            structured = _mcp_field(call_result, "structuredContent", None)
+            if structured is not None:
+                raw = json.dumps(structured, default=str)
+        is_error = bool(_mcp_field(call_result, "isError", False))
 
     if parse_as == "text":
         return {"value": raw, "raw": raw, "is_error": is_error, "kind": "text"}
@@ -2836,6 +2855,21 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
 # across every LLM call + tool call in the loop.
 
 
+def _mcp_field(obj: Any, key: str, default: Any = None) -> Any:
+    """Read `key` (camelCase) from an MCP SDK object or dict. mcp 2.x renamed model attributes to snake_case
+    (`inputSchema`->`input_schema`, `isError`->`is_error`, `structuredContent`->`structured_content`) and the models
+    have no dict-style `.get`; fastmcp-client variants may return plain dicts."""
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    import re
+    snake = re.sub(r"(?<!^)(?=[A-Z])", "_", key).lower()
+    for k in (key, snake):  # mcp 1.x models expose camelCase (inputSchema/isError); mcp 2.x snake_case (input_schema/is_error)
+        val = getattr(obj, k, None)
+        if val is not None:
+            return val
+    return default
+
+
 async def _discover_mcp_tools_async(
     log, mcp_servers: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
@@ -2873,15 +2907,12 @@ async def _discover_mcp_tools_async(
                 await session.initialize()
             elif transport in ("http", "streamable_http", "streamable-http"):
                 from mcp import ClientSession
-                from mcp.client.streamable_http import streamablehttp_client
                 url = server_cfg.get("url")
                 if not url:
                     raise ValueError(f"MCP server {name!r} http needs url.")
                 headers = _resolve_mcp_headers(server_cfg, name)
                 _pol_url(url)
-                read, write, _sid = await stack.enter_async_context(
-                    streamablehttp_client(url, headers=headers or None)
-                )
+                read, write = await _open_mcp_streamable_http(stack, url, headers)
                 session = await stack.enter_async_context(ClientSession(read, write))
                 await session.initialize()
             elif transport == "sse":
@@ -2937,11 +2968,10 @@ async def _discover_mcp_tools_async(
             for t in listed:
                 tools.append({
                     "server": name,
-                    "name": getattr(t, "name", None) or t["name"],
-                    "description": getattr(t, "description", None) or t.get("description", ""),
+                    "name": _mcp_field(t, "name", ""),
+                    "description": _mcp_field(t, "description", "") or "",
                     "input_schema": (
-                        getattr(t, "inputSchema", None)
-                        or t.get("inputSchema")
+                        _mcp_field(t, "inputSchema", None)
                         or {"type": "object", "properties": {}}
                     ),
                 })

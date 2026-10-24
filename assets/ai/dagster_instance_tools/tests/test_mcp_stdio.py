@@ -16,7 +16,10 @@ SERVER = str(HERE.parent / "component.py")
 
 
 def _run(world, coro_fn, **env_extra):
-    env = {**os.environ, "DAGSTER_HOME": str(world["home"]), "PYTHONPATH": world["defs_dir"], **env_extra}
+    # Keep the parent's PYTHONPATH (e.g. a per-major mcp install used to verify mcp 1.x vs 2.x), dropping entries that
+    # were split on this repo's ':' path; fixture_defs goes first.
+    inherited = [p for p in os.environ.get("PYTHONPATH", "").split(os.pathsep) if p and os.path.isdir(p)]
+    env = {**os.environ, "DAGSTER_HOME": str(world["home"]), "PYTHONPATH": os.pathsep.join([world["defs_dir"], *inherited]), **env_extra}
     params = StdioServerParameters(command=sys.executable, args=[SERVER], env=env)
 
     async def go():

@@ -88,3 +88,8 @@ jobs:
           done
       - name: Run tests
         run: python -m pytest $TEST_DIRS -q -p no:cacheprovider -W ignore
+      - name: MCP SDK 1.x compatibility (the step above runs the latest mcp, currently 2.x)
+        # the MCP server + client code supports both majors; re-run just the real-server MCP tests against mcp<2
+        run: |
+          pip install --target "$RUNNER_TEMP/mcp1" 'mcp<2' || { echo "::warning::could not install mcp<2"; exit 0; }
+          PYTHONPATH="$RUNNER_TEMP/mcp1" python -m pytest assets/ai/dagster_instance_tools/tests/test_mcp_stdio.py assets/ai/agentic_pipeline/tests/test_mcp_client_contract.py -q -p no:cacheprovider -W ignore

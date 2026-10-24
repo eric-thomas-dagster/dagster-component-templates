@@ -35,12 +35,22 @@ jobs:
         with:
           packages: ffmpeg
           version: 1.0
-      - name: Verify ffmpeg is actually callable, repair via real apt-get if not
-        # cache-apt-pkgs-action restores packages by extracting their cached files directly, which
-        # doesn't always leave a fully working install for every package (its own docs recommend this
-        # exact fallback). A real `apt-get install` here is a near-instant no-op when the cache restore
-        # already left a working ffmpeg; it only does real work on the rare occasion it didn't.
-        run: command -v ffmpeg && ffmpeg -version | head -1 || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
+      - name: Verify ffmpeg is actually callable, repair if not
+        # cache-apt-pkgs-action restores packages by extracting their cached files directly rather than
+        # a real dpkg install, which skips ldconfig -- confirmed root cause (via a real failing run):
+        # `ffmpeg: error while loading shared libraries: libblas.so.3: cannot open shared object file`,
+        # even though `command -v ffmpeg` finds the binary fine. `sudo ldconfig` refreshes the shared
+        # library cache so the already-restored .so files are actually found; apt-get is a further
+        # fallback (its own docs' recommended escape hatch) on the rare chance ldconfig alone isn't
+        # enough. (Earlier version of this step piped to `head -1`, which silently discarded ffmpeg's
+        # real exit code -- a pipeline's status is its LAST command's, not the first's.)
+        run: |
+          sudo ldconfig
+          if ! ffmpeg -version > /dev/null 2>&1; then
+            echo "ffmpeg still broken after ldconfig -- falling back to a real apt-get install"
+            sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          fi
+          ffmpeg -version | head -1
       - name: Install dependencies
         run: |
           pip install --upgrade pip

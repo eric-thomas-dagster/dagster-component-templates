@@ -208,7 +208,15 @@ class DataframeToClickHouseComponent(dg.Component, dg.Model, dg.Resolvable):
             # Partition-aware target table:
             #   table: "events_{partition_key}" → "events_2025-01-15" on 2025-01-15.
             # Templates without {partition_key} pass through unchanged.
-            partition_key = context.partition_key if context.has_partition_key else None
+            # A single_run backfill hands us a whole partition RANGE (has_partition_key is False,
+            # has_partition_key_range is True) -- fall back to a comma-joined key so {partition_key}
+            # still resolves to something real instead of silently dropping the table-name template.
+            if context.has_partition_key:
+                partition_key = context.partition_key
+            elif context.has_partition_key_range:
+                partition_key = ",".join(str(k) for k in context.partition_keys)
+            else:
+                partition_key = None
             if partition_key and "{partition_key}" in _self.table:
                 resolved_table = _self.table.replace("{partition_key}", str(partition_key))
                 context.log.info(f"partition-aware ClickHouse write: partition_key={partition_key!r} → table={resolved_table}")

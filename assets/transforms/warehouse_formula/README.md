@@ -53,6 +53,7 @@ attributes:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the row-filter logic below already handles a multi-partition range correctly). 'multi_run' launches one… _(full docs in schema.json + component README)_ |
 | `deps` | `List[str]` | — | — |
 | `owners` | `List[str]` | — | — |
 | `description` | `str` | — | — |
@@ -86,6 +87,7 @@ attributes:
 | `database_url` | `str` | — | SQLAlchemy URL. Set this OR database_url_env_var. |
 | `keep_existing` | `bool` | `true` | If true (default): SELECT *, <expressions> — adds the new columns alongside all originals. If false + keep_columns set: project only those originals plus the new columns. If false + keep_columns unset: ONLY the new columns. |
 | `keep_columns` | `List[Union[str, int]]` | — | Explicit projection of original columns to retain when keep_existing=false. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 | `include_preview_metadata` | `bool` | `false` | — |
 | `preview_rows` | `int` | `25` | — |

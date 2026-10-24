@@ -71,6 +71,7 @@ You will also need the appropriate SQLAlchemy dialect driver for your source dat
 |---|---|---|---|
 | `tags` | `list` | — | List of string tags to attach to the W&B run. |
 | `group_name` | `str` | `"ml_tracking"` | Dagster asset group name shown in the UI. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the row-filter logic below already handles a multi-partition range correctly). 'multi_run' launches one… _(full docs in schema.json + component README)_ |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
 | `owners` | `List[str]` | — | Asset owners — team names ('team:analytics') or email addresses. |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
@@ -129,6 +130,7 @@ You will also need the appropriate SQLAlchemy dialect driver for your source dat
 | `artifact_type` | `str` | `"dataset"` | W&B artifact type, e.g. "dataset", "model", "evaluation". |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output DataFrame in metadata (for builder UIs). |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)

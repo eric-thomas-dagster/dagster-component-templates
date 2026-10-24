@@ -5,7 +5,7 @@ using either a deterministic random split or a chronological cutoff. Supports
 stratified sampling on a label column and group-aware splitting (so all rows
 sharing a group key land in the same split — important for leakage prevention).
 """
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -252,6 +252,26 @@ class TrainTestSplitterComponent(Component, Model, Resolvable):
         default="%Y-%m-%d",
         description="strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
     )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "materializes an entire backfill range in one run (the row-filter "
+            "logic below already handles a multi-partition range correctly). "
+            "'multi_run' launches one run per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for Dagster's "
+            "default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set. 'single_run' requires a partition-"
+            "range-aware IO manager (e.g. a DB-table IO manager with "
+            "partition_expr set) -- a generic filesystem/default IO manager "
+            "cannot persist a single_run output spanning multiple partitions "
+            "and will raise a clear error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
 
     partition_start: Optional[str] = Field(
         default=None,
@@ -318,6 +338,16 @@ class TrainTestSplitterComponent(Component, Model, Resolvable):
     cron_schedule=self.partition_cron_schedule,
     cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
 )
+
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            from dagster import BackfillPolicy
+            backfill_policy = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            from dagster import BackfillPolicy
+            backfill_policy = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
         partition_date_column = self.partition_date_column
         partition_static_column = self.partition_static_column
         partition_static_dim = self.partition_static_dim
@@ -469,7 +499,8 @@ class TrainTestSplitterComponent(Component, Model, Resolvable):
         # the split inside each asset using the deterministic seed/hash logic.
 
         def _make_asset(suffix: str, split_key: str):
-            @asset(partitions_def=partitions_def, 
+            @asset(partitions_def=partitions_def,
+            backfill_policy=backfill_policy,
                 name=f"{asset_name}_{suffix}",
                 ins=({"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))} if upstream_asset_key else None),
                 required_resource_keys=({self.source["resource_key"]} if (self.source and self.source.get("resource_key")) else None),

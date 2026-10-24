@@ -35,6 +35,7 @@ In a typical RAG or semantic-search pipeline:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | `"vector_store"` | Dagster asset group name. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the row-filter logic below already handles a multi-partition range correctly). 'multi_run' launches one… _(full docs in schema.json + component README)_ |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
 | `owners` | `List[str]` | — | Asset owners — team names ('team:analytics') or email addresses. |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
@@ -90,6 +91,7 @@ In a typical RAG or semantic-search pipeline:
 | `dimensions` | `int` | `1536` | Vector dimensionality. Must match the chosen model's output size (1 536 for text-embedding-3-small, 3 072 for text-embedding-3-large, 1 024 for voyage-3, 768 for nomic-embed-text, etc.). Also becomes the pgvector column… _(full docs in schema.json + component README)_ |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output DataFrame in metadata (for builder UIs). |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)

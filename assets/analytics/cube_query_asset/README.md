@@ -60,6 +60,7 @@ attributes:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | `"cube"` | Dagster asset group name. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the row-filter logic below already handles a multi-partition range correctly). 'multi_run' launches one… _(full docs in schema.json + component README)_ |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
 | `tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags. |
@@ -84,6 +85,7 @@ attributes:
 | `api_url_env_var` | `str` | `"CUBE_URL"` | Env var with Cube API base URL (e.g. http://localhost:4000 for local dev). |
 | `request_timeout_seconds` | `int` | `60` | Timeout per Cube API call. |
 | `strip_cube_prefix` | `bool` | `true` | When true (default), strip the '<CubeName>.' prefix from column names — 'Orders.customerName' becomes 'customerName'. Makes downstream consumers (dbt sources, LangChain templates that use {var} syntax, pandas transforms)… _(full docs in schema.json + component README)_ |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)

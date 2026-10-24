@@ -26,6 +26,7 @@ Tecton manages feature pipelines for ML models. `TectonAssetComponent` lets you:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | `"feature_store"` | Dagster asset group name. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the row-filter logic below already handles a multi-partition range correctly). 'multi_run' launches one… _(full docs in schema.json + component README)_ |
 | `asset_name` | `str` | `"tecton_features"` | Dagster asset key for this component. |
 | `deps` | `list[str]` | — | Upstream asset keys for lineage. |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
@@ -72,6 +73,7 @@ Tecton manages feature pipelines for ML models. `TectonAssetComponent` lets you:
 | `feature_views` | `list[str]` | — | Specific feature view names to trigger materialization for. When None all feature views in the workspace are triggered. |
 | `online` | `bool` | `true` | Materialize to the online store. |
 | `offline` | `bool` | `true` | Materialize to the offline store. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)

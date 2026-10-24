@@ -34,6 +34,7 @@ the output directly.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the row-filter logic below already handles a multi-partition range correctly). 'multi_run' launches one… _(full docs in schema.json + component README)_ |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
@@ -61,6 +62,7 @@ the output directly.
 | `geometry_column` | `Union[str, int]` | `"geometry"` | Output column name for the Shapely Point geometries. |
 | `crs` | `str` | `"EPSG:4326"` | Coordinate reference system the lat/lon values are in. Defaults to WGS84 (EPSG:4326) — what virtually every GPS / web-map source uses. |
 | `drop_invalid` | `bool` | `true` | Drop rows where lat or lon is NaN / non-numeric. Otherwise rows with bad coords get a `None` geometry. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)

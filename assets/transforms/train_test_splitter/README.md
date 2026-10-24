@@ -55,6 +55,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage (auto-inferred when empty: each output column maps 1:1 to upstream). |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the row-filter logic below already handles a multi-partition range correctly). 'multi_run' launches one… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -99,6 +100,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | `time_column` | `Union[str, int]` | — | Required for strategy='time'. Column to sort by; oldest rows go to train. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output DataFrame in metadata (for builder UIs). |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

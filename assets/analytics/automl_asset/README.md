@@ -108,6 +108,7 @@ brew install libomp
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
 | `tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags to apply to the asset. |
 | `owners` | `List[str]` | — | Asset owners — list of team names or email addresses. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the row-filter logic below already handles a multi-partition range correctly). 'multi_run' launches one… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -160,6 +161,7 @@ brew install libomp
 | `random_state` | `int` | `42` | Random seed for the train/test split and FLAML's own internal splits. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when include_preview_metadata is True. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)

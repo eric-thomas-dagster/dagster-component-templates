@@ -26,6 +26,7 @@ Group rows into baskets (e.g. by transaction_id), one-hot encode item presence p
 | `kinds` | `List[str]` | — | Asset kinds. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is `upstream_asset_key`, or th… _(full docs in schema.json + component README)_ |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the row-filter logic below already handles a multi-partition range correctly). 'multi_run' launches one… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -64,6 +65,7 @@ Group rows into baskets (e.g. by transaction_id), one-hot encode item presence p
 | `metric` | `str` | `"confidence"` | Sort metric: confidence, lift, support, etc. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output DataFrame in metadata (for builder UIs). |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

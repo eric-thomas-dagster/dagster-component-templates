@@ -19,6 +19,7 @@ Feature stores need to be kept fresh relative to upstream source tables. `FeastA
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | `"feature_store"` | Dagster asset group name. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the row-filter logic below already handles a multi-partition range correctly). 'multi_run' launches one… _(full docs in schema.json + component README)_ |
 | `asset_name` | `str` | `"feast_features"` | Dagster asset key for this component. |
 | `deps` | `list[str]` | — | Upstream asset keys for lineage. |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
@@ -65,6 +66,7 @@ Feature stores need to be kept fresh relative to upstream source tables. `FeastA
 | `incremental` | `bool` | `true` | When True (default) use ``store.materialize_incremental``, which materializes from the last materialization timestamp to ``end_date``. When False use ``store.materialize`` with an explicit start date. |
 | `start_date_env_var` | `str` | — | Name of an environment variable whose value is an ISO-8601 date/datetime string used as ``start_date`` for non-incremental materialization. Required when ``incremental`` is False. |
 | `end_date_offset_days` | `int` | `0` | Number of days before UTC now to use as ``end_date``. 0 means use the current UTC time. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)

@@ -43,6 +43,7 @@ source column is never mutated.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | `"precisely"` | Dagster asset group name. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the row-filter logic below already handles a multi-partition range correctly). 'multi_run' launches one… _(full docs in schema.json + component README)_ |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags. |
@@ -78,6 +79,7 @@ source column is never mutated.
 | `token_url` | `str` | `PRECISELY_DEFAULT_TOKEN_URL` | OAuth2 token endpoint. |
 | `verify_url` | `str` | `PRECISELY_DEFAULT_VERIFY_URL` | Address Verify endpoint. |
 | `request_timeout_seconds` | `int` | `30` | Per-request HTTP timeout. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)

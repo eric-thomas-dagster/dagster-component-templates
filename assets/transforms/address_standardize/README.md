@@ -104,6 +104,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the row-filter logic below already handles a multi-partition range correctly). 'multi_run' launches one… _(full docs in schema.json + component README)_ |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
@@ -140,6 +141,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | `user_agent` | `str` | `"dagster-address-standardize"` | User-Agent header sent to Nominatim. Must be unique per app per ToS. |
 | `keep_original` | `bool` | `true` | Keep the original address column in the output. |
 | `rate_limit_seconds` | `float` | `1.0` | Per-row delay for API-rate-limited providers (Nominatim defaults to 1.0). |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)

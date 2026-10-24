@@ -91,6 +91,7 @@ attributes:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the row-filter logic below already handles a multi-partition range correctly). 'multi_run' launches one… _(full docs in schema.json + component README)_ |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
@@ -128,6 +129,7 @@ attributes:
 | `geometry_column` | `Union[str, int]` | `"geometry"` | Output column name for the built Shapely geometry |
 | `crs` | `str` | `"EPSG:4326"` | Coordinate reference system the lat/lng values are in (default WGS84) |
 | `keep_first_attributes` | `bool` | `true` | Carry forward the first vertex's row attributes onto the output (False = drop all non-key columns) |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | — |
 | `preview_rows` | `int` | `20` | — |

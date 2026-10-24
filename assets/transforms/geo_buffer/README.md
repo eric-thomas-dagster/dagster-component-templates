@@ -36,6 +36,7 @@ state plane for your region.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the row-filter logic below already handles a multi-partition range correctly). 'multi_run' launches one… _(full docs in schema.json + component README)_ |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
@@ -64,6 +65,7 @@ state plane for your region.
 | `geometry_column` | `Union[str, int]` | `"geometry"` | Input + output geometry column name. |
 | `projected_crs` | `str` | `"EPSG:3857"` | Projected CRS used for the buffer math. Default is Web Mercator (EPSG:3857) — accurate enough for analytics use. For survey-grade results, pick the appropriate UTM zone (e.g. EPSG:32610 for California / Oregon). |
 | `resolution` | `int` | `16` | Number of segments per quarter-circle in the resulting buffer polygon. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 
 [//]: # (FIELDS:END)

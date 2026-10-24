@@ -1,5 +1,7 @@
 # LiteLLM Agent
 
+MCP client: verified with mcp 1.30.0 and 2.3.0.
+
 > **🔑 API key required.** Calls an LLM provider via LiteLLM. Set the env var named by `api_key_env_var` (e.g. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`).
 
 Single-shot LLM **agent** with [Model Context Protocol](https://modelcontextprotocol.io) (MCP) tool support. Runs the standard tool-calling loop until the model returns a final answer or `max_iterations` is hit.

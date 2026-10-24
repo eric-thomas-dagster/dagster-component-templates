@@ -395,13 +395,12 @@ async def _connect_mcp(stack, log, mcp_servers):
             await session.initialize()
         elif transport in ("http", "streamable_http", "streamable-http"):
             from mcp import ClientSession
-            from mcp.client.streamable_http import streamablehttp_client
             url = cfg.get("url")
             if not url:
                 raise ValueError(f"server {name!r} http without url")
             headers = _resolve_headers(cfg, name)
             log.info(f"[mcp:{name}] connecting http: {url}")
-            read, write, _ = await stack.enter_async_context(streamablehttp_client(url, headers=headers or None))
+            read, write = await _open_mcp_streamable_http(stack, url, headers)
             session = await stack.enter_async_context(ClientSession(read, write))
             await session.initialize()
         elif transport == "sse":
@@ -428,7 +427,7 @@ async def _connect_mcp(stack, log, mcp_servers):
                 "function": {
                     "name": prefixed,
                     "description": tool.description or "",
-                    "parameters": tool.inputSchema or {"type": "object", "properties": {}},
+                    "parameters": _mcp_field(tool, "inputSchema", None) or {"type": "object", "properties": {}},
                 },
             })
         servers_used.append(name)
@@ -546,12 +545,8 @@ async def _run_agent(
                 log.info(f"[iter {iterations}] calling {fn_name} args={fn_args!r}")
                 try:
                     call_result = await session.call_tool(original_name, fn_args)
-                    parts = []
-                    for c in call_result.content:
-                        text = getattr(c, "text", None)
-                        parts.append(text if text is not None else str(c))
+                    parts, is_error = _mcp_result_parts(call_result)
                     tool_output = "\n".join(parts) if parts else "(empty)"
-                    is_error = bool(getattr(call_result, "isError", False))
                 except Exception as e:  # noqa: BLE001
                     tool_output = f"Tool execution error: {e}"
                     is_error = True
@@ -575,3 +570,55 @@ async def _run_agent(
             "model": model,
             "mcp_servers": servers_used,
         }
+
+
+# --- mcp-compat-helpers:begin (identical in every MCP-using component; kept in sync by tests/test_mcp_compat_helpers_drift.py) ---
+def _mcp_field(obj, key, default=None):
+    """Read `key` (camelCase) from an MCP SDK object or dict. mcp 2.x renamed model attributes to snake_case
+    (`inputSchema`->`input_schema`, `isError`->`is_error`, `structuredContent`->`structured_content`) and the models
+    have no dict-style `.get`; fastmcp-client variants may return plain dicts."""
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    import re
+    snake = re.sub(r"(?<!^)(?=[A-Z])", "_", key).lower()
+    for k in (key, snake):  # mcp 1.x models expose camelCase (inputSchema/isError); mcp 2.x snake_case (input_schema/is_error)
+        val = getattr(obj, k, None)
+        if val is not None:
+            return val
+    return default
+
+
+async def _open_mcp_streamable_http(stack, url, headers):
+    """Enter a streamable-HTTP MCP client on `stack`; returns (read, write). Works on mcp 1.x and 2.x.
+
+    mcp 2.x removed `streamablehttp_client(url, headers=...)` (headers now ride on an `httpx2.AsyncClient` passed as
+    `http_client=`) and yields a 2-tuple instead of 1.x's (read, write, get_session_id). mcp >=1.24 also has
+    `streamable_http_client(url, http_client=...)`; older 1.x only has the deprecated `streamablehttp_client`."""
+    try:
+        from mcp.client.streamable_http import streamable_http_client
+    except ImportError:  # older mcp 1.x
+        from mcp.client.streamable_http import streamablehttp_client
+        streams = await stack.enter_async_context(streamablehttp_client(url, headers=headers or None))
+        return streams[0], streams[1]
+    http_client = None
+    if headers:
+        from mcp.shared._httpx_utils import create_mcp_http_client  # httpx on 1.x, httpx2 on 2.x
+        http_client = await stack.enter_async_context(create_mcp_http_client(headers=dict(headers)))
+    streams = await stack.enter_async_context(streamable_http_client(url, http_client=http_client))
+    return streams[0], streams[1]
+
+
+def _mcp_result_parts(call_result):
+    """CallToolResult -> (list of text parts, is_error). Falls back to structured content when a tool returned only that
+    (mcp 2.x / fastmcp); reads `isError`/`is_error` on either major."""
+    parts = []
+    for c in _mcp_field(call_result, "content", None) or []:
+        text = getattr(c, "text", None)
+        parts.append(text if text is not None else str(c))
+    if not parts:
+        structured = _mcp_field(call_result, "structuredContent", None)
+        if structured is not None:
+            import json
+            parts.append(json.dumps(structured, default=str))
+    return parts, bool(_mcp_field(call_result, "isError", False))
+# --- mcp-compat-helpers:end ---

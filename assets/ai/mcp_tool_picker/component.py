@@ -619,15 +619,12 @@ async def _call_mcp_tool(
             await session.initialize()
         elif transport in ("http", "streamable_http", "streamable-http"):
             from mcp import ClientSession
-            from mcp.client.streamable_http import streamablehttp_client
 
             url = server_cfg.get("url")
             if not url:
                 raise ValueError(f"MCP server {name!r} is http but url is empty.")
             headers = _resolve_mcp_headers(server_cfg, name)
-            read, write, _sid = await stack.enter_async_context(
-                streamablehttp_client(url, headers=headers or None)
-            )
+            read, write = await _open_mcp_streamable_http(stack, url, headers)
             session = await stack.enter_async_context(ClientSession(read, write))
             await session.initialize()
         elif transport == "sse":
@@ -647,12 +644,8 @@ async def _call_mcp_tool(
             raise ValueError(f"MCP server {name!r} has unknown transport: {transport!r}")
 
         call_result = await session.call_tool(tool_name, tool_args)
-        parts = []
-        for c in call_result.content:
-            text = getattr(c, "text", None)
-            parts.append(text if text is not None else str(c))
+        parts, is_error = _mcp_result_parts(call_result)
         raw = "\n".join(parts) if parts else ""
-        is_error = bool(getattr(call_result, "isError", False))
 
     if parse_as == "text":
         return {"value": raw, "raw": raw, "raw_size": len(raw), "is_error": is_error, "kind": "text"}
@@ -681,3 +674,55 @@ def _resolve_mcp_headers(cfg: Dict[str, Any], server_name: str) -> Dict[str, str
             )
         headers[header_name] = val
     return headers
+
+
+# --- mcp-compat-helpers:begin (identical in every MCP-using component; kept in sync by tests/test_mcp_compat_helpers_drift.py) ---
+def _mcp_field(obj, key, default=None):
+    """Read `key` (camelCase) from an MCP SDK object or dict. mcp 2.x renamed model attributes to snake_case
+    (`inputSchema`->`input_schema`, `isError`->`is_error`, `structuredContent`->`structured_content`) and the models
+    have no dict-style `.get`; fastmcp-client variants may return plain dicts."""
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    import re
+    snake = re.sub(r"(?<!^)(?=[A-Z])", "_", key).lower()
+    for k in (key, snake):  # mcp 1.x models expose camelCase (inputSchema/isError); mcp 2.x snake_case (input_schema/is_error)
+        val = getattr(obj, k, None)
+        if val is not None:
+            return val
+    return default
+
+
+async def _open_mcp_streamable_http(stack, url, headers):
+    """Enter a streamable-HTTP MCP client on `stack`; returns (read, write). Works on mcp 1.x and 2.x.
+
+    mcp 2.x removed `streamablehttp_client(url, headers=...)` (headers now ride on an `httpx2.AsyncClient` passed as
+    `http_client=`) and yields a 2-tuple instead of 1.x's (read, write, get_session_id). mcp >=1.24 also has
+    `streamable_http_client(url, http_client=...)`; older 1.x only has the deprecated `streamablehttp_client`."""
+    try:
+        from mcp.client.streamable_http import streamable_http_client
+    except ImportError:  # older mcp 1.x
+        from mcp.client.streamable_http import streamablehttp_client
+        streams = await stack.enter_async_context(streamablehttp_client(url, headers=headers or None))
+        return streams[0], streams[1]
+    http_client = None
+    if headers:
+        from mcp.shared._httpx_utils import create_mcp_http_client  # httpx on 1.x, httpx2 on 2.x
+        http_client = await stack.enter_async_context(create_mcp_http_client(headers=dict(headers)))
+    streams = await stack.enter_async_context(streamable_http_client(url, http_client=http_client))
+    return streams[0], streams[1]
+
+
+def _mcp_result_parts(call_result):
+    """CallToolResult -> (list of text parts, is_error). Falls back to structured content when a tool returned only that
+    (mcp 2.x / fastmcp); reads `isError`/`is_error` on either major."""
+    parts = []
+    for c in _mcp_field(call_result, "content", None) or []:
+        text = getattr(c, "text", None)
+        parts.append(text if text is not None else str(c))
+    if not parts:
+        structured = _mcp_field(call_result, "structuredContent", None)
+        if structured is not None:
+            import json
+            parts.append(json.dumps(structured, default=str))
+    return parts, bool(_mcp_field(call_result, "isError", False))
+# --- mcp-compat-helpers:end ---

@@ -1,5 +1,7 @@
 # OpenAI Agent
 
+MCP client: verified with mcp 1.30.0 and 2.3.0.
+
 > **🔑 OpenAI key required.** Set `OPENAI_API_KEY` (or override `api_key_env_var`). Also works with Azure OpenAI (set `base_url_env_var`) and OpenAI-compatible endpoints.
 
 Single-shot LLM agent with Model Context Protocol (MCP) tool support, using the **OpenAI SDK directly** — no LiteLLM dependency. Pick this over `litellm_agent` when you're an OpenAI-only shop and want one less Python dep.

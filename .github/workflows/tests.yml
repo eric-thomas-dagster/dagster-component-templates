@@ -27,6 +27,14 @@ env:
     assets/ai/dagster_instance_tools/tests
     assets/ai/insights_custom_metrics_sync/tests
     assets/ai/run_failure_remediation/tests
+    assets/ai/mcp_tool_picker/tests
+    assets/sources/mcp_tool_call/tests
+    assets/ai/litellm_agent/tests
+    assets/ai/openai_agent/tests
+    assets/ai/anthropic_agent/tests
+    assets/ai/gemini_agent/tests
+    assets/ai/vercel_ai_gateway_agent/tests
+    assets/ai/snowflake_cortex_agent/tests
 
 jobs:
   checks:

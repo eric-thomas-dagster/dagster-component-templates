@@ -1,5 +1,7 @@
 # mcp_tool_picker
 
+MCP client: verified with mcp 1.30.0 and 2.3.0.
+
 Planner LLM picks **real MCP tool calls** to invoke from a bounded YAML-declared set. Each pick becomes a Dagster asset that actually calls the MCP server (stdio / http / sse). A synthesizer LLM reads all tool outputs and writes the grounded final answer.
 
 The "agent picks MCPs" pattern with full Dagster lineage.

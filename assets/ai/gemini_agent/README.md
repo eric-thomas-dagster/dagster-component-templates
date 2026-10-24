@@ -1,5 +1,7 @@
 # Gemini Agent
 
+MCP client: verified with mcp 1.30.0 and 2.3.0.
+
 > **🔑 Gemini key required.** Set `GEMINI_API_KEY` (or override `api_key_env_var`). Uses the new `google-genai` SDK (not the deprecated `google-generativeai`).
 
 Single-shot LLM agent with Model Context Protocol (MCP) tool support, using the **Google Gen AI SDK directly** — no LiteLLM dependency. Pick this when you're a Gemini-only shop and want one less Python dep.

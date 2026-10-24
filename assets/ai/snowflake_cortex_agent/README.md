@@ -1,5 +1,7 @@
 # Snowflake Cortex Agent
 
+MCP client: verified with mcp 1.30.0 and 2.3.0.
+
 > **🔑 Snowflake Cortex required.** Needs an account with Cortex enabled and a PAT or OAuth bearer token. Set `SNOWFLAKE_ACCOUNT_URL` + `SNOWFLAKE_PAT`.
 
 Single-shot LLM agent backed by [Snowflake Cortex COMPLETE](https://docs.snowflake.com/en/user-guide/snowflake-cortex/llm-functions) — same MCP tool-calling loop as our other `*_agent` components, just routed through Snowflake's `/api/v2/cortex/inference:complete` REST endpoint instead of a vendor SDK.

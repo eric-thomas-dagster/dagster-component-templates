@@ -1,5 +1,7 @@
 # MCP Tool Call
 
+MCP client: verified with mcp 1.30.0 and 2.3.0.
+
 Deterministic, single-shot call to one MCP tool — **no LLM** in the loop.
 
 Use when you know exactly which tool to call and what args to pass. The asset connects to one MCP server (stdio / streamable-HTTP / sse), calls the named tool, parses the response, and materializes the result. Cheap, fast, fully reproducible.

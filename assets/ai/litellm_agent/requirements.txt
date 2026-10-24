@@ -1,2 +1,2 @@
 litellm>=1.30.0
-mcp>=1.0.0
+mcp>=1.30,<3   # verified with mcp 1.30.0 and 2.3.0 (client API + model attribute names differ between the majors)

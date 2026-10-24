@@ -1,5 +1,7 @@
 # vercel_ai_gateway_agent
 
+MCP client: verified with mcp 1.30.0 and 2.3.0.
+
 Single-shot LLM agent via **Vercel AI Gateway** — an OpenAI-compatible proxy that routes to any supported provider (OpenAI, Anthropic, Google, xAI, Groq, and more) with a single Vercel API token, unified billing, automatic fallback across models, and Vercel-side observability.
 
 ## Why route through Vercel AI Gateway

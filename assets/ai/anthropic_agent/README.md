@@ -1,5 +1,7 @@
 # Anthropic Agent
 
+MCP client: verified with mcp 1.30.0 and 2.3.0.
+
 > **🔑 Anthropic key required.** Set `ANTHROPIC_API_KEY` (or override `api_key_env_var`).
 
 Single-shot LLM agent with Model Context Protocol (MCP) tool support, using the **Anthropic SDK directly** — no LiteLLM dependency. Pick this when you're a Claude-only shop and want one less Python dep.

@@ -40,7 +40,8 @@ def test_example_validates_and_matches_the_component_contract(agentic, mod, tmp_
     assert set(kinds) <= set(mod.DEFAULT_ALLOWED_ACTIONS)                                  # only offers what is allowed by default
 
 
-def test_failure_to_evidence_to_triage_to_proposal_to_pending_to_retry(agentic, mod, tmp_path, inst, fake):
+def test_failure_to_evidence_to_triage_to_proposal_to_pending_to_retry(agentic, mod, tmp_path, inst, fake, monkeypatch):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-not-a-real-key")   # the triage step reads its key from the env; CI has none (the model call itself is faked)
     triage = triage_component(agentic, tmp_path).build_defs(None)
     env = Env(mod, tmp_path, inst, triage_assets=list(triage.assets))
     run = env.fail_nightly()

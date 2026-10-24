@@ -86,7 +86,7 @@ import os
 import re
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
 import dagster as dg
 from pydantic import Field
@@ -5317,6 +5317,7 @@ def _agentic_metadata(aid: str, entry: Any, state: Dict[str, Any], *, first: boo
         md["agentic_prompt_version"] = dg.MetadataValue.text(pv[aid]["version"])
         md["agentic_prompt_hash"] = dg.MetadataValue.text(pv[aid]["hash"])
     md["agentic_prompt_versions"] = dg.MetadataValue.json({k: v["version"] for k, v in pv.items()})
+    md.update(_experiment_metadata(state))
     if first:
         tot = {k: 0 for k in ("cost_usd", "tokens", "llm_calls", "tool_calls", "unknown_cost_calls")}
         for v in (state.get("__spend__") or {}).values():
@@ -5465,6 +5466,7 @@ def _do_verify(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     verdict = obj.get("verdict") if obj.get("verdict") in ("supported", "partially_supported", "unsupported") else "unsupported"
     min_score = float(step.get("min_score", 0.7))
     passed = score >= min_score and verdict != "unsupported"
+    _auto_signal(state, context, step, "verify", passed=passed)
     if not passed and step.get("on_fail", "continue") == "fail":
         raise RuntimeError(f"[verify:{step.get('id')}] failed: verdict={verdict} score={score:.2f} (< {min_score}); "
                            f"unsupported={obj.get('unsupported_claims')}")
@@ -5517,6 +5519,7 @@ def _do_eval(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     overall = sum(scores[c["name"]] * c["weight"] for c in criteria) / total_w
     fail_below = step.get("fail_below")
     passed = fail_below is None or overall >= float(fail_below)
+    _auto_signal(state, context, step, "eval", overall=overall, scale=scale)
     if not passed:
         raise RuntimeError(f"[eval:{step.get('id')}] overall {overall:.2f}/{scale} is below fail_below={fail_below}: {scores}")
     return {
@@ -6068,6 +6071,7 @@ def _do_approve(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         if cur is not None and cur.get("fingerprint") == tok.get("fingerprint") and cur.get("approved_at") == tok.get("approved_at") \
                 and not cur.get("consumed_at"):
             store.write_text(token_path, json.dumps({**cur, "consumed_at": _now_iso(), "consumed_by_step": step["id"]}, indent=2))
+    _auto_signal(state, context, step, "approve", status=status)
     if approved is False and step.get("on_reject", "stop") == "stop":
         detail = (tok or {}).get("reason") or (why if tok is None and why else None) or "not approved"
         raise RuntimeError(f"[approve:{step['id']}] {status}: {detail} -- stopping the pipeline here")
@@ -6308,6 +6312,11 @@ def _run_step(step: dict, state: Dict[str, Any], context) -> None:
     if op not in _OPS:
         raise ValueError(f"unknown op: {op!r}. valid: {sorted(_OPS.keys())}")
 
+    # A/B experiment: the run's assigned variant overrides the experimented steps ONLY (control = the step as configured).
+    _exp = state.get("__experiment__")
+    if _exp and step_id in (_exp.get("overrides") or {}):
+        step = _apply_overrides(step, _exp["overrides"][step_id])
+
     # Apply run-context substitutions ({partition_key}, {partition.<name>}) to
     # every string in the step dict before dispatch. Port substitution
     # (`{port_name}`) still happens per-op since it needs resolved inputs.
@@ -6389,6 +6398,514 @@ def _run_step(step: dict, state: Dict[str, Any], context) -> None:
             if len(u["violations"]) > n_before:
                 result["policy_violation_detail"] = u["violations"][n_before:]
     state[step_id] = result
+
+
+# ── A/B experiments + generation receipts (optional `experiments:` / `receipts:`) ─────────────────────────────
+#
+# `receipts:` records ONE generation receipt per pipeline run (per partition) in a ContextReceiptStore resource: a synthetic item
+# {item_id: "<asset>:<partition or run id>", source_asset_key: <first output asset>, source_code_version: <prompt version>}, so the
+# store's `outcomes_by_code_version(asset)` separates prompt/model variants by real outcomes. `experiments:` splits traffic between
+# the base config (control) and a candidate that overrides a few steps; the assignment is a pure function of (seed, unit key).
+
+_RECEIPT_KEYS = {"resource_key", "caller_id", "policy_version", "fail_on_error", "outcome_signals"}
+_EXPERIMENT_KEYS = {"name", "steps", "variants", "fraction", "seed", "unit", "min_outcomes", "margin", "window_days",
+                    "resamples", "confidence", "bootstrap_seed", "promote_when", "max_samples"}
+# What a variant may change on a step. `system` is accepted as an alias of `system_prompt`. api_key_env_var / api_base_env_var are
+# allowed because a candidate on another provider needs its own credentials.
+_OVERRIDE_KEYS = ("model", "prompt_template", "system_prompt", "temperature", "persona", "version", "max_tokens",
+                  "api_key_env_var", "api_base_env_var")
+_SIGNAL_DEFAULTS = {"approve": {"approved": 0.5, "rejected": -0.7, "timeout": None},
+                    "verify": {"pass": 0.5, "fail": -0.7},
+                    "eval": {"min": None, "max": None}}
+
+
+def _is_num(v: Any) -> bool:
+    return not isinstance(v, bool) and isinstance(v, (int, float))
+
+
+def _norm_overrides(ov: Any, where: str) -> Dict[str, Any]:
+    if not isinstance(ov, dict) or not ov:
+        raise ValueError(f"{where}: must be a non-empty mapping of overrides ({', '.join(_OVERRIDE_KEYS)})")
+    out: Dict[str, Any] = {}
+    for k, v in ov.items():
+        key = "system_prompt" if k == "system" else k
+        if key not in _OVERRIDE_KEYS:
+            raise ValueError(f"{where}: cannot override {k!r}; allowed: {', '.join(_OVERRIDE_KEYS)} (and `system` for system_prompt)")
+        if key in out:
+            raise ValueError(f"{where}: `system` and `system_prompt` are the same override; set one")
+        if key == "temperature":
+            if not _is_num(v) or v < 0:
+                raise ValueError(f"{where}.temperature must be a number >= 0")
+        elif key == "max_tokens":
+            if isinstance(v, bool) or not isinstance(v, int) or v < 1:
+                raise ValueError(f"{where}.max_tokens must be an integer >= 1")
+        elif key == "version":
+            if v is None or isinstance(v, (dict, list)) or not str(v).strip():
+                raise ValueError(f"{where}.version must be a non-empty string")
+        elif not isinstance(v, str) or not v.strip():
+            raise ValueError(f"{where}.{key} must be a non-empty string")
+        out[key] = v
+    return out
+
+
+def _apply_overrides(step: dict, overrides: Optional[Dict[str, Any]]) -> dict:
+    """The step with a variant's overrides on top (a copy; the configured step is never mutated)."""
+    return {**step, **overrides} if overrides else step
+
+
+def _effective_steps(steps: List[Dict[str, Any]], exp_state: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """The steps as THIS run executes them: the assigned variant's overrides applied to the experimented steps only."""
+    ov = (exp_state or {}).get("overrides") or {}
+    return [_apply_overrides(s, ov.get(s.get("id"))) if isinstance(s, dict) else s for s in steps]
+
+
+def _experiment_assigned_candidate(exp: Dict[str, Any], unit_key: str) -> bool:
+    """Pure function of (seed, experiment name, unit key): the same unit always lands on the same side. `fraction` of units
+    get the candidate. (sha256 -> uniform [0, 1).)"""
+    import hashlib
+    u = int(hashlib.sha256(f"{exp.get('seed', 0)}|{exp['name']}|{unit_key}".encode("utf-8")).hexdigest()[:15], 16) / 16 ** 15
+    return u < float(exp["fraction"])
+
+
+def _combined_version(pv: Dict[str, Dict[str, str]], step_ids: List[str]) -> str:
+    """One code version for several steps' prompt versions: the version itself for one step, else `id=version+id=version`."""
+    if len(step_ids) == 1:
+        return pv[step_ids[0]]["version"]
+    return "+".join(f"{sid}={pv[sid]['version']}" for sid in step_ids)
+
+
+def _pipeline_prompt_hash(pv: Dict[str, Dict[str, str]]) -> str:
+    """Version of the WHOLE pipeline's prompts (every LLM step's version): the receipt code version when no experiment is active."""
+    return "pp-" + _code_version({sid: v["version"] for sid, v in sorted(pv.items())})[:8]
+
+
+def _variant_code_versions(steps: List[Dict[str, Any]], personas: Any, exp: Dict[str, Any]) -> Dict[str, str]:
+    """{'control': cv, 'candidate': cv}: the combined prompt version of the experimented steps under each variant."""
+    ids = list(exp["steps"])
+    base = prompt_versions({"steps": steps, "personas": personas})
+    cand_steps = _effective_steps(steps, {"overrides": exp["overrides"]})
+    cand = prompt_versions({"steps": cand_steps, "personas": personas})
+    return {"control": _combined_version(base, ids), "candidate": _combined_version(cand, ids)}
+
+
+def _validate_experiments(experiments: Any, steps: List[Dict[str, Any]], personas: Any, partitioned: bool,
+                          receipts: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Fail at build_defs on a malformed `experiments:` list. Returns the one normalized experiment (None = no experiment):
+    the config plus `label` (the candidate variant's name), `overrides` ({step id: normalized overrides}) and `code_versions`."""
+    if experiments is None or experiments == []:
+        return None
+    if not isinstance(experiments, list):
+        raise ValueError("experiments must be a list (one experiment at a time is supported)")
+    if len(experiments) > 1:
+        raise ValueError("experiments: only one experiment at a time is supported (concurrent experiments would confound each other's outcomes)")
+    exp = experiments[0]
+    if not isinstance(exp, dict):
+        raise ValueError("experiments[0] must be a mapping")
+    where = "experiments[0]"
+    unknown = set(exp) - _EXPERIMENT_KEYS
+    if unknown:
+        raise ValueError(f"{where}: unknown key(s) {sorted(unknown)}; valid keys: {sorted(_EXPERIMENT_KEYS)}")
+    name = exp.get("name")
+    if not isinstance(name, str) or not name.strip() or ":" in name:
+        raise ValueError(f"{where}.name is required: a non-empty string without ':' (it is part of the receipt purpose 'experiment:<name>:<variant>')")
+    where = f"experiment {name!r}"
+    ids = exp.get("steps")
+    if not isinstance(ids, list) or not ids or not all(isinstance(i, str) for i in ids) or len(set(ids)) != len(ids):
+        raise ValueError(f"{where}.steps is required: a list of distinct step ids the variant may change")
+    by_id = {s.get("id"): s for s in steps if isinstance(s, dict) and s.get("id")}
+    base_pv = prompt_versions({"steps": steps, "personas": personas})
+    for sid in ids:
+        if sid not in by_id:
+            raise ValueError(f"{where}.steps: unknown step id {sid!r}; steps: {sorted(by_id)}")
+        if sid not in base_pv:
+            raise ValueError(f"{where}.steps: step {sid!r} (op {by_id[sid].get('op')!r}) makes no LLM call, so there is no prompt or model to vary")
+        if not _resolve_persona(by_id[sid], personas or {}).get("model"):
+            raise ValueError(f"{where}.steps: step {sid!r} sets its model in a nested config (route/debate/...), not at the step's top level; "
+                             "an override of the step's model/prompt would not change what is asked. Experiment on a single-model step "
+                             "(llm_call, classify, extract, reduce, self_reflect, map, verify, eval, ...)")
+    variants = exp.get("variants")
+    if not isinstance(variants, dict) or len(variants) != 1:
+        raise ValueError(f"{where}.variants must have exactly one candidate: {{<label>: {{<step id>: {{overrides}}}}}} (control is the base config)")
+    label, per_step = next(iter(variants.items()))
+    if not isinstance(label, str) or not label.strip() or ":" in label or label == "control":
+        raise ValueError(f"{where}.variants: the candidate label must be a non-empty string without ':' and not 'control'")
+    if not isinstance(per_step, dict) or not per_step:
+        raise ValueError(f"{where}.variants.{label} must map step ids to overrides")
+    overrides: Dict[str, Dict[str, Any]] = {}
+    for sid, ov in per_step.items():
+        if sid not in ids:
+            raise ValueError(f"{where}.variants.{label}: step {sid!r} is not listed in `steps` {ids}; overrides apply ONLY to the named steps")
+        overrides[sid] = _norm_overrides(ov, f"{where}.variants.{label}.{sid}")
+        p = overrides[sid].get("persona")
+        if p is not None and p not in (personas or {}):
+            raise ValueError(f"{where}.variants.{label}.{sid}.persona {p!r} is not declared in `personas`; available: {sorted(personas or {})}")
+    fr = exp.get("fraction")
+    if not _is_num(fr) or not 0 < float(fr) <= 1:
+        raise ValueError(f"{where}.fraction is required and must be a number in (0, 1]")
+    for k in ("seed", "bootstrap_seed"):
+        if exp.get(k) is not None and (isinstance(exp[k], bool) or not isinstance(exp[k], (int, str))):
+            raise ValueError(f"{where}.{k} must be an int or a string")
+    unit = exp.get("unit")
+    if unit is not None and unit not in ("partition", "run"):
+        raise ValueError(f"{where}.unit must be 'partition' or 'run'")
+    if unit == "partition" and not partitioned:
+        raise ValueError(f"{where}.unit is 'partition' but the pipeline is not partitioned; use unit: run")
+    for k in ("min_outcomes", "window_days"):
+        if exp.get(k) is not None and (not _is_num(exp[k]) or exp[k] <= 0):
+            raise ValueError(f"{where}.{k} must be a positive number")
+    for k in ("resamples", "max_samples"):
+        if exp.get(k) is not None and (isinstance(exp[k], bool) or not isinstance(exp[k], int) or exp[k] < 100):
+            raise ValueError(f"{where}.{k} must be an integer >= 100")
+    if exp.get("confidence") is not None and (not _is_num(exp["confidence"]) or not 0 < float(exp["confidence"]) < 1):
+        raise ValueError(f"{where}.confidence must be a number strictly between 0 and 1")
+    if exp.get("margin") is not None and (not _is_num(exp["margin"]) or exp["margin"] < 0):
+        raise ValueError(f"{where}.margin must be a number >= 0")
+    pw = exp.get("promote_when")
+    if pw is not None:
+        if not isinstance(pw, dict) or set(pw) - {"confidence", "min_outcomes"}:
+            raise ValueError(f"{where}.promote_when must be a mapping with only confidence / min_outcomes")
+        if pw.get("confidence") is not None and (not _is_num(pw["confidence"]) or not 0 < float(pw["confidence"]) < 1):
+            raise ValueError(f"{where}.promote_when.confidence must be a number strictly between 0 and 1")
+        if pw.get("min_outcomes") is not None and (not _is_num(pw["min_outcomes"]) or pw["min_outcomes"] <= 0):
+            raise ValueError(f"{where}.promote_when.min_outcomes must be a positive number")
+    norm = {**exp, "label": label, "overrides": overrides, "unit": unit or ("partition" if partitioned else "run")}
+    cvs = _variant_code_versions(steps, personas, norm)
+    if cvs["control"] == cvs["candidate"]:
+        raise ValueError(f"{where}.variants.{label} does not change the prompt version of {ids}: its overrides equal the base config, "
+                         "so control and candidate would be the same recipe (set a different value, or a `version`)")
+    norm["code_versions"] = cvs
+    sig = (receipts or {}).get("outcome_signals")
+    if sig:
+        judged = {"verify": "verify", "eval": "eval"}
+        for sid in ids:
+            kind = judged.get(by_id[sid].get("op"))
+            if kind and _norm_signals(sig).get(kind) is not None:
+                raise ValueError(f"{where}.steps: step {sid!r} is a {kind} step whose result is an automatic outcome signal "
+                                 f"(receipts.outcome_signals.{kind}); varying the judge would make the comparison circular")
+    return norm
+
+
+def _norm_signals(cfg: Any) -> Dict[str, Dict[str, Any]]:
+    """`receipts.outcome_signals` -> {kind: mapping with defaults filled} for the enabled kinds. Raises on a malformed block."""
+    if cfg is None or cfg is False:
+        return {}
+    where = "receipts.outcome_signals"
+    if cfg is True:
+        cfg = {k: True for k in _SIGNAL_DEFAULTS}
+    if not isinstance(cfg, dict):
+        raise ValueError(f"{where} must be true or a mapping with any of {sorted(_SIGNAL_DEFAULTS)}")
+    unknown = set(cfg) - set(_SIGNAL_DEFAULTS)
+    if unknown:
+        raise ValueError(f"{where}: unknown key(s) {sorted(unknown)}; valid keys: {sorted(_SIGNAL_DEFAULTS)}")
+    out: Dict[str, Dict[str, Any]] = {}
+    for kind, sub in cfg.items():
+        if sub is None or sub is False:
+            continue
+        if sub is True:
+            sub = {}
+        if not isinstance(sub, dict):
+            raise ValueError(f"{where}.{kind} must be true or a mapping")
+        bad = set(sub) - set(_SIGNAL_DEFAULTS[kind])
+        if bad:
+            raise ValueError(f"{where}.{kind}: unknown key(s) {sorted(bad)}; valid keys: {sorted(_SIGNAL_DEFAULTS[kind])}")
+        merged = {**_SIGNAL_DEFAULTS[kind], **sub}
+        for k, v in merged.items():
+            if v is None:
+                continue
+            if not _is_num(v):
+                raise ValueError(f"{where}.{kind}.{k} must be a number")
+            if kind != "eval" and not -1 <= float(v) <= 1:
+                raise ValueError(f"{where}.{kind}.{k} must be in [-1, 1] (a store outcome value)")
+        if kind == "eval" and merged["min"] is not None and merged["max"] is not None and not merged["min"] < merged["max"]:
+            raise ValueError(f"{where}.eval: min must be below max")
+        out[kind] = merged
+    return out
+
+
+def _validate_receipts(cfg: Any, asset_name: str) -> Optional[Dict[str, Any]]:
+    """Fail at build_defs on a malformed `receipts:` block (None = feature off). Returns the normalized config."""
+    if cfg is None:
+        return None
+    where = f"AgenticPipelineComponent {asset_name!r}: receipts"
+    if not isinstance(cfg, dict):
+        raise ValueError(f"{where}: must be a mapping, got {type(cfg).__name__}")
+    unknown = set(cfg) - _RECEIPT_KEYS
+    if unknown:
+        raise ValueError(f"{where}: unknown key(s) {sorted(unknown)}; valid keys: {sorted(_RECEIPT_KEYS)}")
+    rk = cfg.get("resource_key")
+    if not isinstance(rk, str) or not rk.strip():
+        raise ValueError(f"{where}.resource_key is required (the key of a registered ContextReceiptStoreComponent resource)")
+    for k in ("caller_id", "policy_version"):
+        if cfg.get(k) is not None and (not isinstance(cfg[k], str) or not cfg[k].strip()):
+            raise ValueError(f"{where}.{k} must be a non-empty string")
+    if not isinstance(cfg.get("fail_on_error", False), bool):
+        raise ValueError(f"{where}.fail_on_error must be a boolean")
+    _norm_signals(cfg.get("outcome_signals"))
+    return cfg
+
+
+def _receipt_failed(state: Dict[str, Any], context, what: str, exc: Exception) -> None:
+    if (state.get("__receipts__") or {}).get("fail_on_error"):
+        raise exc
+    context.log.warning(f"receipts: {what} failed ({type(exc).__name__}: {exc}); continuing without it")
+
+
+def _init_experiment_and_receipt(state: Dict[str, Any], context, *, experiment: Optional[Dict[str, Any]],
+                                 receipts: Optional[Dict[str, Any]], steps: List[Dict[str, Any]], personas: Any,
+                                 asset_key: str, partition_key: Optional[str]) -> None:
+    """Run start: assign the variant (a pure function of seed + unit key), then record the generation receipt. Puts two plain
+    (picklable) dicts in `state`: `__experiment__` and `__receipts__`. A failed record never fails the run unless
+    `receipts.fail_on_error`."""
+    run_id = getattr(context, "run_id", None)
+    pv = prompt_versions({"steps": steps, "personas": personas})
+    exp_state: Optional[Dict[str, Any]] = None
+    if experiment is not None:
+        unit_key = str(partition_key) if experiment["unit"] == "partition" and partition_key is not None else str(run_id)
+        cand = _experiment_assigned_candidate(experiment, unit_key)
+        cvs = experiment["code_versions"]
+        exp_state = {"name": experiment["name"], "variant": experiment["label"] if cand else "control", "is_candidate": cand,
+                     "unit": experiment["unit"], "unit_key": unit_key, "overrides": experiment["overrides"] if cand else {},
+                     "code_version": cvs["candidate" if cand else "control"]}
+        state["__experiment__"] = exp_state
+        context.log.info(f"[experiment {exp_state['name']!r}] {experiment['unit']} {unit_key!r} -> {exp_state['variant']}")
+    if receipts is None:
+        return
+    code_version = exp_state["code_version"] if exp_state else _pipeline_prompt_hash(pv)
+    rec: Dict[str, Any] = {"resource_key": receipts["resource_key"], "receipt_id": None, "code_version": code_version,
+                           "fail_on_error": bool(receipts.get("fail_on_error", False)), "signals": _norm_signals(receipts.get("outcome_signals"))}
+    state["__receipts__"] = rec
+    unit = str(partition_key) if partition_key is not None else str(run_id)
+    purpose = f"experiment:{exp_state['name']}:{exp_state['variant']}" if exp_state else "generation"
+    try:
+        store = getattr(context.resources, receipts["resource_key"])
+        rec["receipt_id"] = store.record_retrieval(
+            context_name=asset_key,
+            items=[{"item_id": f"{asset_key}:{unit}", "source_asset_key": asset_key, "source_partition": partition_key,
+                    "source_code_version": code_version, "rank": 1, "selection": "ranked"}],
+            policy_version=receipts.get("policy_version"), caller_id=receipts.get("caller_id"), purpose=purpose,
+            dagster_asset_key=asset_key, dagster_run_id=run_id, dagster_partition_key=partition_key)
+    except Exception as exc:
+        _receipt_failed(state, context, "recording the generation receipt", exc)
+
+
+def _auto_signal(state: Dict[str, Any], context, step: dict, kind: str, **info: Any) -> None:
+    """Map a pipeline event to an outcome on this run's generation receipt (opt-in `receipts.outcome_signals`). The outcome_ref is
+    `auto:<step id>:<kind>`, so the same step recording twice (an op retry, a re-run from the failed op) supersedes instead of
+    double counting. Never fails the run unless `receipts.fail_on_error`."""
+    rec = state.get("__receipts__")
+    if not rec or not rec.get("receipt_id"):
+        return
+    cfg = (rec.get("signals") or {}).get(kind)
+    if cfg is None:
+        return
+    if kind == "approve":
+        status = info["status"]
+        if status == "approved":
+            signal, value = "accepted", cfg["approved"]
+        elif status == "rejected":
+            signal, value = "escalated", cfg["rejected"]
+        elif status in ("timeout_default_reject", "timeout_default_approve"):
+            signal, value = "approval_timeout", cfg["timeout"]
+        else:
+            return  # still pending: nothing has been decided
+    elif kind == "verify":
+        signal, value = ("verify_passed", cfg["pass"]) if info["passed"] else ("verify_failed", cfg["fail"])
+    else:
+        lo = float(cfg["min"]) if cfg["min"] is not None else 1.0  # eval scores are 1..scale, never 0
+        hi = float(cfg["max"]) if cfg["max"] is not None else float(info["scale"])
+        signal, value = "eval_score", max(-1.0, min(1.0, 2.0 * (float(info["overall"]) - lo) / (hi - lo) - 1.0))
+    if value is None:
+        return
+    try:
+        getattr(context.resources, rec["resource_key"]).record_outcome(
+            rec["receipt_id"], signal=signal, value=float(value), source=f"agentic_pipeline:{kind}",
+            outcome_ref=f"auto:{step.get('id')}:{kind}")
+    except Exception as exc:
+        _receipt_failed(state, context, f"recording the {kind} outcome", exc)
+
+
+def _experiment_metadata(state: Dict[str, Any]) -> Dict[str, Any]:
+    md: Dict[str, Any] = {}
+    exp, rec = state.get("__experiment__"), state.get("__receipts__")
+    if exp:
+        md["agentic_experiment"] = dg.MetadataValue.text(exp["name"])
+        md["agentic_experiment_variant"] = dg.MetadataValue.text(exp["variant"])
+        md["agentic_experiment_unit"] = dg.MetadataValue.text(f"{exp['unit']}:{exp['unit_key']}")
+    if rec:
+        md["agentic_receipt_code_version"] = dg.MetadataValue.text(rec["code_version"])
+        md["receipt_id"] = dg.MetadataValue.text(rec["receipt_id"] or "unrecorded")
+    return md
+
+
+def _sink_path(path: str, state: Dict[str, Any], partition_key: Optional[str], partition_fields: Optional[Dict[str, Any]]) -> str:
+    """Sink path with `{partition_key}` / `{partition.<name>}` and, when receipts are on, `{receipt_id}` (so downstream feedback can
+    carry the id back to receipt_outcome_ingestion). A receipt that could not be recorded renders as 'unrecorded'."""
+    out = _apply_ctx_substitutions(path, partition_key, partition_fields)
+    rec = state.get("__receipts__")
+    if rec is not None and isinstance(out, str) and "{receipt_id}" in out:
+        out = out.replace("{receipt_id}", rec["receipt_id"] or "unrecorded")
+    return out
+
+
+def _sink_entry(entry: Any, state: Dict[str, Any]) -> Any:
+    """What a json sink writes: the step's dict, plus `receipt_id` (and the experiment variant) when receipts are on."""
+    rec, exp = state.get("__receipts__"), state.get("__experiment__")
+    if isinstance(entry, dict) and (rec is not None or exp):
+        extra: Dict[str, Any] = {}
+        if rec is not None:
+            extra["receipt_id"] = rec["receipt_id"]
+        if exp:
+            extra["experiment"] = exp["name"]
+            extra["experiment_variant"] = exp["variant"]
+        return {**entry, **extra}
+    return entry
+
+
+# BEGIN compare-recipes (inlined from assets/ai/rag_pipeline; keep identical -- see tests/test_experiments.py drift test)
+def _bootstrap_diffs(live: List[float], cand: List[float], resamples: int, seed: Any) -> List[float]:
+    """Sorted bootstrap distribution of mean(candidate) - mean(live): each side resampled independently with replacement."""
+    import random
+    rng = random.Random(seed)
+    nl, nc = len(live), len(cand)
+    diffs = [sum(rng.choices(cand, k=nc)) / nc - sum(rng.choices(live, k=nl)) / nl for _ in range(resamples)]
+    diffs.sort()
+    return diffs
+
+
+def _subsample(values: List[float], max_samples: int, seed: Any, side: str) -> List[float]:
+    """Deterministic (seeded, without replacement) subsample of at most ``max_samples`` values; unchanged when already small."""
+    if len(values) <= max_samples:
+        return values
+    import random
+    return random.Random(f"{seed}|subsample|{side}").sample(values, max_samples)
+
+
+def _percentile_ci(diffs: List[float], confidence: float) -> Tuple[float, float]:
+    """Two-sided percentile interval of an already sorted bootstrap distribution."""
+    import math
+    n = len(diffs)
+    tail = (1.0 - confidence) / 2.0
+    lo = min(n - 1, max(0, int(math.floor(tail * n))))
+    hi = min(n - 1, max(0, int(math.ceil((1.0 - tail) * n)) - 1))
+    return diffs[lo], diffs[hi]
+
+
+def compare_recipes(samples: Optional[Dict[str, List[float]]], live: str, candidate: str,
+                    min_outcomes: int = 10, margin: float = 0.05, *, resamples: int = 2000, confidence: float = 0.95,
+                    seed: Any = 0, promote_when: Optional[Dict[str, Any]] = None, max_samples: int = 20000) -> Dict[str, Any]:
+    """Judge a candidate recipe against the live one from `store.outcome_samples_by_code_version(...)`.
+
+    `samples` maps code version -> one effective outcome per answered receipt. Fewer than `min_outcomes` on either side
+    is `insufficient_evidence`. Otherwise a percentile bootstrap (`resamples` draws, each side resampled independently,
+    RNG seeded by `seed` so the result is reproducible) gives a `confidence` interval [ci_low, ci_high] for
+    diff = mean(candidate) - mean(live), and:
+
+    - `candidate_better`: the interval excludes zero on the positive side (ci_low > 0) AND diff > margin.
+    - `live_better`:      ci_high < 0 AND diff < -margin.
+    - `inconclusive`:     anything else (a noisy gap, or a significant gap smaller than the margin).
+
+    So `margin` is the smallest difference worth acting on and the interval says whether the difference is distinguishable
+    from noise; both must hold. Zero-variance samples give a degenerate interval [diff, diff] (take that as "no observed
+    noise", not proof). The bootstrap costs `resamples * (n_live + n_candidate)` pure-python draws, so a side with more than
+    `max_samples` outcomes is first subsampled (seeded, without replacement) to `max_samples` for the interval only: `diff`, the means
+    and `n_live` / `n_candidate` stay exact, and `subsampled` / `n_live_used` / `n_candidate_used` say what the interval used.
+    `p_candidate_better` is the share of resamples where the candidate mean exceeds the live mean.
+    `ready_to_promote` is only reported (never acted on): with `promote_when={confidence, min_outcomes}` it is true when,
+    at that confidence and per-side count, the rule above gives `candidate_better`; without it, None."""
+    def clean(cv):
+        return [float(x) for x in ((samples or {}).get(cv) or []) if x is not None]
+    lv, cd = clean(live), clean(candidate)
+    out: Dict[str, Any] = {
+        "verdict": "insufficient_evidence", "live_mean": sum(lv) / len(lv) if lv else None,
+        "candidate_mean": sum(cd) / len(cd) if cd else None, "n_live": len(lv), "n_candidate": len(cd),
+        "diff": None, "ci_low": None, "ci_high": None, "p_candidate_better": None,
+        "confidence": float(confidence), "resamples": int(resamples), "ready_to_promote": None if not promote_when else False,
+        "subsampled": False, "max_samples": int(max_samples), "n_live_used": len(lv), "n_candidate_used": len(cd)}
+    if samples is None or len(lv) < min_outcomes or len(cd) < min_outcomes or not lv or not cd:
+        return out
+    lv_b, cd_b = _subsample(lv, int(max_samples), seed, "live"), _subsample(cd, int(max_samples), seed, "candidate")
+    out.update(subsampled=len(lv_b) < len(lv) or len(cd_b) < len(cd), n_live_used=len(lv_b), n_candidate_used=len(cd_b))
+    diffs = _bootstrap_diffs(lv_b, cd_b, int(resamples), seed)
+    diff = round(out["candidate_mean"] - out["live_mean"], 9)
+
+    def rule(conf: float) -> Tuple[str, float, float]:
+        lo, hi = _percentile_ci(diffs, conf)
+        v = "candidate_better" if lo > 0 and diff > margin else "live_better" if hi < 0 and diff < -margin else "inconclusive"
+        return v, lo, hi
+    verdict, lo, hi = rule(float(confidence))
+    out.update(verdict=verdict, diff=diff, ci_low=round(lo, 9), ci_high=round(hi, 9),
+               p_candidate_better=sum(1 for d in diffs if d > 0) / len(diffs))
+    if promote_when:
+        pc = float(promote_when.get("confidence", confidence))
+        pm = int(promote_when.get("min_outcomes", min_outcomes))
+        out["ready_to_promote"] = bool(len(lv) >= pm and len(cd) >= pm and rule(pc)[0] == "candidate_better")
+    return out
+# END compare-recipes
+
+
+def _variant_costs(context, asset_key: str, since_ts: float) -> Dict[str, Dict[str, Any]]:
+    """Mean `agentic_cost_usd` per variant, read from the asset's recent materialization metadata (the pipeline totals live on the first
+    emitted asset, which carries `agentic_experiment_variant`). {} when the instance cannot be read; never raises."""
+    try:
+        recs = context.instance.get_event_records(
+            dg.EventRecordsFilter(event_type=dg.DagsterEventType.ASSET_MATERIALIZATION, asset_key=dg.AssetKey.from_user_string(asset_key),
+                                  after_timestamp=since_ts), limit=20000, ascending=False)
+        sums: Dict[str, List[float]] = {}
+        for r in recs:
+            m = r.asset_materialization.metadata if r.asset_materialization else {}
+            if "agentic_experiment_variant" in m and "agentic_cost_usd" in m:
+                sums.setdefault(str(m["agentic_experiment_variant"].value), []).append(float(m["agentic_cost_usd"].value))
+        return {v: {"n": len(c), "mean": sum(c) / len(c)} for v, c in sums.items()}
+    except Exception:
+        return {}
+
+
+def _build_experiment_check(experiment: Optional[Dict[str, Any]], receipts: Optional[Dict[str, Any]], asset_key: dg.AssetKey):
+    """WARN check `experiment_verdict` (only when an experiment AND receipts are configured): candidate vs control by the real outcomes
+    recorded on their generation receipts. Reports only; never promotes."""
+    if experiment is None or receipts is None:
+        return None
+    rk = receipts["resource_key"]
+    cvs = experiment["code_versions"]
+    ak = asset_key.to_user_string()
+
+    @dg.asset_check(asset=asset_key, name="experiment_verdict", required_resource_keys={rk},
+                    description="A/B experiment: candidate vs control by the real outcomes on their generation receipts (bootstrap confidence "
+                                "interval on the difference of mean outcomes per prompt version). Reports only; never promotes.")
+    def experiment_verdict(context):
+        from datetime import timedelta
+        now = datetime.now(timezone.utc)
+        since = (now - timedelta(days=float(experiment.get("window_days", 30)))).isoformat()
+        store = getattr(context.resources, rk)
+        md: Dict[str, Any] = {"experiment": dg.MetadataValue.text(experiment["name"]),
+                              "control_code_version": dg.MetadataValue.text(cvs["control"]),
+                              "candidate_code_version": dg.MetadataValue.text(cvs["candidate"]),
+                              "candidate_label": dg.MetadataValue.text(experiment["label"])}
+        if not hasattr(store, "outcome_samples_by_code_version"):
+            md["verdict"] = dg.MetadataValue.text("insufficient_evidence")
+            md["reason"] = dg.MetadataValue.text(
+                f"the {rk!r} store has no outcome_samples_by_code_version (needed for the bootstrap interval); "
+                "upgrade resources/context_receipt_store -- no verdict was computed")
+            return dg.AssetCheckResult(passed=True, severity=dg.AssetCheckSeverity.WARN, metadata=md)
+        samples = store.outcome_samples_by_code_version(ak, since)
+        r = compare_recipes(samples, cvs["control"], cvs["candidate"],
+                            min_outcomes=int(experiment.get("min_outcomes", 10)), margin=float(experiment.get("margin", 0.05)),
+                            resamples=int(experiment.get("resamples", 2000)), confidence=float(experiment.get("confidence", 0.95)),
+                            seed=experiment.get("bootstrap_seed", 0), promote_when=experiment.get("promote_when"),
+                            max_samples=int(experiment.get("max_samples", 20000)))
+        for k, v in r.items():
+            k = k.replace("live_", "control_").replace("n_live", "n_control")
+            md[k] = (dg.MetadataValue.bool(v) if isinstance(v, bool) else dg.MetadataValue.text(v) if isinstance(v, str)
+                     else dg.MetadataValue.float(float(v)) if isinstance(v, float)
+                     else dg.MetadataValue.int(v) if isinstance(v, int) else dg.MetadataValue.text("n/a"))
+        costs = _variant_costs(context, ak, (now - timedelta(days=float(experiment.get("window_days", 30)))).timestamp())
+        for side, label in (("control", "control"), ("candidate", experiment["label"])):
+            if label in costs:
+                md[f"{side}_cost_usd_mean"] = dg.MetadataValue.float(costs[label]["mean"])
+                md[f"{side}_cost_usd_runs"] = dg.MetadataValue.int(costs[label]["n"])
+        return dg.AssetCheckResult(passed=r["verdict"] != "live_better", severity=dg.AssetCheckSeverity.WARN, metadata=md)
+
+    return experiment_verdict
 
 
 # ── Component class ──────────────────────────────────────────────────
@@ -6557,6 +7074,33 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "PolicyViolation (or just log under on_violation: warn). Violations and usage are recorded as step "
             "metadata. NOTE: this is enforcement at the component boundary, not an OS sandbox -- an MCP stdio "
             "server still runs with the worker's OS permissions."
+        ),
+    )
+    receipts: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Optional closed-loop generation receipts. `{resource_key (required: a registered ContextReceiptStoreComponent resource), "
+            "caller_id, policy_version, fail_on_error (default false), outcome_signals}`. Records ONE receipt per pipeline run (per "
+            "partition): a synthetic item whose source_code_version is the pipeline's prompt version (the experimented steps' version "
+            "while an experiment is active), purpose 'generation' or 'experiment:<name>:<variant>'. The id is emitted as asset metadata "
+            "`receipt_id` and is available as `{receipt_id}` in text_sinks / json_sinks paths (json sinks also get a `receipt_id` field), so "
+            "downstream feedback (receipt_outcome_ingestion mapping.receipt_id) can attach real outcomes. `outcome_signals` (opt-in; "
+            "true or {approve: {approved: 0.5, rejected: -0.7, timeout: null}, verify: {pass: 0.5, fail: -0.7}, eval: {min, max}}) records "
+            "approve / verify / eval results as outcomes on that receipt (outcome_ref `auto:<step>:<kind>`; eval is scaled from "
+            "min..max, default 1..scale, to [-1, 1]). A failed write never fails the run unless fail_on_error. Omit for unchanged behaviour."
+        ),
+    )
+    experiments: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Optional A/B experiment (one at a time): `[{name, steps: [step ids], variants: {<label>: {<step id>: {model | prompt_template | "
+            "system_prompt (or system) | temperature | persona | version | max_tokens | api_key_env_var | api_base_env_var}}}, fraction (0,1], "
+            "seed (default 0), unit: partition|run (default partition when partitioned), min_outcomes, margin, window_days, resamples, "
+            "confidence, bootstrap_seed, promote_when: {confidence, min_outcomes}, max_samples}]`. Control = the base config. Each unit "
+            "(partition or run) is assigned to control or the candidate by a pure function of (seed, name, unit key), so a partition "
+            "always gets the same variant; the candidate's overrides apply only to the named steps. With `receipts:` the receipt "
+            "records the variant's effective prompt version and the WARN check `experiment_verdict` compares the two by real outcomes "
+            "(bootstrap interval; reports ready_to_promote, never promotes). Asset code_version is unchanged by an experiment."
         ),
     )
     personas: Optional[Dict[str, Dict[str, Any]]] = Field(
@@ -6889,6 +7433,16 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         _validate_approve_options(steps)
         _validate_source_partitioning(source_config, steps, _partitions_def)
 
+        # ── Optional receipts + A/B experiment (validated here, at load, so a typo never reaches a run) ──
+        _receipts_cfg = _validate_receipts(self.receipts, prefix)
+        _experiment = _validate_experiments(self.experiments, steps, self.personas, _partitions_def is not None, _receipts_cfg)
+        if _receipts_cfg is None and any("{receipt_id}" in str(sk.get("path", "")) for sk in text_sinks + json_sinks):
+            raise ValueError("a sink path uses {receipt_id} but `receipts:` is not configured")
+        _receipt_asset = f"{prefix}_{asset_ids[0]}"   # the pipeline's identity in the store: its first declared output
+        _exp_check = _build_experiment_check(_experiment, _receipts_cfg, dg.AssetKey([_receipt_asset]))
+        _asset_checks = [_exp_check] if _exp_check is not None else []
+        _required_keys = {_receipts_cfg["resource_key"]} if _receipts_cfg else set()
+
         # ── Branch: per_step_ops selects the emitted shape ────────────
         # (True → graph_multi_asset with N+2 ops; False → single multi_asset)
         if self.per_step_ops:
@@ -6900,6 +7454,8 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 partition_key_parser=partition_key_parser,
                 discovered_sibling_cards=discovered_sibling_cards,
                 backfill_policy=_backfill_policy,
+                receipts_cfg=_receipts_cfg, experiment=_experiment, receipt_asset=_receipt_asset,
+                asset_checks=_asset_checks, required_keys=_required_keys,
             )
 
         # ── Step-dep DAG for can_subset resume ──
@@ -7008,6 +7564,9 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 "__sibling_agent_cards__": discovered_sibling_cards,
                 "__t0__": _t0,
             }
+            _init_experiment_and_receipt(
+                state, context, experiment=_experiment, receipts=_receipts_cfg, steps=steps, personas=self.personas,
+                asset_key=_receipt_asset, partition_key=partition_key)
 
             steps_to_run_set = set(steps_to_run_ids)
             for step in steps:
@@ -7023,7 +7582,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 if sink["from"] not in state:
                     continue  # subset skipped this step; skip its sink too
                 from_id = sink["from"]
-                path = _apply_ctx_substitutions(sink["path"], partition_key, partition_fields)
+                path = _sink_path(sink["path"], state, partition_key, partition_fields)
                 if from_id not in state:
                     raise ValueError(f"text_sinks: unknown step id {from_id!r}")
                 text = state[from_id].get("text", "") if isinstance(state[from_id], dict) else str(state[from_id])
@@ -7041,13 +7600,13 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 from_id = sink["from"]
                 if from_id not in state:
                     continue  # subset skipped this step; skip its sink too
-                path = _apply_ctx_substitutions(sink["path"], partition_key, partition_fields)
+                path = _sink_path(sink["path"], state, partition_key, partition_fields)
                 parent = os.path.dirname(path)
                 if parent:
                     os.makedirs(parent, exist_ok=True)
                 _pol_path(path, "write")
                 with open(path, "w") as f:
-                    json.dump(state[from_id], f, indent=2, default=str)
+                    json.dump(_sink_entry(state[from_id], state), f, indent=2, default=str)
                 context.log.info(f"json_sink {from_id!r} → {path}")
 
             # Emit assets in declared order — subset only emits SELECTED
@@ -7073,7 +7632,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             # positional tuple return would need to line up with declared
             # outs order, which subset mode breaks. Yielding is the modern
             # multi_asset pattern anyway.
-            _pv = prompt_versions({"steps": steps, "personas": self.personas})
+            _pv = prompt_versions({"steps": _effective_steps(steps, state.get("__experiment__")), "personas": self.personas})
             _snap = _ledger_snapshot(self.policy, state)
             for aid in asset_ids_to_emit:
                 entry = state[aid]
@@ -7148,6 +7707,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             partitions_def=_partitions_def,
             backfill_policy=_backfill_policy,
             can_subset=True,
+            required_resource_keys=_required_keys or None,
         )
         def _pipeline(context: dg.AssetExecutionContext, **kwargs):
             # File/URL/database ingest and the text/json sinks run in here, outside any step, so the policy
@@ -7156,7 +7716,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             with _policy_scope(self.policy, usage):
                 yield from _pipeline_impl(context, **kwargs)
 
-        return dg.Definitions(assets=[_pipeline])
+        return dg.Definitions(assets=[_pipeline], asset_checks=_asset_checks)
 
     # ── Per-step-ops build path ──────────────────────────────────────
     #
@@ -7182,8 +7742,14 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         partition_key_parser: Optional[str],
         discovered_sibling_cards: Optional[List[Dict[str, Any]]] = None,
         backfill_policy=None,
+        receipts_cfg: Optional[Dict[str, Any]] = None,
+        experiment: Optional[Dict[str, Any]] = None,
+        receipt_asset: Optional[str] = None,
+        asset_checks: Optional[List[Any]] = None,
+        required_keys: Optional[set] = None,
     ) -> dg.Definitions:
         _self = self  # captured for closure use in ops
+        required_keys = required_keys or set()
         discovered_sibling_cards = discovered_sibling_cards or []
 
         # --- ingest op ---
@@ -7197,7 +7763,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             # Special-case: ingest op has an asset input (the upstream).
             upstream_key = source_config["upstream_asset_key"]
 
-            @dg.op(name=f"{prefix}_ingest", ins={"source": dg.In(dagster_type=Any)})
+            @dg.op(name=f"{prefix}_ingest", ins={"source": dg.In(dagster_type=Any)}, required_resource_keys=required_keys)
             def _ingest_op(context: dg.OpExecutionContext, source):
                 _require_one_partition(context, partitions_def is not None)
                 partition_key = context.partition_key if context.has_partition_key else None
@@ -7213,7 +7779,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     f"[{prefix}_ingest] {len(initial_text)} chars from upstream asset "
                     f"partition_key={partition_key!r}"
                 )
-                return {
+                _st = {
                     "source": initial_entry,
                     "__ctx__": {
                         "partition_key": partition_key,
@@ -7225,8 +7791,12 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     "__sibling_agent_cards__": discovered_sibling_cards,
                     "__t0__": time.time(),
                 }
+                _init_experiment_and_receipt(
+                    _st, context, experiment=experiment, receipts=receipts_cfg, steps=steps, personas=_self.personas,
+                    asset_key=receipt_asset, partition_key=partition_key)
+                return _st
         else:
-            @dg.op(name=f"{prefix}_ingest")
+            @dg.op(name=f"{prefix}_ingest", required_resource_keys=required_keys)
             def _ingest_op(context: dg.OpExecutionContext):
                 _require_one_partition(context, partitions_def is not None)
                 partition_key = context.partition_key if context.has_partition_key else None
@@ -7242,7 +7812,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     f"[{prefix}_ingest] {len(initial_entry.get('text', ''))} chars "
                     f"via {source_kind} partition_key={partition_key!r}"
                 )
-                return {
+                _st = {
                     "source": initial_entry,
                     "__ctx__": {
                         "partition_key": partition_key,
@@ -7255,6 +7825,10 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                     "__sibling_agent_cards__": discovered_sibling_cards,
                     "__t0__": time.time(),
                 }
+                _init_experiment_and_receipt(
+                    _st, context, experiment=experiment, receipts=receipts_cfg, steps=steps, personas=_self.personas,
+                    asset_key=receipt_asset, partition_key=partition_key)
+                return _st
 
         # --- step ops (one per step) ---
         # Each takes prior state, runs its step, returns updated state.
@@ -7265,7 +7839,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             step_id = step["id"]
             op_name = f"{prefix}_{step_id}"
 
-            @dg.op(name=op_name)
+            @dg.op(name=op_name, required_resource_keys=required_keys)
             def _step_op(context: dg.OpExecutionContext, state: Dict[str, Any]) -> Dict[str, Any]:
                 # State comes in from the IO manager (a fresh dict each hop
                 # is what we want anyway). _run_step mutates in place.
@@ -7282,7 +7856,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         # Yields one Output per declared asset, with full metadata.
         extract_outs = {f"{prefix}_{aid}": dg.Out(is_required=False) for aid in asset_ids}
 
-        @dg.op(name=f"{prefix}_extract", out=extract_outs)
+        @dg.op(name=f"{prefix}_extract", out=extract_outs, required_resource_keys=required_keys)
         def _extract_op(context: dg.OpExecutionContext, state: Dict[str, Any]):
             partition_key = context.partition_key if context.has_partition_key else None
             partition_fields = _parse_partition_key(partition_key, partition_key_parser)
@@ -7291,7 +7865,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 # Sinks (same code as single-op path).
                 for sink in text_sinks:
                     from_id = sink["from"]
-                    path = _apply_ctx_substitutions(sink["path"], partition_key, partition_fields)
+                    path = _sink_path(sink["path"], state, partition_key, partition_fields)
                     if from_id not in state:
                         raise ValueError(f"text_sinks: unknown step id {from_id!r}")
                     text = state[from_id].get("text", "") if isinstance(state[from_id], dict) else str(state[from_id])
@@ -7306,7 +7880,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 for sink in json_sinks:
                     import json as _json
                     from_id = sink["from"]
-                    path = _apply_ctx_substitutions(sink["path"], partition_key, partition_fields)
+                    path = _sink_path(sink["path"], state, partition_key, partition_fields)
                     if from_id not in state:
                         raise ValueError(f"json_sinks: unknown step id {from_id!r}")
                     parent = os.path.dirname(path)
@@ -7314,7 +7888,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                         os.makedirs(parent, exist_ok=True)
                     _pol_path(path, "write")
                     with open(path, "w") as f:
-                        _json.dump(state[from_id], f, indent=2, default=str)
+                        _json.dump(_sink_entry(state[from_id], state), f, indent=2, default=str)
                     context.log.info(f"json_sink {from_id!r} → {path}")
 
             # Emit each declared asset as its own Output with metadata.
@@ -7322,7 +7896,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             if missing:
                 raise ValueError(f"outputs.assets references unknown step ids: {missing}")
 
-            _pv = prompt_versions({"steps": steps, "personas": _self.personas})
+            _pv = prompt_versions({"steps": _effective_steps(steps, state.get("__experiment__")), "personas": _self.personas})
             _snap = _ledger_snapshot(_self.policy, state)
             for aid in asset_ids:
                 entry = state[aid]
@@ -7360,4 +7934,4 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             # picks them up by asset name.
             return _extract_op(state)
 
-        return dg.Definitions(assets=[_pipeline_graph])
+        return dg.Definitions(assets=[_pipeline_graph], asset_checks=asset_checks or [])

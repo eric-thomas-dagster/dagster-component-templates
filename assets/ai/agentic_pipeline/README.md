@@ -99,12 +99,66 @@ excluded. Name a version yourself with `version: v3` on the step (or on its `per
 detectable. `prompt_versions({"steps": [...], "personas": {...}})` is a pure module-level helper returning `{step_id: {version, hash}}`.
 Each step's Dagster `code_version` hashes that step with *its own* persona resolved plus the non-budget policy, so editing one prompt (or
 one persona) changes only the steps that use it, and Dagster then marks that asset stale and, once it is re-materialized, its downstream;
-tuning a budget cap changes no version. A later A/B feature keys outcomes by `(step_id, agentic_prompt_version)` read from materialization
-metadata.
+tuning a budget cap changes no version. The A/B experiments below key their outcomes by these versions.
 
 This is enforcement at the component boundary, **not an OS sandbox**: an MCP stdio server still runs with the worker's OS
 permissions (the policy controls its environment and which of its tools the model may call). In `per_step_ops` mode the
 usage counters travel with the pipeline state, so budgets are still run-wide.
+
+### A/B a prompt or model, judged by real outcomes
+
+```yaml
+type: ...AgenticPipelineComponent
+attributes:
+  asset_name_prefix: support
+  partition_type: daily
+  partition_start: "2026-01-01"
+  source: {kind: file, path: "tickets/{partition_key}.txt"}
+  steps:
+    - {id: draft, op: llm_call, model: gpt-4o-mini, prompt_template: "Reply to: {text}"}
+  outputs:
+    assets: [draft]
+    json_sinks: [{from: draft, path: "replies/{partition_key}-{receipt_id}.json"}]   # the id feedback must carry back
+  receipts:                         # ONE generation receipt per run, in your ContextReceiptStoreComponent
+    resource_key: context_receipts
+    outcome_signals: {approve: true}          # optional: approve decisions become outcomes automatically
+  experiments:
+    - name: bigger-model
+      steps: [draft]                          # candidate overrides may touch ONLY these steps
+      variants: {gpt4o: {draft: {model: gpt-4o, temperature: 0.2}}}   # control = the config above
+      fraction: 0.3                           # share of units that get the candidate
+      seed: 7                                 # same (seed, name, partition) -> same variant, forever
+      min_outcomes: 30
+      promote_when: {confidence: 0.9, min_outcomes: 60}
+```
+
+Feed real feedback (thumbs, edits, escalations) back with `receipt_outcome_ingestion` (`mapping.receipt_id` = the `receipt_id` the sink wrote).
+The WARN check `experiment_verdict` then reads `outcome_samples_by_code_version` for the control and candidate prompt versions and reports
+`verdict` (`candidate_better` / `live_better` meaning control better / `inconclusive` / `insufficient_evidence`), `diff`, `ci_low` / `ci_high`,
+`p_candidate_better`, `n_control` / `n_candidate`, `ready_to_promote` (needs `promote_when`) and mean cost per variant (from the
+`agentic_cost_usd` materialization metadata). It never promotes anything: you edit the base config yourself. The statistics are the same bootstrap
+as `rag_pipeline`'s `shadow_vs_live` (an inlined, drift-tested copy).
+
+Things to know:
+
+- **Assignment** is `sha256(seed|name|unit key) < fraction`; `unit: partition` (default for partitioned pipelines) keeps a partition on one variant across
+  re-runs, `unit: run` re-rolls on every run (a re-run can flip sides). Not a stratified split: small fractions of few partitions can be lopsided.
+- **What is recorded.** The receipt item's `source_code_version` is the combined prompt version of the experimented steps *under the assigned variant*
+  (`id=version+id=version` for several), purpose `experiment:<name>:<variant>`; without an experiment it is a hash of every LLM step's version, purpose
+  `generation`. Metadata on every emitted asset: `receipt_id`, `agentic_experiment`, `agentic_experiment_variant`, `agentic_receipt_code_version`, and the
+  effective `agentic_prompt_version(s)`. The assets' Dagster `code_version` is the BASE config's, so running an experiment never marks anything stale.
+  Editing a step you did NOT list while the experiment runs pools both recipes under the same versions; stop and restart the experiment instead.
+- **Overrides**: `model`, `prompt_template`, `system_prompt` (`system`), `temperature`, `persona`, `version`, `max_tokens`, `api_key_env_var`, `api_base_env_var`.
+  A variant must change the prompt version (identical overrides are rejected at load). Steps that set the model in a nested config (`route`, `debate`, ...)
+  cannot be experimented on. A `persona` override only fills fields the step does not set inline (explicit step fields always win over a persona).
+  `policy` and budgets apply to both variants unchanged.
+- **Outcome signals** (`receipts.outcome_signals`, opt-in): `approve` decided approved -> `accepted` (0.5) / rejected -> `escalated` (-0.7) (timeouts and
+  `pending` record nothing unless you map `timeout: <value>`); `verify` pass +0.5 / fail -0.7; `eval` overall scaled from `min..max` (default `1..scale`)
+  to [-1, 1]. Each carries `outcome_ref: auto:<step>:<kind>` so an op retry supersedes itself. A receipt's effective outcome is the MEAN of its outcomes, so
+  auto signals average with real downstream feedback on the same receipt. `verify` / `eval` are model-judged proxies, not real outcomes; the pipeline refuses
+  to experiment on the judge step whose result is the signal. `approve` human decisions are the closest thing to a real outcome the pipeline sees itself.
+- **Failure**: a store error is logged and the run carries on (`receipt_id` shows `unrecorded`) unless `receipts.fail_on_error: true`.
+- Not verified here: a real warehouse-backed (BigQuery/SQL) store and a real Dagster+ instance for the cost lookup (tested on SQLite and an ephemeral instance).
 
 ## Why Dagster (not just a job runner)
 
@@ -1222,6 +1276,8 @@ This is the "compose it all yourself in one YAML" alternative — the AI-side ma
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `policy` | `Dict[str, Any]` | — | Guardrails on what this pipeline will do on the agent's behalf; omitted = no restrictions. Sections (all optional): `on_violation: fail\|warn` (default fail); `env.allow: [NAME, 'PREFIX_*']` (env vars the pipeline may re… _(full docs in schema.json + component README)_ |
+| `receipts` | `Dict[str, Any]` | — | One generation receipt per run in a ContextReceiptStore resource (`resource_key`, `caller_id`, `policy_version`, `fail_on_error`, `outcome_signals`); see "A/B a prompt or model". |
+| `experiments` | `List[Dict[str, Any]]` | — | One A/B experiment: `{name, steps, variants, fraction, seed, unit, min_outcomes, margin, window_days, promote_when, ...}`; adds the WARN check `experiment_verdict` with `receipts`. |
 | `personas` | `Dict[str, Dict[str, Any]]` | — | Named reusable LLM sub-configs. Each persona bundles `{model, api_key_env_var, api_base_env_var, system_prompt, temperature, max_tokens, reasoning_effort, thinking_budget}`. Reference from any step / sub-config via `pers… _(full docs in schema.json + component README)_ |
 | `agents` | `Dict[str, Dict[str, Any]]` | — | Named pre-built agents. Each entry declares `kind:` plus kind-specific connection config. Reference from a step via `op: agent_call, agent: <name>`. Supported kinds: `openai_assistant` (assistant_id + api_key_env_var — c… _(full docs in schema.json + component README)_ |
 | `per_step_ops` | `bool` | `false` | When True, emit as a `@dg.graph_multi_asset` with one @op per step (visible in the Runs page + finer-grained retry). State dict flows through the IO manager between ops. Default False keeps the single-op @multi_asset sha… _(full docs in schema.json + component README)_ |

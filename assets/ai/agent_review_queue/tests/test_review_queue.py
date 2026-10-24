@@ -159,3 +159,25 @@ def test_config_validation(mod, tmp_path):
 def test_loose_field_shapes_are_accepted(mod, tmp_path):
     c = mod.AgentReviewQueueComponent(approval_dirs=[str(tmp_path)], kinds="agent, review", owners="team:ai", asset_tags={"n": 1})
     assert c.kinds == ["agent", "review"] and c.owners == ["team:ai"] and c.asset_tags == {"n": "1"}
+
+
+def test_parked_requests_show_checkpoint_age_and_resume_count(mod, agentic, tmp_path):
+    """A request whose run ENDED at an `approve: {mode: park}` gate: parked, how old its checkpoint is, how many resumes it has used."""
+    ctx = SimpleNamespace(log=logging.getLogger("t"), run_id="run-1", instance=None)
+    state = {"source": {"text": "payload"}, "draft": {"text": "Refund $120?"}, "__ctx__": {"partition_key": None, "partition_fields": None},
+             "__pipeline__": {"prefix": "q", "asset": "q_draft"}}
+    gate = {"id": "gate", "op": "approve", "source": "draft", "approval_dir": str(tmp_path), "key": "REF-1", "mode": "park", "park_expires_hours": 4}
+    agentic._run_step(gate, state, ctx)
+    agentic._park_write_checkpoint(state, ctx, asset_ids=["draft"], selected_outputs=None, pipeline_version="v", pv={})
+    ask(agentic, tmp_path, "OTHER", "A plain wait-mode request")           # not parked
+
+    df = queue_df(materialize(component(mod, [tmp_path]))).set_index("key")
+    row = df.loc["REF-1"]
+    assert bool(row["parked"]) and row["resume_count"] == 0 and 0 <= row["checkpoint_age_minutes"] < 5
+    assert row["checkpoint_id"].startswith("q.gate.REF-1.") and row["expires_at"]
+    assert not bool(df.loc["OTHER"]["parked"]) and pd.isna(df.loc["OTHER"]["resume_count"])
+
+    agentic._load_resumed_state(ctx, dirs=[str(tmp_path / "checkpoints")], ckpt_id=row["checkpoint_id"], base_state={}, partition_key=None,
+                                pipeline_version="v")
+    df = queue_df(materialize(component(mod, [tmp_path]))).set_index("key")
+    assert df.loc["REF-1"]["resume_count"] == 1

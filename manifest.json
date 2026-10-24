@@ -2079,9 +2079,11 @@
                   "enum": [
                     "reject",
                     "approve",
-                    "pending"
+                    "pending",
+                    "fail"
                   ],
-                  "default": "reject"
+                  "default": "reject",
+                  "description": "What to do when nobody decided in time: reject/approve apply that decision (reject then follows on_reject), fail always stops the pipeline, pending leaves it undecided. With mode: park the SENSOR triggers it when park_expires_hours has passed (pending never expires)."
                 },
                 "on_reject": {
                   "enum": [
@@ -2089,6 +2091,29 @@
                     "continue"
                   ],
                   "default": "stop"
+                },
+                "mode": {
+                  "enum": [
+                    "wait",
+                    "park"
+                  ],
+                  "default": "wait",
+                  "description": "wait: the run polls the approval store for wait_seconds (holds a worker). park: the run checkpoints its state and ENDS at the gate; a generated sensor (<asset>_approval_resume_sensor) starts a NEW run that continues after the gate once the approval is written. Steps after the gate are not materialized by the parked run."
+                },
+                "checkpoint_dir": {
+                  "type": "string",
+                  "description": "mode: park only. Directory or fsspec URI for the JSON checkpoints. Default: <approval_dir>/checkpoints."
+                },
+                "park_expires_hours": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "mode: park only. After this long without a decision the sensor resumes the run to apply on_timeout. Default: no expiry."
+                },
+                "max_resumes": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "default": 3,
+                  "description": "mode: park only. Resume attempts a checkpoint gets (a resumed run that fails leaves it resumable) before it needs a person."
                 }
               },
               "additionalProperties": false

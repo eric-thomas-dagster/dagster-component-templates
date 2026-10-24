@@ -86,6 +86,24 @@ def _parse_ts(value: Any) -> Optional[datetime]:
         return None
 
 
+def _checkpoint_facts(rec: Dict[str, Any], now: datetime) -> Dict[str, Any]:
+    """For a request parked by `approve: {mode: park}`: how old its checkpoint is and how many resume attempts it has used
+    (read from the checkpoint file the pending record points at; None when it cannot be read)."""
+    out: Dict[str, Any] = {"parked": bool(rec.get("parked")), "checkpoint_age_minutes": None, "resume_count": None, "checkpoint_id": rec.get("checkpoint_id")}
+    if not rec.get("parked") or not rec.get("checkpoint_dir") or not rec.get("checkpoint_id"):
+        return out
+    try:
+        store = _Store(rec["checkpoint_dir"])
+        p = f"{store.root}/{rec['checkpoint_id']}.json"
+        ck = json.loads(store.read_text(p))
+    except (OSError, ValueError):
+        return out
+    created = _parse_ts(ck.get("created_at"))
+    out["checkpoint_age_minutes"] = round((now - created).total_seconds() / 60.0, 2) if created else None
+    out["resume_count"] = ck.get("resume_count")
+    return out
+
+
 def _collect_pending(approval_dirs: List[str], overdue_after_minutes: float, now: Optional[datetime] = None) -> List[Dict[str, Any]]:
     now = now or datetime.now(timezone.utc)
     rows: List[Dict[str, Any]] = []
@@ -97,7 +115,8 @@ def _collect_pending(approval_dirs: List[str], overdue_after_minutes: float, now
             except (OSError, json.JSONDecodeError):
                 rows.append({"approval_dir": root, "key": Path(path).stem, "step": None, "summary": "(unreadable pending record)",
                              "requested_at": None, "expires_at": None, "age_minutes": None, "overdue": True,
-                             "on_timeout": None, "approve_path": None, "state": "unreadable", "reason": None, "outcome": None})
+                             "on_timeout": None, "approve_path": None, "state": "unreadable", "reason": None, "outcome": None,
+                             "parked": False, "checkpoint_age_minutes": None, "resume_count": None, "checkpoint_id": None})
                 continue
             requested = _parse_ts(rec.get("requested_at"))
             expires = _parse_ts(rec.get("expires_at"))
@@ -111,6 +130,8 @@ def _collect_pending(approval_dirs: List[str], overdue_after_minutes: float, now
                 # new = first request; stale = a token exists but the input changed / has no fingerprint; expired = token older
                 # than max_age_hours; consumed = a reuse:once approval was already spent. `reason` is the exact explanation.
                 "state": rec.get("state") or "new", "reason": rec.get("reason"), "outcome": rec.get("outcome"),
+                # parked = the run ended at the gate (no worker held); a sensor resumes it when the approval is written
+                **_checkpoint_facts(rec, now),
             })
     return rows
 
@@ -121,7 +142,9 @@ class AgentReviewQueueComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Columns include `state` (new | stale | expired | consumed: why approval is being requested again for a key that already had a
     token) and `reason` (the exact explanation, e.g. 'input changed since approval'); `outcome` is `timeout_default_reject` for a
-    request nobody answered in time (it stays queued so it can still be approved as written)."""
+    request nobody answered in time (it stays queued so it can still be approved as written). `parked` is true for a request whose run
+    ENDED at an `approve: {mode: park}` gate (no worker is waiting; a sensor resumes the pipeline once the approval is written);
+    `checkpoint_age_minutes` and `resume_count` (resume attempts already used) come from its checkpoint."""
 
     asset_name: str = Field(default="agent_review_queue", description="Dagster asset name")
     approval_dirs: List[str] = Field(
@@ -170,7 +193,8 @@ class AgentReviewQueueComponent(dg.Component, dg.Model, dg.Resolvable):
             import pandas as pd
             rows = _collect_pending(dirs, overdue_after)
             df = pd.DataFrame(rows, columns=["approval_dir", "key", "step", "summary", "requested_at", "expires_at",
-                                              "age_minutes", "overdue", "on_timeout", "approve_path", "state", "reason", "outcome"])
+                                              "age_minutes", "overdue", "on_timeout", "approve_path", "state", "reason", "outcome",
+                                              "parked", "checkpoint_age_minutes", "resume_count", "checkpoint_id"])
             overdue = df[df["overdue"]] if len(df) else df
             ages = df["age_minutes"].dropna() if len(df) else df.get("age_minutes", [])
             md: Dict[str, Any] = {
@@ -178,10 +202,11 @@ class AgentReviewQueueComponent(dg.Component, dg.Model, dg.Resolvable):
                 "pending_count": dg.MetadataValue.int(len(df)),
                 "overdue_count": dg.MetadataValue.int(len(overdue)),
                 "oldest_age_minutes": dg.MetadataValue.float(float(max(ages)) if len(ages) else 0.0),
+                "parked_count": dg.MetadataValue.int(int(df["parked"].sum()) if len(df) else 0),
                 "re_requested_count": dg.MetadataValue.int(int(df["state"].isin(["stale", "expired", "consumed"]).sum()) if len(df) else 0),
             }
             if len(df):
-                md["queue"] = dg.MetadataValue.md(df[["key", "step", "state", "reason", "age_minutes", "overdue", "summary"]].head(50).to_markdown(index=False))
+                md["queue"] = dg.MetadataValue.md(df[["key", "step", "state", "parked", "resume_count", "reason", "age_minutes", "overdue", "summary"]].head(50).to_markdown(index=False))
             yield dg.Output(df, metadata=md)
             yield dg.AssetCheckResult(
                 check_name=check_name, passed=len(overdue) == 0, severity=severity,

@@ -146,7 +146,23 @@ def _build(folder, monkeypatch, extra):
     spec = importlib.util.spec_from_file_location(f"ing_{folder.name}", folder / "component.py")
     mod = importlib.util.module_from_spec(spec)
     monkeypatch.setitem(sys.modules, spec.name, mod)  # dlt resolves a resource function's module through sys.modules
+    # Python's import machinery caches every fabricated dlt.sources.* module straight into sys.modules as a
+    # side effect of exec_module() -- that's NOT something monkeypatch tracks (we never set those keys
+    # ourselves), so without this cleanup a fabricated stub from THIS component's import would silently
+    # outlive the test and get reused by any later test/component in the same pytest session that imports
+    # the same dlt.sources.* path, rather than getting its own fresh fabrication.
+    _modules_before = set(sys.modules)
     spec.loader.exec_module(mod)
+    for _name in set(sys.modules) - _modules_before:
+        if not _name.startswith("dlt.sources."):
+            continue
+        # Only clean up modules THIS finder actually fabricated (its own __loader__) -- several
+        # components use dlt's own REAL, built-in dlt.sources.rest_api (genuinely installed, not
+        # something that needs fabrication); deleting a real module here would force a pointless
+        # re-import for no reason, and genuinely-registered global state in other real dlt.sources.*
+        # submodules could misbehave the same way re-executing real protobuf-generated code does.
+        if isinstance(getattr(sys.modules.get(_name), "__loader__", None), _FakeSourcesFinder):
+            del sys.modules[_name]
     monkeypatch.setattr(mod.dlt, "pipeline", lambda **kw: _Pipeline(**kw))
     import dlt.sources.rest_api as _rest_api
 

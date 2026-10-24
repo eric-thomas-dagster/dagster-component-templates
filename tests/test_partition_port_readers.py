@@ -261,11 +261,37 @@ def _substituted(rel, monkeypatch, tmp_path, partitioned=True):
             results.append(arg)
 
     sys.setprofile(prof)
+    _modules_before = set(sys.modules)
     try:
         dg.materialize([asset], raise_on_error=False, resources=resources, **({"partition_key": "2026-01-03"} if partitioned else {}))
     finally:
         sys.setprofile(None)
         signal.alarm(0)
+        # Python's import machinery caches every module _MissingModules fabricates straight into
+        # sys.modules as a side effect of the lazy `import boto3`/etc. inside the asset's compute
+        # function -- that's not something monkeypatch tracks, so without this cleanup a fabricated
+        # stub for a TOP-LEVEL name as common as boto3/botocore/azure/pymysql/polars would silently
+        # outlive this test and poison every later test/component in the same pytest session that
+        # expects the real library (or a real ImportError) instead of this permissive fake.
+        for _name in set(sys.modules) - _modules_before:
+            _mod = sys.modules.get(_name)
+            # Only clean up modules THIS finder actually fabricated (its own __loader__) -- a real,
+            # genuinely-installed submodule under a watched prefix (e.g. google.protobuf.timestamp_pb2,
+            # when google.protobuf itself is really installed) must never be touched: protobuf's
+            # generated code registers message types into a process-wide descriptor pool that raises on
+            # re-registration, so forcing a real protobuf module to re-import crashes outright.
+            if not isinstance(getattr(_mod, "__loader__", None), _MissingModules):
+                continue
+            _mod = sys.modules.pop(_name)
+            # A successful `import pkg.sub` also sets `sub` as an attribute on the parent module
+            # object -- deleting only the sys.modules entry leaves that attribute stale, so a later
+            # `from pkg import sub` can still resolve the fabricated submodule via the parent without
+            # re-importing at all.
+            if "." in _name:
+                _parent_name, _attr = _name.rsplit(".", 1)
+                _parent = sys.modules.get(_parent_name)
+                if _parent is not None and getattr(_parent, _attr, None) is _mod:
+                    delattr(_parent, _attr)
     return results
 
 

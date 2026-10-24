@@ -24,6 +24,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.10", "3.12"]
+        shard: [0, 1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -53,12 +54,19 @@ jobs:
                      "google-cloud-speech>=2.20.0" dagster-iceberg; do
             pip install $pkg || echo "::warning::could not install $pkg; its contract tests will skip"
           done
-      - name: Discover every committed tests/ directory
+      - name: Discover this shard's tests/ directories
+        # Sharded across 6 groups (x2 Python versions = 12 jobs): running all ~500 directories in ONE
+        # pytest process segfaulted partway through (confirmed locally, reproducibly, around the same
+        # point each time -- a tqdm background-monitor-thread crash, almost certainly from however much
+        # global/native-extension state (C-extension SDKs, thread pools, etc.) accumulates over a single
+        # process running hundreds of unrelated test files back to back). Splitting into several smaller,
+        # isolated processes sidesteps that entirely -- a crash in one shard doesn't lose the other 5 --
+        # and runs faster too, via real parallelism instead of one long serial pass.
         run: |
           find . -type d \( -name ".venv" -o -name "node_modules" -o -name "__pycache__" -o -name "site-packages" -o -name "dist" \) -prune \
-                 -o -type d -name "tests" -print | sort > all_test_dirs.txt
-          echo "Found $(wc -l < all_test_dirs.txt) tests/ directories"
-      - name: Run every component's own test suite
+                 -o -type d -name "tests" -print | sort | awk -v shard=${{ matrix.shard }} -v total=6 'NR % total == shard' > shard_test_dirs.txt
+          echo "Shard ${{ matrix.shard }}: $(wc -l < shard_test_dirs.txt) tests/ directories"
+      - name: Run this shard's test suites
         # --import-mode=importlib: hundreds of these directories are all literally named "tests" with no
         # __init__.py. The default "prepend" import mode resolves modules by inserting each file's parent dir
         # into sys.path and importing by bare basename, which collides the first time two different "tests"
@@ -68,5 +76,5 @@ jobs:
         # the collision entirely -- this is the documented fix for exactly this class of pytest problem.
         # --continue-on-collection-errors: there will always be a long tail of rare optional deps not
         # worth chasing one at a time -- one component's missing/broken import should skip that file,
-        # not abort collection of the other 500+ directories' worth of real tests.
-        run: python -m pytest $(cat all_test_dirs.txt) -q -p no:cacheprovider -W ignore --import-mode=importlib --continue-on-collection-errors
+        # not abort collection of the rest of this shard's real tests.
+        run: python -m pytest $(cat shard_test_dirs.txt) -q -p no:cacheprovider -W ignore --import-mode=importlib --continue-on-collection-errors

@@ -132,9 +132,9 @@ def test_check_specs_omitted_when_disabled(mod):
     assert list(assets_def.check_keys) == []
 
 
-def _run_materialize(mod, assets_def, *, run_status="completed", has_test_failures=False,
+def _run_materialize(mod, assets_def, monkeypatch, *, run_status="completed", has_test_failures=False,
                       token_env_var="COALESCE_TEST_TOK", results_called=None):
-    os.environ[token_env_var] = "secret-token"
+    monkeypatch.setenv(token_env_var, "secret-token")
     calls = []
 
     def fake_post(url, headers=None, json=None, timeout=None):
@@ -153,44 +153,44 @@ def _run_materialize(mod, assets_def, *, run_status="completed", has_test_failur
             return FakeResponse({"data": [{"nodeID": "n1", "hasTestFailures": has_test_failures}]})
         raise AssertionError(f"unexpected GET {url}")
 
-    mod.requests.post = fake_post
-    mod.requests.get = fake_get
+    monkeypatch.setattr(mod.requests, "post", fake_post)
+    monkeypatch.setattr(mod.requests, "get", fake_get)
     result = dg.materialize([assets_def], raise_on_error=False)
     return result, calls
 
 
-def test_materialize_surfaces_passing_test_check(mod):
+def test_materialize_surfaces_passing_test_check(mod, monkeypatch):
     assets_def = _single_node_defs(mod)
-    result, _ = _run_materialize(mod, assets_def, has_test_failures=False)
+    result, _ = _run_materialize(mod, assets_def, monkeypatch, has_test_failures=False)
     assert result.success
     evals = result.get_asset_check_evaluations()
     assert len(evals) == 1
     assert evals[0].passed is True
 
 
-def test_materialize_surfaces_failing_test_check_without_failing_run(mod):
+def test_materialize_surfaces_failing_test_check_without_failing_run(mod, monkeypatch):
     """The real Coalesce gating fact this encodes: a node can finish
     `runStatus: completed` while still carrying `hasTestFailures: true`
     (Coalesce's own 'yellow' run state) -- so by default the Dagster run
     still succeeds, with the failure visible only on the check."""
     assets_def = _single_node_defs(mod)  # fail_run_on_test_failure defaults False
-    result, _ = _run_materialize(mod, assets_def, has_test_failures=True)
+    result, _ = _run_materialize(mod, assets_def, monkeypatch, has_test_failures=True)
     assert result.success
     evals = result.get_asset_check_evaluations()
     assert len(evals) == 1
     assert evals[0].passed is False
 
 
-def test_fail_run_on_test_failure_hard_fails_the_run(mod):
+def test_fail_run_on_test_failure_hard_fails_the_run(mod, monkeypatch):
     assets_def = _single_node_defs(mod, fail_run_on_test_failure=True)
-    result, _ = _run_materialize(mod, assets_def, has_test_failures=True)
+    result, _ = _run_materialize(mod, assets_def, monkeypatch, has_test_failures=True)
     assert not result.success
 
 
-def test_emit_test_checks_disabled_skips_results_call(mod):
+def test_emit_test_checks_disabled_skips_results_call(mod, monkeypatch):
     assets_def = _single_node_defs(mod, emit_test_checks=False)
     results_called = []
-    result, _ = _run_materialize(mod, assets_def, results_called=results_called)
+    result, _ = _run_materialize(mod, assets_def, monkeypatch, results_called=results_called)
     assert result.success
     assert results_called == []  # /results never fetched -- no checks to feed
 
@@ -200,19 +200,19 @@ def test_emit_test_checks_disabled_skips_results_call(mod):
 # returns -- real terminal values are "completed"/"failed"/"canceled") and
 # treat "cancelled"/"error" as failure, missing the real one-L "canceled".
 
-def test_completed_status_breaks_the_poll_loop_and_succeeds(mod):
+def test_completed_status_breaks_the_poll_loop_and_succeeds(mod, monkeypatch):
     assets_def = _single_node_defs(mod)
-    result, _ = _run_materialize(mod, assets_def, run_status="completed")
+    result, _ = _run_materialize(mod, assets_def, monkeypatch, run_status="completed")
     assert result.success
 
 
-def test_canceled_one_l_status_is_recognized_as_failure(mod):
+def test_canceled_one_l_status_is_recognized_as_failure(mod, monkeypatch):
     assets_def = _single_node_defs(mod)
-    result, _ = _run_materialize(mod, assets_def, run_status="canceled")
+    result, _ = _run_materialize(mod, assets_def, monkeypatch, run_status="canceled")
     assert not result.success
 
 
-def test_unrecognized_status_eventually_times_out(mod):
+def test_unrecognized_status_eventually_times_out(mod, monkeypatch):
     """A status that never resolves (e.g. stuck "running") must raise once
     `timeout_seconds` elapses, not silently fall through and report
     success -- the pre-fix behavior when polling never found "succeeded"."""
@@ -223,14 +223,14 @@ def test_unrecognized_status_eventually_times_out(mod):
         group_name="coalesce", poll_interval=0.01, timeout=0.02,
     )
     assets_def = next(iter(defs.assets))
-    result, _ = _run_materialize(mod, assets_def, run_status="running")
+    result, _ = _run_materialize(mod, assets_def, monkeypatch, run_status="running")
     assert not result.success
 
 
 # ── Catalog (Castor) metadata enrichment ───────────────────────────────────
 
-def _catalog_resource(mod, token_env_var="CATALOG_TOK"):
-    os.environ[token_env_var] = "catalog-secret"
+def _catalog_resource(mod, monkeypatch, token_env_var="CATALOG_TOK"):
+    monkeypatch.setenv(token_env_var, "catalog-secret")
     return mod.CoalesceResource(
         api_token_env_var="COALESCE_TEST_TOK",
         environment_id="env1",
@@ -243,8 +243,8 @@ def test_get_catalog_table_metadata_returns_none_without_token(mod):
     assert resource.get_catalog_table_metadata("orders") is None
 
 
-def test_get_catalog_table_metadata_picks_exact_case_insensitive_match(mod):
-    resource = _catalog_resource(mod)
+def test_get_catalog_table_metadata_picks_exact_case_insensitive_match(mod, monkeypatch):
+    resource = _catalog_resource(mod, monkeypatch)
 
     def fake_post(url, headers=None, json=None, timeout=None):
         assert "op=getTables" in url
@@ -267,7 +267,7 @@ def test_get_catalog_table_metadata_picks_exact_case_insensitive_match(mod):
             }
         })
 
-    mod.requests.post = fake_post
+    monkeypatch.setattr(mod.requests, "post", fake_post)
     meta = resource.get_catalog_table_metadata("orders")
     assert meta == {
         "table_id": "t-real",
@@ -277,19 +277,19 @@ def test_get_catalog_table_metadata_picks_exact_case_insensitive_match(mod):
     }
 
 
-def test_get_catalog_table_metadata_returns_none_on_error(mod):
-    resource = _catalog_resource(mod)
+def test_get_catalog_table_metadata_returns_none_on_error(mod, monkeypatch):
+    resource = _catalog_resource(mod, monkeypatch)
 
     def fake_post(url, headers=None, json=None, timeout=None):
         return FakeResponse({"errors": [{"message": "boom"}]})
 
-    mod.requests.post = fake_post
+    monkeypatch.setattr(mod.requests, "post", fake_post)
     with pytest.raises(RuntimeError):
         resource.get_catalog_table_metadata("orders")
 
 
-def test_get_catalog_column_lineage_resolves_parent_names(mod):
-    resource = _catalog_resource(mod)
+def test_get_catalog_column_lineage_resolves_parent_names(mod, monkeypatch):
+    resource = _catalog_resource(mod, monkeypatch)
     calls = []
 
     def fake_post(url, headers=None, json=None, timeout=None):
@@ -304,23 +304,23 @@ def test_get_catalog_column_lineage_resolves_parent_names(mod):
             })
         raise AssertionError(f"unexpected call {url}")
 
-    mod.requests.post = fake_post
+    monkeypatch.setattr(mod.requests, "post", fake_post)
     lineage = resource.get_catalog_column_lineage("t-real")
     assert lineage == {"order_id": ["raw_orders.id"]}
 
 
-def test_get_catalog_column_lineage_fails_soft(mod):
-    resource = _catalog_resource(mod)
+def test_get_catalog_column_lineage_fails_soft(mod, monkeypatch):
+    resource = _catalog_resource(mod, monkeypatch)
 
     def fake_post(url, headers=None, json=None, timeout=None):
         raise RuntimeError("network down")
 
-    mod.requests.post = fake_post
+    monkeypatch.setattr(mod.requests, "post", fake_post)
     assert resource.get_catalog_column_lineage("t-real") == {}
 
 
-def test_enrich_nodes_with_catalog_metadata_is_best_effort(mod):
-    resource = _catalog_resource(mod)
+def test_enrich_nodes_with_catalog_metadata_is_best_effort(mod, monkeypatch):
+    resource = _catalog_resource(mod, monkeypatch)
     nodes = [
         {"nodeId": "n1", "name": "good_table"},
         {"nodeId": "n2", "name": "bad_table"},
@@ -340,7 +340,7 @@ def test_enrich_nodes_with_catalog_metadata_is_best_effort(mod):
     def fake_get(*a, **k):
         raise AssertionError("column lineage should not be fetched without a table_id follow-up call issue")
 
-    mod.requests.post = fake_post
+    monkeypatch.setattr(mod.requests, "post", fake_post)
     mod._enrich_nodes_with_catalog_metadata(nodes, resource)
 
     assert nodes[0]["_catalog"]["description"] == "desc"

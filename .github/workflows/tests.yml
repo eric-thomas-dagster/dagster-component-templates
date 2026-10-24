@@ -24,6 +24,9 @@ env:
     assets/ai/agent_review_queue/tests
     assets/ai/receipt_outcome_ingestion/tests
     quickstarts/receipts_learning_loop/tests
+    assets/ai/dagster_instance_tools/tests
+    assets/ai/insights_custom_metrics_sync/tests
+    assets/ai/run_failure_remediation/tests
 
 jobs:
   checks:
@@ -80,7 +83,7 @@ jobs:
       - name: Install vendor client libraries (library-contract tests skip any that is missing)
         # best effort per package: a wheel that is unavailable for this Python must not fail the job, the matching contract tests just skip
         run: |
-          for pkg in dagster-gcp snowflake-connector-python databricks-sql-connector psycopg2-binary pymysql; do
+          for pkg in dagster-gcp snowflake-connector-python databricks-sql-connector psycopg2-binary pymysql mcp graphql-core; do
             pip install "$pkg" || echo "::warning::could not install $pkg; its contract tests will skip"
           done
       - name: Run tests

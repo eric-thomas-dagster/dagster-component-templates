@@ -70,7 +70,7 @@ def test_unknown_region_raises(mod):
 
 # ── Discovery: Tasks + Plans, pagination, selector filtering ───────────────
 
-def test_discover_artifacts_calls_both_tasks_and_plans_endpoints(mod):
+def test_discover_artifacts_calls_both_tasks_and_plans_endpoints(mod, monkeypatch):
     c = _component(mod)
     calls = []
 
@@ -94,7 +94,7 @@ def test_discover_artifacts_calls_both_tasks_and_plans_endpoints(mod):
             })
         raise AssertionError(f"unexpected GET {url}")
 
-    mod.requests.get = fake_get
+    monkeypatch.setattr(mod.requests, "get", fake_get)
     artifacts = c._discover_artifacts()
 
     assert any(u.endswith("/orchestration/executables/tasks") for u in calls)
@@ -106,7 +106,7 @@ def test_discover_artifacts_calls_both_tasks_and_plans_endpoints(mod):
     assert by_id["p1"]["name"] == "plan_one"
 
 
-def test_discover_artifacts_paginates_until_total_reached(mod):
+def test_discover_artifacts_paginates_until_total_reached(mod, monkeypatch):
     c = _component(mod)
     task_pages = [
         {"items": [{"id": "t1", "name": "a"}], "total": 2},
@@ -126,14 +126,14 @@ def test_discover_artifacts_paginates_until_total_reached(mod):
             return FakeResponse(page)
         raise AssertionError(f"unexpected GET {url}")
 
-    mod.requests.get = fake_get
+    monkeypatch.setattr(mod.requests, "get", fake_get)
     artifacts = c._discover_artifacts()
     assert calls["tasks"] == 2  # paginated across both pages
     ids = {a["id"] for a in artifacts}
     assert ids == {"t1", "t2"}
 
 
-def _discover_with(mod, selector=None):
+def _discover_with(mod, monkeypatch, selector=None):
     c = _component(mod, artifact_selector=selector)
 
     def fake_get(url, headers=None, params=None, timeout=None, verify=None):
@@ -150,31 +150,31 @@ def _discover_with(mod, selector=None):
             return FakeResponse({"items": [{"executable": "p1", "name": "etl_plan"}], "total": 1})
         raise AssertionError(f"unexpected GET {url}")
 
-    mod.requests.get = fake_get
+    monkeypatch.setattr(mod.requests, "get", fake_get)
     return c._discover_artifacts()
 
 
-def test_selector_by_kind_filters(mod):
+def test_selector_by_kind_filters(mod, monkeypatch):
     sel = mod.TalendArtifactSelector(by_kind=["route"])
-    artifacts = _discover_with(mod, sel)
+    artifacts = _discover_with(mod, monkeypatch, sel)
     assert {a["id"] for a in artifacts} == {"t3"}
 
 
-def test_selector_include_pattern_filters(mod):
+def test_selector_include_pattern_filters(mod, monkeypatch):
     sel = mod.TalendArtifactSelector(include=["standard/etl_*"])
-    artifacts = _discover_with(mod, sel)
+    artifacts = _discover_with(mod, monkeypatch, sel)
     ids = {a["id"] for a in artifacts}
     assert ids == {"t1", "t2"}
 
 
-def test_selector_exclude_pattern_filters(mod):
+def test_selector_exclude_pattern_filters(mod, monkeypatch):
     sel = mod.TalendArtifactSelector(include=["standard/etl_*"], exclude=["*_test"])
-    artifacts = _discover_with(mod, sel)
+    artifacts = _discover_with(mod, monkeypatch, sel)
     assert {a["id"] for a in artifacts} == {"t1"}
 
 
-def test_no_selector_returns_all(mod):
-    artifacts = _discover_with(mod, None)
+def test_no_selector_returns_all(mod, monkeypatch):
+    artifacts = _discover_with(mod, monkeypatch, None)
     assert {a["id"] for a in artifacts} == {"t1", "t2", "t3", "p1"}
 
 
@@ -224,7 +224,7 @@ def _execute_component(mod, tmp_path, **overrides):
     return c, assets_def
 
 
-def test_selective_materialization_only_executes_selected_asset(mod, tmp_path):
+def test_selective_materialization_only_executes_selected_asset(mod, monkeypatch, tmp_path):
     """Bug fix: materializing one asset out of a multi_asset-backed Talend
     component must only POST an execution for that one artifact -- not for
     every discovered artifact, which was the pre-fix behavior."""
@@ -238,8 +238,8 @@ def test_selective_materialization_only_executes_selected_asset(mod, tmp_path):
     def fake_get(url, headers=None, params=None, timeout=None, verify=None):
         return FakeResponse({"status": "execution_successful"})
 
-    mod.requests.post = fake_post
-    mod.requests.get = fake_get
+    monkeypatch.setattr(mod.requests, "post", fake_post)
+    monkeypatch.setattr(mod.requests, "get", fake_get)
 
     one_key = next(k for k in assets_def.keys if "job_one" in k.path)
     result = dg.materialize(
@@ -249,7 +249,7 @@ def test_selective_materialization_only_executes_selected_asset(mod, tmp_path):
     assert executed_ids == ["t1"]  # only job_one's artifact id, never t2
 
 
-def test_full_materialization_executes_all_selected_artifacts(mod, tmp_path):
+def test_full_materialization_executes_all_selected_artifacts(mod, monkeypatch, tmp_path):
     c, assets_def = _execute_component(mod, tmp_path)
     executed_ids = []
 
@@ -260,8 +260,8 @@ def test_full_materialization_executes_all_selected_artifacts(mod, tmp_path):
     def fake_get(url, headers=None, params=None, timeout=None, verify=None):
         return FakeResponse({"status": "execution_successful"})
 
-    mod.requests.post = fake_post
-    mod.requests.get = fake_get
+    monkeypatch.setattr(mod.requests, "post", fake_post)
+    monkeypatch.setattr(mod.requests, "get", fake_get)
 
     result = dg.materialize([assets_def], raise_on_error=False)
     assert result.success
@@ -270,15 +270,15 @@ def test_full_materialization_executes_all_selected_artifacts(mod, tmp_path):
 
 # ── Execute/poll state machine ──────────────────────────────────────────────
 
-def test_execute_success_status_passes_quality_check(mod, tmp_path):
+def test_execute_success_status_passes_quality_check(mod, monkeypatch, tmp_path):
     c, assets_def = _execute_component(mod, tmp_path)
 
-    mod.requests.post = lambda url, **k: FakeResponse({"executionId": "e1"})
-    mod.requests.get = lambda url, **k: FakeResponse({
+    monkeypatch.setattr(mod.requests, "post", lambda url, **k: FakeResponse({"executionId": "e1"}))
+    monkeypatch.setattr(mod.requests, "get", lambda url, **k: FakeResponse({
         "status": "execution_successful",
         "numberOfProcessedRows": 100,
         "numberOfRejectedRows": 0,
-    })
+    }))
 
     one_key = next(k for k in assets_def.keys if "job_one" in k.path)
     result = dg.materialize([assets_def], selection=[one_key], raise_on_error=False)
@@ -288,32 +288,32 @@ def test_execute_success_status_passes_quality_check(mod, tmp_path):
     assert evals[0].passed is True
 
 
-def test_execute_failed_status_fails_the_run(mod, tmp_path):
+def test_execute_failed_status_fails_the_run(mod, monkeypatch, tmp_path):
     c, assets_def = _execute_component(mod, tmp_path)
 
-    mod.requests.post = lambda url, **k: FakeResponse({"executionId": "e1"})
-    mod.requests.get = lambda url, **k: FakeResponse({
+    monkeypatch.setattr(mod.requests, "post", lambda url, **k: FakeResponse({"executionId": "e1"}))
+    monkeypatch.setattr(mod.requests, "get", lambda url, **k: FakeResponse({
         "status": "execution_failed",
         "errorMessage": "boom",
-    })
+    }))
 
     one_key = next(k for k in assets_def.keys if "job_one" in k.path)
     result = dg.materialize([assets_def], selection=[one_key], raise_on_error=False)
     assert not result.success
 
 
-def test_execution_rejected_succeeds_but_fails_quality_check_by_default(mod, tmp_path):
+def test_execution_rejected_succeeds_but_fails_quality_check_by_default(mod, monkeypatch, tmp_path):
     """Real Talend fact this encodes: `execution_rejected` means the job
     itself completed (just over its own reject threshold), analogous to
     Coalesce's node completing with `hasTestFailures: true`."""
     c, assets_def = _execute_component(mod, tmp_path)
 
-    mod.requests.post = lambda url, **k: FakeResponse({"executionId": "e1"})
-    mod.requests.get = lambda url, **k: FakeResponse({
+    monkeypatch.setattr(mod.requests, "post", lambda url, **k: FakeResponse({"executionId": "e1"}))
+    monkeypatch.setattr(mod.requests, "get", lambda url, **k: FakeResponse({
         "status": "execution_rejected",
         "numberOfProcessedRows": 100,
         "numberOfRejectedRows": 5,
-    })
+    }))
 
     one_key = next(k for k in assets_def.keys if "job_one" in k.path)
     result = dg.materialize([assets_def], selection=[one_key], raise_on_error=False)
@@ -323,33 +323,33 @@ def test_execution_rejected_succeeds_but_fails_quality_check_by_default(mod, tmp
     assert evals[0].passed is False
 
 
-def test_fail_on_rejected_rows_hard_fails_the_run(mod, tmp_path):
+def test_fail_on_rejected_rows_hard_fails_the_run(mod, monkeypatch, tmp_path):
     c, assets_def = _execute_component(mod, tmp_path, fail_on_rejected_rows=True)
 
-    mod.requests.post = lambda url, **k: FakeResponse({"executionId": "e1"})
-    mod.requests.get = lambda url, **k: FakeResponse({
+    monkeypatch.setattr(mod.requests, "post", lambda url, **k: FakeResponse({"executionId": "e1"}))
+    monkeypatch.setattr(mod.requests, "get", lambda url, **k: FakeResponse({
         "status": "execution_rejected",
         "numberOfProcessedRows": 100,
         "numberOfRejectedRows": 5,
-    })
+    }))
 
     one_key = next(k for k in assets_def.keys if "job_one" in k.path)
     result = dg.materialize([assets_def], selection=[one_key], raise_on_error=False)
     assert not result.success
 
 
-def test_execute_times_out_when_status_never_terminal(mod, tmp_path):
+def test_execute_times_out_when_status_never_terminal(mod, monkeypatch, tmp_path):
     c, assets_def = _execute_component(mod, tmp_path, poll_interval_seconds=0, timeout_seconds=1)
 
-    mod.requests.post = lambda url, **k: FakeResponse({"executionId": "e1"})
-    mod.requests.get = lambda url, **k: FakeResponse({"status": "executing"})
+    monkeypatch.setattr(mod.requests, "post", lambda url, **k: FakeResponse({"executionId": "e1"}))
+    monkeypatch.setattr(mod.requests, "get", lambda url, **k: FakeResponse({"status": "executing"}))
 
     one_key = next(k for k in assets_def.keys if "job_one" in k.path)
     result = dg.materialize([assets_def], selection=[one_key], raise_on_error=False)
     assert not result.success
 
 
-def test_execute_routes_plans_to_plan_specific_endpoints(mod, tmp_path):
+def test_execute_routes_plans_to_plan_specific_endpoints(mod, monkeypatch, tmp_path):
     c = _component(mod, action="execute", poll_interval_seconds=0, timeout_seconds=5)
     state_path = _write_state(tmp_path, [
         {"id": "p1", "name": "plan_one", "kind": "plan", "workspace_id": "ws1"},
@@ -368,8 +368,8 @@ def test_execute_routes_plans_to_plan_specific_endpoints(mod, tmp_path):
         get_urls.append(url)
         return FakeResponse({"status": "execution_successful"})
 
-    mod.requests.post = fake_post
-    mod.requests.get = fake_get
+    monkeypatch.setattr(mod.requests, "post", fake_post)
+    monkeypatch.setattr(mod.requests, "get", fake_get)
 
     result = dg.materialize([assets_def], raise_on_error=False)
     assert result.success
@@ -377,7 +377,7 @@ def test_execute_routes_plans_to_plan_specific_endpoints(mod, tmp_path):
     assert get_urls == ["https://api.us.cloud.talend.com/processing/executions/plans/pe1"]
 
 
-def test_execution_parameters_sent_for_tasks(mod, tmp_path):
+def test_execution_parameters_sent_for_tasks(mod, monkeypatch, tmp_path):
     c, assets_def = _execute_component(mod, tmp_path, execution_parameters={"run_date": "2026-01-01"})
     bodies = []
 
@@ -385,23 +385,23 @@ def test_execution_parameters_sent_for_tasks(mod, tmp_path):
         bodies.append(json)
         return FakeResponse({"executionId": "e1"})
 
-    mod.requests.post = fake_post
-    mod.requests.get = lambda url, **k: FakeResponse({"status": "execution_successful"})
+    monkeypatch.setattr(mod.requests, "post", fake_post)
+    monkeypatch.setattr(mod.requests, "get", lambda url, **k: FakeResponse({"status": "execution_successful"}))
 
     one_key = next(k for k in assets_def.keys if "job_one" in k.path)
     dg.materialize([assets_def], selection=[one_key], raise_on_error=False)
     assert bodies[0]["parameters"] == {"run_date": "2026-01-01"}
 
 
-def test_wait_for_completion_false_skips_polling(mod, tmp_path):
+def test_wait_for_completion_false_skips_polling(mod, monkeypatch, tmp_path):
     c, assets_def = _execute_component(mod, tmp_path, wait_for_completion=False)
 
-    mod.requests.post = lambda url, **k: FakeResponse({"executionId": "e1"})
+    monkeypatch.setattr(mod.requests, "post", lambda url, **k: FakeResponse({"executionId": "e1"}))
 
     def fake_get(url, headers=None, params=None, timeout=None, verify=None):
         raise AssertionError("should never poll when wait_for_completion=False")
 
-    mod.requests.get = fake_get
+    monkeypatch.setattr(mod.requests, "get", fake_get)
 
     one_key = next(k for k in assets_def.keys if "job_one" in k.path)
     result = dg.materialize([assets_def], selection=[one_key], raise_on_error=False)
@@ -421,7 +421,7 @@ def _sensor_for(mod, artifacts_meta):
     return c._build_observation_sensor(specs), specs
 
 
-def test_observation_sensor_emits_observations_for_new_terminal_executions(mod):
+def test_observation_sensor_emits_observations_for_new_terminal_executions(mod, monkeypatch):
     sensor_def, specs = _sensor_for(mod, [{"id": "t1", "name": "job_one", "kind": "standard"}])
 
     def fake_get(url, headers=None, params=None, timeout=None, verify=None):
@@ -431,7 +431,7 @@ def test_observation_sensor_emits_observations_for_new_terminal_executions(mod):
              "startTimestamp": "2026-01-01T00:00:00Z", "finishTimestamp": "2026-01-01T00:01:00Z"},
         ]})
 
-    mod.requests.get = fake_get
+    monkeypatch.setattr(mod.requests, "get", fake_get)
     context = dg.build_sensor_context(cursor=None)
     result = sensor_def(context)
     assert len(result.asset_events) == 1
@@ -439,7 +439,7 @@ def test_observation_sensor_emits_observations_for_new_terminal_executions(mod):
     assert cursor_map["t1"] == "2026-01-01T00:01:00Z"
 
 
-def test_observation_sensor_skips_already_seen_executions(mod):
+def test_observation_sensor_skips_already_seen_executions(mod, monkeypatch):
     sensor_def, specs = _sensor_for(mod, [{"id": "t1", "name": "job_one", "kind": "standard"}])
 
     def fake_get(url, headers=None, params=None, timeout=None, verify=None):
@@ -448,14 +448,14 @@ def test_observation_sensor_skips_already_seen_executions(mod):
              "startTimestamp": "2026-01-01T00:00:00Z", "finishTimestamp": "2026-01-01T00:01:00Z"},
         ]})
 
-    mod.requests.get = fake_get
+    monkeypatch.setattr(mod.requests, "get", fake_get)
     cursor = json.dumps({"t1": "2026-01-01T00:01:00Z"})
     context = dg.build_sensor_context(cursor=cursor)
     result = sensor_def(context)
     assert result.asset_events == []
 
 
-def test_observation_sensor_ignores_non_terminal_executions(mod):
+def test_observation_sensor_ignores_non_terminal_executions(mod, monkeypatch):
     sensor_def, specs = _sensor_for(mod, [{"id": "t1", "name": "job_one", "kind": "standard"}])
 
     def fake_get(url, headers=None, params=None, timeout=None, verify=None):
@@ -464,13 +464,13 @@ def test_observation_sensor_ignores_non_terminal_executions(mod):
              "startTimestamp": "2026-01-01T00:00:00Z"},
         ]})
 
-    mod.requests.get = fake_get
+    monkeypatch.setattr(mod.requests, "get", fake_get)
     context = dg.build_sensor_context(cursor=None)
     result = sensor_def(context)
     assert result.asset_events == []
 
 
-def test_observation_sensor_is_resilient_to_per_artifact_failures(mod):
+def test_observation_sensor_is_resilient_to_per_artifact_failures(mod, monkeypatch):
     sensor_def, specs = _sensor_for(mod, [
         {"id": "t1", "name": "job_one", "kind": "standard"},
         {"id": "t2", "name": "job_two", "kind": "standard"},
@@ -484,7 +484,7 @@ def test_observation_sensor_is_resilient_to_per_artifact_failures(mod):
              "startTimestamp": "2026-01-01T00:00:00Z", "finishTimestamp": "2026-01-01T00:01:00Z"},
         ]})
 
-    mod.requests.get = fake_get
+    monkeypatch.setattr(mod.requests, "get", fake_get)
     context = dg.build_sensor_context(cursor=None)
     result = sensor_def(context)
     # t1 failed softly, t2 still produced an observation
@@ -509,14 +509,14 @@ def _materialize_check(check_def, asset_key):
     return dg.materialize([_stub, check_def], raise_on_error=False)
 
 
-def test_freshness_check_passes_within_threshold(mod):
+def test_freshness_check_passes_within_threshold(mod, monkeypatch):
     from datetime import datetime, timezone
     check_def, key = _freshness_check_for(mod, threshold=3600)
     recent = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
-    mod.requests.get = lambda url, **k: FakeResponse({"items": [
+    monkeypatch.setattr(mod.requests, "get", lambda url, **k: FakeResponse({"items": [
         {"status": "execution_successful", "finishTimestamp": recent},
-    ]})
+    ]}))
 
     result = _materialize_check(check_def, key)
     assert result.success
@@ -524,37 +524,37 @@ def test_freshness_check_passes_within_threshold(mod):
     assert evals[0].passed is True
 
 
-def test_freshness_check_fails_when_stale(mod):
+def test_freshness_check_fails_when_stale(mod, monkeypatch):
     check_def, key = _freshness_check_for(mod, threshold=10)
 
-    mod.requests.get = lambda url, **k: FakeResponse({"items": [
+    monkeypatch.setattr(mod.requests, "get", lambda url, **k: FakeResponse({"items": [
         {"status": "execution_successful", "finishTimestamp": "2020-01-01T00:00:00Z"},
-    ]})
+    ]}))
 
     result = _materialize_check(check_def, key)
     evals = result.get_asset_check_evaluations()
     assert evals[0].passed is False
 
 
-def test_freshness_check_fails_when_no_successes_found(mod):
+def test_freshness_check_fails_when_no_successes_found(mod, monkeypatch):
     check_def, key = _freshness_check_for(mod)
 
-    mod.requests.get = lambda url, **k: FakeResponse({"items": []})
+    monkeypatch.setattr(mod.requests, "get", lambda url, **k: FakeResponse({"items": []}))
 
     result = _materialize_check(check_def, key)
     evals = result.get_asset_check_evaluations()
     assert evals[0].passed is False
 
 
-def test_freshness_check_ignores_rejected_executions_as_non_success(mod):
+def test_freshness_check_ignores_rejected_executions_as_non_success(mod, monkeypatch):
     """execution_rejected is terminal-but-flagged -- it should NOT count as a
     fresh success for the freshness check, even though it's in TALEND_SUCCESS
     for the main run-gating logic (Talend's own job did complete)."""
     check_def, key = _freshness_check_for(mod, threshold=10)
 
-    mod.requests.get = lambda url, **k: FakeResponse({"items": [
+    monkeypatch.setattr(mod.requests, "get", lambda url, **k: FakeResponse({"items": [
         {"status": "execution_rejected", "finishTimestamp": "2020-01-01T00:00:00Z"},
-    ]})
+    ]}))
 
     result = _materialize_check(check_def, key)
     evals = result.get_asset_check_evaluations()

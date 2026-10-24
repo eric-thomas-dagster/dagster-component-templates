@@ -627,6 +627,21 @@ group_name=group_name,
                 return df.copy()
             df[_date_col] = pd.to_datetime(df[_date_col], errors="coerce")
             series = df.set_index(_date_col)[_value_col].sort_index()
+            # set_index() never attaches a .freq, even for perfectly regular dates -- statsmodels'
+            # get_forecast() needs one to build its forecast index and raises "No supported index is
+            # available" without it. asfreq() is a no-op on values when the cadence is already regular;
+            # it only introduces gaps (NaNs) if the data genuinely has them, which is the correct signal
+            # to surface rather than silently forecasting past them.
+            _inferred_freq = pd.infer_freq(series.index)
+            _original_dates = series.index
+            if _inferred_freq:
+                series = series.asfreq(_inferred_freq)
+            else:
+                # No single consistent step across the whole series (e.g. dense within a day, then a
+                # gap to the next) -- statsmodels can't build a usable index off that for fit/forecast.
+                # Fit positionally instead; forecast dates are reconstructed below from _original_dates
+                # regardless of which branch ran, so this doesn't change that logic.
+                series = series.reset_index(drop=True)
             if len(series.dropna()) < 5:
                 context.log.warning(
                     f"ets_forecast: only {len(series.dropna())} non-null points; too "
@@ -646,11 +661,12 @@ group_name=group_name,
             # Build the output dataframe based on output_mode first; the metadata
             # block below references it, so it has to exist before we describe it.
             forecast_vals = fitted.forecast(forecast_periods)
-            last_date = series.index[-1]
-            freq = pd.infer_freq(series.index)
-            if freq is None:
-                freq = "ME"
-            future_dates = pd.date_range(start=last_date, periods=forecast_periods + 1, freq=freq)[1:]
+            last_date = _original_dates[-1]
+            if _inferred_freq:
+                future_dates = pd.date_range(start=last_date, periods=forecast_periods + 1, freq=_inferred_freq)[1:]
+            else:
+                _avg_step = (_original_dates[-1] - _original_dates[0]) / max(len(_original_dates) - 1, 1)
+                future_dates = pd.Index([last_date + _avg_step * (i + 1) for i in range(forecast_periods)])
             forecast_df = pd.DataFrame({
                 date_column: future_dates,
                 value_column: forecast_vals.values,

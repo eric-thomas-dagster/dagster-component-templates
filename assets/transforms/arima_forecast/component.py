@@ -639,6 +639,22 @@ group_name=group_name,
                 return df.copy()
             df[_date_col] = pd.to_datetime(df[_date_col], errors="coerce")
             series = df.set_index(_date_col)[_value_col].sort_index()
+            # set_index() never attaches a .freq, even for perfectly regular dates -- statsmodels'
+            # get_forecast() needs one to build its forecast index and raises "No supported index is
+            # available" without it. asfreq() is a no-op on values when the cadence is already regular;
+            # it only introduces gaps (NaNs) if the data genuinely has them, which is the correct signal
+            # to surface rather than silently forecasting past them.
+            _inferred_freq = pd.infer_freq(series.index)
+            _original_dates = series.index
+            _regular_index = bool(_inferred_freq)
+            if _regular_index:
+                series = series.asfreq(_inferred_freq)
+            else:
+                # No single consistent step across the whole series (e.g. dense within a day, then a
+                # gap to the next) -- statsmodels can't build a forecast index off that. Fit positionally
+                # instead and reconstruct forecast dates from the series' own average observed cadence,
+                # rather than crashing with "No supported index is available."
+                series = series.reset_index(drop=True)
             # ARIMA needs ≥ 5-10 points typically; degenerate stub series with
             # 0-1 rows would otherwise crash with cryptic statsmodels errors.
             if len(series.dropna()) < 5:
@@ -649,7 +665,9 @@ group_name=group_name,
                 return df.copy()
 
             arima_order = tuple(order)
-            sarima_order = tuple(seasonal_order) if seasonal_order else None
+            # statsmodels' ARIMA no longer tolerates seasonal_order=None (confirmed on 0.15.0: raises
+            # TypeError internally) -- (0, 0, 0, 0) is its own documented "no seasonality" default.
+            sarima_order = tuple(seasonal_order) if seasonal_order else (0, 0, 0, 0)
 
             model = ARIMA(series, order=arima_order, seasonal_order=sarima_order)
             fitted = model.fit()
@@ -668,7 +686,14 @@ group_name=group_name,
                     "mean_ci_lower": f"{value_column}_lower_{int(confidence_level*100)}",
                     "mean_ci_upper": f"{value_column}_upper_{int(confidence_level*100)}",
                 })
-                forecast_df.index.name = date_column
+                if _regular_index:
+                    forecast_df.index.name = date_column
+                else:
+                    _avg_step = (_original_dates[-1] - _original_dates[0]) / max(len(_original_dates) - 1, 1)
+                    forecast_df.index = pd.Index(
+                        [_original_dates[-1] + _avg_step * (i + 1) for i in range(len(forecast_df))],
+                        name=date_column,
+                    )
                 forecast_df = forecast_df.reset_index()
                 keep_cols = [
                     date_column, value_column,

@@ -56,6 +56,7 @@ attributes:
 |---|---|---|---|
 | `description` | `str` | — | — |
 | `group_name` | `str` | `"sentry"` | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' sends the whole backfill range's rows in one run (the date-window filter already handles a multi-partition range correctly). 'multi_run' launches one run… _(full docs in schema.json + component README)_ |
 
 ### Partitions
 
@@ -85,6 +86,7 @@ attributes:
 | `extra_columns` | `List[str]` | — | Columns to attach as extra (non-indexed) context in each event. |
 | `fingerprint_columns` | `List[str]` | — | Columns to combine into the event fingerprint (drives Sentry grouping). Default is Sentry's automatic grouping. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

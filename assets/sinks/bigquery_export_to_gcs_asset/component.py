@@ -129,6 +129,27 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
         default="exponential",
         description="Backoff strategy: 'linear' or 'exponential'.",
     )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "fires one export covering the whole backfill range (the "
+            "destination_uri's {partition_key} token reflects the full range, "
+            "comma-joined) rather than one export per partition. 'multi_run' "
+            "launches one run per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for Dagster's "
+            "default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set. 'single_run' requires a partition-"
+            "range-aware IO manager (e.g. a DB-table IO manager with "
+            "partition_expr set) -- a generic filesystem/default IO manager "
+            "cannot persist a single_run output spanning multiple partitions "
+            "and will raise a clear error at materialization time."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
 
     freshness_max_lag_minutes: Optional[int] = Field(
         default=None,
@@ -233,6 +254,16 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
         csv_print_header = self.csv_print_header
         overwrite = self.overwrite
 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            from dagster import BackfillPolicy
+            backfill_policy = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            from dagster import BackfillPolicy
+            backfill_policy = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
         @asset(
             key=AssetKey.from_user_string(asset_name),
             description=self.description or f"BQ → GCS export ({out_format}) → {destination_uri}",
@@ -244,6 +275,7 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
             retry_policy=retry_policy,
             freshness_policy=freshness_policy,
             partitions_def=partitions_def,
+            backfill_policy=backfill_policy,
         )
         def _asset(context: AssetExecutionContext):
             try:
@@ -257,7 +289,15 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
             # renders to "gs://bucket/exports/2025-01-15/data_*.parquet" on the
             # 2025-01-15 partition. Templates without {partition_key} pass through
             # unchanged. Safe on unpartitioned assets.
-            partition_key = context.partition_key if context.has_partition_key else None
+            # A single_run backfill hands us a whole partition RANGE (has_partition_key is False,
+            # has_partition_key_range is True) -- fall back to a comma-joined key so {partition_key}
+            # still resolves to something real instead of silently dropping the destination template.
+            if context.has_partition_key:
+                partition_key = context.partition_key
+            elif context.has_partition_key_range:
+                partition_key = ",".join(str(k) for k in context.partition_keys)
+            else:
+                partition_key = None
             if partition_key and "{partition_key}" in destination_uri:
                 resolved_destination = destination_uri.replace("{partition_key}", str(partition_key))
                 context.log.info(

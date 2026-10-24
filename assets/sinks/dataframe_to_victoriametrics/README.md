@@ -31,6 +31,7 @@ Bulk-ingest a Pandas DataFrame as VictoriaMetrics time-series via the Prometheus
 | `owners` | `List[str]` | — | — |
 | `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' writes the whole backfill range's rows in one run (the date-window filter already handles a multi-partition range correctly). 'multi_run' launches one run… _(full docs in schema.json + component README)_ |
 
 ### Partitions
 
@@ -56,6 +57,7 @@ Bulk-ingest a Pandas DataFrame as VictoriaMetrics time-series via the Prometheus
 | `bearer_token_env_var` | `str` | — | Env var with bearer token. |
 | `request_timeout_seconds` | `int` | `60` | — |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

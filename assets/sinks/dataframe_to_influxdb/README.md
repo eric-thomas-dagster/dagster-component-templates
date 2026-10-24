@@ -39,6 +39,7 @@ Bulk-write a Pandas DataFrame to InfluxDB 2.x / 3.x as line-protocol points. Aut
 | `owners` | `List[str]` | — | — |
 | `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' writes the whole backfill range's rows in one run (the date-window filter already handles a multi-partition range correctly). 'multi_run' launches one run… _(full docs in schema.json + component README)_ |
 
 ### Partitions
 
@@ -64,6 +65,7 @@ Bulk-write a Pandas DataFrame to InfluxDB 2.x / 3.x as line-protocol points. Aut
 | `org_env_var` | `str` | `"INFLUXDB_ORG"` | Env var with organization name. |
 | `request_timeout_ms` | `int` | `30000` | — |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

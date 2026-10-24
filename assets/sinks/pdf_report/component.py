@@ -15,7 +15,7 @@ The file is written to `file_path` (local or any fsspec URL — `s3://`,
 Dagster+ Cloud deployments.
 """
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
 from dagster import (
@@ -201,6 +201,22 @@ class PdfReportComponent(Component, Model, Resolvable):
     asset_tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None)
     kinds: Optional[List[str]] = Field(default=None)
     deps: Optional[List[str]] = Field(default=None)
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "renders one PDF covering the whole backfill range's rows (the "
+            "date-window filter already handles a multi-partition range "
+            "correctly). 'multi_run' launches one run per partition (optionally "
+            "capped via backfill_policy_max_partitions_per_run). Leave unset for "
+            "Dagster's default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set or there is no upstream_asset_key."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -239,6 +255,16 @@ class PdfReportComponent(Component, Model, Resolvable):
         # to wire a phantom 'upstream' input when there's no real upstream.
         _has_upstream = bool(self.upstream_asset_key)
 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            from dagster import BackfillPolicy
+            backfill_policy = BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            from dagster import BackfillPolicy
+            backfill_policy = BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
         def _do_render(df: pd.DataFrame, context: AssetExecutionContext) -> str:
             if _self.columns is not None:
                 df = df[[c for c in _self.columns if c in df.columns]]
@@ -257,7 +283,7 @@ class PdfReportComponent(Component, Model, Resolvable):
             return file_path
 
         if _has_upstream:
-            @asset(partitions_def=partitions_def, 
+            @asset(partitions_def=partitions_def,
                 key=AssetKey.from_user_string(asset_name),
                 ins={"upstream": AssetIn(key=AssetKey.from_user_string(self.upstream_asset_key))},
                 group_name=self.group_name,
@@ -265,6 +291,7 @@ class PdfReportComponent(Component, Model, Resolvable):
                 tags=tags,
                 owners=self.owners or [],
                 deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+                backfill_policy=backfill_policy,
             )
             def _asset(context: AssetExecutionContext, upstream: Any) -> str:
                 # Defensive Output/MaterializeResult unwrap — see summarize for the rationale.

@@ -45,6 +45,7 @@ Render an upstream DataFrame to a PDF report file. Drop-in for Alteryx's
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' renders one PDF covering the whole backfill range's rows (the date-window filter already handles a multi-partition range correctly). 'multi_run' launches… _(full docs in schema.json + component README)_ |
 
 ### Partitions
 
@@ -70,6 +71,7 @@ Render an upstream DataFrame to a PDF report file. Drop-in for Alteryx's
 | `rows_per_page` | `int` | `40` | For template='table': max rows per page (chunked into multiple Table flowables). |
 | `columns` | `List[Union[str, int]]` | — | Subset of columns to include. None = all columns. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

@@ -19,7 +19,7 @@ throughput (>1M samples/sec sustained), remote-write is more efficient
 Docs: https://docs.victoriametrics.com/single-server-victoriametrics/#how-to-import-data-in-prometheus-exposition-format
 """
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import dagster as dg
 import pandas as pd
@@ -215,6 +215,22 @@ class DataframeToVictoriaMetricsComponent(dg.Component, dg.Model, dg.Resolvable)
     owners: Optional[List[str]] = Field(default=None)
     tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None)
     kinds: Optional[List[str]] = Field(default=None)
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill execution strategy for a partitioned asset. 'single_run' "
+            "writes the whole backfill range's rows in one run (the date-window "
+            "filter already handles a multi-partition range correctly). "
+            "'multi_run' launches one run per partition (optionally capped via "
+            "backfill_policy_max_partitions_per_run). Leave unset for Dagster's "
+            "default (one run per partition, uncapped). Ignored when "
+            "partition_type is not set."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
+    )
 
     @model_validator(mode="before")
     @classmethod
@@ -241,7 +257,15 @@ class DataframeToVictoriaMetricsComponent(dg.Component, dg.Model, dg.Resolvable)
         kinds = set(self.kinds) if self.kinds else set()
         kinds.add("victoriametrics")
 
-        @dg.asset(partitions_def=partitions_def, 
+        backfill_policy = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            backfill_policy = dg.BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            backfill_policy = dg.BackfillPolicy.multi_run(
+                max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1
+            )
+
+        @dg.asset(partitions_def=partitions_def,
             key=dg.AssetKey.from_user_string(_self.asset_name),
             ins={"upstream": dg.AssetIn(key=dg.AssetKey.from_user_string(_self.upstream_asset_key))},
             group_name=_self.group_name,
@@ -252,6 +276,7 @@ class DataframeToVictoriaMetricsComponent(dg.Component, dg.Model, dg.Resolvable)
                 f"Bulk-ingest DataFrame as VictoriaMetrics metric "
                 f"`{_self.metric_name}` via Prometheus text format."
             ),
+            backfill_policy=backfill_policy,
         )
         def _asset(context: dg.AssetExecutionContext, upstream: Any) -> dg.MaterializeResult:
             # partition bridge dict-concat: when an unpartitioned

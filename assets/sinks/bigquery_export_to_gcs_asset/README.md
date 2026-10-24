@@ -39,8 +39,9 @@ For DataFrame-mediated alternatives (slower but vendor-agnostic), see `dataframe
 | `deps` | `List[str]` | — | — |
 | `description` | `str` | — | — |
 | `group_name` | `str` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `owners` | `List[str]` | — | — |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' fires one export covering the whole backfill range (the destination_uri's {partition_key} token reflects the full range, comma-joined) rather than one exp… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 
@@ -55,7 +56,7 @@ For DataFrame-mediated alternatives (slower but vendor-agnostic), see `dataframe
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
 
 ### Retry policy
 
@@ -86,6 +87,7 @@ For DataFrame-mediated alternatives (slower but vendor-agnostic), see `dataframe
 | `csv_field_delimiter` | `str` | — | CSV-only: field delimiter (default ','). |
 | `csv_print_header` | `bool` | `true` | CSV-only: include the header row. |
 | `overwrite` | `bool` | `true` | Allow overwriting existing GCS objects at the destination URI. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)

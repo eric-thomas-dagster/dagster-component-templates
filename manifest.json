@@ -1399,8 +1399,25 @@
                       "enum": [
                         "stdio",
                         "http",
-                        "sse"
+                        "sse",
+                        "fastmcp"
                       ]
+                    },
+                    "timeout_seconds": {
+                      "type": "number",
+                      "description": "Bounds connect + handshake + the call (default 300); a hung tool is torn down and its stdio subprocess terminated and reaped."
+                    },
+                    "startup_timeout_seconds": {
+                      "type": "number",
+                      "description": "Bounds the MCP initialize handshake (default 60). type: fastmcp only has timeout_seconds."
+                    },
+                    "bearer_env": {
+                      "type": "string",
+                      "description": "type: fastmcp -- env var holding a bearer token; sent as 'Authorization: Bearer <value>'."
+                    },
+                    "config": {
+                      "type": "object",
+                      "description": "type: fastmcp -- inline mcp.json-style {mcpServers: {...}} (a stdio server there gets only the env you list)."
                     },
                     "command": {
                       "type": "array",
@@ -1736,6 +1753,10 @@
                 "finalize_tool_name": {
                   "type": "string",
                   "description": "Name of the synthetic finalize tool the LLM calls to end the loop with a final answer. Default 'finalize'."
+                },
+                "tool_result_max_chars": {
+                  "type": "integer",
+                  "description": "Characters of one tool result shown to the model (default 20000); longer results are cut with a visible '...[truncated: N more chars not shown]' marker. 0 = no cap."
                 }
               },
               "additionalProperties": false

@@ -73,3 +73,32 @@ def new_state(policy=None, text="hello"):
     if policy is not None:
         state["__policy__"] = policy
     return state
+
+
+# ── installed-MCP-major awareness (the MCP client tests run under whichever majors are installed) ──────────────────
+def _dist_major(name):
+    try:
+        from importlib.metadata import version
+        return int(version(name).split(".")[0])
+    except Exception:  # noqa: BLE001
+        return None
+
+
+MCP_MAJOR = _dist_major("mcp")
+FASTMCP_MAJOR = _dist_major("fastmcp")
+
+
+@pytest.fixture(scope="session")
+def mcp_major():
+    """Installed `mcp` major (1 or 2); the MCP client tests assert version-neutral behaviour and use this only for the
+    few facts that really differ per major (skip with pytest.skip, never branch silently)."""
+    if MCP_MAJOR is None:
+        pytest.skip("mcp not installed")
+    return MCP_MAJOR
+
+
+@pytest.fixture(scope="session")
+def fastmcp_major():
+    if FASTMCP_MAJOR is None:
+        pytest.skip("fastmcp not installed")
+    return FASTMCP_MAJOR

@@ -676,10 +676,12 @@ Direct MCP tool call — no LLM, deterministic step. Use for the "fetch groundin
 
 | Field | Required | Default | Description |
 |---|---|---|---|
-| `server` | ✅ | — | MCP server spec: `{name, type: stdio|http|sse, command|url, env|headers|headers_env}`. `env` is a literal dict (no `${VAR}` interpolation — for secrets, leave unset and let the stdio subprocess inherit parent env). `headers_env: {header: env_var_name}` for deferred http/sse secrets. |
+| `server` | ✅ | — | MCP server spec: `{name, type: stdio|http|sse, command|url, env|headers|headers_env}`. `env` is a literal dict (no `${VAR}` interpolation — for secrets, leave unset and let the stdio subprocess inherit parent env). `headers_env: {header: env_var_name}` for deferred http/sse secrets. `type: fastmcp` takes `url` (+ `headers` / `headers_env` / `bearer_env: ENV_VAR` → `Authorization: Bearer …`) or an inline mcp.json-style `config:` (a stdio server there gets only the `env:` you list, not the parent env). Every server entry also takes `timeout_seconds` (default `300`; bounds connect + handshake + the call; a hung tool is torn down and its stdio subprocess terminated and reaped) and `startup_timeout_seconds` (default `60`; the MCP `initialize` handshake — for `type: fastmcp` only `timeout_seconds` applies). Failures raise `MCPServerError` naming the server, transport and tool. |
 | `mcp_tool_name` | ✅ | — | Tool name as the MCP server exposes it (e.g. `get_issue`). |
 | `tool_args` |  | `{}` | `{arg_name: value}`. String values support `{text}` (source) + `{port_name}` (typed inputs) substitution. |
 | `parse_as` |  | `auto` | `auto` (try JSON, fall back to text) / `json` / `text`. |
+
+Result text: text parts are joined in order; an embedded *text* resource is returned as text; images, audio, binary resources and resource links become one-line placeholders (`[image omitted: image/png, ~3009 bytes]`) and are listed in the `content_parts` output field; a structured-only result becomes its JSON. A tool-level failure (`isError`) is a normal result with `is_error: true` on every transport. `mcp_call` returns the full text (no truncation).
 | `source` |  | Most recent step | Legacy — feeds `{text}` in string `tool_args`. |
 | `inputs` |  | — | Typed named inputs — feeds `{port_name}` in string `tool_args`. |
 
@@ -693,12 +695,13 @@ The shape LangGraph is known for, done as ONE first-class Dagster asset. Reach f
 |---|---|---|---|
 | `model` | ✅ | — | LLM the agent runs on. |
 | `api_key_env_var` |  | — | Env var holding the model provider's key. |
-| `mcp_servers` | ✅ | — | List of MCP server configs (same shape as `mcp_call.server`). Tools from every server are auto-discovered. |
+| `mcp_servers` | ✅ | — | List of MCP server configs (same shape as `mcp_call.server`). Tools from every server are auto-discovered (every `tools/list` page is followed) and namespaced `<server name>__<tool name>`; duplicate server names or colliding namespaced names are rejected up front. A stdio server is started fresh for each call (state in the server does not survive between calls). |
 | `max_iterations` |  | `10` | Hard cap. Loop stops here regardless of finalize state. |
 | `system_prompt` |  | Sensible default | Agent instructions. Should include "call `finalize` when done." |
 | `prompt_template` |  | `{text}` | Initial user turn. Supports `{text}` + `{port_name}` + `{partition.<name>}` substitution. |
 | `allowed_tools` |  | All discovered | Optional allowlist (tool names). |
 | `finalize_tool_name` |  | `finalize` | Name of the synthetic finalize tool the LLM calls to end the loop. |
+| `tool_result_max_chars` |  | `20000` | Characters of one tool result shown to the model; longer results are cut with a visible `...[truncated: N more chars not shown]` marker (`0` = no cap). The trajectory records `tool_result_chars` / `tool_result_truncated` / `tool_result_is_error`; a tool-reported failure reaches the model as `ERROR: tool reported failure: …`. |
 | `temperature` |  | `0.0` | |
 | `max_tokens` |  | `2048` | Per-call max completion tokens. |
 

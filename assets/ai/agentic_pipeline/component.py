@@ -2546,6 +2546,275 @@ async def _open_mcp_streamable_http(stack, url: str, headers: Optional[Dict[str,
     return streams[0], streams[1]
 
 
+# ── MCP client core (shared by mcp_call / tool_use_loop / delegate) ──────────
+#
+# One connect routine (`_mcp_connect`) serves discovery and calls on every transport (stdio / http / sse / fastmcp), so
+# the transports cannot drift apart. Behaviour that is deliberate and tested (tests/test_mcp_client_*.py):
+#   * every server entry takes `timeout_seconds` (default 300; bounds connect + handshake + the call, and a hung tool is
+#     torn down: stdio subprocess terminated and reaped) and `startup_timeout_seconds` (default 60; bounds the MCP
+#     `initialize` handshake of the SDK transports; for `type: fastmcp` only the overall timeout applies).
+#   * failures surface as `MCPServerError` naming the server, transport and tool (a crash used to read just
+#     "Connection closed" inside two nested ExceptionGroups). Config/validation/policy errors keep their own type.
+#   * `tools/list` is followed through every `nextCursor` page; duplicate server names or colliding namespaced tool names
+#     are rejected at discovery (they used to silently route calls to the wrong server).
+#   * non-text content is never dumped into the text: text parts and embedded text resources are returned verbatim;
+#     images, audio, binary resources and resource links become one-line placeholders and are listed in `content_parts`.
+#   * a tool-level failure (isError) is a normal result with `is_error: True` on every transport (fastmcp's client
+#     raises by default; we ask it not to).
+# A stdio server is started per call (the loop reconnects each time), so a stateful server does not keep state between
+# calls; the command line is logged without its arguments because they may carry secrets.
+
+_MCP_DEFAULT_TIMEOUT_S = 300.0
+_MCP_DEFAULT_STARTUP_TIMEOUT_S = 60.0
+_MCP_MAX_LIST_PAGES = 1000
+
+
+class MCPServerError(RuntimeError):
+    """An MCP server connection / call failed; the message names the server, transport and operation."""
+
+
+def _mcp_seconds(server_cfg: Dict[str, Any], key: str, default: float) -> Optional[float]:
+    raw = server_cfg.get(key, default)
+    if raw is None:
+        return None
+    try:
+        val = float(raw)
+    except (TypeError, ValueError):
+        raise ValueError(f"MCP server {server_cfg.get('name') or 'server'!r}: {key} must be a number of seconds, got {raw!r}")
+    if val <= 0:
+        raise ValueError(f"MCP server {server_cfg.get('name') or 'server'!r}: {key} must be > 0, got {raw!r}")
+    return val
+
+
+def _mcp_leaf(exc: BaseException) -> BaseException:
+    while isinstance(exc, _BaseExceptionGroup) and exc.exceptions:
+        exc = exc.exceptions[0]
+    return exc
+
+
+def _mcp_wrap_errors(server_cfg: Dict[str, Any], what: str, exc: BaseException) -> BaseException:
+    """The exception to raise for `exc` raised while talking to a server: config/validation/policy errors keep their type
+    (their message already says what is wrong); everything else becomes an MCPServerError that names the server."""
+    leaf = _mcp_leaf(exc)
+    if isinstance(leaf, (ValueError, ImportError, PolicyViolation, MCPServerError, KeyboardInterrupt, SystemExit)):
+        return leaf
+    name = server_cfg.get("name") or "server"
+    transport = server_cfg.get("type", "stdio")
+    if isinstance(leaf, TimeoutError) and not str(leaf):
+        limit = _mcp_seconds(server_cfg, "timeout_seconds", _MCP_DEFAULT_TIMEOUT_S)
+        return MCPServerError(f"MCP server {name!r} ({transport}): {what} timed out after {limit:g}s (timeout_seconds)")
+    detail = str(leaf) or repr(leaf)
+    hint = ""
+    if "Connection closed" in detail:
+        hint = " -- the server process exited or closed the connection (crashed?)"
+    return MCPServerError(f"MCP server {name!r} ({transport}): {what} failed: {type(leaf).__name__}: {detail}{hint}")
+
+
+def _mcp_content_parts(content: Any) -> "tuple[str, List[Dict[str, Any]]]":
+    """Flatten a CallToolResult's content list -> (text, [{type, mime?, bytes?, omitted}]). Text and embedded text resources
+    pass through; non-text parts become explicit one-line placeholders instead of `str(part)` (which dumped whole base64
+    payloads, or the repr of the model, into the text an LLM then reads)."""
+    texts: List[str] = []
+    summary: List[Dict[str, Any]] = []
+    for c in content or []:
+        ctype = _mcp_field(c, "type", None) or type(c).__name__
+        txt = _mcp_field(c, "text", None)
+        if ctype == "text" or (txt is not None and ctype not in ("resource",)):
+            texts.append(txt if txt is not None else "")
+            summary.append({"type": "text", "chars": len(txt or ""), "omitted": False})
+        elif ctype in ("image", "audio"):
+            data = _mcp_field(c, "data", "") or ""
+            mime = _mcp_field(c, "mimeType", None) or "unknown"
+            size = len(data) * 3 // 4
+            texts.append(f"[{ctype} omitted: {mime}, ~{size} bytes]")
+            summary.append({"type": ctype, "mime": mime, "bytes": size, "omitted": True})
+        elif ctype == "resource":
+            res = _mcp_field(c, "resource", None)
+            uri = str(_mcp_field(res, "uri", "") or "") if res is not None else ""
+            mime = (_mcp_field(res, "mimeType", None) if res is not None else None) or "unknown"
+            rtext = _mcp_field(res, "text", None) if res is not None else None
+            if rtext is not None:
+                texts.append(rtext)
+                summary.append({"type": "resource", "uri": uri, "mime": mime, "chars": len(rtext), "omitted": False})
+            else:
+                blob = (_mcp_field(res, "blob", "") if res is not None else "") or ""
+                size = len(blob) * 3 // 4
+                texts.append(f"[binary resource omitted: {uri} ({mime}, ~{size} bytes)]")
+                summary.append({"type": "resource", "uri": uri, "mime": mime, "bytes": size, "omitted": True})
+        elif ctype == "resource_link":
+            uri = str(_mcp_field(c, "uri", "") or "")
+            texts.append(f"[resource_link: {uri} ({_mcp_field(c, 'name', '') or ''})]")
+            summary.append({"type": "resource_link", "uri": uri, "omitted": True})
+        else:
+            texts.append(f"[unsupported content type {ctype!r} omitted]")
+            summary.append({"type": str(ctype), "omitted": True})
+    return "\n".join(texts), summary
+
+
+class _McpConn:
+    """Uniform handle over an SDK ClientSession or a fastmcp Client."""
+
+    def __init__(self, kind: str, obj: Any):
+        self.kind, self.obj = kind, obj
+
+    async def list_tools(self) -> List[Any]:
+        if self.kind == "fastmcp":
+            res = await self.obj.list_tools()  # fastmcp follows nextCursor itself (verified on 4.x)
+            return list(getattr(res, "tools", None) or res or [])
+        tools: List[Any] = []
+        cursor = None
+        seen = set()
+        for _ in range(_MCP_MAX_LIST_PAGES):
+            if cursor is None:
+                res = await self.obj.list_tools()
+            else:
+                try:
+                    from mcp.types import PaginatedRequestParams
+                    res = await self.obj.list_tools(params=PaginatedRequestParams(cursor=cursor))
+                except (ImportError, TypeError):  # old 1.x: list_tools(cursor=...)
+                    res = await self.obj.list_tools(cursor)
+            tools.extend(getattr(res, "tools", None) or [])
+            cursor = _mcp_field(res, "nextCursor", None)
+            if not cursor:
+                return tools
+            if cursor in seen:
+                raise MCPServerError(f"tools/list pagination loops (cursor {cursor!r} repeated)")
+            seen.add(cursor)
+        raise MCPServerError(f"tools/list returned more than {_MCP_MAX_LIST_PAGES} pages")
+
+    async def call_tool(self, tool_name: str, tool_args: Dict[str, Any]) -> Dict[str, Any]:
+        """-> {text, parts, structured, is_error} for every transport."""
+        if self.kind == "fastmcp":
+            try:
+                try:
+                    res = await self.obj.call_tool(tool_name, tool_args, raise_on_error=False)
+                except TypeError:  # fastmcp without raise_on_error: it raises ToolError instead
+                    res = await self.obj.call_tool(tool_name, tool_args)
+            except Exception as e:  # noqa: BLE001
+                if type(e).__name__ == "ToolError":
+                    return {"text": str(e), "parts": [{"type": "text", "chars": len(str(e)), "omitted": False}],
+                            "structured": None, "is_error": True}
+                raise
+        else:
+            res = await self.obj.call_tool(tool_name, tool_args)
+        content = _mcp_field(res, "content", None)
+        if content is None and not isinstance(res, dict) and not hasattr(res, "content"):
+            raise MCPServerError(f"tool {tool_name!r} returned {type(res).__name__}, not a tool result (server asked for input / task claim?)")
+        text, parts = _mcp_content_parts(content)
+        structured = _mcp_field(res, "structuredContent", None)
+        if not any(not p["omitted"] for p in parts) and structured is not None:  # structured-only (or only non-text parts)
+            text = "\n".join(x for x in (text, json.dumps(structured, default=str)) if x)
+        return {"text": text, "parts": parts, "structured": structured, "is_error": bool(_mcp_field(res, "isError", False))}
+
+
+def _mcp_fastmcp_urls_check(url: Optional[str], config: Any) -> None:
+    """Policy network.allow_hosts for `type: fastmcp` (url and every url in an inline mcp.json-style config)."""
+    if url:
+        _pol_url(url)
+    if isinstance(config, dict):
+        for entry in (config.get("mcpServers") or {}).values():
+            if isinstance(entry, dict) and entry.get("url"):
+                _pol_url(entry["url"])
+
+
+async def _mcp_connect(stack, server_cfg: Dict[str, Any], log) -> _McpConn:
+    """Start/attach to the configured server on `stack` (closed when the stack exits) and complete the MCP handshake."""
+    import anyio
+
+    name = server_cfg.get("name") or "server"
+    transport = server_cfg.get("type", "stdio")
+    startup = _mcp_seconds(server_cfg, "startup_timeout_seconds", _MCP_DEFAULT_STARTUP_TIMEOUT_S)
+
+    async def _handshake(session) -> None:
+        try:
+            with anyio.fail_after(startup):
+                await session.initialize()
+        except TimeoutError:
+            raise MCPServerError(
+                f"MCP server {name!r} ({transport}): no response to the MCP initialize handshake within {startup:g}s "
+                f"(startup_timeout_seconds)") from None
+
+    if transport == "stdio":
+        from mcp import ClientSession, StdioServerParameters
+        from mcp.client.stdio import stdio_client
+
+        cmd = server_cfg.get("command") or []
+        if not cmd:
+            raise ValueError(f"MCP server {name!r} is stdio but command is empty.")
+        if isinstance(cmd, str):
+            # Common LLM-composed mistake: `command: "npx -y @foo"` (string) rather than the required list form.
+            raise ValueError(
+                f"MCP server {name!r} `command:` must be a LIST of "
+                f"strings, got a bare string: {cmd!r}. Use YAML list "
+                f"syntax: `command: [npx, -y, \"@modelcontextprotocol/server-github\"]` "
+                f"or the block form: `command:\\n  - npx\\n  - -y\\n  - \"@...\"`."
+            )
+        # Forward the full parent-process environment (or, under policy.env.allow, only the allowed vars + a minimal
+        # baseline): without an explicit env the mcp library applies a tight whitelist and silently strips tokens the
+        # server needs. YAML `env:` values override inherited ones.
+        params = StdioServerParameters(command=cmd[0], args=list(cmd[1:]), env=_mcp_subprocess_env(server_cfg.get("env")))
+        log.info(f"[mcp:{name}] starting stdio server: {cmd[0]} (+{len(cmd) - 1} arg(s))")
+        read, write = await stack.enter_async_context(stdio_client(params))
+        session = await stack.enter_async_context(ClientSession(read, write))
+        await _handshake(session)
+        return _McpConn("sdk", session)
+    if transport in ("http", "streamable_http", "streamable-http"):
+        from mcp import ClientSession
+
+        url = server_cfg.get("url")
+        if not url:
+            raise ValueError(f"MCP server {name!r} is http but url is empty.")
+        headers = _resolve_mcp_headers(server_cfg, name)
+        _pol_url(url)
+        read, write = await _open_mcp_streamable_http(stack, url, headers)
+        session = await stack.enter_async_context(ClientSession(read, write))
+        await _handshake(session)
+        return _McpConn("sdk", session)
+    if transport == "sse":
+        from mcp import ClientSession
+        from mcp.client.sse import sse_client
+
+        url = server_cfg.get("url")
+        if not url:
+            raise ValueError(f"MCP server {name!r} is sse but url is empty.")
+        headers = _resolve_mcp_headers(server_cfg, name)
+        _pol_url(url)
+        read, write = await stack.enter_async_context(sse_client(url, headers=headers or None))
+        session = await stack.enter_async_context(ClientSession(read, write))
+        await _handshake(session)
+        return _McpConn("sdk", session)
+    if transport == "fastmcp":
+        # FastMCP client: auto transport detection (URL or inline `mcp.json`-style `config` dict), bearer auth.
+        try:
+            from fastmcp import Client as FastMCPClient
+        except ImportError as e:
+            raise ImportError("type: fastmcp requires the fastmcp package: pip install 'fastmcp>=2.0'") from e
+        url = server_cfg.get("url")
+        config = server_cfg.get("config")  # optional inline mcp.json-style dict
+        headers = _resolve_mcp_headers(server_cfg, name)
+        bearer_env = server_cfg.get("bearer_env")  # `bearer_env: MCP_TOKEN` -> `Authorization: Bearer <value>` at call time
+        if bearer_env and _env_get(bearer_env):
+            headers = {**(headers or {}), "Authorization": f"Bearer {_require_env(bearer_env)}"}
+        if not config and not url:
+            raise ValueError(f"MCP server {name!r} is fastmcp but neither `url` nor `config` is set.")
+        _mcp_fastmcp_urls_check(url, config)
+        if config:
+            client_ctx = FastMCPClient(config)
+        elif headers:
+            # headers need an explicit transport object; pick it the way fastmcp's own URL inference does (a path ending in
+            # /sse is an SSE endpoint -- forcing streamable-http on it failed with "Server returned an error response")
+            from urllib.parse import urlparse as _up
+            from fastmcp.client.transports import SSETransport, StreamableHttpTransport
+            _tcls = SSETransport if _up(url).path.rstrip("/").endswith("/sse") else StreamableHttpTransport
+            client_ctx = FastMCPClient(_tcls(url=url, headers=headers))
+        else:
+            client_ctx = FastMCPClient(url)
+        log.info(f"[mcp:{name}] fastmcp client connecting to {url or 'inline config'}")
+        client = await stack.enter_async_context(client_ctx)
+        return _McpConn("fastmcp", client)
+    raise ValueError(f"MCP server {name!r} has unknown transport: {transport!r}")
+
+
 async def _call_mcp_tool_async(
     *,
     log,
@@ -2555,182 +2824,52 @@ async def _call_mcp_tool_async(
     parse_as: str,
     validate_input_schema: bool = False,
 ) -> Dict[str, Any]:
-    """Async MCP tool call — supports stdio / http / sse transports.
+    """Async MCP tool call over stdio / http / sse / fastmcp (see the client-core note above for the contract).
 
-    Mirrors the helper in `mcp_tool_picker/component.py` — kept local to
-    keep this component's imports self-contained.
+    Returns {value, raw, is_error, kind, content_parts, structured_content}.
 
-    validate_input_schema: when True, lists the server's tools, finds
-    `tool_name`'s real inputSchema, and validates `tool_args` against it
-    before calling. Only set True by `delegate` (a dynamically-picked agent
-    might have a tool_args_template that doesn't actually match the real
-    tool) -- `mcp_call` passes a hand-authored, already-tested tool_args, so
-    it keeps the prior behavior (False) by default.
+    validate_input_schema: when True, lists the server's tools, finds `tool_name`'s real inputSchema, and validates
+    `tool_args` against it before calling. Only set True by `delegate` (a dynamically-picked agent might have a
+    tool_args_template that doesn't actually match the real tool) -- `mcp_call` passes hand-authored, already-tested
+    tool_args, so it keeps the prior behavior (False) by default.
     """
+    import anyio
     from contextlib import AsyncExitStack
 
-    name = server_cfg.get("name") or "server"
-    transport = server_cfg.get("type", "stdio")
-
-    async with AsyncExitStack() as stack:
-        if transport == "stdio":
-            from mcp import ClientSession, StdioServerParameters
-            from mcp.client.stdio import stdio_client
-
-            cmd = server_cfg.get("command") or []
-            if not cmd:
-                raise ValueError(f"MCP server {name!r} is stdio but command is empty.")
-            if isinstance(cmd, str):
-                # Common LLM-composed mistake: `command: "npx -y @foo"` (string)
-                # rather than the required list form. Fail fast with a clear
-                # message rather than letting `cmd[0]` return the letter 'n'
-                # and confusing the eventual FileNotFoundError.
-                raise ValueError(
-                    f"MCP server {name!r} `command:` must be a LIST of "
-                    f"strings, got a bare string: {cmd!r}. Use YAML list "
-                    f"syntax: `command: [npx, -y, \"@modelcontextprotocol/server-github\"]` "
-                    f"or the block form: `command:\\n  - npx\\n  - -y\\n  - \"@...\"`."
-                )
-            # Forward the full parent-process environment to the stdio
-            # subprocess. Without this, the mcp Python library applies a
-            # tight security whitelist (HOME/LOGNAME/PATH/SHELL/TERM/USER
-            # on Unix) and silently strips everything else — including
-            # `GITHUB_PERSONAL_ACCESS_TOKEN`, `OPENAI_API_KEY`, and any
-            # other var the MCP server needs. YAML `env:` values override
-            # inherited ones (last-write-wins).
-            _base_env = _mcp_subprocess_env(server_cfg.get("env"))
-            params = StdioServerParameters(
-                command=cmd[0], args=list(cmd[1:]), env=_base_env
-            )
-            log.info(f"[mcp:{name}] starting stdio server: {' '.join(cmd)}")
-            read, write = await stack.enter_async_context(stdio_client(params))
-            session = await stack.enter_async_context(ClientSession(read, write))
-            await session.initialize()
-        elif transport in ("http", "streamable_http", "streamable-http"):
-            from mcp import ClientSession
-
-            url = server_cfg.get("url")
-            if not url:
-                raise ValueError(f"MCP server {name!r} is http but url is empty.")
-            headers = _resolve_mcp_headers(server_cfg, name)
-            _pol_url(url)
-            read, write = await _open_mcp_streamable_http(stack, url, headers)
-            session = await stack.enter_async_context(ClientSession(read, write))
-            await session.initialize()
-        elif transport == "sse":
-            from mcp import ClientSession
-            from mcp.client.sse import sse_client
-
-            url = server_cfg.get("url")
-            if not url:
-                raise ValueError(f"MCP server {name!r} is sse but url is empty.")
-            headers = _resolve_mcp_headers(server_cfg, name)
-            _pol_url(url)
-            read, write = await stack.enter_async_context(
-                sse_client(url, headers=headers or None)
-            )
-            session = await stack.enter_async_context(ClientSession(read, write))
-            await session.initialize()
-        elif transport == "fastmcp":
-            # FastMCP v2 client — auto-transport detection (URL or
-            # `mcp.json`-style config dict), first-class auth (bearer +
-            # OAuth), better resilience than the raw MCP SDK. Preferred for
-            # remote / production MCP servers; the raw http/sse transports
-            # above remain available for compat.
-            try:
-                from fastmcp import Client as FastMCPClient
-            except ImportError as e:
-                raise ImportError(
-                    "type: fastmcp requires the fastmcp package: "
-                    "pip install 'fastmcp>=2.0'"
-                ) from e
-
-            url = server_cfg.get("url")
-            config = server_cfg.get("config")  # optional inline mcp.json-style dict
-            headers = _resolve_mcp_headers(server_cfg, name)
-
-            # Optional bearer-token auth: `bearer_env: MCP_TOKEN` reads the
-            # env var and adds `Authorization: Bearer <value>` at call time.
-            bearer_env = server_cfg.get("bearer_env")
-            if bearer_env and _env_get(bearer_env):
-                headers = {
-                    **(headers or {}),
-                    "Authorization": f"Bearer {_require_env(bearer_env)}",
-                }
-
-            if config:
-                client_ctx = FastMCPClient(config)
-            elif url:
-                if headers:
-                    from fastmcp.client.transports import StreamableHttpTransport
-                    transport_obj = StreamableHttpTransport(url=url, headers=headers)
-                    client_ctx = FastMCPClient(transport_obj)
-                else:
-                    client_ctx = FastMCPClient(url)
-            else:
-                raise ValueError(
-                    f"MCP server {name!r} is fastmcp but neither `url` nor "
-                    f"`config` is set."
-                )
-
-            log.info(f"[mcp:{name}] fastmcp client connecting to {url or 'inline config'}")
-            client = await stack.enter_async_context(client_ctx)
-
-            # Shim so the shared `session.call_tool(...)` path below works —
-            # FastMCP's `Client` exposes call_tool directly, no ClientSession.
-            class _FastMCPShim:
-                async def call_tool(self, tool_name, tool_args):
-                    return await client.call_tool(tool_name, tool_args)
-            session = _FastMCPShim()
-        else:
-            raise ValueError(f"MCP server {name!r} has unknown transport: {transport!r}")
-
-        if validate_input_schema:
-            # FastMCP's shim only implements call_tool (see _FastMCPShim
-            # above) -- list_tools has to go through the real `client` for
-            # that one transport; the other three use the real ClientSession
-            # directly.
-            list_target = client if transport == "fastmcp" else session
-            tools_result = await list_target.list_tools()
-            tool_list = tools_result.tools if hasattr(tools_result, "tools") else tools_result
-            matching = next(
-                (
-                    t for t in tool_list
-                    if (getattr(t, "name", None) or (t.get("name") if isinstance(t, dict) else None)) == tool_name
-                ),
-                None,
-            )
-            if matching is None:
-                available = [getattr(t, "name", None) or (t.get("name") if isinstance(t, dict) else None) for t in tool_list]
-                raise ValueError(
-                    f"MCP server {name!r} has no tool named {tool_name!r} -- available: {available}"
-                )
-            schema = _mcp_field(matching, "inputSchema", None)
-            _validate_tool_args_against_schema(tool_args, schema, tool_name)
-
-        call_result = await session.call_tool(tool_name, tool_args)
-        parts = []
-        for c in call_result.content:
-            text = getattr(c, "text", None)
-            parts.append(text if text is not None else str(c))
-        raw = "\n".join(parts) if parts else ""
-        if not parts:  # tool returned only structured content (mcp 2.x / fastmcp)
-            structured = _mcp_field(call_result, "structuredContent", None)
-            if structured is not None:
-                raw = json.dumps(structured, default=str)
-        is_error = bool(_mcp_field(call_result, "isError", False))
-
+    timeout = _mcp_seconds(server_cfg, "timeout_seconds", _MCP_DEFAULT_TIMEOUT_S)
+    try:
+        with anyio.fail_after(timeout):
+            async with AsyncExitStack() as stack:
+                conn = await _mcp_connect(stack, server_cfg, log)
+                if validate_input_schema:
+                    tool_list = await conn.list_tools()
+                    matching = next((t for t in tool_list if _mcp_field(t, "name", None) == tool_name), None)
+                    if matching is None:
+                        available = [_mcp_field(t, "name", None) for t in tool_list]
+                        raise ValueError(
+                            f"MCP server {server_cfg.get('name') or 'server'!r} has no tool named {tool_name!r} -- available: {available}"
+                        )
+                    _validate_tool_args_against_schema(tool_args, _mcp_field(matching, "inputSchema", None), tool_name)
+                res = await conn.call_tool(tool_name, tool_args)
+    except (Exception, _BaseExceptionGroup) as e:  # noqa: BLE001
+        wrapped = _mcp_wrap_errors(server_cfg, f"tool {tool_name!r}", e)
+        if wrapped is e:
+            raise
+        raise wrapped from e
+    raw = res["text"]
+    is_error = res["is_error"]
+    extra = {"content_parts": res["parts"], "structured_content": res["structured"]}
     if parse_as == "text":
-        return {"value": raw, "raw": raw, "is_error": is_error, "kind": "text"}
+        return {"value": raw, "raw": raw, "is_error": is_error, "kind": "text", **extra}
     if parse_as in ("json", "auto"):
         try:
             value = json.loads(raw)
-            return {"value": value, "raw": raw, "is_error": is_error, "kind": "json"}
+            return {"value": value, "raw": raw, "is_error": is_error, "kind": "json", **extra}
         except (json.JSONDecodeError, ValueError):
             if parse_as == "json":
                 raise
-            return {"value": raw, "raw": raw, "is_error": is_error, "kind": "text"}
-    return {"value": raw, "raw": raw, "is_error": is_error, "kind": "text"}
+            return {"value": raw, "raw": raw, "is_error": is_error, "kind": "text", **extra}
+    return {"value": raw, "raw": raw, "is_error": is_error, "kind": "text", **extra}
 
 
 def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
@@ -2833,6 +2972,7 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
         "value": result["value"],
         "kind": result["kind"],
         "is_error": result["is_error"],
+        "content_parts": result.get("content_parts", []),
         "tool_name": tool_name,
         "server_name": server_cfg.get("name") or "server",
         "transport": server_cfg.get("type", "stdio"),
@@ -2873,108 +3013,53 @@ def _mcp_field(obj: Any, key: str, default: Any = None) -> Any:
 async def _discover_mcp_tools_async(
     log, mcp_servers: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
-    """For each configured MCP server, connect + list_tools() + capture
+    """For each configured MCP server, connect + list_tools() (following every `nextCursor` page) + capture
     the JSON schema for each. Returns a flat list of
     `{server, name, description, input_schema}` — the `server` field lets
     us route tool calls back to the right MCP client during the loop.
+
+    Server names must be unique (calls are routed by name) and so must the namespaced `{server}__{tool}` names; a
+    clash raises ValueError at discovery instead of silently routing calls to the wrong server.
     """
+    import anyio
     from contextlib import AsyncExitStack
+
+    names: List[str] = [s.get("name") or "server" for s in mcp_servers]
+    dups = sorted({n for n in names if names.count(n) > 1})
+    if dups:
+        raise ValueError(
+            f"duplicate MCP server name(s) {dups}: calls are routed by server name, so each entry in mcp_servers "
+            f"needs a distinct `name:`")
     tools: List[Dict[str, Any]] = []
+    namespaced_seen: Dict[str, str] = {}
     for server_cfg in mcp_servers:
         name = server_cfg.get("name") or "server"
         transport = server_cfg.get("type", "stdio")
         log.info(f"[tool_use_loop] discovering tools on {name!r} ({transport})")
-
-        async with AsyncExitStack() as stack:
-            # Reuse the same connection paths as _call_mcp_tool_async —
-            # copy-paste rather than refactor since this helper is only
-            # for the initial discovery step (one call per server, at
-            # loop start).
-            if transport == "stdio":
-                from mcp import ClientSession, StdioServerParameters
-                from mcp.client.stdio import stdio_client
-                cmd = server_cfg.get("command") or []
-                if not cmd or isinstance(cmd, str):
-                    raise ValueError(
-                        f"MCP server {name!r} stdio needs `command: [...]` (LIST of strings)."
-                    )
-                _base_env = _mcp_subprocess_env(server_cfg.get("env"))
-                params = StdioServerParameters(
-                    command=cmd[0], args=list(cmd[1:]), env=_base_env
-                )
-                read, write = await stack.enter_async_context(stdio_client(params))
-                session = await stack.enter_async_context(ClientSession(read, write))
-                await session.initialize()
-            elif transport in ("http", "streamable_http", "streamable-http"):
-                from mcp import ClientSession
-                url = server_cfg.get("url")
-                if not url:
-                    raise ValueError(f"MCP server {name!r} http needs url.")
-                headers = _resolve_mcp_headers(server_cfg, name)
-                _pol_url(url)
-                read, write = await _open_mcp_streamable_http(stack, url, headers)
-                session = await stack.enter_async_context(ClientSession(read, write))
-                await session.initialize()
-            elif transport == "sse":
-                from mcp import ClientSession
-                from mcp.client.sse import sse_client
-                url = server_cfg.get("url")
-                if not url:
-                    raise ValueError(f"MCP server {name!r} sse needs url.")
-                headers = _resolve_mcp_headers(server_cfg, name)
-                _pol_url(url)
-                read, write = await stack.enter_async_context(
-                    sse_client(url, headers=headers or None)
-                )
-                session = await stack.enter_async_context(ClientSession(read, write))
-                await session.initialize()
-            elif transport == "fastmcp":
-                try:
-                    from fastmcp import Client as FastMCPClient
-                except ImportError as e:
-                    raise ImportError(
-                        "type: fastmcp requires the fastmcp package: pip install 'fastmcp>=2.0'"
-                    ) from e
-                url = server_cfg.get("url")
-                config = server_cfg.get("config")
-                headers = _resolve_mcp_headers(server_cfg, name)
-                bearer_env = server_cfg.get("bearer_env")
-                if bearer_env and _env_get(bearer_env):
-                    headers = {**(headers or {}), "Authorization": f"Bearer {_require_env(bearer_env)}"}
-                if config:
-                    client_ctx = FastMCPClient(config)
-                elif url:
-                    if headers:
-                        from fastmcp.client.transports import StreamableHttpTransport
-                        client_ctx = FastMCPClient(StreamableHttpTransport(url=url, headers=headers))
-                    else:
-                        client_ctx = FastMCPClient(url)
-                else:
-                    raise ValueError(f"MCP server {name!r} fastmcp needs url or config.")
-                client = await stack.enter_async_context(client_ctx)
-
-                class _FastMCPShim:
-                    async def list_tools(_self):
-                        return await client.list_tools()
-                session = _FastMCPShim()
-            else:
-                raise ValueError(f"MCP server {name!r} unknown transport: {transport!r}")
-
-            tools_result = await session.list_tools()
-            # `.tools` on ListToolsResult is a list of Tool objects with
-            # `.name`, `.description`, `.inputSchema`. FastMCP variants
-            # can return a bare list.
-            listed = getattr(tools_result, "tools", None) or tools_result
-            for t in listed:
-                tools.append({
-                    "server": name,
-                    "name": _mcp_field(t, "name", ""),
-                    "description": _mcp_field(t, "description", "") or "",
-                    "input_schema": (
-                        _mcp_field(t, "inputSchema", None)
-                        or {"type": "object", "properties": {}}
-                    ),
-                })
+        try:
+            with anyio.fail_after(_mcp_seconds(server_cfg, "timeout_seconds", _MCP_DEFAULT_TIMEOUT_S)):
+                async with AsyncExitStack() as stack:
+                    conn = await _mcp_connect(stack, server_cfg, log)
+                    listed = await conn.list_tools()
+        except (Exception, _BaseExceptionGroup) as e:  # noqa: BLE001
+            wrapped = _mcp_wrap_errors(server_cfg, "tool discovery (tools/list)", e)
+            if wrapped is e:
+                raise
+            raise wrapped from e
+        for t in listed:
+            tname = _mcp_field(t, "name", "")
+            ns = f"{name}__{tname}"
+            if ns in namespaced_seen:
+                raise ValueError(
+                    f"MCP tool name collision: {ns!r} is produced by both server {namespaced_seen[ns]!r} and server {name!r} "
+                    f"(namespacing is `<server name>__<tool name>`); rename a server")
+            namespaced_seen[ns] = name
+            tools.append({
+                "server": name,
+                "name": tname,
+                "description": _mcp_field(t, "description", "") or "",
+                "input_schema": _mcp_field(t, "inputSchema", None) or {"type": "object", "properties": {}},
+            })
     return tools
 
 
@@ -3044,6 +3129,10 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
     thinking_budget = step.get("thinking_budget")
     prompt_caching = bool(step.get("prompt_caching", False))
     finalize_name = step.get("finalize_tool_name", "finalize")
+    # chars of a tool result shown to the model (the rest is cut with a visible marker; 0/null = no cap); the full text is
+    # never stored in the trajectory either way (tool_result_preview is 600 chars + tool_result_chars gives the real size)
+    max_result_chars = step.get("tool_result_max_chars", 20000)
+    max_result_chars = int(max_result_chars) if max_result_chars else 0
 
     system_prompt = step.get("system_prompt") or (
         "You are a tool-using agent. You have access to MCP tools. "
@@ -3327,8 +3416,13 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
 
                 # Feed the result back to the LLM as a tool message.
                 result_text = tool_result.get("raw", "")
+                if tool_result.get("is_error"):
+                    result_text = f"ERROR: tool reported failure: {result_text}"  # the model must not read a failure as data
+                _cap = max_result_chars
+                _truncated = bool(_cap) and len(result_text) > _cap
                 messages.append({
-                    "role": "tool", "tool_call_id": tc.id, "content": result_text[:20000],
+                    "role": "tool", "tool_call_id": tc.id,
+                    "content": (result_text[:_cap] + f"\n...[truncated: {len(result_text) - _cap} more chars not shown]") if _truncated else result_text,
                 })
                 trajectory.append({
                     "iteration": iteration,
@@ -3337,6 +3431,9 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
                     "tool_args": tool_args,
                     "tool_result_preview": result_text[:600],
                     "tool_result_kind": tool_result.get("kind"),
+                    "tool_result_chars": len(result_text),
+                    "tool_result_truncated": _truncated,
+                    "tool_result_is_error": bool(tool_result.get("is_error")),
                     "tool_latency_ms": tool_ms,
                     "llm_latency_ms": llm_ms,
                 })

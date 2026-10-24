@@ -313,7 +313,9 @@ def test_subprocess_env_is_filtered_at_the_real_stdio_launch(mod, activate, monk
     import inspect
     src = inspect.getsource(mod)
     assert "dict(os.environ)" not in src.split("def _mcp_subprocess_env")[0].split("class _Policy")[0] or True
-    assert src.count("_base_env = _mcp_subprocess_env(") == 2
+    # one shared connect routine (_mcp_connect) now serves discovery and calls: exactly one stdio launch site, and it filters
+    # (the behavioural proof against a real server is test_mcp_client_robustness.py::test_policy_env_allow_filters_...)
+    assert src.count("env=_mcp_subprocess_env(") == 1 and src.count("StdioServerParameters(") == 1
     assert "_base_env = dict(os.environ)" not in src
 
 

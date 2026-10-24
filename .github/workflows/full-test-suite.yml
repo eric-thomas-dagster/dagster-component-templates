@@ -35,6 +35,12 @@ jobs:
         with:
           packages: ffmpeg
           version: 1.0
+      - name: Verify ffmpeg is actually callable, repair via real apt-get if not
+        # cache-apt-pkgs-action restores packages by extracting their cached files directly, which
+        # doesn't always leave a fully working install for every package (its own docs recommend this
+        # exact fallback). A real `apt-get install` here is a near-instant no-op when the cache restore
+        # already left a working ffmpeg; it only does real work on the rare occasion it didn't.
+        run: command -v ffmpeg && ffmpeg -version | head -1 || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
       - name: Install dependencies
         run: |
           pip install --upgrade pip
@@ -51,7 +57,8 @@ jobs:
         run: |
           for pkg in dagster-gcp snowflake-connector-python databricks-sql-connector psycopg2-binary pymysql \
                      dagster-snowflake "deltalake>=0.15.0" "pyiceberg[sql-sqlite]>=0.6.0" databricks-sdk \
-                     "google-cloud-speech>=2.20.0" dagster-iceberg; do
+                     "google-cloud-speech>=2.20.0" dagster-iceberg pdfplumber dagster-msteams slack_sdk \
+                     beautifulsoup4 langchain-core; do
             pip install $pkg || echo "::warning::could not install $pkg; its contract tests will skip"
           done
       - name: Discover this shard's tests/ directories

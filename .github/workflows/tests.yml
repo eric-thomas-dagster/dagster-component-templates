@@ -79,6 +79,12 @@ jobs:
         with:
           packages: ffmpeg
           version: 1.0
+      - name: Verify ffmpeg is actually callable, repair via real apt-get if not
+        # cache-apt-pkgs-action restores packages by extracting their cached files directly, which
+        # doesn't always leave a fully working install for every package (its own docs recommend this
+        # exact fallback). A real `apt-get install` here is a near-instant no-op when the cache restore
+        # already left a working ffmpeg; it only does real work on the rare occasion it didn't.
+        run: command -v ffmpeg && ffmpeg -version | head -1 || (sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg)
       - name: Install dependencies
         run: |
           pip install --upgrade pip

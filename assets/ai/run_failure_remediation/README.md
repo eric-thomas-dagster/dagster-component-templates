@@ -94,8 +94,36 @@ recent_runs, recent_outcomes, remediation_contract`.
 ## Rate limiting
 
 `max_triage_per_hour` (rolling), `cooldown_minutes` per (job, error signature) so a flapping job does not spawn a triage per failure,
-`only_jobs` / `ignore_jobs`. State lives in `<evidence_dir>/_state/failure_sensor.json`. Replaying a tick (`run_key = run_id`) never
+`only_jobs` / `ignore_jobs` / `only_tags`. State lives in `<evidence_dir>/_state/failure_sensor.json`. Replaying a tick (`run_key = run_id`) never
 double-launches and does not consume budget.
+
+## Airflow / Airlift and other external runs
+
+Verified against Dagster 1.13.24 with `dagster-airlift` 0.29.26's code and an OSS sqlite instance (tests/test_external_runs.py):
+
+- **dagster-airlift's failed Airflow runs DO trigger the default `detect: events` sensor.** Its monitoring job calls
+  `run_storage.add_historical_run(...)` with status `NOT_STARTED`, then `instance.report_dagster_event(PIPELINE_START)` and, when the
+  Airflow DAG run fails, `PIPELINE_FAILURE`. That event moves the run to FAILURE and `run_failure_sensor` fires, even when the events are
+  persisted hours after the run (the sensor's cursor is the event-log id, not a timestamp). The failure event has `error=None`.
+- **A run written to run storage directly with status `FAILURE` and no event does not** -- no event log entry exists and
+  `run_failure_sensor` never fires. `detect: runs` (or `both`) adds `<prefix>_failed_runs_sensor`, which polls run *records*
+  (`get_run_records(statuses=[FAILURE], updated_after=...)`), for integrations that record failures that way.
+- Evidence for such runs is built from the run record (job, status, tags, start/end time) and any events that exist:
+  `evidence.source` is `events` or `run_record`, `evidence.limited: true` when there are no step errors, and `evidence.external_source`
+  names the orchestrator (`dagster/external_job_source` tag, or any `dagster-airlift/*` tag).
+- **`retry_run` and `rerun_partition` are rejected** for these runs (no Dagster job to re-execute; the reason is recorded in the result).
+  `open_ticket` and `notify` work.
+- Scope to Airflow with `only_tags: {dagster-airlift/airflow-dag-id: "*"}` (the tags airlift puts on its runs are
+  `dagster-airlift/airflow-dag-id`, `.../airflow-dag-run-id`, `.../airflow-dag-run-url`, `.../observation-run`, plus
+  `dagster/external_job_source: airflow`). `only_tags` applies to every mode.
+- The record sensor does **not** use an `updated_timestamp` high-water cursor: a historical run's update time is its last event time,
+  which can be hours older than runs already seen, and a row can turn FAILURE after rows with a higher id (both reproduced in the
+  tests). It scans FAILURE runs updated within `runs_lookback_hours` (default 24) and judges each once, oldest `(update_timestamp,
+  run_id)` first, `runs_max_per_tick` at a time, using a per-run marker `<evidence_dir>/_state/seen/<run_id>.json` that both sensors share
+  -- so `both` never triages a run twice (also `run_key = run_id`). Failures that exist when the sensor is first armed are marked seen, not
+  triaged. A rate-limited run is left undecided and retried on a later tick (the event sensor drops it, as before).
+- Not verified: Dagster+ run storage (the `add_historical_run` server mutation fix in dagster-io/internal#27424 was not exercised) and a
+  live Airflow instance.
 
 ## Limits (verified by the tests, not assumed)
 

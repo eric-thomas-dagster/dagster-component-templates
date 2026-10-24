@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.RunFailureRemediationComponent",
-  "description": "Self-healing runs with a safety gate: a run-failure sensor gathers redacted evidence and requests a triage run on a dynamic partition; an approval sensor turns the triage pipeline's proposal into a pending approval (agentic_pipeline/agent_review_queue compatible) and, only with a token bound to that exact proposal, executes allow-listed actions (retry_run, rerun_partition, materialize_assets, open_ticket, notify) and records whether they fixed the failure.",
+  "description": "Self-healing runs with a safety gate: a run-failure sensor (or, for runs recorded without a failure event, a run-record sensor) gathers redacted evidence and requests a triage run on a dynamic partition; an approval sensor turns the triage pipeline's proposal into a pending approval (agentic_pipeline/agent_review_queue compatible) and, only with a token bound to that exact proposal, executes allow-listed actions (retry_run, rerun_partition, materialize_assets, open_ticket, notify) and records whether they fixed the failure.",
   "category": "ai",
   "icon": "ShieldCheck",
   "x-dagster-io": {
@@ -94,6 +94,42 @@
       "description": "Never triage failures of these jobs. The triage job itself is always ignored (no recursion).",
       "required": false,
       "ui:widget": "list"
+    },
+    "detect": {
+      "type": "string",
+      "label": "Detect",
+      "description": "How failed runs are detected: `events` (default; Dagster's run_failure_sensor, RUN_FAILURE events), `runs` (a sensor polling run records with status FAILURE -- also sees runs written to run storage without a failure event), or `both` (a run is never triaged twice). dagster-airlift's Airflow runs emit the event, so `events` already covers them.",
+      "enum": [
+        "events",
+        "runs",
+        "both"
+      ],
+      "default": "events",
+      "required": false
+    },
+    "only_tags": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "label": "Only Tags",
+      "description": "Only triage failed runs carrying ALL of these tags: {tag_key: value}; value '*' (or '') matches any value. E.g. {'dagster-airlift/airflow-dag-id': '*'}. Applies to every detection mode.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "runs_lookback_hours": {
+      "type": "number",
+      "label": "Runs Lookback Hours",
+      "description": "detect runs|both: how far back (by the run's last update time) the run-record sensor looks for failed runs it has not judged yet.",
+      "default": 24.0,
+      "required": false
+    },
+    "runs_max_per_tick": {
+      "type": "integer",
+      "label": "Runs Max Per Tick",
+      "description": "detect runs|both: at most this many new failed runs are triaged per tick (oldest first); the rest wait for the next tick.",
+      "default": 10,
+      "required": false
     },
     "triage_remediation_runs": {
       "type": "boolean",

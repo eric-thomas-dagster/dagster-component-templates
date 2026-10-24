@@ -517,6 +517,45 @@ def _error_chain(err: Any) -> List[Any]:
     return chain
 
 
+_RUNS_SCAN_LIMIT = 1000
+EXTERNAL_SOURCE_TAG = "dagster/external_job_source"  # set by dagster-airlift (value "airflow") on runs it records via add_historical_run
+EXTERNAL_TAG_PREFIXES = ("dagster-airlift/",)
+
+
+def _external_source(run: Any) -> Optional[str]:
+    """Name of the external orchestrator a run was merely RECORDED from (e.g. 'airflow'), else None."""
+    tags = getattr(run, "tags", None) or {}
+    if tags.get(EXTERNAL_SOURCE_TAG):
+        return str(tags[EXTERNAL_SOURCE_TAG])
+    if any(str(k).startswith(EXTERNAL_TAG_PREFIXES) for k in tags):
+        return "airflow"
+    return None
+
+
+def _parse_json(v: Any) -> Optional[Dict[str, Any]]:
+    try:
+        o = json.loads(v) if v else None
+    except ValueError:
+        return None
+    return o if isinstance(o, dict) else None
+
+
+class _RecordContext:
+    """The slice of RunFailureSensorContext the engine reads, built from a run record (no failure event exists)."""
+
+    def __init__(self, ctx: Any, run: Any, record: Any):
+        self._ctx, self.dagster_run, self.record = ctx, run, record
+        self.instance, self.log = ctx.instance, ctx.log
+
+    @property
+    def repository_def(self) -> Any:
+        return self._ctx.repository_def
+
+    @property
+    def failure_event(self) -> Any:
+        raise AttributeError("no failure event: this run was detected from its run record")
+
+
 def _status(run_or_status: Any) -> str:
     s = getattr(run_or_status, "status", run_or_status)
     return str(getattr(s, "value", s))
@@ -535,6 +574,7 @@ class _Engine:
         self.allowed = list(c.allowed_actions)
         self.ignore = set(c.ignore_jobs or [])
         self.only = set(c.only_jobs or [])
+        self.only_tags = dict(c.only_tags or {})
         self.job_names = [f"{c.name_prefix}_remediate_{n}" for n in (c.remediation_jobs or {})]
 
     # -- redaction shortcuts --
@@ -549,7 +589,7 @@ class _Engine:
 
     # ═══════════ failure sensor ═══════════
 
-    def build_evidence(self, context: Any) -> Dict[str, Any]:
+    def build_evidence(self, context: Any, source: str = "events") -> Dict[str, Any]:
         run, inst = context.dagster_run, context.instance
         n_hist = int(self.c.history_runs)
         events = inst.all_logs(run.run_id, of_type=self._failure_event_types())
@@ -585,8 +625,13 @@ class _Engine:
         root_msg = steps[0]["message_tail"] if steps else (run_failure_message or "")
         sig = error_signature(run.job_name, root_cls or "", root_msg, step_keys)
         partition = (run.tags or {}).get("dagster/partition")
+        started, ended = self._run_times(inst, run)
+        ext = _external_source(run)
         ev: Dict[str, Any] = {
             "run_id": run.run_id, "job_name": run.job_name, "status": _status(run), "partition": partition,
+            "source": source, "limited": not steps,
+            "external_source": ext,
+            "started_at": started, "ended_at": ended,
             "failure_reason": (run.tags or {}).get("dagster/failure_reason"),
             "created_at": _iso(),
             "tags": {k: v for k, v in (run.tags or {}).items()},
@@ -607,6 +652,18 @@ class _Engine:
             },
         }
         return self.ro(ev)
+
+    @staticmethod
+    def _run_times(inst: Any, run: Any) -> Tuple[Optional[str], Optional[str]]:
+        try:
+            recs = inst.get_run_records(filters=dg.RunsFilter(run_ids=[run.run_id]), limit=1)
+        except Exception:
+            return None, None
+        if not recs:
+            return None, None
+        r = recs[0]
+        f = lambda t: datetime.fromtimestamp(t, tz=timezone.utc).isoformat() if t else None  # noqa: E731
+        return f(r.start_time), f(r.end_time)
 
     @staticmethod
     def _failure_event_types() -> Any:
@@ -686,12 +743,29 @@ class _Engine:
         return rows[:n]
 
     def failure_tick(self, context: Any, triage_job_name: str, partitions_def: Any) -> Any:
+        """The run_failure_sensor body (detect: events | both)."""
+        kind, payload = self.decide(context, triage_job_name, partitions_def, defer_rate_limit=False)
+        return payload
+
+    def _mark_seen(self, run_id: str, decision: str) -> None:
+        """Durable per-run 'decided' marker shared by the event sensor and the run-record sensor (one tiny file per run, so two
+        sensors never overwrite each other's state and `detect: both` can never judge a run twice)."""
+        self.evidence.write_json(("_state", "seen", f"{run_id}.json"), {"run_id": run_id, "decision": decision, "at": _iso()})
+
+    def is_seen(self, run_id: str) -> bool:
+        return self.evidence.exists("_state", "seen", f"{run_id}.json") or self.evidence.exists(f"{run_id}.json")
+
+    def decide(self, context: Any, triage_job_name: str, partitions_def: Any, *, defer_rate_limit: bool,
+               source: str = "events") -> Tuple[str, Any]:
+        """Shared triage decision for one failed run. Returns ("skip", SkipReason) | ("defer", SkipReason) |
+        ("request", SensorResult). `defer` (only when defer_rate_limit) leaves the run undecided so a later tick retries it."""
         c, run = self.c, context.dagster_run
         job = run.job_name or ""
 
-        def skip(reason: str) -> Any:
+        def skip(reason: str, decision: str = "skipped") -> Tuple[str, Any]:
             context.log.info(f"run_failure_remediation: skipping {run.run_id} ({job}): {reason}")
-            return dg.SkipReason(reason)
+            self._mark_seen(run.run_id, f"{decision}: {reason}")
+            return "skip", dg.SkipReason(reason)
 
         if job == triage_job_name:
             return skip("failure of the triage job itself (no recursion)")
@@ -699,12 +773,17 @@ class _Engine:
             return skip(f"job {job!r} is in ignore_jobs")
         if self.only and job not in self.only:
             return skip(f"job {job!r} is not in only_jobs")
+        if self.only_tags:
+            tags = run.tags or {}
+            miss = [k for k, v in self.only_tags.items() if k not in tags or (v not in ("", "*") and tags[k] != v)]
+            if miss:
+                return skip(f"run does not carry the only_tags {miss}")
         if (run.tags or {}).get(TAG_PROPOSAL) and not c.triage_remediation_runs:
             return skip("run was launched by a remediation action (triage_remediation_runs is false)")
         if (run.tags or {}).get(TAG_TRIAGE):
             return skip("failure of a triage run (no recursion)")
 
-        evidence = self.build_evidence(context)
+        evidence = self.build_evidence(context, source=source)
         sig = evidence["error_signature"]
         state = self.evidence.read_json("_state", "failure_sensor.json") or {}
         now = _now()
@@ -718,12 +797,17 @@ class _Engine:
             if ckey in cool:
                 cool[ckey]["suppressed"] = int(cool[ckey].get("suppressed", 0)) + 1
                 self.evidence.write_json(("_state", "failure_sensor.json"), {"triage_times": times, "cooldowns": cool})
-                return skip(f"cooldown: job {job!r} / signature {sig} was triaged recently (until {cool[ckey]['until']})")
+                return skip(f"cooldown: job {job!r} / signature {sig} was triaged recently (until {cool[ckey]['until']})", "suppressed")
             if len(times) >= int(c.max_triage_per_hour):
                 self.evidence.write_json(("_state", "failure_sensor.json"), {"triage_times": times, "cooldowns": cool})
-                return skip(f"rate limit: max_triage_per_hour={c.max_triage_per_hour} reached")
+                reason = f"rate limit: max_triage_per_hour={c.max_triage_per_hour} reached"
+                if defer_rate_limit:
+                    context.log.info(f"run_failure_remediation: deferring {run.run_id} ({job}): {reason}")
+                    return "defer", dg.SkipReason(reason)
+                return skip(reason, "rate_limited")
 
         self.evidence.write_json((f"{run.run_id}.json",), evidence)
+        self._mark_seen(run.run_id, "triaged")
         if not already:
             times.append(_iso(now))
             cool[ckey] = {"until": _iso(now + timedelta(minutes=float(c.cooldown_minutes))), "run_id": run.run_id, "suppressed": 0}
@@ -739,7 +823,53 @@ class _Engine:
         tags = {TAG_TRIAGE: "true", TAG_FAILED_RUN: run.run_id, "dagster_remediation/job": job, "dagster_remediation/signature": sig}
         rr = dg.RunRequest(run_key=run.run_id, partition_key=run.run_id, tags=tags,
                            run_config=dict(c.triage_run_config) if c.triage_run_config else None)
-        return dg.SensorResult(run_requests=[rr], dynamic_partitions_requests=requests)
+        return "request", dg.SensorResult(run_requests=[rr], dynamic_partitions_requests=requests)
+
+    # ═══════════ run-record sensor (detect: runs | both) ═══════════
+
+    def runs_tick(self, context: Any, triage_job_name: str, partitions_def: Any) -> Any:
+        """Poll run RECORDS for FAILURE runs -- sees runs that never emitted a RUN_FAILURE event (written straight to run storage).
+
+        Not a high-water-mark cursor on purpose: a run's `update_timestamp` is the time of its last EVENT, which for historical /
+        externally observed runs is in the past and can be persisted long after later runs were seen (verified with
+        `add_historical_run` + `report_dagster_event`), and a row can reach FAILURE after rows with a higher id. So every tick
+        scans the FAILURE runs updated within `runs_lookback_hours` and judges those without a durable per-run marker, oldest
+        (update_timestamp, run_id) first, at most `runs_max_per_tick` at a time. The Dagster cursor only records when the sensor
+        was first armed: failures that already existed then are marked seen, not triaged (same as the event sensor, which starts
+        from 'now')."""
+        c, inst = self.c, context.instance
+        cur = _parse_json(getattr(context, "cursor", None)) or {}
+        now = _now()
+        window = now - timedelta(hours=float(c.runs_lookback_hours))
+        recs = inst.get_run_records(filters=dg.RunsFilter(statuses=[dg.DagsterRunStatus.FAILURE], updated_after=window),
+                                    limit=_RUNS_SCAN_LIMIT, order_by="update_timestamp", ascending=False)
+        recs = sorted(recs, key=lambda r: (r.update_timestamp, r.dagster_run.run_id))
+        if not cur.get("armed_at"):
+            for r in recs:
+                self._mark_seen(r.dagster_run.run_id, "preexisting when the run-record sensor was armed")
+            return dg.SensorResult(cursor=json.dumps({"armed_at": _iso(now)}),
+                                   skip_reason=f"armed; {len(recs)} pre-existing failure(s) marked seen")
+        requests: List[Any] = []
+        partitions: List[Any] = []
+        triaged = 0
+        for r in recs:
+            run = r.dagster_run
+            if self.is_seen(run.run_id):
+                continue
+            if triaged >= int(c.runs_max_per_tick):
+                break
+            rctx = _RecordContext(context, run, r)
+            kind, payload = self.decide(rctx, triage_job_name, partitions_def, defer_rate_limit=True, source="run_record")
+            if kind == "defer":
+                break  # rate limited: leave this and every newer run undecided for a later tick
+            if kind == "request":
+                triaged += 1
+                requests.extend(payload.run_requests)
+                partitions.extend(payload.dynamic_partitions_requests or [])
+        cursor = json.dumps(cur)
+        if requests:
+            return dg.SensorResult(run_requests=requests, dynamic_partitions_requests=partitions, cursor=cursor)
+        return dg.SensorResult(cursor=cursor, skip_reason="no new failed run records")
 
     # ═══════════ approval + action sensor ═══════════
 
@@ -868,6 +998,10 @@ class _Engine:
         run = inst.get_run_by_id(run_id)
         if run is None:
             return [], f"run {run_id} not found on this instance"
+        ext = _external_source(run)
+        if ext and kind in ("retry_run", "rerun_partition"):
+            return [], (f"run {run_id} was recorded from an external orchestrator ({ext}); there is no Dagster job to re-execute, "
+                        f"so {kind} is not available (re-run it in {ext}; open_ticket / notify still work)")
         if kind == "retry_run":
             if _status(run) != "FAILURE":
                 return [], f"run {run_id} is {_status(run)}, not FAILURE; nothing to retry"
@@ -1158,6 +1292,10 @@ class RunFailureRemediationComponent(dg.Component, dg.Model, dg.Resolvable):
     dynamic_partitions_name: str = Field(default="run_failures", description="Name of the DynamicPartitionsDefinition the failed run ids are registered on. The triage assets must use this same name (agentic_pipeline: partition_type: dynamic, dynamic_partition_name: <this>).")
     only_jobs: Optional[List[str]] = Field(default=None, description="Only triage failures of these jobs (default: all jobs in all code locations).")
     ignore_jobs: Optional[List[str]] = Field(default=None, description="Never triage failures of these jobs. The triage job itself is always ignored (no recursion).")
+    detect: str = Field(default="events", description="How failed runs are detected. `events` (default): Dagster's run_failure_sensor, which listens to RUN_FAILURE events. `runs`: a regular sensor polling run RECORDS with status FAILURE -- also sees runs written straight to run storage without a failure event (e.g. `add_historical_run(..., status=FAILURE)`). `both`: both sensors; a run is never triaged twice. dagster-airlift's Airflow runs DO emit the event, so `events` already covers them (see the README).")
+    only_tags: Optional[Dict[str, str]] = Field(default=None, description="Only triage failed runs carrying ALL of these tags: {tag_key: value}; value '*' (or '') matches any value. E.g. {'dagster-airlift/airflow-dag-id': '*'} or {'dagster/external_job_source': 'airflow'}. Applies to both detection modes.")
+    runs_lookback_hours: float = Field(default=24.0, description="detect runs|both: how far back (by the run's last update time) the run-record sensor looks for failed runs it has not judged yet. A failure persisted later than this after it happened is not seen.")
+    runs_max_per_tick: int = Field(default=10, description="detect runs|both: at most this many new failed runs are triaged per tick (oldest first); the rest wait for the next tick.")
     triage_remediation_runs: bool = Field(default=False, description="Also triage failures of runs this component launched. Off by default so a failing retry cannot start another triage.")
     max_triage_per_hour: int = Field(default=10, description="Rate limit: at most this many triage runs requested per rolling hour.")
     cooldown_minutes: float = Field(default=60.0, description="After a triage for (job, error signature), further failures with the same signature are suppressed for this long.")
@@ -1185,7 +1323,7 @@ class RunFailureRemediationComponent(dg.Component, dg.Model, dg.Resolvable):
     @classmethod
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=("only_jobs", "ignore_jobs", "allowed_actions", "allowed_materialize_assets", "redact_patterns"),
-                                   csv=(), tags=())
+                                   csv=(), tags=("only_tags",))
 
     # -- validation shared by build_defs and tests --
     def validate_config(self) -> None:
@@ -1217,6 +1355,10 @@ class RunFailureRemediationComponent(dg.Component, dg.Model, dg.Resolvable):
                 raise ValueError(f"remediation_jobs name {n!r} must be letters/digits/underscores")
         if self.max_triage_per_hour < 1:
             raise ValueError("max_triage_per_hour must be >= 1")
+        if self.detect not in ("events", "runs", "both"):
+            raise ValueError("detect must be one of events, runs, both")
+        if self.runs_lookback_hours <= 0 or self.runs_max_per_tick < 1:
+            raise ValueError("runs_lookback_hours must be > 0 and runs_max_per_tick >= 1")
 
     def partitions_def(self) -> "dg.DynamicPartitionsDefinition":
         """The dynamic partitions definition failed run ids are registered on (share it with your triage assets)."""
@@ -1229,13 +1371,28 @@ class RunFailureRemediationComponent(dg.Component, dg.Model, dg.Resolvable):
         status = dg.DefaultSensorStatus.RUNNING if self.default_status.upper() == "RUNNING" else dg.DefaultSensorStatus.STOPPED
         triage_job = dg.define_asset_job(name=self.triage_job_name, selection=self.triage_asset_selection)
 
-        @dg.run_failure_sensor(
-            name=f"{self.name_prefix}_failure_sensor", monitor_all_code_locations=True, request_job=triage_job,
-            minimum_interval_seconds=self.minimum_interval_seconds, default_status=status,
-            description="Gathers redacted evidence for a failed run and requests a triage run on a dynamic partition named after the run id.",
-        )
-        def failure_sensor(context: dg.RunFailureSensorContext):
-            return engine.failure_tick(context, self.triage_job_name, pdef)
+        sensors: List[Any] = []
+        if self.detect in ("events", "both"):
+            @dg.run_failure_sensor(
+                name=f"{self.name_prefix}_failure_sensor", monitor_all_code_locations=True, request_job=triage_job,
+                minimum_interval_seconds=self.minimum_interval_seconds, default_status=status,
+                description="Gathers redacted evidence for a failed run and requests a triage run on a dynamic partition named after the run id.",
+            )
+            def failure_sensor(context: dg.RunFailureSensorContext):
+                return engine.failure_tick(context, self.triage_job_name, pdef)
+
+            sensors.append(failure_sensor)
+
+        if self.detect in ("runs", "both"):
+            @dg.sensor(
+                name=f"{self.name_prefix}_failed_runs_sensor", job=triage_job,
+                minimum_interval_seconds=self.minimum_interval_seconds, default_status=status,
+                description="Polls run records for FAILURE runs (including ones recorded without a failure event) and requests a triage run per new failure.",
+            )
+            def failed_runs_sensor(context: dg.SensorEvaluationContext):
+                return engine.runs_tick(context, self.triage_job_name, pdef)
+
+            sensors.append(failed_runs_sensor)
 
         resource_keys = {self.store_resource_key} if self.store_resource_key else set()
         rem_jobs = [dg.define_asset_job(name=f"{self.name_prefix}_remediate_{n}", selection=sel)
@@ -1250,4 +1407,4 @@ class RunFailureRemediationComponent(dg.Component, dg.Model, dg.Resolvable):
         def approval_sensor(context: dg.SensorEvaluationContext):
             return engine.approval_tick(context)
 
-        return dg.Definitions(jobs=[triage_job, *rem_jobs], sensors=[failure_sensor, approval_sensor])
+        return dg.Definitions(jobs=[triage_job, *rem_jobs], sensors=[*sensors, approval_sensor])

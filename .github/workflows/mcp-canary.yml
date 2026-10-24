@@ -1,0 +1,91 @@
+name: mcp-canary
+
+# Never be surprised by an upstream MCP release again. Runs ONLY the MCP-related tests (every component that imports
+# `mcp` / `fastmcp`, see tests/test_mcp_components_inventory.py) against several MCP SDK versions:
+#   - mcp 1.30.* (the minimum we support), latest 1.x, latest 2.x, and the newest PRE-release (allowed to fail, but visible)
+#   - latest fastmcp (the context_receipt_store gateway examples)
+# Job names carry the version spec, so a red job says which release broke. The installed versions are printed first.
+# `tests.yml` stays the per-push gate (it runs the latest mcp); this adds the matrix, the weekly schedule and the pre-release.
+
+on:
+  schedule:
+    - cron: "0 7 * * 1"   # Mondays 07:00 UTC
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - "assets/ai/agentic_pipeline/**"
+      - "assets/ai/dagster_instance_tools/**"
+      - "assets/ai/mcp_tool_picker/**"
+      - "assets/sources/mcp_tool_call/**"
+      - "assets/ai/litellm_agent/**"
+      - "assets/ai/openai_agent/**"
+      - "assets/ai/anthropic_agent/**"
+      - "assets/ai/gemini_agent/**"
+      - "assets/ai/vercel_ai_gateway_agent/**"
+      - "assets/ai/snowflake_cortex_agent/**"
+      - "resources/context_receipt_store/**"
+      - "tests/test_mcp_*.py"
+      - ".github/workflows/mcp-canary.yml"
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  # Keep in sync with MCP_COMPONENTS in tests/test_mcp_components_inventory.py (that test fails if they drift).
+  MCP_TESTS: >-
+    tests/test_mcp_compat_helpers_drift.py
+    tests/test_mcp_components_inventory.py
+    assets/ai/agentic_pipeline/tests
+    assets/ai/dagster_instance_tools/tests
+    assets/ai/mcp_tool_picker/tests
+    assets/sources/mcp_tool_call/tests
+    assets/ai/litellm_agent/tests
+    assets/ai/openai_agent/tests
+    assets/ai/anthropic_agent/tests
+    assets/ai/gemini_agent/tests
+    assets/ai/vercel_ai_gateway_agent/tests
+    assets/ai/snowflake_cortex_agent/tests
+    resources/context_receipt_store/tests/test_fastmcp_gateway.py
+
+jobs:
+  mcp:
+    name: "mcp ${{ matrix.label }} / py${{ matrix.python }}"
+    runs-on: ubuntu-latest
+    # the pre-release leg is an early warning, not a gate: red but does not fail the workflow
+    continue-on-error: ${{ matrix.allow_failure }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { label: "1.30.* (minimum)",  python: "3.10", spec: "mcp==1.30.*",        pre: "",      fastmcp: "",         allow_failure: false }
+          - { label: "latest 1.x",        python: "3.12", spec: "mcp<2",              pre: "",      fastmcp: "",         allow_failure: false }
+          - { label: "latest 2.x",        python: "3.12", spec: "mcp>=2",             pre: "",      fastmcp: "",         allow_failure: false }
+          - { label: "PRE-RELEASE",       python: "3.12", spec: "mcp",                pre: "--pre", fastmcp: "",         allow_failure: true }
+          - { label: "1.x + fastmcp 2.x",  python: "3.12", spec: "mcp<2",              pre: "",      fastmcp: "fastmcp<3", allow_failure: false }
+          - { label: "latest + fastmcp",  python: "3.12", spec: "mcp",                pre: "",      fastmcp: "fastmcp",  allow_failure: false }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install dependencies
+        # the subset of tests.yml's dependency list that the MCP tests import (no sqlglot/duckdb pins needed here)
+        run: |
+          pip install --upgrade pip
+          pip install "dagster>=1.10.0" pandas pytest pyyaml requests jsonschema litellm cryptography
+      - name: Install MCP SDK under test
+        run: |
+          pip install ${{ matrix.pre }} --upgrade "${{ matrix.spec }}"
+          if [ -n "${{ matrix.fastmcp }}" ]; then pip install --upgrade "${{ matrix.fastmcp }}"; fi
+      - name: Show installed MCP versions
+        run: |
+          echo "::notice title=MCP versions::spec='${{ matrix.spec }}' pre='${{ matrix.pre }}'"
+          pip list 2>/dev/null | grep -iE "^(mcp|mcp-types|fastmcp|fastmcp-slim) " || true
+          python - <<'PY'
+          import importlib.metadata as m
+          for n in ("mcp", "fastmcp"):
+              try:
+                  print(f"{n}=={m.version(n)}")
+              except m.PackageNotFoundError:
+                  print(f"{n}: not installed")
+          PY
+      - name: Run MCP tests
+        run: python -m pytest $MCP_TESTS -q -p no:cacheprovider -W ignore

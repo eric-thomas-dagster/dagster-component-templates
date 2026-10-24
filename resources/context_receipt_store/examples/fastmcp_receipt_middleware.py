@@ -10,7 +10,10 @@ untouched. Unlike fastmcp_gateway.py the tools stay receipt-agnostic.
 from __future__ import annotations
 
 from fastmcp.server.middleware import Middleware, MiddlewareContext
-from fastmcp.tools.base import ToolResult
+try:  # fastmcp >= 3
+    from fastmcp.tools.base import ToolResult
+except ImportError:  # fastmcp 2.x kept it in fastmcp.tools.tool
+    from fastmcp.tools.tool import ToolResult
 
 from dagster_community_components import ContextReceiptStore
 

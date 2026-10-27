@@ -5431,6 +5431,7 @@ INSIGHTS_METRICS = [
     {"metadata_key": "agentic_budget_violations", "unit_type": "INTEGER", "display_name": "Agentic budget violations", "description": "Budget violations recorded during one pipeline materialization (cap reached/exceeded, breaker refusals)."},
     {"metadata_key": "agentic_spent_today_usd", "unit_type": "FLOAT", "display_name": "Agentic spend today (USD, ledger)", "description": "Cumulative UTC-day spend across all runs sharing the policy.budget.ledger, at the end of this materialization."},
     {"metadata_key": "agentic_failures", "unit_type": "INTEGER", "display_name": "Agentic pipeline failures", "description": "1 on the failure observation logged when a pipeline step fails (see the failure observation contract): chart or alert on failures per asset."},
+    {"metadata_key": "agentic_parked_runs", "unit_type": "INTEGER", "display_name": "Agentic parked runs", "description": "Runs of this pipeline parked at an approve gate (mode: park) and not yet resumed, counted when a run parks (emitted only by a run that parks)."},
     {"metadata_key": "agentic_remaining_today_usd", "unit_type": "FLOAT", "display_name": "Agentic budget remaining today (USD)", "description": "max_cost_usd_per_day minus the ledger's spend today (only emitted when a daily cap is set)."},
 ]
 
@@ -6076,7 +6077,8 @@ def _approval_key(raw: Any) -> str:
 _APPROVE_REUSE = ("once", "until_changed", "always")
 _APPROVE_MODES = ("wait", "park")
 _APPROVE_ON_TIMEOUT = ("reject", "approve", "pending", "fail")
-_PARK_ONLY_FIELDS = ("checkpoint_dir", "park_expires_hours", "max_resumes")
+_PARK_ONLY_FIELDS = ("checkpoint_dir", "park_expires_hours", "max_resumes", "on_config_change")
+_ON_CONFIG_CHANGE = ("fail", "continue")
 
 
 def _validate_approve_options(steps: List[Dict[str, Any]]) -> None:
@@ -6121,6 +6123,8 @@ def _validate_approve_options(steps: List[Dict[str, Any]]) -> None:
             mr = st.get("max_resumes")
             if mr is not None and (isinstance(mr, bool) or not isinstance(mr, int) or mr < 1):
                 raise ValueError(f"{where}: max_resumes must be an integer >= 1, got {mr!r}")
+            if st.get("on_config_change", "fail") not in _ON_CONFIG_CHANGE:
+                raise ValueError(f"{where}: on_config_change must be {' | '.join(_ON_CONFIG_CHANGE)}, got {st.get('on_config_change')!r}")
             if not st.get("approval_dir"):
                 raise ValueError(f"{where}: mode: park needs approval_dir (the sensor reads tokens from it)")
 
@@ -6456,6 +6460,7 @@ def _park_metadata(state: Dict[str, Any]) -> Dict[str, Any]:
         md["agentic_parked_at_step"] = dg.MetadataValue.text(pk["step"])
         md["agentic_checkpoint_id"] = dg.MetadataValue.text(pk["checkpoint_id"])
         md["agentic_approval_key"] = dg.MetadataValue.text(pk["key"])
+        md["agentic_parked_runs"] = dg.MetadataValue.int(int(pk.get("pending_count", 1)))
     if rs:
         md["agentic_resumed_from_run"] = dg.MetadataValue.text(str(rs.get("of_run")))
         md["agentic_checkpoint_id"] = dg.MetadataValue.text(rs["checkpoint_id"])
@@ -6464,7 +6469,7 @@ def _park_metadata(state: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def _park_write_checkpoint(state: Dict[str, Any], context, *, asset_ids: List[str], selected_outputs: Optional[List[str]],
-                           pipeline_version: str, pv: Dict[str, Dict[str, str]]) -> None:
+                           pipeline_version: str, pv: Dict[str, Dict[str, str]], step_versions: Optional[Dict[str, str]] = None) -> None:
     """Called by the pipeline body when `state['__parked__']` is set: pops the gate's placeholder, works out which assets this run
     emits, writes the checkpoint atomically, and tags the run. Raises (naming the step) when the state is not JSON."""
     pk = state["__parked__"]
@@ -6510,7 +6515,7 @@ def _park_write_checkpoint(state: Dict[str, Any], context, *, asset_ids: List[st
         "resume_count": 0, "max_resumes": pk["max_resumes"], "approval_dir": pk["approval_dir"], "reuse": pk["reuse"],
         "max_age_hours": pk["max_age_hours"], "on_timeout": pk["on_timeout"], "on_reject": pk["on_reject"],
         "selected_outputs": selected_outputs, "pipeline_version": pipeline_version,
-        "prompt_versions": {k: v["version"] for k, v in pv.items()},
+        "prompt_versions": {k: v["version"] for k, v in pv.items()}, "step_versions": step_versions or {},
         "experiment_variant": (state.get("__experiment__") or {}).get("variant"),
         "receipt_id": (state.get("__receipts__") or {}).get("receipt_id"),
         "spend_so_far": state.get("__spend__") or {}, "state": body,
@@ -6528,12 +6533,112 @@ def _park_write_checkpoint(state: Dict[str, Any], context, *, asset_ids: List[st
             _park_archive(ckpt_store, old, "superseded", by_run=getattr(context, "run_id", None))
     if prev_resume.get("checkpoint_id") and prev_resume["checkpoint_id"] != pk["checkpoint_id"]:
         _resume_archive(state, context, "parked_again")
+    pk["pending_count"] = max(1, len(_park_pending([pk["checkpoint_dir"]], prefix)))  # incl. this one: the pipeline's parked runs
     try:
         context.instance.add_run_tags(context.run_id, {"agentic/parked": pk["checkpoint_id"]})
     except Exception:
         pass
     context.log.info(f"[approve:{gate}] checkpoint written ({len(body)} state entries, emitting {plan}) -> {ckpt_store.shown(pk['checkpoint_id'] + '.json')}; "
                      "this run ends here and holds no worker")
+
+
+def _park_step_versions(steps: List[Dict[str, Any]], personas: Any, policy: Any) -> Dict[str, str]:
+    """`{step id: effective version}` of every top-level step: the step as written with ITS persona resolved plus the non-budget
+    policy (`_step_code_version`). An approve gate's own `on_config_change` is left out, so flipping the escape hatch is not itself a change."""
+    out: Dict[str, str] = {}
+    policy = _policy_for_version(policy) or None  # `{}` (budget-only policy) and no policy are the same inputs
+    for st in steps:
+        if not isinstance(st, dict) or not st.get("id"):
+            continue
+        if st.get("op") == "approve" and "on_config_change" in st:
+            st = {k: v for k, v in st.items() if k != "on_config_change"}
+        out[str(st["id"])] = _step_code_version(st, personas, policy)
+    return out
+
+
+def _park_config_drift(ck: Dict[str, Any], steps: List[Dict[str, Any]], personas: Any, policy: Any,
+                       exp_state: Optional[Dict[str, Any]]) -> Optional[List[Dict[str, Any]]]:
+    """Which steps that STILL HAVE TO RUN (not in the checkpoint's state; the gate itself is one of them) changed since the
+    checkpoint was written: `[{step, old, new, old_prompt_version, new_prompt_version}]`, [] when none. None when the checkpoint predates
+    `step_versions` (nothing to compare). Steps already done and everything outside the steps (source, outputs, budget) never count."""
+    old = ck.get("step_versions")
+    if not isinstance(old, dict):
+        return None
+    eff = _effective_steps(steps, exp_state)
+    cur = _park_step_versions(eff, personas, policy)
+    new_pv = {k: v["version"] for k, v in prompt_versions({"steps": eff, "personas": personas}).items()}
+    done = {k for k in (ck.get("state") or {}) if not str(k).startswith("__")}
+    old_pv = ck.get("prompt_versions") or {}
+    out: List[Dict[str, Any]] = []
+    for sid in [*cur, *[k for k in old if k not in cur]]:
+        if sid in done or old.get(sid) == cur.get(sid):
+            continue
+        out.append({"step": sid, "old": old.get(sid, "(absent)"), "new": cur.get(sid, "(removed)"),
+                    "old_prompt_version": old_pv.get(sid), "new_prompt_version": new_pv.get(sid)})
+    return out
+
+
+def _park_drift_message(ck: Dict[str, Any], drift: List[Dict[str, Any]], gate: str) -> str:
+    def shown(d: Dict[str, Any]) -> str:
+        pv = f", prompt version {d['old_prompt_version']} -> {d['new_prompt_version']}" if d.get("old_prompt_version") != d.get("new_prompt_version") else ""
+        return f"{d['step']!r} ({d['old']} -> {d['new']}{pv})"
+    return (f"checkpoint {ck.get('id')!r} was parked with a different configuration for step(s) that still have to run: "
+            f"{', '.join(shown(d) for d in drift)}. The checkpoint is untouched and stays resumable: revert that change, or set "
+            f"`on_config_change: continue` on approve step {gate!r} to resume with the NEW configuration, or ask for a fresh approval "
+            "(a changed input supersedes this checkpoint).")
+
+
+def _park_pending(dirs: List[str], prefix: str) -> List[Dict[str, Any]]:
+    """Checkpoints of this pipeline that have not finished (not archived): the runs that are parked or waiting to resume."""
+    out: List[Dict[str, Any]] = []
+    for d in dirs:
+        cs = _ApprovalStore(d)
+        for name in cs.list_names():
+            if not name.endswith(".json"):
+                continue
+            try:
+                ck = json.loads(cs.read_text(cs.path(name)))
+            except (OSError, ValueError):
+                continue
+            if isinstance(ck, dict) and ck.get("prefix") == prefix and ck.get("id") and not cs.exists(cs.path("archive", f"{ck['id']}.json")):
+                out.append(ck)
+    return out
+
+
+def _build_pending_approvals_check(asset_key: "dg.AssetKey", prefix: str, dirs: List[str], warn_after_hours: float):
+    """WARN check `pending_approvals` on the pipeline's first asset (only built when an approve step is `mode: park`). A run whose steps all
+    park ends SUCCESS with assets partly materialized; this is what says work is pending. In a partitioned run it judges that partition."""
+    @dg.asset_check(asset=asset_key, name="pending_approvals",
+                    description="Pipeline runs parked at an approve gate (mode: park), waiting for a decision. WARN while any is parked "
+                                "(or longer than park_warn_after_hours); metadata: count, oldest age, partitions, waiting step(s).")
+    def pending_approvals(context):
+        now = _park_now()
+        try:
+            my_part = (context.run.tags or {}).get("dagster/partition")
+        except Exception:
+            my_part = None
+        allp = _park_pending(dirs, prefix)
+        mine = [c for c in allp if my_part is None or c.get("partition_key") == my_part]
+        ages = []
+        for c in mine:
+            t = _parse_iso(c.get("created_at"))
+            ages.append(max(0.0, (now - t).total_seconds() / 3600.0) if t else 0.0)
+        waiting: Dict[str, int] = {}
+        for c in mine:
+            waiting[str(c.get("step"))] = waiting.get(str(c.get("step")), 0) + 1
+        late = [a for a in ages if a >= float(warn_after_hours)]
+        md: Dict[str, Any] = {
+            "pending_count": dg.MetadataValue.int(len(mine)),
+            "oldest_age_hours": dg.MetadataValue.float(round(max(ages), 4) if ages else 0.0),
+            "partitions": dg.MetadataValue.json(sorted({str(c["partition_key"]) for c in mine if c.get("partition_key") is not None})),
+            "waiting_approve_steps": dg.MetadataValue.json(waiting),
+            "checkpoint_ids": dg.MetadataValue.json(sorted(str(c["id"]) for c in mine)),
+            "warn_after_hours": dg.MetadataValue.float(float(warn_after_hours)),
+            "pending_count_all_partitions": dg.MetadataValue.int(len(allp)),
+        }
+        return dg.AssetCheckResult(passed=not late, severity=dg.AssetCheckSeverity.WARN, metadata=md)
+
+    return pending_approvals
 
 
 def _park_claim_path(store: "_ApprovalStore", ckpt_id: str, k: int) -> str:
@@ -6603,7 +6708,8 @@ def _resume_tag(context) -> Optional[str]:
 
 
 def _load_resumed_state(context, *, dirs: List[str], ckpt_id: str, base_state: Dict[str, Any], partition_key: Optional[str],
-                        pipeline_version: str) -> Dict[str, Any]:
+                        pipeline_version: str, steps: Optional[List[Dict[str, Any]]] = None, personas: Any = None,
+                        policy: Any = None) -> Dict[str, Any]:
     """The state of a resumed run: claim the checkpoint (exactly one run may resume it), load it, and rebuild what the config provides."""
     run_id = getattr(context, "run_id", None) or "local"
     found: Optional["_ApprovalStore"] = None
@@ -6620,6 +6726,19 @@ def _load_resumed_state(context, *, dirs: List[str], ckpt_id: str, base_state: D
         raise RuntimeError(f"resume: checkpoint {ckpt_id!r} has version {ck.get('version')!r}; this component reads version {_PARK_VERSION}")
     if ck.get("partition_key") != partition_key:
         raise RuntimeError(f"resume: checkpoint {ckpt_id!r} is for partition {ck.get('partition_key')!r}, but this run is for {partition_key!r}")
+    # Config changed while parked: judged on the steps that still have to run ONLY, BEFORE the claim (a refusal consumes no attempt).
+    drift = _park_config_drift(ck, steps, personas, policy, (ck.get("state") or {}).get("__experiment__")) if steps is not None else None
+    if drift:
+        gate = next((x for x in steps if isinstance(x, dict) and x.get("id") == ck.get("step")), None)
+        mode = (gate or {}).get("on_config_change", "fail")
+        msg = _park_drift_message(ck, drift, str(ck.get("step")))
+        if mode != "continue":
+            try:  # a new run_key for the sensor once the config is reverted (the refused run's key is spent)
+                store.write_atomic(store.path(f"{ckpt_id}.json"), json.dumps({**ck, "config_blocks": int(ck.get("config_blocks", 0)) + 1}, indent=2))
+            except Exception:
+                pass
+            raise RuntimeError(f"resume refused (on_config_change: fail): {msg}")
+        context.log.warning(f"[park] on_config_change: continue -- {msg} Continuing with the NEW configuration.")
     n = int(ck.get("resume_count", 0))
     instance = getattr(context, "instance", None)
     k = n + 1
@@ -6649,9 +6768,11 @@ def _load_resumed_state(context, *, dirs: List[str], ckpt_id: str, base_state: D
     state.pop("__parked__", None)
     state["__resume__"] = {"step": ck["step"], "checkpoint_id": ckpt_id, "checkpoint_dir": store.display, "expires_at": ck.get("expires_at"),
                            "count": k, "of_run": ck.get("run_id"), "checkpoint": {x: ck[x] for x in ck if x != "state"}}
-    if ck.get("pipeline_version") != pipeline_version:
+    if drift is None and ck.get("pipeline_version") != pipeline_version:  # legacy checkpoint: no per-step versions to compare
         context.log.warning(f"[park] the pipeline's configuration changed since it was parked ({ck.get('pipeline_version')} -> {pipeline_version}); "
                             "the remaining steps run with the NEW configuration")
+    elif drift == [] and ck.get("pipeline_version") != pipeline_version:
+        context.log.info("[park] the configuration changed since it was parked, but not for any step that still has to run; resuming")
     context.log.info(f"[park] resuming checkpoint {ckpt_id} (attempt {k}/{ck.get('max_resumes')}, parked by run {ck.get('run_id')}); "
                      f"steps already done: {[x for x in ck['state'] if not str(x).startswith('__') and x != 'source']}")
     return state
@@ -6688,7 +6809,8 @@ def _validate_park_steps(steps: List[Dict[str, Any]]) -> None:
 
 # ── resume sensor ────────────────────────────────────────────────────────────
 
-def _park_scan(dirs: List[str], prefix: str, instance, *, partitions_def=None) -> "tuple[List[Dict[str, Any]], List[str]]":
+def _park_scan(dirs: List[str], prefix: str, instance, *, partitions_def=None, steps: Optional[List[Dict[str, Any]]] = None,
+               personas: Any = None, policy: Any = None) -> "tuple[List[Dict[str, Any]], List[str]]":
     """What the sensor should request: ([{checkpoint, reason, run_key, tags, partition_key, asset_selection}], [skip notes]).
     The decision is `_approval_token_state` -- the same function the approve op uses -- on the checkpoint's own fingerprint,
     reuse and max_age_hours; an expired park (no honourable decision by `expires_at`) requests the resume that applies on_timeout."""
@@ -6717,6 +6839,12 @@ def _park_scan(dirs: List[str], prefix: str, instance, *, partitions_def=None) -
             if _park_live_claim(cs, cid, n, instance) is not None:
                 notes.append(f"{cid}: a resume run is in flight")
                 continue
+            drift = _park_config_drift(ck, steps, personas, policy, (ck.get("state") or {}).get("__experiment__")) if steps is not None else None
+            if drift:
+                gate = next((x for x in steps if isinstance(x, dict) and x.get("id") == ck.get("step")), None)
+                if (gate or {}).get("on_config_change", "fail") != "continue":
+                    notes.append(f"{cid}: not resumed -- {_park_drift_message(ck, drift, str(ck.get('step')))}")
+                    continue
             ast = _ApprovalStore(ck["approval_dir"])
             token_path = ast.path(f"{ck['key']}.json")
             tok = _read_approval_token(ast, token_path)
@@ -6741,7 +6869,7 @@ def _park_scan(dirs: List[str], prefix: str, instance, *, partitions_def=None) -
                 except Exception:
                     pass
             reqs.append({
-                "checkpoint": ck, "reason": reason, "partition_key": pk, "run_key": f"{cid}:{ck['fingerprint']}:{n}",
+                "checkpoint": ck, "reason": reason, "partition_key": pk, "run_key": f"{cid}:{ck['fingerprint']}:{n}" + (f":c{ck['config_blocks']}" if ck.get("config_blocks") else ""),
                 "tags": {_PARK_TAG_CHECKPOINT: cid, _PARK_TAG_OF_RUN: str(ck.get("run_id")), _PARK_TAG_REASON: reason},
                 "selected_outputs": ck.get("selected_outputs"),
             })
@@ -7900,6 +8028,11 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description="For backfill_policy='multi_run' only. Must be unset or 1: a run with several partitions has no single partition_key.",
     )
+    park_warn_after_hours: float = Field(
+        default=0.0,
+        description="The `pending_approvals` WARN asset check (generated when an approve step has `mode: park`) fails once a parked run has waited "
+                    "this many hours. 0 (default) = any parked run warns.",
+    )
     park_sensor_interval_seconds: int = Field(
         default=30,
         description="How often the generated `<asset>_approval_resume_sensor` looks for approvals of parked pipelines "
@@ -8112,6 +8245,8 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         _receipt_asset = f"{prefix}_{asset_ids[0]}"   # the pipeline's identity in the store: its first declared output
         _exp_check = _build_experiment_check(_experiment, _receipts_cfg, dg.AssetKey([_receipt_asset]))
         _asset_checks = [_exp_check] if _exp_check is not None else []
+        if _park_dirs(steps):  # a run whose steps all park ends SUCCESS: this is what says work is pending (both build paths take _asset_checks)
+            _asset_checks.append(_build_pending_approvals_check(dg.AssetKey([_receipt_asset]), prefix, _park_dirs(steps), float(self.park_warn_after_hours)))
         _required_keys = {_receipts_cfg["resource_key"]} if _receipts_cfg else set()
 
         # ── Branch: per_step_ops selects the emitted shape ────────────
@@ -8211,7 +8346,8 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             if resume_id:
                 # A resumed run does NOT re-ingest or re-run anything: it continues from the checkpoint the parked run wrote.
                 state = _load_resumed_state(context, dirs=_park_dirs(steps), ckpt_id=resume_id, base_state=_base_state,
-                                            partition_key=partition_key, pipeline_version=_pver)
+                                            partition_key=partition_key, pipeline_version=_pver,
+                                            steps=steps, personas=self.personas, policy=self.policy)
             # Ingest.
             elif source_config.get("kind") == "upstream_asset":
                 upstream = kwargs["source"]
@@ -8314,7 +8450,8 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 _pv0 = prompt_versions({"steps": _effective_steps(steps, state.get("__experiment__")), "personas": self.personas})
                 _park_write_checkpoint(state, context, asset_ids=asset_ids_to_emit,
                                        selected_outputs=sorted(selected_output_names) if is_subset else None,
-                                       pipeline_version=_pver, pv=_pv0)
+                                       pipeline_version=_pver, pv=_pv0,
+                                       step_versions=_park_step_versions(_effective_steps(steps, state.get("__experiment__")), self.personas, self.policy))
                 asset_ids_to_emit = list(state["__emit_now__"])
             else:
                 asset_ids_to_emit = _emit_plan(state, asset_ids_to_emit)
@@ -8453,7 +8590,8 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                    default_status=dg.DefaultSensorStatus.RUNNING,
                    description="Resumes pipelines parked at an approve step (mode: park) once their approval is written.")
         def _resume_sensor(context: dg.SensorEvaluationContext):
-            reqs, notes = _park_scan(dirs, prefix, context.instance, partitions_def=partitions_def)
+            reqs, notes = _park_scan(dirs, prefix, context.instance, partitions_def=partitions_def,
+                                     steps=steps, personas=self.personas, policy=self.policy)
             out = []
             for r in reqs:
                 sel_out = r.get("selected_outputs")
@@ -8467,7 +8605,36 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 return dg.SkipReason("; ".join(notes) or "no parked pipelines")
             return dg.SensorResult(run_requests=out)
 
-        return dg.Definitions.merge(defs, dg.Definitions(jobs=[job], sensors=[_resume_sensor]))
+        # The `pending_approvals` check is attached to the pipeline's FIRST asset, and a check only runs when its asset is materialized in
+        # the run. A RESUMED run does not re-materialize that asset (the parked run did), so the WARN would stay stale after the resume.
+        # This second sensor re-evaluates the check (a checks-only job) whenever the set of pending checkpoints, or which of them are
+        # past park_warn_after_hours, changes -- so the WARN appears when a run parks and clears when the last one finishes.
+        first_key = dg.AssetKey([f"{prefix}_{asset_ids[0]}"])
+        check_job = dg.define_asset_job(name=f"{prefix}_pending_approvals_job", selection=dg.AssetSelection.checks_for_assets(first_key))
+        warn_after = float(self.park_warn_after_hours)
+
+        @dg.sensor(name=f"{prefix}_pending_approvals_sensor", job=check_job, minimum_interval_seconds=interval,
+                   default_status=dg.DefaultSensorStatus.RUNNING,
+                   description="Re-evaluates the pending_approvals asset check when the pipeline's parked runs change (a run parks, a resume finishes, "
+                               "a parked run passes park_warn_after_hours).")
+        def _pending_sensor(context: dg.SensorEvaluationContext):
+            now = _park_now()
+            rows = []
+            for c in _park_pending(dirs, prefix):
+                t = _parse_iso(c.get("created_at"))
+                late = t is not None and (now - t).total_seconds() / 3600.0 >= warn_after
+                rows.append(f"{c['id']}:{int(late)}")
+            digest = "|".join(sorted(rows))
+            if digest == (context.cursor or ""):
+                return dg.SkipReason("pending approvals unchanged")
+            first = context.cursor is None and not digest  # nothing has ever been parked: just start tracking
+            context.update_cursor(digest)
+            if first:
+                return dg.SkipReason("no parked pipelines")
+            import hashlib
+            return dg.RunRequest(run_key=f"pa:{hashlib.sha1((digest + '#' + now.isoformat()).encode()).hexdigest()[:16]}")
+
+        return dg.Definitions.merge(defs, dg.Definitions(jobs=[job, check_job], sensors=[_resume_sensor, _pending_sensor]))
 
     # ── Per-step-ops build path ──────────────────────────────────────
     #
@@ -8532,7 +8699,8 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             if not rid:
                 return None
             return _load_resumed_state(context, dirs=_park_cfg_dirs, ckpt_id=rid, base_state=_base_state(),
-                                       partition_key=partition_key, pipeline_version=_pver)
+                                       partition_key=partition_key, pipeline_version=_pver,
+                                       steps=steps, personas=_self.personas, policy=_self.policy)
 
         # --- ingest op ---
         # Same behavior as the multi_asset's inline ingest: read source
@@ -8639,7 +8807,9 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
                 if new_state.get("__parked__"):
                     _park_write_checkpoint(new_state, context, asset_ids=asset_ids, selected_outputs=None, pipeline_version=_pver,
                                            pv=prompt_versions({"steps": _effective_steps(steps, new_state.get("__experiment__")),
-                                                               "personas": _self.personas}))
+                                                               "personas": _self.personas}),
+                                           step_versions=_park_step_versions(_effective_steps(steps, new_state.get("__experiment__")),
+                                                                             _self.personas, _self.policy))
                 return new_state
 
             return _step_op

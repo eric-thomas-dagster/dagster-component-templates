@@ -94,7 +94,7 @@ recent_runs, recent_outcomes, remediation_contract`.
 ## Rate limiting
 
 `max_triage_per_hour` (rolling), `cooldown_minutes` per (job, error signature) so a flapping job does not spawn a triage per failure,
-`only_jobs` / `ignore_jobs` / `only_tags`. State lives in `<evidence_dir>/_state/failure_sensor.json`. Replaying a tick (`run_key = run_id`) never
+`only_jobs` / `ignore_jobs` / `only_tags`. The state is append-only: one small file per event under `<evidence_dir>/_state/ratelimit/<epoch_ms>-<run_id>-<kind>.json` (exclusive-create, so two sensors ticking at the same instant, or two daemon threads, never lose an entry; a count is a listing, and expired events are deleted on each claim). A claim is serialized in-process and, across processes, written-then-verified by rank (a loser withdraws its files); the only theoretical gap is a few-millisecond clock-read-to-create window between processes. Replaying a tick (`run_key = run_id`) never
 double-launches and does not consume budget.
 
 ## Airflow / Airlift and other external runs

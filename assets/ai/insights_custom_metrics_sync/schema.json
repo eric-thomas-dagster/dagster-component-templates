@@ -19,7 +19,7 @@
     "deployment_url": {
       "type": "string",
       "label": "Deployment URL",
-      "description": "Full Dagster+ deployment URL, e.g. https://acme.dagster.cloud/prod (required; not derived from the environment).",
+      "description": "Full Dagster+ deployment URL, e.g. https://acme.dagster.cloud/prod (required). Set `auto` to derive it at run time from DAGSTER_CLOUD_DEPLOYMENT_NAME + the Dagster+ instance's organization; it errors if that is unavailable.",
       "required": true
     },
     "token_env_var": {

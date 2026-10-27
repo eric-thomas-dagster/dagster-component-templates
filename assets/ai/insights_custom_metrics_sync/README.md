@@ -17,8 +17,17 @@ whose materialization emits a numeric `MetadataValue` under that key. The GraphQ
 - HTTP 429/5xx/network errors are retried (`max_retries`, jittered exponential backoff, honours `Retry-After`); 401/403 and 4xx are
   not. `CustomMetricError` for one metric is reported and the other metrics still sync.
 - The token (`token_env_var`, default `DAGSTER_CLOUD_API_TOKEN`) is read at run time and never logged or put in metadata/errors.
-- `deployment_url` is **required** (`https://<org>.dagster.cloud/<deployment>`; plain http only for localhost). It is not derived
-  from the agent environment: the agent exposes the deployment name but I found no reliable organization variable.
+- `deployment_url` is **required**: either an explicit `https://<org>.dagster.cloud/<deployment>` (plain http only for localhost; an
+  explicit value always wins) or `auto`, resolved at run time from sources confirmed in the Dagster+ code:
+  deployment = env `DAGSTER_CLOUD_DEPLOYMENT_NAME` (set in `dagster_cloud_backend/user_code/workspace.py:169`, delivered to run workers
+  through the container-context env vars, `dagster_cloud_serverless_k8s_agent/run_launcher.py:40-47`; documented in
+  `built-in.md:17`; for a branch deployment it is the branch deployment's name). The **organization name is not an env var** in run
+  workers (`DAGSTER_CLOUD_ORGANIZATION` is a CLI/CI variable; the injected `INTERNAL_DAGSTER_CLOUD_ORGANIZATION_ID` is an opaque id),
+  so it comes from the instance: `DagsterCloudAgentInstance.dagit_url` (`dagster_cloud/instance/__init__.py:387-401`) decodes it, and
+  the region, from the agent token -> `https://<org>.dagster.cloud` or `https://<org>.<region>.dagster.cloud` (e.g. `.eu.`). If the
+  env var or the instance property is missing (plain OSS instance, legacy agent token, local run) `auto` raises an error telling you
+  to set the URL explicitly. Custom domains cannot be derived. Not verified end to end: that a run worker's instance carries the
+  agent token (from reading the code only); if it does not, you get the explicit-URL error, never a guessed URL.
 
 ## Schema-drift guard
 `verify_schema: off | warn | strict` (default **warn**; legacy true=strict, false=off). Before any write the asset introspects the

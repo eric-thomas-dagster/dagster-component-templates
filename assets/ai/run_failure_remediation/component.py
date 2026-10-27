@@ -23,6 +23,7 @@ import hashlib
 import json
 import os
 import re
+import threading
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -246,6 +247,40 @@ class _Store:
             f.write(text)
         os.replace(tmp, p)  # a reader never sees a half-written document
 
+    def create_exclusive(self, parts: Tuple[str, ...], text: str) -> bool:
+        """Create the file only if it does not exist (True), else False. Local: temp file + atomic `os.link` (nobody ever sees an
+        empty file); fsspec: exclusive-create (`xb`) on backends that honour it."""
+        p = self.path(*parts)
+        if self.is_uri:
+            self.fs.makedirs(p.rsplit("/", 1)[0], exist_ok=True)
+            try:
+                with self.fs.open(p, "xb") as f:
+                    f.write(text.encode("utf-8"))
+                return True
+            except FileExistsError:
+                return False
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        tmp = f"{p}.{uuid.uuid4().hex[:8]}.tmp"
+        with open(tmp, "w") as f:
+            f.write(text)
+        try:
+            os.link(tmp, p)
+            return True
+        except FileExistsError:
+            return False
+        finally:
+            os.remove(tmp)
+
+    def list_names(self, *parts: str) -> List[str]:
+        """File names (not paths) directly under the directory; [] when it does not exist."""
+        d = self.path(*parts)
+        try:
+            if self.is_uri:
+                return [x.rstrip("/").rsplit("/", 1)[-1] for x in self.fs.ls(d, detail=False)]
+            return os.listdir(d)
+        except (OSError, FileNotFoundError):
+            return []
+
     def remove(self, *parts: str) -> None:
         p = self.path(*parts)
         try:
@@ -273,6 +308,125 @@ class _Store:
         for f in sorted(p.glob("*.json")):
             out.append((f.stem, f.stat().st_mtime))
         return out
+
+
+# ── rate-limit / cooldown state: append-only, one small file per event ─────────
+#
+# Layout under <evidence_dir>/_state/ratelimit/:   <epoch_ms:013d>-<run_id>-<kind>.json     kind: triage | cooldown | suppressed
+#
+# The old design was ONE json document read-modified-written by every sensor tick, so two ticks at the same instant (detect: both,
+# or two daemon threads) could lose an entry. Here every event is its own file written once with exclusive-create, so there is no
+# shared document to lose an update to; a count is just a listing. A claimant writes its events, re-lists, and keeps its claim only
+# if it ranks inside the limit (events sorted by file name = time, then run id); a loser withdraws its files. Inside one process
+# (all sensors of a code location, any number of threads) the claim is additionally serialized by a per-directory lock, which makes
+# the limit exact there. Across processes the write-then-verify ranking is what holds the limit; its one theoretical gap is a
+# claimant whose clock reading is older than a rival's already-completed list-and-win, i.e. a window of the few milliseconds between
+# reading the clock and the exclusive-create landing. Expired events are deleted as a side effect of every claim (compaction).
+
+_RL_DIR = ("_state", "ratelimit")
+_RL_LOCKS: Dict[str, threading.Lock] = {}
+_RL_LOCKS_GUARD = threading.Lock()
+
+
+class _RateLimiter:
+    def __init__(self, store: "_Store"):
+        self.store = store
+        with _RL_LOCKS_GUARD:
+            self._lock = _RL_LOCKS.setdefault(store.display, threading.Lock())
+
+    @staticmethod
+    def _ms(t: datetime) -> int:
+        return int(t.timestamp() * 1000)
+
+    def _append(self, kind: str, run_id: str, now: datetime, payload: Dict[str, Any]) -> str:
+        ms = self._ms(now)
+        while True:  # same ms + same run + same kind is only ever a retry of ourselves: bump the ms, never overwrite
+            name = f"{ms:013d}-{_approval_key(run_id)}-{kind}.json"
+            if self.store.create_exclusive(_RL_DIR + (name,), json.dumps({"run_id": run_id, "kind": kind, **payload}, default=str)):
+                return name
+            ms += 1
+
+    def _withdraw(self, *names: Optional[str]) -> None:
+        for n in names:
+            if n:
+                self.store.remove(*_RL_DIR, n)
+
+    def _events(self) -> List[Tuple[int, str, str]]:
+        """[(epoch_ms, kind, file name)] sorted by name (= by time, then run id)."""
+        out = []
+        for n in self.store.list_names(*_RL_DIR):
+            m = re.match(r"^(\d{13})-.+-(triage|cooldown|suppressed)\.json$", n)
+            if m:
+                out.append((int(m.group(1)), m.group(2), n))
+        return sorted(out, key=lambda e: e[2])
+
+    def _cooldown(self, name: str) -> Optional[Dict[str, Any]]:
+        d = self.store.read_json(*_RL_DIR, name)
+        return d if isinstance(d, dict) else None
+
+    def _compact(self, evs: List[Tuple[int, str, str]], now: datetime, cooldown_minutes: float) -> None:
+        now_ms = self._ms(now)
+        for ms, kind, n in evs:
+            if kind == "triage" and ms <= now_ms - 3_600_000:
+                self._withdraw(n)
+            elif kind == "suppressed" and ms <= now_ms - int(max(cooldown_minutes, 60.0) * 60_000):
+                self._withdraw(n)
+            elif kind == "cooldown":
+                d = self._cooldown(n)
+                until = _parse_ts((d or {}).get("until"))
+                if d is not None and (until is None or until <= now):
+                    self._withdraw(n)
+
+    def _active_cooldowns(self, evs: List[Tuple[int, str, str]], key: str, now: datetime) -> List[Tuple[str, Dict[str, Any]]]:
+        out = []
+        for _, kind, n in evs:
+            if kind != "cooldown":
+                continue
+            d = self._cooldown(n)
+            until = _parse_ts((d or {}).get("until"))
+            if d and d.get("key") == key and until and until > now:
+                out.append((n, d))
+        return out
+
+    def suppressed_count(self, key: str) -> int:
+        n = 0
+        for _, kind, name in self._events():
+            if kind == "suppressed" and (self.store.read_json(*_RL_DIR, name) or {}).get("key") == key:
+                n += 1
+        return n
+
+    def triage_count(self, now: datetime) -> int:
+        lo = self._ms(now) - 3_600_000
+        return sum(1 for ms, kind, _ in self._events() if kind == "triage" and ms > lo)
+
+    def admit(self, key: str, run_id: str, now: datetime, max_per_hour: int, cooldown_minutes: float) -> Tuple[str, Optional[str]]:
+        """Claim one triage slot for `run_id`. Returns ("ok", None) | ("cooldown", until_iso) | ("rate_limited", None)."""
+        with self._lock:
+            evs = self._events()
+            self._compact(evs, now, cooldown_minutes)
+            evs = self._events()
+            live = self._active_cooldowns(evs, key, now)
+            if live:
+                self._append("suppressed", run_id, now, {"key": key})
+                return "cooldown", str(live[0][1].get("until"))
+            lo = self._ms(now) - 3_600_000
+            if sum(1 for ms, kind, _ in evs if kind == "triage" and ms > lo) >= int(max_per_hour):
+                return "rate_limited", None  # already full: deny without writing (a late claimant never outranks a settled winner)
+            t = self._append("triage", run_id, now, {"key": key})
+            c = None
+            if cooldown_minutes > 0:
+                c = self._append("cooldown", run_id, now, {"key": key, "until": _iso(now + timedelta(minutes=float(cooldown_minutes)))})
+            evs = self._events()
+            earlier = [(n, d) for n, d in self._active_cooldowns(evs, key, now) if c and n < c]  # a rival's cooldown claim that ranks first
+            if earlier:
+                self._withdraw(t, c)
+                self._append("suppressed", run_id, now, {"key": key})
+                return "cooldown", str(earlier[0][1].get("until"))
+            window = [n for ms, kind, n in evs if kind == "triage" and ms > lo]
+            if window.index(t) >= int(max_per_hour):
+                self._withdraw(t, c)
+                return "rate_limited", None
+            return "ok", None
 
 
 # ── agentic_pipeline-compatible approval primitives (inlined minimal subset) ──
@@ -567,6 +721,7 @@ class _Engine:
     def __init__(self, c: "RunFailureRemediationComponent"):
         self.c = c
         self.evidence = _Store(c.evidence_dir)
+        self.limiter = _RateLimiter(self.evidence)
         self.proposals = _Store(c.proposals_dir)
         self.approvals = _Store(c.approval_dir)
         self.results = _Store(c.results_dir)
@@ -785,21 +940,14 @@ class _Engine:
 
         evidence = self.build_evidence(context, source=source)
         sig = evidence["error_signature"]
-        state = self.evidence.read_json("_state", "failure_sensor.json") or {}
         now = _now()
-        hour_ago = now - timedelta(hours=1)
-        times = [t for t in state.get("triage_times", []) if (_parse_ts(t) or now) > hour_ago]
-        cool: Dict[str, Any] = {k: v for k, v in (state.get("cooldowns") or {}).items()
-                                if (_parse_ts(v.get("until")) or now) > now}
         ckey = f"{job}|{sig}"
         already = self.evidence.exists(f"{run.run_id}.json")  # a re-tick of a failure we already triaged
         if not already:
-            if ckey in cool:
-                cool[ckey]["suppressed"] = int(cool[ckey].get("suppressed", 0)) + 1
-                self.evidence.write_json(("_state", "failure_sensor.json"), {"triage_times": times, "cooldowns": cool})
-                return skip(f"cooldown: job {job!r} / signature {sig} was triaged recently (until {cool[ckey]['until']})", "suppressed")
-            if len(times) >= int(c.max_triage_per_hour):
-                self.evidence.write_json(("_state", "failure_sensor.json"), {"triage_times": times, "cooldowns": cool})
+            verdict, until = self.limiter.admit(ckey, run.run_id, now, int(c.max_triage_per_hour), float(c.cooldown_minutes))
+            if verdict == "cooldown":
+                return skip(f"cooldown: job {job!r} / signature {sig} was triaged recently (until {until})", "suppressed")
+            if verdict == "rate_limited":
                 reason = f"rate limit: max_triage_per_hour={c.max_triage_per_hour} reached"
                 if defer_rate_limit:
                     context.log.info(f"run_failure_remediation: deferring {run.run_id} ({job}): {reason}")
@@ -808,10 +956,6 @@ class _Engine:
 
         self.evidence.write_json((f"{run.run_id}.json",), evidence)
         self._mark_seen(run.run_id, "triaged")
-        if not already:
-            times.append(_iso(now))
-            cool[ckey] = {"until": _iso(now + timedelta(minutes=float(c.cooldown_minutes))), "run_id": run.run_id, "suppressed": 0}
-            self.evidence.write_json(("_state", "failure_sensor.json"), {"triage_times": times, "cooldowns": cool})
 
         requests = []
         try:

@@ -2135,6 +2135,15 @@
                   "minimum": 1,
                   "default": 3,
                   "description": "mode: park only. Resume attempts a checkpoint gets (a resumed run that fails leaves it resumable) before it needs a person."
+                },
+                "on_config_change": {
+                  "type": "string",
+                  "enum": [
+                    "fail",
+                    "continue"
+                  ],
+                  "default": "fail",
+                  "description": "mode: park only. If the configuration of a step that still has to run (its prompt/persona/model/policy; steps already done, source, outputs and policy.budget never count) changed while the run was parked: fail (default) refuses the resume with a clear error and leaves the checkpoint resumable (revert the change, or set continue); continue resumes with the NEW configuration and logs a warning."
                 }
               },
               "additionalProperties": false

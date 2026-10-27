@@ -361,7 +361,7 @@ def test_load_time_guards(mod, tmp_path):
     nested_wait = {"id": "sp", "op": "sub_pipeline", "steps": [{**gate, "mode": "wait"}]}
     build([d, nested_wait])                                              # a nested WAIT gate is still fine
     assert not (build([d]).sensors or [])                                # no park step: no job, no sensor
-    assert [s.name for s in build([d, gate]).sensors] == ["g_approval_resume_sensor"]
+    assert sorted(s.name for s in build([d, gate]).sensors) == ["g_approval_resume_sensor", "g_pending_approvals_sensor"]
 
 
 def test_park_gate_inside_sub_pipeline_loaded_from_a_file_fails_loudly_at_run_time(mod, ctx):

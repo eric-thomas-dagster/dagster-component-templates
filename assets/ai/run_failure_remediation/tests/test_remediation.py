@@ -192,6 +192,12 @@ def test_evidence_sees_partition_and_history(env):
     assert {"asset_key": "pflaky", "partition": "p2"} in pev["failed_assets"]
 
 
+def _rl(env, kind):
+    """The append-only rate-limit event files of one kind."""
+    d = env.dirs["evidence"] / "_state" / "ratelimit"
+    return sorted(d.glob(f"*-{kind}.json")) if d.exists() else []
+
+
 def test_retick_hands_back_the_same_run_key_and_costs_no_extra_budget(env):
     before = env.cursor
     run = env.fail_nightly()
@@ -203,8 +209,7 @@ def test_retick_hands_back_the_same_run_key_and_costs_no_extra_budget(env):
     replay = env.fsensor.evaluate_tick(env.ctx(before))                                # a replayed tick (cursor lost / crash)
     assert [r.run_key for r in replay.run_requests] == [run.run_id]                    # same run_key: the daemon dedupes the launch
     assert replay.dynamic_partitions_requests == []                                    # partition already registered: not re-added
-    state = json.loads((env.dirs["evidence"] / "_state" / "failure_sensor.json").read_text())
-    assert len(state["triage_times"]) == 1                                             # the replay did not count against the rate limit
+    assert len(_rl(env, "triage")) == 1                                                # the replay did not count against the rate limit
 
 
 def test_cursor_survives_rebuilding_the_definitions(env, mod, inst):
@@ -230,8 +235,7 @@ def test_cooldown_per_job_and_signature(mod, tmp_path, inst):
     c = env.fail_nightly()
     assert len(env.tick_failure().run_requests) == 1
     assert env.evidence(c.run_id)["error_signature"] != env.evidence(a.run_id)["error_signature"]
-    state = json.loads((env.dirs["evidence"] / "_state" / "failure_sensor.json").read_text())
-    assert any(v["suppressed"] == 1 for v in state["cooldowns"].values())
+    assert len(_rl(env, "suppressed")) == 1 and len(_rl(env, "cooldown")) == 2
 
 
 def test_cooldown_expires(env):

@@ -351,8 +351,9 @@ def test_insights_metrics_constant_matches_what_is_emitted(mod, fake_litellm, tm
     c = comp(mod, tmp_path / "led", {"max_cost_usd_per_day": 1.0})
     emitted = md(run(c))
     # `agentic_failures` is emitted only on the failure observation of a failed step (tests/test_failure_observation.py), never on success
-    assert {m["metadata_key"] for m in listed} - {"agentic_failures"} <= set(emitted)
-    assert "agentic_failures" not in emitted
+    # `agentic_parked_runs` likewise only on a run that parks (tests/test_park_pending_and_config_change.py)
+    assert {m["metadata_key"] for m in listed} - {"agentic_failures", "agentic_parked_runs"} <= set(emitted)
+    assert "agentic_failures" not in emitted and "agentic_parked_runs" not in emitted
 
 
 def test_tool_calls_are_counted(mod, fake_litellm, tmp_path, monkeypatch):

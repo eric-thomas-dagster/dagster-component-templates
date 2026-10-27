@@ -52,6 +52,7 @@ PRESETS: Dict[str, List[Dict[str, str]]] = {
         _m("agentic_spent_today_usd", "FLOAT", "Agentic spent today (USD)", "Cumulative spend today against the daily budget."),
         _m("agentic_remaining_today_usd", "FLOAT", "Agentic remaining today (USD)", "Remaining daily budget."),
         _m("agentic_failures", "INTEGER", "Agentic failures", "1 on the failure observation logged when an agentic_pipeline step fails."),
+        _m("agentic_parked_runs", "INTEGER", "Agentic parked runs", "Runs of an agentic_pipeline parked at an approve gate (mode: park) and not yet resumed, emitted by a run that parks."),
     ],
     "context_engineering_pipeline": [
         _m("receipts_quarantined", "INTEGER", "Chunks quarantined", "Chunks quarantined by receipt feedback."),
@@ -198,6 +199,46 @@ def validate_deployment_url(url: str) -> str:
         raise ValueError("deployment_url must be a full https URL like https://<org>.dagster.cloud/<deployment> "
                          f"(got {url!r}; plain http is only allowed for localhost)")
     return url.rstrip("/")
+
+
+_AUTO = "auto"
+_DEPLOYMENT_ENV = "DAGSTER_CLOUD_DEPLOYMENT_NAME"
+
+
+def resolve_deployment_url(value: str, instance: Any = None, env: Optional[Dict[str, str]] = None) -> str:
+    """`deployment_url: auto` -> `https://<org>[.<region>].dagster.cloud/<deployment>`; anything else is used as given (explicit wins).
+
+    Ground truth (Dagster+ monorepo, read-only audit):
+      * deployment name = env `DAGSTER_CLOUD_DEPLOYMENT_NAME`. Set by `cloud_context_env_for_deployment`
+        (dagster-cloud/python_modules/dagster-cloud-backend/dagster_cloud_backend/user_code/workspace.py:169) into the container
+        context env_vars, which run workers receive (dagster-cloud-serverless-k8s-agent/.../run_launcher.py:40-47, :282);
+        documented as built in: dagster-oss/docs/docs/deployment/dagster-plus/management/environment-variables/built-in.md:17.
+        For a branch deployment it is the branch deployment's own name (workspace.py:169 uses `deployment.name`).
+      * organization name is NOT an environment variable in run workers: the only org-bearing vars in that code are
+        `DAGSTER_CLOUD_ORGANIZATION` (a CLI/CI variable, dagster-cloud-cli config_utils.py:30, never injected into run workers) and
+        `INTERNAL_DAGSTER_CLOUD_ORGANIZATION_ID` (an opaque id, workspace.py:171). So the org (and region) is taken from the instance:
+        `DagsterCloudAgentInstance.dagit_url` decodes `agent:<org>:<uuid>` from the agent token and builds
+        `https://<org>.dagster.cloud/` or `https://<org>.<region>.dagster.cloud/` (dagster-oss/python_modules/dagster-cloud/
+        dagster_cloud/instance/__init__.py:387-401, decode_agent_token auth/constants.py:37-55). Only scheme+host are used from it.
+    A plain OSS instance has no such property, so `auto` fails there with an explicit error. Custom domains are not derivable.
+    """
+    if (value or "").strip().lower() != _AUTO:
+        return validate_deployment_url(value)
+    import os
+    deployment = ((env if env is not None else os.environ).get(_DEPLOYMENT_ENV) or "").strip()
+    how = "set deployment_url explicitly, e.g. https://<org>.dagster.cloud/<deployment>"
+    if not deployment:
+        raise ValueError(f"deployment_url: auto could not be resolved: env {_DEPLOYMENT_ENV} is not set (not running in a Dagster+ "
+                         f"code server / run worker). {how}")
+    try:
+        base = instance.dagit_url
+    except Exception as e:  # noqa: BLE001 -- plain OSS instance (no attribute) or legacy agent token (no org in the token)
+        raise ValueError("deployment_url: auto could not be resolved: the Dagster instance does not expose the Dagster+ organization "
+                         f"({type(e).__name__}: {e}). {how}") from None
+    u = urlparse(str(base or ""))
+    if u.scheme != "https" or not u.hostname:
+        raise ValueError(f"deployment_url: auto could not be resolved: instance.dagit_url is {base!r}. {how}")
+    return validate_deployment_url(f"https://{u.netloc}/{deployment}")
 
 
 # --------------------------------------------------------------------------------------------------------------------------
@@ -671,7 +712,7 @@ class InsightsCustomMetricsSyncComponent(dg.Component, dg.Model, dg.Resolvable):
     """Idempotently upsert Dagster+ Insights custom-metric definitions (presets for this repo's components + explicit entries)."""
 
     asset_name: str = Field(default="insights_custom_metrics_sync", description="Dagster asset name")
-    deployment_url: str = Field(description="Full Dagster+ deployment URL, e.g. https://acme.dagster.cloud/prod. Required: not derived from the agent environment (see README).")
+    deployment_url: str = Field(description="Full Dagster+ deployment URL, e.g. https://acme.dagster.cloud/prod. `auto` derives it at run time from DAGSTER_CLOUD_DEPLOYMENT_NAME + the instance's Dagster+ organization, and errors if it cannot (see README); an explicit value always wins.")
     token_env_var: str = Field(default="DAGSTER_CLOUD_API_TOKEN", description="Env var holding a Dagster+ API token with permission to manage custom metrics.")
     presets: List[str] = Field(default_factory=list, description=f"Preset names: {', '.join(sorted(PRESETS))}. `auto` (alone or in the list) = at run time, register the presets named by the `{INSIGHTS_TAG_KEY}` tag of the assets in the code location.")
     metrics: List[Dict[str, Any]] = Field(default_factory=list, description="Explicit entries: {metadata_key, unit_type, display_name?, description?}.")
@@ -704,7 +745,8 @@ class InsightsCustomMetricsSyncComponent(dg.Component, dg.Model, dg.Resolvable):
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if self.on_error not in ("warn", "fail"):
             raise ValueError("on_error must be 'warn' or 'fail'")
-        url = validate_deployment_url(self.deployment_url)
+        if self.deployment_url.strip().lower() != _AUTO:
+            validate_deployment_url(self.deployment_url)  # `auto` is resolved at run time (needs the instance + run env)
         desired = self._desired()
         auto = "auto" in self.presets
         if not desired and not auto:
@@ -720,6 +762,7 @@ class InsightsCustomMetricsSyncComponent(dg.Component, dg.Model, dg.Resolvable):
         @dg.asset(name=self.asset_name, group_name=self.group_name, kinds={"dagster"},
                   description="Registers Dagster+ Insights custom metric definitions (idempotent upsert by metadata_key).")
         def _sync(context: dg.AssetExecutionContext):
+            url = resolve_deployment_url(comp.deployment_url, context.instance)
             token = dg.EnvVar(comp.token_env_var).get_value()
             report: Dict[str, Any] = {"dry_run": comp.dry_run, "created": [], "updated": [], "deleted": [], "unchanged": [],
                                       "planned": {"create": [], "update": [], "delete": []}, "errors": []}

@@ -9,8 +9,13 @@ from .conftest import load_component_module
 
 M = load_component_module()
 AI = pathlib.Path(__file__).resolve().parents[2]
-SOURCE = {"context_engineering_pipeline": "context_engineering_pipeline", "receipts_sync": "context_receipt_bigquery_sync",
+SOURCE = {"agentic_pipeline": "agentic_pipeline", "context_engineering_pipeline": "context_engineering_pipeline", "receipts_sync": "context_receipt_bigquery_sync",
           "receipt_outcome_ingestion": "receipt_outcome_ingestion", "rag_pipeline": "rag_pipeline"}
+
+
+# Keys a component emits through a runtime loop over a dict (the AST cannot see a literal for them); each is asserted at run time by that
+# component's own tests (agentic_pipeline: test_insights_metrics_constant_matches_what_is_emitted checks them against a real run).
+DYNAMIC = {"agentic_pipeline": {"agentic_spent_today_usd", "agentic_remaining_today_usd"}}
 
 
 def _is_numeric_mv(node):
@@ -54,7 +59,8 @@ def _emitted(key, pats, consts):
 @pytest.mark.parametrize("preset", sorted(SOURCE))
 def test_every_preset_key_is_emitted_numeric(preset):
     pats, consts = emitted_numeric_keys(AI / SOURCE[preset] / "component.py")
-    missing = [m["metadata_key"] for m in M.PRESETS[preset] if not _emitted(m["metadata_key"], pats, consts)]
+    missing = [m["metadata_key"] for m in M.PRESETS[preset]
+               if m["metadata_key"] not in DYNAMIC.get(preset, ()) and not _emitted(m["metadata_key"], pats, consts)]
     assert not missing, f"{preset}: keys not emitted as numeric MetadataValue: {missing}"
 
 

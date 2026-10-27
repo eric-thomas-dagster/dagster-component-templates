@@ -258,10 +258,11 @@ def test_runs_mode_cooldown_and_rate_limit_apply_and_rate_limited_runs_wait(mod,
     first = env.requested(env.tick("failed_runs_sensor"))
     assert len(first) == 1
     assert env.requested(env.tick("failed_runs_sensor")) == []                 # deferred (still undecided), not dropped
-    state = json.loads((tmp_path / "r" / "evidence" / "_state" / "failure_sensor.json").read_text())
-    state["triage_times"] = []                                                 # the hour passes
-    (tmp_path / "r" / "evidence" / "_state" / "failure_sensor.json").write_text(json.dumps(state))
+    from datetime import timedelta
+    real_now = mod._now
+    mod._now = lambda: real_now() + timedelta(minutes=61)                      # the hour passes
     second = env.requested(env.tick("failed_runs_sensor"))
+    mod._now = real_now
     assert sorted(first + second) == ["r1", "r2"]
 
 
@@ -277,8 +278,7 @@ def test_both_mode_never_triages_the_same_run_twice(mod, tmp_path, inst):
     assert ev == ["both1"] and rr == ["only_runs"]
     for _ in range(2):
         assert env.requested(env.tick("failure_sensor")) == [] and env.requested(env.tick("failed_runs_sensor")) == []
-    state = json.loads((env.dirs["evidence"] / "_state" / "failure_sensor.json").read_text())
-    assert len(state["triage_times"]) == 2
+    assert len(list((env.dirs["evidence"] / "_state" / "ratelimit").glob("*-triage.json"))) == 2
 
 
 def test_both_mode_record_sensor_first_then_event_sensor_replays_the_same_run_key(mod, tmp_path, inst):
@@ -287,8 +287,7 @@ def test_both_mode_record_sensor_first_then_event_sensor_replays_the_same_run_ke
     assert env.requested(env.tick("failed_runs_sensor")) == ["both1"]
     # the event sensor re-judges it, but it is the same run_key (the daemon dedupes it) and costs no extra rate-limit budget
     assert env.requested(env.tick("failure_sensor")) == ["both1"]
-    state = json.loads((env.dirs["evidence"] / "_state" / "failure_sensor.json").read_text())
-    assert len(state["triage_times"]) == 1
+    assert len(list((env.dirs["evidence"] / "_state" / "ratelimit").glob("*-triage.json"))) == 1
 
 
 # ═══ actions for runs of an external orchestrator ═══

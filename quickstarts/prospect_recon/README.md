@@ -115,8 +115,12 @@ product doing the job it's actually good at:
 
 ```bash
 cd quickstarts/prospect_recon
-cp .env.example .env   # fill in real credentials -- see each var's comment
-uv sync
+./setup.sh   # creates .env from .env.example, runs uv sync, prints next steps
+```
+
+Then fill in real credentials in `.env` (see each var's comment) and:
+
+```bash
 set -a && source .env && set +a
 dg dev
 ```

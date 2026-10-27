@@ -42,7 +42,7 @@ Every op is free/local by default (sentence-transformers + HuggingFace zero-shot
 
 ### Scaffold these demos end-to-end
 
-Three runnable walkthroughs:
+Three runnable walkthroughs, plus one full in-repo project:
 
 - [`examples/context_engineering.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering.md) — the closed context-receipt loop (build → serve → real feedback → rebuild with the identical recipe → the chunks that kept failing are gone); serving is `rag_pipeline`, so the query side shows up as a Dagster asset too.
   ```bash
@@ -64,6 +64,12 @@ Three runnable walkthroughs:
   ```
 
 All three free/local by default (sentence-transformers + HuggingFace zero-shot + ChromaDB, plus local SQLite or DuckDB); all live-validated end to end, exit 0.
+
+**Fourth, a full-fidelity production use, not a scaffolded illustration:** [`quickstarts/prospect_recon`](../../../quickstarts/prospect_recon/README.md). An agentic Drive/Notion/web research loop feeds this exact pipeline (chunk → redact → dedupe → classify → stamp → embed → index) to build a governed, receipted per-prospect knowledge base, which a forced-function-call step then reads to write a sales-engineering brief — the receipt is written through a FastMCP governance server at generation time, not an in-process call. Unlike the three walkthroughs above there's nothing to scaffold from a remote zip (it's already a full project in this repo), and it isn't free/local (real LLM calls, real Google/GitHub/Slack APIs, real cost per run — see its own README for the credentials and cost note); one script does the mechanical setup and stops before launch so you can fill in real credentials first:
+```bash
+cd quickstarts/prospect_recon
+./setup.sh
+```
 
 ## Ops
 

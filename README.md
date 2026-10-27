@@ -1,6 +1,6 @@
 # Dagster Component Templates
 
-A community library of **1,334 reusable [Dagster component](https://docs.dagster.io/guides/components) templates** covering data ingestion, transformations, ML / analytics, AI / LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, asset checks, and enterprise tool integrations — all configurable via YAML with no Python required.
+A community library of **1,335 reusable [Dagster component](https://docs.dagster.io/guides/components) templates** covering data ingestion, transformations, ML / analytics, AI / LLM enrichment, orchestration, infrastructure provisioning, reverse ETL, observability, sensors, asset checks, and enterprise tool integrations — all configurable via YAML with no Python required.
 
 Field naming conventions across the registry are documented in [`FIELD_CONVENTIONS.md`](./FIELD_CONVENTIONS.md).
 
@@ -25,7 +25,7 @@ attributes:
 | Category | Count | What's in it |
 |---|---:|---|
 | ingestion | 175 | Source-to-destination data movement |
-| resource | 166 | Connection-handle resources for SaaS / data platforms |
+| resource | 167 | Connection-handle resources for SaaS / data platforms |
 | ai | 142 | LLMs, vision, embeddings, vector stores, document extraction |
 | transformation | 128 | Pandas-style transforms (filter, join, union, datetime, regex, etc.) |
 | analytics | 95 | ML models, scoring, segmentation, forecasting, geo, A/B testing |
@@ -44,7 +44,7 @@ attributes:
 | check | 17 | Asset-check components (Great Expectations, Soda, etc.) |
 | core | 2 | Cross-cutting primitives (dependency graph, asset references) |
 | dbt | 2 | dbt-project wrappers |
-| **total** | **1,334** | |
+| **total** | **1,335** | |
 
 ### By Dagster primitive (`produces` field)
 
@@ -54,7 +54,7 @@ Every manifest entry declares which Dagster primitive(s) it emits when loaded �
 |---|---:|---|
 | `asset` | 774 | Single `@asset` (or one asset key per instance) |
 | `asset_check` | 235 | `@asset_check` — many components ship free schema-drift checks via `build_column_schema_change_checks` |
-| `resource` | 205 | Connection / auth handle passed to downstream assets |
+| `resource` | 206 | Connection / auth handle passed to downstream assets |
 | `sensor` | 117 | `@sensor` / polling `RunRequest` emitter |
 | `job` | 67 | `@job` / `define_asset_job(...)` |
 | `schedule` | 66 | `@schedule` / `ScheduleDefinition` |

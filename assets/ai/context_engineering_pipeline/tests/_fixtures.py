@@ -27,3 +27,15 @@ def raises(text: str, candidate_labels: List[str]) -> str:
 
 def returns_unknown_label(text: str, candidate_labels: List[str]) -> str:
     return "not_a_real_label"
+
+
+def uppercase(text: str) -> str:
+    """Trivial custom-op transform: used by test_custom_op.py the same way keyword_classifier is used
+    by test_classify_custom.py -- a real importable function the component's _resolve_custom_fn can
+    resolve via 'module.path:function_name'."""
+    CALLS.append(text)
+    return text.upper()
+
+
+def raises_for_custom(text: str) -> str:
+    raise RuntimeError("boom")

@@ -150,6 +150,82 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+# BEGIN binary-document text extraction (inlined per component; keep copies identical if duplicated elsewhere)
+_MIME_PDF = "application/pdf"
+_MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+_MIME_XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+
+def _extract_pdf_text(data: bytes, log=None) -> Optional[str]:
+    """Extract text from PDF bytes via pdfplumber. Returns None on any failure -- including a missing
+    optional dependency -- never raises: one unparseable file shouldn't fail the whole Drive listing,
+    matching the rest of this extraction path's existing None-on-failure contract."""
+    import io as _io
+
+    try:
+        import pdfplumber
+    except ImportError:
+        if log:
+            log.warning("pdfplumber not installed; skipping PDF text extraction. pip install pdfplumber")
+        return None
+    try:
+        with pdfplumber.open(_io.BytesIO(data)) as pdf:
+            parts = [page.extract_text() or "" for page in pdf.pages]
+        return "\n\n".join(parts)
+    except Exception as e:
+        if log:
+            log.warning(f"PDF text extraction failed: {e}")
+        return None
+
+
+def _extract_docx_text(data: bytes, log=None) -> Optional[str]:
+    """Extract text from .docx bytes via python-docx. Same None-on-any-failure contract as _extract_pdf_text."""
+    import io as _io
+
+    try:
+        import docx
+    except ImportError:
+        if log:
+            log.warning("python-docx not installed; skipping .docx text extraction. pip install python-docx")
+        return None
+    try:
+        document = docx.Document(_io.BytesIO(data))
+        return "\n".join(p.text for p in document.paragraphs)
+    except Exception as e:
+        if log:
+            log.warning(f".docx text extraction failed: {e}")
+        return None
+
+
+def _extract_xlsx_text(data: bytes, log=None) -> Optional[str]:
+    """Render .xlsx bytes as a simple text blob (one line per row, sheets separated by a header) via
+    openpyxl, so spreadsheet content is visible to a downstream LLM reading `content`. Same
+    None-on-any-failure contract as _extract_pdf_text."""
+    import io as _io
+
+    try:
+        import openpyxl
+    except ImportError:
+        if log:
+            log.warning("openpyxl not installed; skipping .xlsx text extraction. pip install openpyxl")
+        return None
+    try:
+        wb = openpyxl.load_workbook(_io.BytesIO(data), data_only=True, read_only=True)
+        parts = []
+        for sheet in wb.worksheets:
+            parts.append(f"=== {sheet.title} ===")
+            for row in sheet.iter_rows(values_only=True):
+                cells = [str(c) for c in row if c is not None]
+                if cells:
+                    parts.append(", ".join(cells))
+        return "\n".join(parts)
+    except Exception as e:
+        if log:
+            log.warning(f".xlsx text extraction failed: {e}")
+        return None
+# END binary-document text extraction
+
+
 class GoogleDriveIngestionComponent(Component, Model, Resolvable):
     """List (and optionally download) Google Drive files via a service account.
 
@@ -210,9 +286,11 @@ class GoogleDriveIngestionComponent(Component, Model, Resolvable):
     inline_text_content: bool = Field(
         default=False,
         description=(
-            "When `download=True` and the file is plain-text-ish (text/*, json, csv), "
-            "also write the decoded content into a `content` column on the DataFrame. "
-            "Binary files always get a `path` column instead."
+            "When `download=True`, also write extracted text into a `content` column on the "
+            "DataFrame: plain-text-ish files (text/*, json, csv) are UTF-8 decoded; PDF, .docx and "
+            ".xlsx files have their text extracted via pdfplumber / python-docx / openpyxl "
+            "(optional deps -- falls back to `content=None` with a logged warning if not installed, "
+            "or if a given file fails to parse). Every downloaded file always gets a `path` column too."
         ),
     )
 
@@ -474,14 +552,21 @@ class GoogleDriveIngestionComponent(Component, Model, Resolvable):
                         paths.append(out_path)
                         skipped.append(None)
 
-                        if inline_text_content and (
-                            mime.startswith("text/")
-                            or mime in ("application/json", "application/xml", "application/csv")
+                        if not inline_text_content:
+                            contents.append(None)
+                        elif mime.startswith("text/") or mime in (
+                            "application/json", "application/xml", "application/csv",
                         ):
                             try:
                                 contents.append(data.decode("utf-8"))
                             except UnicodeDecodeError:
                                 contents.append(None)
+                        elif mime == _MIME_PDF:
+                            contents.append(_extract_pdf_text(data, context.log))
+                        elif mime == _MIME_DOCX:
+                            contents.append(_extract_docx_text(data, context.log))
+                        elif mime == _MIME_XLSX:
+                            contents.append(_extract_xlsx_text(data, context.log))
                         else:
                             contents.append(None)
                     except Exception as e:

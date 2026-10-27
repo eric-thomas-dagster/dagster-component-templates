@@ -70,6 +70,7 @@ All three free/local by default (sentence-transformers + HuggingFace zero-shot +
 - **chunk** (must be first): fixed-size chunking with sentence-boundary snapping and configurable overlap. Threads `id_column` (and any `metadata_columns`) through to every chunk row as a citation back to the source row.
 - **classify**: tags each chunk with a category **before** embedding — a relevance-vs-similarity fix: raw cosine similarity ranks short boilerplate over long relevant analysis unless chunks are pre-filtered by category first. Three modes: `mode: zero_shot` (default — HuggingFace zero-shot, local, free, no API key), `mode: llm` (any litellm model judges the category — costs money per chunk, but applies real judgment a fixed label set can't for nuanced/ambiguous cases), or `mode: custom` (bring your own classifier — `fn: "module.path:function_name"`, called as `fn(text, candidate_labels) -> str` once per chunk; same `module.path:function_name` convention as `langgraph_agent`'s `graph_fn`). `mode: custom` is python mode only — a Python function can't run inside `execution_mode: sql`'s warehouse-native statement.
 - **embed**: `provider: sentence_transformers` (default, local, free), `openai`, `cohere`, or `litellm` (universal gateway — one interface across every provider litellm supports: Azure, Bedrock, Vertex, Ollama, VoyageAI, Mistral, etc., via litellm's `"<provider>/<model>"` naming).
+- **custom**: bring your own Python callable — `fn: "module.path:function_name"`, called once per chunk as `fn(text, **params) -> str` (same `module.path:function_name` convention as `classify`'s `mode: custom`). The generic escape hatch for anything `filter`/`dedupe`/`sensitivity`/`stamp`/`enrich` can't express — e.g. wiring in `log_redaction.pii_log_redaction:redact_text` for NER-based PII redaction beyond the regex-only `sensitivity` op. Python mode only.
 - **write_vector_store**: `provider: chromadb` (default, local, free), `pinecone`, or `qdrant`.
 
 ## Knobs (all configured in YAML)
@@ -136,6 +137,18 @@ raise a clear error in SQL mode rather than shipping a silently weaker version. 
 `execution_mode: sql`** — `columns` templates must be a plain literal or simple `{column}` placeholders only (no
 Python format specs like `{x:.2f}`); `ttl_days` is computed once at build time and embedded as a date literal, so no
 per-dialect date-arithmetic function is needed.
+
+**`custom`**: bring your own Python callable — `fn: "module.path:function_name"` (required), resolved and called
+once per row as `fn(text: str, **params) -> str`; same colon-separated convention as `classify`'s `mode: custom`.
+`text_column` resolves the same way as `filter`/`dedupe`/`sensitivity`/`stamp`. `output_column` defaults to
+overwriting `text_column` in place (and rehashes `content_hash`, the same redact-then-rehash pattern as
+`sensitivity`'s `action: redact`); set it to a new column name instead to write the transformed text alongside the
+untouched original (no rehash — the original text and hash are untouched). `params` (dict) is passed as `**params`
+to `fn`. `on_error: raise` (default) stops the run on a failing row; `skip` keeps that row's original text
+unchanged and counts it as failed in the step metadata. Python mode only — a Python function can't run inside
+`execution_mode: sql`'s warehouse-native statement. The motivating use case: wiring in
+`log_redaction.pii_log_redaction:redact_text` for NER-based PII redaction (`enable_presidio=True`) beyond what the
+regex-only `sensitivity` op's fixed detector set catches.
 
 All four of `filter`/`dedupe`/`sensitivity`/`stamp` in SQL mode are inserted right after chunk-id/content-hash
 assignment and before receipts feedback and classify/embed/enrich, regardless of where they're listed in `steps:` —

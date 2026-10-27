@@ -50,6 +50,10 @@ Op coverage:
                       category first.
 - embed:              sentence-transformers (local, free), OpenAI, or
                       Cohere.
+- custom:             bring your own Python callable -- `fn: 'module.path:function_name'`
+                      is called once per chunk as `fn(text, **params) -> str`; the generic
+                      escape hatch for anything filter/dedupe/sensitivity/stamp/enrich can't
+                      express (e.g. NER-based PII redaction via log_redaction's redact_text).
 - write_vector_store: ChromaDB (local, free), Pinecone, or Qdrant.
 
 Every op is free/local by default (sentence-transformers + HuggingFace
@@ -947,6 +951,85 @@ def _do_stamp(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
     return out
 
 
+# ── custom op ─────────────────────────────────────────────────────────
+
+def _resolve_custom_fn(callable_path: str):
+    """Resolve a `module.path:function_name` reference for the custom op. Same colon-separated
+    convention as classify mode='custom's own _resolve_classify_fn / langgraph_agent's graph_fn /
+    dynamic_fanout_asset / warm_scheduled_job's own `_resolve` (duplicated, not imported -- no
+    shared files across components in this repo)."""
+    if ":" not in callable_path:
+        raise ValueError(
+            f"custom op: fn={callable_path!r} must be 'module.path:function_name' "
+            f"(colon-separated), e.g. 'myproject.transforms:clean_text'."
+        )
+    module_path, fn_name = callable_path.split(":", 1)
+    try:
+        mod = importlib.import_module(module_path)
+    except ImportError as e:
+        raise ImportError(f"custom op: cannot import module {module_path!r}: {e}") from e
+    try:
+        return getattr(mod, fn_name)
+    except AttributeError as e:
+        raise AttributeError(f"custom op: module {module_path!r} has no attribute {fn_name!r}") from e
+
+
+def _do_custom(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
+    """Bring-your-own-Python-callable text transform -- the generic escape hatch for anything the
+    built-in ops (filter/dedupe/sensitivity/stamp/enrich) can't express. `fn` is a
+    'module.path:function_name' reference (same colon-separated convention as classify
+    mode='custom'), resolved once via `_resolve_custom_fn` and called once per row as
+    `fn(text: str, **params) -> str`.
+
+    The motivating real use case: wiring in `log_redaction.pii_log_redaction:redact_text` for
+    NER-based PII redaction (`enable_presidio=True`) beyond what the regex-only `sensitivity` op's
+    fixed detector set catches -- any other single-text-in, single-text-out Python function works
+    the same way (a custom normalizer, an in-house redaction/anonymization service call, a
+    text-cleaning routine, a trained model's .predict wrapped to take/return a string).
+
+    Knobs: `fn` (required). `text_column` (same resolution as filter/dedupe/sensitivity/stamp,
+    default `chunk_text`). `output_column` (default: the same column as `text_column` --
+    overwrite in place; this rehashes `content_hash` the same way `sensitivity`'s
+    `action='redact'` does, so provenance reflects the transform. Set it to a NEW column name to
+    instead write the transformed text alongside the untouched original -- `content_hash` is left
+    unchanged in that mode, since the original text was not altered). `params` (dict, passed as
+    `**params` kwargs to `fn`). `on_error` (`raise` [default] | `skip` -- a failing row keeps its
+    original text unchanged and is counted as failed rather than stopping the run)."""
+    fn_path = step.get("fn")
+    if not fn_path:
+        raise ValueError("custom op requires `fn` ('module.path:function_name').")
+    fn = _resolve_custom_fn(fn_path)
+    col = _text_column(df, step)
+    output_column = step.get("output_column", col)
+    params = step.get("params") or {}
+    on_error = step.get("on_error", "raise")
+    if on_error not in ("raise", "skip"):
+        raise ValueError(f"custom op: on_error must be 'raise' or 'skip', got {on_error!r}")
+
+    out = df.copy()
+    results: List[str] = []
+    transformed = failed = 0
+    for text in out[col].astype(str):
+        try:
+            results.append(fn(text, **params))
+            transformed += 1
+        except Exception as e:
+            if on_error == "raise":
+                raise
+            context.log.warning(f"custom: fn={fn_path!r} failed for a chunk, keeping original text: {e}")
+            results.append(text)
+            failed += 1
+    out[output_column] = results
+    if output_column == col:
+        out = _rehash(out, col)
+    out.attrs["stats"] = {"transformed": transformed, "failed": failed}
+    context.log.info(
+        f"custom: transformed {transformed} of {len(df)} chunk(s) via fn={fn_path!r}"
+        + (f", {failed} failed (kept original text)" if failed else "")
+    )
+    return out
+
+
 # ── classify op ───────────────────────────────────────────────────────
 
 def _resolve_classify_fn(callable_path: str):
@@ -1423,6 +1506,7 @@ _FRAME_OPS = {
     "sensitivity": lambda df, step, ctx: _do_sensitivity(df, step, ctx),
     "enrich": lambda df, step, ctx: _do_enrich(df, step, ctx),
     "stamp": lambda df, step, ctx: _do_stamp(df, step, ctx),
+    "custom": lambda df, step, ctx: _do_custom(df, step, ctx),
 }
 
 
@@ -3509,12 +3593,18 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             "names a prior step's id to read from; if omitted, defaults to the immediately "
             "preceding step (so you don't have to repeat `source:` on every line). "
             "Valid ops: 'chunk' (must be first), 'filter', 'dedupe', 'sensitivity', 'stamp', 'enrich', 'classify', 'embed', "
-            "'write_vector_store'. 'write_vector_store' is python-mode only (no warehouse-native equivalent); the "
-            "rest also work with execution_mode='sql' ('classify'/'embed'/'enrich' each map onto a warehouse-native "
-            "AI function; 'filter'/'dedupe'/'sensitivity'/'stamp' are plain SQL), each with its own sub-validation "
-            "for the specific parts that have no portable warehouse-SQL equivalent, e.g. sensitivity's "
-            "phone/credit_card detectors and action='redact', filter's lookahead/lookbehind patterns, enrich's "
-            "prepend=True."
+            "'custom', 'write_vector_store'. 'write_vector_store' and 'custom' are python-mode only (no "
+            "warehouse-native equivalent); the rest also work with execution_mode='sql' ('classify'/'embed'/'enrich' "
+            "each map onto a warehouse-native AI function; 'filter'/'dedupe'/'sensitivity'/'stamp' are plain SQL), "
+            "each with its own sub-validation for the specific parts that have no portable warehouse-SQL "
+            "equivalent, e.g. sensitivity's phone/credit_card detectors and action='redact', filter's "
+            "lookahead/lookbehind patterns, enrich's prepend=True. 'custom': {fn: 'module.path:function_name' "
+            "(required), text_column, output_column (default: overwrite text_column in place, rehashing "
+            "content_hash; a new name instead adds a derived column alongside the untouched original), params "
+            "(dict passed as **params to fn), on_error: raise (default) | skip} -- bring your own Python callable, "
+            "called once per row as fn(text: str, **params) -> str; e.g. wiring in "
+            "log_redaction.pii_log_redaction:redact_text for NER-based PII redaction beyond the regex-only "
+            "`sensitivity` op."
         )
     )
 
@@ -3674,7 +3764,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             raise ValueError("context_engineering_pipeline requires at least one step in `steps:`.")
         if steps_cfg[0]["op"] != "chunk":
             raise ValueError("context_engineering_pipeline: the first step must be op='chunk'.")
-        valid_ops = {"chunk", "classify", "embed", "write_vector_store", "filter", "dedupe", "sensitivity", "stamp", "enrich"}
+        valid_ops = {"chunk", "classify", "embed", "write_vector_store", "filter", "dedupe", "sensitivity", "stamp", "enrich", "custom"}
         for s in steps_cfg:
             if "id" not in s or "op" not in s:
                 raise ValueError(f"every step needs {{id, op}}; got: {s}")

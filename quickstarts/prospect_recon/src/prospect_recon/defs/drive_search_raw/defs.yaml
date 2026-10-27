@@ -1,0 +1,13 @@
+type: dagster_community_components.GoogleDriveIngestionComponent
+attributes:
+  asset_name: drive_search_raw
+  credentials_path: "${GOOGLE_APPLICATION_CREDENTIALS}"
+  # Text-search pass (Drive native `q` syntax) -- covers Google-native docs the
+  # recent-listing pass's broad window might rank low; mirrors the routine's
+  # "search for the usual terms" half of Signal B.
+  query: "${PROSPECT_RECON_DRIVE_QUERY}"
+  download: true
+  inline_text_content: true
+  max_files: 50
+  description: "Drive native-search pass (Google Docs/Sheets/Slides) feeding prospect_recon_candidate's Signal B."
+  group_name: prospect_recon

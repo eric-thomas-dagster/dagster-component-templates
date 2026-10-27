@@ -1,0 +1,135 @@
+{
+  "component_type": "dagster_community_components.NotionBriefPageComponent",
+  "description": "Create a brand-new, freeform, multi-section Notion page under a parent page from an LLM-extraction dict. Every materialization creates a NEW page -- not an update against one fixed page_id (see notion_page_sync) and not a database row upsert (see notion_database_upsert).",
+  "category": "reverse_etl",
+  "icon": "si:notion",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dict",
+      "description": "Upstream asset value: a dict containing a structured-fields sub-dict under `extracted_field` (e.g. agentic_pipeline's `extract` op output: {text, extracted, model, ...})."
+    },
+    "outputs": {
+      "type": "sink",
+      "description": "Dagster asset materialization with metadata. No downstream data -- the write side effect lands in Notion as a brand-new page."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "description": "Output Dagster asset name.",
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "Upstream Dagster asset producing the LLM-extraction dict (single upstream only)."
+    },
+    "extracted_field": {
+      "type": "string",
+      "label": "Extracted Field",
+      "required": false,
+      "default": "extracted",
+      "description": "Key of the upstream dict holding the structured fields dict. Matches agentic_pipeline's `extract` op output shape: {text, extracted, model, ...}."
+    },
+    "resource_key": {
+      "description": "Resource key registered by NotionResourceComponent.",
+      "type": "string",
+      "label": "Resource Key",
+      "required": false,
+      "default": "notion_resource"
+    },
+    "parent_page_id": {
+      "type": "string",
+      "label": "Parent Page Id",
+      "required": true,
+      "description": "Notion page ID the new page is created under (UUID with or without dashes). Standalone-page target only -- no database/property-schema support."
+    },
+    "title_template": {
+      "type": "string",
+      "label": "Title Template",
+      "required": true,
+      "description": "Template for the new page's title, substituted against the extracted dict's fields via plain str.replace('{field}', value) -- not .format -- so unrelated literal braces survive unresolved. Example: 'Brief: {company_name}'."
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Sections",
+      "required": false,
+      "default": null,
+      "description": "Explicit section list, each {heading: str, field: str, format: 'paragraph'|'bulleted_list'}. `field` names a key in the extracted dict. paragraph renders the value as one paragraph block under a heading_2 (lists are newline-joined); bulleted_list requires a list value and renders one bulleted_list_item block per element. Omit/empty to auto-build sections from whichever keys are present in the extracted dict."
+    },
+    "markdown_body_field": {
+      "type": "string",
+      "label": "Markdown Body Field",
+      "required": false,
+      "default": "markdown_body",
+      "description": "Key in the extracted dict holding free-form markdown to append as a final section, if present. Rendered via a crude paragraph-per-blank-line split -- not full markdown parsing. Set to null to disable."
+    },
+    "icon_emoji": {
+      "type": "string",
+      "label": "Icon Emoji",
+      "required": false,
+      "default": null,
+      "description": "Emoji to set as the new page's icon, e.g. '📄'. Passed as icon={type: emoji, emoji: ...}."
+    },
+    "receipts": {
+      "type": "object",
+      "label": "Receipts",
+      "required": false,
+      "default": null,
+      "description": "Optional provenance recording: {resource_key: str, caller_id: str|null, policy_version: str|null}. When set, records a context_receipt_store retrieval receipt after page creation succeeds, and surfaces the resulting receipt_id in output metadata."
+    },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "group_name": {
+      "description": "Dagster asset group name.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "notion"
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "description": "Catalog tags.",
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds (auto-includes 'notion').",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
+  },
+  "tags": [
+    "notion",
+    "reverse-etl",
+    "page-create",
+    "llm-extraction"
+  ],
+  "name": "Notion Brief Page",
+  "vertical": "productivity"
+}

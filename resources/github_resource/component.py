@@ -13,6 +13,7 @@ For GitHub App auth (installation tokens, higher rate limits, org-scale
 usage), use the official `dagster_github.GithubResource` alongside this one
 via a different resource key.
 """
+import base64
 from typing import Iterator, List, Optional
 
 import dagster as dg
@@ -23,9 +24,9 @@ from pydantic import Field
 class GitHubResource(ConfigurableResource):
     """Dagster resource wrapping the GitHub REST API with convenience methods.
 
-    Covers issues, pull requests, repos, workflows, releases, and comments.
-    For anything not covered, use `.get_client()` to get an authenticated
-    `requests.Session`.
+    Covers issues, pull requests, repos, workflows, releases, comments, file
+    contents, and branches. For anything not covered, use `.get_client()` to
+    get an authenticated `requests.Session`.
     """
 
     token: str = Field(description="GitHub personal access token (PAT).")
@@ -309,6 +310,98 @@ class GitHubResource(ConfigurableResource):
         r = self.get_client().put(
             self._url(f"/repos/{repo}/issues/{number}/labels"),
             json={"labels": labels},
+            timeout=60,
+        )
+        r.raise_for_status()
+        return r.json()
+
+    # ------------------------------------------------------- contents & PRs
+
+    def get_file_contents(self, repo: str, path: str, ref: str = "main") -> Optional[dict]:
+        """Retrieve a file's contents via the Contents API.
+
+        Returns `{"content": <decoded str>, "sha": <sha>}`, or `None` if the
+        file doesn't exist at `ref`.
+        """
+        r = self.get_client().get(self._url(f"/repos/{repo}/contents/{path}"), params={"ref": ref}, timeout=60)
+        if r.status_code == 404:
+            return None
+        r.raise_for_status()
+        body = r.json()
+        decoded = base64.b64decode(body["content"]).decode("utf-8")
+        return {"content": decoded, "sha": body["sha"]}
+
+    def list_directory(self, repo: str, path: str, ref: str = "main") -> List[dict]:
+        """List a directory's entries via the Contents API.
+
+        Each entry is `{"name":, "path":, "type":}` (type is 'file' or 'dir').
+        """
+        r = self.get_client().get(self._url(f"/repos/{repo}/contents/{path}"), params={"ref": ref}, timeout=60)
+        r.raise_for_status()
+        entries = r.json()
+        return [{"name": e["name"], "path": e["path"], "type": e["type"]} for e in entries]
+
+    def create_or_update_file_contents(
+        self,
+        repo: str,
+        path: str,
+        content: str,
+        message: str,
+        branch: str = "main",
+        sha: Optional[str] = None,
+    ) -> dict:
+        """Create or update a file via the Contents API.
+
+        Pass the file's current `sha` (from `get_file_contents`) to update it —
+        GitHub rejects the write otherwise if the file already exists. Omit
+        `sha` to create a new file.
+        """
+        payload: dict = {
+            "message": message,
+            "content": base64.b64encode(content.encode("utf-8")).decode("ascii"),
+            "branch": branch,
+        }
+        if sha is not None:
+            payload["sha"] = sha
+        r = self.get_client().put(self._url(f"/repos/{repo}/contents/{path}"), json=payload, timeout=60)
+        r.raise_for_status()
+        return r.json()
+
+    def delete_file_contents(self, repo: str, path: str, sha: str, message: str, branch: str = "main") -> dict:
+        """Delete a file via the Contents API. `sha` must be the file's current sha."""
+        r = self.get_client().delete(
+            self._url(f"/repos/{repo}/contents/{path}"),
+            json={"message": message, "sha": sha, "branch": branch},
+            timeout=60,
+        )
+        r.raise_for_status()
+        return r.json()
+
+    def create_branch(self, repo: str, new_branch: str, from_branch: str = "main") -> dict:
+        """Create a new branch pointed at `from_branch`'s current tip commit."""
+        ref = self._get(f"/repos/{repo}/git/ref/heads/{from_branch}")
+        sha = ref["object"]["sha"]
+        r = self.get_client().post(
+            self._url(f"/repos/{repo}/git/refs"),
+            json={"ref": f"refs/heads/{new_branch}", "sha": sha},
+            timeout=60,
+        )
+        r.raise_for_status()
+        return r.json()
+
+    def create_pull_request(self, repo: str, title: str, head: str, base: str = "main", body: str = "") -> dict:
+        """Open a pull request. `head` is the branch with the changes (or
+        `owner:branch` for cross-repo PRs); `base` is the branch to merge into."""
+        payload = {"title": title, "head": head, "base": base, "body": body}
+        r = self.get_client().post(self._url(f"/repos/{repo}/pulls"), json=payload, timeout=60)
+        r.raise_for_status()
+        return r.json()
+
+    def merge_pull_request(self, repo: str, pr_number: int, merge_method: str = "squash") -> dict:
+        """Merge a pull request. `merge_method` is 'merge', 'squash', or 'rebase'."""
+        r = self.get_client().put(
+            self._url(f"/repos/{repo}/pulls/{pr_number}/merge"),
+            json={"merge_method": merge_method},
             timeout=60,
         )
         r.raise_for_status()

@@ -94,7 +94,7 @@
       "label": "Inline Text Content",
       "required": false,
       "default": false,
-      "description": "When download=true and the file is text-ish, also write decoded content into a `content` column."
+      "description": "When download=true, also write extracted text into a `content` column: text/json/csv are decoded directly; PDF/.docx/.xlsx are text-extracted via pdfplumber/python-docx/openpyxl (optional deps -- falls back to content=None with a logged warning if missing or unparseable)."
     },
     "description": {
       "description": "Asset description.",

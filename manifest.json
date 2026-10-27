@@ -29116,6 +29116,67 @@
       "icon": "si:gitlab"
     },
     {
+      "id": "gmail_draft_create",
+      "name": "Gmail Draft Create",
+      "category": "sink",
+      "description": "GmailDraftCreateComponent — create a Gmail DRAFT (never sends) templated from an upstream asset's row.",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/sinks/gmail_draft_create",
+      "tags": [
+        "gmail-draft-create",
+        "sink",
+        "gmail",
+        "email",
+        "notification"
+      ],
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pandas",
+          "requests"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/gmail_draft_create/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/gmail_draft_create/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/gmail_draft_create/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/gmail_draft_create/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/sinks/gmail_draft_create/requirements.txt",
+      "icon": "si:gmail",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-10-27",
+        "notes": "Built and code-validated this session with a fully-mocked external API boundary (dedicated tests/ suite, real logic exercised). Live validation against a real Gmail account pending."
+      },
+      "consumes": [],
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "when_to_use": "GmailDraftCreateComponent — create a Gmail DRAFT (never sends) templated from an upstream asset's row.",
+        "example_prompts": [
+          "GmailDraftCreateComponent — create a Gmail DRAFT (never sends) templated from an upstream asset's row."
+        ],
+        "requires_pip": [
+          "dagster",
+          "pandas",
+          "requests"
+        ],
+        "requires_env_vars": [
+          "GMAIL_ACCESS_TOKEN"
+        ]
+      },
+      "keywords": [
+        "gmail draft create",
+        "gmail",
+        "email",
+        "draft",
+        "gmail-draft-create",
+        "notification",
+        "sink"
+      ]
+    },
+    {
       "id": "gmail_ingestion",
       "name": "Gmail Ingestion",
       "category": "ingestion",
@@ -43961,6 +44022,39 @@
         "requires_pip": [
           "notion-client",
           "pandas"
+        ]
+      }
+    },
+    {
+      "id": "notion_brief_page",
+      "name": "Notion Brief Page",
+      "category": "reverse_etl",
+      "description": "Create a brand-new, freeform, multi-section Notion page under a parent page from an LLM-extraction dict. Every materialization creates a NEW page -- not an update against one fixed page_id (see notion_page_sync) and not a database row upsert (see notion_database_upsert).",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "path": "assets/reverse_etl/notion_brief_page",
+      "tags": [
+        "notion",
+        "reverse-etl",
+        "page-create",
+        "llm-extraction"
+      ],
+      "dependencies": {
+        "pip": [
+          "notion-client"
+        ]
+      },
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/notion_brief_page/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/notion_brief_page/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/notion_brief_page/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/notion_brief_page/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/reverse_etl/notion_brief_page/requirements.txt",
+      "icon": "si:notion",
+      "vertical": "productivity",
+      "agent_hints": {
+        "outputs": "Create a brand-new, freeform, multi-section Notion page under a parent page from an LLM-extraction dict.",
+        "requires_pip": [
+          "notion-client"
         ]
       }
     },

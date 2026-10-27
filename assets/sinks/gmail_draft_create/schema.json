@@ -1,0 +1,139 @@
+{
+  "component_type": "dagster_component_templates.GmailDraftCreateComponent",
+  "description": "GmailDraftCreateComponent — create a Gmail DRAFT (never sends) templated from an upstream asset's row.",
+  "category": "sink",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "dataframe",
+      "required": true
+    },
+    "outputs": {
+      "type": "MaterializeResult"
+    }
+  },
+  "icon": "si:gmail",
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Output asset name (draft-creation result)."
+    },
+    "access_token": {
+      "type": "string",
+      "label": "Access Token",
+      "required": true,
+      "description": "Google OAuth2 access token scoped for gmail.compose (or gmail.modify). Use ${GMAIL_ACCESS_TOKEN} for env vars."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "Upstream asset whose materialized value supplies the template fields -- a dict-shaped record, or a pandas DataFrame (one row is selected via row_index)."
+    },
+    "row_index": {
+      "type": "integer",
+      "label": "Row Index",
+      "required": false,
+      "default": 0,
+      "description": "When the upstream value is a DataFrame, the 0-based row position to draft from. Ignored for a dict-shaped upstream value."
+    },
+    "to_email": {
+      "type": "string",
+      "label": "To Email",
+      "required": true,
+      "description": "Address the draft is addressed to. This is almost always the pipeline-running user's own address (a reviewable draft lands in their own mailbox), not a third party -- the Gmail API can only draft/send as the authenticated account. Supports `{field}` placeholders."
+    },
+    "subject_template": {
+      "type": "string",
+      "label": "Subject Template",
+      "required": true,
+      "description": "Draft subject line, with `{column}` placeholders templated against the upstream row/record."
+    },
+    "body_template": {
+      "type": "string",
+      "label": "Body Template",
+      "required": true,
+      "description": "Draft body (plain text), with `{column}` placeholders templated against the upstream row/record."
+    },
+    "cc_emails": {
+      "type": "array",
+      "label": "Cc Emails",
+      "required": false,
+      "description": "Optional list of Cc recipient addresses.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "bcc_emails": {
+      "type": "array",
+      "label": "Bcc Emails",
+      "required": false,
+      "description": "Optional list of Bcc recipient addresses.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "dry_run": {
+      "type": "boolean",
+      "label": "Dry Run",
+      "required": false,
+      "default": false,
+      "description": "If True, render and log the MIME message but don't call the Gmail API or create a draft. Use for staging/testing templates."
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "description": "Asset description."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "description": "Dagster asset group name."
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "description": "Catalog tags."
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "description": "Asset owners.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "retry_policy_max_retries": {
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "description": "Max retries on asset failure. Useful for transient errors like network glitches or Gmail API rate limits."
+    },
+    "retry_policy_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "description": "Seconds between retries (default 1)."
+    },
+    "retry_policy_backoff": {
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'."
+    }
+  },
+  "tags": [
+    "gmail-draft-create",
+    "sink",
+    "gmail",
+    "email",
+    "notification"
+  ],
+  "name": "Gmail Draft Create"
+}

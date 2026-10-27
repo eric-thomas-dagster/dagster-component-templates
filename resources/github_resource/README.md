@@ -1,7 +1,7 @@
 # GitHub Resource
 
 Register a `GitHubResource` (PAT-based) for use by other Dagster components.
-Ships with **21 convenience methods** over the GitHub REST v3 API so your
+Ships with **28 convenience methods** over the GitHub REST v3 API so your
 assets can call `context.resources.github.list_issues("owner/repo")` without
 touching HTTP.
 
@@ -79,6 +79,18 @@ Any component with `required_resource_keys={"github"}` can call these on `contex
 | `create_release(repo, tag_name, name=..., body='', draft=False, prerelease=False, target_commitish=...)` | Create a release. |
 | `dispatch_workflow(repo, workflow_id, ref='main', inputs=...)` | Fire an Actions workflow. |
 | `set_labels(repo, number, labels)` | Replace an issue's/PR's labels. Pass `[]` to clear. |
+
+### Contents, branches & PRs
+
+| Method | Purpose |
+|---|---|
+| `get_file_contents(repo, path, ref='main')` | Retrieve+decode a file's contents. Returns `{"content":, "sha":}`, or `None` if it doesn't exist. |
+| `list_directory(repo, path, ref='main')` | List a directory's entries as `{"name":, "path":, "type":}`. |
+| `create_or_update_file_contents(repo, path, content, message, branch='main', sha=None)` | Create or update a file. Pass the current `sha` to update; omit to create. |
+| `delete_file_contents(repo, path, sha, message, branch='main')` | Delete a file. `sha` must be the file's current sha. |
+| `create_branch(repo, new_branch, from_branch='main')` | Create a branch pointed at `from_branch`'s current tip commit. |
+| `create_pull_request(repo, title, head, base='main', body='')` | Open a pull request. |
+| `merge_pull_request(repo, pr_number, merge_method='squash')` | Merge a pull request (`merge_method` = 'merge', 'squash', or 'rebase'). |
 
 ### Escape hatch
 

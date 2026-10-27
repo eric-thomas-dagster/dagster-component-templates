@@ -2,3 +2,7 @@ dagster>=1.8.0
 pandas>=1.5.0
 google-auth>=2.0.0
 google-api-python-client>=2.0.0
+# Optional, only needed for inline_text_content=True on PDF/.docx/.xlsx files:
+pdfplumber>=0.9.0
+python-docx>=0.8.11
+openpyxl>=3.0.0

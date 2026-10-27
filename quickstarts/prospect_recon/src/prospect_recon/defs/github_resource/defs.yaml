@@ -1,0 +1,4 @@
+type: dagster_community_components.GithubResourceComponent
+attributes:
+  resource_key: github
+  token_env_var: GITHUB_TOKEN

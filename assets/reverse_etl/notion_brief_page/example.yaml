@@ -1,0 +1,40 @@
+type: dagster_community_components.NotionBriefPageComponent
+attributes:
+  asset_name: prospect_brief_page
+  # Upstream is an agentic_pipeline `extract` step's output asset: a dict
+  # shaped {text, extracted, model, ...}. This component reads `extracted`.
+  upstream_asset_key: prospect_extract
+  resource_key: notion_resource
+
+  # Every materialization creates a BRAND-NEW page under this parent page --
+  # this is not an update against one fixed page_id (see notion_page_sync for
+  # that) and not a database row upsert (see notion_database_upsert).
+  parent_page_id: "abc123def456"
+
+  # Templated against the extracted dict via str.replace("{field}", value).
+  title_template: "Brief: {company_name}"
+
+  sections:
+    - heading: Summary
+      field: summary
+      format: paragraph
+    - heading: Key Risks
+      field: risks
+      format: bulleted_list
+    - heading: Opportunities
+      field: opportunities
+      format: bulleted_list
+
+  # Optional: if `extracted` has this key, its value is appended as a final
+  # free-form section (crude paragraph-per-blank-line split, not full markdown).
+  markdown_body_field: markdown_body
+
+  icon_emoji: "📄"
+
+  # Optional: record a provenance receipt after a successful page creation.
+  # receipts:
+  #   resource_key: context_receipt_store
+  #   caller_id: brief-agent
+  #   policy_version: v1
+
+  group_name: notion

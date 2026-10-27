@@ -1,0 +1,20 @@
+type: dagster_component_templates.GmailDraftCreateComponent
+attributes:
+  asset_name: nightly_brief_gmail_draft
+  access_token: "${GMAIL_ACCESS_TOKEN}"
+  upstream_asset_key: nightly_brief
+  row_index: 0
+
+  to_email: me@example.com   # this always drafts to the authenticated user's own address
+  subject_template: "Nightly brief -- {report_date}"
+  body_template: |
+    Good morning,
+
+    Here's last night's automated summary:
+
+    {summary_text}
+
+    (This is a draft -- review and send if it looks right.)
+
+  group_name: notifications
+  dry_run: true   # flip to false for live draft creation

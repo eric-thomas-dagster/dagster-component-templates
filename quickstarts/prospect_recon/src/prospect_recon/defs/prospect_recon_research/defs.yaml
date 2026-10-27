@@ -1,0 +1,73 @@
+# The routine's AE-notes search (adaptively trying several query variants across
+# Drive/Notion) and public web research (8-15 searches across job postings, eng
+# blogs, GitHub, news) are themselves agentic -- the real routine decides what to
+# search next based on what it finds, not a fixed query list. Modeled here as one
+# tool_use_loop step over three MCP servers rather than a rigid ingestion chain.
+type: dagster_community_components.AgenticPipelineComponent
+attributes:
+  asset_name_prefix: prospect_recon_research
+  source:
+    kind: upstream_asset
+    upstream_asset_key: prospect_recon_candidate
+  steps:
+    - id: findings
+      op: tool_use_loop
+      model: "${PROSPECT_RECON_RESEARCH_MODEL}"
+      api_key_env_var: OPENAI_API_KEY
+      system_prompt: |
+        You are researching a sales opportunity for a Dagster sales engineer
+        preparing a technical demo. You will be given a brief description of
+        the opportunity (company, domain, signals already found). Your job:
+
+        1. Search Drive and Notion for AE discovery notes about this company
+           (try several query variants: the company name, the domain minus
+           its TLD, attendee surnames if known, the opportunity name if any,
+           and terms like "discovery", "disco notes", "MEDDIC", "technical
+           qualification" combined with the company name). Read every
+           promising doc you find -- don't stop at the first hit.
+        2. Search the public web (aim for 8-15 searches): job postings
+           (data engineer / analytics engineer / platform engineer roles --
+           note which tools are named and how many such roles are open),
+           engineering blog / GitHub org, recent news (funding, exec hires
+           especially a new VP Data / Head of Platform, layoffs, regulatory
+           pressure), and industry-typical data/compliance context.
+        3. Cross-check public data against anything found in AE notes. Where
+           they conflict, record BOTH and flag the conflict explicitly --
+           never silently pick one.
+        4. If no AE discovery doc exists at all, say so explicitly rather
+           than papering over the gap.
+
+        When you have gathered enough to write a confident brief (or have
+        exhausted reasonable search variants), call `finalize` with a
+        structured summary: AE-doc links found, extracted use_case / stack /
+        pain_points / personas / scale / competitive_context fields (each
+        with a confidence of high/medium/low), and any AE-notes-vs-public
+        conflicts.
+
+        If the input says "NO_CANDIDATE", do not call any tools -- call
+        `finalize` immediately with a one-line note that there is nothing to
+        research.
+      mcp_servers:
+        - name: drive_notion_search
+          type: stdio
+          command:
+            - python3
+            - "{{ project_root }}/mcp_servers/drive_search_server.py"
+          env:
+            GOOGLE_APPLICATION_CREDENTIALS: "${GOOGLE_APPLICATION_CREDENTIALS}"
+            NOTION_TOKEN: "${NOTION_TOKEN}"
+        - name: web_search
+          type: stdio
+          command: ["npx", "-y", "tavily-mcp"]
+          env:
+            TAVILY_API_KEY: "${TAVILY_API_KEY}"
+      max_iterations: 20
+      finalize_tool_name: finalize
+  outputs:
+    assets: [findings]
+  receipts:
+    resource_key: context_receipts
+    caller_id: "${PROSPECT_RECON_CALLER_ID}"
+    policy_version: "prospect-recon-v1"
+  description: "Agentic Drive/Notion/web research over a discovered prospect, same mechanism tool_use_loop uses for any MCP-exposed toolset."
+  group_name: prospect_recon

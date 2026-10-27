@@ -2659,7 +2659,13 @@ class _McpConn:
 
     async def list_tools(self) -> List[Any]:
         if self.kind == "fastmcp":
-            res = await self.obj.list_tools()  # fastmcp follows nextCursor itself (verified on 4.x)
+            # fastmcp 3.x/4.x `list_tools()` follows nextCursor itself (it has `max_pages`); fastmcp 2.x returns ONLY the first page and
+            # its `list_tools_mcp()` takes no cursor, so there we page through the underlying SDK session ourselves (found by the weekly
+            # canary: a server with 21 tools in pages of 4 yielded 4 tools on 2.14.7).
+            import inspect
+            if "max_pages" not in inspect.signature(self.obj.list_tools).parameters and getattr(self.obj, "session", None) is not None:
+                return await _McpConn("sdk", self.obj.session).list_tools()
+            res = await self.obj.list_tools()
             return list(getattr(res, "tools", None) or res or [])
         tools: List[Any] = []
         cursor = None

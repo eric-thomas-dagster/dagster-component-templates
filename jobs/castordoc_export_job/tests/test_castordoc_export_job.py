@@ -133,7 +133,7 @@ def _dispatch_fake_post(calls, tables_by_match_name):
     return fake_post
 
 
-def test_resolve_table_id_filters_substring_decoy_to_exact_match(mod):
+def test_resolve_table_id_filters_substring_decoy_to_exact_match(mod, monkeypatch):
     def fake_post(url, headers=None, json=None, timeout=None):
         assert headers["Authorization"] == "Token sekret"
         return FakeResponse({"data": {"getTables": {"data": [
@@ -141,7 +141,7 @@ def test_resolve_table_id_filters_substring_decoy_to_exact_match(mod):
             {"id": "t-real", "name": "Orders"},
         ]}}})
 
-    mod.requests.post = fake_post
+    monkeypatch.setattr(mod.requests, "post", fake_post)
     table_id = mod._resolve_table_id("https://x", {"Authorization": "Token sekret"}, "orders")
     assert table_id == "t-real"
 
@@ -152,10 +152,10 @@ def test_push_raises_without_token_env(mod):
         mod._push(_FakeLog(), mod._transform(_sample_payload()), "https://x", "CASTORDOC_JOB_MISSING_TOKEN")
 
 
-def test_push_matches_and_pushes_descriptions_tags_for_resolved_assets(mod):
-    os.environ["CASTORDOC_JOB_TEST_TOKEN"] = "sekret"
+def test_push_matches_and_pushes_descriptions_tags_for_resolved_assets(mod, monkeypatch):
+    monkeypatch.setenv("CASTORDOC_JOB_TEST_TOKEN", "sekret")
     calls = []
-    mod.requests.post = _dispatch_fake_post(calls, {"orders": "t-orders"})
+    monkeypatch.setattr(mod.requests, "post", _dispatch_fake_post(calls, {"orders": "t-orders"}))
 
     result = mod._push(_FakeLog(), mod._transform(_sample_payload()), "https://x", "CASTORDOC_JOB_TEST_TOKEN", push_lineage_edges=False)
     assert result["matched"] == 1
@@ -165,10 +165,10 @@ def test_push_matches_and_pushes_descriptions_tags_for_resolved_assets(mod):
     assert "attachTags" in ops_seen
 
 
-def test_push_lineage_edge_skipped_when_endpoint_unmatched(mod):
-    os.environ["CASTORDOC_JOB_TEST_TOKEN"] = "sekret"
+def test_push_lineage_edge_skipped_when_endpoint_unmatched(mod, monkeypatch):
+    monkeypatch.setenv("CASTORDOC_JOB_TEST_TOKEN", "sekret")
     calls = []
-    mod.requests.post = _dispatch_fake_post(calls, {"orders": "t-orders"})  # ml_model unresolved
+    monkeypatch.setattr(mod.requests, "post", _dispatch_fake_post(calls, {"orders": "t-orders"}))  # ml_model unresolved
 
     result = mod._push(_FakeLog(), mod._transform(_sample_payload()), "https://x", "CASTORDOC_JOB_TEST_TOKEN", push_lineage_edges=True)
     assert result["lineage_edges_pushed"] == 0
@@ -176,10 +176,10 @@ def test_push_lineage_edge_skipped_when_endpoint_unmatched(mod):
     assert "upsertLineages" not in [c[0] for c in calls]
 
 
-def test_push_lineage_edge_pushed_when_both_endpoints_matched(mod):
-    os.environ["CASTORDOC_JOB_TEST_TOKEN"] = "sekret"
+def test_push_lineage_edge_pushed_when_both_endpoints_matched(mod, monkeypatch):
+    monkeypatch.setenv("CASTORDOC_JOB_TEST_TOKEN", "sekret")
     calls = []
-    mod.requests.post = _dispatch_fake_post(calls, {"orders": "t-orders", "ml_model": "t-ml"})
+    monkeypatch.setattr(mod.requests, "post", _dispatch_fake_post(calls, {"orders": "t-orders", "ml_model": "t-ml"}))
 
     result = mod._push(_FakeLog(), mod._transform(_sample_payload()), "https://x", "CASTORDOC_JOB_TEST_TOKEN", push_lineage_edges=True)
     assert result["lineage_edges_pushed"] == 1
@@ -187,10 +187,10 @@ def test_push_lineage_edge_pushed_when_both_endpoints_matched(mod):
     assert lineage_call["data"] == [{"parentTableId": "t-orders", "childTableId": "t-ml"}]
 
 
-def test_push_data_quality_enabled_pushes_per_matched_table(mod):
-    os.environ["CASTORDOC_JOB_TEST_TOKEN"] = "sekret"
+def test_push_data_quality_enabled_pushes_per_matched_table(mod, monkeypatch):
+    monkeypatch.setenv("CASTORDOC_JOB_TEST_TOKEN", "sekret")
     calls = []
-    mod.requests.post = _dispatch_fake_post(calls, {"orders": "t-orders"})
+    monkeypatch.setattr(mod.requests, "post", _dispatch_fake_post(calls, {"orders": "t-orders"}))
 
     result = mod._push(_FakeLog(), mod._transform(_sample_payload()), "https://x", "CASTORDOC_JOB_TEST_TOKEN", push_data_quality=True)
     assert result["quality_records_pushed"] == 1

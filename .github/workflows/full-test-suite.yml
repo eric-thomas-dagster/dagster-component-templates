@@ -60,6 +60,11 @@ jobs:
                       "sqlglot==28.0.0" jsonschema tabulate pyarrow litellm requests fsspec \
                       dlt cryptography scikit-learn geopandas \
                       google-auth google-api-python-client google-cloud-bigquery reportlab pillow
+      - name: Install torch (CPU-only wheel -- reranker/sentiment_analyzer/zero_shot_classifier need it)
+        # best effort: the default pip index bundles CUDA and can be 2GB+; the CPU-only index is far smaller
+        # and is all a CI runner needs. transformers/sentence-transformers (installed below) pick this up
+        # instead of pulling in the full CUDA build themselves.
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu || echo "::warning::could not install torch; its contract tests will skip"
       - name: Install vendor client libraries (library-contract tests skip any that is missing)
         # best effort per package: a wheel that is unavailable for this Python must not fail the job, the matching contract tests just skip.
         # Wider list than tests.yml's -- this job also exercises components the curated fast suite never touches
@@ -68,7 +73,7 @@ jobs:
           for pkg in dagster-gcp snowflake-connector-python databricks-sql-connector psycopg2-binary pymysql \
                      dagster-snowflake "deltalake>=0.15.0" "pyiceberg[sql-sqlite]>=0.6.0" databricks-sdk \
                      "google-cloud-speech>=2.20.0" dagster-iceberg pdfplumber dagster-msteams slack_sdk \
-                     beautifulsoup4 langchain-core; do
+                     beautifulsoup4 langchain-core transformers sentence-transformers; do
             pip install $pkg || echo "::warning::could not install $pkg; its contract tests will skip"
           done
       - name: Discover this shard's tests/ directories

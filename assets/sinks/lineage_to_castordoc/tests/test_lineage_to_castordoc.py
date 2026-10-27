@@ -91,7 +91,7 @@ def test_transform_does_not_hit_network(mod):
 
 # ── _resolve_table_id ──────────────────────────────────────────────────────
 
-def test_resolve_table_id_filters_substring_decoy_to_exact_match(mod):
+def test_resolve_table_id_filters_substring_decoy_to_exact_match(mod, monkeypatch):
     def fake_post(url, headers=None, json=None, timeout=None):
         assert _op_from_url(url) == "getTables"
         assert headers["Authorization"] == "Token sekret"
@@ -103,24 +103,24 @@ def test_resolve_table_id_filters_substring_decoy_to_exact_match(mod):
             ]}}
         })
 
-    mod.requests.post = fake_post
+    monkeypatch.setattr(mod.requests, "post", fake_post)
     table_id = mod._resolve_table_id("https://api.castordoc.com/public/graphql", {"Authorization": "Token sekret"}, "orders")
     assert table_id == "t-real"
 
 
-def test_resolve_table_id_returns_none_when_no_exact_match(mod):
+def test_resolve_table_id_returns_none_when_no_exact_match(mod, monkeypatch):
     def fake_post(url, headers=None, json=None, timeout=None):
         return FakeResponse({"data": {"getTables": {"data": [{"id": "t-decoy", "name": "stg_orders"}]}}})
 
-    mod.requests.post = fake_post
+    monkeypatch.setattr(mod.requests, "post", fake_post)
     assert mod._resolve_table_id("https://x", {}, "orders") is None
 
 
-def test_resolve_table_id_raises_on_graphql_errors(mod):
+def test_resolve_table_id_raises_on_graphql_errors(mod, monkeypatch):
     def fake_post(url, headers=None, json=None, timeout=None):
         return FakeResponse({"errors": [{"message": "boom"}]})
 
-    mod.requests.post = fake_post
+    monkeypatch.setattr(mod.requests, "post", fake_post)
     with pytest.raises(RuntimeError):
         mod._resolve_table_id("https://x", {}, "orders")
 
@@ -164,8 +164,8 @@ class _FakeLog:
     def warning(self, *a, **k): pass
 
 
-def test_push_uses_token_auth_header_not_bearer(mod):
-    os.environ["CASTORDOC_TEST_TOKEN"] = "sekret"
+def test_push_uses_token_auth_header_not_bearer(mod, monkeypatch):
+    monkeypatch.setenv("CASTORDOC_TEST_TOKEN", "sekret")
     calls = []
 
     def fake_post(url, headers=None, json=None, timeout=None):
@@ -173,15 +173,15 @@ def test_push_uses_token_auth_header_not_bearer(mod):
         calls.append(url)
         return FakeResponse({"data": {_op_from_url(url): {"data": []}}})
 
-    mod.requests.post = fake_post
+    monkeypatch.setattr(mod.requests, "post", fake_post)
     mod._push(_FakeLog(), mod._transform(_sample_payload()), "https://x", "CASTORDOC_TEST_TOKEN", push_lineage_edges=False)
     assert calls  # at least the getTables lookups happened
 
 
-def test_push_pushes_descriptions_and_tags_only_for_matched_assets(mod):
-    os.environ["CASTORDOC_TEST_TOKEN"] = "sekret"
+def test_push_pushes_descriptions_and_tags_only_for_matched_assets(mod, monkeypatch):
+    monkeypatch.setenv("CASTORDOC_TEST_TOKEN", "sekret")
     calls = []
-    mod.requests.post = _dispatch_fake_post(calls, _fake_tables())
+    monkeypatch.setattr(mod.requests, "post", _dispatch_fake_post(calls, _fake_tables()))
 
     result = mod._push(_FakeLog(), mod._transform(_sample_payload()), "https://x", "CASTORDOC_TEST_TOKEN")
 
@@ -194,10 +194,10 @@ def test_push_pushes_descriptions_and_tags_only_for_matched_assets(mod):
     assert "attachTags" in ops_seen
 
 
-def test_push_skips_lineage_edge_with_unmatched_endpoint(mod):
-    os.environ["CASTORDOC_TEST_TOKEN"] = "sekret"
+def test_push_skips_lineage_edge_with_unmatched_endpoint(mod, monkeypatch):
+    monkeypatch.setenv("CASTORDOC_TEST_TOKEN", "sekret")
     calls = []
-    mod.requests.post = _dispatch_fake_post(calls, _fake_tables())
+    monkeypatch.setattr(mod.requests, "post", _dispatch_fake_post(calls, _fake_tables()))
 
     result = mod._push(_FakeLog(), mod._transform(_sample_payload()), "https://x", "CASTORDOC_TEST_TOKEN", push_lineage_edges=True)
 
@@ -208,11 +208,11 @@ def test_push_skips_lineage_edge_with_unmatched_endpoint(mod):
     assert "upsertLineages" not in ops_seen  # nothing to push, mutation never called
 
 
-def test_push_lineage_edges_pushed_when_both_endpoints_matched(mod):
-    os.environ["CASTORDOC_TEST_TOKEN"] = "sekret"
+def test_push_lineage_edges_pushed_when_both_endpoints_matched(mod, monkeypatch):
+    monkeypatch.setenv("CASTORDOC_TEST_TOKEN", "sekret")
     calls = []
     both_matched = {"orders": "t-orders", "ml_model": "t-ml"}
-    mod.requests.post = _dispatch_fake_post(calls, both_matched)
+    monkeypatch.setattr(mod.requests, "post", _dispatch_fake_post(calls, both_matched))
 
     result = mod._push(_FakeLog(), mod._transform(_sample_payload()), "https://x", "CASTORDOC_TEST_TOKEN", push_lineage_edges=True)
 
@@ -224,21 +224,21 @@ def test_push_lineage_edges_pushed_when_both_endpoints_matched(mod):
     assert lineage_call["data"] == [{"parentTableId": "t-orders", "childTableId": "t-ml"}]
 
 
-def test_push_lineage_edges_disabled_never_calls_upsert_lineages(mod):
-    os.environ["CASTORDOC_TEST_TOKEN"] = "sekret"
+def test_push_lineage_edges_disabled_never_calls_upsert_lineages(mod, monkeypatch):
+    monkeypatch.setenv("CASTORDOC_TEST_TOKEN", "sekret")
     calls = []
     both_matched = {"orders": "t-orders", "ml_model": "t-ml"}
-    mod.requests.post = _dispatch_fake_post(calls, both_matched)
+    monkeypatch.setattr(mod.requests, "post", _dispatch_fake_post(calls, both_matched))
 
     mod._push(_FakeLog(), mod._transform(_sample_payload()), "https://x", "CASTORDOC_TEST_TOKEN", push_lineage_edges=False)
     ops_seen = [c[0] for c in calls]
     assert "upsertLineages" not in ops_seen
 
 
-def test_push_data_quality_off_by_default(mod):
-    os.environ["CASTORDOC_TEST_TOKEN"] = "sekret"
+def test_push_data_quality_off_by_default(mod, monkeypatch):
+    monkeypatch.setenv("CASTORDOC_TEST_TOKEN", "sekret")
     calls = []
-    mod.requests.post = _dispatch_fake_post(calls, _fake_tables())
+    monkeypatch.setattr(mod.requests, "post", _dispatch_fake_post(calls, _fake_tables()))
 
     result = mod._push(_FakeLog(), mod._transform(_sample_payload()), "https://x", "CASTORDOC_TEST_TOKEN")
     assert result["quality_records_pushed"] == 0
@@ -246,10 +246,10 @@ def test_push_data_quality_off_by_default(mod):
     assert "upsertDataQualities" not in ops_seen
 
 
-def test_push_data_quality_enabled_pushes_one_record_per_matched_table(mod):
-    os.environ["CASTORDOC_TEST_TOKEN"] = "sekret"
+def test_push_data_quality_enabled_pushes_one_record_per_matched_table(mod, monkeypatch):
+    monkeypatch.setenv("CASTORDOC_TEST_TOKEN", "sekret")
     calls = []
-    mod.requests.post = _dispatch_fake_post(calls, _fake_tables())
+    monkeypatch.setattr(mod.requests, "post", _dispatch_fake_post(calls, _fake_tables()))
 
     result = mod._push(_FakeLog(), mod._transform(_sample_payload()), "https://x", "CASTORDOC_TEST_TOKEN", push_data_quality=True)
     assert result["quality_records_pushed"] == 1  # only staging/orders matched
@@ -259,10 +259,10 @@ def test_push_data_quality_enabled_pushes_one_record_per_matched_table(mod):
     assert quality_calls[0]["data"]["qualityChecks"][0]["status"] == "SUCCESS"
 
 
-def test_push_tags_disabled_skips_attach_tags_call(mod):
-    os.environ["CASTORDOC_TEST_TOKEN"] = "sekret"
+def test_push_tags_disabled_skips_attach_tags_call(mod, monkeypatch):
+    monkeypatch.setenv("CASTORDOC_TEST_TOKEN", "sekret")
     calls = []
-    mod.requests.post = _dispatch_fake_post(calls, _fake_tables())
+    monkeypatch.setattr(mod.requests, "post", _dispatch_fake_post(calls, _fake_tables()))
 
     mod._push(_FakeLog(), mod._transform(_sample_payload()), "https://x", "CASTORDOC_TEST_TOKEN", push_tags=False)
     ops_seen = [c[0] for c in calls]
@@ -282,10 +282,10 @@ def _component(mod, **overrides):
     return mod.LineageToCastordocComponent(**kwargs)
 
 
-def test_sink_asset_pushes_and_reports_match_counts(mod):
-    os.environ["CASTORDOC_TEST_TOKEN"] = "sekret"
+def test_sink_asset_pushes_and_reports_match_counts(mod, monkeypatch):
+    monkeypatch.setenv("CASTORDOC_TEST_TOKEN", "sekret")
     calls = []
-    mod.requests.post = _dispatch_fake_post(calls, _fake_tables())
+    monkeypatch.setattr(mod.requests, "post", _dispatch_fake_post(calls, _fake_tables()))
 
     component = _component(mod, push_lineage_edges=False)
     defs = component.build_defs(None)
@@ -303,10 +303,10 @@ def test_sink_asset_pushes_and_reports_match_counts(mod):
     assert md["assets_unmatched"].value == 1
 
 
-def test_sink_asset_skips_push_when_hash_unchanged(mod):
-    os.environ["CASTORDOC_TEST_TOKEN"] = "sekret"
+def test_sink_asset_skips_push_when_hash_unchanged(mod, monkeypatch):
+    monkeypatch.setenv("CASTORDOC_TEST_TOKEN", "sekret")
     calls = []
-    mod.requests.post = _dispatch_fake_post(calls, _fake_tables())
+    monkeypatch.setattr(mod.requests, "post", _dispatch_fake_post(calls, _fake_tables()))
 
     component = _component(mod, only_push_on_change=True, push_lineage_edges=False)
     defs = component.build_defs(None)

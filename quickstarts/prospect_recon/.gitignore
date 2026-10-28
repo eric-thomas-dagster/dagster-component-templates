@@ -1,5 +1,0 @@
-# Generated at run time -- not source.
-data/
-.env
-__pycache__/
-*.egg-info/

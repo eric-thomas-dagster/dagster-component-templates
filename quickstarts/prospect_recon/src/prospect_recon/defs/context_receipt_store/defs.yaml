@@ -1,5 +1,0 @@
-type: dagster_community_components.ContextReceiptStoreComponent
-attributes:
-  resource_key: context_receipts
-  database_path: "{{ project_root }}/data/prospect-recon-receipts.sqlite3"
-  backend: sqlite

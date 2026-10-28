@@ -65,10 +65,10 @@ Three runnable walkthroughs, plus one full in-repo project:
 
 All three free/local by default (sentence-transformers + HuggingFace zero-shot + ChromaDB, plus local SQLite or DuckDB); all live-validated end to end, exit 0.
 
-**Fourth, a full-fidelity production use, not a scaffolded illustration:** [`quickstarts/prospect_recon`](../../../quickstarts/prospect_recon/README.md). An agentic Drive/Notion/web research loop feeds this exact pipeline (chunk → redact → dedupe → classify → stamp → embed → index) to build a governed, receipted per-prospect knowledge base, which a forced-function-call step then reads to write a sales-engineering brief — the receipt is written through a FastMCP governance server at generation time, not an in-process call. Unlike the three walkthroughs above there's nothing to scaffold from a remote zip (it's already a full project in this repo), and it isn't free/local (real LLM calls, real Google/GitHub/Slack APIs, real cost per run — see its own README for the credentials and cost note); one script does the mechanical setup and stops before launch so you can fill in real credentials first:
+**Fourth, a full-fidelity production use, not a scaffolded illustration:** [`examples/prospect_recon.md`](https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/prospect_recon.md). An agentic Drive/Notion/web research loop feeds this exact pipeline (chunk → redact → dedupe → classify → stamp → embed → index) to build a governed, receipted per-prospect knowledge base, which a forced-function-call step then reads to write a sales-engineering brief — the receipt is written through a FastMCP governance server at generation time, not an in-process call. It isn't free/local like the three walkthroughs above (real LLM calls, real Google/GitHub/Slack APIs, real cost per run — see its own doc for the credentials and cost note), and unlike every other demo in that directory the script doesn't auto-launch it: there's no safe synthetic scenario to run against, since it depends on your own real Calendar/Drive data and writes to a real downstream repo/inbox/Slack. It scaffolds the full project and stops before launch so you can fill in real credentials first:
 ```bash
-cd quickstarts/prospect_recon
-./setup.sh
+curl -fsSL https://raw.githubusercontent.com/eric-thomas-dagster/dagster-community-components-cli/main/examples/setup_prospect_recon_demo.sh | bash
+cd prospect-recon-demo
 ```
 
 ## Ops

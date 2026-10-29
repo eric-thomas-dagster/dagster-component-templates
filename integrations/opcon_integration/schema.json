@@ -1,12 +1,12 @@
 {
   "component_type": "dagster_community_components.OpConIntegrationComponent",
-  "description": "SMA Technologies / Continuous OpCon workload-automation REST API integration. Each declared OpCon Daily Job becomes a daily-partitioned Dagster asset with a retry policy. Ships with 5 ops + jobs (force-restart, hold, release, cancel, reconcile), an external-execution monitor sensor, an inbound-trigger sensor, and an hourly reconciliation schedule. demo_mode=true simulates the full REST API lifecycle (token exchange + scheduleactions + dailyjobs status polling) on stdout so the whole component runs end-to-end with zero external dependencies (OpCon is on-prem software with no public Docker image).",
+  "description": "SMA Technologies / Continuous OpCon workload-automation REST API integration. Each declared OpCon Daily Job becomes a daily-partitioned Dagster asset with a retry policy, via a client abstraction (submit/poll) shared by demo and real mode so the same calling logic runs either way. Scaffold (force-restart/hold/release/cancel/reconciliation ops+jobs, inbound-trigger sensor) is opt-in via generate_* flags, off by default. demo_mode=true (default) uses a demo client that logs a simulated REST lifecycle (token exchange + scheduleactions + dailyjobs status polling) on stdout -- OpCon is on-prem software with no public Docker image.",
   "category": "integration",
   "icon": "Schedule",
   "x-dagster-io": {
     "outputs": {
       "type": "AssetSpec",
-      "description": "One daily-partitioned Dagster asset per OpCon Daily Job + optional source-table assets + 5 ops/jobs + 2 sensors + 1 schedule."
+      "description": "One daily-partitioned Dagster asset per OpCon Daily Job + optional source-table assets + opt-in ops/jobs/sensors/schedule."
     }
   },
   "attributes": {
@@ -15,7 +15,7 @@
       "label": "Demo Mode",
       "required": false,
       "default": true,
-      "description": "Simulate the REST API on stdout (no external calls).",
+      "description": "Use the demo client (logs a simulated REST lifecycle, no external calls) instead of the real REST client.",
       "ui:widget": "checkbox"
     },
     "endpoint": {
@@ -29,19 +29,13 @@
       "type": "array",
       "label": "Jobs",
       "required": false,
-      "description": "OpCon Daily Jobs to wrap as daily-partitioned Dagster assets. Each item: {job_name, asset_name, description?, schedule_name?, machine?, department?, force_restart?}."
+      "description": "OpCon Daily Jobs to wrap as daily-partitioned Dagster assets. Each item: {job_name, asset_name, description?, schedule_name?, machine?, department?, force_restart?, deps?} -- deps is per-job, not shared."
     },
     "source_tables": {
       "type": "array",
       "label": "Source Tables",
       "required": false,
       "description": "Tables loaded by OpCon that Dagster observes (adds to lineage). Each item: {table_name, asset_name, description?, group_name?, produced_by?}."
-    },
-    "upstream_deps": {
-      "type": "array",
-      "label": "Upstream Deps",
-      "required": false,
-      "description": "Upstream asset keys (slash-separated for nested keys) that must complete before jobs run."
     },
     "group_name": {
       "type": "string",
@@ -69,7 +63,7 @@
       "label": "Poll Interval Seconds",
       "required": false,
       "default": 10,
-      "description": "Seconds between OpCon daily-job status polls."
+      "description": "Seconds between OpCon daily-job status polls (real mode only -- demo mode doesn't sleep)."
     },
     "poll_timeout_seconds": {
       "type": "integer",
@@ -99,12 +93,58 @@
       "default": "2024-01-01",
       "description": "Start date for the daily partitioned assets."
     },
+    "generate_external_monitor_sensor": {
+      "type": "boolean",
+      "label": "Generate External Monitor Sensor",
+      "required": false,
+      "default": true,
+      "description": "Build the opcon_external_execution_monitor sensor. Cycles through every declared job, not just the first.",
+      "ui:widget": "checkbox"
+    },
+    "generate_inbound_trigger_sensor": {
+      "type": "boolean",
+      "label": "Generate Inbound Trigger Sensor",
+      "required": false,
+      "default": false,
+      "description": "Build the opcon_inbound_trigger sensor. It only logs a simulated message in demo mode and does nothing in real mode until you wire a real webhook/event source -- off by default.",
+      "ui:widget": "checkbox"
+    },
+    "generate_force_restart_job": {
+      "type": "boolean",
+      "label": "Generate Force Restart Job",
+      "required": false,
+      "default": false,
+      "description": "Build the opcon_force_restart_job op-backed job. Off by default -- Dagster+'s own re-execution-from-failure covers most of this.",
+      "ui:widget": "checkbox"
+    },
+    "generate_hold_release_cancel_jobs": {
+      "type": "boolean",
+      "label": "Generate Hold/Release/Cancel Jobs",
+      "required": false,
+      "default": false,
+      "description": "Build the opcon_hold_job / opcon_release_job / opcon_cancel_job op-backed jobs.",
+      "ui:widget": "checkbox"
+    },
+    "generate_reconciliation": {
+      "type": "boolean",
+      "label": "Generate Reconciliation",
+      "required": false,
+      "default": false,
+      "description": "Build the reconciliation op/job and its hourly schedule.",
+      "ui:widget": "checkbox"
+    },
     "reconciliation_cron": {
       "type": "string",
       "label": "Reconciliation Cron",
       "required": false,
       "default": "0 * * * *",
-      "description": "Cron for the OpCon vs Dagster state reconciliation job."
+      "description": "Cron for the OpCon vs Dagster state reconciliation job (only used when generate_reconciliation=true)."
+    },
+    "translation": {
+      "type": "object",
+      "label": "Translation",
+      "required": false,
+      "description": "Optional per-job customization hook applied to each job's AssetSpec. group_name/kinds/deps/description/owners are REPLACED; tags/metadata are MERGED onto the component's defaults (Dagster framework behavior)."
     }
   },
   "tags": [

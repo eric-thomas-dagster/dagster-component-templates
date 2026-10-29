@@ -1,12 +1,12 @@
 {
   "component_type": "dagster_community_components.GoAnywhereIntegrationComponent",
-  "description": "Fortra GoAnywhere MFT GACMD REST API integration. Each declared GoAnywhere Project becomes a daily-partitioned Dagster asset with a retry policy. Ships with a rerun op, a dashboard-summary op, a reconciliation op/job, an external-execution monitor sensor, an inbound-trigger sensor, and an hourly reconciliation schedule. demo_mode=true simulates the full GACMD REST API lifecycle on stdout so the whole component runs end-to-end with zero external dependencies (GoAnywhere's official Docker images need a trial or paid license key to do anything).",
+  "description": "Fortra GoAnywhere MFT GACMD REST API integration. Each declared GoAnywhere Project becomes a daily-partitioned Dagster asset with a retry policy, via a client abstraction (submit/poll) shared by demo and real mode so the same calling logic runs either way. Scaffold (rerun/dashboard/reconciliation ops+jobs, inbound-trigger sensor) is opt-in via generate_* flags, off by default. demo_mode=true (default) uses a demo client that logs a simulated GACMD lifecycle on stdout -- GoAnywhere's official Docker images need a trial or paid license key to do anything, so there's no zero-license way to hit a real server.",
   "category": "integration",
   "icon": "Send",
   "x-dagster-io": {
     "outputs": {
       "type": "AssetSpec",
-      "description": "One daily-partitioned Dagster asset per GoAnywhere Project + optional source-file assets + 3 ops/jobs + 2 sensors + 1 schedule."
+      "description": "One daily-partitioned Dagster asset per GoAnywhere Project + optional source-file assets + opt-in ops/jobs/sensors/schedule."
     }
   },
   "attributes": {
@@ -15,7 +15,7 @@
       "label": "Demo Mode",
       "required": false,
       "default": true,
-      "description": "Simulate the GACMD REST API on stdout (no external calls).",
+      "description": "Use the demo client (logs a simulated GACMD lifecycle, no external calls) instead of the real REST client.",
       "ui:widget": "checkbox"
     },
     "endpoint": {
@@ -29,19 +29,13 @@
       "type": "array",
       "label": "Projects",
       "required": false,
-      "description": "GoAnywhere Projects to wrap as daily-partitioned Dagster assets. Each item: {project_name, asset_name, description?, domain?, job_name?, job_queue?, mode?, priority?, variables?}."
+      "description": "GoAnywhere Projects to wrap as daily-partitioned Dagster assets. Each item: {project_name, asset_name, description?, domain?, job_name?, job_queue?, mode?, priority?, variables?, deps?} -- deps is per-project, not shared."
     },
     "source_files": {
       "type": "array",
       "label": "Source Files",
       "required": false,
       "description": "Files/folders landed by GoAnywhere that Dagster observes (adds to lineage). Each item: {path, asset_name, description?, group_name?, produced_by?}."
-    },
-    "upstream_deps": {
-      "type": "array",
-      "label": "Upstream Deps",
-      "required": false,
-      "description": "Upstream asset keys (slash-separated for nested keys) that must complete before projects run."
     },
     "group_name": {
       "type": "string",
@@ -69,7 +63,7 @@
       "label": "Poll Interval Seconds",
       "required": false,
       "default": 10,
-      "description": "Seconds between GoAnywhere job status polls."
+      "description": "Seconds between GoAnywhere job status polls (real mode only -- demo mode doesn't sleep)."
     },
     "poll_timeout_seconds": {
       "type": "integer",
@@ -99,12 +93,58 @@
       "default": "2024-01-01",
       "description": "Start date for the daily partitioned assets."
     },
+    "generate_external_monitor_sensor": {
+      "type": "boolean",
+      "label": "Generate External Monitor Sensor",
+      "required": false,
+      "default": true,
+      "description": "Build the goanywhere_external_execution_monitor sensor. Cycles through every declared project, not just the first.",
+      "ui:widget": "checkbox"
+    },
+    "generate_inbound_trigger_sensor": {
+      "type": "boolean",
+      "label": "Generate Inbound Trigger Sensor",
+      "required": false,
+      "default": false,
+      "description": "Build the goanywhere_inbound_trigger sensor. It only logs a simulated message in demo mode and does nothing in real mode until you wire a real webhook/event source -- off by default.",
+      "ui:widget": "checkbox"
+    },
+    "generate_rerun_job": {
+      "type": "boolean",
+      "label": "Generate Rerun Job",
+      "required": false,
+      "default": false,
+      "description": "Build the goanywhere_rerun_project op-backed job. Off by default -- Dagster+'s own re-execution-from-failure covers most of this.",
+      "ui:widget": "checkbox"
+    },
+    "generate_dashboard_job": {
+      "type": "boolean",
+      "label": "Generate Dashboard Job",
+      "required": false,
+      "default": false,
+      "description": "Build the goanywhere_dashboard op-backed job (service status / active sessions / transfer summary).",
+      "ui:widget": "checkbox"
+    },
+    "generate_reconciliation": {
+      "type": "boolean",
+      "label": "Generate Reconciliation",
+      "required": false,
+      "default": false,
+      "description": "Build the reconciliation op/job and its hourly schedule.",
+      "ui:widget": "checkbox"
+    },
     "reconciliation_cron": {
       "type": "string",
       "label": "Reconciliation Cron",
       "required": false,
       "default": "0 * * * *",
-      "description": "Cron for the GoAnywhere vs Dagster state reconciliation job."
+      "description": "Cron for the GoAnywhere vs Dagster state reconciliation job (only used when generate_reconciliation=true)."
+    },
+    "translation": {
+      "type": "object",
+      "label": "Translation",
+      "required": false,
+      "description": "Optional per-project customization hook applied to each project's AssetSpec. group_name/kinds/deps/description/owners are REPLACED; tags/metadata are MERGED onto the component's defaults (Dagster framework behavior)."
     }
   },
   "tags": [

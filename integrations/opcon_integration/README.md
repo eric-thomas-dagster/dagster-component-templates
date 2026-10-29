@@ -1,28 +1,29 @@
 # OpConIntegrationComponent
 
-**SMA Technologies / Continuous OpCon** workload-automation REST API integration. Each declared OpCon Daily Job becomes a **daily-partitioned Dagster asset** with a retry policy. Ships with 5 operational ops + jobs (force-restart / hold / release / cancel / reconcile), 2 sensors (external-execution monitor + inbound trigger), and an hourly reconciliation schedule.
+**SMA Technologies / Continuous OpCon** workload-automation REST API integration. Each declared OpCon Daily Job becomes a **daily-partitioned Dagster asset** with a retry policy, `deps` set per-job (not one list shared by every job). Everything beyond the job assets themselves — force-restart/hold/release/cancel/reconciliation ops+jobs, the inbound-trigger sensor — is **opt-in** via `generate_*` flags, off by default; only the external-execution monitor sensor is on by default.
 
-`demo_mode: true` (default) simulates the whole REST API lifecycle (token exchange + scheduleactions + dailyjobs status polling) on stdout — the component runs end-to-end with zero external dependencies. OpCon is on-prem workload-automation software with no public Docker image or license-free trial, so the simulator is the only zero-license way to smoke-test the full surface. Flip to `false` and set `OPCON_USER` / `OPCON_PASSWORD` to hit a real OpCon instance.
+`demo_mode: true` (default) swaps in a demo client that logs a simulated REST lifecycle (token exchange + scheduleactions + dailyjobs status polling) on stdout instead of making real HTTP calls. The demo and real clients share one `submit`/`poll` interface (see "Client abstraction" below), so the asset body's submit-then-poll-to-terminal-state loop runs through the *same code* in both modes. OpCon is on-prem workload-automation software with no public Docker image or license-free trial, so the demo client is the only zero-license way to exercise the calling logic. Flip `demo_mode` to `false` and set `OPCON_USER` / `OPCON_PASSWORD` to hit a real OpCon instance.
 
 ## What you get
 
 ```
-Dagster catalog after `dg dev`:
+Dagster catalog after `dg dev` (defaults — no generate_* flags set):
 
 Assets   ── opcon_eod_ledger_close             [daily partitioned, kinds: python, opcon]
          ── opcon_regulatory_extract           [daily partitioned, kinds: python, opcon]
          ── opcon_gl_ledger_table              [source, kinds: opcon, database]  (optional)
 
-Jobs     ── opcon_force_restart_job            (run config: {job_id})
-         ── opcon_hold_job                     (run config: {job_id})
-         ── opcon_release_job                  (run config: {job_id})
-         ── opcon_cancel_job                   (run config: {job_id})
-         ── opcon_reconciliation               (drift report)
+Sensors  ── opcon_external_execution_monitor   (poll every 60s, on by default)
+```
 
-Sensors  ── opcon_external_execution_monitor   (poll every 60s)
-         ── opcon_inbound_trigger              (OpCon -> Dagster GraphQL)
+Turn on the rest explicitly:
 
-Schedules ── opcon_reconciliation_schedule     (cron: 0 * * * *)
+```
+generate_force_restart_job: true          # Jobs    ── opcon_force_restart_job       (run config: {job_id})
+generate_hold_release_cancel_jobs: true   # Jobs    ── opcon_hold_job / opcon_release_job / opcon_cancel_job (run config: {job_id})
+generate_reconciliation: true             # Jobs    ── opcon_reconciliation          (drift report)
+                                           # Schedules ── opcon_reconciliation_schedule  (cron: 0 * * * *)
+generate_inbound_trigger_sensor: true     # Sensors ── opcon_inbound_trigger         (stub -- logs only, see below)
 ```
 
 ## Integration pattern
@@ -49,10 +50,9 @@ Schedules ── opcon_reconciliation_schedule     (cron: 0 * * * *)
        │        OpConIntegrationComponent (one YAML)                │
        │                                                          │
        │  daily-partitioned assets  +  RetryPolicy(max_retries=2) │
-       │  op jobs (force-restart / hold / release / cancel /      │
-       │           reconcile)                                     │
-       │  sensors (external-execution monitor + inbound trigger)  │
-       │  hourly reconciliation schedule                          │
+       │  external-execution monitor sensor (on by default)       │
+       │  op jobs + inbound trigger + reconciliation: opt-in       │
+       │  (generate_* flags, off by default)                      │
        └──────────────────────────────────────────────────────────┘
 ```
 
@@ -62,7 +62,7 @@ Schedules ── opcon_reconciliation_schedule     (cron: 0 * * * *)
 bash setup_opcon_integration_demo.sh
 ```
 
-Scaffolds a Dagster project, installs the component in demo mode, materializes one partition end-to-end, and prints the full simulated REST API call trace (AUTH → ACTION → POLL × 4 → EVENTS → DONE).
+Scaffolds a Dagster project, installs the component (with every `generate_*` flag turned on so the demo shows the full surface), materializes one partition end-to-end, and prints the full simulated REST API call trace (AUTH → ACTION → POLL × 4 → EVENTS → DONE).
 
 Then open the Dagster UI:
 
@@ -101,19 +101,40 @@ Each declared OpCon Daily Job becomes a daily-partitioned Dagster asset. Materia
 **OpCon -> Dagster** (inbound trigger sensor):
 Production wire-up: an OpCon job (or a generic HTTP/REST job step) calls Dagster's GraphQL API with a `launchRun` mutation. The `opcon_inbound_trigger` sensor confirms the trigger was received and produces observable ticks in the Dagster UI.
 
-## Operational ops — Dagster as the pane of glass
+## Operational ops — opt-in, Dagster as the pane of glass
 
-Five ops ship as Dagster jobs so you can force-restart / hold / release / cancel / reconcile OpCon daily jobs directly from the Dagster UI:
+Five ops ship as Dagster jobs, **off by default** (`generate_force_restart_job` / `generate_hold_release_cancel_jobs` / `generate_reconciliation`) so you can force-restart / hold / release / cancel / reconcile OpCon daily jobs directly from the Dagster UI once you actually want them:
 
-| Job | Config | Purpose |
-|---|---|---|
-| `opcon_force_restart_job` | `{job_id}` | Force-restart a job, ignoring dependencies (`JOB:FORCERESTART`, confirmed) |
-| `opcon_hold_job` | `{job_id}` | Hold a job (`JOB:HOLD`, verify against your version) |
-| `opcon_release_job` | `{job_id}` | Release a held job (`JOB:RELEASE`, verify against your version) |
-| `opcon_cancel_job` | `{job_id}` | Cancel a running job (`JOB:CANCEL`, verify against your version) |
-| `opcon_reconciliation` | — | `GET /api/dailyjobs/count_by_status` (confirmed endpoint); compare against Dagster state, report drift |
+| Job | Flag | Config | Purpose |
+|---|---|---|---|
+| `opcon_force_restart_job` | `generate_force_restart_job` | `{job_id}` | Force-restart a job, ignoring dependencies (`JOB:FORCERESTART`, confirmed). Off by default — Dagster+'s own re-execution-from-failure covers most of this. |
+| `opcon_hold_job` | `generate_hold_release_cancel_jobs` | `{job_id}` | Hold a job (`JOB:HOLD`, verify against your version) |
+| `opcon_release_job` | `generate_hold_release_cancel_jobs` | `{job_id}` | Release a held job (`JOB:RELEASE`, verify against your version) |
+| `opcon_cancel_job` | `generate_hold_release_cancel_jobs` | `{job_id}` | Cancel a running job (`JOB:CANCEL`, verify against your version) |
+| `opcon_reconciliation` | `generate_reconciliation` | — | `GET /api/dailyjobs/count_by_status` (confirmed endpoint); compare against Dagster state, report drift |
 
-The `opcon_reconciliation_schedule` runs the reconciliation job every hour (STOPPED by default — toggle in the UI when ready).
+`generate_reconciliation: true` also builds `opcon_reconciliation_schedule` (hourly, STOPPED by default — toggle in the UI when ready).
+
+The `opcon_inbound_trigger` sensor (`generate_inbound_trigger_sensor`, off by default) is a **stub**: in demo mode it logs a simulated message every third tick; in real mode it does nothing until you replace its body with a real event source. It defaults off so it doesn't look like working functionality out of the box.
+
+## Client abstraction — demo mode exercises the real calling logic
+
+`_OpConClient` declares `submit`/`poll`/`status_counts`/`action`; `_DemoOpConClient` and `_RealOpConClient` both implement it. The asset body, and every op that talks to OpCon, call these methods and nothing else — the submit-then-poll-to-terminal-state loop, the timeout handling, and the terminal-status check all run through the *same code* whether `demo_mode` is `true` or `false`. Only what's inside `submit`/`poll`/`status_counts`/`action` differs (print statements vs. real HTTP calls, including the real token exchange against `/tokens`). A bug in the polling loop itself would show up in demo mode, not just in production.
+
+Demo job ids are seeded off `(job_name, scheduled_date, call_count)` rather than random, so a given demo run is reproducible — the same inputs produce the same job id — rather than printing a different id on every run.
+
+## Customizing tags/metadata — `translation:`
+
+The component sets a handful of default tags (`tier`, `domain`, `integration_pattern`, `scheduler_owner`, `deployment_mode`) and metadata (`opcon_schedule`, `opcon_machine`) on every job asset. To add, override, or (for everything except tags/metadata) fully replace what's generated, supply a `translation:` hook — the same native Dagster `TranslationFn` mechanism `hvr_hub_workspace` / `azure_data_factory` / `talend_cloud_workspace` already use in this repo:
+
+```yaml
+translation:
+  tags:
+    team: "{{ job.department }}"
+  group_name: finance_integrations
+```
+
+`group_name` / `kinds` / `deps` / `description` / `owners` are **replaced** by whatever you set. `tags` / `metadata` are **merged** onto the component's defaults — this is a Dagster framework behavior (`TRANSLATOR_MERGE_ATTRIBUTES`), not something this component can opt out of, so a default tag/metadata key can be overridden to a new value but not deleted outright by `translation:` alone.
 
 ## Hybrid deployment vs migration
 
@@ -145,6 +166,7 @@ A shop running two or three schedulers can present a single Dagster pane of glas
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `description` | `str` | — | Prose description shown in the Dagster UI. |
+| `deps` | `List[str]` | `list()` | Upstream asset keys (slash-separated for nested keys) that must complete before THIS job runs -- per-job, not shared across every job. |
 
 ### Other
 
@@ -173,6 +195,13 @@ attributes:
   max_retries: 2
   retry_delay_seconds: 60
 
+  # Opt-in scaffold -- all off except the external monitor sensor
+  generate_force_restart_job: false
+  generate_hold_release_cancel_jobs: false
+  generate_reconciliation: false
+  generate_inbound_trigger_sensor: false
+
+  # deps is per-job now, not one list shared by every job
   jobs:
     - job_name: EOD_LEDGER_CLOSE
       asset_name: opcon_eod_ledger_close
@@ -184,6 +213,7 @@ attributes:
       asset_name: opcon_regulatory_extract
       schedule_name: DAILY_FINANCE
       machine: AS400-PROD-01
+      deps: ["opcon_eod_ledger_close"]
 
   # Optional — bring OpCon-managed tables into Dagster's lineage
   source_tables:

@@ -1,10 +1,11 @@
 type: dagster_community_components.GoAnywhereIntegrationComponent
 
 attributes:
-  # demo_mode simulates the GACMD REST API on stdout — flip to false to hit
-  # a real GoAnywhere MFT server (requires GOANYWHERE_USER / GOANYWHERE_PASSWORD
-  # env vars; GoAnywhere's admin console/API need a trial or paid license key
-  # to do anything, even in the official Docker images).
+  # demo_mode uses a demo client that logs a simulated GACMD lifecycle --
+  # flip to false to hit a real GoAnywhere MFT server (requires
+  # GOANYWHERE_USER / GOANYWHERE_PASSWORD env vars; GoAnywhere's admin
+  # console/API need a trial or paid license key to do anything, even in the
+  # official Docker images).
   demo_mode: true
   endpoint: "https://goanywhere.internal/goanywhere/rest"
 
@@ -18,10 +19,16 @@ attributes:
   max_retries: 2
   retry_delay_seconds: 60
 
-  # Upstream deps that must complete before GoAnywhere projects run
-  upstream_deps: []
+  # Everything below is opt-in scaffold, off by default -- turn on only what
+  # you actually want in the UI.
+  generate_external_monitor_sensor: true   # on by default: observes GoAnywhere-initiated runs
+  generate_inbound_trigger_sensor: false   # stub sensor, logs only -- leave off unless wiring a real source
+  generate_rerun_job: false                # Dagster+'s re-execution-from-failure usually covers this
+  generate_dashboard_job: false
+  generate_reconciliation: false
 
-  # GoAnywhere Projects — each becomes a daily-partitioned Dagster asset
+  # GoAnywhere Projects — each becomes a daily-partitioned Dagster asset.
+  # `deps` is per-project now, not a single list shared by every project.
   projects:
     - project_name: PARTNER_EDI_INBOUND
       asset_name: goanywhere_partner_edi_inbound
@@ -34,6 +41,7 @@ attributes:
       priority: 5
       variables:
         SOURCE_PATH: "/inbound/partners"
+      deps: []
 
     - project_name: REGULATORY_UPLOAD
       asset_name: goanywhere_regulatory_upload
@@ -43,6 +51,7 @@ attributes:
       job_queue: SFTP_OUTBOUND
       mode: NORMAL
       priority: 8
+      deps: ["goanywhere_partner_edi_inbound"]
 
   # Optional: files/folders landed by GoAnywhere that Dagster observes
   source_files: []
@@ -50,3 +59,10 @@ attributes:
   #   - path: "/inbound/partners/processed"
   #     asset_name: goanywhere_partner_edi_landed
   #     produced_by: goanywhere_partner_edi_inbound
+
+  # Optional: override/add tags or metadata per project (tags/metadata are
+  # MERGED onto the defaults; group_name/kinds/deps/description/owners are
+  # replaced wholesale if you set them here).
+  # translation:
+  #   tags:
+  #     team: data-eng

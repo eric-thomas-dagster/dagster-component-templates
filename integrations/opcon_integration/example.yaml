@@ -1,8 +1,9 @@
 type: dagster_community_components.OpConIntegrationComponent
 
 attributes:
-  # demo_mode simulates the OpCon REST API on stdout — flip to false to hit
-  # a real OpCon server (requires OPCON_USER / OPCON_PASSWORD env vars).
+  # demo_mode uses a demo client that logs a simulated REST lifecycle --
+  # flip to false to hit a real OpCon server (requires OPCON_USER /
+  # OPCON_PASSWORD env vars).
   demo_mode: true
   endpoint: "https://opcon.internal"
 
@@ -17,10 +18,16 @@ attributes:
   max_retries: 2
   retry_delay_seconds: 60
 
-  # Upstream deps that must complete before OpCon jobs run
-  upstream_deps: []
+  # Everything below is opt-in scaffold, off by default -- turn on only what
+  # you actually want in the UI.
+  generate_external_monitor_sensor: true     # on by default: observes OpCon-initiated runs
+  generate_inbound_trigger_sensor: false     # stub sensor, logs only -- leave off unless wiring a real source
+  generate_force_restart_job: false          # Dagster+'s re-execution-from-failure usually covers this
+  generate_hold_release_cancel_jobs: false
+  generate_reconciliation: false
 
-  # OpCon Daily Jobs — each becomes a daily-partitioned Dagster asset
+  # OpCon Daily Jobs — each becomes a daily-partitioned Dagster asset.
+  # `deps` is per-job now, not a single list shared by every job.
   jobs:
     - job_name: EOD_LEDGER_CLOSE
       asset_name: opcon_eod_ledger_close
@@ -32,6 +39,7 @@ attributes:
       schedule_name: DAILY_FINANCE
       machine: AS400-PROD-01
       force_restart: true
+      deps: []
 
     - job_name: REGULATORY_EXTRACT
       asset_name: opcon_regulatory_extract
@@ -41,6 +49,7 @@ attributes:
       schedule_name: DAILY_FINANCE
       machine: AS400-PROD-01
       force_restart: true
+      deps: ["opcon_eod_ledger_close"]
 
   # Optional: OpCon-managed tables that Dagster observes (adds to lineage)
   source_tables: []
@@ -48,3 +57,10 @@ attributes:
   #   - table_name: "FINANCE.GL_LEDGER"
   #     asset_name: opcon_gl_ledger_table
   #     produced_by: opcon_eod_ledger_close
+
+  # Optional: override/add tags or metadata per job (tags/metadata are
+  # MERGED onto the defaults; group_name/kinds/deps/description/owners are
+  # replaced wholesale if you set them here).
+  # translation:
+  #   tags:
+  #     team: finance-eng

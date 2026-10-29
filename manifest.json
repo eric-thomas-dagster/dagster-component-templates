@@ -29544,7 +29544,7 @@
       "path": "integrations/goanywhere_integration",
       "category": "integration",
       "icon": "Send",
-      "description": "Fortra GoAnywhere MFT GACMD REST API integration. Each declared GoAnywhere Project becomes a daily-partitioned Dagster asset with a retry policy. Ships with a rerun op, a dashboard-summary op, a reconciliation op/job, an external-execution monitor sensor, an inbound-trigger sensor, and an hourly reconciliation schedule. demo_mode=true simulates the full GACMD REST API lifecycle on stdout so the whole component runs end-to-end with zero external dependencies (GoAnywhere's official Docker images need a trial or paid license key to do anything).",
+      "description": "Fortra GoAnywhere MFT GACMD REST API integration. Each declared GoAnywhere Project becomes a daily-partitioned Dagster asset with a retry policy, via a client abstraction (submit/poll) shared by demo and real mode so the same calling logic runs either way. Scaffold (rerun/dashboard/reconciliation ops+jobs, inbound-trigger sensor) is opt-in via generate_* flags, off by default. demo_mode=true (default) uses a demo client that logs a simulated GACMD lifecycle on stdout -- GoAnywhere's official Docker images need a trial or paid license key to do anything, so there's no zero-license way to hit a real server.",
       "tags": [
         "integration",
         "goanywhere",
@@ -45419,7 +45419,7 @@
       "path": "integrations/opcon_integration",
       "category": "integration",
       "icon": "Schedule",
-      "description": "SMA Technologies / Continuous OpCon workload-automation REST API integration. Each declared OpCon Daily Job becomes a daily-partitioned Dagster asset with a retry policy. Ships with 5 ops + jobs (force-restart, hold, release, cancel, reconcile), an external-execution monitor sensor, an inbound-trigger sensor, and an hourly reconciliation schedule. demo_mode=true simulates the full REST API lifecycle (token exchange + scheduleactions + dailyjobs status polling) on stdout so the whole component runs end-to-end with zero external dependencies (OpCon is on-prem software with no public Docker image).",
+      "description": "SMA Technologies / Continuous OpCon workload-automation REST API integration. Each declared OpCon Daily Job becomes a daily-partitioned Dagster asset with a retry policy, via a client abstraction (submit/poll) shared by demo and real mode so the same calling logic runs either way. Scaffold (force-restart/hold/release/cancel/reconciliation ops+jobs, inbound-trigger sensor) is opt-in via generate_* flags, off by default. demo_mode=true (default) uses a demo client that logs a simulated REST lifecycle (token exchange + scheduleactions + dailyjobs status polling) on stdout -- OpCon is on-prem software with no public Docker image.",
       "tags": [
         "integration",
         "opcon",

@@ -1,26 +1,29 @@
 # GoAnywhereIntegrationComponent
 
-Fortra **GoAnywhere MFT** (Managed File Transfer) GACMD REST API integration. Each declared GoAnywhere Project becomes a **daily-partitioned Dagster asset** with a retry policy. Ships with 3 operational ops + jobs (rerun / dashboard summary / reconcile), 2 sensors (external-execution monitor + inbound trigger), and an hourly reconciliation schedule.
+Fortra **GoAnywhere MFT** (Managed File Transfer) GACMD REST API integration. Each declared GoAnywhere Project becomes a **daily-partitioned Dagster asset** with a retry policy, `deps` set per-project (not one list shared by every project). Everything beyond the project assets themselves — rerun / dashboard / reconciliation ops+jobs, the inbound-trigger sensor — is **opt-in** via `generate_*` flags, off by default; only the external-execution monitor sensor is on by default.
 
-`demo_mode: true` (default) simulates the whole GACMD REST API lifecycle on stdout — the component runs end-to-end with zero external dependencies. GoAnywhere MFT does ship official Docker images (`fortrallc/goanywhere-mft`, `fortrallc/goanywhere-agent`, `fortrallc/goanywhere-gateway` on Docker Hub), but the admin console and REST API don't do anything useful until activated with a trial or paid license key — Fortra doesn't publish a license-free mode — so the simulator is still the only zero-license way to smoke-test the full surface. Flip to `false` and set `GOANYWHERE_USER` / `GOANYWHERE_PASSWORD` to hit a real GoAnywhere instance.
+`demo_mode: true` (default) swaps in a demo client that logs a simulated GACMD lifecycle on stdout instead of making real HTTP calls. The demo and real clients share one `submit`/`poll` interface (see "Client abstraction" below), so the asset body's submit-then-poll-to-terminal-state loop runs through the *same code* in both modes — demo mode isn't a parallel reimplementation that leaves the real polling logic unexercised. GoAnywhere MFT does ship official Docker images (`fortrallc/goanywhere-mft`, `fortrallc/goanywhere-agent`, `fortrallc/goanywhere-gateway` on Docker Hub), but the admin console and REST API don't do anything useful until activated with a trial or paid license key — Fortra doesn't publish a license-free mode — so the demo client is still the only zero-license way to exercise the calling logic. Flip `demo_mode` to `false` and set `GOANYWHERE_USER` / `GOANYWHERE_PASSWORD` to hit a real GoAnywhere instance.
 
 ## What you get
 
 ```
-Dagster catalog after `dg dev`:
+Dagster catalog after `dg dev` (defaults — no generate_* flags set):
 
 Assets   ── goanywhere_partner_edi_inbound      [daily partitioned, kinds: python, goanywhere]
          ── goanywhere_regulatory_upload        [daily partitioned, kinds: python, goanywhere]
          ── goanywhere_partner_edi_landed       [source, kinds: goanywhere, file]  (optional)
 
-Jobs     ── goanywhere_rerun_project            (run config: {project_name})
-         ── goanywhere_dashboard                (service status / sessions / transfer summary)
-         ── goanywhere_reconciliation           (drift report)
+Sensors  ── goanywhere_external_execution_monitor  (poll every 60s, on by default)
+```
 
-Sensors  ── goanywhere_external_execution_monitor  (poll every 60s)
-         ── goanywhere_inbound_trigger             (GoAnywhere -> Dagster GraphQL)
+Turn on the rest explicitly:
 
-Schedules ── goanywhere_reconciliation_schedule  (cron: 0 * * * *)
+```
+generate_rerun_job: true                # Jobs    ── goanywhere_rerun_project       (run config: {project_name})
+generate_dashboard_job: true            # Jobs    ── goanywhere_dashboard           (service status / sessions / transfer summary)
+generate_reconciliation: true           # Jobs    ── goanywhere_reconciliation      (drift report)
+                                         # Schedules ── goanywhere_reconciliation_schedule  (cron: 0 * * * *)
+generate_inbound_trigger_sensor: true   # Sensors ── goanywhere_inbound_trigger     (stub -- logs only, see below)
 ```
 
 ## Integration pattern
@@ -47,9 +50,9 @@ Schedules ── goanywhere_reconciliation_schedule  (cron: 0 * * * *)
        │    GoAnywhereIntegrationComponent (one YAML)              │
        │                                                          │
        │  daily-partitioned assets  +  RetryPolicy(max_retries=2) │
-       │  op jobs (rerun / dashboard summary / reconcile)         │
-       │  sensors (external-execution monitor + inbound trigger)  │
-       │  hourly reconciliation schedule                          │
+       │  external-execution monitor sensor (on by default)       │
+       │  op jobs + inbound trigger + reconciliation: opt-in       │
+       │  (generate_* flags, off by default)                      │
        └──────────────────────────────────────────────────────────┘
 ```
 
@@ -59,7 +62,7 @@ Schedules ── goanywhere_reconciliation_schedule  (cron: 0 * * * *)
 bash setup_goanywhere_integration_demo.sh
 ```
 
-Scaffolds a Dagster project, installs the component in demo mode, materializes one partition end-to-end, and prints the full simulated GACMD REST API call trace (AUTH → RUN → POLL × 4 → DONE).
+Scaffolds a Dagster project, installs the component (with every `generate_*` flag turned on so the demo shows the full surface), materializes one partition end-to-end, and prints the full simulated GACMD REST API call trace (AUTH → RUN → POLL × 4 → DONE).
 
 Then open the Dagster UI:
 
@@ -98,19 +101,40 @@ Each declared GoAnywhere Project becomes a daily-partitioned Dagster asset. Mate
 **GoAnywhere -> Dagster** (inbound trigger sensor):
 Production wire-up: a GoAnywhere Project's post-step (or a file-arrival Trigger that fires a Project independent of Dagster) calls Dagster's GraphQL API with a `launchRun` mutation. The `goanywhere_inbound_trigger` sensor confirms the trigger was received and produces observable ticks in the Dagster UI.
 
-## Operational ops — Dagster as the pane of glass
+## Operational ops — opt-in, Dagster as the pane of glass
 
-Three ops ship as Dagster jobs so you can rerun projects, pull GoAnywhere's own dashboard summary, and reconcile state directly from the Dagster UI:
+Three ops ship as Dagster jobs, **off by default** (`generate_rerun_job` / `generate_dashboard_job` / `generate_reconciliation`) so you can rerun projects, pull GoAnywhere's own dashboard summary, and reconcile state directly from the Dagster UI once you actually want them:
 
-| Job | Config | Purpose |
-|---|---|---|
-| `goanywhere_rerun_project` | `{project_name}` | Manually rerun a declared project (`POST .../gacmd/v1/projects`) |
-| `goanywhere_dashboard` | — | Pull service status / active sessions / transfer summary (GoAnywhere's ~26 dashboard-style read-only endpoints) |
-| `goanywhere_reconciliation` | — | Compare GoAnywhere job state vs Dagster state for jobs Dagster has triggered; report drift |
+| Job | Flag | Config | Purpose |
+|---|---|---|---|
+| `goanywhere_rerun_project` | `generate_rerun_job` | `{project_name}` | Manually rerun a declared project (`POST .../gacmd/v1/projects`). Off by default — Dagster+'s own re-execution-from-failure covers most of what this would be used for. |
+| `goanywhere_dashboard` | `generate_dashboard_job` | — | Pull service status / active sessions / transfer summary (GoAnywhere's ~26 dashboard-style read-only endpoints) |
+| `goanywhere_reconciliation` | `generate_reconciliation` | — | Compare GoAnywhere job state vs Dagster state for jobs Dagster has triggered this process; report drift |
 
-The `goanywhere_reconciliation_schedule` runs the reconciliation job every hour (STOPPED by default — toggle in the UI when ready).
+`generate_reconciliation: true` also builds `goanywhere_reconciliation_schedule` (hourly, STOPPED by default — toggle in the UI when ready).
 
 Unlike this family's scheduler-style siblings (JAMS, Control-M, RunMyJobs), GoAnywhere's execution model is one-shot project runs, not long-lived schedulable entries you pause/resume mid-flight — so this component doesn't ship hold/release/cancel ops. If your GoAnywhere instance exposes those as REST actions, they're a straightforward addition to `component.py` following the existing op pattern.
+
+The `goanywhere_inbound_trigger` sensor (`generate_inbound_trigger_sensor`, off by default) is a **stub**: in demo mode it logs a simulated message every third tick; in real mode it does nothing until you replace its body with a real event source. It exists to mark the wiring point, not as working functionality out of the box — that's why it defaults off instead of looking like a feature that's already live.
+
+## Client abstraction — demo mode exercises the real calling logic
+
+`_GoAnywhereClient` declares `submit`/`poll`/`dashboard_summary`; `_DemoGoAnywhereClient` and `_RealGoAnywhereClient` both implement it. The asset body, and every op that talks to GoAnywhere, call these methods and nothing else — the submit-then-poll-to-terminal-state loop, the timeout handling, and the terminal-status check all run through the *same code* whether `demo_mode` is `true` or `false`. Only what's inside `submit`/`poll`/`dashboard_summary` differs (print statements vs. real HTTP calls). A bug in the polling loop itself would show up in demo mode, not just in production.
+
+Demo job ids are seeded off `(project_name, scheduled_date, call_count)` rather than random, so a given demo run is reproducible — the same inputs produce the same job id — rather than printing a different id on every run.
+
+## Customizing tags/metadata — `translation:`
+
+The component sets a handful of default tags (`tier`, `domain`, `integration_pattern`, `scheduler_owner`, `deployment_mode`) and metadata (`goanywhere_domain`, `goanywhere_queue`) on every project asset. To add, override, or (for everything except tags/metadata) fully replace what's generated, supply a `translation:` hook — the same native Dagster `TranslationFn` mechanism `hvr_hub_workspace` / `azure_data_factory` / `talend_cloud_workspace` already use in this repo:
+
+```yaml
+translation:
+  tags:
+    team: "{{ project.domain }}"
+  group_name: finance_integrations
+```
+
+`group_name` / `kinds` / `deps` / `description` / `owners` are **replaced** by whatever you set. `tags` / `metadata` are **merged** onto the component's defaults — this is a Dagster framework behavior (`TRANSLATOR_MERGE_ATTRIBUTES`), not something this component can opt out of, so a default tag/metadata key can be overridden to a new value but not deleted outright by `translation:` alone.
 
 ## Hybrid deployment vs migration
 
@@ -140,17 +164,28 @@ Sister components with a similar asset / op / sensor / schedule surface for othe
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `description` | `str` | — | Prose description shown in the Dagster UI. |
+| `deps` | `List[str]` | `list()` | Upstream asset keys (slash-separated for nested keys) that must complete before THIS project runs -- per-project, not shared across every project. |
+
+### Sensor configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `job_name` | `str` | — | Optional job name override; defaults to the project name. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `mode` | `str` | `"NORMAL"` | Run mode GACMD accepts for runParameters.mode (e.g. NORMAL, TEST). |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `domain` | `str` | — | GoAnywhere Domain the project belongs to (multi-tenant deployments). |
-| `job_name` | `str` | — | Optional job name override; defaults to the project name. |
 | `job_queue` | `str` | — | GoAnywhere job queue to run on. |
-| `mode` | `str` | `"NORMAL"` | Run mode GACMD accepts for runParameters.mode (e.g. NORMAL, TEST). |
 | `priority` | `int` | `5` | GACMD run priority (1-10, higher runs sooner). |
-| `variables` | `dict` | `{}` | Project variables passed through runParameters.variables (e.g. source/destination paths). |
+| `variables` | `Dict[str, Any]` | `dict()` | Project variables passed through runParameters.variables (e.g. source/destination paths). |
 
 [//]: # (FIELDS:END)
 
@@ -170,6 +205,13 @@ attributes:
   max_retries: 2
   retry_delay_seconds: 60
 
+  # Opt-in scaffold -- all off except the external monitor sensor
+  generate_rerun_job: false
+  generate_dashboard_job: false
+  generate_reconciliation: false
+  generate_inbound_trigger_sensor: false
+
+  # deps is per-project now, not one list shared by every project
   projects:
     - project_name: PARTNER_EDI_INBOUND
       asset_name: goanywhere_partner_edi_inbound
@@ -180,6 +222,7 @@ attributes:
       asset_name: goanywhere_regulatory_upload
       job_queue: SFTP_OUTBOUND
       priority: 8
+      deps: ["goanywhere_partner_edi_inbound"]
 
   # Optional — bring GoAnywhere-landed files into Dagster's lineage
   source_files:

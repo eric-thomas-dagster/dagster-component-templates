@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SupportTicketIngestionComponent",
+  "component_type": "dagster_community_components.SupportTicketIngestionComponent",
   "description": "Component for ingesting support ticket data from help desk platforms.",
   "category": "ingestion",
   "vertical": "support",

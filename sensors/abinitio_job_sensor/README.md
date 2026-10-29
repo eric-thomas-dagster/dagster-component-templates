@@ -56,7 +56,7 @@ Supports two auth modes — env vars (simpler) or a shared `AbInitioResource` (r
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.AbInitioJobSensorComponent
+type: dagster_community_components.AbInitioJobSensorComponent
 attributes:
   sensor_name: abinitio_etl_done
   eme_url_env_var: ABINITIO_EME_URL
@@ -71,7 +71,7 @@ attributes:
 For multiple sensors sharing the same EME connection:
 
 ```python
-from dagster_component_templates.sensors.abinitio_job_sensor.component import AbInitioResource
+from dagster_community_components.sensors.abinitio_job_sensor.component import AbInitioResource
 
 defs = Definitions(
     resources={"abinitio": AbInitioResource(

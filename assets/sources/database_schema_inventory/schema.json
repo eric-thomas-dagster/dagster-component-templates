@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DatabaseSchemaInventoryComponent",
+  "component_type": "dagster_community_components.DatabaseSchemaInventoryComponent",
   "description": "List every database object (tables / views / procedures / functions / sequences / triggers / scheduled jobs) in a source SQL database — companion to database_replication for warehouse migration planning.",
   "category": "source",
   "icon": "ListTree",

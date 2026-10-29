@@ -216,7 +216,7 @@ class ActiveCampaignIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ActiveCampaignIngestionComponent
+        type: dagster_community_components.ActiveCampaignIngestionComponent
         attributes:
           asset_name: activecampaign_ingestion
           account: "myaccount"

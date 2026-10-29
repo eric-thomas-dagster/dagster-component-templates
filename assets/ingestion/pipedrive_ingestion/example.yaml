@@ -1,4 +1,4 @@
-type: dagster_component_templates.PipedriveIngestionComponent
+type: dagster_community_components.PipedriveIngestionComponent
 attributes:
   asset_name: pipedrive_crm_data
 

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CustomerSegmentationComponent",
+  "component_type": "dagster_community_components.CustomerSegmentationComponent",
   "description": "Component that segments customers using RFM analysis.",
   "category": "analytics",
   "icon": "si:segment",

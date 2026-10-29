@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WeightedAverageComponent",
+  "component_type": "dagster_community_components.WeightedAverageComponent",
   "description": "Compute a weighted average of a column, optionally grouped.",
   "category": "transformation",
   "icon": "Shuffle",

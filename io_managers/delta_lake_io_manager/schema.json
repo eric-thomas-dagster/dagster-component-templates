@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DeltaLakeIOManagerComponent",
+  "component_type": "dagster_community_components.DeltaLakeIOManagerComponent",
   "description": "Register a DeltaLakePandasIOManager so assets are stored as Delta tables on local disk, S3, GCS, or Azure ADLS",
   "category": "io_manager",
   "icon": "si:delta",

@@ -105,23 +105,73 @@ Reference of public MCP servers: [github.com/modelcontextprotocol/servers](https
 
 | Field | Type | Description |
 |---|---|---|
-| `name` | `str` | Short name used to prefix tool names (e.g. 'fs' → 'fs__list_files'). |
+| `asset_name` | `str` | Output Dagster asset name. |
+| `prompt` | `str` | User prompt sent to the model on the first turn. |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `url` | `str` | — | http / sse: full URL of the MCP endpoint. Example: 'https://mcp.agent.dagster.cloud/mcp/'. |
+| `api_key_env_var` | `str` | — | Env var holding the provider API key. |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `group_name` | `str` | — | Dagster asset group name. |
+| `description` | `str` | — | Asset description. |
+| `owners` | `List[str]` | — | Asset owners. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags. |
+| `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['llm', 'agent', 'litellm']. |
+| `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
+
+### Freshness
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `freshness_max_lag_minutes` | `int` | — | FreshnessPolicy max lag in minutes. |
+| `freshness_cron` | `str` | — | FreshnessPolicy deadline cron schedule. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'multi' \| 'dynamic'. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | ISO date for time-based partitions. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static/multi. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values} dicts. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_policy_max_retries` | `int` | — | Max retries on failure (transient API / network). |
+| `retry_policy_delay_seconds` | `int` | — | Seconds between retries. |
+| `retry_policy_backoff` | `str` | `"exponential"` | 'linear' or 'exponential'. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `model` | `str` | `"gpt-4o-mini"` | LiteLLM model string (e.g. gpt-4o, claude-haiku-4-5-20251001, gemini/gemini-2.5-flash). |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `type` | `str` | `"stdio"` | Transport: 'stdio' (subprocess), 'http' (streamable-HTTP — modern MCP, what `claude mcp add --transport http` uses), or 'sse' (legacy server-sent events). |
-| `command` | `List[str]` | — | stdio only: [executable, ...args]. Example: ['npx', '-y', '@modelcontextprotocol/server-filesystem', '/tmp']. |
-| `env` | `Dict[str, str]` | — | stdio only: extra environment variables to set on the subprocess. |
-| `headers` | `Dict[str, str]` | — | http / sse: literal HTTP headers (don't put secrets here — use `headers_env` instead). |
-| `headers_env` | `Dict[str, str]` | — | http / sse: map of header_name → env_var_name; the header value is read from the named env var at materialization time. Use this for tokens (e.g. {'Authorization': 'DAGSTER_PLUS_TOKEN'} where DAGSTER_PLUS_TOKEN env var h… _(full docs in schema.json + component README)_ |
+| `system_prompt` | `str` | — | System prompt prepended to the message list. |
+| `api_base_env_var` | `str` | — | Env var holding a custom API base URL (proxies, self-hosted). |
+| `temperature` | `float` | `0.0` | Sampling temperature. |
+| `max_tokens` | `int` | `2048` | Max tokens per model call. |
+| `reasoning_effort` | `str` | — | Reasoning-model effort level: 'low' \| 'medium' \| 'high'. Forwarded to OpenAI o1/o3 and Gemini 2.5+ reasoning models (silently dropped for other providers). |
+| `thinking_budget` | `int` | — | Max reasoning-trace tokens. Forwarded to Gemini 2.5+ (native `thinking_budget`) and Anthropic thinking mode (auto-mapped to `thinking: {type: enabled, budget_tokens: N}`). On Gemini, set 0 for short structured outputs to… _(full docs in schema.json + component README)_ |
+| `prompt_caching` | `bool` | `false` | Anthropic prompt caching. When true AND the model is Anthropic-family (claude / anthropic / bedrock/anthropic.), wraps the system prompt with `cache_control: {type: ephemeral}` so subsequent runs within ~5 min hit the ca… _(full docs in schema.json + component README)_ |
+| `max_iterations` | `int` | `10` | Max tool-call rounds before bailing. |
+| `mcp_servers` | `List[MCPServerSpec]` | `list()` | List of MCP servers to expose as tools. Empty list = no tools (chat-only). |
+| `include_reasoning` | `bool` | `false` | Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped from the transcript and final_answer; when true it is also returned as a 'reasoning' key in the result dict (all itera… _(full docs in schema.json + component README)_ |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)
 

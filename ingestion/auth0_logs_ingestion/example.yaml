@@ -1,4 +1,4 @@
-type: dagster_component_templates.Auth0LogsIngestionComponent
+type: dagster_community_components.Auth0LogsIngestionComponent
 attributes:
   asset_name: auth0_logs_ingestion_events
   auth0_domain: acme.us.auth0.com

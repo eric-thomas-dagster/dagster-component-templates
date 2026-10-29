@@ -1,4 +1,4 @@
-type: dagster_component_templates.LeadScoringComponent
+type: dagster_community_components.LeadScoringComponent
 attributes:
   asset_name: scored_leads
   lead_data_asset_key: crm_leads

@@ -1,4 +1,4 @@
-type: dagster_component_templates.WordCloudComponent
+type: dagster_community_components.WordCloudComponent
 attributes:
   asset_name: article_word_frequencies
   upstream_asset_key: raw_articles

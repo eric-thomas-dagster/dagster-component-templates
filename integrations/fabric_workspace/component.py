@@ -236,7 +236,7 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
     Example (canonical `workspace:` block, mirrors dagster-powerbi):
         ```yaml
-        type: dagster_component_templates.FabricWorkspaceComponent
+        type: dagster_community_components.FabricWorkspaceComponent
         attributes:
           workspace:
             workspace_id: "{{ env.FABRIC_WORKSPACE_ID }}"

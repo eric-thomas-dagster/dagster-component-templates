@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SftpMonitorSensorComponent",
+  "component_type": "dagster_community_components.SftpMonitorSensorComponent",
   "description": "Monitor an SFTP directory for new files.",
   "category": "sensor",
   "icon": "si:openssh",

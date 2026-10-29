@@ -95,7 +95,7 @@ Natural-language → SQL → result via Databricks AI/BI Genie spaces. The compo
 ## Example: scheduled NL-driven analytics
 
 ```yaml
-type: dagster_component_templates.DatabricksGenieQueryComponent
+type: dagster_community_components.DatabricksGenieQueryComponent
 attributes:
   asset_name: weekly_revenue_by_region
   host_env_var: DATABRICKS_HOST
@@ -111,7 +111,7 @@ attributes:
 ## Example: per-row Q&A pipeline
 
 ```yaml
-type: dagster_component_templates.DatabricksGenieQueryComponent
+type: dagster_community_components.DatabricksGenieQueryComponent
 attributes:
   asset_name: customer_questions_answered
   upstream_asset_key: customer_questions

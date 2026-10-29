@@ -319,7 +319,7 @@ class DocumentChunkerComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.DocumentChunkerComponent
+        type: dagster_community_components.DocumentChunkerComponent
         attributes:
           asset_name: document_chunks
           strategy: recursive

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MarkdownStripperComponent",
+  "component_type": "dagster_community_components.MarkdownStripperComponent",
   "description": "Strip markdown formatting from text columns, converting to plain text or HTML.",
   "category": "transformation",
   "icon": "Type",

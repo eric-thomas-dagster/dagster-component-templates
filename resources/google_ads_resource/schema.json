@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GoogleAdsResourceComponent",
+  "component_type": "dagster_community_components.GoogleAdsResourceComponent",
   "description": "Register a GoogleAdsResource wrapping the official google-ads Python client for use by other components",
   "category": "resource",
   "icon": "si:googleads",

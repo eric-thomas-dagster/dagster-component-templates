@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.NotionPageSyncComponent",
+  "component_type": "dagster_community_components.NotionPageSyncComponent",
   "description": "Reverse-ETL sink: keep a specific Notion page's properties (and optionally its markdown body) in sync with the first row of an upstream DataFrame. Property values are serialized based on the page's existing property types, retrieved via pages.retrieve at materialize time.",
   "category": "reverse_etl",
   "icon": "si:notion",

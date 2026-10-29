@@ -100,7 +100,7 @@ For multi-variant products, use the resource's `create_product` / `update_produc
 ## Example
 
 ```yaml
-type: dagster_component_templates.ShopifyProductUpsertComponent
+type: dagster_community_components.ShopifyProductUpsertComponent
 attributes:
   asset_name: shopify_products_mirror
   upstream_asset_key: catalog_products

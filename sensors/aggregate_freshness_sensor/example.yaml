@@ -3,7 +3,7 @@
 # monitored_selection is usually a selection string instead -- e.g.
 # "group:sap_hourly" -- which resolves against whatever sibling assets
 # actually exist in the real project. See README.md.
-type: dagster_component_templates.AggregateFreshnessSensorComponent
+type: dagster_community_components.AggregateFreshnessSensorComponent
 attributes:
   sensor_name: sap_hourly_total_stoppage_sensor
   monitored_selection: [sap_ecc/bseg, sap_ecc/konv]

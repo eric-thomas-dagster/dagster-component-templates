@@ -170,7 +170,7 @@ Standardized CRM data with unified fields:
 ### HubSpot Contacts Standardization
 
 ```yaml
-type: dagster_component_templates.CRMDataStandardizerComponent
+type: dagster_community_components.CRMDataStandardizerComponent
 attributes:
   asset_name: standardized_crm_contacts
   platform: hubspot
@@ -182,7 +182,7 @@ attributes:
 ### Salesforce Deals Standardization
 
 ```yaml
-type: dagster_component_templates.CRMDataStandardizerComponent
+type: dagster_community_components.CRMDataStandardizerComponent
 attributes:
   asset_name: standardized_deals
   platform: salesforce
@@ -195,7 +195,7 @@ attributes:
 
 ```yaml
 # hubspot_contacts.yaml
-type: dagster_component_templates.CRMDataStandardizerComponent
+type: dagster_community_components.CRMDataStandardizerComponent
 attributes:
   asset_name: std_hubspot_contacts
   platform: hubspot
@@ -203,7 +203,7 @@ attributes:
 
 ---
 # salesforce_contacts.yaml
-type: dagster_component_templates.CRMDataStandardizerComponent
+type: dagster_community_components.CRMDataStandardizerComponent
 attributes:
   asset_name: std_salesforce_contacts
   platform: salesforce
@@ -211,7 +211,7 @@ attributes:
 
 ---
 # Combine downstream
-type: dagster_component_templates.DataFrameCombinerComponent
+type: dagster_community_components.DataFrameCombinerComponent
 attributes:
   asset_name: all_contacts
   source_assets: ["std_hubspot_contacts", "std_salesforce_contacts"]

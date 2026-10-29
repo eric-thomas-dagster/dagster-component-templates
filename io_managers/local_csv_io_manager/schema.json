@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LocalCsvIOManagerComponent",
+  "component_type": "dagster_community_components.LocalCsvIOManagerComponent",
   "description": "Store DataFrames as CSV files on the local filesystem (dev / human-inspectable).",
   "category": "io_manager",
   "icon": "Save",

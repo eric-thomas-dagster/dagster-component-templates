@@ -23,7 +23,7 @@ Materializing an entry logs a line and returns a `MaterializeResult`. Downstream
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.GraphFirstAssetsComponent
+type: dagster_community_components.GraphFirstAssetsComponent
 attributes:
   assets:
     - key: warehouse/orders

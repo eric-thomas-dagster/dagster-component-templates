@@ -1,4 +1,4 @@
-type: dagster_component_templates.BigQueryTableObservationSensorComponent
+type: dagster_community_components.BigQueryTableObservationSensorComponent
 attributes:
   sensor_name: bq_orders_obs
   asset_key: bq/analytics/orders

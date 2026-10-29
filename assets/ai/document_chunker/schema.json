@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DocumentChunkerComponent",
+  "component_type": "dagster_community_components.DocumentChunkerComponent",
   "description": "Component for splitting documents into chunks for embeddings and RAG.",
   "category": "ai",
   "icon": "Sparkles",

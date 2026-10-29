@@ -148,7 +148,7 @@ class SapRFCIngestionComponent(Component, Model, Resolvable):
     Example — read MARA (material master) via RFC_READ_TABLE:
 
         ```yaml
-        type: dagster_component_templates.SapRFCIngestionComponent
+        type: dagster_community_components.SapRFCIngestionComponent
         attributes:
           asset_name: material_master
           sap_rfc_resource_key: sap_ecc

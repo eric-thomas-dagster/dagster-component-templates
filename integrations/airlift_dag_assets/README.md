@@ -26,7 +26,7 @@ Wraps the official `dagster-airlift` package.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.AirliftDagAssetsComponent
+type: dagster_community_components.AirliftDagAssetsComponent
 attributes:
   airflow_url: <fill in>
   auth_user_env_var: <fill in>

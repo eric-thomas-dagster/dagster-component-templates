@@ -31,7 +31,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.GongResourceComponent
+type: dagster_community_components.GongResourceComponent
 attributes:
   resource_key: gong_resource
   access_key_env_var: GONG_ACCESS_KEY

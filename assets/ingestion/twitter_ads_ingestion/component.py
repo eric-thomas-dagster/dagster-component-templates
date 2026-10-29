@@ -195,7 +195,7 @@ class TwitterAdsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.TwitterAdsIngestionComponent
+        type: dagster_community_components.TwitterAdsIngestionComponent
         attributes:
           asset_name: twitter_ads_data
           consumer_key: "${TWITTER_CONSUMER_KEY}"

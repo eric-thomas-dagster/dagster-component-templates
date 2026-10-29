@@ -31,7 +31,7 @@ Beyond the raw `.get_client()` escape hatch (an authenticated `requests.Session`
 
 ## Example
 ```yaml
-type: dagster_component_templates.LaunchDarklyResourceComponent
+type: dagster_community_components.LaunchDarklyResourceComponent
 attributes:
   resource_key: launchdarkly
   api_token_env_var: LAUNCHDARKLY_API_TOKEN

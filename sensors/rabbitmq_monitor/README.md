@@ -66,7 +66,7 @@ This sensor uses `basic_get` to poll a RabbitMQ queue on each evaluation without
 ## Usage
 
 ```yaml
-type: dagster_component_templates.RabbitMQMonitorSensorComponent
+type: dagster_community_components.RabbitMQMonitorSensorComponent
 attributes:
   sensor_name: rabbitmq_orders_sensor
   host: rabbitmq.internal

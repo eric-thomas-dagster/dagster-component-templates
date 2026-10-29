@@ -213,7 +213,7 @@ class CopperResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.CopperResourceComponent
+        type: dagster_community_components.CopperResourceComponent
         attributes:
           resource_key: copper
           api_key_env_var: COPPER_API_KEY

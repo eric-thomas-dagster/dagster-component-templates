@@ -16,7 +16,7 @@ So you get 8 fields total: `customer_data_asset_key`/`customer_data_source`, `su
 **`is_churn_risk`/`is_expansion_opportunity` below are threshold-derived from the same weighted heuristic, not fit against any observed outcome** -- there is no "churned"/"expanded" boolean anywhere in the input schema. So `scoring_method='ml'` is opt-in, requires you bring your own label via `target_column` + `feature_columns`, and works over a single, already-joined `upstream_asset_key`/`source` table -- **it cannot be combined with the 4-way join fields above** (if you need the customer+subscription+usage+support join, do it upstream of this component first, then point `scoring_method='ml'` at the joined result).
 
 ```yaml
-type: dagster_component_templates.CustomerHealthScoreComponent
+type: dagster_community_components.CustomerHealthScoreComponent
 attributes:
   asset_name: customer_churn_ml
   scoring_method: ml

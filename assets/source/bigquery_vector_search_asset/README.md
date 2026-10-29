@@ -3,7 +3,7 @@
 k-NN similarity search against an `ARRAY<FLOAT64>` column in BigQuery using BQ's native [`VECTOR_SEARCH`](https://cloud.google.com/bigquery/docs/vector-search-intro) function. Returns top-K matches per query embedding plus their distances.
 
 ```yaml
-type: dagster_component_templates.BigqueryVectorSearchAssetComponent
+type: dagster_community_components.BigqueryVectorSearchAssetComponent
 attributes:
   asset_name: top_matches
   base_table: my-project.rag.documents

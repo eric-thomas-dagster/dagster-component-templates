@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CircleCIIngestionComponent",
+  "component_type": "dagster_community_components.CircleCIIngestionComponent",
   "description": "Ingest CircleCI pipeline and workflow data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "devops-observability",

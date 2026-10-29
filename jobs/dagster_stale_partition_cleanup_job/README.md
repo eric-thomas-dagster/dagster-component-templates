@@ -33,7 +33,7 @@ re-materialize. This is destructive; default is report-only. Enable
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.DagsterStalePartitionCleanupJobComponent
+type: dagster_community_components.DagsterStalePartitionCleanupJobComponent
 attributes:
   job_name: detect_stale_partitions
   schedule: "0 6 * * 0"

@@ -216,7 +216,7 @@ class CircleCIIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.CircleCIIngestionComponent
+        type: dagster_community_components.CircleCIIngestionComponent
         attributes:
           asset_name: circleci_ingestion
           api_token: "${CIRCLECI_API_TOKEN}"

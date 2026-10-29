@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.InsightlyIngestionComponent",
+  "component_type": "dagster_community_components.InsightlyIngestionComponent",
   "description": "Ingest Insightly CRM data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "crm-sales",

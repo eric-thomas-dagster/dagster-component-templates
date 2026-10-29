@@ -114,7 +114,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 ### Random (default)
 
 ```yaml
-type: dagster_component_templates.SampleComponent
+type: dagster_community_components.SampleComponent
 attributes:
   asset_name: transactions_sample
   upstream_asset_key: raw_transactions
@@ -127,7 +127,7 @@ attributes:
 ### Fixed Count
 
 ```yaml
-type: dagster_component_templates.SampleComponent
+type: dagster_community_components.SampleComponent
 attributes:
   asset_name: events_1000
   upstream_asset_key: raw_events
@@ -140,7 +140,7 @@ attributes:
 ### First N / Last N
 
 ```yaml
-type: dagster_component_templates.SampleComponent
+type: dagster_community_components.SampleComponent
 attributes:
   asset_name: first_100_orders
   upstream_asset_key: raw_orders
@@ -151,7 +151,7 @@ attributes:
 ### Every Nth Row
 
 ```yaml
-type: dagster_component_templates.SampleComponent
+type: dagster_community_components.SampleComponent
 attributes:
   asset_name: every_tenth_event
   upstream_asset_key: raw_events
@@ -162,7 +162,7 @@ attributes:
 ### Skip First N
 
 ```yaml
-type: dagster_component_templates.SampleComponent
+type: dagster_community_components.SampleComponent
 attributes:
   asset_name: events_minus_preamble
   upstream_asset_key: raw_events

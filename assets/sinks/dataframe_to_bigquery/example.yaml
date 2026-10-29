@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeToBigqueryComponent
+type: dagster_community_components.DataframeToBigqueryComponent
 attributes:
   asset_name: bigquery_events
   upstream_asset_key: processed_events

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MongoDBIOManagerComponent",
+  "component_type": "dagster_community_components.MongoDBIOManagerComponent",
   "description": "Persist DataFrames to MongoDB collections (one per asset, document-store).",
   "category": "io_manager",
   "icon": "si:mongodb",

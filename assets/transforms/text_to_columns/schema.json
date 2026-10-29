@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TextToColumns",
+  "component_type": "dagster_community_components.TextToColumns",
   "description": "Split a text column into multiple columns or rows by a delimiter.",
   "category": "transformation",
   "icon": "Shuffle",

@@ -54,7 +54,7 @@ class ClickUpResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ClickUpResourceComponent
+        type: dagster_community_components.ClickUpResourceComponent
         attributes:
           resource_key: clickup_resource
           api_token_env_var: CLICKUP_API_TOKEN

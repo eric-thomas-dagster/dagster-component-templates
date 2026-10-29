@@ -99,7 +99,7 @@ The `CosmosdbWriterComponent` accepts an upstream DataFrame asset and writes eac
 ### Upsert mode (create or replace)
 
 ```yaml
-type: dagster_component_templates.CosmosdbWriterComponent
+type: dagster_community_components.CosmosdbWriterComponent
 attributes:
   asset_name: write_products_to_cosmos
   upstream_asset_key: enriched_products
@@ -112,7 +112,7 @@ attributes:
 ### Insert mode (create only)
 
 ```yaml
-type: dagster_component_templates.CosmosdbWriterComponent
+type: dagster_community_components.CosmosdbWriterComponent
 attributes:
   asset_name: insert_events_to_cosmos
   upstream_asset_key: new_events

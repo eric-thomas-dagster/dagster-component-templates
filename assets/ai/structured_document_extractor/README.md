@@ -58,7 +58,7 @@ Exactly one of `upstream_asset_key` or `path` -- mirrors `file_ingestion`'s own 
 ```yaml
 # 1. Read from an existing asset (e.g. file_lister, or anything else
 #    that already produces a DataFrame of document content/paths)
-type: dagster_component_templates.StructuredDocumentExtractorComponent
+type: dagster_community_components.StructuredDocumentExtractorComponent
 attributes:
   asset_name: invoice_fields
   upstream_asset_key: incoming_invoices
@@ -74,7 +74,7 @@ attributes:
 #    needed. Use this for a one-off extraction over a bucket/folder;
 #    use `upstream_asset_key` (mode 1) when you want a shared, reusable
 #    listing asset multiple extractors read from.
-type: dagster_component_templates.StructuredDocumentExtractorComponent
+type: dagster_community_components.StructuredDocumentExtractorComponent
 attributes:
   asset_name: invoice_fields
   path: s3://my-bucket/invoices/**/*.pdf   # or gs://, abfss://, or a local path

@@ -93,7 +93,7 @@ class WarehouseUnionComponent(Component, Model, Resolvable):
     Use `select_cols:` to project a common subset when schemas only partially overlap.
 
     Example:
-        type: dagster_component_templates.WarehouseUnionComponent
+        type: dagster_community_components.WarehouseUnionComponent
         attributes:
           asset_name: orders_all_regions
           database_url: snowflake://...

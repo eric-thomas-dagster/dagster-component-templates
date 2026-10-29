@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TicketClassifierComponent",
+  "component_type": "dagster_community_components.TicketClassifierComponent",
   "description": "Component for classifying support tickets.",
   "category": "ai",
   "icon": "Sparkles",

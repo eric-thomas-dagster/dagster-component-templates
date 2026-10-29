@@ -38,7 +38,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.ChargebeeResourceComponent
+type: dagster_community_components.ChargebeeResourceComponent
 attributes:
   resource_key: chargebee
   site: mysite

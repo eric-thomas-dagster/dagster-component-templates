@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DagsterAuditToWarehouseJobComponent",
+  "component_type": "dagster_community_components.DagsterAuditToWarehouseJobComponent",
   "description": "Op-shaped job that pulls Dagster+ audit log entries (who did what, when) via GraphQL and MERGEs them into a warehouse table for compliance / SOC2 retention queries. Dagster+ only.",
   "category": "jobs",
   "icon": "Upload",

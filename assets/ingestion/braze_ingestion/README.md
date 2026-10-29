@@ -107,7 +107,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 ## Example
 
 ```yaml
-type: dagster_component_templates.BrazeIngestionComponent
+type: dagster_community_components.BrazeIngestionComponent
 attributes:
   asset_name: braze_ingestion
   rest_endpoint: "https://rest.iad-01.braze.com"
@@ -118,7 +118,7 @@ attributes:
 ## Example — sharing credentials with a BrazeResourceComponent
 
 ```yaml
-type: dagster_component_templates.BrazeIngestionComponent
+type: dagster_community_components.BrazeIngestionComponent
 attributes:
   asset_name: braze_ingestion
   resource_key: braze   # matches BrazeResourceComponent's default resource_key

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SalesforceRecordUpsertComponent",
+  "component_type": "dagster_community_components.SalesforceRecordUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into a Salesforce SObject via the native External-ID upsert endpoint. `PATCH /services/data/vXX.0/sobjects/{Object}/{ExtIdField}/{Value}` atomically creates or updates in one request — no search-then-write. Composite mode batches 200 records per HTTP call for high throughput.",
   "category": "reverse_etl",
   "icon": "si:salesforce",

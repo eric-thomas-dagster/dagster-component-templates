@@ -80,7 +80,7 @@ Fits a Support Vector Classifier or Regressor (sklearn). Configurable kernel, re
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.SVMComponent
+type: dagster_community_components.SVMComponent
 attributes:
   asset_name: iris_svm_predictions
   upstream_asset_key: iris_scaled

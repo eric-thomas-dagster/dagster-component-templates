@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WarehouseDedupComponent",
+  "component_type": "dagster_community_components.WarehouseDedupComponent",
   "description": "Deduplicate rows in the warehouse via CTAS. No Python materialization.",
   "category": "transformation",
   "icon": "Copy",

@@ -112,7 +112,7 @@ uvx --from dagster-community-components-cli dagster-component add snowflake_stor
 See [`example.yaml`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_stored_procedure/example.yaml) for a copy-pastable starting point.
 
 ```yaml
-type: dagster_component_templates.SnowflakeStoredProcedureComponent
+type: dagster_community_components.SnowflakeStoredProcedureComponent
 attributes:
   asset_name: sp_recompute_tiers
   procedure_name: SP_RECOMPUTE_TIERS

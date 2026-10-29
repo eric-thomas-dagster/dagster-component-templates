@@ -86,7 +86,7 @@ Also requires a `TotangoResourceComponent` on the same code location for authent
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.TotangoAccountsIngestionComponent
+type: dagster_community_components.TotangoAccountsIngestionComponent
 attributes:
   asset_name: totango_accounts
   resource_key: totango_resource

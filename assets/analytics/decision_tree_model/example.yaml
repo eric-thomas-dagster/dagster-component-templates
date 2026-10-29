@@ -1,4 +1,4 @@
-type: dagster_component_templates.DecisionTreeModelComponent
+type: dagster_community_components.DecisionTreeModelComponent
 attributes:
   description: Classify loan default risk using a decision tree with max depth 5.
   asset_name: loan_default_predictions

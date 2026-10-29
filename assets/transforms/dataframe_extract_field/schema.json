@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeExtractFieldComponent",
+  "component_type": "dagster_community_components.DataframeExtractFieldComponent",
   "description": "DataframeExtractFieldComponent — pull a field out of a column of dicts/lists.",
   "category": "transformation",
   "x-dagster-io": {

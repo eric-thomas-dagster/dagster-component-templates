@@ -5,7 +5,7 @@ Convert text between codecs (charsets). Two modes:
 - **`mode: string`** — recode a column of strings in place (drop non-target characters from text fields before downstream loads)
 
 ```yaml
-type: dagster_component_templates.TextCodecConvertAssetComponent
+type: dagster_community_components.TextCodecConvertAssetComponent
 attributes:
   asset_name: utf8_files
   upstream_asset_key: ebcdic_files

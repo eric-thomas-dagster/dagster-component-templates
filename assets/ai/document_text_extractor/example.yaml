@@ -23,7 +23,7 @@
 #
 # This allows dynamic file processing as new documents arrive!
 
-type: dagster_component_templates.DocumentTextExtractorComponent
+type: dagster_community_components.DocumentTextExtractorComponent
 attributes:
   asset_name: contract_text
   extraction_method: pypdf

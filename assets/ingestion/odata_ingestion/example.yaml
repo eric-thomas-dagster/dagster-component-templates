@@ -1,4 +1,4 @@
-type: dagster_component_templates.ODataIngestionComponent
+type: dagster_community_components.ODataIngestionComponent
 attributes:
   asset_name: business_partners
 

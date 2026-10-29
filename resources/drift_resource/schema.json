@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DriftResourceComponent",
+  "component_type": "dagster_community_components.DriftResourceComponent",
   "description": "Register a DriftResource wrapping Drift's REST API (OAuth2 Bearer token) for use by other components",
   "category": "resource",
   "icon": "si:drift",

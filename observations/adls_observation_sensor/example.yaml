@@ -1,4 +1,4 @@
-type: dagster_component_templates.AdlsObservationSensorComponent
+type: dagster_community_components.AdlsObservationSensorComponent
 attributes:
   sensor_name: adls_events_obs
   asset_key: raw/events

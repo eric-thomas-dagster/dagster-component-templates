@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.InsightlyRecordUpsertComponent",
+  "component_type": "dagster_community_components.InsightlyRecordUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Insightly CRM Contacts/Leads/Organisations via emulated upsert. Insightly has no native upsert endpoint -- this searches GET /{object_type}/Search?field_name=X&field_value=Y, then PUTs the match or POSTs a new record. Search-then-write, not atomic.",
   "category": "reverse_etl",
   "icon": "UsersRound",

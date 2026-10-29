@@ -1,4 +1,4 @@
-type: dagster_component_templates.LineageToOpenMetadataComponent
+type: dagster_community_components.LineageToOpenMetadataComponent
 attributes:
   asset_name: lineage_to_openmetadata
   upstream_asset_key: lineage_graph

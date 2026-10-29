@@ -1,4 +1,4 @@
-type: dagster_component_templates.DatabricksGenieQueryComponent
+type: dagster_community_components.DatabricksGenieQueryComponent
 attributes:
   asset_name: weekly_revenue_by_region
   host_env_var: DATABRICKS_HOST          # https://<workspace>.cloud.databricks.com

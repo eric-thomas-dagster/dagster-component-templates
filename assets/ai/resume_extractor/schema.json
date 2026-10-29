@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ResumeExtractorComponent",
+  "component_type": "dagster_community_components.ResumeExtractorComponent",
   "description": "Extract structured profile data from resumes and CVs using an LLM.",
   "category": "ai",
   "icon": "User",

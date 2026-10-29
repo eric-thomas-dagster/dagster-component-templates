@@ -61,7 +61,7 @@ Endpoints verified directly against [qlik.dev's Reloads API reference](https://q
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.QlikCloudAppReloadComponent
+type: dagster_community_components.QlikCloudAppReloadComponent
 attributes:
   asset_key: bi/finance_consolidated_app
   app_id: <fill in>

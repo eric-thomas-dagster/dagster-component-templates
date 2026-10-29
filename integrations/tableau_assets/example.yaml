@@ -1,4 +1,4 @@
-type: dagster_component_templates.TableauAssetsComponent
+type: dagster_community_components.TableauAssetsComponent
 attributes:
   server_url: <fill in>
   site_name: <fill in>

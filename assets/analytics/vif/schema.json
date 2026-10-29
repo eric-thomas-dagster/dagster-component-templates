@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.VifComponent",
+  "component_type": "dagster_community_components.VifComponent",
   "description": "Compute variance inflation factors (VIF) for each feature column to flag multicollinearity.",
   "category": "analytics",
   "icon": "GitMerge",

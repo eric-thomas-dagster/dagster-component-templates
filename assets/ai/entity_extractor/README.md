@@ -157,7 +157,7 @@ The Entity Extractor Component identifies and extracts entities like person name
 Fast, accurate, and free:
 
 ```yaml
-type: dagster_component_templates.EntityExtractorComponent
+type: dagster_community_components.EntityExtractorComponent
 attributes:
   asset_name: extracted_entities
 
@@ -179,7 +179,7 @@ attributes:
 For custom entity types or complex extraction:
 
 ```yaml
-type: dagster_component_templates.EntityExtractorComponent
+type: dagster_community_components.EntityExtractorComponent
 attributes:
   asset_name: llm_entities
 
@@ -206,7 +206,7 @@ attributes:
 Balanced approach:
 
 ```yaml
-type: dagster_component_templates.EntityExtractorComponent
+type: dagster_community_components.EntityExtractorComponent
 attributes:
   asset_name: transformer_entities
 
@@ -227,7 +227,7 @@ attributes:
 Define domain-specific entities with regex:
 
 ```yaml
-type: dagster_component_templates.EntityExtractorComponent
+type: dagster_community_components.EntityExtractorComponent
 attributes:
   asset_name: custom_entities
 
@@ -256,7 +256,7 @@ attributes:
 Separate columns for each entity type:
 
 ```yaml
-type: dagster_component_templates.EntityExtractorComponent
+type: dagster_community_components.EntityExtractorComponent
 attributes:
   asset_name: flat_entities
 
@@ -284,7 +284,7 @@ Output:
 All entities in one JSON column:
 
 ```yaml
-type: dagster_component_templates.EntityExtractorComponent
+type: dagster_community_components.EntityExtractorComponent
 attributes:
   asset_name: json_entities
 
@@ -389,7 +389,7 @@ Assuming average 150 tokens input, 100 tokens output per text:
 
 ```yaml
 # Step 1: Extract entities from tickets
-- type: dagster_component_templates.EntityExtractorComponent
+- type: dagster_community_components.EntityExtractorComponent
   attributes:
     asset_name: ticket_entities
     method: spacy
@@ -408,14 +408,14 @@ Use spaCy for standard entities, LLM for complex custom entities:
 
 ```yaml
 # Step 1: Fast spaCy extraction
-- type: dagster_component_templates.EntityExtractorComponent
+- type: dagster_community_components.EntityExtractorComponent
   attributes:
     asset_name: standard_entities
     method: spacy
     entity_types: "person,organization,email,phone,date,money"
 
 # Step 2: LLM for custom entities
-- type: dagster_component_templates.EntityExtractorComponent
+- type: dagster_community_components.EntityExtractorComponent
   attributes:
     asset_name: custom_entities
     method: llm
@@ -425,7 +425,7 @@ Use spaCy for standard entities, LLM for complex custom entities:
 ### PII Detection Pipeline
 
 ```yaml
-type: dagster_component_templates.EntityExtractorComponent
+type: dagster_community_components.EntityExtractorComponent
 attributes:
   asset_name: pii_detected
 
@@ -452,7 +452,7 @@ attributes:
 ### Multi-Language Support
 
 ```yaml
-type: dagster_component_templates.EntityExtractorComponent
+type: dagster_community_components.EntityExtractorComponent
 attributes:
   asset_name: multilingual_entities
 
@@ -476,7 +476,7 @@ attributes:
 ### Support Ticket Enrichment
 
 ```yaml
-type: dagster_component_templates.EntityExtractorComponent
+type: dagster_community_components.EntityExtractorComponent
 attributes:
   asset_name: enriched_tickets
 
@@ -501,7 +501,7 @@ attributes:
 ### Email Processing
 
 ```yaml
-type: dagster_component_templates.EntityExtractorComponent
+type: dagster_community_components.EntityExtractorComponent
 attributes:
   asset_name: email_entities
 
@@ -519,7 +519,7 @@ attributes:
 ### Document Analysis
 
 ```yaml
-type: dagster_component_templates.EntityExtractorComponent
+type: dagster_community_components.EntityExtractorComponent
 attributes:
   asset_name: document_entities
 

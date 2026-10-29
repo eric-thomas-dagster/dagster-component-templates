@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.VantaEvidenceUploadComponent",
+  "component_type": "dagster_community_components.VantaEvidenceUploadComponent",
   "description": "Reverse-ETL sink: upload one evidence file into Vanta per row of an upstream DataFrame (POST /v1/documents -> POST /v1/documents/{id}/uploads -> POST /v1/documents/{id}/submit). Push-path write component -- pairs with vanta_controls_ingestion (read) and vanta_evidence_response_agent (LLM narrative drafting).",
   "category": "reverse_etl",
   "vertical": "security",

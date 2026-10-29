@@ -216,7 +216,7 @@ class GmailIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.GmailIngestionComponent
+        type: dagster_community_components.GmailIngestionComponent
         attributes:
           asset_name: gmail_ingestion
           access_token: "${GMAIL_ACCESS_TOKEN}"

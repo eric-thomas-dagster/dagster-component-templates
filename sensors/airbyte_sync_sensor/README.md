@@ -47,7 +47,7 @@ On each tick, the sensor:
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.AirbyteSyncSensorComponent
+type: dagster_community_components.AirbyteSyncSensorComponent
 attributes:
   sensor_name: my_sensor_name
   connection_id: my_connection_id

@@ -1,4 +1,4 @@
-type: dagster_component_templates.OpenlineageEmitterComponent
+type: dagster_community_components.OpenlineageEmitterComponent
 attributes:
   check_name: emit_openlineage
   upstream_asset_key: orders_enriched

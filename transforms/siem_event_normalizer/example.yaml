@@ -1,4 +1,4 @@
-type: dagster_component_templates.SiemEventNormalizerComponent
+type: dagster_community_components.SiemEventNormalizerComponent
 attributes:
   asset_name: normalized_audit_events
   upstream_asset_key: raw_audit_events

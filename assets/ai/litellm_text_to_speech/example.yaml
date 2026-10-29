@@ -1,4 +1,4 @@
-type: dagster_component_templates.LitellmTextToSpeechComponent
+type: dagster_community_components.LitellmTextToSpeechComponent
 attributes:
   asset_name: announcements_audio
   upstream_asset_key: announcements

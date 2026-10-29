@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AttentiveIngestionComponent",
+  "component_type": "dagster_community_components.AttentiveIngestionComponent",
   "description": "Ingest Attentive SMS/email marketing segment, webhook, and catalog-upload data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "marketing",

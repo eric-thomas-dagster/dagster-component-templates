@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.KeywordExtractorComponent",
+  "component_type": "dagster_community_components.KeywordExtractorComponent",
   "description": "Extract keywords and key phrases from a text column using TF-IDF, YAKE, or RAKE.",
   "category": "ai",
   "icon": "Tag",

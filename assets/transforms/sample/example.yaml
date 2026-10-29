@@ -1,4 +1,4 @@
-type: dagster_component_templates.SampleComponent
+type: dagster_community_components.SampleComponent
 attributes:
   asset_name: transactions_sample
   upstream_asset_key: raw_transactions

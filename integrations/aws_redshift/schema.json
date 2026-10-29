@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AWSRedshiftComponent",
+  "component_type": "dagster_community_components.AWSRedshiftComponent",
   "description": "Component for importing AWS Redshift entities as Dagster assets.",
   "category": "integration",
   "icon": "si:amazonredshift",

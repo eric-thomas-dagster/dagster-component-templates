@@ -112,7 +112,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.TealiumIngestionComponent
+type: dagster_community_components.TealiumIngestionComponent
 attributes:
   asset_name: tealium_ingestion
   account: "mycompany"

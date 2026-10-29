@@ -123,7 +123,7 @@ The `expression` is evaluated with Python's `eval()`. Available variables:
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.MultiFieldFormulaComponent
+type: dagster_community_components.MultiFieldFormulaComponent
 attributes:
   asset_name: sales_log_transformed
   upstream_asset_key: raw_sales

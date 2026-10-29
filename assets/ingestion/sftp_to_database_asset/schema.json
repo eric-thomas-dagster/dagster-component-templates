@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SFTPToDatabaseAssetComponent",
+  "component_type": "dagster_community_components.SFTPToDatabaseAssetComponent",
   "description": "Download a file from SFTP and write it to a database table.",
   "category": "ingestion",
   "vertical": "cloud-storage",

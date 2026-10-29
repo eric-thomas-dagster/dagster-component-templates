@@ -51,7 +51,7 @@ clickhouse-connect>=0.6.0
 ## Example YAML (env vars)
 
 ```yaml
-type: dagster_component_templates.ClickHouseTableObservationSensorComponent
+type: dagster_community_components.ClickHouseTableObservationSensorComponent
 attributes:
   sensor_name: clickhouse_events_observation
   asset_key: clickhouse/analytics/events
@@ -65,7 +65,7 @@ attributes:
 ## Example YAML (resource)
 
 ```yaml
-type: dagster_component_templates.ClickHouseTableObservationSensorComponent
+type: dagster_community_components.ClickHouseTableObservationSensorComponent
 attributes:
   sensor_name: clickhouse_events_observation
   asset_key: clickhouse/analytics/events

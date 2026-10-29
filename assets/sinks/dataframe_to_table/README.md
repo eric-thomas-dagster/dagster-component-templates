@@ -87,7 +87,7 @@ Writes a Pandas DataFrame to a relational database table. This is a terminal sin
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.DataframeToTableComponent
+type: dagster_community_components.DataframeToTableComponent
 attributes:
   asset_name: write_monthly_summary
   upstream_asset_key: monthly_revenue_summary

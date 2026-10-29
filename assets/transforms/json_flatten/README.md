@@ -96,7 +96,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 
 ## Example YAML
 ```yaml
-component_type: dagster_component_templates.JsonFlattenComponent
+component_type: dagster_community_components.JsonFlattenComponent
 asset_name: flattened_users
 upstream_asset_key: raw_users
 column: address

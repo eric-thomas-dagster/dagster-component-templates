@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ChurnPredictionComponent",
+  "component_type": "dagster_community_components.ChurnPredictionComponent",
   "description": "Component for predicting customer churn risk using heuristic scoring.",
   "category": "analytics",
   "icon": "BarChart2",

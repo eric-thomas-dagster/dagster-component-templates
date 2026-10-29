@@ -70,7 +70,7 @@ Uses `DefaultAzureCredential` by default. Alternatively, provide a connection st
 
 ### With DefaultAzureCredential
 ```yaml
-type: dagster_component_templates.EventHubsMonitorSensorComponent
+type: dagster_community_components.EventHubsMonitorSensorComponent
 attributes:
   sensor_name: eventhubs_sensor
   eventhub_name: telemetry-hub
@@ -81,7 +81,7 @@ attributes:
 
 ### With Connection String
 ```yaml
-type: dagster_component_templates.EventHubsMonitorSensorComponent
+type: dagster_community_components.EventHubsMonitorSensorComponent
 attributes:
   sensor_name: eventhubs_sensor
   eventhub_name: telemetry-hub

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.StarRocksResourceComponent",
+  "component_type": "dagster_community_components.StarRocksResourceComponent",
   "description": "Register a StarRocks resource for use by other components.\n\nExample:\n\n    ```yaml\n    type: dagster_community_components.StarRocksResourceComponent\n    attributes:\n      resource_key: starrocks_resource\n      host: starrocks-fe.mycompany.com\n      query_port: 9030\n      http_port: 8030\n      database: analytics\n      username: dagster_runner\n      password_env_var: STARROCKS_PASSWORD\n    ```",
   "category": "resource",
   "icon": "favicon:starrocks.io",

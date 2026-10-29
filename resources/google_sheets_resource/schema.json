@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GoogleSheetsResourceComponent",
+  "component_type": "dagster_community_components.GoogleSheetsResourceComponent",
   "description": "Register a GoogleSheetsResource wrapping the gspread client for use by other components",
   "category": "resource",
   "icon": "si:googlesheets",

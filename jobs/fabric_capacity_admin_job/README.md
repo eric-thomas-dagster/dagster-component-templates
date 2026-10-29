@@ -10,14 +10,14 @@ Typical schedule pair:
 
 ```yaml
 # Pause every day at 19:00 (stays paused all weekend)
-- type: dagster_component_templates.FabricCapacityAdminJobComponent
+- type: dagster_community_components.FabricCapacityAdminJobComponent
   attributes:
     job_name: fabric_capacity_pause_nightly
     action: suspend
     schedule: '0 19 * * *'
 
 # Resume weekday mornings at 06:00
-- type: dagster_component_templates.FabricCapacityAdminJobComponent
+- type: dagster_community_components.FabricCapacityAdminJobComponent
   attributes:
     job_name: fabric_capacity_resume_morning
     action: resume

@@ -1,4 +1,4 @@
-type: dagster_component_templates.HubSpotIngestionComponent
+type: dagster_community_components.HubSpotIngestionComponent
 attributes:
   asset_name: hubspot_crm_data
 

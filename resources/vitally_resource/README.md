@@ -36,7 +36,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.VitallyResourceComponent
+type: dagster_community_components.VitallyResourceComponent
 attributes:
   resource_key: vitally_resource  # key other components use
   subdomain: yourcompany  # from https://yourcompany.vitally.io

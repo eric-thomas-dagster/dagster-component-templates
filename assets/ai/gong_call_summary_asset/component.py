@@ -129,7 +129,7 @@ class GongCallSummaryAssetComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.GongCallSummaryAssetComponent
+        type: dagster_community_components.GongCallSummaryAssetComponent
         attributes:
           asset_name: gong_call_summaries
           upstream_asset_key: gong_calls

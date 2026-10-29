@@ -80,7 +80,7 @@ Plain HTTP+JSON API -- no native QuestDB Python client required.
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.QuestdbSqlQueryComponent
+type: dagster_community_components.QuestdbSqlQueryComponent
 attributes:
   asset_name: daily_sensor_readings
   host_url: http://questdb:9000

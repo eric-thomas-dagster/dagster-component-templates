@@ -1,4 +1,4 @@
-type: dagster_component_templates.SlackNotificationJobComponent
+type: dagster_community_components.SlackNotificationJobComponent
 attributes:
   job_name: slack_notification_job_example
   schedule: "0 3 * * *"

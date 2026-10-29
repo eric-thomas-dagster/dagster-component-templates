@@ -35,7 +35,7 @@ pip install linkedin-api
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.LinkedInAdsResourceComponent
+type: dagster_community_components.LinkedInAdsResourceComponent
 attributes:
   resource_key: linkedin_ads_resource  # key other components use
   access_token_env_var: LINKEDIN_ACCESS_TOKEN  # env var holding OAuth2 access token

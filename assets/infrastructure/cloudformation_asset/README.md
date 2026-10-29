@@ -10,7 +10,7 @@ Deploy or update an AWS CloudFormation stack as a Dagster asset. Use this as the
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.CloudFormationAssetComponent
+type: dagster_community_components.CloudFormationAssetComponent
 attributes:
   asset_name: provision_data_lake
   stack_name: my-company-data-platform
@@ -38,7 +38,7 @@ Declare the CloudFormation asset and then reference it as a dep on downstream as
 
 ```yaml
 # Component 1 — infrastructure
-type: dagster_component_templates.CloudFormationAssetComponent
+type: dagster_community_components.CloudFormationAssetComponent
 attributes:
   asset_name: provision_data_lake
   stack_name: my-company-data-platform
@@ -47,7 +47,7 @@ attributes:
 
 ---
 # Component 2 — downstream data asset that must wait for infra
-type: dagster_component_templates.SomeOtherComponent
+type: dagster_community_components.SomeOtherComponent
 attributes:
   asset_name: ingest_raw_events
   deps:

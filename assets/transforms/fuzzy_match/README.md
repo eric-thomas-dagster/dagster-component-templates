@@ -103,7 +103,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 ## YAML Example
 
 ```yaml
-type: dagster_component_templates.FuzzyMatch
+type: dagster_community_components.FuzzyMatch
 attributes:
   asset_name: deduplicated_companies
   upstream_asset_key: raw_company_names

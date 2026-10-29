@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PgvectorAssetComponent",
+  "component_type": "dagster_community_components.PgvectorAssetComponent",
   "description": "Generate text embeddings via OpenAI and upsert them into a PostgreSQL table",
   "category": "analytics",
   "icon": "si:postgresql",

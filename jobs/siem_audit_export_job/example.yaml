@@ -1,4 +1,4 @@
-type: dagster_component_templates.SiemAuditExportJobComponent
+type: dagster_community_components.SiemAuditExportJobComponent
 attributes:
   job_name: siem_audit_export_job_example
   schedule: "0 3 * * *"

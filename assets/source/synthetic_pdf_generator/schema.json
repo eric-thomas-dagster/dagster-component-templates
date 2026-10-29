@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SyntheticPdfGeneratorComponent",
+  "component_type": "dagster_community_components.SyntheticPdfGeneratorComponent",
   "description": "SyntheticPdfGeneratorComponent \u2014 generate sample PDFs for OCR / Document AI demos.",
   "category": "source",
   "x-dagster-io": {

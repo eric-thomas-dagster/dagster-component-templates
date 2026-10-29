@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PanderaAssetCheckComponent",
+  "component_type": "dagster_community_components.PanderaAssetCheckComponent",
   "description": "Validate a DataFrame asset against a Pandera schema as a Dagster asset check.",
   "category": "check",
   "icon": "CheckCircle",

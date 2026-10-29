@@ -191,7 +191,7 @@ class KustomerConversationsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.KustomerConversationsIngestionComponent
+        type: dagster_community_components.KustomerConversationsIngestionComponent
         attributes:
           asset_name: kustomer_conversations
           resource_key: kustomer_resource

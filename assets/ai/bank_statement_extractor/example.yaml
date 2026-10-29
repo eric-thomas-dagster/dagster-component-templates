@@ -1,4 +1,4 @@
-type: dagster_component_templates.BankStatementExtractorComponent
+type: dagster_community_components.BankStatementExtractorComponent
 attributes:
   asset_name: extracted_bank_statements
   upstream_asset_key: raw_bank_statements

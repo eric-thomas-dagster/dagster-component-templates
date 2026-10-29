@@ -203,7 +203,7 @@ class AdSpendStandardizerComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.AdSpendStandardizerComponent
+        type: dagster_community_components.AdSpendStandardizerComponent
         attributes:
           asset_name: standardized_ad_spend
           google_ads_asset_key: "google_ads_data"

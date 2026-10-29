@@ -98,7 +98,7 @@ Without a matching Alternate Key, the upsert PATCH 404s.
 ## Example
 
 ```yaml
-type: dagster_component_templates.DynamicsCrmRecordUpsertComponent
+type: dagster_community_components.DynamicsCrmRecordUpsertComponent
 attributes:
   asset_name: dynamics_crm_accounts_mirror
   upstream_asset_key: dbt_marts_accounts

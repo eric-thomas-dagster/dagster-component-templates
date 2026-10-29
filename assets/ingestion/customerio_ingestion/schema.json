@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CustomerIOIngestionComponent",
+  "component_type": "dagster_community_components.CustomerIOIngestionComponent",
   "description": "Ingest Customer.io App API data (campaigns, segments, newsletters) using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "marketing",

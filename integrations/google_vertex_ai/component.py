@@ -69,7 +69,7 @@ class GoogleVertexAIComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.GoogleVertexAIComponent
+        type: dagster_community_components.GoogleVertexAIComponent
         attributes:
           project_id: my-gcp-project
           location: us-central1

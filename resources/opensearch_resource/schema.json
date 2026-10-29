@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OpenSearchResourceComponent",
+  "component_type": "dagster_community_components.OpenSearchResourceComponent",
   "description": "Register an OpenSearchResource (raw REST auth for the OpenSearch _bulk API) for use by other components",
   "category": "resource",
   "icon": "si:opensearch",

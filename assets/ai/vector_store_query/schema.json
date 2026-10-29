@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.VectorStoreQueryComponent",
+  "component_type": "dagster_community_components.VectorStoreQueryComponent",
   "description": "Component for querying vector stores.",
   "category": "ai",
   "icon": "Sparkles",

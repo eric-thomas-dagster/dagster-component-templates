@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ExternalBigQueryTableAsset",
+  "component_type": "dagster_community_components.ExternalBigQueryTableAsset",
   "description": "Declare a BigQuery table as an observable external asset.",
   "category": "external",
   "icon": "Link",

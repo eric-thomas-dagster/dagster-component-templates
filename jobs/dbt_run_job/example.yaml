@@ -1,4 +1,4 @@
-type: dagster_component_templates.DbtRunJobComponent
+type: dagster_community_components.DbtRunJobComponent
 attributes:
   job_name: dbt_run_job_example
   schedule: "0 3 * * *"

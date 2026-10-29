@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OktaUserUpsertComponent",
+  "component_type": "dagster_community_components.OktaUserUpsertComponent",
   "description": "Reverse-ETL sink: sync an upstream DataFrame of user records into Okta. Default operation ('sync') only creates users that don't exist or merge-updates profile attributes on ones that do -- it can never deactivate or delete anyone. Deactivation requires the explicit, separate operation: 'deactivate' and only ever deactivates (never deletes) users matched by login via Okta's distinct lifecycle endpoint; rows with no match are skipped, never created. There is no delete operation.",
   "category": "reverse_etl",
   "icon": "si:okta",

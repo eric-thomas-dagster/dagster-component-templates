@@ -1,4 +1,4 @@
-type: dagster_component_templates.ParametricDataGeneratorComponent
+type: dagster_community_components.ParametricDataGeneratorComponent
 attributes:
   asset_name: employees
   row_count: 500

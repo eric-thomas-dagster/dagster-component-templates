@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PipedrivePersonUpsertComponent",
+  "component_type": "dagster_community_components.PipedrivePersonUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Pipedrive persons via search-then-write. Pipedrive has no native upsert endpoint, so this searches /persons/search by key_field, then updates the match or creates a new person.",
   "category": "reverse_etl",
   "icon": "si:pipedrive",

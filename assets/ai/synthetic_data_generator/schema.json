@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SyntheticDataGeneratorComponent",
+  "component_type": "dagster_community_components.SyntheticDataGeneratorComponent",
   "description": "Component for generating synthetic/mock data for demos and testing.",
   "category": "source",
   "icon": "Wand2",

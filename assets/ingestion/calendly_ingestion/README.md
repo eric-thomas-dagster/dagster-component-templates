@@ -93,7 +93,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 ## Example
 
 ```yaml
-type: dagster_component_templates.CalendlyIngestionComponent
+type: dagster_community_components.CalendlyIngestionComponent
 attributes:
   asset_name: calendly_ingestion
   access_token: "${CALENDLY_ACCESS_TOKEN}"

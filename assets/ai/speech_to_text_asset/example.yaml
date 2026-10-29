@@ -1,4 +1,4 @@
-type: dagster_component_templates.SpeechToTextAssetComponent
+type: dagster_community_components.SpeechToTextAssetComponent
 attributes:
   asset_name: call_transcripts
   upstream_asset_key: support_calls

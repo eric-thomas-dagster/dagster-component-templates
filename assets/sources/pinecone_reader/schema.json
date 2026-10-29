@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PineconeReaderComponent",
+  "component_type": "dagster_community_components.PineconeReaderComponent",
   "description": "Component for querying a Pinecone vector index.",
   "category": "source",
   "icon": "si:pinecone",

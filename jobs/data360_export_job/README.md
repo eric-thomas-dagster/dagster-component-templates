@@ -20,7 +20,7 @@ Each run produces:
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.Data360ExportJobComponent
+type: dagster_community_components.Data360ExportJobComponent
 attributes:
   job_name: sync_dagster_lineage_to_data360
   schedule: "0 3 * * *"

@@ -3,7 +3,7 @@
 Generate audio files from a text column via [Cloud Text-to-Speech](https://cloud.google.com/text-to-speech). Per-row: emit one `.mp3` / `.wav` / `.ogg` file. Counterpart of `speech_to_text_asset`.
 
 ```yaml
-type: dagster_component_templates.CloudTextToSpeechAssetComponent
+type: dagster_community_components.CloudTextToSpeechAssetComponent
 attributes:
   asset_name: announcements_audio
   upstream_asset_key: announcements

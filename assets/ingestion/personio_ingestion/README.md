@@ -30,7 +30,7 @@ By default this asset runs an in-memory DuckDB pipeline and returns a pandas Dat
 
 
 ```yaml
-type: dagster_component_templates.PersonioIngestionComponent
+type: dagster_community_components.PersonioIngestionComponent
 attributes:
   asset_name: personio_data
   client_id: "${PERSONIO_CLIENT_ID}"
@@ -134,7 +134,7 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 ## Example — DataFrame mode (default)
 
 ```yaml
-type: dagster_component_templates.PersonioIngestionComponent
+type: dagster_community_components.PersonioIngestionComponent
 attributes:
   asset_name: personio_data
   client_id: "{{ env('PERSONIO_CLIENT_ID') }}"
@@ -149,7 +149,7 @@ The asset emits a pandas DataFrame combining all selected resources, with a `_re
 ## Example — persist to Postgres
 
 ```yaml
-type: dagster_component_templates.PersonioIngestionComponent
+type: dagster_community_components.PersonioIngestionComponent
 attributes:
   asset_name: personio_data
   client_id: "{{ env('PERSONIO_CLIENT_ID') }}"

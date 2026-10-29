@@ -38,7 +38,7 @@ Register a dagster-snowflake SnowflakeResource for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.SnowflakeResourceComponent
+type: dagster_community_components.SnowflakeResourceComponent
 attributes:
   resource_key: snowflake_resource  # key other components use
   # Required

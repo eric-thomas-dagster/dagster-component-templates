@@ -301,7 +301,7 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.VectorStoreWriterComponent
+        type: dagster_community_components.VectorStoreWriterComponent
         attributes:
           asset_name: vector_store_index
           provider: chromadb

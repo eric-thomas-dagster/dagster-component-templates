@@ -105,7 +105,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.AdyenIngestionComponent
+type: dagster_community_components.AdyenIngestionComponent
 attributes:
   asset_name: adyen_ingestion
   api_key: "${ADYEN_API_KEY}"

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PySparkPipelineComponent",
+  "component_type": "dagster_community_components.PySparkPipelineComponent",
   "description": "Multi-step PySpark DataFrame pipeline in a single Dagster asset (Catalyst-optimized across all steps).",
   "category": "transformation",
   "icon": "Zap",

@@ -120,7 +120,7 @@ The Scientific Paper Extractor Component uses a large language model to parse un
 ### Basic Scientific Paper Extraction
 
 ```yaml
-type: dagster_component_templates.ScientificPaperExtractorComponent
+type: dagster_community_components.ScientificPaperExtractorComponent
 attributes:
   asset_name: parsed_scientific_papers
   upstream_asset_key: raw_scientific_papers
@@ -139,7 +139,7 @@ attributes:
 ### Full Extraction with Anthropic
 
 ```yaml
-type: dagster_component_templates.ScientificPaperExtractorComponent
+type: dagster_community_components.ScientificPaperExtractorComponent
 attributes:
   asset_name: parsed_scientific_papers
   upstream_asset_key: raw_scientific_papers

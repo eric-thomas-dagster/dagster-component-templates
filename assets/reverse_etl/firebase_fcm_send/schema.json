@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FirebaseFcmSendComponent",
+  "component_type": "dagster_community_components.FirebaseFcmSendComponent",
   "description": "Reverse-ETL message activation: send a personalized push notification via Firebase Cloud Messaging (FCM) to each row of an upstream DataFrame (`firebase_admin.messaging.send(...)` against the row's device token). Sends REAL push notifications the moment this asset materializes -- no upload-for-later-matching indirection.",
   "category": "reverse_etl",
   "icon": "si:firebase",

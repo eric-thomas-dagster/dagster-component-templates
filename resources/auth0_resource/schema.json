@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.Auth0ResourceComponent",
+  "component_type": "dagster_community_components.Auth0ResourceComponent",
   "description": "Register an Auth0Resource (OAuth2 client_credentials grant against an M2M application) wrapping the Auth0 Management API's user endpoints for use by other components. Exposes only find/create/update/block -- never delete.",
   "category": "resource",
   "icon": "si:auth0",

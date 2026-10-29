@@ -76,7 +76,7 @@ Plain HTTP+JSON API -- no native Pulsar client required.
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.PulsarTopicStatsQueryComponent
+type: dagster_community_components.PulsarTopicStatsQueryComponent
 attributes:
   asset_name: orders_topic_health
   admin_url: "{{ env.PULSAR_ADMIN_URL }}"

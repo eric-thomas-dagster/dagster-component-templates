@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BigQueryIOManagerComponent",
+  "component_type": "dagster_community_components.BigQueryIOManagerComponent",
   "description": "Register a BigQueryPandasIOManager so assets are automatically stored in and loaded from BigQuery",
   "category": "io_manager",
   "icon": "si:googlebigquery",

@@ -216,7 +216,7 @@ class Auth0ManagementIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.Auth0ManagementIngestionComponent
+        type: dagster_community_components.Auth0ManagementIngestionComponent
         attributes:
           asset_name: auth0_management_ingestion
           tenant_domain: "mycompany.us.auth0.com"

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.NeuralNetworkModelComponent",
+  "component_type": "dagster_community_components.NeuralNetworkModelComponent",
   "description": "Fit a multi-layer perceptron neural network for classification or regression.",
   "category": "analytics",
   "icon": "BarChart2",

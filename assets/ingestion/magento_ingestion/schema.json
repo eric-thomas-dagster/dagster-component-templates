@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MagentoIngestionComponent",
+  "component_type": "dagster_community_components.MagentoIngestionComponent",
   "description": "Ingest Magento/Adobe Commerce product, order, and customer data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "crm-sales",

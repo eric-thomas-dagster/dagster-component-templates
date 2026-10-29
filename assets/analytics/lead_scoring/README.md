@@ -16,7 +16,7 @@ So you get 6 fields total: `lead_data_asset_key`/`lead_data_source`, `behavioral
 **None of the fit/intent formulas below are trained against any observed outcome** -- there is no "converted"/"became_opportunity" boolean anywhere in the input schema. So `scoring_method='ml'` is opt-in, requires you bring your own label via `target_column` + `feature_columns`, and works over a single, already-joined `upstream_asset_key`/`source` table -- **it cannot be combined with the 3-way join fields above** (if you need the CRM+behavioral+company join, do it upstream of this component first, then point `scoring_method='ml'` at the joined result).
 
 ```yaml
-type: dagster_component_templates.LeadScoringComponent
+type: dagster_community_components.LeadScoringComponent
 attributes:
   asset_name: lead_conversion_ml
   scoring_method: ml

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.EmailParserComponent",
+  "component_type": "dagster_community_components.EmailParserComponent",
   "description": "Parse raw email content (RFC 2822 format) from a column into structured fields.",
   "category": "transformation",
   "icon": "Mail",

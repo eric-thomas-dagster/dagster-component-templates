@@ -86,7 +86,7 @@ Stack two or more upstream DataFrame assets vertically, equivalent to SQL UNION 
 ## YAML Example
 
 ```yaml
-type: dagster_component_templates.DataframeUnion
+type: dagster_community_components.DataframeUnion
 attributes:
   asset_name: all_transactions
   upstream_asset_keys:

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LaunchDarklyResourceComponent",
+  "component_type": "dagster_community_components.LaunchDarklyResourceComponent",
   "description": "Register a LaunchDarklyResource (API token auth) for use by other components, with an add_segment_targets convenience method for segment-based feature-flag targeting.",
   "category": "resource",
   "icon": "si:launchdarkly",

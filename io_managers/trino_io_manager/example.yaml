@@ -1,4 +1,4 @@
-type: dagster_component_templates.TrinoIOManagerComponent
+type: dagster_community_components.TrinoIOManagerComponent
 attributes:
   resource_key: io_manager
   host: localhost

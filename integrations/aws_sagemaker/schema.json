@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AWSSageMakerComponent",
+  "component_type": "dagster_community_components.AWSSageMakerComponent",
   "description": "Component for importing AWS SageMaker entities as Dagster assets.",
   "category": "integration",
   "icon": "si:amazonsagemaker",

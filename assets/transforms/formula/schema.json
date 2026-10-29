@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FormulaComponent",
+  "component_type": "dagster_community_components.FormulaComponent",
   "description": "Create or update columns using pandas eval expressions.",
   "category": "transformation",
   "icon": "Shuffle",

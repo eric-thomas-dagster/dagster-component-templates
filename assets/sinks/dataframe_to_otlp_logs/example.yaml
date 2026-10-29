@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeToOtlpLogsComponent
+type: dagster_community_components.DataframeToOtlpLogsComponent
 attributes:
   asset_name: otlp_logs_sink
   upstream_asset_key: log_dataframe

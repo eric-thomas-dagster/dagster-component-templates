@@ -1,4 +1,4 @@
-type: dagster_component_templates.AwsCloudwatchLogsInsightsQueryComponent
+type: dagster_community_components.AwsCloudwatchLogsInsightsQueryComponent
 attributes:
   asset_name: cloudwatch_error_logs
   region: us-east-1

@@ -1,4 +1,4 @@
-type: dagster_component_templates.SlackAuditLogIngestionComponent
+type: dagster_community_components.SlackAuditLogIngestionComponent
 attributes:
   asset_name: slack_audit_log_ingestion_events
   token_env: SLACK_AUDIT_TOKEN

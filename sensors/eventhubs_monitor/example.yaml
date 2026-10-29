@@ -1,4 +1,4 @@
-type: dagster_component_templates.EventHubsMonitorSensorComponent
+type: dagster_community_components.EventHubsMonitorSensorComponent
 attributes:
   sensor_name: eventhubs_sensor
   eventhub_name: my-event-hub

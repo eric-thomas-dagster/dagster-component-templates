@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ABTrendComponent",
+  "component_type": "dagster_community_components.ABTrendComponent",
   "description": "Compute conversion-rate trend per variant over time buckets (daily, weekly, monthly).",
   "category": "analytics",
   "icon": "TrendingUp",

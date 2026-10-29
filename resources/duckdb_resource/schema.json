@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DuckDBResourceComponent",
+  "component_type": "dagster_community_components.DuckDBResourceComponent",
   "x-dagster-io": {},
   "x-dagster-provides": [
     "duckdb_resource"

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ManagedFlinkApplicationAssetComponent",
+  "component_type": "dagster_community_components.ManagedFlinkApplicationAssetComponent",
   "name": "Managed Flink Application",
   "category": "infrastructure",
   "icon": "si:apacheflink",

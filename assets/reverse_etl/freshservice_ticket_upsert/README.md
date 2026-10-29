@@ -106,7 +106,7 @@ Together they cover **both directions** of Freshservice data movement.
 ## Example
 
 ```yaml
-type: dagster_component_templates.FreshserviceTicketUpsertComponent
+type: dagster_community_components.FreshserviceTicketUpsertComponent
 attributes:
   asset_name: freshservice_tickets_from_alerts
   upstream_asset_key: alerts_to_tickets

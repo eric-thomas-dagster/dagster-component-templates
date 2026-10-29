@@ -1,4 +1,4 @@
-type: dagster_component_templates.ExternalEventHubsAsset
+type: dagster_community_components.ExternalEventHubsAsset
 attributes:
   asset_key: streaming/telemetry
   namespace: my-eventhubs-ns

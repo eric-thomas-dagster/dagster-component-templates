@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ExternalAdlsAsset",
+  "component_type": "dagster_community_components.ExternalAdlsAsset",
   "description": "Declare an ADLS storage container as an external asset in the Dagster asset graph \u2014 makes it visible for lineage without materializing it from Dagster.",
   "category": "external",
   "icon": "Link",

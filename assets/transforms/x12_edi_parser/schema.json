@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.X12EdiParserComponent",
+  "component_type": "dagster_community_components.X12EdiParserComponent",
   "description": "X12EdiParserComponent — parse ASC X12 EDI envelopes into a flat DataFrame.",
   "category": "transformation",
   "x-dagster-io": {

@@ -218,7 +218,7 @@ class ServiceBusToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ServiceBusToDatabaseAssetComponent
+        type: dagster_community_components.ServiceBusToDatabaseAssetComponent
         attributes:
           asset_name: servicebus_orders_ingest
           connection_string_env_var: SERVICEBUS_CONNECTION_STRING

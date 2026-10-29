@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SupportTicketStandardizerComponent",
+  "component_type": "dagster_community_components.SupportTicketStandardizerComponent",
   "description": "Component for standardizing support ticket data across platforms.",
   "category": "analytics",
   "icon": "BarChart2",

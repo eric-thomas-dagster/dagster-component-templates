@@ -1,4 +1,4 @@
-type: dagster_component_templates.SyntheticAudioGeneratorComponent
+type: dagster_community_components.SyntheticAudioGeneratorComponent
 attributes:
   asset_name: sample_audio
   output_dir: /tmp/synthetic_audio

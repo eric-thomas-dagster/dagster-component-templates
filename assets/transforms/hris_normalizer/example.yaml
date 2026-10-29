@@ -1,4 +1,4 @@
-type: dagster_component_templates.HrisNormalizerComponent
+type: dagster_community_components.HrisNormalizerComponent
 attributes:
   asset_name: employees_normalized
   upstream_asset_key: employees_raw

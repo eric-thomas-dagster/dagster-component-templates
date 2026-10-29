@@ -6,7 +6,7 @@
 # the control-flow step types (condition / checkpoint / for_each) and
 # top-level `schedule:` for cron auto-registration.
 
-type: dagster_component_templates.PySparkFeedOrchestratorComponent
+type: dagster_community_components.PySparkFeedOrchestratorComponent
 attributes:
   feeds_dir: feeds                       # relative to component YAML dir
   file_glob: "*.json,*.yaml,*.yml"

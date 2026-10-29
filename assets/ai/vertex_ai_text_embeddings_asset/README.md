@@ -3,7 +3,7 @@
 Generate text embeddings via Vertex AI's `text-embedding-*` models. Drop-in shape parallel to `embeddings_generator`, `openai_embeddings`, and friends. Useful for RAG, semantic search, vector-store loaders.
 
 ```yaml
-type: dagster_component_templates.VertexAITextEmbeddingsAssetComponent
+type: dagster_community_components.VertexAITextEmbeddingsAssetComponent
 attributes:
   asset_name: doc_embeddings
   upstream_asset_key: doc_texts

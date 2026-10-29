@@ -60,7 +60,7 @@ with `raw_output` preserved as-is — it never fails the whole asset.
 ## Example
 
 ```yaml
-type: dagster_component_templates.OpenaiLlmBatchComponent
+type: dagster_community_components.OpenaiLlmBatchComponent
 attributes:
   asset_name: support_reply_results
   upstream_asset_key: support_tickets

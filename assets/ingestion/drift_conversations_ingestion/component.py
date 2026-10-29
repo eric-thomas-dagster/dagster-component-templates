@@ -190,7 +190,7 @@ class DriftConversationsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.DriftConversationsIngestionComponent
+        type: dagster_community_components.DriftConversationsIngestionComponent
         attributes:
           asset_name: drift_conversations
           resource_key: drift_resource

@@ -1,4 +1,4 @@
-type: dagster_component_templates.ImageMetadataExtractorComponent
+type: dagster_community_components.ImageMetadataExtractorComponent
 attributes:
   asset_name: image_metadata
   upstream_asset_key: raw_images

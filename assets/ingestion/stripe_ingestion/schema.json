@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.StripeIngestionComponent",
+  "component_type": "dagster_community_components.StripeIngestionComponent",
   "description": "Component for ingesting Stripe payment and customer data using dlt - returns DataFrames.",
   "category": "ingestion",
   "vertical": "finance-hr",

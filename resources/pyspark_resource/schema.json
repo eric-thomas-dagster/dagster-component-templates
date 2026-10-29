@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PySparkResourceComponent",
+  "component_type": "dagster_community_components.PySparkResourceComponent",
   "description": "Register a dagster-pyspark PySparkResource for use by other components",
   "category": "resource",
   "icon": "si:apachespark",

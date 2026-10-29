@@ -251,7 +251,7 @@ class CouchdbWriterComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.CouchdbWriterComponent
+        type: dagster_community_components.CouchdbWriterComponent
         attributes:
           asset_name: write_orders_to_couchdb
           upstream_asset_key: processed_orders

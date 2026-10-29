@@ -91,7 +91,7 @@ This component receives a DataFrame from an upstream Dagster asset and writes it
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.DataframeToRedshiftComponent
+type: dagster_community_components.DataframeToRedshiftComponent
 attributes:
   asset_name: redshift_customers
   upstream_asset_key: processed_customers

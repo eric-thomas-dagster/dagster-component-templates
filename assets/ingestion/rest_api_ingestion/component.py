@@ -90,7 +90,7 @@ class RestApiIngestionComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.RestApiIngestionComponent
+        type: dagster_community_components.RestApiIngestionComponent
         attributes:
           asset_name: api_data
           api_url: https://api.example.com/data

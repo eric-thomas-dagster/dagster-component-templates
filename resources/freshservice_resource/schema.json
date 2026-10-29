@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FreshserviceResourceComponent",
+  "component_type": "dagster_community_components.FreshserviceResourceComponent",
   "description": "Register a FreshserviceResource for the Freshservice ITSM REST API (v2) for use by other components. Distinct product from Freshdesk -- tickets/assets/changes, not contacts.",
   "category": "resource",
   "icon": "si:freshworks",

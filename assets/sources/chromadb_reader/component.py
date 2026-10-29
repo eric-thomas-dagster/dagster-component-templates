@@ -180,7 +180,7 @@ class ChromadbReaderComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ChromadbReaderComponent
+        type: dagster_community_components.ChromadbReaderComponent
         attributes:
           asset_name: chroma_results
           collection_name: documents

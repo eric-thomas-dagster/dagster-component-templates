@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OcrExtractorComponent",
+  "component_type": "dagster_community_components.OcrExtractorComponent",
   "description": "Extract text from images using Tesseract OCR with optional PIL preprocessing.",
   "category": "ai",
   "icon": "ScanText",

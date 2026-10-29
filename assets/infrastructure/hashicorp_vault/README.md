@@ -86,7 +86,7 @@ Secrets that cannot be baked into environment variables at deploy time — rotat
 ## Quick start
 
 ```yaml
-type: dagster_component_templates.VaultAssetComponent
+type: dagster_community_components.VaultAssetComponent
 attributes:
   asset_name: inject_pipeline_secrets
   vault_url_env_var: VAULT_URL

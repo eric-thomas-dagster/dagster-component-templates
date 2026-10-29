@@ -150,7 +150,7 @@ class FirebaseFcmSendComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.FirebaseFcmSendComponent
+        type: dagster_community_components.FirebaseFcmSendComponent
         attributes:
           asset_name: firebase_cart_abandoned_push
           upstream_asset_key: dbt_marts_cart_abandoned_today

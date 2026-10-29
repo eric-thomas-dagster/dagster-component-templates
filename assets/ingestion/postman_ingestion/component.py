@@ -286,7 +286,7 @@ class PostmanIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.PostmanIngestionComponent
+        type: dagster_community_components.PostmanIngestionComponent
         attributes:
           asset_name: postman_ingestion
           api_key: "${POSTMAN_API_KEY}"

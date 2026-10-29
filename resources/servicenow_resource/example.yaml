@@ -1,4 +1,4 @@
-type: dagster_component_templates.ServiceNowResourceComponent
+type: dagster_community_components.ServiceNowResourceComponent
 attributes:
   resource_key: servicenow_resource
   instance_env_var: SNOW_INSTANCE         # subdomain only — e.g. 'mycompany' or 'dev123456'

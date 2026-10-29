@@ -215,7 +215,7 @@ class MagentoResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.MagentoResourceComponent
+        type: dagster_community_components.MagentoResourceComponent
         attributes:
           resource_key: magento
           instance_url: "https://mystore.example.com"

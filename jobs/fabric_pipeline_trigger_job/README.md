@@ -9,7 +9,7 @@ Fabric item run as a Dagster job, with optional schedule.
 ## Pattern
 
 ```yaml
-- type: dagster_component_templates.FabricPipelineTriggerJobComponent
+- type: dagster_community_components.FabricPipelineTriggerJobComponent
   attributes:
     job_name: fabric_daily_etl
     workspace_id: ...

@@ -1,4 +1,4 @@
-type: dagster_component_templates.K8sJobAssetComponent
+type: dagster_community_components.K8sJobAssetComponent
 attributes:
   asset_name: <fill in>
   image: <fill in>

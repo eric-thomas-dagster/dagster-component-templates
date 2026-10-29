@@ -101,7 +101,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.PendoIngestionComponent
+type: dagster_community_components.PendoIngestionComponent
 attributes:
   asset_name: pendo_ingestion
   integration_key: "${PENDO_INTEGRATION_KEY}"

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ElasticsearchReaderComponent",
+  "component_type": "dagster_community_components.ElasticsearchReaderComponent",
   "description": "Component for searching and querying an Elasticsearch index.",
   "category": "source",
   "icon": "si:elasticsearch",

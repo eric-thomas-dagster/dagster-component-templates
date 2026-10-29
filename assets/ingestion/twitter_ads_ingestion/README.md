@@ -33,7 +33,7 @@ dlt handles authentication (OAuth 1.0a), pagination, rate limiting, and incremen
 By default this asset runs an in-memory DuckDB pipeline and returns a pandas DataFrame for downstream Dagster transformations. To persist directly to a warehouse or object store, set `destination`:
 
 ```yaml
-type: dagster_component_templates.TwitterAdsIngestionComponent
+type: dagster_community_components.TwitterAdsIngestionComponent
 attributes:
   asset_name: twitter_ads
   consumer_key: "${TWITTER_CONSUMER_KEY}"
@@ -140,7 +140,7 @@ Credentials come from env vars (`DESTINATION__BIGQUERY__CREDENTIALS__*`) or, for
 ## Example — DataFrame mode (default)
 
 ```yaml
-type: dagster_component_templates.TwitterAdsIngestionComponent
+type: dagster_community_components.TwitterAdsIngestionComponent
 attributes:
   asset_name: twitter_ads_data
   consumer_key: "${TWITTER_CONSUMER_KEY}"
@@ -160,7 +160,7 @@ The asset emits a pandas DataFrame combining all selected resources, with a `_re
 ## Example — persist to BigQuery
 
 ```yaml
-type: dagster_component_templates.TwitterAdsIngestionComponent
+type: dagster_community_components.TwitterAdsIngestionComponent
 attributes:
   asset_name: twitter_ads
   consumer_key: "${TWITTER_CONSUMER_KEY}"

@@ -1,4 +1,4 @@
-type: dagster_component_templates.FileTransformerComponent
+type: dagster_community_components.FileTransformerComponent
 attributes:
   asset_name: csv_to_parquet
   input_format: auto

@@ -216,7 +216,7 @@ class NavanIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.NavanIngestionComponent
+        type: dagster_community_components.NavanIngestionComponent
         attributes:
           asset_name: navan_ingestion
           access_token: "${NAVAN_ACCESS_TOKEN}"

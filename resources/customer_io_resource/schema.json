@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CustomerIoResourceComponent",
+  "component_type": "dagster_community_components.CustomerIoResourceComponent",
   "description": "Register a CustomerIoResource under a resource key. Holds Customer.io Track API auth (HTTP Basic: site_id + api_key) and exposes batch_ops (up to 100 identify/event/delete/... per call) for downstream Customer.io sinks.",
   "category": "resource",
   "icon": "si:customerio",

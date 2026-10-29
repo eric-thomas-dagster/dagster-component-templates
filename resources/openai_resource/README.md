@@ -22,7 +22,7 @@ Register a dagster-openai OpenAIResource for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.OpenAIResourceComponent
+type: dagster_community_components.OpenAIResourceComponent
 attributes:
   resource_key: openai_resource  # key other components use
   # Optional

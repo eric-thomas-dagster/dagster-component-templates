@@ -1,4 +1,4 @@
-type: dagster_component_templates.ImageLlmExtractorComponent
+type: dagster_community_components.ImageLlmExtractorComponent
 attributes:
   asset_name: product_image_extracted
   upstream_asset_key: product_images

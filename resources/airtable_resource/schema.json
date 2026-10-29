@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AirtableResourceComponent",
+  "component_type": "dagster_community_components.AirtableResourceComponent",
   "description": "Register an AirtableResource wrapping the pyairtable client for use by other components",
   "category": "resource",
   "icon": "si:airtable",

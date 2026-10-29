@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeFromKustoComponent",
+  "component_type": "dagster_community_components.DataframeFromKustoComponent",
   "description": "Run a KQL query against an Azure Data Explorer (ADX) cluster and materialize the result as a DataFrame asset. Distinct from azure_log_analytics_query (different SDK + service).",
   "category": "source",
   "icon": "Search",

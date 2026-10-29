@@ -3,7 +3,7 @@
 Generate sample PDFs and emit a DataFrame describing them — built for OCR / Document AI / Vision demos that need a deterministic source of PDFs without committing binary fixtures.
 
 ```yaml
-type: dagster_component_templates.SyntheticPdfGeneratorComponent
+type: dagster_community_components.SyntheticPdfGeneratorComponent
 attributes:
   asset_name: sample_documents
   samples: default

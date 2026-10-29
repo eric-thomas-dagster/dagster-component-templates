@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PctChangeComponent",
+  "component_type": "dagster_community_components.PctChangeComponent",
   "description": "Compute period-over-period diff and percent change on a value column, optionally grouped (per region/customer) and ordered (by a time column). Right for week-over-week / month-over-month growth metrics.",
   "category": "transformation",
   "icon": "TrendingUp",

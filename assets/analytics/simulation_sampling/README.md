@@ -130,7 +130,7 @@ One column per variable, N rows (one per simulation).
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.SimulationSamplingComponent
+type: dagster_community_components.SimulationSamplingComponent
 attributes:
   asset_name: demand_simulation
   upstream_asset_key: demand_distributions

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TextClassifierComponent",
+  "component_type": "dagster_community_components.TextClassifierComponent",
   "description": "Component for classifying text with LLMs.",
   "category": "ai",
   "icon": "Sparkles",

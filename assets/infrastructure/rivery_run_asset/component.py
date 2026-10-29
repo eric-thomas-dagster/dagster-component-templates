@@ -94,7 +94,7 @@ class RiveryRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example (env vars):
         ```yaml
-        type: dagster_component_templates.RiveryRunAssetComponent
+        type: dagster_community_components.RiveryRunAssetComponent
         attributes:
           asset_key: rivery/ingest/salesforce_accounts
           river_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
@@ -104,7 +104,7 @@ class RiveryRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example (resource):
         ```yaml
-        type: dagster_component_templates.RiveryRunAssetComponent
+        type: dagster_community_components.RiveryRunAssetComponent
         attributes:
           asset_key: rivery/ingest/salesforce_accounts
           river_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"

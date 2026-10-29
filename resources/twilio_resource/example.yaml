@@ -1,4 +1,4 @@
-type: dagster_component_templates.TwilioResourceComponent
+type: dagster_community_components.TwilioResourceComponent
 attributes:
   resource_key: twilio_resource
   account_sid_env_var: <account_sid_env_var>

@@ -7,7 +7,7 @@ Sibling of [`top_n_per_group`](../top_n_per_group). Same semantics, executed in 
 ## YAML
 
 ```yaml
-type: dagster_component_templates.WarehouseTopNPerGroupComponent
+type: dagster_community_components.WarehouseTopNPerGroupComponent
 attributes:
   asset_name: top_3_products_per_category
   database_url: snowflake://...

@@ -1,4 +1,4 @@
-type: dagster_component_templates.TikTokAdsIngestionComponent
+type: dagster_community_components.TikTokAdsIngestionComponent
 attributes:
   asset_name: tiktok_ads_data
 

@@ -1,4 +1,4 @@
-type: dagster_component_templates.PythonCallableJobComponent
+type: dagster_community_components.PythonCallableJobComponent
 attributes:
   job_name: python_callable_job_example
   schedule: "0 3 * * *"

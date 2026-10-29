@@ -46,7 +46,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.ZuoraResourceComponent
+type: dagster_community_components.ZuoraResourceComponent
 attributes:
   resource_key: zuora
   base_url: "rest.na.zuora.com"

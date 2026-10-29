@@ -1,4 +1,4 @@
-type: dagster_component_templates.HttpExternalAssetComponent
+type: dagster_community_components.HttpExternalAssetComponent
 attributes:
   base_url: https://api.example.com
   auth_resource_key: api_auth

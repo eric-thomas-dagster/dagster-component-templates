@@ -34,7 +34,7 @@ class IcebergCatalogResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     Example — REST catalog (Nessie, Polaris, Lakekeeper, Snowflake, S3 Tables):
 
         ```yaml
-        type: dagster_component_templates.IcebergCatalogResourceComponent
+        type: dagster_community_components.IcebergCatalogResourceComponent
         attributes:
           resource_key: iceberg
           catalog_type: rest

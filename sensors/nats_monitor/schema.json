@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.NATSMonitorSensorComponent",
+  "component_type": "dagster_community_components.NATSMonitorSensorComponent",
   "description": "Component for monitoring a NATS JetStream consumer for new messages.",
   "category": "sensor",
   "icon": "si:natsio",

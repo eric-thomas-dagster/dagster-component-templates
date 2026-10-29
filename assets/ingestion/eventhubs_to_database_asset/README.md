@@ -96,7 +96,7 @@ sqlalchemy>=2.0.0
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.EventHubsToDatabaseAssetComponent
+type: dagster_community_components.EventHubsToDatabaseAssetComponent
 attributes:
   asset_name: eventhubs_events_ingest
   connection_string_env_var: EVENTHUB_CONNECTION_STRING

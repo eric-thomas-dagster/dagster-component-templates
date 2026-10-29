@@ -15,7 +15,7 @@
 
 ---
 # Component 1: E-commerce Order Ingestion
-type: dagster_component_templates.ShopifyIngestionComponent
+type: dagster_community_components.ShopifyIngestionComponent
 attributes:
   asset_name: shopify_order_items
   resource_type: order_items  # Line items, not just orders
@@ -24,7 +24,7 @@ attributes:
 
 ---
 # Component 2: Standardize Order Items
-type: dagster_component_templates.EcommerceStandardizerComponent
+type: dagster_community_components.EcommerceStandardizerComponent
 attributes:
   asset_name: standardized_order_items
   platform: shopify
@@ -34,7 +34,7 @@ attributes:
 
 ---
 # Component 3: Collaborative Filtering Recommendations
-type: dagster_component_templates.ProductRecommendationsComponent
+type: dagster_community_components.ProductRecommendationsComponent
 attributes:
   asset_name: product_recommendations
   source_asset: standardized_order_items
@@ -47,7 +47,7 @@ attributes:
 
 ---
 # Component 4: Product Bundles
-type: dagster_component_templates.ProductRecommendationsComponent
+type: dagster_community_components.ProductRecommendationsComponent
 attributes:
   asset_name: product_bundles
   source_asset: standardized_order_items
@@ -60,7 +60,7 @@ attributes:
 
 ---
 # Component 5: Trending Products
-type: dagster_component_templates.ProductRecommendationsComponent
+type: dagster_community_components.ProductRecommendationsComponent
 attributes:
   asset_name: trending_products
   source_asset: standardized_order_items
@@ -72,7 +72,7 @@ attributes:
 
 ---
 # Component 6: Write Recommendations to Database
-type: dagster_component_templates.DLTDataFrameWriterComponent
+type: dagster_community_components.DLTDataFrameWriterComponent
 attributes:
   asset_name: recommendations_output
   source_asset: trending_products

@@ -198,7 +198,7 @@ class OktaResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.OktaResourceComponent
+        type: dagster_community_components.OktaResourceComponent
         attributes:
           resource_key: okta_resource
           org_url: "https://mycompany.okta.com"

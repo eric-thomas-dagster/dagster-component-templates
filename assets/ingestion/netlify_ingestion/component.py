@@ -304,7 +304,7 @@ class NetlifyIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.NetlifyIngestionComponent
+        type: dagster_community_components.NetlifyIngestionComponent
         attributes:
           asset_name: netlify_ingestion
           access_token: "${NETLIFY_ACCESS_TOKEN}"

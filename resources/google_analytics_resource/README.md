@@ -30,7 +30,7 @@ pip install google-analytics-data
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.GoogleAnalyticsResourceComponent
+type: dagster_community_components.GoogleAnalyticsResourceComponent
 attributes:
   resource_key: google_analytics_resource  # key other components use
   property_id: "123456789"  # your GA4 property ID

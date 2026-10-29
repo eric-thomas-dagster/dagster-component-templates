@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToAzureTableComponent",
+  "component_type": "dagster_community_components.DataframeToAzureTableComponent",
   "description": "Write DataFrame rows as entities to Azure Table Storage. NoSQL key-value store, way cheaper than Cosmos for simple structured data ($0.045/GB/mo + $0.00036 per 10K transactions).",
   "category": "sink",
   "icon": "Table",

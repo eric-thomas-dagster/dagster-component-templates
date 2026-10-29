@@ -77,7 +77,7 @@ A Managed Flink application is a long-running stream processor, not a batch job 
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.ManagedFlinkApplicationAssetComponent
+type: dagster_community_components.ManagedFlinkApplicationAssetComponent
 attributes:
   asset_name: clickstream_flink_app
   application_name: clickstream-enrichment

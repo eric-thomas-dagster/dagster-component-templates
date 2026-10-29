@@ -116,7 +116,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.PardotIngestionComponent
+type: dagster_community_components.PardotIngestionComponent
 attributes:
   asset_name: pardot_ingestion
   business_unit_id: "0Uv000000000001AAA"

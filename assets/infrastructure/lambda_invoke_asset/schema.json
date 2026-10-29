@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LambdaInvokeAssetComponent",
+  "component_type": "dagster_community_components.LambdaInvokeAssetComponent",
   "name": "Lambda Invoke",
   "category": "infrastructure",
   "icon": "si:awslambda",

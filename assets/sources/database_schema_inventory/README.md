@@ -77,7 +77,7 @@ DataFrame with columns:
 ## Example: Oracle inventory
 
 ```yaml
-type: dagster_component_templates.DatabaseSchemaInventoryComponent
+type: dagster_community_components.DatabaseSchemaInventoryComponent
 attributes:
   asset_name: oracle_migration_inventory
   connection_env_var: ORACLE_DB_URL
@@ -98,7 +98,7 @@ The DataFrame is just a normal asset, so pipe it straight to `dataframe_to_csv` 
 
 ```yaml
 # defs/inventory_csv/defs.yaml
-type: dagster_component_templates.DataframeToCsvComponent
+type: dagster_community_components.DataframeToCsvComponent
 attributes:
   asset_name: oracle_migration_plan_csv
   upstream_asset_key: oracle_migration_inventory
@@ -110,7 +110,7 @@ attributes:
 To list everything `database_replication` can't migrate automatically (i.e. everything that's NOT a table), use `filter`:
 
 ```yaml
-type: dagster_component_templates.FilterComponent
+type: dagster_community_components.FilterComponent
 attributes:
   asset_name: oracle_manual_migration_work
   upstream_asset_key: oracle_migration_inventory

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GreatExpectationsCheckComponent",
+  "component_type": "dagster_community_components.GreatExpectationsCheckComponent",
   "description": "Run a Great Expectations expectation suite — one Dagster asset check per expectation.",
   "category": "check",
   "icon": "CheckCircle",

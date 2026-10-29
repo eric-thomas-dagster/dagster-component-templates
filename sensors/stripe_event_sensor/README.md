@@ -37,7 +37,7 @@ Polls Stripe's Events API and triggers a RunRequest for each new event of the sp
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.StripeEventSensorComponent
+type: dagster_community_components.StripeEventSensorComponent
 attributes:
   sensor_name: stripe_subscription_sensor
   asset_keys: [subscription_metrics]

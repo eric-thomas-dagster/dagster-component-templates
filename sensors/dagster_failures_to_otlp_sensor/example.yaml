@@ -1,4 +1,4 @@
-type: dagster_component_templates.DagsterFailuresToOtlpSensorComponent
+type: dagster_community_components.DagsterFailuresToOtlpSensorComponent
 attributes:
   sensor_name: dagster_failures_to_otlp
   otlp_endpoint_env_var: OTLP_LOGS_ENDPOINT

@@ -1,4 +1,4 @@
-type: dagster_component_templates.TrinoQueryComponent
+type: dagster_community_components.TrinoQueryComponent
 attributes:
   asset_name: federated_pnl
   host: localhost

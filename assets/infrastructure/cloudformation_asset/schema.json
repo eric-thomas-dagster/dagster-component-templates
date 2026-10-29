@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CloudFormationAssetComponent",
+  "component_type": "dagster_community_components.CloudFormationAssetComponent",
   "description": "Deploy or update an AWS CloudFormation stack as a Dagster asset.",
   "category": "infrastructure",
   "icon": "Server",

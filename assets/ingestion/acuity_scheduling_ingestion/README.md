@@ -95,7 +95,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.AcuitySchedulingIngestionComponent
+type: dagster_community_components.AcuitySchedulingIngestionComponent
 attributes:
   asset_name: acuity_scheduling_ingestion
   user_id: "${ACUITY_USER_ID}"

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OracleResourceComponent",
+  "component_type": "dagster_community_components.OracleResourceComponent",
   "description": "Register an Oracle Database resource for use by other components. Works against XE/Free/Enterprise, Autonomous Database, and OCI DBaaS.",
   "category": "resource",
   "icon": "Database",

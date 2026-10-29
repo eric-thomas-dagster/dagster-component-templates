@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ShippingLabelExtractorComponent",
+  "component_type": "dagster_community_components.ShippingLabelExtractorComponent",
   "description": "Extract logistics data from shipping labels and packing slips using an LLM.",
   "category": "ai",
   "icon": "Package",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DynatraceMetricsQueryComponent",
+  "component_type": "dagster_community_components.DynatraceMetricsQueryComponent",
   "description": "Query Dynatrace metrics via the v2 Metrics API → DataFrame. Returns per-series rows with timestamps + dimensions.",
   "category": "source",
   "icon": "LineChart",

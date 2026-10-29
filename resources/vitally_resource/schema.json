@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.VitallyResourceComponent",
+  "component_type": "dagster_community_components.VitallyResourceComponent",
   "description": "Register a VitallyResource wrapping Vitally's REST API (subdomain-scoped, HTTP Basic auth) for use by other components",
   "category": "resource",
   "icon": "SmilePlus",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DecisionTreeModelComponent",
+  "component_type": "dagster_community_components.DecisionTreeModelComponent",
   "description": "Fit a decision tree for classification or regression.",
   "category": "analytics",
   "icon": "BarChart2",

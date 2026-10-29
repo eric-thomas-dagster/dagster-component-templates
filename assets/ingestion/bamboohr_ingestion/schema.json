@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BambooHrIngestionComponent",
+  "component_type": "dagster_community_components.BambooHrIngestionComponent",
   "description": "Ingest BambooHR employee data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "finance-hr",

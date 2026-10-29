@@ -59,7 +59,7 @@ Implemented as a [`ConfigurableIOManager`](https://docs.dagster.io/_apidocs/io-m
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.MinIOIOManagerComponent
+type: dagster_community_components.MinIOIOManagerComponent
 attributes:
   resource_key: io_manager
   endpoint_url: http://localhost:9000

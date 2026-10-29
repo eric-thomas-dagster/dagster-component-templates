@@ -80,7 +80,7 @@ Also requires a `SageIntacctResourceComponent` on the same code location for aut
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.SageIntacctArInvoicesIngestionComponent
+type: dagster_community_components.SageIntacctArInvoicesIngestionComponent
 attributes:
   asset_name: sage_intacct_ar_invoices
   resource_key: sage_intacct_resource

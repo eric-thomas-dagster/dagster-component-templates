@@ -1,4 +1,4 @@
-type: dagster_component_templates.IcebergCatalogResourceComponent
+type: dagster_community_components.IcebergCatalogResourceComponent
 attributes:
   resource_key: iceberg
 

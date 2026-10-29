@@ -41,7 +41,7 @@ The Anthropic LLM Component enables you to leverage Claude's advanced capabiliti
 ### Basic Configuration
 
 ```yaml
-type: dagster_component_templates.AnthropicLLMComponent
+type: dagster_community_components.AnthropicLLMComponent
 attributes:
   asset_name: document_summaries
   api_key: "${ANTHROPIC_API_KEY}"
@@ -57,7 +57,7 @@ attributes:
 Save 90% on costs for repeated contexts:
 
 ```yaml
-type: dagster_component_templates.AnthropicLLMComponent
+type: dagster_community_components.AnthropicLLMComponent
 attributes:
   asset_name: legal_document_analysis
   api_key: "${ANTHROPIC_API_KEY}"
@@ -93,7 +93,7 @@ attributes:
 Claude supports up to 200K tokens:
 
 ```yaml
-type: dagster_component_templates.AnthropicLLMComponent
+type: dagster_community_components.AnthropicLLMComponent
 attributes:
   asset_name: research_paper_analysis
   api_key: "${ANTHROPIC_API_KEY}"
@@ -124,7 +124,7 @@ attributes:
 Define tools for Claude to use:
 
 ```yaml
-type: dagster_component_templates.AnthropicLLMComponent
+type: dagster_community_components.AnthropicLLMComponent
 attributes:
   asset_name: data_lookup_enhanced
   api_key: "${ANTHROPIC_API_KEY}"
@@ -167,7 +167,7 @@ attributes:
 Extract structured data:
 
 ```yaml
-type: dagster_component_templates.AnthropicLLMComponent
+type: dagster_community_components.AnthropicLLMComponent
 attributes:
   asset_name: entity_extraction
   api_key: "${ANTHROPIC_API_KEY}"
@@ -392,13 +392,13 @@ Process Claude outputs with:
 
 ```yaml
 # 1. Load legal documents
-- type: dagster_component_templates.CSVFileIngestionComponent
+- type: dagster_community_components.CSVFileIngestionComponent
   attributes:
     asset_name: legal_contracts
     file_path: "data/contracts.csv"
 
 # 2. Analyze with Claude
-- type: dagster_component_templates.AnthropicLLMComponent
+- type: dagster_community_components.AnthropicLLMComponent
   attributes:
     asset_name: contract_analysis
     api_key: "${ANTHROPIC_API_KEY}"
@@ -412,7 +412,7 @@ Process Claude outputs with:
     enable_caching: true
 
 # 3. Store results
-- type: dagster_component_templates.DuckDBTableWriterComponent
+- type: dagster_community_components.DuckDBTableWriterComponent
   attributes:
     asset_name: contracts_analyzed
     table_name: analyzed_contracts

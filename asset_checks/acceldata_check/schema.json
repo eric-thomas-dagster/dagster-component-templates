@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AcceldataCheckComponent",
+  "component_type": "dagster_community_components.AcceldataCheckComponent",
   "description": "Trigger an Acceldata rule execution and surface results as a Dagster asset check.",
   "category": "check",
   "icon": "CheckCircle",

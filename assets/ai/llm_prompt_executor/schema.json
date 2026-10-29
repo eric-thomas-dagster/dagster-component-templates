@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LLMPromptExecutorComponent",
+  "component_type": "dagster_community_components.LLMPromptExecutorComponent",
   "description": "Component for executing prompts against LLM APIs row-by-row over an upstream DataFrame.",
   "category": "ai",
   "icon": "Sparkles",

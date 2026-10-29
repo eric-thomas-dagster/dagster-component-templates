@@ -1,4 +1,4 @@
-type: dagster_component_templates.EgnyteIngestionComponent
+type: dagster_community_components.EgnyteIngestionComponent
 attributes:
   asset_name: egnyte_ingestion
   domain: "mycompany"

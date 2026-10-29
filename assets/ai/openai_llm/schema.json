@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OpenAILLMComponent",
+  "component_type": "dagster_community_components.OpenAILLMComponent",
   "description": "Component for processing text with OpenAI's GPT models.",
   "category": "ai",
   "icon": "si:openai",

@@ -18,7 +18,7 @@ A full AutoML search is expensive (many model fits across a time budget) and was
 Force a fresh search with `refresh_search: true` (one-off — e.g. after a known data/schema change), or let it happen automatically on a schedule with `max_state_age_hours` (e.g. `168` to re-tune at most once a week; every run in between is a cheap refit).
 
 ```yaml
-type: dagster_component_templates.AutoMLAssetComponent
+type: dagster_community_components.AutoMLAssetComponent
 attributes:
   asset_name: wine_quality_automl
   upstream_asset_key: wine_features
@@ -39,7 +39,7 @@ Two ways to get the rows in, set exactly one:
 - **`source: {kind: warehouse_query, resource_key: ..., sql: ...}`**: pull rows directly via SQL, no upstream asset required. Works out of the box with `duckdb_resource` and any resource exposing `.get_engine()`/`.get_connection()`, or a bare SQLAlchemy connection string via `database_url_env_var` when no Dagster resource is registered.
 
 ```yaml
-type: dagster_component_templates.AutoMLAssetComponent
+type: dagster_community_components.AutoMLAssetComponent
 attributes:
   asset_name: wine_quality_automl
   source:

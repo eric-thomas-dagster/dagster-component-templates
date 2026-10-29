@@ -47,7 +47,7 @@ The output schema includes these standard fields:
 ### Basic Example
 
 ```yaml
-type: dagster_component_templates.MarketingDataStandardizerComponent
+type: dagster_community_components.MarketingDataStandardizerComponent
 attributes:
   asset_name: standardized_facebook_data
   platform: "facebook_ads"
@@ -57,7 +57,7 @@ attributes:
 ### Advanced Example
 
 ```yaml
-type: dagster_component_templates.MarketingDataStandardizerComponent
+type: dagster_community_components.MarketingDataStandardizerComponent
 attributes:
   asset_name: standardized_google_data
   platform: "google_ads"
@@ -84,14 +84,14 @@ Combine multiple standardizers for cross-platform analysis:
 
 ```yaml
 # Standardize Facebook Ads
-- type: dagster_component_templates.MarketingDataStandardizerComponent
+- type: dagster_community_components.MarketingDataStandardizerComponent
   attributes:
     asset_name: std_facebook_data
     platform: "facebook_ads"
     upstream_asset_key: "facebook_ads_insights"
 
 # Standardize Google Ads
-- type: dagster_component_templates.MarketingDataStandardizerComponent
+- type: dagster_community_components.MarketingDataStandardizerComponent
   attributes:
     asset_name: std_google_data
     platform: "google_ads"
@@ -99,7 +99,7 @@ Combine multiple standardizers for cross-platform analysis:
     spend_multiplier: 0.000001
 
 # Combine both (using DataFrame Transformer or custom SQL)
-- type: dagster_component_templates.DataFrameTransformerComponent
+- type: dagster_community_components.DataFrameTransformerComponent
   attributes:
     asset_name: unified_marketing_data
     combine_method: "concat"

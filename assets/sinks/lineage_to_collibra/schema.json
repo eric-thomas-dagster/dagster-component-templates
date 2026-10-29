@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LineageToCollibraComponent",
+  "component_type": "dagster_community_components.LineageToCollibraComponent",
   "description": "Sink that pushes the upstream lineage_graph to Collibra Data Intelligence Platform.",
   "category": "sink",
   "icon": "ArrowRightLeft",

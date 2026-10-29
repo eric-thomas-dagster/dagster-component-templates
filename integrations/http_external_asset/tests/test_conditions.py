@@ -13,7 +13,7 @@ from __future__ import annotations
 import pytest
 
 # When running outside of an installed Dagster project, import the component file
-# directly so we don't depend on an installed dagster_component_templates package.
+# directly so we don't depend on an installed dagster_community_components package.
 import importlib.util
 import pathlib
 

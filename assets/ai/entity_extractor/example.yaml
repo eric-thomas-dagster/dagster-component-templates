@@ -1,4 +1,4 @@
-type: dagster_component_templates.EntityExtractorComponent
+type: dagster_community_components.EntityExtractorComponent
 attributes:
   asset_name: extracted_ticket_entities
   upstream_asset_key: raw_text

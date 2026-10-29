@@ -1,4 +1,4 @@
-type: dagster_component_templates.O365AuditLogIngestionComponent
+type: dagster_community_components.O365AuditLogIngestionComponent
 attributes:
   asset_name: o365_audit_log_ingestion_events
   tenant_id: 00000000-0000-0000-0000-000000000000

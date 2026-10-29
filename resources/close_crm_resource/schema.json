@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CloseCrmResourceComponent",
+  "component_type": "dagster_community_components.CloseCrmResourceComponent",
   "description": "Self-contained Close CRM REST API workhorse. HTTP Basic auth (API key as username, blank password). Close has no native atomic upsert endpoint, so this resource emulates one via search-then-write: POST /data/search/ (Advanced Filtering) to find an existing Lead by email / phone / name / custom field, then PUT /lead/{id}/ or POST /lead/. Retries on 429 (sliding-window rate limit, backs off using the RateLimit response header) and 5xx.",
   "category": "resource",
   "vertical": "crm-sales",

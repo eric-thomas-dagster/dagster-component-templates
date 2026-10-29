@@ -35,7 +35,7 @@ pip install gspread
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.GoogleSheetsResourceComponent
+type: dagster_community_components.GoogleSheetsResourceComponent
 attributes:
   resource_key: google_sheets_resource  # key other components use
   gcp_credentials_env_var: GCP_SERVICE_ACCOUNT_JSON  # env var holding service account JSON

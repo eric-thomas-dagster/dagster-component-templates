@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToSnowflakeBulkComponent",
+  "component_type": "dagster_community_components.DataframeToSnowflakeBulkComponent",
   "description": "Bulk-load a DataFrame to Snowflake via internal stage + COPY INTO (memory-efficient, chunked parquet).",
   "category": "sink",
   "icon": "si:snowflake",

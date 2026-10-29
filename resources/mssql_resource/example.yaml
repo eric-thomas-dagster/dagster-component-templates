@@ -1,4 +1,4 @@
-type: dagster_component_templates.MssqlResourceComponent
+type: dagster_community_components.MssqlResourceComponent
 attributes:
   resource_key: mssql_resource
   host: myserver.database.windows.net

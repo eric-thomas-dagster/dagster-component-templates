@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AutoSysAssetComponent",
+  "component_type": "dagster_community_components.AutoSysAssetComponent",
   "description": "AutoSys enterprise job scheduler component.",
   "category": "infrastructure",
   "icon": "Server",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ODataResourceComponent",
+  "component_type": "dagster_community_components.ODataResourceComponent",
   "description": "Register an OData service connection (base URL + auth) once and reuse it across components.",
   "category": "resource",
   "icon": "si:odata",

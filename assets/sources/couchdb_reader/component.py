@@ -194,7 +194,7 @@ class CouchdbReaderComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.CouchdbReaderComponent
+        type: dagster_community_components.CouchdbReaderComponent
         attributes:
           asset_name: couchdb_orders
           database: orders

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SnowflakeTimeTravelAssetComponent",
+  "component_type": "dagster_community_components.SnowflakeTimeTravelAssetComponent",
   "description": "Query a Snowflake table AT a past point in time (Time Travel) and materialize the result as a Dagster asset.",
   "category": "integration",
   "icon": "si:snowflake",

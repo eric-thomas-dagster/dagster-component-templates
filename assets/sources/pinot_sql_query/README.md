@@ -80,7 +80,7 @@ Plain HTTP+JSON API -- no native Pinot Python client required.
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.PinotSqlQueryComponent
+type: dagster_community_components.PinotSqlQueryComponent
 attributes:
   asset_name: daily_active_users
   broker_url: http://pinot-broker:8099

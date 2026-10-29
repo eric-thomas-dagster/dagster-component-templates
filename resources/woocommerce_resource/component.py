@@ -213,7 +213,7 @@ class WooCommerceResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.WooCommerceResourceComponent
+        type: dagster_community_components.WooCommerceResourceComponent
         attributes:
           resource_key: woocommerce
           store_url: https://mystore.com

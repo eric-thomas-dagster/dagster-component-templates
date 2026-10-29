@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ZohoCrmRecordUpsertComponent",
+  "component_type": "dagster_community_components.ZohoCrmRecordUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into a Zoho CRM module via the native Upsert Records API. `POST /crm/{version}/{module_api_name}/upsert` atomically creates or updates, matching on duplicate_check_fields -- no search-then-write. Chunks internally at Zoho's 100-records-per-request limit.",
   "category": "reverse_etl",
   "icon": "si:zoho",

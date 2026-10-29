@@ -258,7 +258,7 @@ The document path is not a YAML field: pass `file_path` in the run config (`ops.
 ### Extract PDF
 
 ```yaml
-type: dagster_component_templates.DocumentTextExtractorComponent
+type: dagster_community_components.DocumentTextExtractorComponent
 attributes:
   asset_name: report_text
   # file path is supplied at run time (RunConfig: ops.report_text.config.file_path, e.g. /data/reports/q4_report.pdf),
@@ -270,7 +270,7 @@ attributes:
 ### Extract with OCR
 
 ```yaml
-type: dagster_component_templates.DocumentTextExtractorComponent
+type: dagster_community_components.DocumentTextExtractorComponent
 attributes:
   asset_name: scanned_contract
   # file path is supplied at run time (RunConfig: ops.scanned_contract.config.file_path, e.g. /data/scanned/contract.pdf),
@@ -282,7 +282,7 @@ attributes:
 ### Extract Specific Pages
 
 ```yaml
-type: dagster_component_templates.DocumentTextExtractorComponent
+type: dagster_community_components.DocumentTextExtractorComponent
 attributes:
   asset_name: executive_summary
   # file path is supplied at run time (RunConfig: ops.executive_summary.config.file_path, e.g. /data/report.pdf),
@@ -294,7 +294,7 @@ attributes:
 ### Extract DOCX with Metadata
 
 ```yaml
-type: dagster_component_templates.DocumentTextExtractorComponent
+type: dagster_community_components.DocumentTextExtractorComponent
 attributes:
   asset_name: proposal_text
   # file path is supplied at run time (RunConfig: ops.proposal_text.config.file_path, e.g. /data/proposal.docx),

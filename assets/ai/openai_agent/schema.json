@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OpenAIAgentComponent",
+  "component_type": "dagster_community_components.OpenAIAgentComponent",
   "description": "Single-shot LLM agent with Model Context Protocol (MCP) tool support, using the OpenAI SDK directly (no LiteLLM dependency). Runs a tool-calling loop until the model returns a final answer or max_iterations is hit.",
   "category": "ai",
   "icon": "si:openai",

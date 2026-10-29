@@ -94,7 +94,7 @@ class GraphFirstAssetsComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.GraphFirstAssetsComponent
+        type: dagster_community_components.GraphFirstAssetsComponent
         attributes:
           assets:
             - key: warehouse/orders

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RegexParser",
+  "component_type": "dagster_community_components.RegexParser",
   "description": "Use regular expressions to extract, match, or replace text in a column.",
   "category": "transformation",
   "icon": "Shuffle",

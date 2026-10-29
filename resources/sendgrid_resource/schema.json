@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SendGridResourceComponent",
+  "component_type": "dagster_community_components.SendGridResourceComponent",
   "description": "Register a SendGridResource under a resource key. Holds SendGrid Marketing auth (Bearer <api_key>) and exposes upsert_contacts_bulk (async import job, up to 30,000 contacts/request) for downstream SendGrid sinks.",
   "category": "resource",
   "icon": "si:sendgrid",

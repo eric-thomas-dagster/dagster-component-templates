@@ -108,7 +108,7 @@ The Time Series Forecast Component fits statistical forecasting models to histor
 ### Auto Model Selection (default)
 
 ```yaml
-type: dagster_component_templates.TsForecastComponent
+type: dagster_community_components.TsForecastComponent
 attributes:
   asset_name: sales_forecast
   upstream_asset_key: sales_history
@@ -121,7 +121,7 @@ attributes:
 ### ARIMA Only
 
 ```yaml
-type: dagster_component_templates.TsForecastComponent
+type: dagster_community_components.TsForecastComponent
 attributes:
   asset_name: arima_forecast
   upstream_asset_key: sales_history
@@ -135,7 +135,7 @@ attributes:
 ### ETS with Seasonality
 
 ```yaml
-type: dagster_component_templates.TsForecastComponent
+type: dagster_community_components.TsForecastComponent
 attributes:
   asset_name: seasonal_forecast
   upstream_asset_key: monthly_data

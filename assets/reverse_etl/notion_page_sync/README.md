@@ -81,7 +81,7 @@ For creating brand-new pages on every run, use `notion_resource` directly from y
 
 ## Example
 ```yaml
-type: dagster_component_templates.NotionPageSyncComponent
+type: dagster_community_components.NotionPageSyncComponent
 attributes:
   asset_name: notion_kpi_dashboard
   upstream_asset_key: kpi_snapshot

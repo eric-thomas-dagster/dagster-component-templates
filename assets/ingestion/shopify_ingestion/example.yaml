@@ -1,4 +1,4 @@
-type: dagster_component_templates.ShopifyIngestionComponent
+type: dagster_community_components.ShopifyIngestionComponent
 attributes:
   asset_name: shopify_data
 

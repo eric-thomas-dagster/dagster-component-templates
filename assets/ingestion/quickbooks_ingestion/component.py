@@ -189,7 +189,7 @@ class QuickBooksIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.QuickBooksIngestionComponent
+        type: dagster_community_components.QuickBooksIngestionComponent
         attributes:
           asset_name: quickbooks_ingestion
           client_id: "${QUICKBOOKS_CLIENT_ID}"

@@ -3,7 +3,7 @@
 Pass/fail Dagster asset check that runs [Cloud DLP](https://cloud.google.com/dlp) against an upstream DataFrame and fails (or warns) if forbidden PII is present. Sister to the `cloud_dlp_inspect_asset` — same scan, different Dagster object type.
 
 ```yaml
-type: dagster_component_templates.CloudDlpPiiCheckComponent
+type: dagster_community_components.CloudDlpPiiCheckComponent
 attributes:
   asset_key: support_tickets
   check_name: no_payment_pii

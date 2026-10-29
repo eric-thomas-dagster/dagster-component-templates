@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SigmaResourceComponent",
+  "component_type": "dagster_community_components.SigmaResourceComponent",
   "description": "Register a SigmaResource wrapping Sigma Computing's REST API (OAuth2 client_credentials grant) for use by other components",
   "category": "resource",
   "icon": "si:sigma",

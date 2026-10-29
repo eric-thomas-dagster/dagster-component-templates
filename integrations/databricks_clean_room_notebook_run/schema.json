@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DatabricksCleanRoomNotebookRunComponent",
+  "component_type": "dagster_community_components.DatabricksCleanRoomNotebookRunComponent",
   "name": "Databricks Clean Room Notebook Run",
   "category": "integration",
   "icon": "si:databricks",

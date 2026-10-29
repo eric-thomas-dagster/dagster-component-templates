@@ -1,4 +1,4 @@
-type: dagster_component_templates.PiiRedactorComponent
+type: dagster_community_components.PiiRedactorComponent
 attributes:
   asset_name: redacted_messages
   upstream_asset_key: raw_user_messages

@@ -1,4 +1,4 @@
-type: dagster_component_templates.GraphFirstAssetsComponent
+type: dagster_community_components.GraphFirstAssetsComponent
 attributes:
   assets:
     - key: warehouse/orders

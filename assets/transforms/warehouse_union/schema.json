@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WarehouseUnionComponent",
+  "component_type": "dagster_community_components.WarehouseUnionComponent",
   "description": "Stack N tables vertically in the warehouse via UNION [ALL]. No Python materialization.",
   "category": "transformation",
   "icon": "Layers",

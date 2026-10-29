@@ -50,7 +50,7 @@ This resource authenticates against both; which endpoints you're approved for is
 ## Example
 
 ```yaml
-type: dagster_component_templates.ZocdocResourceComponent
+type: dagster_community_components.ZocdocResourceComponent
 attributes:
   resource_key: zocdoc_resource
   environment: sandbox

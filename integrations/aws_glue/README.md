@@ -92,7 +92,7 @@ On first load (before the cache is populated), the component returns an empty
 ## Quickstart
 
 ```yaml
-type: dagster_component_templates.AWSGlueComponent
+type: dagster_community_components.AWSGlueComponent
 attributes:
   region_name: us-east-1
   aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
@@ -113,7 +113,7 @@ dagster dev
 ## Advanced Example
 
 ```yaml
-type: dagster_component_templates.AWSGlueComponent
+type: dagster_community_components.AWSGlueComponent
 attributes:
   region_name: us-east-1
   aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"

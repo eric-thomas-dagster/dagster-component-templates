@@ -3,7 +3,7 @@
 Run a SQL query against a [Cloud Spanner](https://cloud.google.com/spanner) database and return rows as a pandas DataFrame.
 
 ```yaml
-type: dagster_component_templates.SpannerQueryAssetComponent
+type: dagster_community_components.SpannerQueryAssetComponent
 attributes:
   asset_name: active_orders
   instance_id: my-instance

@@ -9,7 +9,7 @@ Scan DataFrame text columns for PII / sensitive data via [Cloud DLP](https://clo
 | `dlp_findings` | list[dict] | Per-finding `{info_type, likelihood, (quote)}` |
 
 ```yaml
-type: dagster_component_templates.CloudDlpInspectAssetComponent
+type: dagster_community_components.CloudDlpInspectAssetComponent
 attributes:
   asset_name: tickets_dlp_scanned
   upstream_asset_key: support_tickets

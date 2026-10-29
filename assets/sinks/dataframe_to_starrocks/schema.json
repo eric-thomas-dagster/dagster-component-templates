@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToStarRocksComponent",
+  "component_type": "dagster_community_components.DataframeToStarRocksComponent",
   "description": "Bulk-ingest a Pandas DataFrame into StarRocks via Stream Load.\n\nMirrors ``dataframe_to_doris`` — same wire protocol, same response\nshape. Use this when your tables live on StarRocks instead of Doris.\n\nExample:\n    ```yaml\n    type: dagster_community_components.DataframeToStarRocksComponent\n    attributes:\n      asset_name: starrocks_orders_load\n      upstream_asset_key: orders_clean\n      table: orders\n      database: analytics\n      host_env_var: STARROCKS_FE_HOST\n      username_env_var: STARROCKS_USER\n      password_env_var: STARROCKS_PASSWORD\n    ```",
   "category": "sink",
   "icon": "favicon:starrocks.io",

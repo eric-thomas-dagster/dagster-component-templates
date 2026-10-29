@@ -3,7 +3,7 @@
 Parse FIX (Financial Information eXchange) trading messages — the dominant electronic-trading protocol — into a flat DataFrame. Resolves common tag IDs to friendly columns; preserves the full tag map in `tags_raw`.
 
 ```yaml
-type: dagster_component_templates.FixMessageParserComponent
+type: dagster_community_components.FixMessageParserComponent
 attributes:
   asset_name: fix_messages_parsed
   upstream_asset_key: fix_messages

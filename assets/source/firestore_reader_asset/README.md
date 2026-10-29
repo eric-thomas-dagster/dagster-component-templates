@@ -3,7 +3,7 @@
 Read documents from a Firestore collection (or collection group) into a pandas DataFrame.
 
 ```yaml
-type: dagster_component_templates.FirestoreReaderAssetComponent
+type: dagster_community_components.FirestoreReaderAssetComponent
 attributes:
   asset_name: active_orders
   credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}

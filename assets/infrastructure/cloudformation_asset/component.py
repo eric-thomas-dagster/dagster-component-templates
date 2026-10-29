@@ -56,7 +56,7 @@ class CloudFormationAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.CloudFormationAssetComponent
+        type: dagster_community_components.CloudFormationAssetComponent
         attributes:
           asset_name: provision_data_lake
           stack_name: my-company-data-platform

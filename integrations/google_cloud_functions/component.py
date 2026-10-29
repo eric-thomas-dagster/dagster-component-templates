@@ -59,7 +59,7 @@ class GoogleCloudFunctionsComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.GoogleCloudFunctionsComponent
+        type: dagster_community_components.GoogleCloudFunctionsComponent
         attributes:
           project_id: my-gcp-project
           location: us-central1

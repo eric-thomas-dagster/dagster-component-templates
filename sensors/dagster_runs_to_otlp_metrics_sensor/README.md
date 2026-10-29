@@ -58,7 +58,7 @@ Resource attributes:
 ## Example
 
 ```yaml
-type: dagster_component_templates.DagsterRunsToOtlpMetricsSensorComponent
+type: dagster_community_components.DagsterRunsToOtlpMetricsSensorComponent
 attributes:
   sensor_name: dagster_runs_to_otel_metrics
   otlp_endpoint_env_var: OTLP_METRICS_ENDPOINT

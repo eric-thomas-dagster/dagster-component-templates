@@ -237,7 +237,7 @@ class GraphQLIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.GraphQLIngestionComponent
+        type: dagster_community_components.GraphQLIngestionComponent
         attributes:
           asset_name: github_data
           endpoint_env_var: GITHUB_GRAPHQL_URL

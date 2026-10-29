@@ -105,7 +105,7 @@ class WarehouseDedupComponent(Component, Model, Resolvable):
     When `subset:` is unset, SELECT DISTINCT removes fully-duplicate rows.
 
     Example:
-        type: dagster_component_templates.WarehouseDedupComponent
+        type: dagster_community_components.WarehouseDedupComponent
         attributes:
           asset_name: customers_unique
           database_url: snowflake://...

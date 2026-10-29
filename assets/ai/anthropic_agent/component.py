@@ -80,7 +80,7 @@ class AnthropicAgentComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.AnthropicAgentComponent
+        type: dagster_community_components.AnthropicAgentComponent
         attributes:
           asset_name: dagster_plus_claude_agent
           prompt: "Summarize the last 5 runs in this Dagster+ deployment."

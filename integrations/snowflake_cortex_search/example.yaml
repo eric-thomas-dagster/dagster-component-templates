@@ -1,4 +1,4 @@
-type: dagster_component_templates.SnowflakeCortexSearchComponent
+type: dagster_community_components.SnowflakeCortexSearchComponent
 attributes:
   asset_name: cortex_search_demo
 

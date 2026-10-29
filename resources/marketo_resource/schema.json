@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MarketoResourceComponent",
+  "component_type": "dagster_community_components.MarketoResourceComponent",
   "description": "Marketo REST API client wrapper. OAuth client_credentials grant.",
   "category": "resource",
   "icon": "Megaphone",

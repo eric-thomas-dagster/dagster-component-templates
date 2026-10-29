@@ -190,7 +190,7 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ShopifyIngestionComponent
+        type: dagster_community_components.ShopifyIngestionComponent
         attributes:
           asset_name: shopify_data
           shop_url: "https://my-shop.myshopify.com"

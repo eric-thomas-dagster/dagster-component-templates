@@ -1,6 +1,6 @@
 # execution_mode: sql on BigQuery, learning from retrieval receipts that live in BigQuery tables.
 # One CREATE OR REPLACE TABLE statement chunks, stamps provenance, joins the receipt feedback, classifies and embeds; the corpus never leaves BigQuery.
-type: dagster_component_templates.ContextEngineeringPipelineComponent
+type: dagster_community_components.ContextEngineeringPipelineComponent
 attributes:
   asset_name: support_kb_bq
   source:

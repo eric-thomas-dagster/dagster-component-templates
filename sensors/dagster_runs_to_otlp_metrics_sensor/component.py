@@ -47,7 +47,7 @@ class DagsterRunsToOtlpMetricsSensorComponent(dg.Component, dg.Model, dg.Resolva
     Example (Datadog OTel ingest):
 
         ```yaml
-        type: dagster_component_templates.DagsterRunsToOtlpMetricsSensorComponent
+        type: dagster_community_components.DagsterRunsToOtlpMetricsSensorComponent
         attributes:
           sensor_name: dagster_runs_to_dd_otel
           otlp_endpoint_env_var: DD_OTLP_ENDPOINT
@@ -59,7 +59,7 @@ class DagsterRunsToOtlpMetricsSensorComponent(dg.Component, dg.Model, dg.Resolva
     Example (Grafana Cloud OTel):
 
         ```yaml
-        type: dagster_component_templates.DagsterRunsToOtlpMetricsSensorComponent
+        type: dagster_community_components.DagsterRunsToOtlpMetricsSensorComponent
         attributes:
           sensor_name: dagster_runs_to_grafana_otel
           otlp_endpoint_env_var: GRAFANA_OTLP_ENDPOINT

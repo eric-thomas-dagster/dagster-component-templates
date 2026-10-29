@@ -101,7 +101,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.GmailIngestionComponent
+type: dagster_community_components.GmailIngestionComponent
 attributes:
   asset_name: gmail_ingestion
   access_token: "${GMAIL_ACCESS_TOKEN}"

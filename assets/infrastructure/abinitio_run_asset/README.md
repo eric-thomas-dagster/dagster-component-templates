@@ -104,7 +104,7 @@ Dagster owns the schedule. When the asset is materialized, Dagster triggers the 
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.AbInitioRunAssetComponent
+type: dagster_community_components.AbInitioRunAssetComponent
 attributes:
   asset_key: abinitio/etl/load_orders
   job_path: /prod/etl/load_orders
@@ -122,7 +122,7 @@ attributes:
 Define the resource once and share it across all Ab Initio components:
 
 ```python
-from dagster_component_templates.assets.abinitio_run_asset.component import AbInitioResource
+from dagster_community_components.assets.abinitio_run_asset.component import AbInitioResource
 
 defs = Definitions(
     resources={

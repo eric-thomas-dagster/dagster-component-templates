@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RampResourceComponent",
+  "component_type": "dagster_community_components.RampResourceComponent",
   "description": "Register a RampResource (OAuth2 client_credentials grant against a Ramp Developer App) wrapping Ramp's Developer API for use by other components. Exposes mileage/receipt reimbursement creation, Vault-API virtual card creation, and physical-card display_name/fund_id/automatic_routing_enabled updates -- there is no spend-limit update endpoint, by design (Ramp's API has none).",
   "category": "resource",
   "icon": "si:ramp",

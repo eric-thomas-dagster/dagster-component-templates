@@ -12,7 +12,7 @@ with `receipts:` set, every rebuild learns from what was retrieved and how it tu
 This is the "build the knowledge base" half of context engineering: chunk/embed/classify raw text, govern it, and make it citeable — the same discipline-first treatment Dagster already applies to tables and metrics, applied to unstructured text instead. Same "pipeline component" shape as `ml_pipeline`, `rag_pipeline`, `warehouse_pipeline`, `polars_pipeline`: one YAML, a `steps:` list in reading order, each step's output readable by the next via `source:` (or, if omitted, the immediately-prior step).
 
 ```yaml
-type: dagster_component_templates.ContextEngineeringPipelineComponent
+type: dagster_community_components.ContextEngineeringPipelineComponent
 attributes:
   asset_name: support_kb
   upstream_asset_key: raw_support_tickets
@@ -394,7 +394,7 @@ A real corpus is almost never small enough to hold in one pandas DataFrame and p
 Never send the corpus to Python at all — chunk/embed/classify all run as warehouse-native SQL functions (Snowflake Cortex, BigQuery `ML.GENERATE_EMBEDDING`/`AI.CLASSIFY`, Databricks `ai_query`/`ai_classify`). Set `execution_mode: sql`:
 
 ```yaml
-type: dagster_component_templates.ContextEngineeringPipelineComponent
+type: dagster_community_components.ContextEngineeringPipelineComponent
 attributes:
   asset_name: support_kb_sql
   source:

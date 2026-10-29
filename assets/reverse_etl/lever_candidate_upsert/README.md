@@ -104,7 +104,7 @@ For each upstream row:
 
 ## Example
 ```yaml
-type: dagster_component_templates.LeverCandidateUpsertComponent
+type: dagster_community_components.LeverCandidateUpsertComponent
 attributes:
   asset_name: lever_candidates_mirror
   upstream_asset_key: dbt_marts_applicants

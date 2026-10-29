@@ -216,7 +216,7 @@ class BambooHrIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.BambooHrIngestionComponent
+        type: dagster_community_components.BambooHrIngestionComponent
         attributes:
           asset_name: bamboohr_ingestion
           company_domain: "mycompany"

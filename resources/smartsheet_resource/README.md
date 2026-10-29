@@ -11,7 +11,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.SmartsheetResourceComponent
+type: dagster_community_components.SmartsheetResourceComponent
 attributes:
   resource_key: smartsheet
   access_token_env_var: SMARTSHEET_ACCESS_TOKEN
@@ -83,7 +83,7 @@ Both `add_rows` and `update_rows` chunk automatically at Smartsheet's **500-rows
 
 ## Example
 ```yaml
-type: dagster_component_templates.SmartsheetResourceComponent
+type: dagster_community_components.SmartsheetResourceComponent
 attributes:
   resource_key: smartsheet
   access_token_env_var: SMARTSHEET_ACCESS_TOKEN

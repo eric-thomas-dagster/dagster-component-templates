@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SupabaseResourceComponent",
+  "component_type": "dagster_community_components.SupabaseResourceComponent",
   "description": "Register a SupabaseResource wrapping the supabase-py client for use by other components",
   "category": "resource",
   "icon": "si:supabase",

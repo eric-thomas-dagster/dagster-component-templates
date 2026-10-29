@@ -105,7 +105,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 ## Example
 
 ```yaml
-type: dagster_component_templates.KlaviyoIngestionComponent
+type: dagster_community_components.KlaviyoIngestionComponent
 attributes:
   asset_name: klaviyo_ingestion
   api_key: "${KLAVIYO_API_KEY}"
@@ -115,7 +115,7 @@ attributes:
 ## Example — sharing credentials with a KlaviyoResourceComponent
 
 ```yaml
-type: dagster_component_templates.KlaviyoIngestionComponent
+type: dagster_community_components.KlaviyoIngestionComponent
 attributes:
   asset_name: klaviyo_ingestion
   resource_key: klaviyo   # matches KlaviyoResourceComponent's default resource_key

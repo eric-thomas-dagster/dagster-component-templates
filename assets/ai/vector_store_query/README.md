@@ -166,7 +166,7 @@ query_embedding → search_results
 
 ### Basic Query with Direct Text
 ```yaml
-type: dagster_component_templates.VectorStoreQueryComponent
+type: dagster_community_components.VectorStoreQueryComponent
 attributes:
   asset_name: search_results
   provider: chromadb
@@ -177,7 +177,7 @@ attributes:
 
 ### With Pinecone
 ```yaml
-type: dagster_component_templates.VectorStoreQueryComponent
+type: dagster_community_components.VectorStoreQueryComponent
 attributes:
   asset_name: pinecone_results
   provider: pinecone

@@ -3,7 +3,7 @@
 Parse pipe-delimited HL7 v2 messages into a flat DataFrame. Emits one row per segment-of-interest with the MSH (message header) inherited as context columns on every row.
 
 ```yaml
-type: dagster_component_templates.Hl7V2ParserComponent
+type: dagster_community_components.Hl7V2ParserComponent
 attributes:
   asset_name: hl7_segments
   upstream_asset_key: hl7_messages

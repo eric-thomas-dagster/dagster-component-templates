@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GCSMonitorSensorComponent",
+  "component_type": "dagster_community_components.GCSMonitorSensorComponent",
   "description": "Component for monitoring a Google Cloud Storage bucket prefix for new objects.",
   "category": "sensor",
   "icon": "si:googlecloud",

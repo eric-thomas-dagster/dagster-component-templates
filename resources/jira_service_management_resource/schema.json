@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.JiraServiceManagementResourceComponent",
+  "component_type": "dagster_community_components.JiraServiceManagementResourceComponent",
   "description": "Shared Jira Service Management (JSM) connection: HTTP Basic auth (email + API token) over the servicedeskapi surface (/rest/servicedeskapi/...) for creating and commenting on customer requests, plus the core Jira API slice (/rest/api/3/...) JSM itself has no equivalent for (JQL search, field updates). Separate from jira_resource -- see README for why.",
   "category": "resource",
   "icon": "si:jira",

@@ -1,4 +1,4 @@
-type: dagster_component_templates.MqttObservationSensorComponent
+type: dagster_community_components.MqttObservationSensorComponent
 attributes:
   sensor_name: mqtt_sensors_obs
   asset_key: iot/sensors

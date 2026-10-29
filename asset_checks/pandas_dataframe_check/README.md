@@ -38,7 +38,7 @@ Wraps the official `pandas` package.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.PandasDataframeCheckComponent
+type: dagster_community_components.PandasDataframeCheckComponent
 attributes:
   asset_key: customers
   required_columns: [customer_id, email, created_at]

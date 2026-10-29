@@ -1,7 +1,7 @@
 # LLM Chain Executor receives context from upstream assets via IO manager
 # Draw connection from any asset producing context data (dict, text, etc.)
 
-type: dagster_component_templates.LLMChainExecutorComponent
+type: dagster_community_components.LLMChainExecutorComponent
 attributes:
   asset_name: chain_output
   upstream_asset_key: raw_text

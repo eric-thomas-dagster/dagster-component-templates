@@ -250,7 +250,7 @@ class Neo4jWriterComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.Neo4jWriterComponent
+        type: dagster_community_components.Neo4jWriterComponent
         attributes:
           asset_name: write_people_to_neo4j
           upstream_asset_key: processed_people

@@ -30,7 +30,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.MetronomeResourceComponent
+type: dagster_community_components.MetronomeResourceComponent
 attributes:
   resource_key: metronome_resource
   api_key_env_var: METRONOME_API_KEY

@@ -1,5 +1,5 @@
 # Text Classifier receives text from upstream assets via IO manager
-type: dagster_component_templates.TextClassifierComponent
+type: dagster_community_components.TextClassifierComponent
 attributes:
   asset_name: sentiment
   upstream_asset_key: raw_text

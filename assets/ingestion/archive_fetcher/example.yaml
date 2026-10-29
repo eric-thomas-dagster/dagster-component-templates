@@ -1,4 +1,4 @@
-type: dagster_component_templates.ArchiveFetcherComponent
+type: dagster_community_components.ArchiveFetcherComponent
 attributes:
   asset_name: movielens_raw
   url: https://files.grouplens.org/datasets/movielens/ml-latest-small.zip

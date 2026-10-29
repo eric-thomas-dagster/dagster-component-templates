@@ -7,7 +7,7 @@ List files matching a glob pattern from any fsspec-supported location — `s3://
 By default (`download: true`), every matched file is downloaded to a local cache directory and `local_path` points at the cached copy — every existing extractor works immediately with zero changes, since they already open plain local paths. Set `download: false` to list metadata only (path/size/modified_at, no bytes moved) when you just need a file inventory, or a downstream component already fsspec-opens `path` directly.
 
 ```yaml
-type: dagster_component_templates.FileListerComponent
+type: dagster_community_components.FileListerComponent
 attributes:
   asset_name: incoming_invoices
   path: s3://my-bucket/invoices/**/*.pdf
@@ -17,7 +17,7 @@ attributes:
 Wire it into an extractor by pointing `upstream_asset_key` at this asset and `image_column` (or the extractor's equivalent) at `local_path`:
 
 ```yaml
-type: dagster_component_templates.OcrExtractorComponent
+type: dagster_community_components.OcrExtractorComponent
 attributes:
   asset_name: invoice_text
   upstream_asset_key: incoming_invoices

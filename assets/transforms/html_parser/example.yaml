@@ -1,4 +1,4 @@
-type: dagster_component_templates.HtmlParserComponent
+type: dagster_community_components.HtmlParserComponent
 attributes:
   asset_name: parsed_html_content
   upstream_asset_key: raw_web_pages

@@ -34,7 +34,7 @@ pip install dagster-duckdb-pandas
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.DuckDBIOManagerComponent
+type: dagster_community_components.DuckDBIOManagerComponent
 attributes:
   resource_key: io_manager
   database: data/warehouse.duckdb
@@ -48,7 +48,7 @@ For MotherDuck (serverless DuckDB cloud), use the `motherduck_io_manager` compon
 A path-based DuckDB file doesn't support multiple writer processes safely. The [Quack remote protocol](https://duckdb.org/2026/05/12/quack-remote-protocol) (DuckDB v1.5.2+, May 2026) solves this with an HTTP-based client/server architecture — one DuckDB instance runs `quack_serve(...)`, everyone else connects as a client. Set `quack_remote:` on this IO manager to route all asset reads/writes through that server:
 
 ```yaml
-type: dagster_component_templates.DuckDBIOManagerComponent
+type: dagster_community_components.DuckDBIOManagerComponent
 attributes:
   resource_key: io_manager
   database: ":memory:"                    # local proxy; actual data lives on the remote

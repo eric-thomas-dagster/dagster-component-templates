@@ -475,7 +475,7 @@ def main() -> int:
     for p in plans:
         c = p.connector
         print(f"- {c.display_name} ({c.raw_vendor_type})")
-        print(f"    keep as-is:  type: dagster_component_templates.{p.keep_as_is_component.title().replace('_', '')}Component  (add '{c.connector_id}' to its filter list)")
+        print(f"    keep as-is:  type: dagster_community_components.{p.keep_as_is_component.title().replace('_', '')}Component  (add '{c.connector_id}' to its filter list)")
         if p.native_component:
             print(f"    convert to dlt: assets/ingestion/{p.native_component}  [scaffold generated]")
         else:

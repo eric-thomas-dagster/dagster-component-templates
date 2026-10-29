@@ -223,7 +223,7 @@ class JiraIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.JiraIngestionComponent
+        type: dagster_community_components.JiraIngestionComponent
         attributes:
           asset_name: jira_data
           domain: my-company.atlassian.net

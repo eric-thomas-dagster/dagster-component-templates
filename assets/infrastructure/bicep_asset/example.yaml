@@ -1,4 +1,4 @@
-type: dagster_component_templates.BicepAssetComponent
+type: dagster_community_components.BicepAssetComponent
 attributes:
   asset_name: provision_via_bicep
   resource_group: my-rg

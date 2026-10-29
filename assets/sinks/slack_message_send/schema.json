@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SlackMessageSendComponent",
+  "component_type": "dagster_community_components.SlackMessageSendComponent",
   "description": "SlackMessageSendComponent \u2014 post business-data-driven alerts to Slack.",
   "category": "sink",
   "x-dagster-io": {

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToVictoriaMetricsComponent",
+  "component_type": "dagster_community_components.DataframeToVictoriaMetricsComponent",
   "description": "Bulk-ingest a Pandas DataFrame as VictoriaMetrics time-series.\n\nExample:\n    ```yaml\n    type: dagster_community_components.DataframeToVictoriaMetricsComponent\n    attributes:\n      asset_name: vm_orders_throughput\n      upstream_asset_key: orders_throughput_per_region\n      metric_name: orders_throughput\n      base_url_env_var: VM_BASE_URL\n      timestamp_column: ts\n      value_column: throughput\n      # All other columns become labels:\n      # (region, source) on every emitted series\n    ```",
   "category": "sink",
   "icon": "si:victoriametrics",

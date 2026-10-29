@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SegmentResourceComponent",
+  "component_type": "dagster_community_components.SegmentResourceComponent",
   "description": "Register a SegmentResource under a resource key. Holds Segment HTTP API auth (HTTP Basic write_key) and exposes batch_ops (POST /v1/batch — identify/track/page/screen/group/alias, payload auto-packed to Segment's 500KB limit) for downstream Segment sinks.",
   "category": "resource",
   "icon": "si:segment",

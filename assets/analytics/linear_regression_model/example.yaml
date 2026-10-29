@@ -1,4 +1,4 @@
-type: dagster_component_templates.LinearRegressionModelComponent
+type: dagster_community_components.LinearRegressionModelComponent
 attributes:
   asset_name: house_price_predictions
   upstream_asset_key: house_features_clean

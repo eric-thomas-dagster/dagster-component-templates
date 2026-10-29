@@ -1,4 +1,4 @@
-type: dagster_component_templates.BoundingBoxFilterComponent
+type: dagster_community_components.BoundingBoxFilterComponent
 attributes:
   description: Filter GPS events to the contiguous United States bounding box.
   asset_name: us_gps_events

@@ -55,7 +55,7 @@ Pair with a `firebase_resource` component in the same Dagster project.
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.FirebaseStorageMonitorComponent
+type: dagster_community_components.FirebaseStorageMonitorComponent
 attributes:
   sensor_name: firebase_uploads_sensor
   bucket_name: my-project.appspot.com

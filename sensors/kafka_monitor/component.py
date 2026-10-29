@@ -34,7 +34,7 @@ class KafkaMonitorSensorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.KafkaMonitorSensorComponent
+        type: dagster_community_components.KafkaMonitorSensorComponent
         attributes:
           sensor_name: kafka_events_sensor
           bootstrap_servers: localhost:9092

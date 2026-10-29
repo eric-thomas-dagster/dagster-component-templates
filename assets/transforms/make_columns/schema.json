@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MakeColumnsComponent",
+  "component_type": "dagster_community_components.MakeColumnsComponent",
   "description": "Reshape a single column of values into a wide multi-column format.",
   "category": "transformation",
   "icon": "Shuffle",

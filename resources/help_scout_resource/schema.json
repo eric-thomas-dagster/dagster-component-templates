@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.HelpScoutResourceComponent",
+  "component_type": "dagster_community_components.HelpScoutResourceComponent",
   "description": "Register a HelpScoutResource wrapping the Help Scout Mailbox API v2 (OAuth2 client_credentials grant) for use by other components",
   "category": "resource",
   "icon": "si:helpscout",

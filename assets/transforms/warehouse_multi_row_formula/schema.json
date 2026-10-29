@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WarehouseMultiRowFormulaComponent",
+  "component_type": "dagster_community_components.WarehouseMultiRowFormulaComponent",
   "description": "Row-relative formulas (running totals / LAG/LEAD / ranks) via SQL window functions. Alteryx Multi-Row Formula equivalent.",
   "category": "transformation",
   "icon": "TrendingUp",

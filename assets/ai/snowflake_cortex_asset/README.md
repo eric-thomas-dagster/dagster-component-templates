@@ -163,7 +163,7 @@ pip install snowflake-connector-python>=3.6.0 snowflake-sqlalchemy>=1.5.0
 ### Sentiment analysis on support tickets
 
 ```yaml
-type: dagster_component_templates.SnowflakeCortexAssetComponent
+type: dagster_community_components.SnowflakeCortexAssetComponent
 attributes:
   asset_name: support_ticket_sentiment
   snowflake_account_env_var: SNOWFLAKE_ACCOUNT
@@ -184,7 +184,7 @@ attributes:
 ### LLM completion with a prompt template
 
 ```yaml
-type: dagster_component_templates.SnowflakeCortexAssetComponent
+type: dagster_community_components.SnowflakeCortexAssetComponent
 attributes:
   asset_name: ticket_summary
   snowflake_account_env_var: SNOWFLAKE_ACCOUNT
@@ -204,7 +204,7 @@ attributes:
 ### Text classification
 
 ```yaml
-type: dagster_component_templates.SnowflakeCortexAssetComponent
+type: dagster_community_components.SnowflakeCortexAssetComponent
 attributes:
   asset_name: ticket_category
   snowflake_account_env_var: SNOWFLAKE_ACCOUNT

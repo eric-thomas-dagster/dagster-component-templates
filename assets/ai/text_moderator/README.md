@@ -157,7 +157,7 @@ The Text Moderator Component provides comprehensive content moderation and safet
 Free, fast, and accurate:
 
 ```yaml
-type: dagster_component_templates.TextModeratorComponent
+type: dagster_community_components.TextModeratorComponent
 attributes:
   asset_name: moderated_comments
 
@@ -180,7 +180,7 @@ attributes:
 Google's content safety API:
 
 ```yaml
-type: dagster_component_templates.TextModeratorComponent
+type: dagster_community_components.TextModeratorComponent
 attributes:
   asset_name: perspective_moderated
 
@@ -200,7 +200,7 @@ attributes:
 No API required:
 
 ```yaml
-type: dagster_component_templates.TextModeratorComponent
+type: dagster_community_components.TextModeratorComponent
 attributes:
   asset_name: local_moderated
 
@@ -222,7 +222,7 @@ attributes:
 For specialized moderation needs:
 
 ```yaml
-type: dagster_component_templates.TextModeratorComponent
+type: dagster_community_components.TextModeratorComponent
 attributes:
   asset_name: llm_moderated
 
@@ -248,7 +248,7 @@ attributes:
 Detect and redact sensitive information:
 
 ```yaml
-type: dagster_component_templates.TextModeratorComponent
+type: dagster_community_components.TextModeratorComponent
 attributes:
   asset_name: pii_protected
 
@@ -275,7 +275,7 @@ Redacted: "Contact me at [REDACTED] or [REDACTED]"
 Add domain-specific prohibited words:
 
 ```yaml
-type: dagster_component_templates.TextModeratorComponent
+type: dagster_community_components.TextModeratorComponent
 attributes:
   asset_name: custom_moderated
 
@@ -403,7 +403,7 @@ Assuming average 150 tokens input, 100 tokens output per text:
 
 ```yaml
 # Step 1: Moderate content
-- type: dagster_component_templates.TextModeratorComponent
+- type: dagster_community_components.TextModeratorComponent
   attributes:
     asset_name: moderated_comments
     method: openai_moderation
@@ -422,14 +422,14 @@ Use multiple methods for higher accuracy:
 
 ```yaml
 # Level 1: Fast OpenAI Moderation
-- type: dagster_component_templates.TextModeratorComponent
+- type: dagster_community_components.TextModeratorComponent
   attributes:
     asset_name: level1_moderated
     method: openai_moderation
     threshold: 0.8  # Higher threshold
 
 # Level 2: LLM review for borderline cases
-- type: dagster_component_templates.TextModeratorComponent
+- type: dagster_community_components.TextModeratorComponent
   attributes:
     asset_name: level2_moderated
     method: llm
@@ -440,7 +440,7 @@ Use multiple methods for higher accuracy:
 ### PII Compliance Pipeline
 
 ```yaml
-type: dagster_component_templates.TextModeratorComponent
+type: dagster_community_components.TextModeratorComponent
 attributes:
   asset_name: pii_compliant
 
@@ -461,7 +461,7 @@ attributes:
 ### Real-Time Comment Moderation
 
 ```yaml
-type: dagster_component_templates.TextModeratorComponent
+type: dagster_community_components.TextModeratorComponent
 attributes:
   asset_name: realtime_moderated
 
@@ -483,7 +483,7 @@ attributes:
 ### User Comments Platform
 
 ```yaml
-type: dagster_component_templates.TextModeratorComponent
+type: dagster_community_components.TextModeratorComponent
 attributes:
   asset_name: moderated_user_comments
 
@@ -501,7 +501,7 @@ attributes:
 ### Product Review Filtering
 
 ```yaml
-type: dagster_component_templates.TextModeratorComponent
+type: dagster_community_components.TextModeratorComponent
 attributes:
   asset_name: clean_reviews
 
@@ -519,7 +519,7 @@ attributes:
 ### Support Ticket Safety
 
 ```yaml
-type: dagster_component_templates.TextModeratorComponent
+type: dagster_community_components.TextModeratorComponent
 attributes:
   asset_name: safe_tickets
 

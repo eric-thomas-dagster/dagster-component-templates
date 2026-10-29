@@ -236,7 +236,7 @@ class PinterestAudienceUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.PinterestAudienceUpsertComponent
+        type: dagster_community_components.PinterestAudienceUpsertComponent
         attributes:
           asset_name: pinterest_high_ltv_customers_audience
           upstream_asset_key: dbt_marts_high_ltv_customers

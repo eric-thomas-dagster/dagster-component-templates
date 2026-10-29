@@ -1,4 +1,4 @@
-type: dagster_component_templates.ChromadbAssetComponent
+type: dagster_community_components.ChromadbAssetComponent
 attributes:
   asset_name: product_chroma_collection
   upstream_asset_key: rows_to_index

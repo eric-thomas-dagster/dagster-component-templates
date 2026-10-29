@@ -67,7 +67,7 @@ class FreshserviceResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.FreshserviceResourceComponent
+        type: dagster_community_components.FreshserviceResourceComponent
         attributes:
           resource_key: freshservice_resource
           domain: mycompany.freshservice.com

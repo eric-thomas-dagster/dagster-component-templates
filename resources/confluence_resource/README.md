@@ -53,7 +53,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.ConfluenceResourceComponent
+type: dagster_community_components.ConfluenceResourceComponent
 attributes:
   resource_key: confluence  # key other components use
   site_domain: yoursite  # for yoursite.atlassian.net
@@ -84,7 +84,7 @@ Create an API token at [id.atlassian.com/manage-profile/security/api-tokens](htt
 
 ## Example
 ```yaml
-type: dagster_component_templates.ConfluenceResourceComponent
+type: dagster_community_components.ConfluenceResourceComponent
 attributes:
   resource_key: confluence
   site_domain: yoursite

@@ -108,7 +108,7 @@ google-api-python-client>=2.0.0
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.GoogleCalendarIngestionComponent
+type: dagster_community_components.GoogleCalendarIngestionComponent
 attributes:
   asset_name: upcoming_events
   credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}

@@ -106,7 +106,7 @@ class ExternalIcebergTableAsset(dg.Component, dg.Model, dg.Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ExternalIcebergTableAsset
+        type: dagster_community_components.ExternalIcebergTableAsset
         attributes:
           asset_key: sales/orders
           catalog_name: my_polaris_catalog

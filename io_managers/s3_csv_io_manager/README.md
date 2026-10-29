@@ -41,7 +41,7 @@ For an asset with `BackfillPolicy.single_run()`, one run covers a range of parti
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.S3CsvIOManagerComponent
+type: dagster_community_components.S3CsvIOManagerComponent
 attributes:
   resource_key: io_manager
   bucket: <fill in>

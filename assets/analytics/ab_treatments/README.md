@@ -76,7 +76,7 @@ Takes a DataFrame of users and assigns each to a variant using a stable hash of 
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ABTreatmentsComponent
+type: dagster_community_components.ABTreatmentsComponent
 attributes:
   asset_name: checkout_button_assignments
   upstream_asset_key: eligible_users

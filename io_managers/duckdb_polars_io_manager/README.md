@@ -25,7 +25,7 @@ Wraps the official `dagster-duckdb-polars` package.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.DuckDBPolarsIOManagerComponent
+type: dagster_community_components.DuckDBPolarsIOManagerComponent
 attributes:
   resource_key: <fill in>
   database: <fill in>

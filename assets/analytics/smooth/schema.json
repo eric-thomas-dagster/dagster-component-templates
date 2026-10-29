@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SmoothComponent",
+  "component_type": "dagster_community_components.SmoothComponent",
   "description": "Simplify geometries via Douglas-Peucker, reducing point count while preserving overall shape.",
   "category": "analytics",
   "icon": "Pen",

@@ -17,7 +17,7 @@ class RiveryJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.RiveryJobSensorComponent
+        type: dagster_community_components.RiveryJobSensorComponent
         attributes:
           sensor_name: rivery_salesforce_done
           river_id: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OpenAPIIngestionComponent",
+  "component_type": "dagster_community_components.OpenAPIIngestionComponent",
   "description": "Create one Dagster asset per OpenAPI tag group, backed by a cached spec.",
   "category": "ingestion",
   "vertical": "internal",

@@ -1,4 +1,4 @@
-type: dagster_component_templates.FirestoreWriterAssetComponent
+type: dagster_community_components.FirestoreWriterAssetComponent
 attributes:
   asset_name: customer_360_to_firestore
   upstream_asset_key: customer_360

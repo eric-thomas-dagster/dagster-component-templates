@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SQSMonitorSensorComponent",
+  "component_type": "dagster_community_components.SQSMonitorSensorComponent",
   "description": "Component for polling an AWS SQS queue for new messages.",
   "category": "sensor",
   "icon": "Radar",

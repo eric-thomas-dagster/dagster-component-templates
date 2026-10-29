@@ -79,7 +79,7 @@ Extract keywords and key phrases from a text column. Supports TF-IDF (corpus-lev
 
 ## Example YAML
 ```yaml
-component_type: dagster_component_templates.KeywordExtractorComponent
+component_type: dagster_community_components.KeywordExtractorComponent
 asset_name: extracted_keywords
 upstream_asset_key: article_text
 input_column: body

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ArimaForecastComponent",
+  "component_type": "dagster_community_components.ArimaForecastComponent",
   "description": "Fit an ARIMA time series model and generate forecasts.",
   "category": "transformation",
   "icon": "Shuffle",

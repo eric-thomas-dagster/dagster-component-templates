@@ -1,4 +1,4 @@
-type: dagster_component_templates.AuditLogsToDatadogLogsComponent
+type: dagster_community_components.AuditLogsToDatadogLogsComponent
 attributes:
   asset_name: audit_logs_to_datadog_logs_shipped
   upstream_asset_key: normalized_audit_events

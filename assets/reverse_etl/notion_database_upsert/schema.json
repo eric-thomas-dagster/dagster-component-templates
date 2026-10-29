@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.NotionDatabaseUpsertComponent",
+  "component_type": "dagster_community_components.NotionDatabaseUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into a Notion database. Each row is matched against existing pages by key_property; matches are updated, misses are inserted. Property values are serialized based on the database's schema, retrieved from the Notion API at materialize time.",
   "category": "reverse_etl",
   "icon": "si:notion",

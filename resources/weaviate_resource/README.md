@@ -29,7 +29,7 @@ Register a dagster-weaviate WeaviateResource for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.WeaviateResourceComponent
+type: dagster_community_components.WeaviateResourceComponent
 attributes:
   resource_key: weaviate_resource  # key other components use
   # Optional

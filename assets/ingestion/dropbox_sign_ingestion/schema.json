@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DropboxSignIngestionComponent",
+  "component_type": "dagster_community_components.DropboxSignIngestionComponent",
   "description": "Ingest Dropbox Sign (formerly HelloSign) e-signature data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "productivity",

@@ -48,7 +48,7 @@ pip install requests requests-oauthlib
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.NetSuiteResourceComponent
+type: dagster_community_components.NetSuiteResourceComponent
 attributes:
   resource_key: netsuite
   account_id: "1234567_SB1"       # sandbox account id (prod: no _SBn suffix)

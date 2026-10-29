@@ -1,4 +1,4 @@
-type: dagster_component_templates.SalesforceResourceComponent
+type: dagster_community_components.SalesforceResourceComponent
 attributes:
   resource_key: salesforce
   username: svc-account@mycompany.com

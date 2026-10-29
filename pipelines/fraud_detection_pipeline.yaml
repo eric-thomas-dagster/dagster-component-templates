@@ -16,7 +16,7 @@
 
 ---
 # Component 1: Transaction Data Ingestion
-type: dagster_component_templates.StripeIngestionComponent
+type: dagster_community_components.StripeIngestionComponent
 attributes:
   asset_name: stripe_transactions
   resource_type: charges
@@ -25,7 +25,7 @@ attributes:
 
 ---
 # Component 2: Transaction Standardization
-type: dagster_component_templates.EcommerceStandardizerComponent
+type: dagster_community_components.EcommerceStandardizerComponent
 attributes:
   asset_name: standardized_transactions
   platform: stripe
@@ -36,7 +36,7 @@ attributes:
 ---
 # Component 3: Customer Behavior Baseline
 # Calculate normal behavior patterns per customer
-type: dagster_component_templates.Customer360Component
+type: dagster_community_components.Customer360Component
 attributes:
   asset_name: customer_profiles
   transaction_data_asset: standardized_transactions
@@ -46,7 +46,7 @@ attributes:
 
 ---
 # Component 4: Transaction Amount Anomalies
-type: dagster_component_templates.AnomalyDetectionComponent
+type: dagster_community_components.AnomalyDetectionComponent
 attributes:
   asset_name: amount_anomalies
   source_asset: standardized_transactions
@@ -59,7 +59,7 @@ attributes:
 
 ---
 # Component 5: Transaction Frequency Anomalies
-type: dagster_component_templates.AnomalyDetectionComponent
+type: dagster_community_components.AnomalyDetectionComponent
 attributes:
   asset_name: frequency_anomalies
   source_asset: standardized_transactions
@@ -73,7 +73,7 @@ attributes:
 
 ---
 # Component 6: Geographic Anomalies
-type: dagster_component_templates.AnomalyDetectionComponent
+type: dagster_community_components.AnomalyDetectionComponent
 attributes:
   asset_name: location_anomalies
   source_asset: standardized_transactions
@@ -85,7 +85,7 @@ attributes:
 
 ---
 # Component 7: Write Fraud Detection Results to Database
-type: dagster_component_templates.DLTDataFrameWriterComponent
+type: dagster_community_components.DLTDataFrameWriterComponent
 attributes:
   asset_name: fraud_detection_output
   source_asset: location_anomalies

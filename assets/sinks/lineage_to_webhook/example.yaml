@@ -1,4 +1,4 @@
-type: dagster_component_templates.LineageToWebhookComponent
+type: dagster_community_components.LineageToWebhookComponent
 attributes:
   asset_name: lineage_to_webhook
   upstream_asset_key: lineage_graph

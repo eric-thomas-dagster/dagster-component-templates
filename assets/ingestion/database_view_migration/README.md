@@ -60,7 +60,7 @@ When the `CREATE VIEW` errors at migration time, the migration team's checklist 
 ## Example: Oracle → Snowflake view migration
 
 ```yaml
-type: dagster_component_templates.DatabaseViewMigrationComponent
+type: dagster_community_components.DatabaseViewMigrationComponent
 attributes:
   asset_name: v_quarterly_revenue_in_warehouse
   source_connection_env_var: ORACLE_URL

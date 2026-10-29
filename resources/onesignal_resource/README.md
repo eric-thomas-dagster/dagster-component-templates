@@ -36,7 +36,7 @@ Pairs with `onesignal_push_send` (the reverse-ETL "send a push notification to e
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.OneSignalResourceComponent
+type: dagster_community_components.OneSignalResourceComponent
 attributes:
   resource_key: onesignal_resource  # key other components use
   app_id: "11111111-2222-3333-4444-555555555555"

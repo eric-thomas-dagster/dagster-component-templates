@@ -1,4 +1,4 @@
-type: dagster_component_templates.PiiDetectorComponent
+type: dagster_community_components.PiiDetectorComponent
 attributes:
   asset_name: pii_detected_text
   upstream_asset_key: raw_user_messages

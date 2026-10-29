@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SnowflakeStreamComponent",
+  "component_type": "dagster_community_components.SnowflakeStreamComponent",
   "description": "Define a Snowflake STREAM (CDC) as Dagster YAML. Materialization runs CREATE OR REPLACE STREAM ON TABLE.",
   "category": "integration",
   "icon": "si:snowflake",

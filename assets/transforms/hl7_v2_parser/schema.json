@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.Hl7V2ParserComponent",
+  "component_type": "dagster_community_components.Hl7V2ParserComponent",
   "description": "Hl7V2ParserComponent — parse pipe-delimited HL7 v2 messages to a DataFrame.",
   "category": "transformation",
   "x-dagster-io": {

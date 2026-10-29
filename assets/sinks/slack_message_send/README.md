@@ -3,7 +3,7 @@
 Post a templated message to Slack — one per upstream row (data-driven alert) or one digest message per run. Pairs with [`slack_resource`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/resources/slack_resource) for auth, or [`slack_ingestion`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/ingestion/slack_ingestion) for round-trip pipelines (read from Slack, write business alerts back to Slack).
 
 ```yaml
-type: dagster_component_templates.SlackMessageSendComponent
+type: dagster_community_components.SlackMessageSendComponent
 attributes:
   asset_name: customer_health_slack_alert
   upstream_asset_key: customers_crossing_health_threshold

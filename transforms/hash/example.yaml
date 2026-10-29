@@ -1,4 +1,4 @@
-type: dagster_component_templates.HashComponent
+type: dagster_community_components.HashComponent
 attributes:
   asset_name: hash_output
   upstream_asset_key: upstream_data

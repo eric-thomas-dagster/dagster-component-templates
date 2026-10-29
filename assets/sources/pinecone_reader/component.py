@@ -195,7 +195,7 @@ class PineconeReaderComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.PineconeReaderComponent
+        type: dagster_community_components.PineconeReaderComponent
         attributes:
           asset_name: pinecone_results
           index_name: my-embeddings

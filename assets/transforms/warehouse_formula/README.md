@@ -11,7 +11,7 @@ The warehouse-side counterpart to:
 ## YAML
 
 ```yaml
-type: dagster_component_templates.WarehouseFormulaComponent
+type: dagster_community_components.WarehouseFormulaComponent
 attributes:
   asset_name: orders_enriched
   database_url: snowflake://...

@@ -1,5 +1,5 @@
 # Using env vars directly
-type: dagster_component_templates.AbInitioJobSensorComponent
+type: dagster_community_components.AbInitioJobSensorComponent
 attributes:
   sensor_name: abinitio_etl_done
   eme_url_env_var: ABINITIO_EME_URL

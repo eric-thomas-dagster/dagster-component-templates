@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TikTokCustomAudienceUpsertComponent",
+  "component_type": "dagster_community_components.TikTokCustomAudienceUpsertComponent",
   "description": "Reverse-ETL / audience activation: upload an upstream DataFrame into a TikTok Custom Audience via the two-stage file-upload + update flow (dmp/custom_audience/file/upload then dmp/custom_audience/update). One file is uploaded per identifier type present in fields_map. Identifiers are SHA-256 hashed before upload. Supports 'add' (APPEND) and 'remove' (REMOVE).",
   "category": "reverse_etl",
   "icon": "si:tiktok",

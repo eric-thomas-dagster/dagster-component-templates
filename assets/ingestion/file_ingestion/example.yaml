@@ -1,4 +1,4 @@
-type: dagster_component_templates.FileIngestionComponent
+type: dagster_community_components.FileIngestionComponent
 attributes:
   asset_name: my_data
   format: auto                  # auto | csv | tsv | json | jsonl | parquet | excel

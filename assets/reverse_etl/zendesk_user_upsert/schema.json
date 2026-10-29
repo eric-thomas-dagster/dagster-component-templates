@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ZendeskUserUpsertComponent",
+  "component_type": "dagster_community_components.ZendeskUserUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Zendesk end-users via the native create_or_update endpoint. `POST /api/v2/users/create_or_update.json` atomically creates or updates based on matching email.",
   "category": "reverse_etl",
   "icon": "si:zendesk",

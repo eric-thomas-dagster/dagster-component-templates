@@ -102,7 +102,7 @@ sqlalchemy>=2.0.0
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.KinesisToDatabaseAssetComponent
+type: dagster_community_components.KinesisToDatabaseAssetComponent
 attributes:
   asset_name: kinesis_events_ingest
   stream_name: my-stream

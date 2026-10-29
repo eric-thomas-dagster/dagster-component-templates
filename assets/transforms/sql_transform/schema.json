@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SqlTransformComponent",
+  "component_type": "dagster_community_components.SqlTransformComponent",
   "description": "Run a SELECT and either materialize the result as a table (CTAS / INSERT pushdown) or return a DataFrame inline. Template body is rendered with Jinja2 (supports {% if %} / {% for %} / filters), with Dagster context auto-injected ({{ partition_key }}, {{ partition_key_range_start }}, {{ partition_key_range_end }}, {{ asset_key }}, {{ run_id }}).",
   "category": "transformation",
   "icon": "Database",

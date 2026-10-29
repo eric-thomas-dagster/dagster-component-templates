@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ProductRecommendationsComponent",
+  "component_type": "dagster_community_components.ProductRecommendationsComponent",
   "description": "Component for generating product recommendations.",
   "category": "analytics",
   "icon": "BarChart2",

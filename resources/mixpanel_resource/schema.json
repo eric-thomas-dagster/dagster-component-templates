@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MixpanelResourceComponent",
+  "component_type": "dagster_community_components.MixpanelResourceComponent",
   "description": "Register a MixpanelResource under a resource key. Holds Mixpanel auth (service account for /import; project token for /engage) and exposes import_events_bulk (up to 2000/call) + set_profiles_bulk (up to 50/call) for downstream Mixpanel sinks.",
   "category": "resource",
   "icon": "si:mixpanel",

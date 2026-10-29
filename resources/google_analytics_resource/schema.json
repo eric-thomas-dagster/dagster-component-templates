@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GoogleAnalyticsResourceComponent",
+  "component_type": "dagster_community_components.GoogleAnalyticsResourceComponent",
   "description": "Register a GoogleAnalyticsResource wrapping the GA4 Data API client for use by other components",
   "category": "resource",
   "icon": "si:googleanalytics",

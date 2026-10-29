@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.VercelIngestionComponent",
+  "component_type": "dagster_community_components.VercelIngestionComponent",
   "description": "Ingest Vercel deployment, project, and domain data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "devops-observability",

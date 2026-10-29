@@ -28,7 +28,7 @@ Register a dagster-dbt DbtCloudClientResource for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.DbtCloudResourceComponent
+type: dagster_community_components.DbtCloudResourceComponent
 attributes:
   resource_key: dbt_cloud_resource  # key other components use
   # Required

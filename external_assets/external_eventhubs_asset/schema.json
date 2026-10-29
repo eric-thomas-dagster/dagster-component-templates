@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ExternalEventHubsAsset",
+  "component_type": "dagster_community_components.ExternalEventHubsAsset",
   "description": "Declare an Event Hubs event stream as an external asset in the Dagster asset graph — makes it visible for lineage without materializing it from Dagster.",
   "category": "external",
   "icon": "Link",

@@ -216,7 +216,7 @@ class TalkdeskIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.TalkdeskIngestionComponent
+        type: dagster_community_components.TalkdeskIngestionComponent
         attributes:
           asset_name: talkdesk_ingestion
           account_subdomain: "mycompany"

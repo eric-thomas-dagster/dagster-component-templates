@@ -195,7 +195,7 @@ class PgvectorReaderComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.PgvectorReaderComponent
+        type: dagster_community_components.PgvectorReaderComponent
         attributes:
           asset_name: similar_documents
           table_name: document_embeddings

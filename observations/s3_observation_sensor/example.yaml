@@ -1,4 +1,4 @@
-type: dagster_component_templates.S3ObservationSensorComponent
+type: dagster_community_components.S3ObservationSensorComponent
 attributes:
   sensor_name: s3_orders_obs
   asset_key: raw/orders

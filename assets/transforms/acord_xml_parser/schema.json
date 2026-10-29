@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AcordXmlParserComponent",
+  "component_type": "dagster_community_components.AcordXmlParserComponent",
   "description": "Parse ACORD insurance XML messages (P&C and Life) — flatten any ACORD envelope into one row per Policy / Claim / Application. Auto-detects namespaces; carries message-level metadata into every row.",
   "category": "transformation",
   "icon": "FileText",

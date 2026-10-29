@@ -87,7 +87,7 @@ Pairs with `snowflake_workspace` (which DISCOVERS existing entities) — use thi
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.SnowflakeIcebergTableComponent
+type: dagster_community_components.SnowflakeIcebergTableComponent
 attributes:
   asset_name: orders_iceberg
   account:     "{{ env('SNOWFLAKE_ACCOUNT') }}"

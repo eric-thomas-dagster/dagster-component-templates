@@ -1,4 +1,4 @@
-type: dagster_component_templates.Db2ResourceComponent
+type: dagster_community_components.Db2ResourceComponent
 attributes:
   resource_key: db2_resource
   host: localhost

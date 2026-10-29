@@ -3,7 +3,7 @@
 Plug Cloud Composer into [`dagster-airlift`](https://docs.dagster.io/integrations/airlift). Returns a configured `AirflowAuthBackend` you hand to `AirflowInstance`, then use dagster-airlift's full set of APIs (DAG triggering, observation, migration helpers) against your Composer environment.
 
 ```yaml
-type: dagster_component_templates.ComposerAirflowAuthBackendResourceComponent
+type: dagster_community_components.ComposerAirflowAuthBackendResourceComponent
 attributes:
   resource_key: composer_airflow_auth
   airflow_url: https://abc123-dot-us-central1.composer.googleusercontent.com

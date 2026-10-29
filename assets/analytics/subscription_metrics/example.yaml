@@ -1,4 +1,4 @@
-type: dagster_component_templates.SubscriptionMetricsComponent
+type: dagster_community_components.SubscriptionMetricsComponent
 attributes:
   asset_name: subscription_metrics
 

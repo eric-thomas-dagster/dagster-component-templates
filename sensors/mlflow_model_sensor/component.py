@@ -33,7 +33,7 @@ class MLflowModelSensor(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.MLflowModelSensor
+        type: dagster_community_components.MLflowModelSensor
         attributes:
           sensor_name: production_model_trigger
           tracking_uri_env_var: MLFLOW_TRACKING_URI

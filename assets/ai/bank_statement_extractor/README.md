@@ -120,7 +120,7 @@ The Bank Statement Extractor Component uses a large language model to parse unst
 ### Basic Bank Statement Extraction
 
 ```yaml
-type: dagster_component_templates.BankStatementExtractorComponent
+type: dagster_community_components.BankStatementExtractorComponent
 attributes:
   asset_name: parsed_bank_statements
   upstream_asset_key: raw_bank_statements

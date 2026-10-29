@@ -1,4 +1,4 @@
-type: dagster_component_templates.Neo4jResourceComponent
+type: dagster_community_components.Neo4jResourceComponent
 attributes:
   resource_key: neo4j_resource
   uri: "bolt://localhost:7687"

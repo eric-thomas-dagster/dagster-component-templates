@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LookerAssetsComponent",
+  "component_type": "dagster_community_components.LookerAssetsComponent",
   "description": "Import Looker LookML views + dashboards as Dagster external assets via dagster-looker.",
   "category": "integration",
   "icon": "si:looker",

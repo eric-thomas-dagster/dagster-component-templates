@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DatabricksTableObservationSensorComponent",
+  "component_type": "dagster_community_components.DatabricksTableObservationSensorComponent",
   "description": "Emit health observations for an external Databricks Delta table.",
   "category": "observation",
   "icon": "si:databricks",

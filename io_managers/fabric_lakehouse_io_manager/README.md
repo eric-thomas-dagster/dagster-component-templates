@@ -15,7 +15,7 @@ in the configured lakehouse:
 
 ```yaml
 # defs/iomgr/defs.yaml
-type: dagster_component_templates.FabricLakehouseIOManagerComponent
+type: dagster_community_components.FabricLakehouseIOManagerComponent
 attributes:
   resource_key: io_manager
   workspace_id: "12345678-1234-1234-1234-123456789012"

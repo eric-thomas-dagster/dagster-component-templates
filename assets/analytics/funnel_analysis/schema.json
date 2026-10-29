@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FunnelAnalysisComponent",
+  "component_type": "dagster_community_components.FunnelAnalysisComponent",
   "description": "Component that analyzes user progression through conversion funnels.",
   "category": "analytics",
   "icon": "BarChart2",

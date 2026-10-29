@@ -1,4 +1,4 @@
-type: dagster_component_templates.FabricLakehouseResourceComponent
+type: dagster_community_components.FabricLakehouseResourceComponent
 attributes:
   resource_key: fabric_lakehouse
   workspace_id: <required>

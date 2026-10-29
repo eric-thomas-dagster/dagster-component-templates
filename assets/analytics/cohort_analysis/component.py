@@ -335,7 +335,7 @@ class CohortAnalysisComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.CohortAnalysisComponent
+        type: dagster_community_components.CohortAnalysisComponent
         attributes:
           asset_name: customer_cohort_retention
           upstream_asset_key: customer_activity

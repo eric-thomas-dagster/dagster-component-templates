@@ -100,7 +100,7 @@ ChromaDB must be running and reachable (or use Chroma Cloud with `chroma_api_key
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ChromadbAssetComponent
+type: dagster_community_components.ChromadbAssetComponent
 attributes:
   asset_name: product_chroma_collection
   chroma_host: localhost
@@ -161,7 +161,7 @@ Instead of `upstream_asset_key`, set `source` to run a SQL query and feed its ro
 `source` is `{kind: warehouse_query, sql: <query>, resource_key: <registered resource> OR database_url_env_var: <env var>}`. `resource_key` names a Dagster resource exposing `.get_engine()`, `.get_connection()` or `.get_client()` (Postgres, Snowflake, DuckDB, BigQuery, Redshift, ...); `database_url_env_var` names an env var holding a SQLAlchemy URL.
 
 ```yaml
-type: dagster_component_templates.ChromadbAssetComponent
+type: dagster_community_components.ChromadbAssetComponent
 attributes:
   asset_name: product_chroma_collection
   collection_name: products

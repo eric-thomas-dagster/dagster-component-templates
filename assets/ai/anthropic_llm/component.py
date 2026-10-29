@@ -260,7 +260,7 @@ class AnthropicLLMComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.AnthropicLLMComponent
+        type: dagster_community_components.AnthropicLLMComponent
         attributes:
           asset_name: document_summaries
           api_key: "${ANTHROPIC_API_KEY}"

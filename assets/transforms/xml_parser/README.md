@@ -86,7 +86,7 @@ Parse XML content stored in a DataFrame column into separate fields using XPath 
 ## YAML Example
 
 ```yaml
-type: dagster_component_templates.XmlParser
+type: dagster_community_components.XmlParser
 attributes:
   asset_name: parsed_product_xml
   upstream_asset_key: raw_product_feed

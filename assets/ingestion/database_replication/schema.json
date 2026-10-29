@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DatabaseReplicationComponent",
+  "component_type": "dagster_community_components.DatabaseReplicationComponent",
   "description": "Replicate a table between two SQL databases using Sling under the hood. No data lands in Python memory; suitable for any size table.",
   "category": "ingestion",
   "vertical": "database",

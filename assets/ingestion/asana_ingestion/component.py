@@ -224,7 +224,7 @@ class AsanaIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.AsanaIngestionComponent
+        type: dagster_community_components.AsanaIngestionComponent
         attributes:
           asset_name: asana_project_data
           access_token: "{{ env('ASANA_ACCESS_TOKEN') }}"

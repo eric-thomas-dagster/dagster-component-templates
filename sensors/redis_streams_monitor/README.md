@@ -68,7 +68,7 @@ Redis Streams are ideal for lightweight event-driven pipelines on teams already 
 ## Usage
 
 ```yaml
-type: dagster_component_templates.RedisStreamsMonitorSensorComponent
+type: dagster_community_components.RedisStreamsMonitorSensorComponent
 attributes:
   sensor_name: order_events_sensor
   stream_name: orders:events

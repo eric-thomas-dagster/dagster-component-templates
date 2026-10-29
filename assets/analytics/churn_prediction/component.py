@@ -514,7 +514,7 @@ class ChurnPredictionComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ChurnPredictionComponent
+        type: dagster_community_components.ChurnPredictionComponent
         attributes:
           asset_name: customer_churn_risk
           upstream_asset_key: customer_metrics

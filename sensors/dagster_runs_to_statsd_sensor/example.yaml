@@ -1,4 +1,4 @@
-type: dagster_component_templates.DagsterRunsToStatsdSensorComponent
+type: dagster_community_components.DagsterRunsToStatsdSensorComponent
 attributes:
   sensor_name: dagster_runs_to_statsd
   statsd_host: 127.0.0.1

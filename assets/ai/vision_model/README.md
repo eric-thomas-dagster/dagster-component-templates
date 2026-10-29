@@ -132,7 +132,7 @@ The Vision Model Component enables image understanding and analysis using state-
 ### 1. Document OCR & Text Extraction
 Extract text from receipts, invoices, documents:
 ```yaml
-type: dagster_component_templates.VisionModelComponent
+type: dagster_community_components.VisionModelComponent
 attributes:
   asset_name: receipt_ocr
   source_asset: receipt_images
@@ -154,7 +154,7 @@ attributes:
 ### 2. Product Image Analysis
 Analyze product images for cataloging:
 ```yaml
-type: dagster_component_templates.VisionModelComponent
+type: dagster_community_components.VisionModelComponent
 attributes:
   asset_name: product_descriptions
   source_asset: product_images
@@ -175,7 +175,7 @@ attributes:
 ### 3. Content Moderation
 Screen images for inappropriate content:
 ```yaml
-type: dagster_component_templates.VisionModelComponent
+type: dagster_community_components.VisionModelComponent
 attributes:
   asset_name: moderated_images
   source_asset: user_uploaded_images
@@ -197,7 +197,7 @@ attributes:
 ### 4. Visual Question Answering
 Answer specific questions about images:
 ```yaml
-type: dagster_component_templates.VisionModelComponent
+type: dagster_community_components.VisionModelComponent
 attributes:
   asset_name: vqa_results
   source_asset: images_with_questions
@@ -211,7 +211,7 @@ attributes:
 ### 5. Chart & Diagram Analysis
 Extract data from charts and diagrams:
 ```yaml
-type: dagster_component_templates.VisionModelComponent
+type: dagster_community_components.VisionModelComponent
 attributes:
   asset_name: chart_data
   source_asset: chart_images
@@ -232,7 +232,7 @@ attributes:
 ### 6. Multi-Image Analysis
 Compare or analyze multiple images together:
 ```yaml
-type: dagster_component_templates.VisionModelComponent
+type: dagster_community_components.VisionModelComponent
 attributes:
   asset_name: image_comparison
   source_asset: image_pairs
@@ -249,7 +249,7 @@ attributes:
 ### Basic Configuration
 
 ```yaml
-type: dagster_component_templates.VisionModelComponent
+type: dagster_community_components.VisionModelComponent
 attributes:
   asset_name: image_analysis
   source_asset: images_df
@@ -263,7 +263,7 @@ attributes:
 ### Full Configuration Options
 
 ```yaml
-type: dagster_component_templates.VisionModelComponent
+type: dagster_community_components.VisionModelComponent
 attributes:
   # Required
   asset_name: image_analysis_results

@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeFromSqlComponent
+type: dagster_community_components.DataframeFromSqlComponent
 attributes:
   asset_name: monthly_revenue
   query: |

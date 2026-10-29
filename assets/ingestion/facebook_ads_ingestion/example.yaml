@@ -1,4 +1,4 @@
-type: dagster_component_templates.FacebookAdsIngestionComponent
+type: dagster_community_components.FacebookAdsIngestionComponent
 attributes:
   asset_name: facebook_ads_data
 

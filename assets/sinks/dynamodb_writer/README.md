@@ -86,7 +86,7 @@ The `DynamodbWriterComponent` accepts an upstream DataFrame asset and writes its
 ### Basic write
 
 ```yaml
-type: dagster_component_templates.DynamodbWriterComponent
+type: dagster_community_components.DynamodbWriterComponent
 attributes:
   asset_name: write_users_to_dynamo
   upstream_asset_key: processed_users
@@ -98,7 +98,7 @@ attributes:
 ### With explicit AWS credentials
 
 ```yaml
-type: dagster_component_templates.DynamodbWriterComponent
+type: dagster_community_components.DynamodbWriterComponent
 attributes:
   asset_name: write_events_to_dynamo
   upstream_asset_key: enriched_events

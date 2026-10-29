@@ -32,7 +32,7 @@ class DagsterRunsToStatsdSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     Example (Datadog Agent on the local host):
 
         ```yaml
-        type: dagster_component_templates.DagsterRunsToStatsdSensorComponent
+        type: dagster_community_components.DagsterRunsToStatsdSensorComponent
         attributes:
           sensor_name: dagster_runs_to_dd
           statsd_host: 127.0.0.1
@@ -47,7 +47,7 @@ class DagsterRunsToStatsdSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     Example (plain statsd via graphite-statsd Docker):
 
         ```yaml
-        type: dagster_component_templates.DagsterRunsToStatsdSensorComponent
+        type: dagster_community_components.DagsterRunsToStatsdSensorComponent
         attributes:
           sensor_name: dagster_runs_to_local_statsd
           statsd_host: 127.0.0.1

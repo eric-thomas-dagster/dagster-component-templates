@@ -100,7 +100,7 @@ class MailchimpMemberUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.MailchimpMemberUpsertComponent
+        type: dagster_community_components.MailchimpMemberUpsertComponent
         attributes:
           asset_name: mailchimp_members_mirror
           upstream_asset_key: dbt_marts_customers

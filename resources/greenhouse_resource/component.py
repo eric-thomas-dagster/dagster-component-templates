@@ -67,7 +67,7 @@ class GreenhouseResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.GreenhouseResourceComponent
+        type: dagster_community_components.GreenhouseResourceComponent
         attributes:
           resource_key: greenhouse
           api_key_env_var: GREENHOUSE_API_KEY

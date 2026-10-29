@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LeverResourceComponent",
+  "component_type": "dagster_community_components.LeverResourceComponent",
   "description": "Register a LeverResource wrapping the Lever Hire REST API for use by other components",
   "category": "resource",
   "icon": "si:lever",

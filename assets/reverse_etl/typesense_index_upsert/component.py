@@ -195,7 +195,7 @@ class TypesenseIndexUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.TypesenseIndexUpsertComponent
+        type: dagster_community_components.TypesenseIndexUpsertComponent
         attributes:
           asset_name: typesense_product_catalog_sync
           upstream_asset_key: dbt_marts_product_catalog

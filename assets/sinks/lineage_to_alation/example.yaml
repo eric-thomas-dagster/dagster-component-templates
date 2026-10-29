@@ -1,4 +1,4 @@
-type: dagster_component_templates.LineageToAlationComponent
+type: dagster_community_components.LineageToAlationComponent
 attributes:
   asset_name: lineage_to_alation
   upstream_asset_key: lineage_graph

@@ -1,4 +1,4 @@
-type: dagster_component_templates.ExternalFlinkJobComponent
+type: dagster_community_components.ExternalFlinkJobComponent
 attributes:
   jobmanager_url: http://flink-jobmanager:8081
   jobs:

@@ -15,7 +15,7 @@ class DbtCloudJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.DbtCloudJobSensorComponent
+        type: dagster_community_components.DbtCloudJobSensorComponent
         attributes:
           sensor_name: dbt_daily_models_done
           account_id: 12345

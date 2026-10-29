@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeFromTableComponent
+type: dagster_community_components.DataframeFromTableComponent
 attributes:
   asset_name: customers_dataframe
   table_name: customers

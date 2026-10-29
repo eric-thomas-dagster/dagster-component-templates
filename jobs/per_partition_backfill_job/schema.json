@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PerPartitionBackfillJobComponent",
+  "component_type": "dagster_community_components.PerPartitionBackfillJobComponent",
   "description": "Cron-driven parallel backfill of N partitions of an existing partitioned asset. Complements Dagster's first-class backfill machinery for predictable recurring rebuilds.",
   "category": "jobs",
   "icon": "Bolt",

@@ -218,7 +218,7 @@ class RedisStreamsToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable
 
     Example:
         ```yaml
-        type: dagster_component_templates.RedisStreamsToDatabaseAssetComponent
+        type: dagster_community_components.RedisStreamsToDatabaseAssetComponent
         attributes:
           asset_name: redis_events_ingest
           redis_url_env_var: REDIS_URL

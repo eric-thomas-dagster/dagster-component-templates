@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PcaComponent",
+  "component_type": "dagster_community_components.PcaComponent",
   "description": "Reduce DataFrame dimensionality using Principal Component Analysis.",
   "category": "analytics",
   "icon": "BarChart2",

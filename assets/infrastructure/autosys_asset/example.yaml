@@ -1,5 +1,5 @@
 # REST API example — Finance ETL jobs (AutoSys v12+)
-type: dagster_component_templates.AutoSysAssetComponent
+type: dagster_community_components.AutoSysAssetComponent
 attributes:
   host: autosys.internal.company.com
   port: 9443
@@ -32,7 +32,7 @@ attributes:
 ---
 
 # Token auth variant
-# type: dagster_component_templates.AutoSysAssetComponent
+# type: dagster_community_components.AutoSysAssetComponent
 # attributes:
 #   host: autosys.internal.company.com
 #   port: 9443
@@ -43,7 +43,7 @@ attributes:
 ---
 
 # CLI-only example (no REST API / older AutoSys version)
-# type: dagster_component_templates.AutoSysAssetComponent
+# type: dagster_community_components.AutoSysAssetComponent
 # attributes:
 #   host: autosys-server
 #   use_cli: true

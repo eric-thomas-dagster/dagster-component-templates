@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PiiHasherComponent",
+  "component_type": "dagster_community_components.PiiHasherComponent",
   "description": "Normalize + SHA-256 hash PII identifier columns (email, phone, generic) in a DataFrame — a destination-agnostic building block for safe downstream activation or compliance/anonymization.",
   "category": "transformation",
   "icon": "Lock",

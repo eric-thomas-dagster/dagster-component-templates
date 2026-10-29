@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WorkableCandidateUpsertComponent",
+  "component_type": "dagster_community_components.WorkableCandidateUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Workable candidates via search-then-write. Workable supports an exact-match email filter, so this finds the candidate by email, then updates the match (and optionally moves its pipeline stage) or creates a new candidate (via a job pipeline or the account-wide talent pool).",
   "category": "reverse_etl",
   "icon": "si:workable",

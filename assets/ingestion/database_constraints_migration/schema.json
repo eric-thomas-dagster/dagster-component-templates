@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DatabaseConstraintsMigrationComponent",
+  "component_type": "dagster_community_components.DatabaseConstraintsMigrationComponent",
   "description": "Apply primary keys, foreign keys, NOT NULL, and DEFAULTs to target tables (typically post-data-load). Reads constraints from source INFORMATION_SCHEMA, executes ALTER TABLEs on target. Emits per-constraint status DataFrame.",
   "category": "infrastructure",
   "icon": "Key",

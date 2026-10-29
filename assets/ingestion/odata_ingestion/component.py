@@ -167,7 +167,7 @@ class ODataIngestionComponent(Component, Model, Resolvable):
     Example — SAP S/4HANA business partners:
 
         ```yaml
-        type: dagster_component_templates.ODataIngestionComponent
+        type: dagster_community_components.ODataIngestionComponent
         attributes:
           asset_name: business_partners
           service_url: https://my300000.s4hana.cloud.sap/sap/opu/odata/sap/API_BUSINESS_PARTNER

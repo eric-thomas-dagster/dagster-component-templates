@@ -99,7 +99,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.CustomerIOIngestionComponent
+type: dagster_community_components.CustomerIOIngestionComponent
 attributes:
   asset_name: customerio_ingestion
   app_api_key: "${CUSTOMERIO_APP_API_KEY}"

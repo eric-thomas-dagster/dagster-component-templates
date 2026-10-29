@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeUnion
+type: dagster_community_components.DataframeUnion
 attributes:
   asset_name: all_transactions
   upstream_asset_keys:

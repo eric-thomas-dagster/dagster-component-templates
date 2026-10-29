@@ -30,7 +30,7 @@ pip install personio-py
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.PersonioResourceComponent
+type: dagster_community_components.PersonioResourceComponent
 attributes:
   resource_key: personio_resource  # key other components use
   client_id_env_var: PERSONIO_CLIENT_ID  # env var holding your client ID

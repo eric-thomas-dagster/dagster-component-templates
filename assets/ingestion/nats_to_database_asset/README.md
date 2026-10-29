@@ -105,7 +105,7 @@ sqlalchemy>=2.0.0
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.NATSToDatabaseAssetComponent
+type: dagster_community_components.NATSToDatabaseAssetComponent
 attributes:
   asset_name: nats_events_ingest
   nats_url_env_var: NATS_URL

@@ -73,7 +73,7 @@ Performs sequential forward selection using sklearn's SequentialFeatureSelector.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.StepwiseComponent
+type: dagster_community_components.StepwiseComponent
 attributes:
   asset_name: house_features_chosen
   upstream_asset_key: housing_features

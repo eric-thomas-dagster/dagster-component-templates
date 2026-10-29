@@ -23,7 +23,7 @@ have their own behaviors. This job's job is to un-stick the DASHBOARD.
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.StuckRunTerminatorJobComponent
+type: dagster_community_components.StuckRunTerminatorJobComponent
 attributes:
   job_name: terminate_stuck_runs
   schedule: "*/15 * * * *"

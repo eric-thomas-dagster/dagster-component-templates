@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AuditLogsToSentinelComponent",
+  "component_type": "dagster_community_components.AuditLogsToSentinelComponent",
   "description": "Ship audit-log DataFrame to Microsoft Sentinel via the Log Analytics Data Collector API.",
   "category": "security",
   "vertical": "security",

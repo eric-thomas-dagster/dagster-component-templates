@@ -216,7 +216,7 @@ class HelpScoutIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.HelpScoutIngestionComponent
+        type: dagster_community_components.HelpScoutIngestionComponent
         attributes:
           asset_name: help_scout_ingestion
           access_token: "${HELPSCOUT_ACCESS_TOKEN}"

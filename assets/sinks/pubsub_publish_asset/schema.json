@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PubSubPublishAssetComponent",
+  "component_type": "dagster_community_components.PubSubPublishAssetComponent",
   "description": "Publish DataFrame rows as Pub/Sub messages — one message per row. Columns can be mapped into Pub/Sub message attributes for downstream filter routing on subscribers.",
   "category": "sink",
   "icon": "si:googlecloud",

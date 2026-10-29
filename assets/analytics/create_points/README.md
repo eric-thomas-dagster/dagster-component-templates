@@ -76,7 +76,7 @@ Takes a DataFrame with lat/lng columns and returns a GeoDataFrame with a `geomet
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.CreatePointsComponent
+type: dagster_community_components.CreatePointsComponent
 attributes:
   asset_name: stores_with_geometry
   upstream_asset_key: stores_raw

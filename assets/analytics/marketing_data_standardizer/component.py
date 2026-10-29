@@ -344,7 +344,7 @@ class MarketingDataStandardizerComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.MarketingDataStandardizerComponent
+        type: dagster_community_components.MarketingDataStandardizerComponent
         attributes:
           asset_name: standardized_marketing_data
           platform: "facebook_ads"

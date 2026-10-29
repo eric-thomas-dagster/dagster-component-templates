@@ -216,7 +216,7 @@ class MailchimpIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.MailchimpIngestionComponent
+        type: dagster_community_components.MailchimpIngestionComponent
         attributes:
           asset_name: mailchimp_ingestion
           api_key: "${MAILCHIMP_API_KEY}"

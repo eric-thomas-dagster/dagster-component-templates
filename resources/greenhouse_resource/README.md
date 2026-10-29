@@ -40,7 +40,7 @@ Greenhouse's Harvest API requires an `On-Behalf-Of` header on every write (POST/
 
 ## Example
 ```yaml
-type: dagster_component_templates.GreenhouseResourceComponent
+type: dagster_community_components.GreenhouseResourceComponent
 attributes:
   resource_key: greenhouse
   api_key_env_var: GREENHOUSE_API_KEY

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CloudRunJobTriggerAssetComponent",
+  "component_type": "dagster_community_components.CloudRunJobTriggerAssetComponent",
   "description": "Trigger a single deployed Cloud Run job and wait for it to finish, with optional per-execution container overrides (env / args / task_count / timeout). Same shape as matillion_run_asset / rivery_run_asset / precisely_run_asset. Use google_cloud_run_jobs (integration) for batch import of all Cloud Run jobs in a project.",
   "category": "infrastructure",
   "icon": "si:googlecloud",

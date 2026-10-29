@@ -80,7 +80,7 @@ class BasecampResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.BasecampResourceComponent
+        type: dagster_community_components.BasecampResourceComponent
         attributes:
           resource_key: basecamp_resource
           account_id: "195539477"

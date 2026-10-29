@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.StripeCustomerUpsertComponent",
+  "component_type": "dagster_community_components.StripeCustomerUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Stripe customers. Stripe has no native upsert endpoint and neither email nor any custom field is globally unique, so this supports two lookup strategies (match_by: email or metadata) depending on your data's guarantees.",
   "category": "reverse_etl",
   "icon": "si:stripe",

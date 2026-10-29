@@ -2,7 +2,7 @@
 
 # ── Shape (a): flat shape — one source, one ops chain, one sink.
 
-type: dagster_component_templates.PySparkPipelineComponent
+type: dagster_community_components.PySparkPipelineComponent
 attributes:
   asset_name: paid_orders_summary
   spark_config:
@@ -35,7 +35,7 @@ attributes:
 #               op:sql escape hatch (spark.sql), multi-sink.
 # ────────────────────────────────────────────────────────────────────────────
 #
-# type: dagster_component_templates.PySparkPipelineComponent
+# type: dagster_community_components.PySparkPipelineComponent
 # attributes:
 #   asset_name: regional_top_paid
 #   spark_config: {spark.master: "local[*]"}
@@ -73,7 +73,7 @@ attributes:
 # ── Shape (c): control-flow — condition / checkpoint / for_each steps
 # ────────────────────────────────────────────────────────────────────────────
 #
-# type: dagster_component_templates.PySparkPipelineComponent
+# type: dagster_community_components.PySparkPipelineComponent
 # attributes:
 #   asset_name: churn_scoring
 #   spark_config: {spark.master: "local[*]"}

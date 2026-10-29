@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.JupyterNotebookAssetComponent",
+  "component_type": "dagster_community_components.JupyterNotebookAssetComponent",
   "description": "Execute a Jupyter notebook as a Dagster asset using Papermill.",
   "category": "analytics",
   "icon": "si:jupyter",

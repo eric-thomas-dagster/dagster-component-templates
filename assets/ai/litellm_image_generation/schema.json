@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LitellmImageGenerationComponent",
+  "component_type": "dagster_community_components.LitellmImageGenerationComponent",
   "description": "Generate images from text prompts in a DataFrame column using LiteLLM, supporting DALL-E, Stable Diffusion, and other image generation models.",
   "category": "ai",
   "icon": "si:openai",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AWSCDKAssetComponent",
+  "component_type": "dagster_community_components.AWSCDKAssetComponent",
   "description": "Deploy AWS CDK stacks as a Dagster asset.",
   "category": "infrastructure",
   "icon": "Server",

@@ -31,7 +31,7 @@ By default this asset runs an in-memory DuckDB pipeline and returns a pandas Dat
 
 
 ```yaml
-type: dagster_component_templates.SalesforceIngestionComponent
+type: dagster_community_components.SalesforceIngestionComponent
 attributes:
   asset_name: salesforce_data
   username: "${SALESFORCE_USERNAME}"
@@ -137,7 +137,7 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 ## Example — DataFrame mode (default)
 
 ```yaml
-type: dagster_component_templates.SalesforceIngestionComponent
+type: dagster_community_components.SalesforceIngestionComponent
 attributes:
   asset_name: salesforce_data
   username: "{{ env('SALESFORCE_USERNAME') }}"
@@ -153,7 +153,7 @@ The asset emits a pandas DataFrame combining all selected resources, with a `_re
 ## Example — persist to Snowflake
 
 ```yaml
-type: dagster_component_templates.SalesforceIngestionComponent
+type: dagster_community_components.SalesforceIngestionComponent
 attributes:
   asset_name: salesforce_data
   username: "{{ env('SALESFORCE_USERNAME') }}"

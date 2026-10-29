@@ -41,30 +41,72 @@ Same dict shape as the other `*_agent` components — `final_answer`, `iteration
 
 | Field | Type | Description |
 |---|---|---|
-| `name` | `str` | Tool-name prefix. |
+| `asset_name` | `str` | Output Dagster asset name. |
+| `prompt` | `str` | User prompt sent to the model on the first turn. |
 
-### Connection
+### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `url` | `str` | — | http / sse: full URL. |
+| `group_name` | `str` | — | Dagster asset group name. |
+| `description` | `str` | — | Asset description. |
+| `owners` | `List[str]` | — | Asset owners. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags. |
+| `kinds` | `List[str]` | — | Defaults to ['llm', 'agent', 'snowflake', 'cortex']. |
+| `deps` | `List[str]` | — | Lineage-only deps. |
+
+### Freshness
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `freshness_max_lag_minutes` | `int` | — | FreshnessPolicy max lag. |
+| `freshness_cron` | `str` | — | FreshnessPolicy cron. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'multi' \| 'dynamic'. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | ISO date. |
+| `partition_values` | `Union[str, List[str]]` | — | CSV. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis spec. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_policy_max_retries` | `int` | — | Max retries. |
+| `retry_policy_delay_seconds` | `int` | — | Delay between retries. |
+| `retry_policy_backoff` | `str` | `"exponential"` | 'linear' \| 'exponential'. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `model` | `str` | `"claude-3-5-sonnet"` | Cortex model id (claude-3-5-sonnet, llama3.1-70b, mistral-large2, etc.). See `SNOWFLAKE.CORTEX.COMPLETE` docs for the current list. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `type` | `str` | `"stdio"` | 'stdio' \| 'http' \| 'sse'. |
-| `command` | `List[str]` | — | stdio: [executable, ...args]. |
-| `env` | `Dict[str, str]` | — | stdio: extra env vars. |
-| `headers` | `Dict[str, str]` | — | http / sse: literal headers. |
-| `headers_env` | `Dict[str, str]` | — | http / sse: header_name → env_var_name. |
+| `system_prompt` | `str` | — | System prompt prepended. |
+| `account_url_env_var` | `str` | `"SNOWFLAKE_ACCOUNT_URL"` | Env var with `https://<account>.snowflakecomputing.com`. |
+| `auth_token_env_var` | `str` | `"SNOWFLAKE_PAT"` | Env var with the Snowflake PAT / OAuth bearer token used in the Authorization header. |
+| `temperature` | `float` | `0.0` | Sampling temperature. |
+| `max_tokens` | `int` | `2048` | Max tokens per model call. |
+| `max_iterations` | `int` | `10` | Max tool-call rounds. |
+| `mcp_servers` | `List[MCPServerSpec]` | `list()` | MCP servers to expose as tools. |
+| `request_timeout_seconds` | `int` | `60` | HTTP request timeout. |
+| `dynamic_partition_name` | `str` | — | Dynamic partition name. |
 
 [//]: # (FIELDS:END)
 
 ## Example
 
 ```yaml
-type: dagster_component_templates.SnowflakeCortexAgentComponent
+type: dagster_community_components.SnowflakeCortexAgentComponent
 attributes:
   asset_name: dagster_plus_cortex_agent
   prompt: "Summarize the last 5 runs in this Dagster+ deployment."

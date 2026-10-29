@@ -101,7 +101,7 @@ sqlalchemy>=2.0.0
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.PubSubToDatabaseAssetComponent
+type: dagster_community_components.PubSubToDatabaseAssetComponent
 attributes:
   asset_name: pubsub_events_ingest
   project_id: my-gcp-project

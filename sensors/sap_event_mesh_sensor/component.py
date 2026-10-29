@@ -42,7 +42,7 @@ class SapEventMeshSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     Example — trigger a Dagster job per event:
 
         ```yaml
-        type: dagster_component_templates.SapEventMeshSensorComponent
+        type: dagster_community_components.SapEventMeshSensorComponent
         attributes:
           sensor_name: sap_em_orders_sensor
           messaging_host: https://my-tenant.messaging.eu10.hana.ondemand.com

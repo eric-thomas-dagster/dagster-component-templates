@@ -146,7 +146,7 @@ class RecurlyAccountUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.RecurlyAccountUpsertComponent
+        type: dagster_community_components.RecurlyAccountUpsertComponent
         attributes:
           asset_name: recurly_accounts_mirror
           upstream_asset_key: dbt_marts_customers

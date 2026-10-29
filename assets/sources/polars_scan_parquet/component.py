@@ -12,7 +12,7 @@ Use when:
 - The frame is too large to load fully into memory
 
 Example:
-    type: dagster_component_templates.PolarsScanParquetComponent
+    type: dagster_community_components.PolarsScanParquetComponent
     attributes:
       asset_name: paid_orders_recent
       path: s3://bucket/orders/year=2026/*.parquet

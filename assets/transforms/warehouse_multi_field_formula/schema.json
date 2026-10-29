@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WarehouseMultiFieldFormulaComponent",
+  "component_type": "dagster_community_components.WarehouseMultiFieldFormulaComponent",
   "description": "Apply one formula template to N columns via CTAS. Alteryx Multi-Field Formula equivalent.",
   "category": "transformation",
   "icon": "Calculator",

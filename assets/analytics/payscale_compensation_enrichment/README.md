@@ -124,7 +124,7 @@ The upstream DataFrame must contain a job title column. Location columns (city/s
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.PayscaleCompensationEnrichmentComponent
+type: dagster_community_components.PayscaleCompensationEnrichmentComponent
 attributes:
   asset_name: compensation_benchmarked_roles
   upstream_asset_key: open_roles

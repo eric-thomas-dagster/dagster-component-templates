@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DagsterMaterializationsToPrometheusSensorComponent",
+  "component_type": "dagster_community_components.DagsterMaterializationsToPrometheusSensorComponent",
   "description": "Push per-asset materialization metrics (counter + last-materialized timestamp) to Prometheus Push Gateway / VictoriaMetrics. Workspace-wide or filtered to specific asset keys.",
   "category": "sensor",
   "icon": "si:prometheus",

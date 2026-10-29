@@ -30,7 +30,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.KustomerResourceComponent
+type: dagster_community_components.KustomerResourceComponent
 attributes:
   resource_key: kustomer_resource  # key other components use
   org_subdomain: acme  # https://acme.api.kustomerapp.com

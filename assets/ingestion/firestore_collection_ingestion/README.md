@@ -73,7 +73,7 @@ Pair with a `firebase_resource` component in the same Dagster project.
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.FirestoreCollectionIngestionComponent
+type: dagster_community_components.FirestoreCollectionIngestionComponent
 attributes:
   asset_name: active_users
   resource_key: firebase_resource

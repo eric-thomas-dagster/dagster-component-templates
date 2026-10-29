@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AsanaTaskCreateComponent",
+  "component_type": "dagster_community_components.AsanaTaskCreateComponent",
   "description": "Reverse-ETL sink: create one Asana task per row of an upstream DataFrame. Asana has no upsert concept for tasks -- re-running on the same data creates duplicate tasks. Intended for 'spin up a task per flagged row' patterns (e.g. data-quality failures), not for mirroring a table over time.",
   "category": "reverse_etl",
   "icon": "si:asana",

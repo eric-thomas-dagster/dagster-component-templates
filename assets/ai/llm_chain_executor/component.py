@@ -237,7 +237,7 @@ class LLMChainExecutorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LLMChainExecutorComponent
+        type: dagster_community_components.LLMChainExecutorComponent
         attributes:
           asset_name: chain_output
           upstream_asset_key: raw_texts

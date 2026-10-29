@@ -1,4 +1,4 @@
-type: dagster_component_templates.MapValuesComponent
+type: dagster_community_components.MapValuesComponent
 attributes:
   asset_name: map_values_output
   upstream_asset_key: upstream_data

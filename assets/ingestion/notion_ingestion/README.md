@@ -29,7 +29,7 @@ By default this asset runs an in-memory DuckDB pipeline and returns a pandas Dat
 
 
 ```yaml
-type: dagster_component_templates.NotionIngestionComponent
+type: dagster_community_components.NotionIngestionComponent
 attributes:
   asset_name: notion_data
   # ... source config ...
@@ -130,7 +130,7 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 ## Example — DataFrame mode (default)
 
 ```yaml
-type: dagster_component_templates.NotionIngestionComponent
+type: dagster_community_components.NotionIngestionComponent
 attributes:
   asset_name: notion_data
   api_key: "{{ env('NOTION_API_KEY') }}"
@@ -144,7 +144,7 @@ The asset emits a pandas DataFrame combining all selected resources, with a `_re
 ## Example — persist to Postgres
 
 ```yaml
-type: dagster_component_templates.NotionIngestionComponent
+type: dagster_community_components.NotionIngestionComponent
 attributes:
   asset_name: notion_data
   api_key: "{{ env('NOTION_API_KEY') }}"

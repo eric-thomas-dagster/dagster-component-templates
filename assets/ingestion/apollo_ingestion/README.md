@@ -113,7 +113,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.ApolloIngestionComponent
+type: dagster_community_components.ApolloIngestionComponent
 attributes:
   asset_name: apollo_ingestion
   api_key: "${APOLLO_API_KEY}"

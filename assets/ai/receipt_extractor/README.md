@@ -120,7 +120,7 @@ The Receipt Extractor Component uses a large language model to parse unstructure
 ### Basic Receipt Extraction
 
 ```yaml
-type: dagster_component_templates.ReceiptExtractorComponent
+type: dagster_community_components.ReceiptExtractorComponent
 attributes:
   asset_name: parsed_receipts
   upstream_asset_key: raw_receipt_text
@@ -137,7 +137,7 @@ attributes:
 ### File Path Input with Anthropic
 
 ```yaml
-type: dagster_component_templates.ReceiptExtractorComponent
+type: dagster_community_components.ReceiptExtractorComponent
 attributes:
   asset_name: parsed_receipts
   upstream_asset_key: receipt_file_list

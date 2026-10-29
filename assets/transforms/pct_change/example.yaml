@@ -1,4 +1,4 @@
-type: dagster_component_templates.PctChangeComponent
+type: dagster_community_components.PctChangeComponent
 attributes:
   asset_name: revenue_growth
   upstream_asset_key: daily_revenue

@@ -18,7 +18,7 @@ Unlike `anomaly_detection`'s portable-statistics SQL mode, fitting a classifier 
 - **`databricks`**: **predict-only.** There is no `CREATE MODEL` statement on Databricks at all -- training only happens via AutoML or notebooks in Python. `model_name` must be the name of an **already-registered/served** Model Serving endpoint; the generated SQL calls `ai_query(endpoint, named_struct(...))` against it, and trains nothing.
 
 ```yaml
-type: dagster_component_templates.LogisticRegressionModelComponent
+type: dagster_community_components.LogisticRegressionModelComponent
 attributes:
   asset_name: churn_predictions_sql
   source:

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RedisReaderComponent",
+  "component_type": "dagster_community_components.RedisReaderComponent",
   "description": "Component for reading keys from a Redis instance.",
   "category": "source",
   "icon": "si:redis",

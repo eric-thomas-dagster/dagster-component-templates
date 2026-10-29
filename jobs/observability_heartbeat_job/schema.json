@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ObservabilityHeartbeatJobComponent",
+  "component_type": "dagster_community_components.ObservabilityHeartbeatJobComponent",
   "description": "Compound op job: send a heartbeat to multiple destinations (Slack + PagerDuty + HTTP) on cron \u2014 single YAML config.",
   "category": "jobs",
   "icon": "Cog",

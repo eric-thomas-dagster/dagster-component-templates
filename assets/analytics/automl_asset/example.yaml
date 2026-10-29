@@ -1,4 +1,4 @@
-type: dagster_component_templates.AutoMLAssetComponent
+type: dagster_community_components.AutoMLAssetComponent
 attributes:
   asset_name: wine_quality_automl
   upstream_asset_key: wine_features    # a DataFrame asset -- e.g. dataframe_from_csv, or ml_pipeline's own output

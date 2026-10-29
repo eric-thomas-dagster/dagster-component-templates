@@ -103,8 +103,9 @@ def parse_fields(py_path: Path) -> list[dict]:
     except SyntaxError:
         return []
 
-    fields: list[dict] = []
-    # Walk only top-level classes that inherit from something component-like.
+    # Collect every top-level class that looks component-like (bases mention
+    # Component/Model), excluding Resource side-classes.
+    candidates: list[ast.ClassDef] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.ClassDef):
             continue
@@ -120,8 +121,26 @@ def parse_fields(py_path: Path) -> list[dict]:
         bases_str = " ".join(ast.unparse(b) for b in node.bases)
         if "Component" not in bases_str and "Model" not in bases_str:
             continue
+        candidates.append(node)
 
-        for idx, item in enumerate(node.body):
+    # Prefer the class actually named "...Component" over a same-file
+    # config/spec sub-model (e.g. MirthChannelSpec, SsisWorkspaceConfig,
+    # QlikCloudAppSpec) that also subclasses Model/Resolvable and simply
+    # appears earlier in source order -- ast.walk visits top-level classes in
+    # source order, so without this the FIRST such class silently won
+    # regardless of which one is the actual documented component. Every
+    # component in this registry names its real component class "...Component"
+    # and never uses that suffix for a nested spec/config class, so this is a
+    # reliable discriminator. Falls back to the old first-match behavior if no
+    # class is named "...Component" (shouldn't happen, but avoids regressing
+    # any file this doesn't apply to).
+    target = next((n for n in candidates if n.name.endswith("Component")), None)
+    if target is None and candidates:
+        target = candidates[0]
+
+    fields: list[dict] = []
+    if target is not None:
+        for idx, item in enumerate(target.body):
             if not isinstance(item, ast.AnnAssign) or not isinstance(item.target, ast.Name):
                 continue
             if item.value is None:
@@ -165,9 +184,6 @@ def parse_fields(py_path: Path) -> list[dict]:
                 "required": required,
                 "order": idx,
             })
-        # Only take the first matching component class
-        if fields:
-            break
     return fields
 
 

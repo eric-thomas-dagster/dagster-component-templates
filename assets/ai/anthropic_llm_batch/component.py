@@ -346,7 +346,7 @@ class AnthropicLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.AnthropicLlmBatchComponent
+        type: dagster_community_components.AnthropicLlmBatchComponent
         attributes:
           asset_name: support_reply_results
           upstream_asset_key: support_tickets

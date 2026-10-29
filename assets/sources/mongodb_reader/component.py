@@ -194,7 +194,7 @@ class MongodbReaderComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.MongodbReaderComponent
+        type: dagster_community_components.MongodbReaderComponent
         attributes:
           asset_name: mongo_users
           database: mydb

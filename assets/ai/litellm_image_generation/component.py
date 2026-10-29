@@ -247,7 +247,7 @@ class LitellmImageGenerationComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LitellmImageGenerationComponent
+        type: dagster_community_components.LitellmImageGenerationComponent
         attributes:
           asset_name: generated_product_images
           upstream_asset_key: product_descriptions

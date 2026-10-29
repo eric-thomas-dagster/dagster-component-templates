@@ -108,7 +108,7 @@ New candidates (no existing match by email) are created one of two ways, control
 ## Example
 
 ```yaml
-type: dagster_component_templates.WorkableCandidateUpsertComponent
+type: dagster_community_components.WorkableCandidateUpsertComponent
 attributes:
   asset_name: workable_candidates_mirror
   upstream_asset_key: dbt_marts_applicants
@@ -125,7 +125,7 @@ attributes:
 ## Example — talent pool + stage moves
 
 ```yaml
-type: dagster_component_templates.WorkableCandidateUpsertComponent
+type: dagster_community_components.WorkableCandidateUpsertComponent
 attributes:
   asset_name: workable_candidates_mirror
   source:

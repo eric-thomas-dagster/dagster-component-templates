@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TwitterAdsTailoredAudienceUpsertComponent",
+  "component_type": "dagster_community_components.TwitterAdsTailoredAudienceUpsertComponent",
   "description": "Reverse-ETL / audience activation: upload an upstream DataFrame into an X (Twitter) Ads Tailored Audience via the single custom_audiences/:id/users endpoint. Each row becomes one user object carrying one or more SHA-256 hashed identifier(s) (email/phone). Supports 'add' (operation_type=Update) and 'remove' (operation_type=Delete). Requests are chunked at 2,500 users per X's documented limit.",
   "category": "reverse_etl",
   "icon": "si:x",

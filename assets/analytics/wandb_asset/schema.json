@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WandbAssetComponent",
+  "component_type": "dagster_community_components.WandbAssetComponent",
   "description": "Log metrics or upload artifacts to Weights & Biases.",
   "category": "analytics",
   "icon": "si:weightsandbiases",

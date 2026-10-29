@@ -1,4 +1,4 @@
-type: dagster_component_templates.OAuthRestIngestionComponent
+type: dagster_community_components.OAuthRestIngestionComponent
 attributes:
   asset_name: concur_expense_reports
   api_url: https://us.api.concursolutions.com/expensereports/v4/reports

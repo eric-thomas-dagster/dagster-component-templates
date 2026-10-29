@@ -1,4 +1,4 @@
-type: dagster_component_templates.ProductUsageAnalyticsComponent
+type: dagster_community_components.ProductUsageAnalyticsComponent
 attributes:
   asset_name: product_usage_metrics
   event_data_asset_key: product_events

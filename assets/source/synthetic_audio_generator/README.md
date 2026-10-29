@@ -3,7 +3,7 @@
 Generate sample WAV files (sine tones) and emit a DataFrame describing them. Stdlib-only — no audio dependencies.
 
 ```yaml
-type: dagster_component_templates.SyntheticAudioGeneratorComponent
+type: dagster_community_components.SyntheticAudioGeneratorComponent
 attributes:
   asset_name: sample_audio
   samples: default

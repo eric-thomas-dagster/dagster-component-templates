@@ -98,7 +98,7 @@ Together they cover both directions of Meta Ads data movement.
 ## Example
 
 ```yaml
-type: dagster_component_templates.MetaCustomAudienceUpsertComponent
+type: dagster_community_components.MetaCustomAudienceUpsertComponent
 attributes:
   asset_name: meta_high_ltv_customers_audience
   upstream_asset_key: dbt_marts_high_ltv_customers
@@ -114,7 +114,7 @@ attributes:
 ## Example — suppression
 
 ```yaml
-type: dagster_component_templates.MetaCustomAudienceUpsertComponent
+type: dagster_community_components.MetaCustomAudienceUpsertComponent
 attributes:
   asset_name: meta_suppress_converted
   upstream_asset_key: dbt_marts_recent_conversions

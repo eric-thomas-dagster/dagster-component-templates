@@ -89,7 +89,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 
 ## Example YAML
 ```yaml
-component_type: dagster_component_templates.FieldMapperComponent
+component_type: dagster_community_components.FieldMapperComponent
 asset_name: normalized_events
 upstream_asset_key: raw_mongo_events
 mapping:

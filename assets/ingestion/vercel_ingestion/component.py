@@ -189,7 +189,7 @@ class VercelIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.VercelIngestionComponent
+        type: dagster_community_components.VercelIngestionComponent
         attributes:
           asset_name: vercel_ingestion
           access_token: "${VERCEL_ACCESS_TOKEN}"

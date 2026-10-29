@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LitellmEmbeddingBatchComponent",
+  "component_type": "dagster_community_components.LitellmEmbeddingBatchComponent",
   "description": "Generate embedding vectors for a text column using LiteLLM with configurable batching, fallback model routing, and optional dimension control.",
   "category": "ai",
   "icon": "si:openai",

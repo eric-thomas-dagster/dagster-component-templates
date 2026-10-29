@@ -1,4 +1,4 @@
-type: dagster_component_templates.EventDataStandardizerComponent
+type: dagster_community_components.EventDataStandardizerComponent
 attributes:
   asset_name: standardized_events
 

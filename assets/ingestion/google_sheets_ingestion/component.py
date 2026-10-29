@@ -223,7 +223,7 @@ class GoogleSheetsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.GoogleSheetsIngestionComponent
+        type: dagster_community_components.GoogleSheetsIngestionComponent
         attributes:
           asset_name: gsheets_data
           credentials: { ... service account JSON ... }

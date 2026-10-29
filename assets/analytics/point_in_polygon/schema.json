@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PointInPolygonComponent",
+  "component_type": "dagster_community_components.PointInPolygonComponent",
   "description": "Annotate each row with the GeoJSON polygon region it falls inside.",
   "category": "analytics",
   "icon": "BarChart2",

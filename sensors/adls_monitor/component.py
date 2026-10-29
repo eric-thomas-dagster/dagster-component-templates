@@ -37,7 +37,7 @@ class ADLSMonitorSensorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ADLSMonitorSensorComponent
+        type: dagster_community_components.ADLSMonitorSensorComponent
         attributes:
           sensor_name: adls_data_sensor
           storage_account_name: mydatalake

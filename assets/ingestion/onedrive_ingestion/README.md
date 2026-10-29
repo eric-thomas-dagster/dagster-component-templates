@@ -105,7 +105,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.OneDriveIngestionComponent
+type: dagster_community_components.OneDriveIngestionComponent
 attributes:
   asset_name: onedrive_ingestion
   tenant_id: "${AZURE_TENANT_ID}"

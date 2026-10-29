@@ -1,4 +1,4 @@
-type: dagster_component_templates.PurchaseOrderExtractorComponent
+type: dagster_community_components.PurchaseOrderExtractorComponent
 attributes:
   asset_name: extracted_purchase_orders
   upstream_asset_key: raw_purchase_orders

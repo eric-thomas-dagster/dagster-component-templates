@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SQLMonitorSensorComponent",
+  "component_type": "dagster_community_components.SQLMonitorSensorComponent",
   "description": "Component for monitoring a SQL database table for new or updated rows.",
   "category": "sensor",
   "icon": "Radar",

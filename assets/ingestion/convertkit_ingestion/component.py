@@ -216,7 +216,7 @@ class ConvertKitIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ConvertKitIngestionComponent
+        type: dagster_community_components.ConvertKitIngestionComponent
         attributes:
           asset_name: convertkit_ingestion
           api_key: "${CONVERTKIT_API_KEY}"

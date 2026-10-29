@@ -1,4 +1,4 @@
-type: dagster_component_templates.JiraIssueSensorComponent
+type: dagster_community_components.JiraIssueSensorComponent
 attributes:
   sensor_name: ops_critical_jira_sensor
   asset_keys: [incident_report]

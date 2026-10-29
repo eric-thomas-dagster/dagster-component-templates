@@ -24,7 +24,7 @@
 
 ---
 # CRM Data
-type: dagster_component_templates.HubSpotIngestionComponent
+type: dagster_community_components.HubSpotIngestionComponent
 attributes:
   asset_name: hubspot_contacts
   resource_type: contacts
@@ -33,7 +33,7 @@ attributes:
 
 ---
 # E-commerce Orders
-type: dagster_component_templates.ShopifyIngestionComponent
+type: dagster_community_components.ShopifyIngestionComponent
 attributes:
   asset_name: shopify_orders
   resource_type: orders
@@ -42,7 +42,7 @@ attributes:
 
 ---
 # Marketing - Google Ads
-type: dagster_component_templates.GoogleAdsIngestionComponent
+type: dagster_community_components.GoogleAdsIngestionComponent
 attributes:
   asset_name: google_ads_campaigns
   resource_type: campaigns
@@ -51,7 +51,7 @@ attributes:
 
 ---
 # Marketing - Facebook Ads
-type: dagster_component_templates.FacebookAdsIngestionComponent
+type: dagster_community_components.FacebookAdsIngestionComponent
 attributes:
   asset_name: facebook_ads_campaigns
   resource_type: campaigns
@@ -60,7 +60,7 @@ attributes:
 
 ---
 # Product Analytics Events
-type: dagster_component_templates.EventDataStandardizerComponent
+type: dagster_community_components.EventDataStandardizerComponent
 attributes:
   asset_name: product_events
   platform: segment
@@ -70,7 +70,7 @@ attributes:
 
 ---
 # Support Tickets
-type: dagster_component_templates.ZendeskIngestionComponent
+type: dagster_community_components.ZendeskIngestionComponent
 attributes:
   asset_name: zendesk_tickets
   resource_type: tickets
@@ -83,7 +83,7 @@ attributes:
 
 ---
 # Standardize CRM Data
-type: dagster_component_templates.CRMDataStandardizerComponent
+type: dagster_community_components.CRMDataStandardizerComponent
 attributes:
   asset_name: standardized_crm
   platform: hubspot
@@ -93,7 +93,7 @@ attributes:
 
 ---
 # Standardize E-commerce Data
-type: dagster_component_templates.EcommerceStandardizerComponent
+type: dagster_community_components.EcommerceStandardizerComponent
 attributes:
   asset_name: standardized_orders
   platform: shopify
@@ -103,7 +103,7 @@ attributes:
 
 ---
 # Standardize Marketing Touchpoints
-type: dagster_component_templates.MarketingDataStandardizerComponent
+type: dagster_community_components.MarketingDataStandardizerComponent
 attributes:
   asset_name: standardized_marketing
   platform: multi
@@ -113,7 +113,7 @@ attributes:
 
 ---
 # Standardize Support Tickets
-type: dagster_component_templates.SupportTicketStandardizerComponent
+type: dagster_community_components.SupportTicketStandardizerComponent
 attributes:
   asset_name: standardized_support
   platform: zendesk
@@ -127,7 +127,7 @@ attributes:
 
 ---
 # Customer 360 Profile
-type: dagster_component_templates.Customer360Component
+type: dagster_community_components.Customer360Component
 attributes:
   asset_name: customer_360
   crm_data_asset: standardized_crm
@@ -138,7 +138,7 @@ attributes:
 
 ---
 # RFM Segmentation
-type: dagster_component_templates.CustomerSegmentationComponent
+type: dagster_community_components.CustomerSegmentationComponent
 attributes:
   asset_name: rfm_segments
   transaction_data_asset: standardized_orders
@@ -149,7 +149,7 @@ attributes:
 
 ---
 # Lifetime Value Prediction
-type: dagster_component_templates.LTVPredictionComponent
+type: dagster_community_components.LTVPredictionComponent
 attributes:
   asset_name: customer_ltv
   source_asset: standardized_orders
@@ -160,7 +160,7 @@ attributes:
 
 ---
 # Churn Risk Scoring
-type: dagster_component_templates.ChurnPredictionComponent
+type: dagster_community_components.ChurnPredictionComponent
 attributes:
   asset_name: churn_risk
   source_asset: customer_360
@@ -171,7 +171,7 @@ attributes:
 
 ---
 # Customer Health Score
-type: dagster_component_templates.CustomerHealthScoreComponent
+type: dagster_community_components.CustomerHealthScoreComponent
 attributes:
   asset_name: health_scores
   source_asset: customer_360
@@ -184,7 +184,7 @@ attributes:
 
 ---
 # Multi-Touch Attribution
-type: dagster_component_templates.MultiTouchAttributionComponent
+type: dagster_community_components.MultiTouchAttributionComponent
 attributes:
   asset_name: marketing_attribution
   touchpoint_data_asset: standardized_marketing
@@ -195,7 +195,7 @@ attributes:
 
 ---
 # Product Recommendations
-type: dagster_component_templates.ProductRecommendationsComponent
+type: dagster_community_components.ProductRecommendationsComponent
 attributes:
   asset_name: product_recommendations
   source_asset: standardized_orders
@@ -206,7 +206,7 @@ attributes:
 
 ---
 # Customer Journey Mapping
-type: dagster_component_templates.CustomerJourneyMappingComponent
+type: dagster_community_components.CustomerJourneyMappingComponent
 attributes:
   asset_name: customer_journeys
   source_asset: product_events
@@ -217,7 +217,7 @@ attributes:
 
 ---
 # Funnel Analysis
-type: dagster_component_templates.FunnelAnalysisComponent
+type: dagster_community_components.FunnelAnalysisComponent
 attributes:
   asset_name: conversion_funnels
   source_asset: product_events
@@ -226,7 +226,7 @@ attributes:
 
 ---
 # Cohort Analysis
-type: dagster_component_templates.CohortAnalysisComponent
+type: dagster_community_components.CohortAnalysisComponent
 attributes:
   asset_name: cohort_retention
   source_asset: standardized_orders
@@ -235,7 +235,7 @@ attributes:
 
 ---
 # Purchase Propensity
-type: dagster_component_templates.PropensityScoringComponent
+type: dagster_community_components.PropensityScoringComponent
 attributes:
   asset_name: purchase_propensity
   source_asset: customer_360
@@ -245,7 +245,7 @@ attributes:
 
 ---
 # Upgrade Propensity
-type: dagster_component_templates.PropensityScoringComponent
+type: dagster_community_components.PropensityScoringComponent
 attributes:
   asset_name: upgrade_propensity
   source_asset: customer_360
@@ -259,7 +259,7 @@ attributes:
 
 ---
 # A/B Test Analysis
-type: dagster_component_templates.ABTestAnalysisComponent
+type: dagster_community_components.ABTestAnalysisComponent
 attributes:
   asset_name: experiment_results
   source_asset: product_events
@@ -270,7 +270,7 @@ attributes:
 
 ---
 # Campaign Performance
-type: dagster_component_templates.CampaignPerformanceComponent
+type: dagster_community_components.CampaignPerformanceComponent
 attributes:
   asset_name: campaign_roi
   campaign_data_asset: standardized_marketing
@@ -285,7 +285,7 @@ attributes:
 
 ---
 # Transaction Anomaly Detection
-type: dagster_component_templates.AnomalyDetectionComponent
+type: dagster_community_components.AnomalyDetectionComponent
 attributes:
   asset_name: transaction_anomalies
   source_asset: standardized_orders
@@ -297,7 +297,7 @@ attributes:
 
 ---
 # Engagement Anomaly Detection
-type: dagster_component_templates.AnomalyDetectionComponent
+type: dagster_community_components.AnomalyDetectionComponent
 attributes:
   asset_name: engagement_anomalies
   source_asset: product_events
@@ -313,7 +313,7 @@ attributes:
 
 ---
 # Write Customer Analytics to Database
-type: dagster_component_templates.DLTDataFrameWriterComponent
+type: dagster_community_components.DLTDataFrameWriterComponent
 attributes:
   asset_name: customer_analytics_output
   source_asset: health_scores
@@ -325,7 +325,7 @@ attributes:
 
 ---
 # Write Marketing Analytics to Database
-type: dagster_component_templates.DLTDataFrameWriterComponent
+type: dagster_community_components.DLTDataFrameWriterComponent
 attributes:
   asset_name: marketing_analytics_output
   source_asset: campaign_roi
@@ -337,7 +337,7 @@ attributes:
 
 ---
 # Write Product Analytics to Database
-type: dagster_component_templates.DLTDataFrameWriterComponent
+type: dagster_community_components.DLTDataFrameWriterComponent
 attributes:
   asset_name: product_analytics_output
   source_asset: product_recommendations
@@ -349,7 +349,7 @@ attributes:
 
 ---
 # Write Monitoring Results to Database
-type: dagster_component_templates.DLTDataFrameWriterComponent
+type: dagster_community_components.DLTDataFrameWriterComponent
 attributes:
   asset_name: monitoring_output
   source_asset: engagement_anomalies

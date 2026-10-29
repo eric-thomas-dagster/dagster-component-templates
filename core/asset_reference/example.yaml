@@ -1,7 +1,7 @@
 # Asset Reference Component
 # Reference existing assets from your codebase
 
-type: dagster_component_templates.AssetReferenceComponent
+type: dagster_community_components.AssetReferenceComponent
 attributes:
   asset_name: dbt_staging_customers
   module: my_project.dbt_assets

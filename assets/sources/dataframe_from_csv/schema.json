@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeFromCsvComponent",
+  "component_type": "dagster_community_components.DataframeFromCsvComponent",
   "description": "Read a CSV file and output a DataFrame.",
   "category": "source",
   "icon": "Database",

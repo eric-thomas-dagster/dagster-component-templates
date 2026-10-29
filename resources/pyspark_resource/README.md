@@ -29,7 +29,7 @@ Register a dagster-pyspark PySparkResource for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.PySparkResourceComponent
+type: dagster_community_components.PySparkResourceComponent
 attributes:
   resource_key: pyspark_resource  # key other components use
   # Optional

@@ -3,7 +3,7 @@
 Pre-flight cost guardrail for a BigQuery query. Runs a [dry-run](https://cloud.google.com/bigquery/docs/dry-run-queries) (server-side query plan, no data read, **no cost charged**) and fails the asset check if estimated bytes exceed your budget.
 
 ```yaml
-type: dagster_component_templates.BigqueryDryRunCheckComponent
+type: dagster_community_components.BigqueryDryRunCheckComponent
 attributes:
   asset_key: nightly_revenue_rollup
   sql: |

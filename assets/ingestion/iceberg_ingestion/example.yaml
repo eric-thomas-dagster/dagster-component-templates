@@ -1,4 +1,4 @@
-type: dagster_component_templates.IcebergIngestionComponent
+type: dagster_community_components.IcebergIngestionComponent
 attributes:
   asset_name: orders_iceberg
 

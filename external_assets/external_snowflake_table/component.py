@@ -173,7 +173,7 @@ class ExternalSnowflakeTableAsset(dg.Component, dg.Model, dg.Resolvable):
 
     Example (multi-tenant):
         ```yaml
-        type: dagster_component_templates.ExternalSnowflakeTableAsset
+        type: dagster_community_components.ExternalSnowflakeTableAsset
         attributes:
           asset_key: snowflake/raw/tenant_orders
           account: myorg-us-east-1

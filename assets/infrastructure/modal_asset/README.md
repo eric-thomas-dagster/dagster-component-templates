@@ -108,7 +108,7 @@ The `app.name` ("ml_training_app") becomes the first half of the `modal_function
 ## Quick start
 
 ```yaml
-type: dagster_component_templates.ModalAssetComponent
+type: dagster_community_components.ModalAssetComponent
 attributes:
   asset_name: train_churn_model
   modal_function: "ml_training_app::train_model"

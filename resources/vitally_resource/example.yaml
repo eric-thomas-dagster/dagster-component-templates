@@ -1,4 +1,4 @@
-type: dagster_component_templates.VitallyResourceComponent
+type: dagster_community_components.VitallyResourceComponent
 attributes:
   resource_key: vitally_resource
   subdomain: yourcompany

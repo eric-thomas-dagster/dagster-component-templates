@@ -1,5 +1,5 @@
 # Basic configuration - imports only scheduled queries
-type: dagster_component_templates.GoogleBigQueryComponent
+type: dagster_community_components.GoogleBigQueryComponent
 attributes:
   project_id: my-gcp-project
   credentials_path: "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}"
@@ -9,7 +9,7 @@ attributes:
 
 ---
 # Advanced configuration - imports all entity types
-type: dagster_component_templates.GoogleBigQueryComponent
+type: dagster_community_components.GoogleBigQueryComponent
 attributes:
   project_id: my-gcp-project
   credentials_path: "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}"

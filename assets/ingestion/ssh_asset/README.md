@@ -110,7 +110,7 @@ The remote host must be reachable from the worker over TCP on the configured `po
 ## Quick start
 
 ```yaml
-type: dagster_component_templates.SSHAssetComponent
+type: dagster_community_components.SSHAssetComponent
 attributes:
   asset_name: prepare_etl_server
   host_env_var: ETL_HOST

@@ -1,4 +1,4 @@
-type: dagster_component_templates.AppendClusterComponent
+type: dagster_community_components.AppendClusterComponent
 attributes:
   asset_name: customers_with_cluster
   upstream_asset_key: customer_rfm_metrics

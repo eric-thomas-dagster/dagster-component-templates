@@ -106,7 +106,7 @@ aggregations:
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.SummarizeComponent
+type: dagster_community_components.SummarizeComponent
 attributes:
   asset_name: revenue_by_region
   upstream_asset_key: sales_data

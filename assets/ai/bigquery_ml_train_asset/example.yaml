@@ -1,4 +1,4 @@
-type: dagster_component_templates.BigQueryMLTrainAssetComponent
+type: dagster_community_components.BigQueryMLTrainAssetComponent
 attributes:
   asset_name: arima_model
   credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}

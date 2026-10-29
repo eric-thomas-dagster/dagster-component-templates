@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RandomForestModelComponent",
+  "component_type": "dagster_community_components.RandomForestModelComponent",
   "description": "Fit a random forest ensemble model for classification or regression.",
   "category": "analytics",
   "icon": "BarChart2",

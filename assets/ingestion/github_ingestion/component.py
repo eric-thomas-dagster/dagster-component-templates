@@ -227,7 +227,7 @@ class GitHubIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.GitHubIngestionComponent
+        type: dagster_community_components.GitHubIngestionComponent
         attributes:
           asset_name: github_repo_data
           access_token: "{{ env('GITHUB_ACCESS_TOKEN') }}"

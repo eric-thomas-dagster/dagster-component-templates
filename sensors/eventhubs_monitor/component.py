@@ -35,7 +35,7 @@ class EventHubsMonitorSensorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.EventHubsMonitorSensorComponent
+        type: dagster_community_components.EventHubsMonitorSensorComponent
         attributes:
           sensor_name: eventhubs_sensor
           fully_qualified_namespace: mynamespace.servicebus.windows.net

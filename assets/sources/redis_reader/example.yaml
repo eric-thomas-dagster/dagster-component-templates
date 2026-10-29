@@ -1,4 +1,4 @@
-type: dagster_component_templates.RedisReaderComponent
+type: dagster_community_components.RedisReaderComponent
 attributes:
   asset_name: redis_user_sessions
   host_env_var: REDIS_HOST

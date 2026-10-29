@@ -120,7 +120,7 @@ The Legal Document Extractor Component uses a large language model to parse unst
 ### Basic Legal Document Extraction
 
 ```yaml
-type: dagster_component_templates.LegalDocumentExtractorComponent
+type: dagster_community_components.LegalDocumentExtractorComponent
 attributes:
   asset_name: parsed_legal_documents
   upstream_asset_key: raw_legal_documents
@@ -138,7 +138,7 @@ attributes:
 ### Full Extraction with Anthropic
 
 ```yaml
-type: dagster_component_templates.LegalDocumentExtractorComponent
+type: dagster_community_components.LegalDocumentExtractorComponent
 attributes:
   asset_name: parsed_legal_documents
   upstream_asset_key: raw_legal_documents

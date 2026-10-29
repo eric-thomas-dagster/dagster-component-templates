@@ -277,7 +277,7 @@ class LatticeIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.LatticeIngestionComponent
+        type: dagster_community_components.LatticeIngestionComponent
         attributes:
           asset_name: lattice_ingestion
           api_key: "${LATTICE_API_KEY}"

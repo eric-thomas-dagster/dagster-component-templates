@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GoogleVertexAIComponent",
+  "component_type": "dagster_community_components.GoogleVertexAIComponent",
   "description": "Component for importing Google Vertex AI entities as Dagster assets.",
   "category": "integration",
   "icon": "Plug",

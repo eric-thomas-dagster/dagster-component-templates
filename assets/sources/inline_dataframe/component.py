@@ -62,7 +62,7 @@ class InlineDataframeComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.InlineDataframeComponent
+        type: dagster_community_components.InlineDataframeComponent
         attributes:
           asset_name: region_codes
           columns: [region_code, region_name]

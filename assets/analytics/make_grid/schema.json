@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MakeGridComponent",
+  "component_type": "dagster_community_components.MakeGridComponent",
   "description": "Generate a regular grid of square polygons covering the bounding box of input geometries.",
   "category": "analytics",
   "icon": "Grid",

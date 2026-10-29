@@ -37,7 +37,7 @@ Polls PagerDuty's REST API for incidents. Triggers a RunRequest per new incident
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.PagerDutyIncidentSensorComponent
+type: dagster_community_components.PagerDutyIncidentSensorComponent
 attributes:
   sensor_name: high_severity_incident_sensor
   asset_keys: [incident_post_mortem]

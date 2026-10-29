@@ -123,7 +123,7 @@ Customer journey mapping traces the path customers take from awareness to conver
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.CustomerJourneyMappingComponent
+type: dagster_community_components.CustomerJourneyMappingComponent
 attributes:
   asset_name: customer_journeys
   conversion_event: "purchase"

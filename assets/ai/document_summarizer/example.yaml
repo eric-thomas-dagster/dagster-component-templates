@@ -1,7 +1,7 @@
 # Document Summarizer receives text from upstream assets via IO manager
 # Draw connection from Document Text Extractor or any text-producing asset
 
-type: dagster_component_templates.DocumentSummarizerComponent
+type: dagster_community_components.DocumentSummarizerComponent
 attributes:
   asset_name: report_summary
   upstream_asset_key: raw_documents

@@ -107,7 +107,7 @@ The Image Classifier Component loads a pre-trained vision model and classifies e
 ### CLIP Zero-shot with Custom Labels
 
 ```yaml
-type: dagster_component_templates.ImageClassifierComponent
+type: dagster_community_components.ImageClassifierComponent
 attributes:
   asset_name: product_categories
   upstream_asset_key: product_images
@@ -124,7 +124,7 @@ attributes:
 ### ResNet50 ImageNet Classification
 
 ```yaml
-type: dagster_component_templates.ImageClassifierComponent
+type: dagster_community_components.ImageClassifierComponent
 attributes:
   asset_name: imagenet_labels
   upstream_asset_key: raw_images

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToDorisComponent",
+  "component_type": "dagster_community_components.DataframeToDorisComponent",
   "description": "Bulk-ingest a Pandas DataFrame into Apache Doris via Stream Load.\n\nExample:\n\n    ```yaml\n    type: dagster_community_components.DataframeToDorisComponent\n    attributes:\n      asset_name: doris_orders_load\n      upstream_asset_key: orders_clean\n      table: orders                          # Doris table (database from resource)\n      host_env_var: DORIS_FE_HOST            # OR use resource_key\n      http_port: 8030\n      username_env_var: DORIS_USER\n      password_env_var: DORIS_PASSWORD\n      database: analytics\n      mode: append                           # 'append' or 'replace' (DELETE+INSERT pattern)\n      format: csv\n    ```",
   "category": "sink",
   "icon": "si:apache",

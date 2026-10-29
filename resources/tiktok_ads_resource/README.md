@@ -36,7 +36,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.TikTokAdsResourceComponent
+type: dagster_community_components.TikTokAdsResourceComponent
 attributes:
   resource_key: tiktok_ads_resource
   access_token_env_var: TIKTOK_ADS_ACCESS_TOKEN

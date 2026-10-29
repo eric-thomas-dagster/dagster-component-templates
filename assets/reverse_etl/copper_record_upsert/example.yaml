@@ -7,7 +7,7 @@
 # be present in fields_map's values. NOT race-condition-safe under
 # concurrent writers -- see README.
 
-type: dagster_component_templates.CopperRecordUpsertComponent
+type: dagster_community_components.CopperRecordUpsertComponent
 attributes:
   asset_name: copper_people_mirror
   upstream_asset_key: dbt_marts_contacts

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PagerDutyIngestionComponent",
+  "component_type": "dagster_community_components.PagerDutyIngestionComponent",
   "description": "Ingest PagerDuty incidents/services/schedules using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "devops-observability",

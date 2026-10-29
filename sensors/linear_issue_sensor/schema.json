@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LinearIssueSensorComponent",
+  "component_type": "dagster_community_components.LinearIssueSensorComponent",
   "description": "Trigger a run when Linear has new or updated issues matching a team/state filter.",
   "category": "sensor",
   "icon": "si:linear",

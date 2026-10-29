@@ -111,7 +111,7 @@ Monitor a bucket prefix for Parquet files:
 
 ```yaml
 # File: defs/components/gcs_sensor.yaml
-type: dagster_component_templates.GCSMonitorSensorComponent
+type: dagster_community_components.GCSMonitorSensorComponent
 attributes:
   sensor_name: gcs_parquet_sensor
   bucket_name: my-data-bucket
@@ -124,7 +124,7 @@ attributes:
 ### Monitor Multiple File Types
 
 ```yaml
-type: dagster_component_templates.GCSMonitorSensorComponent
+type: dagster_community_components.GCSMonitorSensorComponent
 attributes:
   sensor_name: gcs_multi_format_sensor
   bucket_name: analytics-bucket
@@ -136,7 +136,7 @@ attributes:
 ### Date-Partitioned Prefix
 
 ```yaml
-type: dagster_component_templates.GCSMonitorSensorComponent
+type: dagster_community_components.GCSMonitorSensorComponent
 attributes:
   sensor_name: gcs_daily_sensor
   bucket_name: data-lake
@@ -149,7 +149,7 @@ attributes:
 ### Monitor Entire Bucket
 
 ```yaml
-type: dagster_component_templates.GCSMonitorSensorComponent
+type: dagster_community_components.GCSMonitorSensorComponent
 attributes:
   sensor_name: gcs_bucket_sensor
   bucket_name: partner-drop-zone
@@ -232,7 +232,7 @@ def load_parquet_from_gcs(context: AssetExecutionContext, config: GCSObjectConfi
 
 ```yaml
 # defs/components/gcs_data_sensor.yaml
-type: dagster_component_templates.GCSMonitorSensorComponent
+type: dagster_community_components.GCSMonitorSensorComponent
 attributes:
   sensor_name: gcs_data_sensor
   bucket_name: my-data-lake

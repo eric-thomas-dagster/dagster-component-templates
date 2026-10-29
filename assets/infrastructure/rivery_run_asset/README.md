@@ -82,7 +82,7 @@ When the asset is materialized:
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.RiveryRunAssetComponent
+type: dagster_community_components.RiveryRunAssetComponent
 attributes:
   asset_key: rivery/rivers/load_orders
   river_id: abc123def456

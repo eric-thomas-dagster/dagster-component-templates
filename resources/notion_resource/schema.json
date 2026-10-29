@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.NotionResourceComponent",
+  "component_type": "dagster_community_components.NotionResourceComponent",
   "description": "Register a NotionResource wrapping the notion-client SDK for use by other components",
   "category": "resource",
   "icon": "si:notion",

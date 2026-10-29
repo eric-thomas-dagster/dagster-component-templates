@@ -1,4 +1,4 @@
-type: dagster_component_templates.ImageTransformAssetComponent
+type: dagster_community_components.ImageTransformAssetComponent
 attributes:
   asset_name: thumbnails
   upstream_asset_key: sample_images

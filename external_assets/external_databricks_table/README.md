@@ -70,7 +70,7 @@ This component does not read from or write to Databricks Table. It is a **lineag
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ExternalDatabricksTableAsset
+type: dagster_community_components.ExternalDatabricksTableAsset
 attributes:
   asset_key: my_service/asset
   workspace_url: my_workspace_url
@@ -87,7 +87,7 @@ Set `create_observation_sensor: true` to also get the polling sensor that keeps 
 health/data-version current — one component, one YAML, no manual `asset_key` wiring:
 
 ```yaml
-type: dagster_component_templates.ExternalDatabricksTableAsset
+type: dagster_community_components.ExternalDatabricksTableAsset
 attributes:
   asset_key: external/databricks
   workspace_url: WORKSPACE_URL
@@ -105,7 +105,7 @@ asset and sensor on independent lifecycles), pair this component with the standa
 
 ```yaml
 # 1. Declare the external asset (lineage node)
-type: dagster_component_templates.ExternalDatabricksTableAsset
+type: dagster_community_components.ExternalDatabricksTableAsset
 attributes:
   asset_key: external/databricks
   workspace_url: WORKSPACE_URL
@@ -115,7 +115,7 @@ attributes:
 ---
 
 # 2. Observe it on a schedule
-type: dagster_component_templates.DatabricksTableObservationSensorComponent
+type: dagster_community_components.DatabricksTableObservationSensorComponent
 attributes:
   sensor_name: databricks_table_observer
   asset_key: external/databricks

@@ -238,7 +238,7 @@ class ConversationMemoryComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ConversationMemoryComponent
+        type: dagster_community_components.ConversationMemoryComponent
         attributes:
           asset_name: conversation_state
           upstream_asset_key: chat_messages

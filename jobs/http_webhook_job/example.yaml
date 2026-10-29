@@ -1,4 +1,4 @@
-type: dagster_component_templates.HttpWebhookJobComponent
+type: dagster_community_components.HttpWebhookJobComponent
 attributes:
   job_name: http_webhook_job_example
   schedule: "0 3 * * *"

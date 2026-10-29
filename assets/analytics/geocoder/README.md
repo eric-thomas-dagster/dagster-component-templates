@@ -122,7 +122,7 @@ The upstream DataFrame must contain an address column with full address strings 
 ### Nominatim (free)
 
 ```yaml
-type: dagster_component_templates.GeocoderComponent
+type: dagster_community_components.GeocoderComponent
 attributes:
   asset_name: geocoded_stores
   upstream_asset_key: stores
@@ -135,7 +135,7 @@ attributes:
 ### Google Maps
 
 ```yaml
-type: dagster_component_templates.GeocoderComponent
+type: dagster_community_components.GeocoderComponent
 attributes:
   asset_name: geocoded_customers
   upstream_asset_key: customers

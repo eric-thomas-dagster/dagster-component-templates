@@ -1,3 +1,3 @@
-type: dagster_component_templates.AnthropicResourceComponent
+type: dagster_community_components.AnthropicResourceComponent
 attributes:
   resource_key: anthropic_resource

@@ -216,7 +216,7 @@ class OktaManagementIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.OktaManagementIngestionComponent
+        type: dagster_community_components.OktaManagementIngestionComponent
         attributes:
           asset_name: okta_management_ingestion
           org_url: "https://mycompany.okta.com"

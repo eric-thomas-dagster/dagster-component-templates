@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AzureStreamAnalyticsComponent",
+  "component_type": "dagster_community_components.AzureStreamAnalyticsComponent",
   "description": "Component for importing Azure Stream Analytics entities as Dagster assets.",
   "category": "integration",
   "icon": "si:microsoftazure",

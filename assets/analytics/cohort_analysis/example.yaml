@@ -1,4 +1,4 @@
-type: dagster_component_templates.CohortAnalysisComponent
+type: dagster_community_components.CohortAnalysisComponent
 attributes:
   asset_name: customer_cohort_retention
 

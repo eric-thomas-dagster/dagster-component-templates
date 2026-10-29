@@ -72,7 +72,7 @@ This component does not read from or write to Kafka. It is a **lineage declarati
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ExternalKafkaAsset
+type: dagster_community_components.ExternalKafkaAsset
 attributes:
   asset_key: my_service/asset
   bootstrap_servers: my_bootstrap_servers
@@ -87,7 +87,7 @@ Use `topics:` instead of the top-level `asset_key`/`topic` fields to declare sev
 from one `ExternalKafkaAsset` instance, instead of one YAML block per topic:
 
 ```yaml
-type: dagster_component_templates.ExternalKafkaAsset
+type: dagster_community_components.ExternalKafkaAsset
 attributes:
   bootstrap_servers: BOOTSTRAP_SERVERS
   group_name: kafka_sources
@@ -119,7 +119,7 @@ Set `create_observation_sensor: true` to also get the polling sensor that keeps 
 health/data-version current — one component, one YAML, no manual `asset_key` wiring:
 
 ```yaml
-type: dagster_component_templates.ExternalKafkaAsset
+type: dagster_community_components.ExternalKafkaAsset
 attributes:
   asset_key: external/kafka
   bootstrap_servers: BOOTSTRAP_SERVERS
@@ -134,7 +134,7 @@ asset and sensor on independent lifecycles), pair this component with the standa
 
 ```yaml
 # 1. Declare the external asset (lineage node)
-type: dagster_component_templates.ExternalKafkaAsset
+type: dagster_community_components.ExternalKafkaAsset
 attributes:
   asset_key: external/kafka
   bootstrap_servers: BOOTSTRAP_SERVERS
@@ -143,7 +143,7 @@ attributes:
 ---
 
 # 2. Observe it on a schedule
-type: dagster_component_templates.KafkaObservationSensorComponent
+type: dagster_community_components.KafkaObservationSensorComponent
 attributes:
   sensor_name: kafka_asset_observer
   asset_key: external/kafka

@@ -1,5 +1,5 @@
 # Using env vars
-type: dagster_component_templates.ClickHouseTableObservationSensorComponent
+type: dagster_community_components.ClickHouseTableObservationSensorComponent
 attributes:
   sensor_name: clickhouse_events_observation
   asset_key: clickhouse/analytics/events

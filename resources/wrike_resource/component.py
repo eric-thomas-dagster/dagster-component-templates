@@ -52,7 +52,7 @@ class WrikeResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.WrikeResourceComponent
+        type: dagster_community_components.WrikeResourceComponent
         attributes:
           resource_key: wrike_resource
           access_token_env_var: WRIKE_ACCESS_TOKEN

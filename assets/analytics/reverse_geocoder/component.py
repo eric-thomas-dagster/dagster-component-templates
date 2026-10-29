@@ -327,7 +327,7 @@ class ReverseGeocoderComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ReverseGeocoderComponent
+        type: dagster_community_components.ReverseGeocoderComponent
         attributes:
           asset_name: locations_with_address
           upstream_asset_key: gps_events

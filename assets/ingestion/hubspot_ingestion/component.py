@@ -224,7 +224,7 @@ class HubSpotIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.HubSpotIngestionComponent
+        type: dagster_community_components.HubSpotIngestionComponent
         attributes:
           asset_name: hubspot_data
           api_key: "{{ env('HUBSPOT_API_KEY') }}"

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OutreachResourceComponent",
+  "component_type": "dagster_community_components.OutreachResourceComponent",
   "description": "Register an OutreachResource wrapping Outreach's JSON:API REST API (OAuth2 refresh_token grant) for use by other components",
   "category": "resource",
   "icon": "si:outreach",

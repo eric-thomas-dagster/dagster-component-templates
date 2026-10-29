@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WebhookLineageExportJobComponent",
+  "component_type": "dagster_community_components.WebhookLineageExportJobComponent",
   "description": "Op-shaped job that walks the live Dagster asset graph and POSTs the raw payload to any HTTP webhook (Slack, internal endpoint, n8n, Zapier). Optional Bearer auth.",
   "category": "jobs",
   "icon": "Activity",

@@ -128,7 +128,7 @@ class WorkableCandidateUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example -- upstream asset, create into a job pipeline:
         ```yaml
-        type: dagster_component_templates.WorkableCandidateUpsertComponent
+        type: dagster_community_components.WorkableCandidateUpsertComponent
         attributes:
           asset_name: workable_candidates_mirror
           upstream_asset_key: dbt_marts_applicants

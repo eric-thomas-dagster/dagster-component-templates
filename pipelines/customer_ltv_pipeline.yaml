@@ -14,7 +14,7 @@
 
 ---
 # Component 1: Shopify Order Ingestion
-type: dagster_component_templates.ShopifyIngestionComponent
+type: dagster_community_components.ShopifyIngestionComponent
 attributes:
   asset_name: shopify_orders
   resource_type: orders
@@ -24,7 +24,7 @@ attributes:
 
 ---
 # Component 2: E-commerce Data Standardization
-type: dagster_component_templates.EcommerceStandardizerComponent
+type: dagster_community_components.EcommerceStandardizerComponent
 attributes:
   asset_name: standardized_orders
   platform: shopify
@@ -35,7 +35,7 @@ attributes:
 
 ---
 # Component 3: Lifetime Value Prediction
-type: dagster_component_templates.LTVPredictionComponent
+type: dagster_community_components.LTVPredictionComponent
 attributes:
   asset_name: customer_ltv
   source_asset: standardized_orders
@@ -48,7 +48,7 @@ attributes:
 
 ---
 # Component 4: Customer Segmentation by LTV
-type: dagster_component_templates.CustomerSegmentationComponent
+type: dagster_community_components.CustomerSegmentationComponent
 attributes:
   asset_name: ltv_segments
   transaction_data_asset: standardized_orders
@@ -63,7 +63,7 @@ attributes:
 
 ---
 # Component 5: Write LTV Segments to Database
-type: dagster_component_templates.DLTDataFrameWriterComponent
+type: dagster_community_components.DLTDataFrameWriterComponent
 attributes:
   asset_name: ltv_segments_output
   source_asset: ltv_segments

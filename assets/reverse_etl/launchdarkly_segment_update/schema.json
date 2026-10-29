@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LaunchDarklySegmentUpdateComponent",
+  "component_type": "dagster_community_components.LaunchDarklySegmentUpdateComponent",
   "description": "Reverse-ETL sink: sync a computed cohort into a LaunchDarkly segment's target list via a semantic patch, adding or removing context keys per row.",
   "category": "reverse_etl",
   "icon": "si:launchdarkly",

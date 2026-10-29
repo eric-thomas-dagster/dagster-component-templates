@@ -87,5 +87,5 @@ Materialize `raw_customers` once, then a few days of `raw_orders` (which pulls `
 
 ## Notes
 
-- All `type:` references here use the `dagster_community_components.` prefix — that's the real, installable package (`pyproject.toml`'s `[project] name`). Many older examples elsewhere in this repo still reference a stale `dagster_component_templates.` prefix left over from a prior rename; that prefix does not resolve to an installed package.
+- All `type:` references here use the `dagster_community_components.` prefix — that's the real, installable package (`pyproject.toml`'s `[project] name`). Many older examples elsewhere in this repo still reference a stale `dagster_community_components.` prefix left over from a prior rename; that prefix does not resolve to an installed package.
 - `data/synthetic_commerce.duckdb` and `dbt/synthetic_commerce_dbt/target|dbt_packages|logs/` are gitignored — generated at run time, not source.

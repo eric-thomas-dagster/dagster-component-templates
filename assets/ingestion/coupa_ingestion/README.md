@@ -103,7 +103,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.CoupaIngestionComponent
+type: dagster_community_components.CoupaIngestionComponent
 attributes:
   asset_name: coupa_ingestion
   instance: "mycompany"

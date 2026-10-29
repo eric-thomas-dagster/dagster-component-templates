@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WarehouseTopNPerGroupComponent",
+  "component_type": "dagster_community_components.WarehouseTopNPerGroupComponent",
   "description": "Top-N-per-group in the warehouse (ROW_NUMBER pushdown). No Python materialization.",
   "category": "transformation",
   "icon": "BarChart",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeFromPrometheusComponent",
+  "component_type": "dagster_community_components.DataframeFromPrometheusComponent",
   "description": "Run a PromQL query against any Prometheus-compatible server's HTTP API and return results as a DataFrame. Works against open-source Prometheus, Cortex, Thanos, Mimir, VictoriaMetrics, Azure Managed Prometheus, Grafana Cloud.",
   "category": "source",
   "icon": "LineChart",

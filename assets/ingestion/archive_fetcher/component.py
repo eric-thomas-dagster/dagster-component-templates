@@ -15,7 +15,7 @@ Supported archive types (auto-detected from URL extension or `archive_type`):
   - bz2  (single-file bzip2; output written to <extract_to>/<basename-without-.bz2>)
 
 ```yaml
-type: dagster_component_templates.ArchiveFetcherComponent
+type: dagster_community_components.ArchiveFetcherComponent
 attributes:
   asset_name: movielens_raw
   url: https://files.grouplens.org/datasets/movielens/ml-latest-small.zip
@@ -27,7 +27,7 @@ Downstream usage:
 
 ```yaml
 # A CSV ingestion that depends on the archive_fetcher
-type: dagster_component_templates.CSVFileIngestionComponent
+type: dagster_community_components.CSVFileIngestionComponent
 attributes:
   asset_name: movies
   file_path: /tmp/movielens/movies.csv

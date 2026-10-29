@@ -1,4 +1,4 @@
-type: dagster_component_templates.DynamicFanoutJobComponent
+type: dagster_community_components.DynamicFanoutJobComponent
 attributes:
   job_name: process_url_list
   schedule: "0 * * * *"

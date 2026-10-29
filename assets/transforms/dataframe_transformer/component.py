@@ -295,7 +295,7 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
     Example:
         ```yaml
         # Just configure the transformation - dependencies set by drawing connections!
-        type: dagster_component_templates.DataFrameTransformerComponent
+        type: dagster_community_components.DataFrameTransformerComponent
         attributes:
           asset_name: cleaned_data
           drop_duplicates: true

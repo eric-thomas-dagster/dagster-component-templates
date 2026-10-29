@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WarehouseMaintenanceJobComponent",
+  "component_type": "dagster_community_components.WarehouseMaintenanceJobComponent",
   "description": "Compound op job: run warehouse maintenance (VACUUM / ANALYZE / REFRESH MATERIALIZED VIEW) across many statements with one schedule.",
   "category": "jobs",
   "icon": "Cog",

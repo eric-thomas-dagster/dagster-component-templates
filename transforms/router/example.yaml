@@ -1,4 +1,4 @@
-type: dagster_component_templates.RouterComponent
+type: dagster_community_components.RouterComponent
 attributes:
   upstream_asset_key: orders
   routes:

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DatabaseTablesMigrationComponent",
+  "component_type": "dagster_community_components.DatabaseTablesMigrationComponent",
   "description": "DDL-first table migration: build portable CREATE TABLE statements from source INFORMATION_SCHEMA (types + PKs + FKs + NOT NULL + defaults) and execute on target. Emits per-table status DataFrame.",
   "category": "infrastructure",
   "icon": "Table2",

@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataMaskingComponent
+type: dagster_community_components.DataMaskingComponent
 attributes:
   asset_name: data_masking_output
   upstream_asset_key: upstream_data

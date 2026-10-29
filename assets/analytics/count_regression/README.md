@@ -75,7 +75,7 @@ Fits a Poisson generalized linear model for count outcomes (events per unit, cli
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.CountRegressionComponent
+type: dagster_community_components.CountRegressionComponent
 attributes:
   asset_name: support_ticket_counts
   upstream_asset_key: customer_features

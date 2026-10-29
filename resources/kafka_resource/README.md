@@ -38,7 +38,7 @@ pip install kafka-python>=2.0.2
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.KafkaResourceComponent
+type: dagster_community_components.KafkaResourceComponent
 attributes:
   resource_key: kafka_resource
   bootstrap_servers: broker1:9092,broker2:9092

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PagerDutyIncidentUpsertComponent",
+  "component_type": "dagster_community_components.PagerDutyIncidentUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into PagerDuty incidents against a target service. Each row's key_column value becomes the incident's incident_key -- PagerDuty's server-side dedup mechanism, so upsert is idempotent by design.",
   "category": "reverse_etl",
   "icon": "si:pagerduty",

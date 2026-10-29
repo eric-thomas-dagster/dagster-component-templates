@@ -79,7 +79,7 @@ Some older Close client libraries reference a simpler `GET /api/v1/lead/?query=.
 ## Example
 
 ```yaml
-type: dagster_component_templates.CloseCrmResourceComponent
+type: dagster_community_components.CloseCrmResourceComponent
 attributes:
   resource_key: close_crm
   api_key_env_var: CLOSE_API_KEY

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WorkableIngestionComponent",
+  "component_type": "dagster_community_components.WorkableIngestionComponent",
   "description": "Component for ingesting Workable recruitment pipeline data using dlt.",
   "category": "ingestion",
   "vertical": "finance-hr",

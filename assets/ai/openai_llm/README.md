@@ -41,7 +41,7 @@ The OpenAI LLM Component enables you to leverage OpenAI's powerful language mode
 ### Basic Configuration
 
 ```yaml
-type: dagster_component_templates.OpenAILLMComponent
+type: dagster_community_components.OpenAILLMComponent
 attributes:
   asset_name: enriched_products
   api_key: "${OPENAI_API_KEY}"
@@ -56,7 +56,7 @@ attributes:
 Process multiple rows with a custom prompt template:
 
 ```yaml
-type: dagster_component_templates.OpenAILLMComponent
+type: dagster_community_components.OpenAILLMComponent
 attributes:
   asset_name: customer_feedback_analysis
   api_key: "${OPENAI_API_KEY}"
@@ -88,7 +88,7 @@ attributes:
 Request structured JSON responses:
 
 ```yaml
-type: dagster_component_templates.OpenAILLMComponent
+type: dagster_community_components.OpenAILLMComponent
 attributes:
   asset_name: extracted_entities
   api_key: "${OPENAI_API_KEY}"
@@ -110,7 +110,7 @@ attributes:
 Minimize API costs with caching and cheaper models:
 
 ```yaml
-type: dagster_component_templates.OpenAILLMComponent
+type: dagster_community_components.OpenAILLMComponent
 attributes:
   asset_name: categorized_content
   api_key: "${OPENAI_API_KEY}"
@@ -136,7 +136,7 @@ attributes:
 Enable the model to call functions:
 
 ```yaml
-type: dagster_component_templates.OpenAILLMComponent
+type: dagster_community_components.OpenAILLMComponent
 attributes:
   asset_name: weather_enhanced
   api_key: "${OPENAI_API_KEY}"
@@ -359,13 +359,13 @@ Process LLM outputs with:
 
 ```yaml
 # 1. Load customer data
-- type: dagster_component_templates.CSVFileIngestionComponent
+- type: dagster_community_components.CSVFileIngestionComponent
   attributes:
     asset_name: customer_feedback
     file_path: "data/feedback.csv"
 
 # 2. Analyze with GPT-4
-- type: dagster_component_templates.OpenAILLMComponent
+- type: dagster_community_components.OpenAILLMComponent
   attributes:
     asset_name: feedback_analyzed
     api_key: "${OPENAI_API_KEY}"
@@ -378,7 +378,7 @@ Process LLM outputs with:
     enable_caching: true
 
 # 3. Store results
-- type: dagster_component_templates.DuckDBTableWriterComponent
+- type: dagster_community_components.DuckDBTableWriterComponent
   attributes:
     asset_name: feedback_stored
     table_name: analyzed_feedback

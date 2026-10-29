@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SlackIngestionComponent",
+  "component_type": "dagster_community_components.SlackIngestionComponent",
   "description": "Component for ingesting Slack workspace data using dlt.",
   "category": "ingestion",
   "vertical": "productivity",

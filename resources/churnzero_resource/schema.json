@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ChurnZeroResourceComponent",
+  "component_type": "dagster_community_components.ChurnZeroResourceComponent",
   "description": "Register a ChurnZeroResource wrapping ChurnZero's REST API v1 (account-specific base URL, HTTP Basic auth) for use by other components",
   "category": "resource",
   "icon": "Activity",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RedisResourceComponent",
+  "component_type": "dagster_community_components.RedisResourceComponent",
   "x-dagster-io": {},
   "x-dagster-provides": [
     "redis_resource"

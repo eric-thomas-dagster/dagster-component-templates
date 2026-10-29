@@ -65,7 +65,7 @@ class FigmentResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.FigmentResourceComponent
+        type: dagster_community_components.FigmentResourceComponent
         attributes:
           resource_key: figment_resource
           api_key_env_var: FIGMENT_API_KEY

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ImageObjectDetectorComponent",
+  "component_type": "dagster_community_components.ImageObjectDetectorComponent",
   "description": "Detect objects in images using HuggingFace DETR models, returning bounding boxes, labels, and confidence scores.",
   "category": "ai",
   "icon": "Crosshair",

@@ -37,7 +37,7 @@ pip install mlflow
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.MLflowResourceComponent
+type: dagster_community_components.MLflowResourceComponent
 attributes:
   resource_key: mlflow_resource
   tracking_uri: http://localhost:5000

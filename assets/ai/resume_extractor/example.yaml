@@ -1,4 +1,4 @@
-type: dagster_component_templates.ResumeExtractorComponent
+type: dagster_community_components.ResumeExtractorComponent
 attributes:
   asset_name: extracted_resumes
   upstream_asset_key: raw_resumes

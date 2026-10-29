@@ -1,4 +1,4 @@
-type: dagster_component_templates.BigQueryResourceComponent
+type: dagster_community_components.BigQueryResourceComponent
 attributes:
   resource_key: bigquery_resource
   project: <project>

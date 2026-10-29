@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.EtsForecastComponent",
+  "component_type": "dagster_community_components.EtsForecastComponent",
   "description": "Fit an ETS (Exponential Smoothing) model and generate forecasts.",
   "category": "transformation",
   "icon": "Shuffle",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AnthropicResourceComponent",
+  "component_type": "dagster_community_components.AnthropicResourceComponent",
   "description": "Register a dagster-anthropic AnthropicResource for use by other components",
   "category": "resource",
   "icon": "si:anthropic",

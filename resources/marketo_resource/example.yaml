@@ -1,4 +1,4 @@
-type: dagster_component_templates.MarketoResourceComponent
+type: dagster_community_components.MarketoResourceComponent
 attributes:
   resource_key: marketo
   rest_url: "https://123-ABC-456.mktorest.com"

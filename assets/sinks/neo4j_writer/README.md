@@ -98,7 +98,7 @@ The `Neo4jWriterComponent` accepts an upstream DataFrame asset and writes each r
 ### Merge nodes (create or update)
 
 ```yaml
-type: dagster_component_templates.Neo4jWriterComponent
+type: dagster_community_components.Neo4jWriterComponent
 attributes:
   asset_name: write_products_to_neo4j
   upstream_asset_key: enriched_products
@@ -111,7 +111,7 @@ attributes:
 ### Create new nodes
 
 ```yaml
-type: dagster_component_templates.Neo4jWriterComponent
+type: dagster_community_components.Neo4jWriterComponent
 attributes:
   asset_name: write_events_to_neo4j
   upstream_asset_key: new_events

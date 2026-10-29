@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CloudTasksEnqueueAssetComponent",
+  "component_type": "dagster_community_components.CloudTasksEnqueueAssetComponent",
   "description": "CloudTasksEnqueueAssetComponent \u2014 enqueue Cloud Tasks from DataFrame rows.",
   "category": "sink",
   "x-dagster-io": {

@@ -91,7 +91,7 @@ Generate images from text prompts in a DataFrame column using LiteLLM. Supports 
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.LitellmImageGenerationComponent
+type: dagster_community_components.LitellmImageGenerationComponent
 attributes:
   asset_name: product_hero_images
   upstream_asset_key: product_descriptions

@@ -104,7 +104,7 @@ Not bound to the partition window -- every run re-lists the same full folder tre
 
 ## Example
 ```yaml
-type: dagster_component_templates.DropboxIngestionComponent
+type: dagster_community_components.DropboxIngestionComponent
 attributes:
   asset_name: dropbox_ingestion
   client_id: "${DROPBOX_CLIENT_ID}"

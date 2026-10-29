@@ -1,4 +1,4 @@
-type: dagster_component_templates.ObservabilityHeartbeatJobComponent
+type: dagster_community_components.ObservabilityHeartbeatJobComponent
 attributes:
   job_name: observability_heartbeat_job_example
   schedule: "0 3 * * *"

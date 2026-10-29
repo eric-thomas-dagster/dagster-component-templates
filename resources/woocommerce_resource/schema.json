@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WooCommerceResourceComponent",
+  "component_type": "dagster_community_components.WooCommerceResourceComponent",
   "description": "Register a WooCommerceResource (REST API v3, HTTP Basic auth) for use by other components",
   "category": "resource",
   "icon": "si:woocommerce",

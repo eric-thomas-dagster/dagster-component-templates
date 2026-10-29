@@ -37,7 +37,7 @@ Register a PostgreSQL resource for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.PostgresResourceComponent
+type: dagster_community_components.PostgresResourceComponent
 attributes:
   resource_key: postgres_resource  # key other components use
   # Required

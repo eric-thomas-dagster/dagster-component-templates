@@ -1,4 +1,4 @@
-type: dagster_component_templates.MemcachedCacheFlushJobComponent
+type: dagster_community_components.MemcachedCacheFlushJobComponent
 attributes:
   job_name: memcached_flush_hourly
   schedule: "0 * * * *"

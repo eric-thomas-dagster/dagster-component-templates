@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PivotComponent",
+  "component_type": "dagster_community_components.PivotComponent",
   "description": "Pivot a DataFrame from long to wide — rotate row values into column headers with a chosen aggregation.",
   "category": "transformation",
   "x-dagster-io": {

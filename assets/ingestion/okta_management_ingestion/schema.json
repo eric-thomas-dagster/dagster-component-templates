@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OktaManagementIngestionComponent",
+  "component_type": "dagster_community_components.OktaManagementIngestionComponent",
   "description": "Ingest Okta org data (users, groups, apps) via the Management API using dlt's generic REST API source. Distinct from okta_system_log_ingestion, which covers audit/system logs only.",
   "category": "ingestion",
   "vertical": "security",

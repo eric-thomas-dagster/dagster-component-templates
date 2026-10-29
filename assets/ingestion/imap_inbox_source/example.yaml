@@ -1,4 +1,4 @@
-type: dagster_component_templates.ImapInboxSourceComponent
+type: dagster_community_components.ImapInboxSourceComponent
 attributes:
   asset_name: inbound_emails
   host: imap.gmail.com

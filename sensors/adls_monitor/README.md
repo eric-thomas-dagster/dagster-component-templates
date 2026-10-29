@@ -110,7 +110,7 @@ No explicit configuration is needed when running on Azure infrastructure with a 
 For non-Azure environments or local development, set the connection string in an environment variable and reference it:
 
 ```yaml
-type: dagster_component_templates.ADLSMonitorSensorComponent
+type: dagster_community_components.ADLSMonitorSensorComponent
 attributes:
   sensor_name: adls_sensor
   storage_account_name: mydatalake
@@ -135,7 +135,7 @@ Monitor a container directory for Parquet files:
 
 ```yaml
 # File: defs/components/adls_sensor.yaml
-type: dagster_component_templates.ADLSMonitorSensorComponent
+type: dagster_community_components.ADLSMonitorSensorComponent
 attributes:
   sensor_name: adls_parquet_sensor
   storage_account_name: mydatalake
@@ -151,7 +151,7 @@ attributes:
 Monitor a directory and all subdirectories:
 
 ```yaml
-type: dagster_component_templates.ADLSMonitorSensorComponent
+type: dagster_community_components.ADLSMonitorSensorComponent
 attributes:
   sensor_name: adls_recursive_sensor
   storage_account_name: mydatalake
@@ -165,7 +165,7 @@ attributes:
 ### Monitor Multiple File Types
 
 ```yaml
-type: dagster_component_templates.ADLSMonitorSensorComponent
+type: dagster_community_components.ADLSMonitorSensorComponent
 attributes:
   sensor_name: adls_multi_format_sensor
   storage_account_name: analytics
@@ -262,7 +262,7 @@ def load_parquet_from_adls(context: AssetExecutionContext, config: ADLSFileConfi
 
 ```yaml
 # defs/components/adls_data_sensor.yaml
-type: dagster_component_templates.ADLSMonitorSensorComponent
+type: dagster_community_components.ADLSMonitorSensorComponent
 attributes:
   sensor_name: adls_data_sensor
   storage_account_name: mydatalake

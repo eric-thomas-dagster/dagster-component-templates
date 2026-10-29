@@ -103,7 +103,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.ConstantContactIngestionComponent
+type: dagster_community_components.ConstantContactIngestionComponent
 attributes:
   asset_name: constant_contact_ingestion
   client_id: "${CONSTANT_CONTACT_CLIENT_ID}"

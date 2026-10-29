@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OversampleFieldComponent",
+  "component_type": "dagster_community_components.OversampleFieldComponent",
   "description": "Balance imbalanced datasets using SMOTE, random oversampling, or ADASYN.",
   "category": "analytics",
   "icon": "BarChart2",

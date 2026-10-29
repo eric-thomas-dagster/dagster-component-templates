@@ -320,7 +320,7 @@ class TextModeratorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.TextModeratorComponent
+        type: dagster_community_components.TextModeratorComponent
         attributes:
           asset_name: moderated_content
           method: openai_moderation

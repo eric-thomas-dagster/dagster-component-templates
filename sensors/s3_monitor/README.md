@@ -122,7 +122,7 @@ Monitor a bucket prefix for Parquet files:
 
 ```yaml
 # File: defs/components/s3_sensor.yaml
-type: dagster_component_templates.S3MonitorSensorComponent
+type: dagster_community_components.S3MonitorSensorComponent
 attributes:
   sensor_name: s3_parquet_sensor
   bucket_name: my-data-bucket
@@ -135,7 +135,7 @@ attributes:
 ### Monitor Multiple File Types
 
 ```yaml
-type: dagster_component_templates.S3MonitorSensorComponent
+type: dagster_community_components.S3MonitorSensorComponent
 attributes:
   sensor_name: s3_multi_format_sensor
   bucket_name: analytics-bucket
@@ -147,7 +147,7 @@ attributes:
 ### Date-Partitioned Prefix
 
 ```yaml
-type: dagster_component_templates.S3MonitorSensorComponent
+type: dagster_community_components.S3MonitorSensorComponent
 attributes:
   sensor_name: s3_daily_sensor
   bucket_name: data-lake
@@ -160,7 +160,7 @@ attributes:
 ### Monitor Entire Bucket
 
 ```yaml
-type: dagster_component_templates.S3MonitorSensorComponent
+type: dagster_community_components.S3MonitorSensorComponent
 attributes:
   sensor_name: s3_bucket_sensor
   bucket_name: partner-drop-zone
@@ -241,7 +241,7 @@ def load_parquet_from_s3(context: AssetExecutionContext, config: S3ObjectConfig)
 
 ```yaml
 # defs/components/s3_data_sensor.yaml
-type: dagster_component_templates.S3MonitorSensorComponent
+type: dagster_community_components.S3MonitorSensorComponent
 attributes:
   sensor_name: s3_data_sensor
   bucket_name: my-data-lake

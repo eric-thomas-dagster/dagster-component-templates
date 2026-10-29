@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DockerContainerAssetComponent",
+  "component_type": "dagster_community_components.DockerContainerAssetComponent",
   "description": "Run a Docker container as a Dagster asset via dagster-docker.",
   "category": "infrastructure",
   "icon": "si:docker",

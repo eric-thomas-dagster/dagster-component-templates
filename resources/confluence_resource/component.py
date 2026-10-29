@@ -262,7 +262,7 @@ class ConfluenceResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ConfluenceResourceComponent
+        type: dagster_community_components.ConfluenceResourceComponent
         attributes:
           resource_key: confluence
           site_domain: yoursite

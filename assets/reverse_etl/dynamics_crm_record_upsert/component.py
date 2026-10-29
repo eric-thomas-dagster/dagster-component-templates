@@ -128,7 +128,7 @@ class DynamicsCrmRecordUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.DynamicsCrmRecordUpsertComponent
+        type: dagster_community_components.DynamicsCrmRecordUpsertComponent
         attributes:
           asset_name: dynamics_crm_accounts_mirror
           upstream_asset_key: dbt_marts_accounts

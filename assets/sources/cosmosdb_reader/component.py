@@ -194,7 +194,7 @@ class CosmosdbReaderComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.CosmosdbReaderComponent
+        type: dagster_community_components.CosmosdbReaderComponent
         attributes:
           asset_name: cosmos_orders
           database: mydb

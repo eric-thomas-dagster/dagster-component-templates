@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WarehouseJoinComponent",
+  "component_type": "dagster_community_components.WarehouseJoinComponent",
   "description": "Join two tables in the warehouse via CTAS. No Python materialization.",
   "category": "transformation",
   "icon": "GitMerge",

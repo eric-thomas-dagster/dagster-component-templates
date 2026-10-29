@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.Auth0LogsIngestionComponent",
+  "component_type": "dagster_community_components.Auth0LogsIngestionComponent",
   "description": "Pull Auth0 tenant logs via the Management API /api/v2/logs endpoint.",
   "category": "security",
   "vertical": "security",

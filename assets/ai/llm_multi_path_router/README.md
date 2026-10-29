@@ -29,21 +29,58 @@
 
 | Field | Type | Description |
 |---|---|---|
-| `name` | `str` | Tool name — planner picks by this. |
-| `description` | `str` | One-line description shown to the planner LLM. Be specific — the planner picks based on this text. |
+| `asset_name` | `str` | Base name for the router graph. Used in op naming; the actual assets emitted are the `outputs:` names below. |
+| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset providing the per-case DataFrame. Filtered by partition_static_column to a single row per partition. |
+| `task_template` | `str` | The task template the planner sees for each case. Column names from the upstream row substitute via .format() — e.g. 'Resolve baggage-loss for {passenger} on flight {flight}'. |
+| `tools` | `List[LlmMultiPathRouterToolSpec]` | Bounded list of tools the planner can pick at each step. |
+| `outputs` | `List[LlmMultiPathRouterOutputSpec]` | The downstream branches. Each is its own Dagster asset. Only the outputs the classifier picks are emitted per partition; others are skipped (no materialization for that case). |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `api_key_env_var` | `str` | `"OPENAI_API_KEY"` | — |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `group_name` | `str` | — | Asset group. |
+| `owners` | `List[str]` | — | Asset owners. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Asset tags. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | 'daily'\|'weekly'\|'monthly'\|'hourly'\|'static'\|'dynamic'\|None |
+| `partition_start` | `str` | — | ISO date for time-based partitions. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated static values. |
+| `partition_static_column` | `str` | — | Upstream column to filter on for the current partition. e.g. 'case_id' with partition_values 'c1,c2,c3'. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `model` | `str` | `"gpt-4o-mini"` | — |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tool_type` | `str` | `"llm_roleplay"` | 'llm_roleplay' (LLM plays the tool) \| 'sql' (real SQL) \| 'http' (real HTTP call). |
-| `system_message` | `str` | — | Only used when tool_type='llm_roleplay'. System prompt for the tool's LLM. Receives the planner's args string as the user message. |
-| `resource` | `str` | — | Dagster resource key. For tool_type='sql': the resource must expose a get_connection() context manager returning a DB-API connection (e.g., dagster-duckdb's DuckDBResource). For tool_type='http': the resource may expose… _(full docs in schema.json + component README)_ |
-| `sql_template` | `str` | — | Only used when tool_type='sql'. SQL template with `{args}` substitution. Example: "SELECT * FROM baggage WHERE id = '{args}'". |
-| `http_method` | `str` | `"GET"` | Only used when tool_type='http'. HTTP method. |
-| `http_url` | `str` | — | Only used when tool_type='http'. URL template with `{args}` substitution. Example: "https://airports/api/{args}". |
-| `http_headers` | `Dict[str, str]` | — | Only used when tool_type='http'. Request headers. |
-| `http_body_template` | `str` | — | Only used when tool_type='http'. Body template with `{args}` substitution. |
+| `use_dynamic_partitions` | `bool` | `true` | Shape selector. True (default) → dynamic-partitions shape: emits one intermediate 'agent' asset (partitioned per case) PLUS N branch assets, each with its own DynamicPartitionsDefinition. Each branch asset only shows the… _(full docs in schema.json + component README)_ |
+| `fanout_mode` | `bool` | `false` | Batch fan-out shape. When True the router becomes a @graph_asset that fans out over the upstream DataFrame's rows via DynamicOut. N per-case ReAct triages run in parallel inside ONE run, then collect into a batch result… _(full docs in schema.json + component README)_ |
+| `fanout_mapping_key_column` | `str` | — | Only used when fanout_mode=True. Column in the upstream DataFrame to use as the DynamicOutput mapping_key per row (so per-item retries are stable). Falls back to `partition_static_column`, then to the row index. |
+| `fanout_batch_filter_column` | `str` | — | Only used when fanout_mode=True AND the upstream is unpartitioned but the batch asset IS partitioned (e.g. daily-partitioned batch reading from an unpartitioned CSV with a date column). Column to filter upstream to `part… _(full docs in schema.json + component README)_ |
+| `router_asset_name` | `str` | — | Only used when use_dynamic_partitions=True. Name for the intermediate 'agent' asset that runs the ReAct loop + registers case keys on branch dynamic partition sets. Defaults to `<asset_name>` (i.e., the base name). If as… _(full docs in schema.json + component README)_ |
+| `max_iterations` | `int` | `5` | Max ReAct steps (= number of plan_step ops in the graph). |
+| `api_base_env_var` | `str` | — | — |
+| `temperature` | `float` | `0.0` | — |
+| `planner_max_tokens` | `int` | `400` | — |
+| `tool_max_tokens` | `int` | `500` | — |
+| `classifier_max_tokens` | `int` | `400` | — |
+| `classifier_system_message` | `str` | — | Optional override for the classifier's system prompt. Default: picks output names from the declared set based on the trajectory. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)
 

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LinkedInAdsIngestionComponent",
+  "component_type": "dagster_community_components.LinkedInAdsIngestionComponent",
   "description": "Component for ingesting LinkedIn Ads data using dlt - returns DataFrames.",
   "category": "ingestion",
   "vertical": "social",

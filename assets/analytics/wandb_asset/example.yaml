@@ -1,4 +1,4 @@
-type: dagster_component_templates.WandbAssetComponent
+type: dagster_community_components.WandbAssetComponent
 attributes:
   asset_name: model_training_run
   upstream_asset_key: marts/training_metrics

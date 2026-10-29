@@ -108,7 +108,7 @@ The `condition` field uses [pandas `.query()` syntax](https://pandas.pydata.org/
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.FilterComponent
+type: dagster_community_components.FilterComponent
 attributes:
   asset_name: active_adult_customers
   upstream_asset_key: raw_customers
@@ -120,7 +120,7 @@ attributes:
 ### Negate Example
 
 ```yaml
-type: dagster_component_templates.FilterComponent
+type: dagster_community_components.FilterComponent
 attributes:
   asset_name: rejected_customers
   upstream_asset_key: raw_customers

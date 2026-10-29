@@ -96,7 +96,7 @@ class PulumiAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.PulumiAssetComponent
+        type: dagster_community_components.PulumiAssetComponent
         attributes:
           asset_name: provision_cloud_resources
           stack_name: my-org/data-platform/production

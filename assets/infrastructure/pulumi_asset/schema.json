@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PulumiAssetComponent",
+  "component_type": "dagster_community_components.PulumiAssetComponent",
   "description": "Deploy a Pulumi stack as a Dagster asset.",
   "category": "infrastructure",
   "icon": "si:pulumi",

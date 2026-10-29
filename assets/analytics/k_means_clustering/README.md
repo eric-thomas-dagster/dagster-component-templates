@@ -16,7 +16,7 @@ Two ways to get the rows in, set exactly one:
 `CREATE MODEL ... OPTIONS(model_type='KMEANS', num_clusters=N, standardize_features=true|false)` + `ML.PREDICT`. BigQuery's `ML.PREDICT` for a KMEANS model returns `centroid_id` (the cluster assignment) and `nearest_centroids_distance` (an `ARRAY<STRUCT>` of distances) -- `centroid_id` is aliased to `output_column` in the final `SELECT` so the output shape matches the python-mode column name.
 
 ```yaml
-type: dagster_component_templates.KMeansClusteringComponent
+type: dagster_community_components.KMeansClusteringComponent
 attributes:
   asset_name: customer_segments_sql
   source:

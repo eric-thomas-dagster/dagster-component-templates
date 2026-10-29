@@ -160,7 +160,7 @@ class OneSignalPushSendComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.OneSignalPushSendComponent
+        type: dagster_community_components.OneSignalPushSendComponent
         attributes:
           asset_name: onesignal_cart_abandoned_push
           upstream_asset_key: dbt_marts_cart_abandoned_today

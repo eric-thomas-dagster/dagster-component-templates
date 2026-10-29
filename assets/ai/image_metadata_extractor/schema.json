@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ImageMetadataExtractorComponent",
+  "component_type": "dagster_community_components.ImageMetadataExtractorComponent",
   "description": "Extract technical metadata from images including dimensions, format, color mode, and EXIF data such as GPS coordinates and camera model.",
   "category": "ai",
   "icon": "Camera",

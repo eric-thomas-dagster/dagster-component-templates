@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OcsfNormalizerComponent",
+  "component_type": "dagster_community_components.OcsfNormalizerComponent",
   "description": "Normalize source events to OCSF v1.1 with class_uid / category_uid / activity_id — per-source mapping tables for dagster_plus, cloudtrail, okta, github, azure_activity, slack.",
   "category": "transformation",
   "x-dagster-io": {

@@ -224,7 +224,7 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.SupportTicketIngestionComponent
+        type: dagster_community_components.SupportTicketIngestionComponent
         attributes:
           asset_name: support_tickets
           platform: zendesk

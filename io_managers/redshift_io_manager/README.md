@@ -68,7 +68,7 @@ Implemented as a [`ConfigurableIOManager`](https://docs.dagster.io/_apidocs/io-m
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.RedshiftIOManagerComponent
+type: dagster_community_components.RedshiftIOManagerComponent
 attributes:
   resource_key: io_manager
   host: my-cluster.us-east-1.redshift.amazonaws.com

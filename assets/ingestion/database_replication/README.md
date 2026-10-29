@@ -101,7 +101,7 @@ export DATABRICKS_URL='databricks://token:dapi...@host/?http_path=/sql/...'
 ## Example: Oracle → Snowflake full refresh
 
 ```yaml
-type: dagster_component_templates.DatabaseReplicationComponent
+type: dagster_community_components.DatabaseReplicationComponent
 attributes:
   asset_name: employees_replicated
   source_connection_env_var: ORACLE_URL
@@ -116,7 +116,7 @@ attributes:
 ## Example: Postgres → Snowflake incremental upsert
 
 ```yaml
-type: dagster_component_templates.DatabaseReplicationComponent
+type: dagster_community_components.DatabaseReplicationComponent
 attributes:
   asset_name: orders_replicated
   source_connection_env_var: PG_URL
@@ -133,7 +133,7 @@ attributes:
 ## Example: Db2 → Snowflake with column subset + filter
 
 ```yaml
-type: dagster_component_templates.DatabaseReplicationComponent
+type: dagster_community_components.DatabaseReplicationComponent
 attributes:
   asset_name: legacy_customers
   source_connection_env_var: DB2_URL

@@ -1,4 +1,4 @@
-type: dagster_component_templates.SqlGeneratorComponent
+type: dagster_community_components.SqlGeneratorComponent
 attributes:
   asset_name: generated_sql_queries
   upstream_asset_key: nl_questions

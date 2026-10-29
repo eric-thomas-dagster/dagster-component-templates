@@ -117,7 +117,7 @@ The Schema Fit Component removes the tedium of writing manual column mapping cod
 ### Basic Schema Mapping
 
 ```yaml
-type: dagster_component_templates.SchemaFitComponent
+type: dagster_community_components.SchemaFitComponent
 attributes:
   asset_name: normalized_customers
   upstream_asset_key: raw_crm_data
@@ -134,7 +134,7 @@ attributes:
 ### With Anthropic
 
 ```yaml
-type: dagster_component_templates.SchemaFitComponent
+type: dagster_community_components.SchemaFitComponent
 attributes:
   asset_name: mapped_orders
   upstream_asset_key: raw_orders

@@ -1,4 +1,4 @@
-type: dagster_component_templates.FaceDetectorComponent
+type: dagster_community_components.FaceDetectorComponent
 attributes:
   asset_name: detected_faces
   upstream_asset_key: raw_images

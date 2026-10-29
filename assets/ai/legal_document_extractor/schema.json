@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LegalDocumentExtractorComponent",
+  "component_type": "dagster_community_components.LegalDocumentExtractorComponent",
   "description": "Extract key information from legal documents (NDAs, agreements, pleadings, briefs) using an LLM.",
   "category": "ai",
   "icon": "FileText",

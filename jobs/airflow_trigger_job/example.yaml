@@ -1,4 +1,4 @@
-type: dagster_component_templates.AirflowTriggerJobComponent
+type: dagster_community_components.AirflowTriggerJobComponent
 attributes:
   job_name: airflow_trigger_job_example
   schedule: "0 3 * * *"

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BoxIngestionComponent",
+  "component_type": "dagster_community_components.BoxIngestionComponent",
   "description": "Ingest Box file/folder listings and users using dlt's generic REST API source, authenticated via Client Credentials Grant (service account).",
   "category": "ingestion",
   "vertical": "cloud-storage",

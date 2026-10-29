@@ -216,7 +216,7 @@ class BrexIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.BrexIngestionComponent
+        type: dagster_community_components.BrexIngestionComponent
         attributes:
           asset_name: brex_ingestion
           api_key: "${BREX_API_KEY}"

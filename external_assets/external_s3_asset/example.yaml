@@ -1,4 +1,4 @@
-type: dagster_component_templates.ExternalS3Asset
+type: dagster_community_components.ExternalS3Asset
 attributes:
   asset_key: raw/orders
   bucket_name: my-data-bucket

@@ -110,7 +110,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.AmplitudeIngestionComponent
+type: dagster_community_components.AmplitudeIngestionComponent
 attributes:
   asset_name: amplitude_ingestion
   api_key: "${AMPLITUDE_API_KEY}"
@@ -121,7 +121,7 @@ attributes:
 ## Example — sharing credentials with an AmplitudeResourceComponent
 
 ```yaml
-type: dagster_component_templates.AmplitudeIngestionComponent
+type: dagster_community_components.AmplitudeIngestionComponent
 attributes:
   asset_name: amplitude_ingestion
   resource_key: amplitude   # matches AmplitudeResourceComponent's default resource_key

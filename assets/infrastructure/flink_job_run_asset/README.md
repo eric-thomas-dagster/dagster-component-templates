@@ -89,7 +89,7 @@ Controls what "materializing" this asset means:
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.FlinkJobRunAssetComponent
+type: dagster_community_components.FlinkJobRunAssetComponent
 attributes:
   asset_name: clickstream_enrichment_job
   jobmanager_url: http://flink-jobmanager:8081

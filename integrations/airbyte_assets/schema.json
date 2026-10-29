@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AirbyteAssetsComponent",
+  "component_type": "dagster_community_components.AirbyteAssetsComponent",
   "description": "Import each Airbyte connection as a Dagster external asset via dagster-airbyte.",
   "category": "integration",
   "icon": "si:airbyte",

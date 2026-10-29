@@ -33,7 +33,7 @@ Because every discovered table becomes a named Dagster asset, other components c
 
 ```yaml
 # sql_to_database_asset component
-type: dagster_component_templates.SqlToDatabaseAsset
+type: dagster_community_components.SqlToDatabaseAsset
 attributes:
   deps:
     - raw/orders
@@ -126,7 +126,7 @@ Examples:
 ### PostgreSQL
 
 ```yaml
-type: dagster_component_templates.WarehouseSchemaAssetsComponent
+type: dagster_community_components.WarehouseSchemaAssetsComponent
 attributes:
   database_url_env_var: POSTGRES_URL
   # POSTGRES_URL=postgresql+psycopg2://user:password@localhost:5432/mydb
@@ -143,7 +143,7 @@ attributes:
 ### Snowflake
 
 ```yaml
-type: dagster_component_templates.WarehouseSchemaAssetsComponent
+type: dagster_community_components.WarehouseSchemaAssetsComponent
 attributes:
   database_url_env_var: SNOWFLAKE_URL
   # SNOWFLAKE_URL=snowflake://user:password@account/database?warehouse=COMPUTE_WH&role=TRANSFORMER
@@ -161,7 +161,7 @@ attributes:
 ### BigQuery
 
 ```yaml
-type: dagster_component_templates.WarehouseSchemaAssetsComponent
+type: dagster_community_components.WarehouseSchemaAssetsComponent
 attributes:
   database_url_env_var: BIGQUERY_URL
   # BIGQUERY_URL=bigquery://my-gcp-project/my_dataset

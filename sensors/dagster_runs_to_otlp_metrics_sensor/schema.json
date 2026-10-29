@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DagsterRunsToOtlpMetricsSensorComponent",
+  "component_type": "dagster_community_components.DagsterRunsToOtlpMetricsSensorComponent",
   "description": "Push Dagster run lifecycle events as OTLP/HTTP metrics (Sum + Gauge). Distinct from dagster_runs_to_otlp_sensor which emits OTel logs.",
   "category": "sensor",
   "icon": "si:opentelemetry",

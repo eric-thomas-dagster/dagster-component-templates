@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DocuSignEnvelopeSendComponent",
+  "component_type": "dagster_community_components.DocuSignEnvelopeSendComponent",
   "description": "Reverse-ETL e-signature activation: create and send a DocuSign envelope from a template for each row of an upstream DataFrame (`POST /envelopes` with templateId + templateRoles). Creates REAL envelopes and, by default, immediately emails a signature request the moment this asset materializes.",
   "category": "reverse_etl",
   "icon": "si:docusign",

@@ -90,7 +90,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 
 ## Example YAML
 ```yaml
-component_type: dagster_component_templates.SchemaValidatorComponent
+component_type: dagster_community_components.SchemaValidatorComponent
 asset_name: validated_orders
 upstream_asset_key: raw_orders
 json_schema:

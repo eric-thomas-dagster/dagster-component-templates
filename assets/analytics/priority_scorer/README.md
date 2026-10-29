@@ -153,7 +153,7 @@ The Priority Scorer Component calculates priority scores for support tickets usi
 Fast, free, and effective:
 
 ```yaml
-type: dagster_component_templates.PriorityScorerComponent
+type: dagster_community_components.PriorityScorerComponent
 attributes:
   asset_name: prioritized_tickets
 
@@ -180,7 +180,7 @@ attributes:
 For complex scoring logic:
 
 ```yaml
-type: dagster_component_templates.PriorityScorerComponent
+type: dagster_community_components.PriorityScorerComponent
 attributes:
   asset_name: llm_prioritized
 
@@ -211,7 +211,7 @@ attributes:
 Using trained models:
 
 ```yaml
-type: dagster_component_templates.PriorityScorerComponent
+type: dagster_community_components.PriorityScorerComponent
 attributes:
   asset_name: ml_prioritized
 
@@ -237,7 +237,7 @@ attributes:
 Instead of categorical levels:
 
 ```yaml
-type: dagster_component_templates.PriorityScorerComponent
+type: dagster_community_components.PriorityScorerComponent
 attributes:
   asset_name: numeric_scores
 
@@ -344,7 +344,7 @@ Assuming average 200 tokens input, 80 tokens output per ticket:
 ```yaml
 # Step 1: Classify tickets (use ticket_classifier)
 # Step 2: Score priority
-- type: dagster_component_templates.PriorityScorerComponent
+- type: dagster_community_components.PriorityScorerComponent
   attributes:
     asset_name: scored_tickets
     method: rules
@@ -360,7 +360,7 @@ Assuming average 200 tokens input, 80 tokens output per ticket:
 ### SLA Monitoring Dashboard
 
 ```yaml
-type: dagster_component_templates.PriorityScorerComponent
+type: dagster_community_components.PriorityScorerComponent
 attributes:
   asset_name: sla_monitored
 
@@ -386,7 +386,7 @@ attributes:
 ### Dynamic Tier Weighting
 
 ```yaml
-type: dagster_component_templates.PriorityScorerComponent
+type: dagster_community_components.PriorityScorerComponent
 attributes:
   asset_name: dynamic_priority
 
@@ -417,13 +417,13 @@ attributes:
 # Combined pipeline
 components:
   # Step 1: Classify
-  - type: dagster_component_templates.TicketClassifierComponent
+  - type: dagster_community_components.TicketClassifierComponent
     attributes:
       asset_name: classified
       # ... classifier config
 
   # Step 2: Score Priority
-  - type: dagster_component_templates.PriorityScorerComponent
+  - type: dagster_community_components.PriorityScorerComponent
     attributes:
       asset_name: prioritized
       source_asset: classified
@@ -438,13 +438,13 @@ components:
 
 ```yaml
 # Step 1: Analyze sentiment
-- type: dagster_component_templates.SentimentAnalyzerComponent
+- type: dagster_community_components.SentimentAnalyzerComponent
   attributes:
     asset_name: sentiment_analyzed
     # ... sentiment config
 
 # Step 2: Score with sentiment
-- type: dagster_component_templates.PriorityScorerComponent
+- type: dagster_community_components.PriorityScorerComponent
   attributes:
     asset_name: priority_with_sentiment
     source_asset: sentiment_analyzed

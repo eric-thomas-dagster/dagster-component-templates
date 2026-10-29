@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SnowflakeResourceComponent",
+  "component_type": "dagster_community_components.SnowflakeResourceComponent",
   "description": "Register a dagster-snowflake SnowflakeResource for use by other components",
   "category": "resource",
   "icon": "si:snowflake",

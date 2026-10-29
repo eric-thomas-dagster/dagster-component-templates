@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.VideoSceneSummarizerComponent",
+  "component_type": "dagster_community_components.VideoSceneSummarizerComponent",
   "name": "Video Scene Summarizer",
   "description": "Detect scene changes in a video via ffmpeg and summarize each one with a vision-LLM call -- a table of contents for video, one row per scene (timestamp, frame, summary).",
   "category": "ai",

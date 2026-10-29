@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ComposerAirflowAuthBackendResourceComponent",
+  "component_type": "dagster_community_components.ComposerAirflowAuthBackendResourceComponent",
   "description": "ComposerAirflowAuthBackendResourceComponent \u2014 dagster-airlift auth backend for Cloud Composer.",
   "category": "resource",
   "icon": "si:googlecloudcomposer",

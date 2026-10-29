@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SyntheticVideoGeneratorComponent",
+  "component_type": "dagster_community_components.SyntheticVideoGeneratorComponent",
   "description": "SyntheticVideoGeneratorComponent \u2014 generate tiny test videos via ffmpeg.",
   "category": "source",
   "x-dagster-io": {

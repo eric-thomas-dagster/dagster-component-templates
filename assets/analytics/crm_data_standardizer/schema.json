@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CRMDataStandardizerComponent",
+  "component_type": "dagster_community_components.CRMDataStandardizerComponent",
   "description": "Component for standardizing CRM data across platforms.",
   "category": "analytics",
   "icon": "BarChart2",

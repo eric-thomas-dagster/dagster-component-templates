@@ -48,7 +48,7 @@ class HeapResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.HeapResourceComponent
+        type: dagster_community_components.HeapResourceComponent
         attributes:
           resource_key: heap
           app_id_env_var: HEAP_APP_ID

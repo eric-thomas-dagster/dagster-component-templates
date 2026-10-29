@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FigmentResourceComponent",
+  "component_type": "dagster_community_components.FigmentResourceComponent",
   "description": "Register a FigmentResource for Figment's institutional crypto staking infrastructure REST API (static x-api-key auth) for use by other components",
   "category": "resource",
   "icon": "si:figment",

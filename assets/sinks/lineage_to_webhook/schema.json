@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LineageToWebhookComponent",
+  "component_type": "dagster_community_components.LineageToWebhookComponent",
   "description": "Sink that POSTs the raw upstream lineage_graph to any HTTP webhook (Slack, internal endpoint, n8n). Optional Bearer auth.",
   "category": "sink",
   "icon": "ArrowRightLeft",

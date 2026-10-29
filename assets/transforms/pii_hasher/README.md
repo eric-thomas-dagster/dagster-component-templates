@@ -126,7 +126,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.PiiHasherComponent
+type: dagster_community_components.PiiHasherComponent
 attributes:
   asset_name: hashed_customers
   upstream_asset_key: raw_customers

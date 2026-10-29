@@ -72,7 +72,7 @@ Also requires a `SigmaResourceComponent` on the same code location for authentic
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.SigmaWorkbookIngestionComponent
+type: dagster_community_components.SigmaWorkbookIngestionComponent
 attributes:
   asset_name: sigma_workbook_catalog
   resource_key: sigma_resource

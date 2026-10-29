@@ -343,7 +343,7 @@ class ProductAnalyticsStandardizerComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ProductAnalyticsStandardizerComponent
+        type: dagster_community_components.ProductAnalyticsStandardizerComponent
         attributes:
           asset_name: standardized_product_analytics
           platform: "google_analytics_4"

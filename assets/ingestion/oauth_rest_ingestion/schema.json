@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OAuthRestIngestionComponent",
+  "component_type": "dagster_community_components.OAuthRestIngestionComponent",
   "description": "OAuth2-backed REST GET → DataFrame with built-in pagination. Covers Concur, Ariba, and any other Bearer-token JSON API.",
   "category": "source",
 

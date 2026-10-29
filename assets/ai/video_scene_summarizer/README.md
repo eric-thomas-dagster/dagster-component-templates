@@ -9,7 +9,7 @@ Nothing in the catalog combined scene detection with vision-LLM understanding: `
 ## Usage
 
 ```yaml
-type: dagster_component_templates.VideoSceneSummarizerComponent
+type: dagster_community_components.VideoSceneSummarizerComponent
 attributes:
   asset_name: scene_summaries
   upstream_asset_key: source_videos

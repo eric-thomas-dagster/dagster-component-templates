@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ExternalIcebergTableAsset",
+  "component_type": "dagster_community_components.ExternalIcebergTableAsset",
   "description": "Declare an external Apache Iceberg table (written by Snowflake / Trino / Spark / Flink / Databricks / etc.) as an observable Dagster external asset. Engine-agnostic.",
   "category": "external",
   "x-dagster-io": {

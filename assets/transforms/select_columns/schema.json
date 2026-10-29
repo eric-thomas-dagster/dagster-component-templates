@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SelectColumnsComponent",
+  "component_type": "dagster_community_components.SelectColumnsComponent",
   "description": "Select, drop, and rename columns in a DataFrame.",
   "category": "transformation",
   "icon": "Shuffle",

@@ -1,4 +1,4 @@
-type: dagster_component_templates.FigmentStakingRewardsIngestionComponent
+type: dagster_community_components.FigmentStakingRewardsIngestionComponent
 attributes:
   asset_name: figment_eth_staking_rewards
   resource_key: figment_resource
@@ -10,7 +10,7 @@ attributes:
   group_name: figment
 
 # Solana example (uncomment / use as a separate component instance):
-# type: dagster_component_templates.FigmentStakingRewardsIngestionComponent
+# type: dagster_community_components.FigmentStakingRewardsIngestionComponent
 # attributes:
 #   asset_name: figment_sol_staking_rewards
 #   resource_key: figment_resource

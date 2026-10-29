@@ -1,4 +1,4 @@
-type: dagster_component_templates.MemcachedResourceComponent
+type: dagster_community_components.MemcachedResourceComponent
 attributes:
   resource_key: memcached_resource
   host: localhost

@@ -3,7 +3,7 @@
 Pull the audio track from each video file via ffmpeg. Optionally resample / downmix / re-encode in the same step to match what your STT expects.
 
 ```yaml
-type: dagster_component_templates.VideoAudioExtractAssetComponent
+type: dagster_community_components.VideoAudioExtractAssetComponent
 attributes:
   asset_name: video_audio
   upstream_asset_key: sample_videos

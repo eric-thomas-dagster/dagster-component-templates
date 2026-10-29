@@ -48,7 +48,7 @@ VM snapshots are the canonical way to back up vmsingle / vmstorage before a dest
 ## Example
 
 ```yaml
-type: dagster_component_templates.VictoriaMetricsSnapshotJobComponent
+type: dagster_community_components.VictoriaMetricsSnapshotJobComponent
 attributes:
   job_name: vm_daily_snapshot
   schedule: "0 3 * * *"

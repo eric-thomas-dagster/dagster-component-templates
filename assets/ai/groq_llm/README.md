@@ -5,7 +5,7 @@ Native Groq LLM inference via Groq's OpenAI-compatible API. Drop-in peer of `ope
 Groq is uniquely fast — **500+ tokens/sec** on Llama-3.x / Mixtral / Gemma / DeepSeek-R1 thanks to their custom LPU hardware. Generous **free tier**: ~30 req/min for most models, no credit card required.
 
 ```yaml
-type: dagster_component_templates.GroqLLMComponent
+type: dagster_community_components.GroqLLMComponent
 attributes:
   asset_name: ticket_summaries
   upstream_asset_key: support_tickets

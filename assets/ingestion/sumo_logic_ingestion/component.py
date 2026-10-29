@@ -216,7 +216,7 @@ class SumoLogicIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.SumoLogicIngestionComponent
+        type: dagster_community_components.SumoLogicIngestionComponent
         attributes:
           asset_name: sumo_logic_ingestion
           access_id: "${SUMOLOGIC_ACCESS_ID}"

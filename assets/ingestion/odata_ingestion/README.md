@@ -110,7 +110,7 @@ It feels old because SharePoint OData specifically is old — SharePoint is a 20
 ## Quick smoke test (no credentials needed)
 
 ```yaml
-type: dagster_component_templates.ODataIngestionComponent
+type: dagster_community_components.ODataIngestionComponent
 attributes:
   asset_name: northwind_customers
   service_url: https://services.odata.org/V4/Northwind/Northwind.svc

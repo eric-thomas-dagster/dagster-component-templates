@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ReverseGeocoderComponent",
+  "component_type": "dagster_community_components.ReverseGeocoderComponent",
   "description": "Reverse geocode lat/lng coordinates to addresses in a DataFrame.",
   "category": "analytics",
   "icon": "BarChart2",

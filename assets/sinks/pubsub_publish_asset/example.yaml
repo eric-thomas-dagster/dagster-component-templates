@@ -1,4 +1,4 @@
-type: dagster_component_templates.PubSubPublishAssetComponent
+type: dagster_community_components.PubSubPublishAssetComponent
 attributes:
   asset_name: events_published
   upstream_asset_key: enriched_events

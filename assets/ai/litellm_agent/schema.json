@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LiteLLMAgentComponent",
+  "component_type": "dagster_community_components.LiteLLMAgentComponent",
   "description": "Single-shot LLM agent with MCP tool support (via LiteLLM — works against 100+ providers). Runs a tool-calling loop until the model returns a final answer or max_iterations is hit.",
   "category": "ai",
   "icon": "Bot",

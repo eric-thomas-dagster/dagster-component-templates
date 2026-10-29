@@ -105,7 +105,7 @@ The Image Similarity Scorer Component encodes images using a CLIP model to produ
 ### Pairwise Comparison
 
 ```yaml
-type: dagster_component_templates.ImageSimilarityScorerComponent
+type: dagster_community_components.ImageSimilarityScorerComponent
 attributes:
   asset_name: similarity_scores
   upstream_asset_key: image_pairs
@@ -117,7 +117,7 @@ attributes:
 ### Compare Against Reference Image
 
 ```yaml
-type: dagster_component_templates.ImageSimilarityScorerComponent
+type: dagster_community_components.ImageSimilarityScorerComponent
 attributes:
   asset_name: reference_similarity
   upstream_asset_key: product_images

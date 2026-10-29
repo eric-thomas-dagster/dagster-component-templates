@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LangChainChainAssetComponent",
+  "component_type": "dagster_community_components.LangChainChainAssetComponent",
   "description": "Run a LangChain chain over rows from an upstream asset DataFrame and return enriched DataFrame.",
   "category": "ai",
   "icon": "si:langchain",

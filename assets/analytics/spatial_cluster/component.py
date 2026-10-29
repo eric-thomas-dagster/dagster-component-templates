@@ -326,7 +326,7 @@ class SpatialClusterComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SpatialClusterComponent
+        type: dagster_community_components.SpatialClusterComponent
         attributes:
           asset_name: events_clustered
           upstream_asset_key: events

@@ -184,7 +184,7 @@ class DocumentTextExtractorComponent(Component, Model, Resolvable):
 
     Example with RunConfig:
         ```yaml
-        type: dagster_component_templates.DocumentTextExtractorComponent
+        type: dagster_community_components.DocumentTextExtractorComponent
         attributes:
           asset_name: extracted_text
           extraction_method: auto

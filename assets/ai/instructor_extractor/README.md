@@ -95,7 +95,7 @@ Extract structured Pydantic models from text using the Instructor library. Works
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.InstructorExtractorComponent
+type: dagster_community_components.InstructorExtractorComponent
 attributes:
   asset_name: extracted_invoice_data
   upstream_asset_key: raw_invoice_text

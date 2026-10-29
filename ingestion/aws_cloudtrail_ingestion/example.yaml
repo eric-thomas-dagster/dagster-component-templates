@@ -1,4 +1,4 @@
-type: dagster_component_templates.AwsCloudTrailIngestionComponent
+type: dagster_community_components.AwsCloudTrailIngestionComponent
 attributes:
   asset_name: aws_cloudtrail_ingestion_events
   region_name: us-east-1

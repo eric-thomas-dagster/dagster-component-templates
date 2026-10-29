@@ -90,7 +90,7 @@ uvx --from dagster-community-components-cli dagster-component add snowflake_snow
 See [`example.yaml`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_snowpipe/example.yaml) for a copy-pastable starting point.
 
 ```yaml
-type: dagster_component_templates.SnowflakeSnowpipeComponent
+type: dagster_community_components.SnowflakeSnowpipeComponent
 attributes:
   asset_name: orders_pipe
   pipe_name: ORDERS_PIPE

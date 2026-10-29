@@ -160,7 +160,7 @@ class Auth0UserUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.Auth0UserUpsertComponent
+        type: dagster_community_components.Auth0UserUpsertComponent
         attributes:
           asset_name: auth0_employee_sync
           upstream_asset_key: dbt_marts_active_employees

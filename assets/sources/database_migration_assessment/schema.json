@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DatabaseMigrationAssessmentComponent",
+  "component_type": "dagster_community_components.DatabaseMigrationAssessmentComponent",
   "description": "Pre-flight migration assessment. Dry-runs every table + view migration inside a transaction that rolls back. Returns a consolidated DataFrame with status (auto_convertible/needs_review/will_fail), complexity heuristic (simple/medium/complex), specific dialect-quirk markers, and proposed target DDL. The 'what would happen if I ran this tomorrow?' view.",
   "category": "source",
   "icon": "ClipboardCheck",

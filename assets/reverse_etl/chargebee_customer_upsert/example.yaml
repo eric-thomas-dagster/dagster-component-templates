@@ -6,7 +6,7 @@
 #
 # Requires a ChargebeeResourceComponent registered under the same resource_key.
 
-type: dagster_component_templates.ChargebeeCustomerUpsertComponent
+type: dagster_community_components.ChargebeeCustomerUpsertComponent
 attributes:
   asset_name: chargebee_customers_mirror
   upstream_asset_key: dbt_marts_customers

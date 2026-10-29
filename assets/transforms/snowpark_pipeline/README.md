@@ -68,7 +68,7 @@ The simpler, single-step counterpart is `warehouse_summarize` (or the rest of th
 ## YAML
 
 ```yaml
-type: dagster_component_templates.SnowparkPipelineComponent
+type: dagster_community_components.SnowparkPipelineComponent
 attributes:
   asset_name: top_customers_by_region
   connection:

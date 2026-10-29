@@ -152,40 +152,59 @@ Sister components with a similar asset / op / sensor / schedule surface for othe
 
 ## Fields
 
-### Required
+### Connection
 
-| Field | Type | Description |
-|---|---|---|
-| `project_name` | `str` | GoAnywhere Project name (as registered in the GoAnywhere server). |
-| `asset_name` | `str` | Dagster asset name that wraps this Project. |
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `endpoint` | `str` | `"https://goanywhere.internal/goanywhere/rest"` | GoAnywhere MFT REST API base URL (used when demo_mode=false). |
+
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `poll_interval_seconds` | `int` | `10` | Seconds between GoAnywhere job status polls (real mode only -- demo mode doesn't sleep). |
+| `max_retries` | `int` | `2` | Dagster-side asset retries on failure. |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `description` | `str` | — | Prose description shown in the Dagster UI. |
-| `deps` | `List[str]` | `list()` | Upstream asset keys (slash-separated for nested keys) that must complete before THIS project runs -- per-project, not shared across every project. |
+| `group_name` | `str` | `"goanywhere_integration"` | Dagster asset group for the project assets. |
 
-### Sensor configuration
+### Partitions
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `job_name` | `str` | — | Optional job name override; defaults to the project name. |
+| `partition_start_date` | `str` | `"2024-01-01"` | Start date for the daily partitioned assets. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_delay_seconds` | `int` | `60` | Delay between Dagster asset retries. |
 
 ### Source / target
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `mode` | `str` | `"NORMAL"` | Run mode GACMD accepts for runParameters.mode (e.g. NORMAL, TEST). |
+| `source_files` | `List[GoAnywhereSourceFileSpec]` | `list()` | Files/folders landed by GoAnywhere that Dagster observes (adds to lineage). |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `domain` | `str` | — | GoAnywhere Domain the project belongs to (multi-tenant deployments). |
-| `job_queue` | `str` | — | GoAnywhere job queue to run on. |
-| `priority` | `int` | `5` | GACMD run priority (1-10, higher runs sooner). |
-| `variables` | `Dict[str, Any]` | `dict()` | Project variables passed through runParameters.variables (e.g. source/destination paths). |
+| `demo_mode` | `bool` | `true` | Use the demo client (logs a simulated GACMD lifecycle, no external calls) instead of the real REST client. |
+| `projects` | `List[GoAnywhereProjectSpec]` | `list()` | GoAnywhere Projects to wrap as daily-partitioned Dagster assets. |
+| `goanywhere_user_env` | `str` | `"GOANYWHERE_USER"` | Env var holding the GoAnywhere REST username (or an admin API key). |
+| `goanywhere_password_env` | `str` | `"GOANYWHERE_PASSWORD"` | Env var holding the GoAnywhere REST password (or the admin API key value). |
+| `poll_timeout_seconds` | `int` | `3600` | Total seconds to wait for terminal state before failing. |
+| `generate_external_monitor_sensor` | `bool` | `true` | Build the goanywhere_external_execution_monitor sensor (observes GoAnywhere-initiated runs Dagster didn't trigger). Cycles through every declared project, not just the first. |
+| `generate_inbound_trigger_sensor` | `bool` | `false` | Build the goanywhere_inbound_trigger sensor. It only logs a simulated message in demo mode and does nothing in real mode until you wire a real webhook/event source to it -- off by default so it doesn't look like working functionality. |
+| `generate_rerun_job` | `bool` | `false` | Build the goanywhere_rerun_project op-backed job. Off by default -- Dagster+'s own re-execution-from-failure covers most of what this would be used for. |
+| `generate_dashboard_job` | `bool` | `false` | Build the goanywhere_dashboard op-backed job (service status / active sessions / transfer summary). |
+| `generate_reconciliation` | `bool` | `false` | Build the reconciliation op/job and its hourly schedule. |
+| `reconciliation_cron` | `str` | `"0 * * * *"` | Cron for the GoAnywhere vs Dagster state reconciliation job (only used when generate_reconciliation=true). |
+| `translation` | `TranslationFn[GoAnywhereProjectSpec]` | — | Optional per-project customization hook applied to each project's AssetSpec (e.g. `translation: {tags: {team: '{{ project.domain }}'}}`). group_name/kinds/deps/description/owners are REPLACED by whatever you set; tags/me… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

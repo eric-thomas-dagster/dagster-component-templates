@@ -30,7 +30,7 @@ Register a dagster-aws S3Resource for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.S3ResourceComponent
+type: dagster_community_components.S3ResourceComponent
 attributes:
   resource_key: s3_resource  # key other components use
   # Optional

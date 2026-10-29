@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MemcachedCacheFlushJobComponent",
+  "component_type": "dagster_community_components.MemcachedCacheFlushJobComponent",
   "description": "Flush Memcached — entire cache or a key list — as a Dagster job.",
   "category": "jobs",
   "icon": "si:memcached",

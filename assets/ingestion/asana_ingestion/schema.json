@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AsanaIngestionComponent",
+  "component_type": "dagster_community_components.AsanaIngestionComponent",
   "description": "Component for ingesting Asana project management data using dlt.",
   "category": "ingestion",
   "vertical": "productivity",

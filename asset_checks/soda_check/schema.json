@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SodaCheckComponent",
+  "component_type": "dagster_community_components.SodaCheckComponent",
   "description": "[DEPRECATED — use dagster-soda] Run a Soda scan — one Dagster asset check per SodaCL check (community).",
   "category": "check",
   "icon": "CheckCircle",

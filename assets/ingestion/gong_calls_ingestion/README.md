@@ -76,7 +76,7 @@ Also requires a `GongResourceComponent` on the same code location for authentica
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.GongCallsIngestionComponent
+type: dagster_community_components.GongCallsIngestionComponent
 attributes:
   asset_name: gong_calls
   resource_key: gong_resource

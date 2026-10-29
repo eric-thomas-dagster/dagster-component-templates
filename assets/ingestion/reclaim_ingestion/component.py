@@ -308,7 +308,7 @@ class ReclaimIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ReclaimIngestionComponent
+        type: dagster_community_components.ReclaimIngestionComponent
         attributes:
           asset_name: reclaim_ingestion
           api_token: "${RECLAIM_API_TOKEN}"

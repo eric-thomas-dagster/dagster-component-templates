@@ -111,7 +111,7 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SqlTransformComponent
+        type: dagster_community_components.SqlTransformComponent
         attributes:
           asset_name: orders_dedup
           connection_url_env_var: SNOWFLAKE_URL

@@ -15,7 +15,7 @@ class AirbyteSyncSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.AirbyteSyncSensorComponent
+        type: dagster_community_components.AirbyteSyncSensorComponent
         attributes:
           sensor_name: airbyte_orders_sync_done
           connection_id: aaaabbbb-cccc-dddd-eeee-ffffffffffff

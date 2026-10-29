@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SnowflakeCortexAssetComponent",
+  "component_type": "dagster_community_components.SnowflakeCortexAssetComponent",
   "description": "Run a Snowflake Cortex LLM function on a table and write results to a new table.",
   "category": "ai",
   "icon": "si:snowflake",

@@ -518,7 +518,7 @@ class PropensityScoringComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.PropensityScoringComponent
+        type: dagster_community_components.PropensityScoringComponent
         attributes:
           asset_name: customer_propensity_scores
           upstream_asset_key: customer_behavior

@@ -3,7 +3,7 @@
 Publish DataFrame rows to a Google Cloud Pub/Sub topic — one message per row. Columns can be mapped into Pub/Sub message attributes for filter-based routing on subscribers.
 
 ```yaml
-type: dagster_component_templates.PubSubPublishAssetComponent
+type: dagster_community_components.PubSubPublishAssetComponent
 attributes:
   asset_name: events_published
   upstream_asset_key: enriched_events

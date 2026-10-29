@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SigmaInputTableUpsertComponent",
+  "component_type": "dagster_community_components.SigmaInputTableUpsertComponent",
   "description": "Reverse-ETL writeback: write an upstream DataFrame's rows into an existing Sigma Input Table, via a pre-published webhook-triggered Action Sequence (POST /v2/webhooks/{workbookId}/{sequenceId}). Sigma's REST API has no direct 'write rows to an Input Table' endpoint -- this is the real, documented write path (Beta). Chunks at Sigma's documented 2,000-rows-per-action cap. The trigger is async (HTTP 202 + traceId) -- this component confirms acceptance, not that rows were actually applied.",
   "category": "reverse_etl",
   "icon": "si:sigma",

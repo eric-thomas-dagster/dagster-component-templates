@@ -91,7 +91,7 @@ Reverse-ETL sink: mirror an upstream DataFrame into **Intercom contacts** via **
 
 ## Example
 ```yaml
-type: dagster_component_templates.IntercomContactUpsertComponent
+type: dagster_community_components.IntercomContactUpsertComponent
 attributes:
   asset_name: intercom_contacts_mirror
   upstream_asset_key: dbt_marts_customers

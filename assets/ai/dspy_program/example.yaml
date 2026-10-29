@@ -1,4 +1,4 @@
-type: dagster_component_templates.DspyProgramComponent
+type: dagster_community_components.DspyProgramComponent
 attributes:
   asset_name: summarized_research_papers
   upstream_asset_key: raw_research_papers

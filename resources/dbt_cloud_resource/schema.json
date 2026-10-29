@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DbtCloudResourceComponent",
+  "component_type": "dagster_community_components.DbtCloudResourceComponent",
   "description": "Register a dagster-dbt DbtCloudClientResource for use by other components",
   "category": "resource",
   "icon": "si:dbt",

@@ -90,7 +90,7 @@ The `CosmosdbReaderComponent` connects to Azure Cosmos DB and executes SQL-like 
 ### Select all items
 
 ```yaml
-type: dagster_component_templates.CosmosdbReaderComponent
+type: dagster_community_components.CosmosdbReaderComponent
 attributes:
   asset_name: cosmos_products
   database: ecommerce
@@ -100,7 +100,7 @@ attributes:
 ### Filtered query
 
 ```yaml
-type: dagster_component_templates.CosmosdbReaderComponent
+type: dagster_community_components.CosmosdbReaderComponent
 attributes:
   asset_name: active_subscriptions
   database: billing

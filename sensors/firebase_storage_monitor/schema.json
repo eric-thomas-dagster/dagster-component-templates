@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FirebaseStorageMonitorComponent",
+  "component_type": "dagster_community_components.FirebaseStorageMonitorComponent",
   "description": "Watch a Firebase Storage bucket for new files; emit one RunRequest per new object.",
   "category": "sensor",
   "icon": "si:firebase",

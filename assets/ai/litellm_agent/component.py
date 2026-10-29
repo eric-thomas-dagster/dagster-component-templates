@@ -173,7 +173,7 @@ class LiteLLMAgentComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LiteLLMAgentComponent
+        type: dagster_community_components.LiteLLMAgentComponent
         attributes:
           asset_name: filesystem_agent
           prompt: "Find the three largest files in /tmp and return their paths."

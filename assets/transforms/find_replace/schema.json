@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FindReplace",
+  "component_type": "dagster_community_components.FindReplace",
   "description": "Look up values in one column against a reference DataFrame and replace with mapped values.",
   "category": "transformation",
   "icon": "Shuffle",

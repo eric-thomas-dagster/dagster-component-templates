@@ -95,7 +95,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.TogglTrackIngestionComponent
+type: dagster_community_components.TogglTrackIngestionComponent
 attributes:
   asset_name: toggl_track_ingestion
   api_token: "${TOGGL_API_TOKEN}"

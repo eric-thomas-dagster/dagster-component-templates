@@ -39,7 +39,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.OpenSearchResourceComponent
+type: dagster_community_components.OpenSearchResourceComponent
 attributes:
   resource_key: opensearch_resource
   host: "https://my-opensearch-domain.us-east-1.es.amazonaws.com"

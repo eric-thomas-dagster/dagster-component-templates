@@ -1,4 +1,4 @@
-type: dagster_component_templates.KafkaObservationSensorComponent
+type: dagster_community_components.KafkaObservationSensorComponent
 attributes:
   sensor_name: kafka_orders_obs
   asset_key: streaming/orders

@@ -69,7 +69,7 @@ class AWSSageMakerComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.AWSSageMakerComponent
+        type: dagster_community_components.AWSSageMakerComponent
         attributes:
           aws_region: us-east-1
           aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"

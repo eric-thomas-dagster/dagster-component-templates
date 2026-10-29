@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ShopifyProductUpsertComponent",
+  "component_type": "dagster_community_components.ShopifyProductUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Shopify Products via the Admin REST API. Search-then-write per row (Shopify has no native upsert) — GET /products.json?handle=X → PUT the match or POST a new product. Fields prefixed `variant_` set variants[0].<field> instead of the top-level product body.",
   "category": "reverse_etl",
   "icon": "si:shopify",

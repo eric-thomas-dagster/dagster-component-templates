@@ -187,7 +187,7 @@ class TotangoAccountsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.TotangoAccountsIngestionComponent
+        type: dagster_community_components.TotangoAccountsIngestionComponent
         attributes:
           asset_name: totango_accounts
           resource_key: totango_resource

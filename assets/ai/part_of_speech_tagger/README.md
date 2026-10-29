@@ -105,7 +105,7 @@ The Part of Speech Tagger Component uses spaCy to assign grammatical roles (noun
 ### tags_column mode (default)
 
 ```yaml
-type: dagster_component_templates.PartOfSpeechTaggerComponent
+type: dagster_community_components.PartOfSpeechTaggerComponent
 attributes:
   asset_name: pos_tagged_text
   upstream_asset_key: raw_text
@@ -120,7 +120,7 @@ Output adds a `pos_tags` column with values like `[("The", "DET"), ("dog", "NOUN
 ### expanded mode
 
 ```yaml
-type: dagster_component_templates.PartOfSpeechTaggerComponent
+type: dagster_community_components.PartOfSpeechTaggerComponent
 attributes:
   asset_name: tokens_expanded
   upstream_asset_key: raw_text
@@ -133,7 +133,7 @@ Output: one row per token with `token`, `pos_tag`, `dep` columns added.
 ### counts mode
 
 ```yaml
-type: dagster_component_templates.PartOfSpeechTaggerComponent
+type: dagster_community_components.PartOfSpeechTaggerComponent
 attributes:
   asset_name: pos_counts
   upstream_asset_key: raw_text

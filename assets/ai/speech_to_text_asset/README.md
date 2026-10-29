@@ -3,7 +3,7 @@
 Transcribe audio files via Cloud Speech-to-Text v2. Pass a column of audio references (local paths or `gs://` URIs); get transcripts back as a new column.
 
 ```yaml
-type: dagster_component_templates.SpeechToTextAssetComponent
+type: dagster_community_components.SpeechToTextAssetComponent
 attributes:
   asset_name: call_transcripts
   upstream_asset_key: support_calls

@@ -1,4 +1,4 @@
-type: dagster_component_templates.TsCompareComponent
+type: dagster_community_components.TsCompareComponent
 attributes:
   asset_name: arima_vs_ets_comparison
   upstream_asset_key: monthly_sales_history

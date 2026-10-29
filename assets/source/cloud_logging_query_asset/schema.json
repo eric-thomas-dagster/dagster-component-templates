@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CloudLoggingQueryAssetComponent",
+  "component_type": "dagster_community_components.CloudLoggingQueryAssetComponent",
   "description": "CloudLoggingQueryAssetComponent \u2014 pull log entries via Cloud Logging filter language.",
   "category": "source",
   "x-dagster-io": {

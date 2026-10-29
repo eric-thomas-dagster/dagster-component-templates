@@ -58,7 +58,7 @@ Monitor Slack channels for new messages and trigger Dagster jobs when messages m
 ## Usage Example
 
 ```yaml
-type: dagster_component_templates.SlackNotificationSensorComponent
+type: dagster_community_components.SlackNotificationSensorComponent
 attributes:
   sensor_name: alert_monitor
   slack_token: ${SLACK_TOKEN}
@@ -208,14 +208,14 @@ To monitor multiple channels, create separate component configurations:
 
 ```yaml
 # alerts.yaml
-type: dagster_component_templates.SlackNotificationSensorComponent
+type: dagster_community_components.SlackNotificationSensorComponent
 attributes:
   sensor_name: alerts_sensor
   channel_id: C111111
   # ...
 
 # incidents.yaml
-type: dagster_component_templates.SlackNotificationSensorComponent
+type: dagster_community_components.SlackNotificationSensorComponent
 attributes:
   sensor_name: incidents_sensor
   channel_id: C222222

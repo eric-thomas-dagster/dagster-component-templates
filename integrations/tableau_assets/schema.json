@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TableauAssetsComponent",
+  "component_type": "dagster_community_components.TableauAssetsComponent",
   "description": "Import Tableau workbooks + sheets as Dagster external assets via dagster-tableau.",
   "category": "integration",
   "icon": "BarChart3",

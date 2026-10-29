@@ -1,4 +1,4 @@
-type: dagster_component_templates.PagerdutyHeartbeatJobComponent
+type: dagster_community_components.PagerdutyHeartbeatJobComponent
 attributes:
   job_name: pagerduty_heartbeat_job_example
   schedule: "0 3 * * *"

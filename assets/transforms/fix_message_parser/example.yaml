@@ -1,4 +1,4 @@
-type: dagster_component_templates.FixMessageParserComponent
+type: dagster_community_components.FixMessageParserComponent
 attributes:
   asset_name: fix_messages_parsed
   upstream_asset_key: fix_messages

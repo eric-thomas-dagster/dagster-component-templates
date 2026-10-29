@@ -86,7 +86,7 @@ This component receives a DataFrame from an upstream Dagster asset and writes it
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.DataframeToS3Component
+type: dagster_community_components.DataframeToS3Component
 attributes:
   asset_name: s3_daily_report
   upstream_asset_key: processed_daily_report

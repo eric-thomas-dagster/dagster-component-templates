@@ -1,4 +1,4 @@
-type: dagster_component_templates.PipedriveResourceComponent
+type: dagster_community_components.PipedriveResourceComponent
 attributes:
   resource_key: pipedrive_resource
   api_token_env_var: PIPEDRIVE_API_TOKEN

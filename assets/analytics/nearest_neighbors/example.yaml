@@ -1,4 +1,4 @@
-type: dagster_component_templates.NearestNeighborsComponent
+type: dagster_community_components.NearestNeighborsComponent
 attributes:
   description: Find the 5 most similar products for each product based on behavioral and pricing features.
   asset_name: product_neighbors

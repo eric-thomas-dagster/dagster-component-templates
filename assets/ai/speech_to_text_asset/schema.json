@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SpeechToTextAssetComponent",
+  "component_type": "dagster_community_components.SpeechToTextAssetComponent",
   "description": "Transcribe audio files via Cloud Speech-to-Text v2. Pass a column of audio references (local paths or gs:// URIs); get back transcripts. Supports per-language config, multilingual recognition, automatic punctuation, word time offsets, speaker diarization. Specialized models: latest_short / latest_long / chirp / chirp_2 / phone_call / medical_conversation.",
   "category": "ai",
   "icon": "si:googlecloud",

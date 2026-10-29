@@ -1,4 +1,4 @@
-type: dagster_component_templates.GcpAuditLogIngestionComponent
+type: dagster_community_components.GcpAuditLogIngestionComponent
 attributes:
   asset_name: gcp_audit_log_ingestion_events
   project_id: my-project-12345

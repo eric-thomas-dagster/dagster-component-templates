@@ -1,4 +1,4 @@
-type: dagster_component_templates.ModelComparisonComponent
+type: dagster_community_components.ModelComparisonComponent
 attributes:
   description: Compare five classifiers on customer churn features to select the best model.
   asset_name: churn_model_comparison

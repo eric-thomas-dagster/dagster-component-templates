@@ -56,7 +56,7 @@ class LinearResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LinearResourceComponent
+        type: dagster_community_components.LinearResourceComponent
         attributes:
           resource_key: linear_resource
           api_key_env_var: LINEAR_API_KEY

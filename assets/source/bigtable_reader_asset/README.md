@@ -3,7 +3,7 @@
 Read rows from a [Cloud Bigtable](https://cloud.google.com/bigtable) table into a pandas DataFrame.
 
 ```yaml
-type: dagster_component_templates.BigtableReaderAssetComponent
+type: dagster_community_components.BigtableReaderAssetComponent
 attributes:
   asset_name: device_telemetry_recent
   instance_id: prod-bigtable

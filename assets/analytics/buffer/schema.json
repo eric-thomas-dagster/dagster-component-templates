@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BufferComponent",
+  "component_type": "dagster_community_components.BufferComponent",
   "description": "Buffer (expand) point or polygon geometries by a fixed radius.",
   "category": "analytics",
   "icon": "Circle",

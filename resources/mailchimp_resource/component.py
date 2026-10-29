@@ -92,7 +92,7 @@ class MailchimpResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.MailchimpResourceComponent
+        type: dagster_community_components.MailchimpResourceComponent
         attributes:
           resource_key: mailchimp
           api_key_env_var: MAILCHIMP_API_KEY

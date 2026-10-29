@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MultiTouchAttributionComponent",
+  "component_type": "dagster_community_components.MultiTouchAttributionComponent",
   "description": "Component for multi-touch attribution analysis.",
   "category": "analytics",
   "icon": "BarChart2",

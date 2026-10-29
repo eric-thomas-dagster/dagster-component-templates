@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OpenSearchIndexUpsertComponent",
+  "component_type": "dagster_community_components.OpenSearchIndexUpsertComponent",
   "description": "Reverse-ETL / search-index activation: sync an upstream DataFrame into an OpenSearch index via the native _bulk NDJSON API. id_field's value becomes each document's _id; all other columns become source fields. Supports 'upsert' (index action, create-or-replace) and 'delete' (delete action, no source line).",
   "category": "reverse_etl",
   "icon": "si:opensearch",

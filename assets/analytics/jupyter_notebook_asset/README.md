@@ -111,7 +111,7 @@ Confirm the kernel name with `jupyter kernelspec list`.
 ## Quick start
 
 ```yaml
-type: dagster_component_templates.JupyterNotebookAssetComponent
+type: dagster_community_components.JupyterNotebookAssetComponent
 attributes:
   asset_name: monthly_revenue_report
   notebook_path: "{{ project_root }}/notebooks/revenue_analysis.ipynb"

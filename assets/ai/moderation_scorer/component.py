@@ -114,7 +114,7 @@ class ModerationScorerComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ModerationScorerComponent
+        type: dagster_community_components.ModerationScorerComponent
         attributes:
           asset_name: moderation_scores
           source_asset: user_content

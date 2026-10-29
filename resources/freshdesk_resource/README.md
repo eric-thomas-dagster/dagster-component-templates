@@ -30,7 +30,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.FreshdeskResourceComponent
+type: dagster_community_components.FreshdeskResourceComponent
 attributes:
   resource_key: freshdesk_resource  # key other components use
   domain: mycompany.freshdesk.com  # your Freshdesk domain

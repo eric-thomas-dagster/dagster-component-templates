@@ -1,4 +1,4 @@
-type: dagster_component_templates.AzureTableReaderComponent
+type: dagster_community_components.AzureTableReaderComponent
 attributes:
   asset_name: high_value_orders
   account_name_env_var: AZURE_STORAGE_ACCOUNT

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GammaRegressionComponent",
+  "component_type": "dagster_community_components.GammaRegressionComponent",
   "description": "Fit a Gamma generalized linear model for positive continuous outcomes.",
   "category": "analytics",
   "icon": "Calculator",

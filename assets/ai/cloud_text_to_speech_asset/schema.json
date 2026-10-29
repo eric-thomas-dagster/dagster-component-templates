@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CloudTextToSpeechAssetComponent",
+  "component_type": "dagster_community_components.CloudTextToSpeechAssetComponent",
   "description": "CloudTextToSpeechAssetComponent — Cloud Text-to-Speech (WaveNet / Neural2 / Chirp).",
   "category": "ai",
   "x-dagster-io": {

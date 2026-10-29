@@ -48,7 +48,7 @@ So each run of this job:
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.CastordocExportJobComponent
+type: dagster_community_components.CastordocExportJobComponent
 attributes:
   job_name: sync_dagster_lineage_to_castordoc
   schedule: "0 3 * * *"

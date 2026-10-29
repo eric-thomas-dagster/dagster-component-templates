@@ -19,7 +19,7 @@ class GreatExpectationsCheckComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.GreatExpectationsCheckComponent
+        type: dagster_community_components.GreatExpectationsCheckComponent
         attributes:
           asset_key: warehouse/orders
           ge_context_root_dir: ./great_expectations

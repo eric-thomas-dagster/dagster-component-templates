@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MParticleIngestionComponent",
+  "component_type": "dagster_community_components.MParticleIngestionComponent",
   "description": "Ingest mParticle CDP audience and calculated-attribute data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "marketing",

@@ -89,7 +89,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 
 ## Example YAML
 ```yaml
-component_type: dagster_component_templates.TypeCoercerComponent
+component_type: dagster_community_components.TypeCoercerComponent
 asset_name: typed_records
 upstream_asset_key: raw_records
 type_map:

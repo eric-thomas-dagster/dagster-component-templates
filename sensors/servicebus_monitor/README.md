@@ -73,7 +73,7 @@ Uses `DefaultAzureCredential` by default. Alternatively, provide a connection st
 
 ### Queue
 ```yaml
-type: dagster_component_templates.ServiceBusMonitorSensorComponent
+type: dagster_community_components.ServiceBusMonitorSensorComponent
 attributes:
   sensor_name: servicebus_queue_sensor
   fully_qualified_namespace: mynamespace.servicebus.windows.net
@@ -83,7 +83,7 @@ attributes:
 
 ### Topic Subscription
 ```yaml
-type: dagster_component_templates.ServiceBusMonitorSensorComponent
+type: dagster_community_components.ServiceBusMonitorSensorComponent
 attributes:
   sensor_name: servicebus_topic_sensor
   fully_qualified_namespace: mynamespace.servicebus.windows.net

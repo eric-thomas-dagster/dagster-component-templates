@@ -1,4 +1,4 @@
-type: dagster_component_templates.FivetranAssetsComponent
+type: dagster_community_components.FivetranAssetsComponent
 attributes:
   account_id: <fill in>
   api_key_env_var: <fill in>

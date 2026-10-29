@@ -1,4 +1,4 @@
-type: dagster_component_templates.NatsObservationSensorComponent
+type: dagster_community_components.NatsObservationSensorComponent
 attributes:
   sensor_name: nats_events_obs
   asset_key: streaming/events

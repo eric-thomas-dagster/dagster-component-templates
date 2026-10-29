@@ -216,7 +216,7 @@ class ConfluenceIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ConfluenceIngestionComponent
+        type: dagster_community_components.ConfluenceIngestionComponent
         attributes:
           asset_name: confluence_ingestion
           site_domain: "yoursite"

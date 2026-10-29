@@ -223,7 +223,7 @@ class MongoDBIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.MongoDBIngestionComponent
+        type: dagster_community_components.MongoDBIngestionComponent
         attributes:
           asset_name: mongodb_data
           connection_url: "{{ env('MONGODB_URL') }}"

@@ -1,4 +1,4 @@
-type: dagster_component_templates.AsanaResourceComponent
+type: dagster_community_components.AsanaResourceComponent
 attributes:
   resource_key: asana_resource
   access_token_env_var: ASANA_ACCESS_TOKEN

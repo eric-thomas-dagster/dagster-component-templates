@@ -32,7 +32,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.HelpScoutResourceComponent
+type: dagster_community_components.HelpScoutResourceComponent
 attributes:
   resource_key: help_scout_resource
   client_id_env_var: HELPSCOUT_CLIENT_ID

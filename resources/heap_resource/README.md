@@ -37,7 +37,7 @@ Beyond the raw `.get_client()` escape hatch, this resource provides `.add_user_p
 
 ## Example
 ```yaml
-type: dagster_component_templates.HeapResourceComponent
+type: dagster_community_components.HeapResourceComponent
 attributes:
   resource_key: heap
   app_id_env_var: HEAP_APP_ID

@@ -1,4 +1,4 @@
-type: dagster_component_templates.AirbyteSyncTriggerJobComponent
+type: dagster_community_components.AirbyteSyncTriggerJobComponent
 attributes:
   job_name: airbyte_sync_trigger_job_example
   schedule: "0 3 * * *"

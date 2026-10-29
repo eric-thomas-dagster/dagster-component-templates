@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LogRocketIngestionComponent",
+  "component_type": "dagster_community_components.LogRocketIngestionComponent",
   "description": "Ingest LogRocket audit log and session data-export records using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "marketing",

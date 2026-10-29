@@ -216,7 +216,7 @@ class BasecampIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.BasecampIngestionComponent
+        type: dagster_community_components.BasecampIngestionComponent
         attributes:
           asset_name: basecamp_ingestion
           account_id: "${BASECAMP_ACCOUNT_ID}"

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DocumentMergerComponent",
+  "component_type": "dagster_community_components.DocumentMergerComponent",
   "description": "Merge two document DataFrames on a key column, designed for document-style data with nested columns.",
   "category": "transformation",
   "icon": "GitMerge",

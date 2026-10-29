@@ -216,7 +216,7 @@ class InsightlyIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.InsightlyIngestionComponent
+        type: dagster_community_components.InsightlyIngestionComponent
         attributes:
           asset_name: insightly_ingestion
           pod: "na1"

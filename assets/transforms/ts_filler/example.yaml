@@ -1,4 +1,4 @@
-type: dagster_component_templates.TsFillerComponent
+type: dagster_community_components.TsFillerComponent
 attributes:
   description: Fill gaps in daily sensor readings using forward fill, grouped by device_id.
   asset_name: sensor_readings_filled

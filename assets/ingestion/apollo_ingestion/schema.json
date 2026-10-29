@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ApolloIngestionComponent",
+  "component_type": "dagster_community_components.ApolloIngestionComponent",
   "description": "Ingest Apollo.io people, organization, and contact search/prospecting data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "sales-intelligence",

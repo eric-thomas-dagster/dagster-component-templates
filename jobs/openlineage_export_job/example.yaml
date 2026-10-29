@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/openlineage_export_job/schema.json
-type: dagster_component_templates.OpenLineageExportJobComponent
+type: dagster_community_components.OpenLineageExportJobComponent
 attributes:
   job_name: emit_openlineage_lineage
   schedule: "0 */4 * * *"             # every 4 hours

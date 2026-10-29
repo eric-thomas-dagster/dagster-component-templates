@@ -222,7 +222,7 @@ class NotionIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.NotionIngestionComponent
+        type: dagster_community_components.NotionIngestionComponent
         attributes:
           asset_name: notion_data
           api_key: "{{ env('NOTION_API_KEY') }}"

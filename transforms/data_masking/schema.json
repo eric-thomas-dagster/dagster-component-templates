@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataMaskingComponent",
+  "component_type": "dagster_community_components.DataMaskingComponent",
   "description": "Rule-based PII masking — hash, partial-mask (last 4 only), full-redact, or character-substitute. Per-column policies.",
   "category": "transformation",
   "x-dagster-io": {

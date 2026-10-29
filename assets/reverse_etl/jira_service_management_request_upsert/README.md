@@ -106,7 +106,7 @@ If `key_field` is a custom field (e.g. `customfield_10050`), JQL requires **`cf[
 
 ## Example
 ```yaml
-type: dagster_component_templates.JiraServiceManagementRequestUpsertComponent
+type: dagster_community_components.JiraServiceManagementRequestUpsertComponent
 attributes:
   asset_name: jsm_requests_from_support_tickets
   upstream_asset_key: dbt_marts_open_tickets

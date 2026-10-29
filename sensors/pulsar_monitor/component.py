@@ -31,7 +31,7 @@ class PulsarMonitorSensorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.PulsarMonitorSensorComponent
+        type: dagster_community_components.PulsarMonitorSensorComponent
         attributes:
           sensor_name: pulsar_events_sensor
           service_url: pulsar://localhost:6650

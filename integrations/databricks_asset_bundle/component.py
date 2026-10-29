@@ -106,7 +106,7 @@ class DatabricksAssetBundleComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.DatabricksAssetBundleComponent
+        type: dagster_community_components.DatabricksAssetBundleComponent
         attributes:
           databricks_config_path: databricks.yml
           workspace_host: https://dbc-abc123.cloud.databricks.com

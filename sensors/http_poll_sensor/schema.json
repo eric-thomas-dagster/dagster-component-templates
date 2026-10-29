@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.HttpPollSensorComponent",
+  "component_type": "dagster_community_components.HttpPollSensorComponent",
   "description": "Poll an HTTP endpoint and trigger a run when a targeted slice of the response changes (json_path / regex / css_selector / strip_patterns).",
   "category": "sensor",
   "icon": "Bell",

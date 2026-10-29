@@ -91,7 +91,7 @@ Use LiteLLM function/tool calling to invoke structured tool definitions against 
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.LitellmFunctionCallingComponent
+type: dagster_community_components.LitellmFunctionCallingComponent
 attributes:
   asset_name: routed_user_queries
   upstream_asset_key: raw_user_queries

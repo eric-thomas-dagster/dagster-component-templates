@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GainsightCompanyIngestionComponent",
+  "component_type": "dagster_community_components.GainsightCompanyIngestionComponent",
   "description": "Ingest Gainsight Company records (health scores, CSM, stage, renewal) via Gainsight REST API v1 and return a pandas DataFrame.",
   "category": "source",
   "vertical": "customer-success",

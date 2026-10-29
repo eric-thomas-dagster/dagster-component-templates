@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FreshdeskContactUpsertComponent",
+  "component_type": "dagster_community_components.FreshdeskContactUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Freshdesk contacts via search-then-write. Freshdesk has no single-call native upsert, so this lists /contacts filtered by unique_external_id, then updates the match or creates a new contact.",
   "category": "reverse_etl",
   "icon": "si:freshworks",

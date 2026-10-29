@@ -209,7 +209,7 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
 
     Example (basic auth — dev instance):
         ```yaml
-        type: dagster_component_templates.ServiceNowIngestionComponent
+        type: dagster_community_components.ServiceNowIngestionComponent
         attributes:
           asset_name: incidents_last_30d
           instance_env_var: SNOW_INSTANCE
@@ -225,7 +225,7 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
 
     Example (OAuth bearer token — production):
         ```yaml
-        type: dagster_component_templates.ServiceNowIngestionComponent
+        type: dagster_community_components.ServiceNowIngestionComponent
         attributes:
           asset_name: change_requests_open
           instance_env_var: SNOW_INSTANCE

@@ -1,4 +1,4 @@
-type: dagster_component_templates.PerFileProcessorJobComponent
+type: dagster_community_components.PerFileProcessorJobComponent
 attributes:
   job_name: process_inbox_csvs
   schedule: "*/5 * * * *"

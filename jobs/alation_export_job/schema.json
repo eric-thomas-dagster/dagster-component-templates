@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AlationExportJobComponent",
+  "component_type": "dagster_community_components.AlationExportJobComponent",
   "description": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to Alation Data Catalog via the Integration v2 lineage endpoint.",
   "category": "jobs",
   "icon": "Activity",

@@ -1,4 +1,4 @@
-type: dagster_component_templates.NotionResourceComponent
+type: dagster_community_components.NotionResourceComponent
 attributes:
   resource_key: notion_resource
   token_env_var: NOTION_TOKEN

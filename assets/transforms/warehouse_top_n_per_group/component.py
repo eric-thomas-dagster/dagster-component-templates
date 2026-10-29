@@ -103,7 +103,7 @@ class WarehouseTopNPerGroupComponent(Component, Model, Resolvable):
     """Top-N-per-group in the warehouse via ROW_NUMBER() — no Python materialization.
 
     Example:
-        type: dagster_component_templates.WarehouseTopNPerGroupComponent
+        type: dagster_community_components.WarehouseTopNPerGroupComponent
         attributes:
           asset_name: top_3_products_per_category
           database_url: snowflake://user:pass@account/db/schema

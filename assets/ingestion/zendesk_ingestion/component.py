@@ -223,7 +223,7 @@ class ZendeskIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ZendeskIngestionComponent
+        type: dagster_community_components.ZendeskIngestionComponent
         attributes:
           asset_name: zendesk_data
           subdomain: my-company

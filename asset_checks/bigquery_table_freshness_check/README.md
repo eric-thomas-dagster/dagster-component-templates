@@ -3,7 +3,7 @@
 SLO check on the maximum age of a BigQuery table. Reads `last_modified_time` from table metadata (free, < 1s) and fails the asset check if the table is older than `max_age_minutes`.
 
 ```yaml
-type: dagster_component_templates.BigqueryTableFreshnessCheckComponent
+type: dagster_community_components.BigqueryTableFreshnessCheckComponent
 attributes:
   asset_key: customer_summary
   table_id: my-project.analytics.customer_summary

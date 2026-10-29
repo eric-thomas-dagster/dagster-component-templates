@@ -133,7 +133,7 @@ class DataframeToEventHubComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.DataframeToEventHubComponent
+        type: dagster_community_components.DataframeToEventHubComponent
         attributes:
           asset_name: orders_to_eventhub
           upstream_asset_key: orders_raw

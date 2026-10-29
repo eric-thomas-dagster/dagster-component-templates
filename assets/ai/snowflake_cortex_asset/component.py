@@ -69,7 +69,7 @@ class SnowflakeCortexAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SnowflakeCortexAssetComponent
+        type: dagster_community_components.SnowflakeCortexAssetComponent
         attributes:
           asset_name: support_ticket_sentiment
           snowflake_account_env_var: SNOWFLAKE_ACCOUNT

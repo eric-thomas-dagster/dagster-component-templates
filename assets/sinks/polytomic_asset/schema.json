@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PolytomicAssetComponent",
+  "component_type": "dagster_community_components.PolytomicAssetComponent",
   "description": "Polytomic reverse-ETL component — one Dagster asset per Polytomic sync.",
   "category": "sink",
   "icon": "FileOutput",

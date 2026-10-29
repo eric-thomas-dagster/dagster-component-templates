@@ -1,4 +1,4 @@
-type: dagster_component_templates.VictoriaMetricsCardinalitySensorComponent
+type: dagster_community_components.VictoriaMetricsCardinalitySensorComponent
 attributes:
   sensor_name: vm_high_cardinality_watch
   base_url_env_var: VM_BASE_URL

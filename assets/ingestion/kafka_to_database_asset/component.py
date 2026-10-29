@@ -218,7 +218,7 @@ class KafkaToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.KafkaToDatabaseAssetComponent
+        type: dagster_community_components.KafkaToDatabaseAssetComponent
         attributes:
           asset_name: kafka_events_ingest
           bootstrap_servers_env_var: KAFKA_BOOTSTRAP_SERVERS

@@ -83,7 +83,7 @@ Reads a database table and outputs a Pandas DataFrame asset. This component acts
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.DataframeFromTableComponent
+type: dagster_community_components.DataframeFromTableComponent
 attributes:
   asset_name: customers_dataframe
   table_name: customers

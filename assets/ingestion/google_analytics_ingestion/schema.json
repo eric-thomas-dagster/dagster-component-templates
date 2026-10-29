@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GoogleAnalyticsIngestionComponent",
+  "component_type": "dagster_community_components.GoogleAnalyticsIngestionComponent",
   "description": "Component for ingesting Google Analytics 4 data using dlt - returns DataFrames.",
   "category": "ingestion",
   "vertical": "marketing",

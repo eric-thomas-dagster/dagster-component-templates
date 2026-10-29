@@ -1,4 +1,4 @@
-type: dagster_component_templates.DagsterPlusToSiemJobComponent
+type: dagster_community_components.DagsterPlusToSiemJobComponent
 attributes:
   job_name: dagster_plus_audit_to_splunk
   schedule: "*/15 * * * *"

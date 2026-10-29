@@ -1,4 +1,4 @@
-type: dagster_component_templates.MatomoIngestionComponent
+type: dagster_community_components.MatomoIngestionComponent
 attributes:
   asset_name: matomo_analytics_data
 

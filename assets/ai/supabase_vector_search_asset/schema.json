@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SupabaseVectorSearchAssetComponent",
+  "component_type": "dagster_community_components.SupabaseVectorSearchAssetComponent",
   "description": "pgvector similarity search against a Supabase table with a vector column.",
   "category": "ai",
   "icon": "si:supabase",

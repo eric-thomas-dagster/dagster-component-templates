@@ -1,4 +1,4 @@
-type: dagster_component_templates.ImageClassifierComponent
+type: dagster_community_components.ImageClassifierComponent
 attributes:
   asset_name: classified_images
   upstream_asset_key: raw_images

@@ -134,7 +134,7 @@ Supply exactly one of:
 
 ## Example
 ```yaml
-type: dagster_component_templates.VantaEvidenceUploadComponent
+type: dagster_community_components.VantaEvidenceUploadComponent
 attributes:
   asset_name: vanta_access_review_evidence
   upstream_asset_key: quarterly_access_review_exports

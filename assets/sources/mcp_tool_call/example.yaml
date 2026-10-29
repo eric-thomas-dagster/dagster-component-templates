@@ -1,4 +1,4 @@
-type: dagster_component_templates.MCPToolCallComponent
+type: dagster_community_components.MCPToolCallComponent
 attributes:
   asset_name: dagster_plus_runs_daily
   server:

@@ -1,4 +1,4 @@
-type: dagster_component_templates.SalesforceEventLogIngestionComponent
+type: dagster_community_components.SalesforceEventLogIngestionComponent
 attributes:
   asset_name: salesforce_event_log_ingestion_events
   instance_url: https://acme.my.salesforce.com

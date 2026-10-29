@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.Auth0ManagementIngestionComponent",
+  "component_type": "dagster_community_components.Auth0ManagementIngestionComponent",
   "description": "Ingest Auth0 org data (users, roles, organizations) via the Management API using dlt's generic REST API source. Distinct from auth0_logs_ingestion, which covers audit/log-stream data only.",
   "category": "ingestion",
   "vertical": "security",

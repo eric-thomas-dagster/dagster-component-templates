@@ -43,7 +43,7 @@ pip install ShopifyAPI
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.ShopifyResourceComponent
+type: dagster_community_components.ShopifyResourceComponent
 attributes:
   resource_key: shopify_resource  # key other components use
   shop_url: mystore.myshopify.com  # your store's myshopify.com URL

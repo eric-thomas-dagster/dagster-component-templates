@@ -1,4 +1,4 @@
-type: dagster_component_templates.JsonFlattenComponent
+type: dagster_community_components.JsonFlattenComponent
 attributes:
   asset_name: flattened_users
   upstream_asset_key: raw_users

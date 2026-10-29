@@ -268,7 +268,7 @@ class LLMEvaluatorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LLMEvaluatorComponent
+        type: dagster_community_components.LLMEvaluatorComponent
         attributes:
           asset_name: agent_eval
           upstream_asset_key: dagster_plus_agent_run

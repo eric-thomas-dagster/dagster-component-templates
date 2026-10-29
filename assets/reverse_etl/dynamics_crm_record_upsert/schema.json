@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DynamicsCrmRecordUpsertComponent",
+  "component_type": "dagster_community_components.DynamicsCrmRecordUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into a Microsoft Dynamics 365 (Dataverse) entity set via its native alternate-key upsert endpoint. `PATCH {org_url}/api/data/{api_version}/{entity_set}({key}='{value}')` atomically creates or updates in one request -- no search-then-write. One PATCH per row (Dataverse has no single-call bulk/composite upsert the way Salesforce does).",
   "category": "reverse_etl",
   "vertical": "crm-sales",

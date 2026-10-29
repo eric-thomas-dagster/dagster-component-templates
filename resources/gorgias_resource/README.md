@@ -31,7 +31,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.GorgiasResourceComponent
+type: dagster_community_components.GorgiasResourceComponent
 attributes:
   resource_key: gorgias_resource  # key other components use
   subdomain: acme  # https://acme.gorgias.com

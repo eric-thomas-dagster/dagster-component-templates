@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.S3ResourceComponent",
+  "component_type": "dagster_community_components.S3ResourceComponent",
   "description": "Register a dagster-aws S3Resource for use by other components",
   "category": "resource",
   "icon": "si:amazons3",

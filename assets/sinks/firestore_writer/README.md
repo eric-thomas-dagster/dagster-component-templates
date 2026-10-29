@@ -87,7 +87,7 @@ The `FirestoreWriterComponent` accepts an upstream DataFrame asset and writes ea
 ### Write with auto-generated document IDs
 
 ```yaml
-type: dagster_component_templates.FirestoreWriterComponent
+type: dagster_community_components.FirestoreWriterComponent
 attributes:
   asset_name: write_products_to_firestore
   upstream_asset_key: enriched_products
@@ -98,7 +98,7 @@ attributes:
 ### Write with custom document ID column
 
 ```yaml
-type: dagster_component_templates.FirestoreWriterComponent
+type: dagster_community_components.FirestoreWriterComponent
 attributes:
   asset_name: write_users_to_firestore
   upstream_asset_key: processed_users
@@ -111,7 +111,7 @@ attributes:
 ### Merge mode (update existing fields without overwriting)
 
 ```yaml
-type: dagster_component_templates.FirestoreWriterComponent
+type: dagster_community_components.FirestoreWriterComponent
 attributes:
   asset_name: update_user_scores
   upstream_asset_key: computed_scores

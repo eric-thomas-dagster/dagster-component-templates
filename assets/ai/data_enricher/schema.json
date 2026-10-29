@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataEnricherComponent",
+  "component_type": "dagster_community_components.DataEnricherComponent",
   "description": "Enrich DataFrame rows with LLM-generated fields by sending row context to an LLM and extracting structured new columns.",
   "category": "ai",
   "icon": "Sparkles",

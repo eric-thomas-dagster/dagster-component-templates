@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CountRecordsComponent",
+  "component_type": "dagster_community_components.CountRecordsComponent",
   "description": "Count rows in a DataFrame, optionally grouped by one or more columns.",
   "category": "transformation",
   "icon": "Shuffle",

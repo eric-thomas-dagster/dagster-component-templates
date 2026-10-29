@@ -1,4 +1,4 @@
-type: dagster_component_templates.CacheInvalidationJobComponent
+type: dagster_community_components.CacheInvalidationJobComponent
 attributes:
   job_name: cache_invalidation_job_example
   schedule: "0 3 * * *"

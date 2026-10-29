@@ -91,7 +91,7 @@ So a real "upsert" from this component's perspective requires, per row:
 ## Example
 
 ```yaml
-type: dagster_component_templates.ChargebeeCustomerUpsertComponent
+type: dagster_community_components.ChargebeeCustomerUpsertComponent
 attributes:
   asset_name: chargebee_customers_mirror
   upstream_asset_key: dbt_marts_customers

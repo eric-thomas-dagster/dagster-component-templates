@@ -1,4 +1,4 @@
-type: dagster_component_templates.LocalJsonIOManagerComponent
+type: dagster_community_components.LocalJsonIOManagerComponent
 attributes:
   resource_key: io_manager
   base_dir: /tmp/dagster_storage

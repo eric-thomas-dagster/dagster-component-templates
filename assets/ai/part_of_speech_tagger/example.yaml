@@ -1,4 +1,4 @@
-type: dagster_component_templates.PartOfSpeechTaggerComponent
+type: dagster_community_components.PartOfSpeechTaggerComponent
 attributes:
   asset_name: pos_tagged_reviews
   upstream_asset_key: raw_reviews

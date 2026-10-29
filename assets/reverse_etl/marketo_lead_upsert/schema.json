@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MarketoLeadUpsertComponent",
+  "component_type": "dagster_community_components.MarketoLeadUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Marketo Leads via the native createOrUpdate action. POST /rest/v1/leads.json with action=createOrUpdate atomically creates or updates each record in one request, matched on lookupField (typically email). Requests are chunked at 300 records (Marketo's hard per-request limit).",
   "category": "reverse_etl",
   "icon": "si:marketo",

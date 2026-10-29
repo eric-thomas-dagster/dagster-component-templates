@@ -173,7 +173,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 Mirrors `chargify_ingestion`'s real resource shape in this repo:
 
 ```yaml
-type: dagster_component_templates.DltRestApiSourceComponent
+type: dagster_community_components.DltRestApiSourceComponent
 attributes:
   asset_name: my_vendor_ingestion
   client:
@@ -192,7 +192,7 @@ attributes:
 ### 2. Bearer auth + cursor pagination, persisted to Snowflake
 
 ```yaml
-type: dagster_component_templates.DltRestApiSourceComponent
+type: dagster_community_components.DltRestApiSourceComponent
 attributes:
   asset_name: my_other_vendor_ingestion
   client:
@@ -220,7 +220,7 @@ attributes:
 Mirrors `hotjar_ingestion`'s real `surveys` -> `survey_responses` chaining in this repo:
 
 ```yaml
-type: dagster_component_templates.DltRestApiSourceComponent
+type: dagster_community_components.DltRestApiSourceComponent
 attributes:
   asset_name: my_vendor_parent_child_ingestion
   client:

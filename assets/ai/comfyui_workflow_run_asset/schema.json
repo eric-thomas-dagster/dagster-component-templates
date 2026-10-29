@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ComfyUIWorkflowRunAssetComponent",
+  "component_type": "dagster_community_components.ComfyUIWorkflowRunAssetComponent",
   "name": "ComfyUI Workflow Run",
   "category": "ai",
   "icon": "Image",

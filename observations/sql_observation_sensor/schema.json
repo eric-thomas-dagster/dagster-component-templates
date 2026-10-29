@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SqlObservationSensorComponent",
+  "component_type": "dagster_community_components.SqlObservationSensorComponent",
   "description": "Periodically connect to SQL and record an AssetObservation on the target external asset — surfaces health metrics in the Dagster UI without triggering a pipeline run.",
   "category": "observation",
   "icon": "Eye",

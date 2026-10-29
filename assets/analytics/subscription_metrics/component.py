@@ -299,7 +299,7 @@ class SubscriptionMetricsComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SubscriptionMetricsComponent
+        type: dagster_community_components.SubscriptionMetricsComponent
         attributes:
           asset_name: subscription_metrics
           stripe_data_asset: "stripe_data"

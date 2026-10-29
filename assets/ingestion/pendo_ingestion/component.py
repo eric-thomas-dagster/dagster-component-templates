@@ -216,7 +216,7 @@ class PendoIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.PendoIngestionComponent
+        type: dagster_community_components.PendoIngestionComponent
         attributes:
           asset_name: pendo_ingestion
           integration_key: "${PENDO_INTEGRATION_KEY}"

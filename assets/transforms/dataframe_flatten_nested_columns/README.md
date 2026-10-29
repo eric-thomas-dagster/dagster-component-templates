@@ -3,7 +3,7 @@
 JSON-stringify columns whose values are dicts or lists. The standard fix for sinks (BigQuery `load_table_from_dataframe`, Snowflake's pandas writer, CSV writers) that can't infer a schema for object-dtype nested columns.
 
 ```yaml
-type: dagster_component_templates.DataframeFlattenNestedColumnsComponent
+type: dagster_community_components.DataframeFlattenNestedColumnsComponent
 attributes:
   asset_name: events_flat
   upstream_asset_key: recent_errors

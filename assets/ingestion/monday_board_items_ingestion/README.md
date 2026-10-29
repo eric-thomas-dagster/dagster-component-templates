@@ -78,7 +78,7 @@ Also requires a `MondayResourceComponent` on the same code location for authenti
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.MondayBoardItemsIngestionComponent
+type: dagster_community_components.MondayBoardItemsIngestionComponent
 attributes:
   asset_name: monday_board_items
   resource_key: monday_resource

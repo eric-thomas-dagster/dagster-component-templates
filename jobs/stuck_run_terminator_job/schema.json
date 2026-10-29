@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.StuckRunTerminatorJobComponent",
+  "component_type": "dagster_community_components.StuckRunTerminatorJobComponent",
   "description": "Op-shaped job that force-cancels Dagster runs stuck in STARTING/STARTED/CANCELING beyond a threshold. Universal operational need — every deployment eventually gets zombie runs after worker crashes.",
   "category": "jobs",
   "icon": "Activity",

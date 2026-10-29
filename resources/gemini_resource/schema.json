@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GeminiResourceComponent",
+  "component_type": "dagster_community_components.GeminiResourceComponent",
   "description": "Register a dagster-gemini GeminiResource for use by other components",
   "category": "resource",
   "icon": "si:googlegemini",

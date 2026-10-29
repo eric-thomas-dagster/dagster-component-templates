@@ -34,7 +34,7 @@ Wraps the official `dagster-clickhouse-pandas` package.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ClickhouseIOManagerComponent
+type: dagster_community_components.ClickhouseIOManagerComponent
 attributes:
   resource_key: io_manager
   host: my-instance.clickhouse.cloud

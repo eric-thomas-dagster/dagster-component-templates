@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PerplexityLLMComponent",
+  "component_type": "dagster_community_components.PerplexityLLMComponent",
   "description": "Native Perplexity (Sonar) web-grounded LLM inference via Perplexity's OpenAI-compatible API. Drop-in peer of openai_llm / anthropic_llm / gemini_llm / groq_llm / mistral_llm, but unlike those, Perplexity's responses are grounded with real-time web citations, which this component surfaces as its own output column and in materialization metadata. For multi-vendor routing use litellm_inference_asset.",
   "category": "ai",
   "icon": "lu:search",

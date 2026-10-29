@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.KinesisMonitorSensorComponent",
+  "component_type": "dagster_community_components.KinesisMonitorSensorComponent",
   "description": "Component for monitoring an AWS Kinesis Data Stream for new records.",
   "category": "sensor",
   "icon": "Radar",

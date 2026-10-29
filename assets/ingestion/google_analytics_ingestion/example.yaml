@@ -1,4 +1,4 @@
-type: dagster_component_templates.GoogleAnalyticsIngestionComponent
+type: dagster_community_components.GoogleAnalyticsIngestionComponent
 attributes:
   asset_name: google_analytics_data
 

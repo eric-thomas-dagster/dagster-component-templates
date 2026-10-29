@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToAvroComponent",
+  "component_type": "dagster_community_components.DataframeToAvroComponent",
   "description": "Write a pandas DataFrame as Avro to a local path or fsspec URI. Schema is inferred from pandas dtypes by default; explicit schema can be supplied via avro_schema. Companion to dataframe_to_parquet — useful when downstream consumers expect Avro (Event Hubs Capture default, Kafka Schema Registry ecosystems, etc.).",
   "category": "sink",
   "icon": "Download",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TileBinningComponent",
+  "component_type": "dagster_community_components.TileBinningComponent",
   "description": "Assign records to bins based on a numeric column's value range.",
   "category": "transformation",
   "icon": "Shuffle",

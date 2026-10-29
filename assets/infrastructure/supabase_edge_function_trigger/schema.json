@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SupabaseEdgeFunctionTriggerComponent",
+  "component_type": "dagster_community_components.SupabaseEdgeFunctionTriggerComponent",
   "description": "Materializable asset that invokes a Supabase Edge Function via POST /functions/v1/<function-name>.",
   "category": "infrastructure",
   "icon": "si:supabase",

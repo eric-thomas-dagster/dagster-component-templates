@@ -36,7 +36,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.AlgoliaResourceComponent
+type: dagster_community_components.AlgoliaResourceComponent
 attributes:
   resource_key: algolia_resource
   app_id: "YOUR_APP_ID"

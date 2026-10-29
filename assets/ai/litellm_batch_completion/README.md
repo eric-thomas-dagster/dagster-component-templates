@@ -102,7 +102,7 @@ LiteLLM supports 100+ providers: OpenAI, Anthropic, Azure OpenAI, AWS Bedrock, G
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.LitellmBatchCompletionComponent
+type: dagster_community_components.LitellmBatchCompletionComponent
 attributes:
   asset_name: classified_support_tickets
   upstream_asset_key: raw_support_tickets

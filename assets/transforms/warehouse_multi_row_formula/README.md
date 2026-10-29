@@ -7,7 +7,7 @@ All expressions share the same `OVER (PARTITION BY ... ORDER BY ...)` clause set
 ## YAML
 
 ```yaml
-type: dagster_component_templates.WarehouseMultiRowFormulaComponent
+type: dagster_community_components.WarehouseMultiRowFormulaComponent
 attributes:
   asset_name: orders_with_running
   database_url: snowflake://...

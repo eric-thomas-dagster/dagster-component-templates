@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/per_partition_backfill_job/schema.json
-type: dagster_component_templates.PerPartitionBackfillJobComponent
+type: dagster_community_components.PerPartitionBackfillJobComponent
 attributes:
   # Last-N-days time-window backfill (the original use case).
   job_name: weekly_sales_backfill

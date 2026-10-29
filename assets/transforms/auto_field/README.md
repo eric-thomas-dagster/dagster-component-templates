@@ -110,7 +110,7 @@ For each target column:
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.AutoFieldComponent
+type: dagster_community_components.AutoFieldComponent
 attributes:
   asset_name: events_optimized
   upstream_asset_key: raw_events

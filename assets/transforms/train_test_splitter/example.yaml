@@ -1,4 +1,4 @@
-type: dagster_component_templates.TrainTestSplitterComponent
+type: dagster_community_components.TrainTestSplitterComponent
 attributes:
   asset_name: customer_features
   upstream_asset_key: scaled_customer_features

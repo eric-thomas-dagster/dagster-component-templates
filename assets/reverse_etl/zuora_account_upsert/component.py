@@ -153,7 +153,7 @@ class ZuoraAccountUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ZuoraAccountUpsertComponent
+        type: dagster_community_components.ZuoraAccountUpsertComponent
         attributes:
           asset_name: zuora_accounts_mirror
           upstream_asset_key: dbt_marts_customers

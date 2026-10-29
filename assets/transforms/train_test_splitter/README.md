@@ -116,7 +116,7 @@ If you need both (rare), pre-aggregate to one row per group, stratify, then re-j
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.TrainTestSplitterComponent
+type: dagster_community_components.TrainTestSplitterComponent
 attributes:
   asset_name: customer_features
   upstream_asset_key: scaled_customer_features

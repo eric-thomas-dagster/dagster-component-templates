@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ADLSMonitorSensorComponent",
+  "component_type": "dagster_community_components.ADLSMonitorSensorComponent",
   "description": "Component for monitoring Azure Data Lake Storage Gen2 for new files.",
   "category": "sensor",
   "icon": "si:microsoftazure",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RerankerComponent",
+  "component_type": "dagster_community_components.RerankerComponent",
   "description": "Component for reranking search results to improve relevance.",
   "category": "ai",
   "icon": "Sparkles",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LabelEncoderComponent",
+  "component_type": "dagster_community_components.LabelEncoderComponent",
   "description": "Encode categorical columns into integer codes (frequency, alphabetical, or appearance order).",
   "category": "transformation",
   "icon": "Hash",

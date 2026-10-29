@@ -152,7 +152,7 @@ Every actual HTTP call — token fetch, submit, and poll — routes through one 
 ## Example
 
 ```yaml
-type: dagster_component_templates.PayscaleResourceComponent
+type: dagster_community_components.PayscaleResourceComponent
 attributes:
   resource_key: payscale_resource
   customer_id: "123456"

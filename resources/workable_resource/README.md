@@ -30,7 +30,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.WorkableResourceComponent
+type: dagster_community_components.WorkableResourceComponent
 attributes:
   resource_key: workable_resource  # key other components use
   api_token_env_var: WORKABLE_API_TOKEN  # env var holding your API token

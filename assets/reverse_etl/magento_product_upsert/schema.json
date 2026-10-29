@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MagentoProductUpsertComponent",
+  "component_type": "dagster_community_components.MagentoProductUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Magento/Adobe Commerce Products via the REST API. Search-then-write per row (Magento's PUT /V1/products/:sku is update-ONLY, not a true upsert) -- GET /V1/products/:sku → PUT the match or POST a new product (requires sku/name/price/attribute_set_id at minimum).",
   "category": "reverse_etl",
   "vertical": "crm-sales",

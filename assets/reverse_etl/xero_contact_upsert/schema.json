@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.XeroContactUpsertComponent",
+  "component_type": "dagster_community_components.XeroContactUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Xero Contact records. Xero has no single-call upsert -- POST /Contacts is used for both create and update, with behavior determined by whether ContactID is present in the body (present = update; absent = create, and Xero enforces Name uniqueness across active contacts so a blind create risks a 400). This component looks up by lookup_field first (where= filter query) to discover an existing ContactID, then issues the appropriate create-or-update POST. Two API calls per row.",
   "category": "reverse_etl",
   "icon": "si:xero",

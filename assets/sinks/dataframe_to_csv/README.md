@@ -78,7 +78,7 @@ Writes a Pandas DataFrame to a CSV file. This is a terminal sink component — i
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.DataframeToCsvComponent
+type: dagster_community_components.DataframeToCsvComponent
 attributes:
   asset_name: write_monthly_report_csv
   upstream_asset_key: monthly_revenue_summary

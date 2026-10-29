@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LLMOutputParserComponent",
+  "component_type": "dagster_community_components.LLMOutputParserComponent",
   "description": "Component for parsing LLM output column in an upstream DataFrame.",
   "category": "ai",
   "icon": "Sparkles",

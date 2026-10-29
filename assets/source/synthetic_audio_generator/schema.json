@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SyntheticAudioGeneratorComponent",
+  "component_type": "dagster_community_components.SyntheticAudioGeneratorComponent",
   "description": "SyntheticAudioGeneratorComponent \u2014 generate sample WAV files for audio demos.",
   "category": "source",
   "x-dagster-io": {

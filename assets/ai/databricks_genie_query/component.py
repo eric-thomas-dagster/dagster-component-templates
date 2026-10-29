@@ -127,7 +127,7 @@ class DatabricksGenieQueryComponent(Component, Model, Resolvable):
     Single-question example:
 
         ```yaml
-        type: dagster_component_templates.DatabricksGenieQueryComponent
+        type: dagster_community_components.DatabricksGenieQueryComponent
         attributes:
           asset_name: weekly_revenue
           host_env_var: DATABRICKS_HOST
@@ -139,7 +139,7 @@ class DatabricksGenieQueryComponent(Component, Model, Resolvable):
     Per-row example:
 
         ```yaml
-        type: dagster_component_templates.DatabricksGenieQueryComponent
+        type: dagster_community_components.DatabricksGenieQueryComponent
         attributes:
           asset_name: q_and_a_results
           upstream_asset_key: customer_questions

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MLflowModelSensor",
+  "component_type": "dagster_community_components.MLflowModelSensor",
   "description": "Component that fires a RunRequest when an MLflow model transitions to a",
   "category": "sensor",
   "icon": "si:mlflow",

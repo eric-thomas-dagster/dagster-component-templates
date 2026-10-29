@@ -194,7 +194,7 @@ class FirestoreReaderComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.FirestoreReaderComponent
+        type: dagster_community_components.FirestoreReaderComponent
         attributes:
           asset_name: firestore_users
           collection: users

@@ -88,7 +88,7 @@ This sink authenticates through `woocommerce_resource`, which uses WooCommerce R
 ## Example
 
 ```yaml
-type: dagster_component_templates.WooCommerceProductUpsertComponent
+type: dagster_community_components.WooCommerceProductUpsertComponent
 attributes:
   asset_name: woocommerce_products_mirror
   upstream_asset_key: catalog_products

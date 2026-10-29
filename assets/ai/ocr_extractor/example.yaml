@@ -1,4 +1,4 @@
-type: dagster_component_templates.OcrExtractorComponent
+type: dagster_community_components.OcrExtractorComponent
 attributes:
   asset_name: ocr_extracted_text
   upstream_asset_key: raw_document_images

@@ -99,7 +99,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 ## YAML Example
 
 ```yaml
-type: dagster_component_templates.DatetimeParser
+type: dagster_community_components.DatetimeParser
 attributes:
   asset_name: parsed_order_dates
   upstream_asset_key: raw_orders

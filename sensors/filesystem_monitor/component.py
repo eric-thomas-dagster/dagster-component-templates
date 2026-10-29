@@ -33,7 +33,7 @@ class FilesystemMonitorSensorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.FilesystemMonitorSensorComponent
+        type: dagster_community_components.FilesystemMonitorSensorComponent
         attributes:
           sensor_name: data_files_sensor
           directory_path: /data/incoming

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FabricLakehouseResourceComponent",
+  "component_type": "dagster_community_components.FabricLakehouseResourceComponent",
   "description": "OneLake URL helper + storage credentials for Fabric Lakehouse access. Use from custom ops via resource.table_path('orders') / resource.storage_options() to read/write Delta tables without re-deriving the abfss URL pattern.",
   "category": "resource",
   "icon": "si:microsoftazure",

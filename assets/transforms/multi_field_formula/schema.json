@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MultiFieldFormulaComponent",
+  "component_type": "dagster_community_components.MultiFieldFormulaComponent",
   "description": "Apply a formula expression to multiple columns at once.",
   "category": "transformation",
   "icon": "Shuffle",

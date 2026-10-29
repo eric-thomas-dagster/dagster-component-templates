@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LeverCandidateUpsertComponent",
+  "component_type": "dagster_community_components.LeverCandidateUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Lever opportunities (candidates) via search-then-write. Lever supports an exact-match email filter, so this is a true upsert: a match gets tagged/staged/archived in place, a non-match gets a brand-new opportunity created.",
   "category": "reverse_etl",
   "icon": "si:lever",

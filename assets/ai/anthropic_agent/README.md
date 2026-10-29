@@ -82,22 +82,70 @@ mcp_servers:
 
 | Field | Type | Description |
 |---|---|---|
-| `name` | `str` | Short name used to prefix tool names. |
+| `asset_name` | `str` | Output Dagster asset name. |
+| `prompt` | `str` | User prompt sent to the model on the first turn. |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `url` | `str` | — | http / sse: full URL. |
+| `api_key_env_var` | `str` | `"ANTHROPIC_API_KEY"` | Env var with the Anthropic API key. |
+| `base_url_env_var` | `str` | — | Optional env var with a custom base_url. |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `group_name` | `str` | — | Dagster asset group name. |
+| `description` | `str` | — | Asset description. |
+| `owners` | `List[str]` | — | Asset owners. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags. |
+| `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['llm', 'agent', 'anthropic']. |
+| `deps` | `List[str]` | — | Lineage-only upstream asset keys. |
+
+### Freshness
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `freshness_max_lag_minutes` | `int` | — | FreshnessPolicy max lag in minutes. |
+| `freshness_cron` | `str` | — | FreshnessPolicy deadline cron schedule. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'multi' \| 'dynamic'. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | ISO date for time-based partitions. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static/multi. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_policy_max_retries` | `int` | — | Max retries on failure. |
+| `retry_policy_delay_seconds` | `int` | — | Seconds between retries. |
+| `retry_policy_backoff` | `str` | `"exponential"` | 'linear' or 'exponential'. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `model` | `str` | `"claude-haiku-4-5-20251001"` | Anthropic model id (e.g. claude-opus-4-7, claude-sonnet-4-6, claude-haiku-4-5-20251001). |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `type` | `str` | `"stdio"` | Transport: 'stdio' (subprocess), 'http' (streamable-HTTP), or 'sse' (legacy). |
-| `command` | `List[str]` | — | stdio: [executable, ...args]. |
-| `env` | `Dict[str, str]` | — | stdio: extra env vars. |
-| `headers` | `Dict[str, str]` | — | http / sse: literal HTTP headers. |
-| `headers_env` | `Dict[str, str]` | — | http / sse: header_name → env_var_name, value read from env at materialization. |
+| `system_prompt` | `str` | — | System prompt (Anthropic top-level param). |
+| `temperature` | `float` | `0.0` | Sampling temperature. |
+| `max_tokens` | `int` | `2048` | Max tokens per model call. |
+| `thinking_budget` | `int` | — | Max reasoning-trace tokens for Claude thinking mode (claude-opus-4.1+, claude-sonnet-4+). When set, Anthropic returns a `thinking` block alongside the visible answer showing the model's reasoning trace. Cost implication… _(full docs in schema.json + component README)_ |
+| `prompt_caching` | `bool` | `false` | Anthropic prompt caching. When true, wraps the system prompt with `cache_control: {type: ephemeral}`. First call warms the cache (~25% surcharge on that call); subsequent calls within ~5 min read from cache (~90% cheaper… _(full docs in schema.json + component README)_ |
+| `max_iterations` | `int` | `10` | Max tool-call rounds. |
+| `mcp_servers` | `List[MCPServerSpec]` | `list()` | MCP servers to expose as tools. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)

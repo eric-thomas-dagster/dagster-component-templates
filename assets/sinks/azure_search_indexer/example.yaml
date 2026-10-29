@@ -1,4 +1,4 @@
-type: dagster_component_templates.AzureSearchIndexerComponent
+type: dagster_community_components.AzureSearchIndexerComponent
 attributes:
   asset_name: docs_in_search_index
   upstream_asset_key: documents_with_embeddings

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AWSDMSComponent",
+  "component_type": "dagster_community_components.AWSDMSComponent",
   "description": "Component for importing AWS DMS and Zero ETL entities as Dagster assets.",
   "category": "integration",
   "icon": "Plug",

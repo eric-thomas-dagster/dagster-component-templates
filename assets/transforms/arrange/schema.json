@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ArrangeComponent",
+  "component_type": "dagster_community_components.ArrangeComponent",
   "description": "Reorder, move, and rename columns in a DataFrame.",
   "category": "transformation",
   "icon": "Shuffle",

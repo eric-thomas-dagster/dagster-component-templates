@@ -1,4 +1,4 @@
-type: dagster_component_templates.LLMOutputParserComponent
+type: dagster_community_components.LLMOutputParserComponent
 attributes:
   asset_name: structured_data
   upstream_asset_key: raw_llm_output

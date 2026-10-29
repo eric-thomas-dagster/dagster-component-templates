@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AmplitudeEventTrackComponent",
+  "component_type": "dagster_community_components.AmplitudeEventTrackComponent",
   "description": "Reverse-ETL sink \u2014 POST DataFrame rows as Amplitude events via HTTP V2 API (POST /2/httpapi, up to 1000/batch). Sets event_type + user_id/device_id + event_properties + user_properties per row.",
   "category": "reverse_etl",
   "x-dagster-io": {

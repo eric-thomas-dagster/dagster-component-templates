@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TerraformCloudAssetComponent",
+  "component_type": "dagster_community_components.TerraformCloudAssetComponent",
   "description": "HCP Terraform (Terraform Cloud) asset component.",
   "category": "infrastructure",
   "icon": "si:terraform",

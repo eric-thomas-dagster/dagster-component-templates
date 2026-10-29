@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PapertrailResourceComponent",
+  "component_type": "dagster_community_components.PapertrailResourceComponent",
   "description": "Stream Dagster logs to Papertrail via dagster-papertrail.",
   "category": "resource",
   "icon": "FileText",

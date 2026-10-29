@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LocalParquetIOManagerComponent",
+  "component_type": "dagster_community_components.LocalParquetIOManagerComponent",
   "description": "Store DataFrames as Parquet files on the local filesystem (dev / no-warehouse).",
   "category": "io_manager",
   "icon": "Save",

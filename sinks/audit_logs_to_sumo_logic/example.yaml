@@ -1,4 +1,4 @@
-type: dagster_component_templates.AuditLogsToSumoLogicComponent
+type: dagster_community_components.AuditLogsToSumoLogicComponent
 attributes:
   asset_name: audit_logs_to_sumo_logic_shipped
   upstream_asset_key: normalized_audit_events

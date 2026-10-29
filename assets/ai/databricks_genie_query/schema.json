@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DatabricksGenieQueryComponent",
+  "component_type": "dagster_community_components.DatabricksGenieQueryComponent",
   "description": "Natural-language → SQL → result via Databricks AI/BI Genie spaces. Two modes: single question (one Genie call per materialization, returns DataFrame) or per-row (each upstream row's question gets a Genie call, output adds sql + result + genie_message_id columns).",
   "category": "ai",
   "icon": "si:databricks",

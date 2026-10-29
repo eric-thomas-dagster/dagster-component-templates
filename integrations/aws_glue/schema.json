@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AWSGlueComponent",
+  "component_type": "dagster_community_components.AWSGlueComponent",
   "description": "Component for importing AWS Glue entities as Dagster assets.",
   "category": "integration",
   "icon": "si:awsglue",

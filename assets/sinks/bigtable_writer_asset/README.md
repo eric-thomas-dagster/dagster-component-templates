@@ -3,7 +3,7 @@
 Write rows of an upstream DataFrame to a Cloud Bigtable table — one DataFrame row → one Bigtable row.
 
 ```yaml
-type: dagster_component_templates.BigtableWriterAssetComponent
+type: dagster_community_components.BigtableWriterAssetComponent
 attributes:
   asset_name: device_state_written
   upstream_asset_key: device_state

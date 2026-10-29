@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AssetToJobTriggerSensorComponent",
+  "component_type": "dagster_community_components.AssetToJobTriggerSensorComponent",
   "description": "Monitor an asset selection; fire a RunRequest at a named job when any matched asset gets a new materialization. Bridges an upstream asset event to a job-shaped target, for cases where post_processing's deps:/automation_condition: can't apply (a bare @dg.job isn't an asset).",
   "category": "sensor",
   "icon": "Sensors",

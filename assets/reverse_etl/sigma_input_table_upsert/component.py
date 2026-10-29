@@ -140,7 +140,7 @@ class SigmaInputTableUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SigmaInputTableUpsertComponent
+        type: dagster_community_components.SigmaInputTableUpsertComponent
         attributes:
           asset_name: sigma_forecast_inputs_write
           upstream_asset_key: dbt_marts_forecast_inputs

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LakeFSIOManagerComponent",
+  "component_type": "dagster_community_components.LakeFSIOManagerComponent",
   "description": "Register an IO manager that stores assets as Parquet files on a lakeFS repository (Git-for-data over S3-compatible storage)",
   "category": "io_manager",
   "icon": "Save",

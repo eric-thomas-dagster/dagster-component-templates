@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TestOfMeansComponent",
+  "component_type": "dagster_community_components.TestOfMeansComponent",
   "description": "Run a two-sample t-test on a numeric column grouped by a binary group column.",
   "category": "analytics",
   "icon": "GitCompare",

@@ -97,7 +97,7 @@ sqlalchemy>=2.0.0
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.SQLToDatabaseAssetComponent
+type: dagster_community_components.SQLToDatabaseAssetComponent
 attributes:
   asset_name: crm_contacts_sync
   source_url_env_var: SOURCE_DB_URL

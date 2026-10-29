@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToEventHubComponent",
+  "component_type": "dagster_community_components.DataframeToEventHubComponent",
   "description": "Send each DataFrame row to an Azure Event Hub as a JSON event. Composes with synthetic_data_generator to inject test events into a queue without writing custom asset code.",
   "category": "sink",
   "icon": "si:azure",

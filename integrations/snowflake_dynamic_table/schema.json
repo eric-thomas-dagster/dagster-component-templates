@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SnowflakeDynamicTableComponent",
+  "component_type": "dagster_community_components.SnowflakeDynamicTableComponent",
   "description": "Define a Snowflake DYNAMIC TABLE as Dagster YAML. Materialization runs CREATE OR REPLACE DYNAMIC TABLE.",
   "category": "integration",
   "icon": "si:snowflake",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PagerDutyIncidentSensorComponent",
+  "component_type": "dagster_community_components.PagerDutyIncidentSensorComponent",
   "description": "Trigger a run when PagerDuty incidents are created or change state.",
   "category": "sensor",
   "icon": "si:pagerduty",

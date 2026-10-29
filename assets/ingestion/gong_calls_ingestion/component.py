@@ -183,7 +183,7 @@ class GongCallsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.GongCallsIngestionComponent
+        type: dagster_community_components.GongCallsIngestionComponent
         attributes:
           asset_name: gong_calls
           resource_key: gong_resource

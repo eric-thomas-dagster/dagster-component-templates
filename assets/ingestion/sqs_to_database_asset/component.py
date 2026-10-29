@@ -218,7 +218,7 @@ class SQSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SQSToDatabaseAssetComponent
+        type: dagster_community_components.SQSToDatabaseAssetComponent
         attributes:
           asset_name: sqs_events_ingest
           queue_url_env_var: SQS_QUEUE_URL

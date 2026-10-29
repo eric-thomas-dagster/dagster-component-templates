@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PinterestAdsResourceComponent",
+  "component_type": "dagster_community_components.PinterestAdsResourceComponent",
   "description": "Register a PinterestAdsResource (OAuth 2.0 bearer token) for the Pinterest Ads API for use by other components",
   "category": "resource",
   "icon": "si:pinterest",

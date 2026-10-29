@@ -143,7 +143,7 @@ See the component's `schema.json` / `component.py` for the full per-mode optiona
 
 ## Example
 ```yaml
-type: dagster_component_templates.RampReimbursementCardWriteComponent
+type: dagster_community_components.RampReimbursementCardWriteComponent
 attributes:
   asset_name: ramp_mileage_reimbursements
   upstream_asset_key: approved_mileage_claims

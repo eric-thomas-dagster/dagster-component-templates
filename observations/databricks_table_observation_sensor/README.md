@@ -45,7 +45,7 @@ Observations appear in the **Asset Activity** timeline, giving you a health hist
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.DatabricksTableObservationSensorComponent
+type: dagster_community_components.DatabricksTableObservationSensorComponent
 attributes:
   sensor_name: my_sensor_name
   asset_key: my_service/asset
@@ -65,14 +65,14 @@ This sensor observes an external asset declared with `ExternalDatabricksTableAss
 
 ```yaml
 # 1. Declare the external asset
-type: dagster_component_templates.ExternalDatabricksTableAsset
+type: dagster_community_components.ExternalDatabricksTableAsset
 attributes:
   asset_key: external/databricks_table
 
 ---
 
 # 2. Observe it
-type: dagster_component_templates.DatabricksTableObservationSensorComponent
+type: dagster_community_components.DatabricksTableObservationSensorComponent
 attributes:
   sensor_name: databricks_table_observation_sensor_sensor
   asset_key: external/databricks_table

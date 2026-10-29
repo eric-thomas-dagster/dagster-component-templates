@@ -14,7 +14,7 @@ Two ways to get the rows in, set exactly one, for either `scoring_method`:
 **The heuristic below has no access to any historical "did this customer actually churn" label** -- there is no such column anywhere in its input schema (`customer_id`, `last_activity_date`, `total_orders`, `total_revenue`, `lifetime_days` -- all point-in-time activity/spend aggregates, never an observed outcome). So unlike every other SQL-execution-mode component built earlier in this repo's history (those were already real classifiers; this one wasn't), `scoring_method='ml'` is opt-in and requires you bring your own label (e.g. a `churned` boolean observed some fixed window later, built by a separate historical-cohort labeling job upstream) via `target_column`, plus `feature_columns` naming which columns to train on.
 
 ```yaml
-type: dagster_component_templates.ChurnPredictionComponent
+type: dagster_community_components.ChurnPredictionComponent
 attributes:
   asset_name: customer_churn_ml
   upstream_asset_key: customer_features_with_churn_label
@@ -194,7 +194,7 @@ Returns one row per customer with churn risk assessment:
 ### Basic Churn Risk Scoring
 
 ```yaml
-type: dagster_component_templates.ChurnPredictionComponent
+type: dagster_community_components.ChurnPredictionComponent
 attributes:
   asset_name: customer_churn_risk
   inactivity_threshold_days: 90
@@ -206,7 +206,7 @@ attributes:
 ### With Custom Thresholds
 
 ```yaml
-type: dagster_component_templates.ChurnPredictionComponent
+type: dagster_community_components.ChurnPredictionComponent
 attributes:
   asset_name: churn_risk_analysis
   inactivity_threshold_days: 60  # More aggressive threshold

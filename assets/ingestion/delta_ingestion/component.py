@@ -140,7 +140,7 @@ class DeltaIngestionComponent(Component, Model, Resolvable):
     Example — S3:
 
         ```yaml
-        type: dagster_component_templates.DeltaIngestionComponent
+        type: dagster_community_components.DeltaIngestionComponent
         attributes:
           asset_name: events_delta
           table_uri: s3://my-bucket/lakehouse/events

@@ -216,7 +216,7 @@ class OmniIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.OmniIngestionComponent
+        type: dagster_community_components.OmniIngestionComponent
         attributes:
           asset_name: omni_ingestion
           organization: "myorg"

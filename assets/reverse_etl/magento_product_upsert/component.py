@@ -111,7 +111,7 @@ class MagentoProductUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.MagentoProductUpsertComponent
+        type: dagster_community_components.MagentoProductUpsertComponent
         attributes:
           asset_name: magento_products_mirror
           upstream_asset_key: catalog_products

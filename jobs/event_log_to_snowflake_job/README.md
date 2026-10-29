@@ -25,7 +25,7 @@ CREATE TABLE dagster_events (
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.EventLogToSnowflakeJobComponent
+type: dagster_community_components.EventLogToSnowflakeJobComponent
 attributes:
   job_name: dagster_events_to_snowflake
   schedule: "*/15 * * * *"

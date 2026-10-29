@@ -17,7 +17,7 @@ storage without losing the audit trail.
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.DagsterComputeLogsArchiveJobComponent
+type: dagster_community_components.DagsterComputeLogsArchiveJobComponent
 attributes:
   job_name: archive_dagster_compute_logs
   schedule: "0 6 * * *"                # daily at 6am

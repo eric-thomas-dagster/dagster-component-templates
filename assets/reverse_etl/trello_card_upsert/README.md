@@ -75,7 +75,7 @@ Matches → updated (name, desc, due, idLabels, closed). Misses → created.
 ## Example
 
 ```yaml
-type: dagster_component_templates.TrelloCardUpsertComponent
+type: dagster_community_components.TrelloCardUpsertComponent
 attributes:
   asset_name: trello_incidents_mirror
   upstream_asset_key: incidents_seed

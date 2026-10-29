@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ConversationMemoryComponent",
+  "component_type": "dagster_community_components.ConversationMemoryComponent",
   "description": "Component for managing conversation memory.",
   "category": "ai",
   "icon": "Sparkles",

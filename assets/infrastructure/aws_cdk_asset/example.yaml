@@ -1,4 +1,4 @@
-type: dagster_component_templates.AWSCDKAssetComponent
+type: dagster_community_components.AWSCDKAssetComponent
 attributes:
   asset_name: provision_data_platform
   working_dir: "{{ project_root }}/cdk"

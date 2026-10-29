@@ -97,7 +97,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.DropboxSignIngestionComponent
+type: dagster_community_components.DropboxSignIngestionComponent
 attributes:
   asset_name: dropbox_sign_ingestion
   api_key: "${DROPBOX_SIGN_API_KEY}"

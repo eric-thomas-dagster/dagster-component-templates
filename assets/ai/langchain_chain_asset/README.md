@@ -180,7 +180,7 @@ The enriched DataFrame is returned as the asset value; there are no destination 
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.LangChainChainAssetComponent
+type: dagster_community_components.LangChainChainAssetComponent
 attributes:
   asset_name: summarized_articles
   upstream_asset_key: raw_articles
@@ -227,7 +227,7 @@ The Dagster asset graph will show all declared dependencies and enforce their ma
 ## Anthropic Example
 
 ```yaml
-type: dagster_component_templates.LangChainChainAssetComponent
+type: dagster_community_components.LangChainChainAssetComponent
 attributes:
   asset_name: classified_tickets
   upstream_asset_key: support_tickets
@@ -245,7 +245,7 @@ attributes:
 ## Ollama (Local) Example
 
 ```yaml
-type: dagster_component_templates.LangChainChainAssetComponent
+type: dagster_community_components.LangChainChainAssetComponent
 attributes:
   asset_name: local_summaries
   upstream_asset_key: raw_documents
@@ -265,7 +265,7 @@ Instead of `upstream_asset_key`, set `source` to run a SQL query and feed its ro
 `source` is `{kind: warehouse_query, sql: <query>, resource_key: <registered resource> OR database_url_env_var: <env var>}`. `resource_key` names a Dagster resource exposing `.get_engine()`, `.get_connection()` or `.get_client()` (Postgres, Snowflake, DuckDB, BigQuery, Redshift, ...); `database_url_env_var` names an env var holding a SQLAlchemy URL.
 
 ```yaml
-type: dagster_component_templates.LangChainChainAssetComponent
+type: dagster_community_components.LangChainChainAssetComponent
 attributes:
   asset_name: summarized_rows
   llm_provider: openai

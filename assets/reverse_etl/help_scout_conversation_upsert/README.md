@@ -118,7 +118,7 @@ Creating a conversation with `customer_email_column` set to an email that doesn'
 
 ## Example
 ```yaml
-type: dagster_component_templates.HelpScoutConversationUpsertComponent
+type: dagster_community_components.HelpScoutConversationUpsertComponent
 attributes:
   asset_name: help_scout_conversations_mirror
   upstream_asset_key: warehouse_support_events

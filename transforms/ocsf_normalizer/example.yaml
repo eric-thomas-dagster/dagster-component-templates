@@ -1,4 +1,4 @@
-type: dagster_component_templates.OcsfNormalizerComponent
+type: dagster_community_components.OcsfNormalizerComponent
 attributes:
   asset_name: dagster_plus_audit_ocsf
   upstream_asset_key: dagster_plus_audit_raw

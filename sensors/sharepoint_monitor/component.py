@@ -16,7 +16,7 @@ class SharePointMonitorSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SharePointMonitorSensorComponent
+        type: dagster_community_components.SharePointMonitorSensorComponent
         attributes:
           sensor_name: sharepoint_reports_monitor
           site_url: https://myorg.sharepoint.com/sites/DataTeam

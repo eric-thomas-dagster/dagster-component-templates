@@ -1,4 +1,4 @@
-type: dagster_component_templates.ModerationScorerComponent
+type: dagster_community_components.ModerationScorerComponent
 attributes:
   asset_name: moderation_scores
 

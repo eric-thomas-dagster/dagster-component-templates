@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.NearestNeighborsComponent",
+  "component_type": "dagster_community_components.NearestNeighborsComponent",
   "description": "For each record, find the K nearest neighbors by feature similarity.",
   "category": "analytics",
   "icon": "BarChart2",

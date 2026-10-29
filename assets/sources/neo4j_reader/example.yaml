@@ -1,4 +1,4 @@
-type: dagster_component_templates.Neo4jReaderComponent
+type: dagster_community_components.Neo4jReaderComponent
 attributes:
   asset_name: neo4j_person_network
   uri_env_var: NEO4J_URI

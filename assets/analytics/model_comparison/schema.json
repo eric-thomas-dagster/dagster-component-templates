@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ModelComparisonComponent",
+  "component_type": "dagster_community_components.ModelComparisonComponent",
   "description": "Train and evaluate multiple sklearn models side-by-side using cross-validation.",
   "category": "analytics",
   "icon": "BarChart2",

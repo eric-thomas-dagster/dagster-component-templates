@@ -218,7 +218,7 @@ class PulsarToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.PulsarToDatabaseAssetComponent
+        type: dagster_community_components.PulsarToDatabaseAssetComponent
         attributes:
           asset_name: pulsar_events_ingest
           service_url_env_var: PULSAR_SERVICE_URL

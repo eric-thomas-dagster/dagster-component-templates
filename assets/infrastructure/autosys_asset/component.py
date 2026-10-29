@@ -827,7 +827,7 @@ if _HAS_STATE_BACKED:
 
         Example:
             ```yaml
-            type: dagster_component_templates.AutoSysAssetComponent
+            type: dagster_community_components.AutoSysAssetComponent
             attributes:
               host: autosys.internal.company.com
               port: 9443

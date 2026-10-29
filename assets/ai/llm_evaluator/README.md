@@ -117,7 +117,7 @@ For deeply nested keys, use dot-paths: `output.choices.0.message.content` (numer
 ## Example: evaluate a Dagster+ agent's daily summary
 
 ```yaml
-type: dagster_component_templates.LLMEvaluatorComponent
+type: dagster_community_components.LLMEvaluatorComponent
 attributes:
   asset_name: dagster_plus_agent_eval
   upstream_asset_key: dagster_plus_agent_run

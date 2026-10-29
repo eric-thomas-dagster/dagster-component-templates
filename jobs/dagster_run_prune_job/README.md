@@ -15,7 +15,7 @@ bloats.
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.DagsterRunPruneJobComponent
+type: dagster_community_components.DagsterRunPruneJobComponent
 attributes:
   job_name: prune_dagster_run_history
   schedule: "0 4 * * *"                # daily at 4am

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MetabaseIngestionComponent",
+  "component_type": "dagster_community_components.MetabaseIngestionComponent",
   "description": "Ingest Metabase database, card (question), and collection metadata using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "productivity",

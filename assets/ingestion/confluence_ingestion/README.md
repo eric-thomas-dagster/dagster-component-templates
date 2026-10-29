@@ -103,7 +103,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.ConfluenceIngestionComponent
+type: dagster_community_components.ConfluenceIngestionComponent
 attributes:
   asset_name: confluence_ingestion
   site_domain: "yoursite"

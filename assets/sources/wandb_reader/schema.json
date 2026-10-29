@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WandbReaderComponent",
+  "component_type": "dagster_community_components.WandbReaderComponent",
   "description": "Component for fetching W&B experiment runs and metrics.",
   "category": "source",
   "icon": "si:weightsandbiases",

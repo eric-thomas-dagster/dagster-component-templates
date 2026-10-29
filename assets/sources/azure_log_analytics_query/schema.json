@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AzureLogAnalyticsQueryComponent",
+  "component_type": "dagster_community_components.AzureLogAnalyticsQueryComponent",
   "description": "Materialize a DataFrame from a KQL query against an Azure Log Analytics workspace. Read-side counterpart to audit_logs_to_sentinel — write logs, then query them back.",
   "category": "source",
   "icon": "Search",

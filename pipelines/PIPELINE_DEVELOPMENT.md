@@ -105,7 +105,7 @@ pipeline:
 
 ---
 # Component 1: Data Ingestion
-type: dagster_component_templates.ShopifyIngestionComponent
+type: dagster_community_components.ShopifyIngestionComponent
 attributes:
   asset_name: orders_data
   resource_type: orders
@@ -114,7 +114,7 @@ attributes:
 
 ---
 # Component 2: Data Transformation
-type: dagster_component_templates.EcommerceStandardizerComponent
+type: dagster_community_components.EcommerceStandardizerComponent
 attributes:
   asset_name: standardized_orders
   platform: shopify
@@ -478,21 +478,21 @@ Wait 1-2 minutes, then check Dagster Designer UI.
 # Business Outcome: Personalize marketing campaigns
 
 ---
-type: dagster_component_templates.EcommerceStandardizerComponent
+type: dagster_community_components.EcommerceStandardizerComponent
 attributes:
   asset_name: orders
   platform: shopify
   description: "Standardized order data"
 
 ---
-type: dagster_component_templates.CustomerSegmentationComponent
+type: dagster_community_components.CustomerSegmentationComponent
 attributes:
   asset_name: customer_segments
   transaction_data_asset: orders
   description: "RFM customer segments"
 
 ---
-type: dagster_component_templates.DLTDataFrameWriterComponent
+type: dagster_community_components.DLTDataFrameWriterComponent
 attributes:
   asset_name: segments_output
   source_asset: customer_segments

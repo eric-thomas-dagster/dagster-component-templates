@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.EventLogToBigQueryJobComponent",
+  "component_type": "dagster_community_components.EventLogToBigQueryJobComponent",
   "description": "Op-shaped job that streams new Dagster event log entries into a BigQuery table via insert_rows_json. Cursor-based; only sends new events.",
   "category": "jobs",
   "icon": "Upload",

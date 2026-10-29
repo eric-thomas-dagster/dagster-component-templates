@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CrossTabComponent",
+  "component_type": "dagster_community_components.CrossTabComponent",
   "description": "Pivot table / cross-tabulation — rotate column values into new column headers.",
   "category": "transformation",
   "icon": "Shuffle",

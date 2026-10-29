@@ -3,7 +3,7 @@
 Native Mistral AI Document OCR via `client.ocr.process` — a dedicated OCR model, not a chat-completions call dressed up as one. Sibling of `ocr_extractor` (local Tesseract, images only), but trained specifically on documents: multi-column layouts, tables, embedded figures, and multi-page PDFs come back as structured markdown.
 
 ```yaml
-type: dagster_component_templates.MistralOcrComponent
+type: dagster_community_components.MistralOcrComponent
 attributes:
   asset_name: invoice_text
   upstream_asset_key: incoming_invoices

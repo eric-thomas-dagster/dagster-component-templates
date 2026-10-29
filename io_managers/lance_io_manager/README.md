@@ -53,7 +53,7 @@ Implemented as a [`ConfigurableIOManager`](https://docs.dagster.io/_apidocs/io-m
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.LanceIOManagerComponent
+type: dagster_community_components.LanceIOManagerComponent
 attributes:
   resource_key: io_manager
   base_path: s3://my-bucket/lance

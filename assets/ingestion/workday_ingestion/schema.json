@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WorkdayIngestionComponent",
+  "component_type": "dagster_community_components.WorkdayIngestionComponent",
   "description": "Ingest Workday HCM worker data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "finance-hr",

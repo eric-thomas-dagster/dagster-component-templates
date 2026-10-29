@@ -78,7 +78,7 @@ Each `handle_output`/`load_input` call also now opens its SQLAlchemy engine with
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.PostgresIOManagerComponent
+type: dagster_community_components.PostgresIOManagerComponent
 attributes:
   resource_key: io_manager
   host: localhost

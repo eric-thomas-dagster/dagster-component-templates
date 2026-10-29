@@ -1,4 +1,4 @@
-type: dagster_component_templates.PubsubObservationSensorComponent
+type: dagster_community_components.PubsubObservationSensorComponent
 attributes:
   sensor_name: pubsub_events_obs
   asset_key: streaming/events

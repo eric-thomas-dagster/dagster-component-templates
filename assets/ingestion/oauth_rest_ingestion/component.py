@@ -160,7 +160,7 @@ class OAuthRestIngestionComponent(Component, Model, Resolvable):
     Example — Ariba Operational Reporting:
 
         ```yaml
-        type: dagster_component_templates.OAuthRestIngestionComponent
+        type: dagster_community_components.OAuthRestIngestionComponent
         attributes:
           asset_name: ariba_purchase_requisitions
           api_url: https://api.ariba.com/reporting/view/realm/MyRealm/RequisitionList

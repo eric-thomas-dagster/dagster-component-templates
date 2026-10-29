@@ -150,7 +150,7 @@ The Ticket Classifier Component automatically classifies support tickets across 
 Using OpenAI GPT-4o-mini (cost-effective):
 
 ```yaml
-type: dagster_component_templates.TicketClassifierComponent
+type: dagster_community_components.TicketClassifierComponent
 attributes:
   asset_name: classified_tickets
 
@@ -176,7 +176,7 @@ attributes:
 Using Anthropic Claude (high quality):
 
 ```yaml
-type: dagster_component_templates.TicketClassifierComponent
+type: dagster_community_components.TicketClassifierComponent
 attributes:
   asset_name: classified_tickets_claude
 
@@ -201,7 +201,7 @@ attributes:
 Using zero-shot classification:
 
 ```yaml
-type: dagster_component_templates.TicketClassifierComponent
+type: dagster_community_components.TicketClassifierComponent
 attributes:
   asset_name: classified_tickets_local
 
@@ -224,7 +224,7 @@ attributes:
 Allow tickets to have multiple categories:
 
 ```yaml
-type: dagster_component_templates.TicketClassifierComponent
+type: dagster_community_components.TicketClassifierComponent
 attributes:
   asset_name: multi_label_tickets
 
@@ -255,7 +255,7 @@ category_confidence: 0.92
 Include metadata fields in classification:
 
 ```yaml
-type: dagster_component_templates.TicketClassifierComponent
+type: dagster_community_components.TicketClassifierComponent
 attributes:
   asset_name: context_aware_classification
 
@@ -280,7 +280,7 @@ attributes:
 Filter out low-confidence predictions:
 
 ```yaml
-type: dagster_component_templates.TicketClassifierComponent
+type: dagster_community_components.TicketClassifierComponent
 attributes:
   asset_name: high_confidence_tickets
 
@@ -398,7 +398,7 @@ Assuming average 100 tokens input, 50 tokens output per ticket:
 ### Zendesk Format
 
 ```yaml
-type: dagster_component_templates.TicketClassifierComponent
+type: dagster_community_components.TicketClassifierComponent
 attributes:
   asset_name: zendesk_classified
 
@@ -421,7 +421,7 @@ attributes:
 ### Intercom Format
 
 ```yaml
-type: dagster_component_templates.TicketClassifierComponent
+type: dagster_community_components.TicketClassifierComponent
 attributes:
   asset_name: intercom_classified
 
@@ -442,7 +442,7 @@ attributes:
 ### Freshdesk Format
 
 ```yaml
-type: dagster_component_templates.TicketClassifierComponent
+type: dagster_community_components.TicketClassifierComponent
 attributes:
   asset_name: freshdesk_classified
 
@@ -465,7 +465,7 @@ attributes:
 
 ```yaml
 # Step 1: Classify tickets
-- type: dagster_component_templates.TicketClassifierComponent
+- type: dagster_community_components.TicketClassifierComponent
   attributes:
     asset_name: step1_classified
     method: llm
@@ -478,7 +478,7 @@ attributes:
     departments: "engineering,finance,support"
 
 # Step 2: Calculate priority scores (use priority_scorer component)
-- type: dagster_component_templates.PriorityScorerComponent
+- type: dagster_community_components.PriorityScorerComponent
   attributes:
     asset_name: step2_prioritized
     source_asset: step1_classified
@@ -491,7 +491,7 @@ Use fast transformer for initial classification, then LLM for uncertain cases:
 
 ```yaml
 # Step 1: Fast transformer classification
-- type: dagster_component_templates.TicketClassifierComponent
+- type: dagster_community_components.TicketClassifierComponent
   attributes:
     asset_name: transformer_classified
     method: transformer
@@ -503,7 +503,7 @@ Use fast transformer for initial classification, then LLM for uncertain cases:
 # (Use a filter component or custom logic)
 
 # Step 3: LLM classification for uncertain tickets
-- type: dagster_component_templates.TicketClassifierComponent
+- type: dagster_community_components.TicketClassifierComponent
   attributes:
     asset_name: llm_refined
     method: llm

@@ -49,13 +49,13 @@ Use with existing components — they accept any SQLAlchemy URL:
 
 ```yaml
 # Read from HANA
-type: dagster_component_templates.DataframeFromSqlComponent
+type: dagster_community_components.DataframeFromSqlComponent
 attributes:
   database_url_env_var: HANA_URL          # set HANA_URL=<this resource's url>
   query: 'SELECT * FROM SAP_S4HANA.MARA WHERE MTART = ''FERT'''
 
 # Write to HANA
-type: dagster_component_templates.DataframeToTableComponent
+type: dagster_community_components.DataframeToTableComponent
 attributes:
   database_url_env_var: HANA_URL
   table_name: dagster_aggregations

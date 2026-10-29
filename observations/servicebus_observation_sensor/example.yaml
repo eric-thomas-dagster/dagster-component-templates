@@ -1,4 +1,4 @@
-type: dagster_component_templates.ServiceBusObservationSensorComponent
+type: dagster_community_components.ServiceBusObservationSensorComponent
 attributes:
   sensor_name: sb_orders_obs
   asset_key: queue/orders

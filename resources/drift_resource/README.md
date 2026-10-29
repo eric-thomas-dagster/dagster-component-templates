@@ -30,7 +30,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.DriftResourceComponent
+type: dagster_community_components.DriftResourceComponent
 attributes:
   resource_key: drift_resource  # key other components use
   access_token_env_var: DRIFT_ACCESS_TOKEN  # env var holding your access token

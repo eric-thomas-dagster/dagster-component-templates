@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CollibraExportJobComponent",
+  "component_type": "dagster_community_components.CollibraExportJobComponent",
   "description": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to Collibra Data Intelligence Platform via the import/json-job endpoint.",
   "category": "jobs",
   "icon": "Activity",

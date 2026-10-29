@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TsModelFactoryComponent",
+  "component_type": "dagster_community_components.TsModelFactoryComponent",
   "description": "Component for fitting individual time series models per group.",
   "category": "analytics",
   "icon": "BarChart2",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SumoLogicIngestionComponent",
+  "component_type": "dagster_community_components.SumoLogicIngestionComponent",
   "description": "Ingest Sumo Logic collector and source metadata using dlt's generic REST API source. Log/message search data requires an async job/poll pattern not implemented here -- this connector covers collector/source metadata only.",
   "category": "ingestion",
   "vertical": "devops-observability",

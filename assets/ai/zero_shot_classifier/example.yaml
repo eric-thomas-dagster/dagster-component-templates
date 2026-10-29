@@ -1,4 +1,4 @@
-type: dagster_component_templates.ZeroShotClassifierComponent
+type: dagster_community_components.ZeroShotClassifierComponent
 attributes:
   asset_name: classified_support_tickets
   upstream_asset_key: raw_support_tickets

@@ -1,4 +1,4 @@
-type: dagster_component_templates.SpatialJoinComponent
+type: dagster_community_components.SpatialJoinComponent
 attributes:
   description: Join user events to administrative regions to enrich with region metadata.
   asset_name: events_joined_regions

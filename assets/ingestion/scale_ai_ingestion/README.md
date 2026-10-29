@@ -98,7 +98,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.ScaleAIIngestionComponent
+type: dagster_community_components.ScaleAIIngestionComponent
 attributes:
   asset_name: scale_ai_ingestion
   api_key: "${SCALE_AI_API_KEY}"

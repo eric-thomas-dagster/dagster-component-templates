@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToTableComponent",
+  "component_type": "dagster_community_components.DataframeToTableComponent",
   "description": "Write a DataFrame to a database table (terminal sink).",
   "category": "sink",
   "icon": "Table",

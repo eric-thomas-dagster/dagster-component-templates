@@ -31,7 +31,7 @@ pip install zenpy
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.ZendeskResourceComponent
+type: dagster_community_components.ZendeskResourceComponent
 attributes:
   resource_key: zendesk_resource  # key other components use
   subdomain: mycompany  # your Zendesk subdomain

@@ -42,23 +42,46 @@ attributes:
 
 | Field | Type | Description |
 |---|---|---|
-| `name` | `str` | Short name used to prefix tool names. |
+| `asset_name` | `str` | Output Dagster asset name. |
+| `prompt` | `str` | User prompt sent on the first turn. |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `url` | `str` | — | http / sse: full URL. |
+| `api_key_env_var` | `str` | `"VERCEL_API_TOKEN"` | Env var with the Vercel API token (create at https://vercel.com/account/tokens). |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `group_name` | `str` | — | Dagster asset group name. |
+| `description` | `str` | — | Asset description. |
+| `owners` | `List[str]` | — | Asset owners. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags. |
+| `kinds` | `List[str]` | — | Asset kinds. Defaults to ['llm', 'agent', 'vercel', 'ai-gateway']. |
+| `deps` | `List[str]` | — | Lineage-only upstream asset keys. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `model` | `str` | `"openai/gpt-4o-mini"` | Vercel AI Gateway model string, format '<provider>/<model>'. Examples: openai/gpt-4o-mini, anthropic/claude-sonnet-4-6, google/gemini-2.5-flash, xai/grok-4, groq/llama-3.3-70b. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `type` | `str` | `"stdio"` | Transport: 'stdio', 'http', or 'sse'. |
-| `command` | `List[str]` | — | stdio: [executable, ...args]. |
-| `env` | `Dict[str, str]` | — | stdio: extra env vars. |
-| `headers` | `Dict[str, str]` | — | http / sse: literal HTTP headers. |
-| `headers_env` | `Dict[str, str]` | — | http / sse: header_name → env_var_name (value read from env at runtime). |
+| `system_prompt` | `str` | — | System prompt. |
+| `fallback_models` | `List[str]` | — | Optional fallback model strings. On invocation error (rate limit, provider outage), retry with each in order. |
+| `api_base_url` | `str` | `"https://ai-gateway.vercel.sh/v1"` | Vercel AI Gateway base URL (rarely overridden). |
+| `temperature` | `float` | `0.0` | Sampling temperature. |
+| `max_tokens` | `int` | `2048` | Max tokens per model call. |
+| `reasoning_effort` | `str` | — | Reasoning-model effort level: 'low' \| 'medium' \| 'high'. Forwarded to OpenAI o-series (openai/o1, openai/o3) and Gemini 2.5+ (google/gemini-2.5-*) via the Vercel gateway. Filtered client-side by provider prefix; ignore… _(full docs in schema.json + component README)_ |
+| `thinking_budget` | `int` | — | Max reasoning-trace tokens. Forwarded as `thinking_budget` for Gemini 2.5+ models or `thinking: {type: enabled, budget_tokens: N}` for Anthropic models routed through the gateway. Ignored for other providers. |
+| `prompt_caching` | `bool` | `false` | Anthropic prompt caching. When true AND the model prefix is 'anthropic/', wraps the system prompt with `cache_control: {type: ephemeral}` so subsequent calls within ~5 min hit the cache. Ignored for non-Anthropic models… _(full docs in schema.json + component README)_ |
+| `max_iterations` | `int` | `10` | Max tool-call rounds. |
+| `mcp_servers` | `List[MCPServerSpec]` | `list()` | MCP servers to expose as tools. |
 
 [//]: # (FIELDS:END)
 

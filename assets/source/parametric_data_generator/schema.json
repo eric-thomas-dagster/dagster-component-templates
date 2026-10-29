@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ParametricDataGeneratorComponent",
+  "component_type": "dagster_community_components.ParametricDataGeneratorComponent",
   "description": "ParametricDataGeneratorComponent \u2014 YAML-driven synthetic data.",
   "category": "source",
   "x-dagster-io": {

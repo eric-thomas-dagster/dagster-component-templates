@@ -93,7 +93,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.RecurlyIngestionComponent
+type: dagster_community_components.RecurlyIngestionComponent
 attributes:
   asset_name: recurly_ingestion
   api_key: "${RECURLY_API_KEY}"

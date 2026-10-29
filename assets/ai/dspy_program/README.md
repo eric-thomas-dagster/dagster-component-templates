@@ -90,7 +90,7 @@ Run a compiled DSPy program against a DataFrame column. DSPy optimizes prompts a
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.DspyProgramComponent
+type: dagster_community_components.DspyProgramComponent
 attributes:
   asset_name: summarized_articles
   upstream_asset_key: raw_articles

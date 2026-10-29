@@ -222,7 +222,7 @@ class PipedriveIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.PipedriveIngestionComponent
+        type: dagster_community_components.PipedriveIngestionComponent
         attributes:
           asset_name: pipedrive_data
           api_token: "{{ env('PIPEDRIVE_API_TOKEN') }}"

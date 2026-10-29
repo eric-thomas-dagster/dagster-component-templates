@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PostgresResourceComponent",
+  "component_type": "dagster_community_components.PostgresResourceComponent",
   "description": "Register a PostgreSQL resource for use by other components",
   "category": "resource",
   "icon": "si:postgresql",

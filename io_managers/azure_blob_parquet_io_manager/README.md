@@ -34,7 +34,7 @@ For an asset with `BackfillPolicy.single_run()`, one run covers a range of parti
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.AzureBlobParquetIOManagerComponent
+type: dagster_community_components.AzureBlobParquetIOManagerComponent
 attributes:
   resource_key: io_manager
   account_name: <fill in>

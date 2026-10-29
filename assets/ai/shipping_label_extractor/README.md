@@ -120,7 +120,7 @@ The Shipping Label Extractor Component uses a large language model to parse unst
 ### Basic Shipping Label Extraction
 
 ```yaml
-type: dagster_component_templates.ShippingLabelExtractorComponent
+type: dagster_community_components.ShippingLabelExtractorComponent
 attributes:
   asset_name: parsed_shipping_labels
   upstream_asset_key: raw_shipping_labels

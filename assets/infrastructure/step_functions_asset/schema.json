@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.StepFunctionsAssetComponent",
+  "component_type": "dagster_community_components.StepFunctionsAssetComponent",
   "description": "AWS Step Functions Asset Component.",
   "category": "infrastructure",
   "icon": "Server",

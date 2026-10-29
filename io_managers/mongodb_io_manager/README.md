@@ -35,7 +35,7 @@ ConfigurableIOManager that writes pandas DataFrames to MongoDB. Each row becomes
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.MongoDBIOManagerComponent
+type: dagster_community_components.MongoDBIOManagerComponent
 attributes:
   resource_key: io_manager
   connection_uri_env_var: <fill in>

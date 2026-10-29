@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.QdrantResourceComponent",
+  "component_type": "dagster_community_components.QdrantResourceComponent",
   "description": "Register a dagster-qdrant QdrantResource for use by other components",
   "category": "resource",
   "icon": "si:qdrant",

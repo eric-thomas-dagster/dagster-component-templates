@@ -271,7 +271,7 @@ class ServiceNowResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     Example (Developer Instance — basic auth):
 
         ```yaml
-        type: dagster_component_templates.ServiceNowResourceComponent
+        type: dagster_community_components.ServiceNowResourceComponent
         attributes:
           resource_key: servicenow_resource
           instance_env_var: SNOW_INSTANCE
@@ -282,7 +282,7 @@ class ServiceNowResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     Example (Production — OAuth bearer token):
 
         ```yaml
-        type: dagster_component_templates.ServiceNowResourceComponent
+        type: dagster_community_components.ServiceNowResourceComponent
         attributes:
           resource_key: servicenow_resource
           instance_env_var: SNOW_INSTANCE

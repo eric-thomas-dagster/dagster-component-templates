@@ -224,7 +224,7 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.SalesforceIngestionComponent
+        type: dagster_community_components.SalesforceIngestionComponent
         attributes:
           asset_name: salesforce_data
           username: "{{ env('SALESFORCE_USERNAME') }}"

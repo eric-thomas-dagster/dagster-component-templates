@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LitellmFunctionCallingComponent",
+  "component_type": "dagster_community_components.LitellmFunctionCallingComponent",
   "description": "Use LiteLLM function/tool calling to invoke structured tool definitions against each DataFrame row and write tool call results as JSON.",
   "category": "ai",
   "icon": "si:openai",

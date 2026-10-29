@@ -1,4 +1,4 @@
-type: dagster_component_templates.SnowflakeStreamComponent
+type: dagster_community_components.SnowflakeStreamComponent
 attributes:
   asset_name: orders_stream
   stream_name: ORDERS_STREAM

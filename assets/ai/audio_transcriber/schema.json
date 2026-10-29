@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AudioTranscriberComponent",
+  "component_type": "dagster_community_components.AudioTranscriberComponent",
   "description": "Transcribe audio files from a file path column using OpenAI Whisper local model.",
   "category": "ai",
   "icon": "Mic",

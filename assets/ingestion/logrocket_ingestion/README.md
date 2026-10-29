@@ -110,7 +110,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.LogRocketIngestionComponent
+type: dagster_community_components.LogRocketIngestionComponent
 attributes:
   asset_name: logrocket_ingestion
   org_id: "${LOGROCKET_ORG_ID}"

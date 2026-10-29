@@ -1,4 +1,4 @@
-type: dagster_component_templates.CustomerJourneyMappingComponent
+type: dagster_community_components.CustomerJourneyMappingComponent
 attributes:
   asset_name: customer_journeys
   upstream_asset_key: customer_events

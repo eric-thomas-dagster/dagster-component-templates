@@ -195,7 +195,7 @@ class TikTokAdsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.TikTokAdsIngestionComponent
+        type: dagster_community_components.TikTokAdsIngestionComponent
         attributes:
           asset_name: tiktok_ads_data
           access_token: "${TIKTOK_ACCESS_TOKEN}"

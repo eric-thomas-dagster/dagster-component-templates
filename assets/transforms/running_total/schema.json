@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RunningTotalComponent",
+  "component_type": "dagster_community_components.RunningTotalComponent",
   "description": "Calculate a running/cumulative total on a column.",
   "category": "transformation",
   "icon": "Shuffle",

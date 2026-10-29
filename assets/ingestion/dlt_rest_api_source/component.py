@@ -325,7 +325,7 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.DltRestApiSourceComponent
+        type: dagster_community_components.DltRestApiSourceComponent
         attributes:
           asset_name: my_vendor_ingestion
           client:

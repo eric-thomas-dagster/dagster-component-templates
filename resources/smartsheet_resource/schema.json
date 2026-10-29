@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SmartsheetResourceComponent",
+  "component_type": "dagster_community_components.SmartsheetResourceComponent",
   "description": "Register a SmartsheetResource (bearer-token auth + sheet/row read-write methods) for use by other components.",
   "category": "resource",
   "icon": "si:smartsheet",

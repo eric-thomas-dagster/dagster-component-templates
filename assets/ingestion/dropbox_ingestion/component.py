@@ -225,7 +225,7 @@ class DropboxIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.DropboxIngestionComponent
+        type: dagster_community_components.DropboxIngestionComponent
         attributes:
           asset_name: dropbox_ingestion
           client_id: "${DROPBOX_CLIENT_ID}"

@@ -384,7 +384,7 @@ if _HAS_STATE_BACKED:
 
         Example:
             ```yaml
-            type: dagster_component_templates.PolytomicAssetComponent
+            type: dagster_community_components.PolytomicAssetComponent
             attributes:
               api_key_env_var: POLYTOMIC_API_KEY
               group_name: reverse_etl

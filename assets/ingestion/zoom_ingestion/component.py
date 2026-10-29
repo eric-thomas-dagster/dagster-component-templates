@@ -216,7 +216,7 @@ class ZoomIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ZoomIngestionComponent
+        type: dagster_community_components.ZoomIngestionComponent
         attributes:
           asset_name: zoom_ingestion
           access_token: "${ZOOM_ACCESS_TOKEN}"

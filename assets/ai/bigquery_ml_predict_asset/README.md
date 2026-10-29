@@ -10,7 +10,7 @@ Run inference against a trained BQML model. Wraps:
 Returns a pandas DataFrame of predictions; `keep_input_columns: true` (default) preserves the input rows alongside the predicted ones.
 
 ```yaml
-type: dagster_component_templates.BigQueryMLPredictAssetComponent
+type: dagster_community_components.BigQueryMLPredictAssetComponent
 attributes:
   asset_name: iris_predictions
   credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}

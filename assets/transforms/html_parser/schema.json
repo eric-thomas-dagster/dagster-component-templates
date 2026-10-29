@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.HtmlParserComponent",
+  "component_type": "dagster_community_components.HtmlParserComponent",
   "description": "Strip HTML tags from text columns or extract specific elements using BeautifulSoup.",
   "category": "transformation",
   "icon": "Code",

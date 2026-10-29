@@ -6,7 +6,7 @@
 # AND the target External-Id field marked as "External ID" in the SObject
 # schema (Setup → Object Manager → Fields).
 
-type: dagster_component_templates.SalesforceRecordUpsertComponent
+type: dagster_community_components.SalesforceRecordUpsertComponent
 attributes:
   asset_name: salesforce_accounts_mirror
   upstream_asset_key: dbt_marts_accounts

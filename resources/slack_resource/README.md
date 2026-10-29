@@ -27,7 +27,7 @@ Register a dagster-slack SlackResource for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.SlackResourceComponent
+type: dagster_community_components.SlackResourceComponent
 attributes:
   resource_key: slack_resource  # key other components use
   # Required

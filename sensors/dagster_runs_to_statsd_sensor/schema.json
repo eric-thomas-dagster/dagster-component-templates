@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DagsterRunsToStatsdSensorComponent",
+  "component_type": "dagster_community_components.DagsterRunsToStatsdSensorComponent",
   "description": "Push Dagster run lifecycle events (SUCCESS / FAILURE) as StatsD/DogStatsD UDP metrics. No external Python deps. Targets the Datadog Agent, local statsd, or any DogStatsD-compatible receiver.",
   "category": "sensor",
   "icon": "Activity",

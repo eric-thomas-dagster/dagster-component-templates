@@ -1,4 +1,4 @@
-type: dagster_component_templates.AcordXmlParserComponent
+type: dagster_community_components.AcordXmlParserComponent
 attributes:
   asset_name: acord_flat
   upstream_asset_key: acord_messages

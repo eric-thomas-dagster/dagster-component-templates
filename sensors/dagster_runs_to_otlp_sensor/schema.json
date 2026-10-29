@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DagsterRunsToOtlpSensorComponent",
+  "component_type": "dagster_community_components.DagsterRunsToOtlpSensorComponent",
   "description": "Push Dagster run lifecycle events (success + failure) as OTLP/HTTP log records to any OTel-compatible backend (Splunk via Splunk OTC, Datadog OTel ingest, Honeycomb, Sumo, Grafana Loki via OTC).",
   "category": "sensor",
   "icon": "si:opentelemetry",

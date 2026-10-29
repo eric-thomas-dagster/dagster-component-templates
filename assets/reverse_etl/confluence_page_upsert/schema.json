@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ConfluencePageUpsertComponent",
+  "component_type": "dagster_community_components.ConfluencePageUpsertComponent",
   "description": "Reverse-ETL sink: batch-upsert rows from an upstream DataFrame into Confluence Cloud pages, one row per page, matched on (space_id, title). Confluence has no native page upsert endpoint -- this is a search-then-write pattern (GET by space-id+title, then PUT or POST), with version-number-plus-one handled automatically on update.",
   "category": "reverse_etl",
   "vertical": "productivity",

@@ -326,7 +326,7 @@ class CoordinateTransformerComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.CoordinateTransformerComponent
+        type: dagster_community_components.CoordinateTransformerComponent
         attributes:
           asset_name: events_web_mercator
           upstream_asset_key: events

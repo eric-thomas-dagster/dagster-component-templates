@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BoundingBoxFilterComponent",
+  "component_type": "dagster_community_components.BoundingBoxFilterComponent",
   "description": "Filter geographic points to those inside (or outside) a bounding box.",
   "category": "analytics",
   "icon": "BarChart2",

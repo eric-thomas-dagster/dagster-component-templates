@@ -208,7 +208,7 @@ class OutreachProspectsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.OutreachProspectsIngestionComponent
+        type: dagster_community_components.OutreachProspectsIngestionComponent
         attributes:
           asset_name: outreach_prospects
           resource_key: outreach_resource

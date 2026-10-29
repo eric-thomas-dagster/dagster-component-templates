@@ -22,7 +22,7 @@ Two ways to get the rows in, set exactly one:
 All four detection methods (z_score, iqr, moving_average, threshold) are genuinely portable statistics -- `AVG`/`STDDEV`/`PERCENTILE_CONT` window functions -- not vendor-specific ML, so `execution_mode: sql` runs them as ONE query via the warehouse's own engine on any of 6 dialects (`snowflake`, `bigquery`, `databricks`, `postgres`, `redshift`, `duckdb`), instead of pulling the whole table into memory first:
 
 ```yaml
-type: dagster_component_templates.AnomalyDetectionComponent
+type: dagster_community_components.AnomalyDetectionComponent
 attributes:
   asset_name: transaction_anomalies_sql
   source:
@@ -79,7 +79,7 @@ Two dialect-specific quirks worth knowing: BigQuery's `PERCENTILE_CONT` is analy
 ### Z-Score Method (Recommended)
 
 ```yaml
-type: dagster_component_templates.AnomalyDetectionComponent
+type: dagster_community_components.AnomalyDetectionComponent
 attributes:
   asset_name: transaction_anomalies
   detection_method: z_score
@@ -91,7 +91,7 @@ attributes:
 ### IQR Method (Robust to Outliers)
 
 ```yaml
-type: dagster_component_templates.AnomalyDetectionComponent
+type: dagster_community_components.AnomalyDetectionComponent
 attributes:
   asset_name: metric_anomalies
   detection_method: iqr
@@ -102,7 +102,7 @@ attributes:
 ### Moving Average (Time Series)
 
 ```yaml
-type: dagster_component_templates.AnomalyDetectionComponent
+type: dagster_community_components.AnomalyDetectionComponent
 attributes:
   asset_name: daily_metric_anomalies
   detection_method: moving_average

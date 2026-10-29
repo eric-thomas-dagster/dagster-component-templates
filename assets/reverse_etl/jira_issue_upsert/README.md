@@ -97,7 +97,7 @@ Matches are updated (summary, description, labels, status transition). Misses ar
 
 ## Example
 ```yaml
-type: dagster_component_templates.JiraIssueUpsertComponent
+type: dagster_community_components.JiraIssueUpsertComponent
 attributes:
   asset_name: jira_incidents_mirror
   upstream_asset_key: incidents_seed

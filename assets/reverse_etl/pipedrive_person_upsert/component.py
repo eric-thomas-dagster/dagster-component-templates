@@ -99,7 +99,7 @@ class PipedrivePersonUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.PipedrivePersonUpsertComponent
+        type: dagster_community_components.PipedrivePersonUpsertComponent
         attributes:
           asset_name: pipedrive_persons_mirror
           upstream_asset_key: dbt_marts_customers

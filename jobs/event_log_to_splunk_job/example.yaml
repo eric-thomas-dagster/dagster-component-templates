@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_splunk_job/schema.json
-type: dagster_component_templates.EventLogToSplunkJobComponent
+type: dagster_community_components.EventLogToSplunkJobComponent
 attributes:
   job_name: dagster_events_to_splunk
   schedule: "*/5 * * * *"

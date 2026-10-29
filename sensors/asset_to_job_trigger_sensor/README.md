@@ -5,7 +5,7 @@ Monitor an asset selection; fire a `RunRequest` at a named job when any matched 
 This exists for a real gap: Dagster's declarative reactivity (`deps:` + `AutomationCondition` via `post_processing`, or `define_asset_job`'s own `automation_condition`) only applies to **asset-backed** things. A job built from a bare `@dg.op` — like a component that mirrors an external system's own pre-existing job (triggering it by ID, preserving its own configuration, rather than letting Dagster decide what to run) — isn't asset-backed, and can't be made reactive either way. Reacting to an upstream event for a job-shaped target needs an explicit sensor bridging "this asset updated" → `RunRequest(job_name=...)`. This component is that sensor, built once and configured per case instead of hand-written custom code each time it comes up.
 
 ```yaml
-type: dagster_component_templates.AssetToJobTriggerSensorComponent
+type: dagster_community_components.AssetToJobTriggerSensorComponent
 attributes:
   sensor_name: electricera_pipe_to_dbt_trigger_sensor
   monitored_selection: "group:electricera_snowpipes"

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BasecampTodoUpsertComponent",
+  "component_type": "dagster_community_components.BasecampTodoUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Basecamp to-dos in a target to-do list. Rows are matched to existing to-dos by a key marker embedded in the to-do description (e.g. <!-- dagster-key: INC-1001 -->); Basecamp has no native upsert endpoint for to-dos.",
   "category": "reverse_etl",
   "icon": "si:basecamp",

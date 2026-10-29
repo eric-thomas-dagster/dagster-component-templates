@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToParquetComponent",
+  "component_type": "dagster_community_components.DataframeToParquetComponent",
   "description": "Write a DataFrame to a Parquet file (local, S3, or GCS).",
   "category": "sink",
   "icon": "Archive",

@@ -1,4 +1,4 @@
-type: dagster_component_templates.ImageCaptionerComponent
+type: dagster_community_components.ImageCaptionerComponent
 attributes:
   asset_name: captioned_images
   upstream_asset_key: image_file_records

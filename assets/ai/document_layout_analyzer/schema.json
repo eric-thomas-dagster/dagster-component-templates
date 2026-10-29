@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DocumentLayoutAnalyzerComponent",
+  "component_type": "dagster_community_components.DocumentLayoutAnalyzerComponent",
   "description": "Analyze the layout of document images to detect regions such as text blocks, tables, figures, and headers.",
   "category": "ai",
   "icon": "Layout",

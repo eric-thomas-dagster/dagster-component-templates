@@ -194,7 +194,7 @@ class CassandraReaderComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.CassandraReaderComponent
+        type: dagster_community_components.CassandraReaderComponent
         attributes:
           asset_name: cassandra_events
           hosts:

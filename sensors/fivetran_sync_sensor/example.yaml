@@ -1,4 +1,4 @@
-type: dagster_component_templates.FivetranSyncSensorComponent
+type: dagster_community_components.FivetranSyncSensorComponent
 attributes:
   sensor_name: fivetran_orders_done
   connector_id: abc123xyz

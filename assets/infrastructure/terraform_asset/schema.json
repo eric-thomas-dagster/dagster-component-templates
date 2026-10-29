@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TerraformAssetComponent",
+  "component_type": "dagster_community_components.TerraformAssetComponent",
   "description": "Provision infrastructure with Terraform as a Dagster asset.",
   "category": "infrastructure",
   "icon": "si:terraform",

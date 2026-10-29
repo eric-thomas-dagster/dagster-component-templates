@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DremioIngestionComponent",
+  "component_type": "dagster_community_components.DremioIngestionComponent",
   "description": "Run a SQL query against a Dremio cluster (REST or Apache Arrow Flight) and materialize the result as a Dagster asset.",
   "category": "source",
 

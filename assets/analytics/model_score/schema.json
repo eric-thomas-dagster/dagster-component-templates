@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ModelScoreComponent",
+  "component_type": "dagster_community_components.ModelScoreComponent",
   "description": "Apply a trained pickled sklearn model to new rows and emit predictions.",
   "category": "analytics",
   "icon": "Crosshair",

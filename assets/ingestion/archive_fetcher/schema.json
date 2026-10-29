@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ArchiveFetcherComponent",
+  "component_type": "dagster_community_components.ArchiveFetcherComponent",
   "description": "Download a remote archive (zip / tar / tar.gz / tar.bz2 / tar.xz / gz / bz2), extract it, and emit a {filename: absolute_path_or_uri} dict for downstream consumption. Supports local paths and remote URIs (s3://, gs://, abfss://, az://) via fsspec.",
   "category": "source",
   "vertical": "cloud-storage",

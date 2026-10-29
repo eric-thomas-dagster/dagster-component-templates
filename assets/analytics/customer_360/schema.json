@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.Customer360Component",
+  "component_type": "dagster_community_components.Customer360Component",
   "description": "Component for creating unified customer profiles (Customer 360 view).",
   "category": "analytics",
   "icon": "BarChart2",

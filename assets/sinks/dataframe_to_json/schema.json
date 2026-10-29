@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToJsonComponent",
+  "component_type": "dagster_community_components.DataframeToJsonComponent",
   "description": "Write a DataFrame to a JSON or JSON Lines file.",
   "category": "sink",
   "icon": "FileJson",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ElasticsearchAssetComponent",
+  "component_type": "dagster_community_components.ElasticsearchAssetComponent",
   "description": "Index data into Elasticsearch or query ES and write results to a database table.",
   "category": "analytics",
   "icon": "si:elasticsearch",

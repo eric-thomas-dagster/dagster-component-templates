@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_datadog_job/schema.json
-type: dagster_component_templates.EventLogToDatadogJobComponent
+type: dagster_community_components.EventLogToDatadogJobComponent
 attributes:
   job_name: dagster_events_to_datadog
   schedule: "*/5 * * * *"                            # every 5 minutes

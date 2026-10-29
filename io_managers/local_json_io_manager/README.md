@@ -27,7 +27,7 @@ For an asset with `BackfillPolicy.single_run()`, one run covers a range of parti
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.LocalJsonIOManagerComponent
+type: dagster_community_components.LocalJsonIOManagerComponent
 attributes:
   resource_key: io_manager
   base_dir: /tmp/dagster_storage

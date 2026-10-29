@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PipedriveResourceComponent",
+  "component_type": "dagster_community_components.PipedriveResourceComponent",
   "description": "Register a PipedriveResource for the Pipedrive CRM API for use by other components",
   "category": "resource",
   "icon": "si:pipedrive",

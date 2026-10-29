@@ -1,4 +1,4 @@
-type: dagster_component_templates.GradientBoostingModelComponent
+type: dagster_community_components.GradientBoostingModelComponent
 attributes:
   asset_name: churn_gbm_predictions
   upstream_asset_key: customer_features_enriched

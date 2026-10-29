@@ -89,7 +89,7 @@ Transcribe audio files using Whisper via LiteLLM. Processes a column of audio fi
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.LitellmAudioTranscriptionComponent
+type: dagster_community_components.LitellmAudioTranscriptionComponent
 attributes:
   asset_name: transcribed_customer_calls
   upstream_asset_key: customer_call_recordings

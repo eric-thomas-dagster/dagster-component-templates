@@ -1,4 +1,4 @@
-type: dagster_component_templates.SapCPIObservationSensorComponent
+type: dagster_community_components.SapCPIObservationSensorComponent
 attributes:
   sensor_name: cpi_orders_iflow_observer
 

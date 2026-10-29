@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AutoFieldComponent",
+  "component_type": "dagster_community_components.AutoFieldComponent",
   "description": "Automatically optimize DataFrame column dtypes to reduce memory usage.",
   "category": "transformation",
   "icon": "Shuffle",

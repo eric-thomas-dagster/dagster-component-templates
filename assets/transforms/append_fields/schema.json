@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AppendFields",
+  "component_type": "dagster_community_components.AppendFields",
   "description": "Append all columns from a small source DataFrame to every row of a larger DataFrame (broadcast join).",
   "category": "transformation",
   "icon": "Shuffle",

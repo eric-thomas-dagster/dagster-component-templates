@@ -120,7 +120,7 @@ The Resume Extractor Component uses a large language model to parse unstructured
 ### Basic Resume Extraction
 
 ```yaml
-type: dagster_component_templates.ResumeExtractorComponent
+type: dagster_community_components.ResumeExtractorComponent
 attributes:
   asset_name: parsed_resumes
   upstream_asset_key: raw_resume_text
@@ -139,7 +139,7 @@ attributes:
 ### File Path Input with Anthropic
 
 ```yaml
-type: dagster_component_templates.ResumeExtractorComponent
+type: dagster_community_components.ResumeExtractorComponent
 attributes:
   asset_name: parsed_resumes
   upstream_asset_key: resume_file_list

@@ -1,4 +1,4 @@
-type: dagster_component_templates.LakeFSAssetComponent
+type: dagster_community_components.LakeFSAssetComponent
 attributes:
   asset_name: data_version_commit
   repository: my-data-lake

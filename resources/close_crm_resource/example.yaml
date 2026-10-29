@@ -4,7 +4,7 @@
 # Auth: Close API key as the HTTP Basic username, blank password.
 # Create an API key under Close -> Settings -> Developer -> API Keys.
 
-type: dagster_component_templates.CloseCrmResourceComponent
+type: dagster_community_components.CloseCrmResourceComponent
 attributes:
   resource_key: close_crm
   api_key_env_var: CLOSE_API_KEY

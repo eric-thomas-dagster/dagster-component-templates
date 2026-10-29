@@ -1,4 +1,4 @@
-type: dagster_component_templates.ManagedFlinkApplicationAssetComponent
+type: dagster_community_components.ManagedFlinkApplicationAssetComponent
 attributes:
   asset_name: clickstream_flink_app
   application_name: clickstream-enrichment

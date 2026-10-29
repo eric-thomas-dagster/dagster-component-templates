@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SampleComponent",
+  "component_type": "dagster_community_components.SampleComponent",
   "description": "Sample rows from a DataFrame by count or fraction.",
   "category": "transformation",
   "icon": "Shuffle",

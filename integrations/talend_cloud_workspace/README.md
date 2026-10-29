@@ -70,17 +70,46 @@ Talend's separate "Data Quality" / Data Stewardship rule-repository product has 
 
 | Field | Type | Description |
 |---|---|---|
-| `workspace_id` | `str` | Talend Cloud workspace ID (UUID). From TMC UI or /workspaces API. |
-| `auth_token_env_var` | `str` | Env var containing the Talend Cloud personal access token (or service account token). Sent as `Authorization: Bearer <token>`. |
+| `workspace` | `TalendCloudWorkspaceConfig` | Talend Cloud connection details. |
+
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `wait_for_completion` | `bool` | `true` | — |
+| `poll_interval_seconds` | `int` | `30` | — |
+| `timeout_seconds` | `int` | `3600` | — |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `group_name` | `str` | `"talend_cloud"` | — |
+| `kinds` | `List[str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
+| `owners` | `List[str]` | — | — |
+
+### Freshness
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `freshness_lag_threshold_seconds` | `int` | — | — |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `region` | `str` | `"us"` | Talend Cloud region key (`us` / `eu` / `ap` / `au` / `us-west`) OR a full base URL for private / other tenants (must start with `http`). |
-| `environment_id` | `str` | — | Optional Talend Cloud environment ID (UUID). |
-| `request_timeout_seconds` | `int` | `60` | — |
-| `verify_ssl` | `bool` | `true` | — |
+| `artifact_selector` | `TalendArtifactSelector` | — | Filter which artifacts become assets. Default = all. |
+| `translation` | `TranslationFn[TalendArtifactProps]` | — | Optional per-asset translation callable. Receives a TalendArtifactProps and returns AssetSpec overrides. Use for per-environment / per-kind customization beyond uniform group/tags. |
+| `action` | `str` | `"noop"` | materialize() behavior. `noop` = external asset. `execute` = POST an execution + poll. |
+| `execution_parameters` | `Dict[str, str]` | — | Optional runtime/context parameters passed on every Task execution (POST /processing/executions `parameters` field -- confirmed real on Talend's ExecutableTask schema; not sent for Plans, whose execution body isn't confi… _(full docs in schema.json + component README)_ |
+| `log_level` | `str` | — | Optional Talend execution log level override (`OFF` / `ERROR` / `WARN` / `INFO`). Passed as `logLevel` on every execution POST. |
+| `polling_sensor` | `bool` | `false` | — |
+| `observation_interval_seconds` | `int` | `300` | — |
+| `emit_quality_checks` | `bool` | `true` | Emit a `talend_execution_quality` AssetCheckResult per artifact after each `execute` materialization, sourced from that same execution's own numberOfProcessedRows/numberOfRejectedRows + `execution_rejected` status (no ex… _(full docs in schema.json + component README)_ |
+| `fail_on_rejected_rows` | `bool` | `false` | If True, an `execution_rejected` status (Talend's own reject-threshold exceeded) raises a hard Dagster Failure instead of only failing the `talend_execution_quality` check. |
+| `asset_key_prefix` | `List[str]` | — | Default: `['talend_cloud', <workspace_id_short>]`. |
+| `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | StateBackedComponent state config. Default: local filesystem cache. |
 
 [//]: # (FIELDS:END)
 

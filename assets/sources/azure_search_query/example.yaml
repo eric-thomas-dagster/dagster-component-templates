@@ -1,4 +1,4 @@
-type: dagster_component_templates.AzureSearchQueryComponent
+type: dagster_community_components.AzureSearchQueryComponent
 attributes:
   asset_name: laptop_search_results
   endpoint: https://my-search.search.windows.net

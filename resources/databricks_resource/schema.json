@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DatabricksResourceComponent",
+  "component_type": "dagster_community_components.DatabricksResourceComponent",
   "description": "Register a Databricks workspace resource for use by other components",
   "category": "resource",
   "icon": "si:databricks",

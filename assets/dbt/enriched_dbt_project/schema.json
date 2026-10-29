@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.EnrichedDbtProjectComponent",
+  "component_type": "dagster_community_components.EnrichedDbtProjectComponent",
   "description": "Enriched drop-in for DbtProjectComponent — real freshness policies (models + sources), exposure/mesh AssetSpecs, contract asset checks, per-model partitions/automation from dbt meta, and rich docs metadata. All opt-in; defaults preserve base DbtProjectComponent behavior.",
   "category": "dbt",
   "icon": "si:dbt",

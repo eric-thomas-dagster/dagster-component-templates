@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DatetimeParser",
+  "component_type": "dagster_community_components.DatetimeParser",
   "description": "Parse, convert, or extract components from datetime columns.",
   "category": "transformation",
   "icon": "Shuffle",

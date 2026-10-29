@@ -72,7 +72,7 @@ Every materialization lands in `<repository>/<branch>/<prefix>/<asset_key>/<part
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.LakeFSIOManagerComponent
+type: dagster_community_components.LakeFSIOManagerComponent
 attributes:
   resource_key: io_manager
   repository: data-lake

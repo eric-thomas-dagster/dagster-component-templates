@@ -114,7 +114,7 @@ class WarehouseFormulaComponent(Component, Model, Resolvable):
     Each entry in `expressions:` becomes a SELECT-expression in the generated CTAS.
 
     Example:
-        type: dagster_component_templates.WarehouseFormulaComponent
+        type: dagster_community_components.WarehouseFormulaComponent
         attributes:
           asset_name: orders_enriched
           database_url: snowflake://user:pass@account/db/schema?warehouse=COMPUTE_WH

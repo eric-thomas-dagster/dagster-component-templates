@@ -307,7 +307,7 @@ class LitellmBatchCompletionComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LitellmBatchCompletionComponent
+        type: dagster_community_components.LitellmBatchCompletionComponent
         attributes:
           asset_name: classified_tickets
           upstream_asset_key: raw_tickets

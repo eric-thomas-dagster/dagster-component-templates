@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataEnricherComponent
+type: dagster_community_components.DataEnricherComponent
 attributes:
   asset_name: enriched_products
   upstream_asset_key: raw_product_data

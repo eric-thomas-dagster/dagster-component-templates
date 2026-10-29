@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CosmosdbReaderComponent",
+  "component_type": "dagster_community_components.CosmosdbReaderComponent",
   "description": "Component for querying items from an Azure Cosmos DB container.",
   "category": "source",
   "icon": "si:microsoftazure",

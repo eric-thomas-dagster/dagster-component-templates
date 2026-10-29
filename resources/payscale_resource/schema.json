@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PayscaleResourceComponent",
+  "component_type": "dagster_community_components.PayscaleResourceComponent",
   "description": "Register a PayscaleResource (OAuth2 client_credentials grant) wrapping PayScale's Jobalyzer compensation-benchmarking API for use by other components. NOT self-serve -- credentials require a direct commercial agreement with PayScale.",
   "category": "resource",
   "icon": "DollarSign",

@@ -41,7 +41,7 @@ requests>=2.28.0
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.SiffletCheckComponent
+type: dagster_community_components.SiffletCheckComponent
 attributes:
   asset_key: warehouse/orders
   sifflet_tenant_env_var: SIFFLET_TENANT

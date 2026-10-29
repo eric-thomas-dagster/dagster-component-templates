@@ -42,7 +42,7 @@ Both wrap the official `dagster-sling` `@sling_assets` decorator internally. Sam
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.SlingReplicationAssetComponent
+type: dagster_community_components.SlingReplicationAssetComponent
 attributes:
   replication_config_path: ./sling/replication.yaml
   name: warehouse_sync

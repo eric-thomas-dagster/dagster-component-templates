@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PaddleIngestionComponent",
+  "component_type": "dagster_community_components.PaddleIngestionComponent",
   "description": "Ingest Paddle (merchant-of-record billing) customer, subscription, and transaction data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "finance-hr",

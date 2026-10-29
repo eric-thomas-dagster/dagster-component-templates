@@ -245,7 +245,7 @@ class SigmaWorkbookIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.SigmaWorkbookIngestionComponent
+        type: dagster_community_components.SigmaWorkbookIngestionComponent
         attributes:
           asset_name: sigma_workbook_catalog
           resource_key: sigma_resource

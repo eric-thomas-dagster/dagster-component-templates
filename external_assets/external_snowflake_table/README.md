@@ -77,7 +77,7 @@ This component does not read from or write to Snowflake Table. It is a **lineage
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ExternalSnowflakeTableAsset
+type: dagster_community_components.ExternalSnowflakeTableAsset
 attributes:
   asset_key: my_service/asset
   account: my_account
@@ -94,7 +94,7 @@ Set `create_observation_sensor: true` to also get the polling sensor that keeps 
 health/data-version current — one component, one YAML, no manual `asset_key` wiring:
 
 ```yaml
-type: dagster_component_templates.ExternalSnowflakeTableAsset
+type: dagster_community_components.ExternalSnowflakeTableAsset
 attributes:
   asset_key: external/snowflake
   account: ACCOUNT
@@ -113,7 +113,7 @@ asset and sensor on independent lifecycles), pair this component with the standa
 
 ```yaml
 # 1. Declare the external asset (lineage node)
-type: dagster_component_templates.ExternalSnowflakeTableAsset
+type: dagster_community_components.ExternalSnowflakeTableAsset
 attributes:
   asset_key: external/snowflake
   account: ACCOUNT
@@ -124,7 +124,7 @@ attributes:
 ---
 
 # 2. Observe it on a schedule
-type: dagster_component_templates.SnowflakeTableObservationSensorComponent
+type: dagster_community_components.SnowflakeTableObservationSensorComponent
 attributes:
   sensor_name: snowflake_table_observer
   asset_key: external/snowflake

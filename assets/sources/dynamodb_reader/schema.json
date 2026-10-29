@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DynamodbReaderComponent",
+  "component_type": "dagster_community_components.DynamodbReaderComponent",
   "description": "Component for reading items from an AWS DynamoDB table.",
   "category": "source",
   "icon": "si:amazondynamodb",

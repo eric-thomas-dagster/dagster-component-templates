@@ -83,7 +83,7 @@ This component receives a DataFrame from an upstream Dagster asset and loads it 
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.DataframeToBigqueryComponent
+type: dagster_community_components.DataframeToBigqueryComponent
 attributes:
   asset_name: bigquery_events
   upstream_asset_key: processed_events

@@ -163,7 +163,7 @@ class WarehouseMultiRowFormulaComponent(Component, Model, Resolvable):
     and order_by at the top level.
 
     Example:
-        type: dagster_component_templates.WarehouseMultiRowFormulaComponent
+        type: dagster_community_components.WarehouseMultiRowFormulaComponent
         attributes:
           asset_name: orders_with_running
           database_url: snowflake://...

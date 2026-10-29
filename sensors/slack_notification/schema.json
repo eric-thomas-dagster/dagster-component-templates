@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SlackNotificationSensorComponent",
+  "component_type": "dagster_community_components.SlackNotificationSensorComponent",
   "description": "Monitor Slack channels for new messages and trigger jobs.",
   "category": "sensor",
   "icon": "si:slack",

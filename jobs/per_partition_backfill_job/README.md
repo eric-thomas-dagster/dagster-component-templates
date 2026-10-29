@@ -81,7 +81,7 @@ on the run coordinator).
 ### Last 7 days of a daily-partitioned asset, every Monday
 
 ```yaml
-type: dagster_component_templates.PerPartitionBackfillJobComponent
+type: dagster_community_components.PerPartitionBackfillJobComponent
 attributes:
   job_name: weekly_sales_backfill
   schedule: "0 9 * * 1"            # Mondays 9am UTC
@@ -94,7 +94,7 @@ attributes:
 ### Multi-tenant: refresh every registered tenant's rollup, hourly
 
 ```yaml
-type: dagster_component_templates.PerPartitionBackfillJobComponent
+type: dagster_community_components.PerPartitionBackfillJobComponent
 attributes:
   job_name: tenant_rollup_refresh
   schedule: "0 * * * *"

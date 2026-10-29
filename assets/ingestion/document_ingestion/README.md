@@ -99,7 +99,7 @@ The Document Ingestion component scans a directory for documents, extracts metad
 ## Usage
 
 ```yaml
-type: dagster_component_templates.DocumentIngestionComponent
+type: dagster_community_components.DocumentIngestionComponent
 attributes:
   asset_name: knowledge_base_docs
   source_path: "/path/to/documents"

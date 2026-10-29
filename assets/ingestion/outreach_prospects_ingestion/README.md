@@ -74,7 +74,7 @@ Also requires an `OutreachResourceComponent` on the same code location for authe
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.OutreachProspectsIngestionComponent
+type: dagster_community_components.OutreachProspectsIngestionComponent
 attributes:
   asset_name: outreach_prospects
   resource_key: outreach_resource

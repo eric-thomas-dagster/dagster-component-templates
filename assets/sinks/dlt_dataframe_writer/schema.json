@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DLTDataFrameWriterComponent",
+  "component_type": "dagster_community_components.DLTDataFrameWriterComponent",
   "description": "Component for writing pandas DataFrames to any database using dlt (data load tool).",
   "category": "sink",
   "icon": "Database",

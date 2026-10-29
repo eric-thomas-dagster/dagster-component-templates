@@ -1,4 +1,4 @@
-type: dagster_component_templates.FreshdeskResourceComponent
+type: dagster_community_components.FreshdeskResourceComponent
 attributes:
   resource_key: freshdesk_resource
   domain: mycompany.freshdesk.com

@@ -50,7 +50,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.BigCommerceResourceComponent
+type: dagster_community_components.BigCommerceResourceComponent
 attributes:
   resource_key: bigcommerce            # key other components use
   store_hash: abc123def                # your store's API path hash

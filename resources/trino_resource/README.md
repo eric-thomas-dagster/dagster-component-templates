@@ -34,7 +34,7 @@ pip install trino
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.TrinoResourceComponent
+type: dagster_community_components.TrinoResourceComponent
 attributes:
   resource_key: trino_resource
   host: localhost

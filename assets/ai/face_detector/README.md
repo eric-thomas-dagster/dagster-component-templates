@@ -101,7 +101,7 @@ The Face Detector Component processes images to detect human faces and return st
 ### OpenCV Backend (Default)
 
 ```yaml
-type: dagster_component_templates.FaceDetectorComponent
+type: dagster_community_components.FaceDetectorComponent
 attributes:
   asset_name: face_counts
   upstream_asset_key: photos
@@ -113,7 +113,7 @@ attributes:
 ### MediaPipe with Landmarks
 
 ```yaml
-type: dagster_component_templates.FaceDetectorComponent
+type: dagster_community_components.FaceDetectorComponent
 attributes:
   asset_name: face_details
   upstream_asset_key: headshots

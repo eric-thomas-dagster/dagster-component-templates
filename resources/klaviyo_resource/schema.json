@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.KlaviyoResourceComponent",
+  "component_type": "dagster_community_components.KlaviyoResourceComponent",
   "description": "Register a KlaviyoResource under a resource key. Holds auth (private API key + revision date header) and exposes upsert_profiles_bulk for downstream Klaviyo sinks.",
   "category": "resource",
   "icon": "si:klaviyo",

@@ -65,7 +65,7 @@ class GooglePubSubComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.GooglePubSubComponent
+        type: dagster_community_components.GooglePubSubComponent
         attributes:
           project_id: my-gcp-project
           credentials_path: "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}"

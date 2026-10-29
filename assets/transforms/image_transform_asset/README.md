@@ -3,7 +3,7 @@
 Pillow-based image resize / crop / format-convert / grayscale. Reads a column of image file paths, applies the configured transforms per row, writes new files, and adds the output path back into the DataFrame.
 
 ```yaml
-type: dagster_component_templates.ImageTransformAssetComponent
+type: dagster_community_components.ImageTransformAssetComponent
 attributes:
   asset_name: thumbnails
   upstream_asset_key: sample_images

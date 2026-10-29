@@ -238,7 +238,7 @@ class LLMPromptExecutorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LLMPromptExecutorComponent
+        type: dagster_community_components.LLMPromptExecutorComponent
         attributes:
           asset_name: product_description
           upstream_asset_key: raw_products

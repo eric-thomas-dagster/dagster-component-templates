@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.EventHubsMonitorSensorComponent",
+  "component_type": "dagster_community_components.EventHubsMonitorSensorComponent",
   "description": "Component for monitoring an Azure Event Hub for new events.",
   "category": "sensor",
   "icon": "si:microsoftazure",

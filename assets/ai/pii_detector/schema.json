@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PiiDetectorComponent",
+  "component_type": "dagster_community_components.PiiDetectorComponent",
   "description": "Detect personally identifiable information (PII) in text columns using Microsoft Presidio.",
   "category": "ai",
   "icon": "ShieldAlert",

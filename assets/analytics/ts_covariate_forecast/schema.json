@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TSCovariateForecastComponent",
+  "component_type": "dagster_community_components.TSCovariateForecastComponent",
   "description": "Forecast a time series with exogenous regressors via SARIMAX.",
   "category": "analytics",
   "icon": "LineChart",

@@ -103,7 +103,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.FronteggIngestionComponent
+type: dagster_community_components.FronteggIngestionComponent
 attributes:
   asset_name: frontegg_ingestion
   client_id: "${FRONTEGG_CLIENT_ID}"

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LineageToDataHubComponent",
+  "component_type": "dagster_community_components.LineageToDataHubComponent",
   "description": "Sink that pushes the upstream lineage_graph to DataHub via Rest.li ingestProposal.",
   "category": "sink",
   "icon": "ArrowRightLeft",

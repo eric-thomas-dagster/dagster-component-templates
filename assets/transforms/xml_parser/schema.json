@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.XmlParser",
+  "component_type": "dagster_community_components.XmlParser",
   "description": "Parse XML content in a column into separate fields using XPath expressions.",
   "category": "transformation",
   "icon": "Shuffle",

@@ -1,4 +1,4 @@
-type: dagster_component_templates.PapertrailResourceComponent
+type: dagster_community_components.PapertrailResourceComponent
 attributes:
   papertrail_hostname: <fill in>
   papertrail_port: 0

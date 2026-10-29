@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TotangoResourceComponent",
+  "component_type": "dagster_community_components.TotangoResourceComponent",
   "description": "Register a TotangoResource wrapping Totango's REST v2 Search API (app-token auth) for use by other components",
   "category": "resource",
   "icon": "UsersRound",

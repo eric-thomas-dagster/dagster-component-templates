@@ -31,7 +31,7 @@ Register a Firebase Admin SDK resource for use by other components (Firestore, C
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.FirebaseResourceComponent
+type: dagster_community_components.FirebaseResourceComponent
 attributes:
   resource_key: firebase_resource
   project_id_env_var: FIREBASE_PROJECT_ID

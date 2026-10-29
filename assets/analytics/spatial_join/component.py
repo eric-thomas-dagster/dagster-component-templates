@@ -327,7 +327,7 @@ class SpatialJoinComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SpatialJoinComponent
+        type: dagster_community_components.SpatialJoinComponent
         attributes:
           asset_name: events_joined_regions
           upstream_asset_key: events

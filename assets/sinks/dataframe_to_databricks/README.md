@@ -93,7 +93,7 @@ This component receives a DataFrame from an upstream Dagster asset and writes it
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.DataframeToDatabricksComponent
+type: dagster_community_components.DataframeToDatabricksComponent
 attributes:
   asset_name: databricks_transactions
   upstream_asset_key: processed_transactions

@@ -216,7 +216,7 @@ class PersonaIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.PersonaIngestionComponent
+        type: dagster_community_components.PersonaIngestionComponent
         attributes:
           asset_name: persona_ingestion
           api_key: "${PERSONA_API_KEY}"

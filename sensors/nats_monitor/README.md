@@ -83,7 +83,7 @@ nats consumer add EVENTS dagster-sensor --filter "events.>" --ack explicit --del
 ## Usage
 
 ```yaml
-type: dagster_component_templates.NATSMonitorSensorComponent
+type: dagster_community_components.NATSMonitorSensorComponent
 attributes:
   sensor_name: nats_orders_sensor
   servers: nats://nats.internal:4222

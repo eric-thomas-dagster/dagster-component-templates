@@ -104,7 +104,7 @@ sqlalchemy>=2.0.0
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.PulsarToDatabaseAssetComponent
+type: dagster_community_components.PulsarToDatabaseAssetComponent
 attributes:
   asset_name: pulsar_events_ingest
   service_url_env_var: PULSAR_SERVICE_URL

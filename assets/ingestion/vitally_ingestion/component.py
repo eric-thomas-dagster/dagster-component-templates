@@ -194,7 +194,7 @@ class VitallyAccountsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.VitallyAccountsIngestionComponent
+        type: dagster_community_components.VitallyAccountsIngestionComponent
         attributes:
           asset_name: vitally_accounts
           resource_key: vitally_resource

@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeToKustoComponent
+type: dagster_community_components.DataframeToKustoComponent
 attributes:
   asset_name: events_in_kusto
   upstream_asset_key: events_normalized

@@ -1,4 +1,4 @@
-type: dagster_component_templates.KeywordExtractorComponent
+type: dagster_community_components.KeywordExtractorComponent
 attributes:
   asset_name: extracted_keywords
   upstream_asset_key: article_text

@@ -204,7 +204,7 @@ class CopperRecordUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.CopperRecordUpsertComponent
+        type: dagster_community_components.CopperRecordUpsertComponent
         attributes:
           asset_name: copper_people_mirror
           upstream_asset_key: dbt_marts_contacts

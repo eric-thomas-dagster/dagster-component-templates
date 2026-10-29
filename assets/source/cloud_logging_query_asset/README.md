@@ -3,7 +3,7 @@
 Pull GCP log entries via [Cloud Logging filter language](https://cloud.google.com/logging/docs/view/logging-query-language) into a pandas DataFrame. One row per entry.
 
 ```yaml
-type: dagster_component_templates.CloudLoggingQueryAssetComponent
+type: dagster_community_components.CloudLoggingQueryAssetComponent
 attributes:
   asset_name: recent_errors
   filter: 'severity>=ERROR'

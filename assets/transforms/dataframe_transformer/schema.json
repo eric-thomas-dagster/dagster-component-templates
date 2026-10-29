@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataFrameTransformerComponent",
+  "component_type": "dagster_community_components.DataFrameTransformerComponent",
   "description": "Component for transforming DataFrames from upstream assets.",
   "category": "transformation",
   "icon": "Shuffle",

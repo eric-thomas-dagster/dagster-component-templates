@@ -106,7 +106,7 @@ Note: `column_order` takes precedence over `move_to_front`/`move_to_back` if bot
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.ArrangeComponent
+type: dagster_community_components.ArrangeComponent
 attributes:
   asset_name: orders_arranged
   upstream_asset_key: raw_orders
@@ -127,7 +127,7 @@ attributes:
 ### Full Column Order Example
 
 ```yaml
-type: dagster_component_templates.ArrangeComponent
+type: dagster_community_components.ArrangeComponent
 attributes:
   asset_name: products_ordered
   upstream_asset_key: raw_products

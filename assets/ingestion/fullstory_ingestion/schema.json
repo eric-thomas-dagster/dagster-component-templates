@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FullstoryIngestionComponent",
+  "component_type": "dagster_community_components.FullstoryIngestionComponent",
   "description": "Ingest Fullstory user, segment, and settings data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "marketing",

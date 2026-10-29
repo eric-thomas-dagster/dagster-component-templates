@@ -1,4 +1,4 @@
-type: dagster_component_templates.MedicalRecordExtractorComponent
+type: dagster_community_components.MedicalRecordExtractorComponent
 attributes:
   asset_name: extracted_medical_records
   upstream_asset_key: raw_medical_records

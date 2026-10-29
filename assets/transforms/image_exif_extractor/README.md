@@ -3,7 +3,7 @@
 Pull EXIF metadata from images. Adds columns for camera, capture settings, GPS, and the full EXIF dict.
 
 ```yaml
-type: dagster_component_templates.ImageExifExtractorComponent
+type: dagster_community_components.ImageExifExtractorComponent
 attributes:
   asset_name: image_metadata
   upstream_asset_key: sample_images

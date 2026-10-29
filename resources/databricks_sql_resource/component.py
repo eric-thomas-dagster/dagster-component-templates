@@ -48,7 +48,7 @@ class DatabricksSqlResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.DatabricksSqlResourceComponent
+        type: dagster_community_components.DatabricksSqlResourceComponent
         attributes:
           resource_key: databricks_sql_resource
           server_hostname: dbc-a1b2345c-d6e7.cloud.databricks.com

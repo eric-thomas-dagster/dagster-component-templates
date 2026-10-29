@@ -92,7 +92,7 @@ The `Neo4jReaderComponent` connects to a Neo4j graph database and executes a Cyp
 ### Basic node query
 
 ```yaml
-type: dagster_component_templates.Neo4jReaderComponent
+type: dagster_community_components.Neo4jReaderComponent
 attributes:
   asset_name: neo4j_users
   query: "MATCH (n:User) RETURN n.id AS id, n.name AS name, n.email AS email LIMIT 1000"
@@ -101,7 +101,7 @@ attributes:
 ### Relationship query
 
 ```yaml
-type: dagster_component_templates.Neo4jReaderComponent
+type: dagster_community_components.Neo4jReaderComponent
 attributes:
   asset_name: user_purchases
   uri_env_var: NEO4J_URI
@@ -115,7 +115,7 @@ attributes:
 ### AuraDB cloud instance
 
 ```yaml
-type: dagster_component_templates.Neo4jReaderComponent
+type: dagster_community_components.Neo4jReaderComponent
 attributes:
   asset_name: aura_graph_data
   uri_env_var: NEO4J_AURA_URI

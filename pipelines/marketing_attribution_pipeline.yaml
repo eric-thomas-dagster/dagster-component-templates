@@ -15,7 +15,7 @@
 
 ---
 # Component 1: Google Ads Ingestion
-type: dagster_component_templates.GoogleAdsIngestionComponent
+type: dagster_community_components.GoogleAdsIngestionComponent
 attributes:
   asset_name: google_ads_data
   resource_type: campaigns
@@ -24,7 +24,7 @@ attributes:
 
 ---
 # Component 2: Facebook Ads Ingestion
-type: dagster_component_templates.FacebookAdsIngestionComponent
+type: dagster_community_components.FacebookAdsIngestionComponent
 attributes:
   asset_name: facebook_ads_data
   resource_type: campaigns
@@ -33,7 +33,7 @@ attributes:
 
 ---
 # Component 3: Marketing Data Standardization
-type: dagster_component_templates.MarketingDataStandardizerComponent
+type: dagster_community_components.MarketingDataStandardizerComponent
 attributes:
   asset_name: standardized_marketing_touchpoints
   platform: multi  # Handles multiple platforms
@@ -43,7 +43,7 @@ attributes:
 
 ---
 # Component 4: Multi-Touch Attribution Analysis
-type: dagster_component_templates.MultiTouchAttributionComponent
+type: dagster_community_components.MultiTouchAttributionComponent
 attributes:
   asset_name: channel_attribution
   touchpoint_data_asset: standardized_marketing_touchpoints
@@ -57,7 +57,7 @@ attributes:
 
 ---
 # Component 5: Campaign Performance Analytics
-type: dagster_component_templates.CampaignPerformanceComponent
+type: dagster_community_components.CampaignPerformanceComponent
 attributes:
   asset_name: campaign_roi
   campaign_data_asset: standardized_marketing_touchpoints
@@ -69,7 +69,7 @@ attributes:
 
 ---
 # Component 6: Write Results to Database
-type: dagster_component_templates.DLTDataFrameWriterComponent
+type: dagster_community_components.DLTDataFrameWriterComponent
 attributes:
   asset_name: marketing_attribution_output
   source_asset: campaign_roi

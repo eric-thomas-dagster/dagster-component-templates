@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.IntercomResourceComponent",
+  "component_type": "dagster_community_components.IntercomResourceComponent",
   "description": "Intercom REST API client for support data ingestion.",
   "category": "resource",
   "icon": "si:intercom",

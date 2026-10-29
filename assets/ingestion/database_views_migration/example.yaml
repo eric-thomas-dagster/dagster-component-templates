@@ -1,4 +1,4 @@
-type: dagster_component_templates.DatabaseViewsMigrationComponent
+type: dagster_community_components.DatabaseViewsMigrationComponent
 attributes:
   asset_name: all_views_migrated
   source_connection_env_var: SOURCE_DB_URL

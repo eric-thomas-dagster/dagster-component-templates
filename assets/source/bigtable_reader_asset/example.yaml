@@ -1,4 +1,4 @@
-type: dagster_component_templates.BigtableReaderAssetComponent
+type: dagster_community_components.BigtableReaderAssetComponent
 attributes:
   asset_name: device_telemetry_recent
   instance_id: prod-bigtable

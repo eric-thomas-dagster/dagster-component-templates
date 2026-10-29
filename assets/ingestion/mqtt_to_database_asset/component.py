@@ -219,7 +219,7 @@ class MQTTToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.MQTTToDatabaseAssetComponent
+        type: dagster_community_components.MQTTToDatabaseAssetComponent
         attributes:
           asset_name: mqtt_sensors_ingest
           broker_host_env_var: MQTT_BROKER_HOST

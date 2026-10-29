@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.NestedFieldExtractorComponent",
+  "component_type": "dagster_community_components.NestedFieldExtractorComponent",
   "description": "Pull out fields from nested dict columns using dot-path notation.",
   "category": "transformation",
   "icon": "GitBranch",

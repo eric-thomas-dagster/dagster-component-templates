@@ -195,7 +195,7 @@ class ElasticsearchReaderComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ElasticsearchReaderComponent
+        type: dagster_community_components.ElasticsearchReaderComponent
         attributes:
           asset_name: es_search_results
           index_name: products

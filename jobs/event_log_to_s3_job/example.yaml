@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/event_log_to_s3_job/schema.json
-type: dagster_component_templates.EventLogToS3JobComponent
+type: dagster_community_components.EventLogToS3JobComponent
 attributes:
   job_name: dagster_events_to_s3
   schedule: "*/15 * * * *"              # every 15 minutes

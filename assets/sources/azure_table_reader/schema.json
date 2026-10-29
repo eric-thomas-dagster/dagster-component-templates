@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AzureTableReaderComponent",
+  "component_type": "dagster_community_components.AzureTableReaderComponent",
   "description": "Read entities from an Azure Table as a DataFrame. Supports OData filters for partition-scoped, RowKey-scoped, or property filtering.",
   "category": "source",
   "icon": "Table",

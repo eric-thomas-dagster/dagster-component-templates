@@ -71,7 +71,7 @@ Sweeps k from k_min to k_max, fits k-means at each k, and emits a row per k with
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.KCentroidsDiagnosticsComponent
+type: dagster_community_components.KCentroidsDiagnosticsComponent
 attributes:
   asset_name: rfm_k_diagnostics
   upstream_asset_key: customer_rfm_metrics

@@ -56,7 +56,7 @@ Implemented as a [`ConfigurableIOManager`](https://docs.dagster.io/_apidocs/io-m
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.TrinoIOManagerComponent
+type: dagster_community_components.TrinoIOManagerComponent
 attributes:
   resource_key: io_manager
   host: localhost

@@ -1,4 +1,4 @@
-type: dagster_component_templates.TypeCoercerComponent
+type: dagster_community_components.TypeCoercerComponent
 attributes:
   asset_name: typed_records
   upstream_asset_key: raw_records

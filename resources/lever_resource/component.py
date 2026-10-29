@@ -139,7 +139,7 @@ class LeverResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LeverResourceComponent
+        type: dagster_community_components.LeverResourceComponent
         attributes:
           resource_key: lever_resource
           api_key_env_var: LEVER_API_KEY

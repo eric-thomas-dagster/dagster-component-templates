@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToS3Component",
+  "component_type": "dagster_community_components.DataframeToS3Component",
   "description": "Write a DataFrame to Amazon S3 as Parquet, CSV, or JSON.",
   "category": "sink",
   "icon": "si:amazonwebservices",

@@ -1,4 +1,4 @@
-type: dagster_component_templates.RedisStreamObservationSensorComponent
+type: dagster_community_components.RedisStreamObservationSensorComponent
 attributes:
   sensor_name: redis_events_obs
   asset_key: streaming/events

@@ -1,4 +1,4 @@
-type: dagster_component_templates.ArrangeComponent
+type: dagster_community_components.ArrangeComponent
 attributes:
   asset_name: orders_arranged
   upstream_asset_key: raw_orders

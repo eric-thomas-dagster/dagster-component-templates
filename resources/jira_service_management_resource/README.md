@@ -72,7 +72,7 @@ To filter on a custom field by its numeric ID, JQL requires `cf[10050] = "value"
 
 ## Example
 ```yaml
-type: dagster_component_templates.JiraServiceManagementResourceComponent
+type: dagster_community_components.JiraServiceManagementResourceComponent
 attributes:
   resource_key: jira_service_management_resource
   email_env_var: JSM_EMAIL

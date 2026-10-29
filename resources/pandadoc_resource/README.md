@@ -30,7 +30,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.PandaDocResourceComponent
+type: dagster_community_components.PandaDocResourceComponent
 attributes:
   resource_key: pandadoc_resource
   api_key: "{{ env('PANDADOC_API_KEY') }}"

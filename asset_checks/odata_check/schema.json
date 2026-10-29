@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ODataCheckComponent",
+  "component_type": "dagster_community_components.ODataCheckComponent",
   "description": "Asset check — smoke-test that an OData service URL + entity set is reachable, returns N rows, and contains expected columns.",
   "category": "check",
   "icon": "si:odata",

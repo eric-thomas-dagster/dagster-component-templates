@@ -52,7 +52,7 @@ For cross-account access via `role_arn`, the calling identity also needs `sts:As
 ### Basic — all state machines in a region
 
 ```yaml
-type: dagster_component_templates.StepFunctionsAssetComponent
+type: dagster_community_components.StepFunctionsAssetComponent
 attributes:
   region_name: us-east-1
   group_name: step_functions
@@ -62,7 +62,7 @@ attributes:
 ### Filtered — only state machines with a shared prefix
 
 ```yaml
-type: dagster_component_templates.StepFunctionsAssetComponent
+type: dagster_community_components.StepFunctionsAssetComponent
 attributes:
   region_name: us-east-1
   name_prefix: "data-pipeline-"
@@ -76,7 +76,7 @@ attributes:
 ### Cross-account role assumption
 
 ```yaml
-type: dagster_component_templates.StepFunctionsAssetComponent
+type: dagster_community_components.StepFunctionsAssetComponent
 attributes:
   region_name: eu-west-1
   role_arn: "arn:aws:iam::123456789012:role/DagsterStepFunctionsCrossAccount"
@@ -89,7 +89,7 @@ attributes:
 ### Fire-and-forget (no polling)
 
 ```yaml
-type: dagster_component_templates.StepFunctionsAssetComponent
+type: dagster_community_components.StepFunctionsAssetComponent
 attributes:
   region_name: us-west-2
   group_name: step_functions

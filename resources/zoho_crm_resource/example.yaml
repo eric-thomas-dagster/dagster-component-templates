@@ -8,7 +8,7 @@
 # initial refresh_token. After that this resource refreshes access tokens
 # automatically; Zoho refresh tokens do not rotate and do not expire.
 
-type: dagster_component_templates.ZohoCrmResourceComponent
+type: dagster_community_components.ZohoCrmResourceComponent
 attributes:
   resource_key: zoho_crm
 

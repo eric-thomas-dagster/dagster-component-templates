@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CacheInvalidationJobComponent",
+  "component_type": "dagster_community_components.CacheInvalidationJobComponent",
   "description": "Flush keys from a Redis (or compatible) cache as a job \u2014 pattern-based or full FLUSHDB.",
   "category": "jobs",
   "icon": "Cog",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DagsterRunPruneJobComponent",
+  "component_type": "dagster_community_components.DagsterRunPruneJobComponent",
   "description": "Op-shaped job that deletes old Dagster runs (+ their event log entries) beyond a configurable retention window. Prunes based on max_age_days AND a keep_last_n_per_job safety net.",
   "category": "jobs",
   "icon": "Trash",

@@ -1,6 +1,6 @@
 # execution_mode: sql on BigQuery, partitioned by day and region, incremental (the default): each partition run reads only its slice of the
 # source, calls ML.GENERATE_EMBEDDING / AI.CLASSIFY only for chunks not already in the table (any partition), and replaces only its own rows.
-type: dagster_component_templates.ContextEngineeringPipelineComponent
+type: dagster_community_components.ContextEngineeringPipelineComponent
 attributes:
   asset_name: support_kb_partitioned
   source:

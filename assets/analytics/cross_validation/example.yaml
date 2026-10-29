@@ -1,4 +1,4 @@
-type: dagster_component_templates.CrossValidationComponent
+type: dagster_community_components.CrossValidationComponent
 attributes:
   description: Evaluate a gradient boosting classifier with 10-fold cross-validation on churn data.
   asset_name: churn_cv_results

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToClickHouseComponent",
+  "component_type": "dagster_community_components.DataframeToClickHouseComponent",
   "description": "Insert a Pandas DataFrame into a ClickHouse table.\n\nExample:\n    ```yaml\n    type: dagster_community_components.DataframeToClickHouseComponent\n    attributes:\n      asset_name: clickhouse_events_load\n      upstream_asset_key: events_clean\n      table: events\n      database: analytics\n      host_env_var: CLICKHOUSE_HOST\n      port: 8443\n      secure: true\n      username_env_var: CLICKHOUSE_USER\n      password_env_var: CLICKHOUSE_PASSWORD\n    ```",
   "category": "sink",
   "icon": "si:clickhouse",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LLMEvaluatorComponent",
+  "component_type": "dagster_community_components.LLMEvaluatorComponent",
   "description": "LLM-as-judge evaluator. Pass-through asset that takes an upstream agent / LLM output and scores it on configurable feedbacks (answer_relevance, groundedness, context_relevance, harmfulness, helpfulness, coherence). Same conceptual model as TruLens — without the framework dep.",
   "category": "ai",
   "icon": "ClipboardCheck",

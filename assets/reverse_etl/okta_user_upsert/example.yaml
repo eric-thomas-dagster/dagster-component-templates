@@ -5,7 +5,7 @@
 # attributes on one that does. It can never deactivate or delete anyone --
 # see README.md's "Safety" section before pointing this at a production org.
 
-type: dagster_component_templates.OktaUserUpsertComponent
+type: dagster_community_components.OktaUserUpsertComponent
 attributes:
   asset_name: okta_employee_sync
   upstream_asset_key: dbt_marts_active_employees

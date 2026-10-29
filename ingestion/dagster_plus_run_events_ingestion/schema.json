@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DagsterPlusRunEventsIngestionComponent",
+  "component_type": "dagster_community_components.DagsterPlusRunEventsIngestionComponent",
   "description": "Pull Dagster+ run records (every job run, status, duration, tags) via the Dagster+ GraphQL API.",
   "category": "ingestion",
   "vertical": "internal",

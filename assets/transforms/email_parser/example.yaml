@@ -1,4 +1,4 @@
-type: dagster_component_templates.EmailParserComponent
+type: dagster_community_components.EmailParserComponent
 attributes:
   asset_name: parsed_emails
   upstream_asset_key: raw_email_messages

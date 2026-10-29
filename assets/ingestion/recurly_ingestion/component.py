@@ -189,7 +189,7 @@ class RecurlyIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.RecurlyIngestionComponent
+        type: dagster_community_components.RecurlyIngestionComponent
         attributes:
           asset_name: recurly_ingestion
           api_key: "${RECURLY_API_KEY}"

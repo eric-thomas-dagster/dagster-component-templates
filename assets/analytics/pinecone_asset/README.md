@@ -114,7 +114,7 @@ embeddings_generator  →  product_embeddings_index
 # Produces a DataFrame with columns: product_id, embedding, name, category, price
 
 # Component 2: load into Pinecone
-type: dagster_component_templates.PineconeAssetComponent
+type: dagster_community_components.PineconeAssetComponent
 attributes:
   asset_name: product_embeddings_index
   api_key_env_var: PINECONE_API_KEY

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.VideoMetadataExtractorComponent",
+  "component_type": "dagster_community_components.VideoMetadataExtractorComponent",
   "description": "VideoMetadataExtractorComponent \u2014 pull video / audio stream metadata via ffprobe.",
   "category": "transformation",
   "x-dagster-io": {

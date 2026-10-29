@@ -65,14 +65,14 @@ Typical schedule pair:
 
 ```yaml
 # Pause: weekday 19:00 + Friday 19:00 (stays paused all weekend)
-- type: dagster_component_templates.SynapseSqlPoolAdminJobComponent
+- type: dagster_community_components.SynapseSqlPoolAdminJobComponent
   attributes:
     job_name: synapse_pool_pause_nightly
     action: pause
     schedule: "0 19 * * *"
 
 # Resume: weekday 06:00 (Mon-Fri)
-- type: dagster_component_templates.SynapseSqlPoolAdminJobComponent
+- type: dagster_community_components.SynapseSqlPoolAdminJobComponent
   attributes:
     job_name: synapse_pool_resume_morning
     action: resume

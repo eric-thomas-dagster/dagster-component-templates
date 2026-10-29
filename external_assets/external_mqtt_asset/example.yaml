@@ -1,4 +1,4 @@
-type: dagster_component_templates.ExternalMqttAsset
+type: dagster_community_components.ExternalMqttAsset
 attributes:
   asset_key: iot/sensors
   broker_host: mqtt.example.com

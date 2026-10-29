@@ -1,4 +1,4 @@
-type: dagster_component_templates.MistralOcrComponent
+type: dagster_community_components.MistralOcrComponent
 attributes:
   asset_name: invoice_text
   upstream_asset_key: incoming_invoices

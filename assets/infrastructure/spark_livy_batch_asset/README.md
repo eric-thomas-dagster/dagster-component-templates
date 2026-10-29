@@ -93,7 +93,7 @@ Livy is a REST front door for `spark-submit`: one `POST /batches` creates a batc
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.SparkLivyBatchAssetComponent
+type: dagster_community_components.SparkLivyBatchAssetComponent
 attributes:
   asset_name: nightly_aggregation_batch
   livy_url: http://livy-server:8998

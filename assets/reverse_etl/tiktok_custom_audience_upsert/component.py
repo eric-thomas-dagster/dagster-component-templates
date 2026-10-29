@@ -234,7 +234,7 @@ class TikTokCustomAudienceUpsertComponent(dg.Component, dg.Model, dg.Resolvable)
 
     Example:
         ```yaml
-        type: dagster_component_templates.TikTokCustomAudienceUpsertComponent
+        type: dagster_community_components.TikTokCustomAudienceUpsertComponent
         attributes:
           asset_name: tiktok_high_ltv_customers_audience
           upstream_asset_key: dbt_marts_high_ltv_customers

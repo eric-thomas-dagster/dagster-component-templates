@@ -19,7 +19,7 @@ class MatillionJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.MatillionJobSensorComponent
+        type: dagster_community_components.MatillionJobSensorComponent
         attributes:
           sensor_name: matillion_orders_done
           project: MyProject

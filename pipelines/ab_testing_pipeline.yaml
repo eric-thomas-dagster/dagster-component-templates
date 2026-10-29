@@ -15,7 +15,7 @@
 
 ---
 # Component 1: Experiment Events Ingestion
-type: dagster_component_templates.EventDataStandardizerComponent
+type: dagster_community_components.EventDataStandardizerComponent
 attributes:
   asset_name: experiment_events
   platform: segment  # or your analytics platform
@@ -25,7 +25,7 @@ attributes:
 
 ---
 # Component 2: A/B Test Statistical Analysis
-type: dagster_component_templates.ABTestAnalysisComponent
+type: dagster_community_components.ABTestAnalysisComponent
 attributes:
   asset_name: experiment_results
   source_asset: experiment_events
@@ -38,7 +38,7 @@ attributes:
 
 ---
 # Component 3: Write Experiment Results to Database
-type: dagster_component_templates.DLTDataFrameWriterComponent
+type: dagster_community_components.DLTDataFrameWriterComponent
 attributes:
   asset_name: experiment_results_output
   upstream_asset_keys: experiment_results

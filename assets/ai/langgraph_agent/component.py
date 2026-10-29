@@ -186,7 +186,7 @@ class LangGraphAgentComponent(Component, Model, Resolvable):
     by default; supports conditional routing via `condition_regex`. Every
     step is hardcoded to "template a prompt, call one LLM":
         ```yaml
-        type: dagster_component_templates.LangGraphAgentComponent
+        type: dagster_community_components.LangGraphAgentComponent
         attributes:
           asset_name: research_report
           input_prompt: "How do vector databases handle high-cardinality metadata filters?"
@@ -224,7 +224,7 @@ class LangGraphAgentComponent(Component, Model, Resolvable):
     using LangGraph's full API (tool calls, custom node logic, subgraphs,
     checkpointers) — this component just invokes it:
         ```yaml
-        type: dagster_component_templates.LangGraphAgentComponent
+        type: dagster_community_components.LangGraphAgentComponent
         attributes:
           asset_name: support_triage
           input_prompt: "{run_id}: escalation queue sweep"

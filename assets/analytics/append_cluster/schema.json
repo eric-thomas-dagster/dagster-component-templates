@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AppendClusterComponent",
+  "component_type": "dagster_community_components.AppendClusterComponent",
   "description": "Cluster rows with k-means and append the cluster label as a new column.",
   "category": "analytics",
   "icon": "Tag",

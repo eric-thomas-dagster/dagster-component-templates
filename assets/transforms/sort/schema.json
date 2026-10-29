@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SortComponent",
+  "component_type": "dagster_community_components.SortComponent",
   "description": "Sort a DataFrame by one or more columns.",
   "category": "transformation",
   "icon": "Shuffle",

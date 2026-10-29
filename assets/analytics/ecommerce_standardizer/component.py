@@ -346,7 +346,7 @@ class EcommerceStandardizerComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.EcommerceStandardizerComponent
+        type: dagster_community_components.EcommerceStandardizerComponent
         attributes:
           asset_name: standardized_shopify_orders
           platform: "shopify"

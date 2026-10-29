@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SapRFCResourceComponent",
+  "component_type": "dagster_community_components.SapRFCResourceComponent",
   "description": "Register a connection to an SAP system over RFC (Remote Function Call) — for on-prem R/3 / ECC / S/4HANA installs without OData. Uses pyrfc + SAP NW RFC SDK.",
   "category": "resource",
   "icon": "si:sap",

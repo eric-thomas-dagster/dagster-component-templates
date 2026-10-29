@@ -260,7 +260,7 @@ class InsightlyResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.InsightlyResourceComponent
+        type: dagster_community_components.InsightlyResourceComponent
         attributes:
           resource_key: insightly
           api_key_env_var: INSIGHTLY_API_KEY

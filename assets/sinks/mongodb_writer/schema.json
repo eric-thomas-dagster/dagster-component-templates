@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MongodbWriterComponent",
+  "component_type": "dagster_community_components.MongodbWriterComponent",
   "description": "Component for writing a DataFrame to a MongoDB collection.",
   "category": "sink",
   "icon": "si:mongodb",

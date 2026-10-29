@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeToAvroComponent
+type: dagster_community_components.DataframeToAvroComponent
 attributes:
   asset_name: events_avro
   upstream_asset_key: events_summary

@@ -1,4 +1,4 @@
-type: dagster_component_templates.GorgiasResourceComponent
+type: dagster_community_components.GorgiasResourceComponent
 attributes:
   resource_key: gorgias_resource
   subdomain: acme

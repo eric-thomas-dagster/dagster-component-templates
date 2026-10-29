@@ -106,7 +106,7 @@ Your PostgreSQL instance must have the `pgvector` extension available. The compo
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.PgvectorAssetComponent
+type: dagster_community_components.PgvectorAssetComponent
 attributes:
   asset_name: product_description_embeddings
   upstream_asset_key: products
@@ -159,7 +159,7 @@ Instead of `upstream_asset_key`, set `source` to run a SQL query and feed its ro
 `source` is `{kind: warehouse_query, sql: <query>, resource_key: <registered resource> OR database_url_env_var: <env var>}`. `resource_key` names a Dagster resource exposing `.get_engine()`, `.get_connection()` or `.get_client()` (Postgres, Snowflake, DuckDB, BigQuery, Redshift, ...); `database_url_env_var` names an env var holding a SQLAlchemy URL.
 
 ```yaml
-type: dagster_component_templates.PgvectorAssetComponent
+type: dagster_community_components.PgvectorAssetComponent
 attributes:
   asset_name: product_embeddings_asset
   database_url_env_var: POSTGRES_URL   # destination (where target_table lives)

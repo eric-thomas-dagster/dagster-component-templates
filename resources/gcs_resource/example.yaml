@@ -1,4 +1,4 @@
-type: dagster_component_templates.GCSResourceComponent
+type: dagster_community_components.GCSResourceComponent
 attributes:
   resource_key: gcs_resource
   project: <project>

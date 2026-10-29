@@ -217,7 +217,7 @@ class GCSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.GCSToDatabaseAssetComponent
+        type: dagster_community_components.GCSToDatabaseAssetComponent
         attributes:
           asset_name: gcs_events_ingest
           credentials_env_var: GOOGLE_APPLICATION_CREDENTIALS

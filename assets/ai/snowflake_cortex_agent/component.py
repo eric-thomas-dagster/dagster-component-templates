@@ -86,7 +86,7 @@ class SnowflakeCortexAgentComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SnowflakeCortexAgentComponent
+        type: dagster_community_components.SnowflakeCortexAgentComponent
         attributes:
           asset_name: dagster_plus_cortex_agent
           prompt: "Summarize the last 5 runs."

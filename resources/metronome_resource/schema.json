@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MetronomeResourceComponent",
+  "component_type": "dagster_community_components.MetronomeResourceComponent",
   "description": "Register a MetronomeResource for the Metronome usage-based billing REST API (static Bearer API key auth) for use by other components",
   "category": "resource",
   "icon": "si:metronome",

@@ -3,7 +3,7 @@
 Post a templated message to a Microsoft Teams channel — one per upstream row (data-driven alert) or one digest message per run. Pairs with [`msteams_resource`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/resources/msteams_resource) for auth.
 
 ```yaml
-type: dagster_component_templates.MSTeamsMessageSendComponent
+type: dagster_community_components.MSTeamsMessageSendComponent
 attributes:
   asset_name: customer_health_teams_alert
   upstream_asset_key: customers_crossing_health_threshold

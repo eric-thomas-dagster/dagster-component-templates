@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeToPrometheusComponent
+type: dagster_community_components.DataframeToPrometheusComponent
 attributes:
   asset_name: orders_metrics_pushed
   upstream_asset_key: orders_summary

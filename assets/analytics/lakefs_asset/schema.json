@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LakeFSAssetComponent",
+  "component_type": "dagster_community_components.LakeFSAssetComponent",
   "description": "Interact with a lakeFS repository for data versioning as a Dagster asset.",
   "category": "analytics",
   "icon": "BarChart2",

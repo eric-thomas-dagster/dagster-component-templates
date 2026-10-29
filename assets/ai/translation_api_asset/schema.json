@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TranslationApiAssetComponent",
+  "component_type": "dagster_community_components.TranslationApiAssetComponent",
   "description": "Translate a text column to one or more target languages via Cloud Translation v3 (Advanced). Returns the upstream DataFrame with one new column per target language. Supports html / plain-text mime types and per-row source-language auto-detection.",
   "category": "ai",
   "icon": "si:googlecloud",

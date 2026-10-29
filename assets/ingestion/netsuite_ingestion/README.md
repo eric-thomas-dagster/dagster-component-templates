@@ -107,7 +107,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.NetSuiteIngestionComponent
+type: dagster_community_components.NetSuiteIngestionComponent
 attributes:
   asset_name: netsuite_ingestion
   account_id: "1234567"

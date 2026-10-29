@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PendoIngestionComponent",
+  "component_type": "dagster_community_components.PendoIngestionComponent",
   "description": "Ingest Pendo product analytics metadata (features, guides, accounts) using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "marketing",

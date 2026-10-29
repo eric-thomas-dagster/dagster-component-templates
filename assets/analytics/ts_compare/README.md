@@ -97,7 +97,7 @@ The Time Series Compare Component performs a train/test evaluation of both ARIMA
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.TsCompareComponent
+type: dagster_community_components.TsCompareComponent
 attributes:
   asset_name: model_comparison
   upstream_asset_key: sales_history

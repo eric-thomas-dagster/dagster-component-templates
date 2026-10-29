@@ -97,7 +97,7 @@ Matches are updated (title, body, labels, state, assignees). Misses are inserted
 
 ## Example
 ```yaml
-type: dagster_component_templates.GitHubIssueUpsertComponent
+type: dagster_community_components.GitHubIssueUpsertComponent
 attributes:
   asset_name: github_incidents_mirror
   upstream_asset_key: incidents_seed

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ReceiptExtractorComponent",
+  "component_type": "dagster_community_components.ReceiptExtractorComponent",
   "description": "Extract structured fields from retail receipts using an LLM.",
   "category": "ai",
   "icon": "Receipt",

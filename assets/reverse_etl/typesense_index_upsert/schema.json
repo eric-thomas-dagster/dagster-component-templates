@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TypesenseIndexUpsertComponent",
+  "component_type": "dagster_community_components.TypesenseIndexUpsertComponent",
   "description": "Reverse-ETL / search-index activation: sync an upstream DataFrame into a Typesense collection via the native Documents Import NDJSON endpoint (action=upsert). id_field's value becomes each document's string 'id' field (required inside the body, unlike Algolia/OpenSearch). 'delete' loops one DELETE .../documents/{id} call per row -- Typesense's import endpoint has no bulk-delete mode.",
   "category": "reverse_etl",
   "icon": "si:typesense",

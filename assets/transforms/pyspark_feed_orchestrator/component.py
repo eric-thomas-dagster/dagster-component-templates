@@ -935,7 +935,7 @@ class PySparkFeedOrchestratorComponent(dg.Component, Model, Resolvable):
     Example:
 
     ```yaml
-    type: dagster_component_templates.PySparkFeedOrchestratorComponent
+    type: dagster_community_components.PySparkFeedOrchestratorComponent
     attributes:
       feeds_dir: feeds
       spark_config:

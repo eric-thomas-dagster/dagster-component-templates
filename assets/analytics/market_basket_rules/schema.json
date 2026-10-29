@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MarketBasketRulesComponent",
+  "component_type": "dagster_community_components.MarketBasketRulesComponent",
   "description": "Mine association rules from transaction data via apriori (mlxtend).",
   "category": "analytics",
   "icon": "ShoppingCart",

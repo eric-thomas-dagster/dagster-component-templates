@@ -153,33 +153,55 @@ For a **full migration**, the destination shape is usually assets + Airflow-prox
 
 ## Fields
 
-### Required
+### Connection
 
-| Field | Type | Description |
-|---|---|---|
-| `job_name` | `str` | Jenkins job name as it appears in the URL. For folder-nested jobs, use 'folder/subfolder/job' (component translates to /job/folder/job/subfolder/job/job). |
-| `asset_name` | `str` | Dagster asset name that wraps this job. |
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `endpoint` | `str` | `"http://localhost:8080"` | Jenkins controller base URL (used when demo_mode=false). No trailing slash. |
 
 ### Execution
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `parameters` | `dict` | `dict()` | Parameters passed to buildWithParameters (key/value pairs). Values templated with {partition_key}. |
+| `poll_interval_seconds` | `int` | `5` | Seconds between Jenkins queue/build status polls. |
+| `max_retries` | `int` | `2` | Dagster-side asset retries on failure. |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `description` | `str` | — | Prose description shown in the Dagster UI. |
+| `group_name` | `str` | `"jenkins_integration"` | Dagster asset group for the job assets. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_start_date` | `str` | `"2024-01-01"` | Start date for the daily partitioned assets. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_delay_seconds` | `int` | `60` | Delay between Dagster asset retries. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `source_tables` | `List[JenkinsSourceTableSpec]` | `list()` | Tables loaded by Jenkins that Dagster observes (adds to lineage). |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `folder` | `str` | — | Jenkins folder path (business tag; also inferred from job_name). |
-| `application` | `str` | — | Business tag (e.g. CORE_BANKING). |
-| `node_label` | `str` | — | Jenkins node label the build runs on (analog to Control-M host / RMJ queue). |
-| `run_as` | `str` | `"svc_dagster"` | Business tag for the OS user that owns this pipeline. |
+| `demo_mode` | `bool` | `true` | Simulate the Jenkins REST API on stdout (no external calls). |
+| `jobs` | `List[JenkinsJobSpec]` | `list()` | Jenkins jobs to wrap as daily-partitioned Dagster assets. |
+| `upstream_deps` | `List[str]` | `list()` | Upstream asset keys (slash-separated for nested keys) that must complete before jobs run. |
+| `jenkins_user_env` | `str` | `"JENKINS_USER"` | Env var holding the Jenkins REST username. |
+| `jenkins_token_env` | `str` | `"JENKINS_API_TOKEN"` | Env var holding the Jenkins user's API token. |
+| `poll_timeout_seconds` | `int` | `3600` | Total seconds to wait for terminal result before failing. |
+| `console_retrieval` | `bool` | `true` | Retrieve consoleText on completion. |
+| `reconciliation_cron` | `str` | `"0 * * * *"` | Cron for the Jenkins vs Dagster state reconciliation job. |
 
 [//]: # (FIELDS:END)
 

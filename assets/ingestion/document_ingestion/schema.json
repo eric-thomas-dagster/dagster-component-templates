@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DocumentIngestionComponent",
+  "component_type": "dagster_community_components.DocumentIngestionComponent",
   "description": "Component for ingesting documents for RAG/Q&A systems.",
   "category": "ingestion",
 

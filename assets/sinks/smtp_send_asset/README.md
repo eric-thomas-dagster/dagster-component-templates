@@ -3,7 +3,7 @@
 Send emails via SMTP — one per upstream row (data-driven outbound mail) or one summary email per run. Pairs with [`imap_inbox_source`](https://github.com/eric-thomas-dagster/dagster-component-templates/tree/main/assets/ingestion/imap_inbox_source) for round-trip pipelines.
 
 ```yaml
-type: dagster_component_templates.SmtpSendAssetComponent
+type: dagster_community_components.SmtpSendAssetComponent
 attributes:
   asset_name: email_send_log
   upstream_asset_key: notifications

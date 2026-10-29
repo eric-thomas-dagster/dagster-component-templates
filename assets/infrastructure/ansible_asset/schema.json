@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AnsibleAssetComponent",
+  "component_type": "dagster_community_components.AnsibleAssetComponent",
   "description": "Run an Ansible playbook as a Dagster asset.",
   "category": "infrastructure",
   "icon": "si:ansible",

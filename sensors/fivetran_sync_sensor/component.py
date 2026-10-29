@@ -15,7 +15,7 @@ class FivetranSyncSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.FivetranSyncSensorComponent
+        type: dagster_community_components.FivetranSyncSensorComponent
         attributes:
           sensor_name: fivetran_orders_sync_done
           connector_id: my_connector_id

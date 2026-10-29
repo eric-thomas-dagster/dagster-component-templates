@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToSnowflakeComponent",
+  "component_type": "dagster_community_components.DataframeToSnowflakeComponent",
   "description": "Write a DataFrame to a Snowflake table.",
   "category": "sink",
   "icon": "si:snowflake",

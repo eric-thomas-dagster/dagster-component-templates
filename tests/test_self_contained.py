@@ -5,7 +5,7 @@ import ast
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-REPO_PKGS = ("dagster_community_components", "dagster_component_templates")
+REPO_PKGS = ("dagster_community_components",)
 # The one deliberate exception: invoke_component resolves YAML `type: dagster_community_components.X`
 # strings BY NAME at runtime, so the installed package is the thing being addressed, not a helper.
 ALLOWED = {"assets/ai/agentic_pipeline/component.py"}

@@ -135,7 +135,7 @@ Both additions mirror `context_engineering_pipeline`'s design, so this component
 ### Basic Classification
 
 ```yaml
-type: dagster_component_templates.ZeroShotClassifierComponent
+type: dagster_community_components.ZeroShotClassifierComponent
 attributes:
   asset_name: classified_emails
   upstream_asset_key: raw_emails
@@ -152,7 +152,7 @@ attributes:
 ### Multi-label Classification
 
 ```yaml
-type: dagster_component_templates.ZeroShotClassifierComponent
+type: dagster_community_components.ZeroShotClassifierComponent
 attributes:
   asset_name: tagged_articles
   upstream_asset_key: raw_articles
@@ -169,7 +169,7 @@ attributes:
 ### Lightweight Model
 
 ```yaml
-type: dagster_component_templates.ZeroShotClassifierComponent
+type: dagster_community_components.ZeroShotClassifierComponent
 attributes:
   asset_name: fast_classified
   upstream_asset_key: raw_text

@@ -333,7 +333,7 @@ class ABTestAnalysisComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ABTestAnalysisComponent
+        type: dagster_community_components.ABTestAnalysisComponent
         attributes:
           asset_name: ab_test_results
           upstream_asset_key: experiment_data

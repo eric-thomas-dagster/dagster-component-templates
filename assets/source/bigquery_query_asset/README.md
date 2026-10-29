@@ -110,7 +110,7 @@ db-dtypes>=1.0.0
 ## Example — public Shakespeare data
 
 ```yaml
-type: dagster_component_templates.BigQueryQueryAssetComponent
+type: dagster_community_components.BigQueryQueryAssetComponent
 attributes:
   asset_name: top_shakespeare_words
   credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}

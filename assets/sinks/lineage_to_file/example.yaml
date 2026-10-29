@@ -1,4 +1,4 @@
-type: dagster_component_templates.LineageToFileComponent
+type: dagster_community_components.LineageToFileComponent
 attributes:
   asset_name: lineage_to_file
   upstream_asset_key: lineage_graph

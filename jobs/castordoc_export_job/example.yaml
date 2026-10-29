@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/castordoc_export_job/schema.json
-type: dagster_component_templates.CastordocExportJobComponent
+type: dagster_community_components.CastordocExportJobComponent
 attributes:
   job_name: sync_dagster_lineage_to_castordoc
   schedule: "0 3 * * *"                # nightly at 3am

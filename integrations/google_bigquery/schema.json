@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GoogleBigQueryComponent",
+  "component_type": "dagster_community_components.GoogleBigQueryComponent",
   "description": "Component for importing BigQuery entities as Dagster assets.",
   "category": "integration",
   "icon": "si:googlebigquery",

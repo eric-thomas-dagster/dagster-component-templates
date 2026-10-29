@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AnomalyDetectionComponent",
+  "component_type": "dagster_community_components.AnomalyDetectionComponent",
   "description": "Component for detecting anomalies in data.",
   "category": "analytics",
   "icon": "BarChart2",

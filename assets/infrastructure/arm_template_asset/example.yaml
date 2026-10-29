@@ -1,4 +1,4 @@
-type: dagster_component_templates.ArmTemplateAssetComponent
+type: dagster_community_components.ArmTemplateAssetComponent
 attributes:
   asset_name: provision_data_platform
   resource_group: my-rg

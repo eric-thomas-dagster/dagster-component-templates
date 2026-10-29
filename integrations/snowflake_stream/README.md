@@ -90,7 +90,7 @@ uvx --from dagster-community-components-cli dagster-component add snowflake_stre
 See [`example.yaml`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_stream/example.yaml) for a copy-pastable starting point.
 
 ```yaml
-type: dagster_component_templates.SnowflakeStreamComponent
+type: dagster_community_components.SnowflakeStreamComponent
 attributes:
   asset_name: orders_stream
   stream_name: ORDERS_STREAM

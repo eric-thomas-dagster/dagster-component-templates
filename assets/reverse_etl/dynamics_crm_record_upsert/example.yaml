@@ -6,7 +6,7 @@
 # resource_key AND the target field (alternate_key_field) marked as an
 # "Alternate Key" on the Dataverse table (maker portal → table → Keys).
 
-type: dagster_component_templates.DynamicsCrmRecordUpsertComponent
+type: dagster_community_components.DynamicsCrmRecordUpsertComponent
 attributes:
   asset_name: dynamics_crm_accounts_mirror
   upstream_asset_key: dbt_marts_accounts

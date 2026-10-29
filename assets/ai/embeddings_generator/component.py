@@ -320,7 +320,7 @@ class EmbeddingsGeneratorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.EmbeddingsGeneratorComponent
+        type: dagster_community_components.EmbeddingsGeneratorComponent
         attributes:
           asset_name: document_embeddings
           provider: openai

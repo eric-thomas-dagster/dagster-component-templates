@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FieldMapperComponent",
+  "component_type": "dagster_community_components.FieldMapperComponent",
   "description": "Rename or remap column names according to a mapping dictionary, with optional column filtering.",
   "category": "transformation",
   "icon": "ArrowRightLeft",

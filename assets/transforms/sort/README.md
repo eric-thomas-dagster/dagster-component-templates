@@ -120,7 +120,7 @@ ascending_per_column:
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.SortComponent
+type: dagster_community_components.SortComponent
 attributes:
   asset_name: orders_sorted
   upstream_asset_key: raw_orders

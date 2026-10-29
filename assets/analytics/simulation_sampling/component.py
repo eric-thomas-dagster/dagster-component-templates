@@ -326,7 +326,7 @@ class SimulationSamplingComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SimulationSamplingComponent
+        type: dagster_community_components.SimulationSamplingComponent
         attributes:
           asset_name: demand_simulation
           upstream_asset_key: demand_distributions

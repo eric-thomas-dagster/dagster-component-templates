@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.InstructorExtractorComponent",
+  "component_type": "dagster_community_components.InstructorExtractorComponent",
   "description": "Extract structured Pydantic models from text using the Instructor library with any OpenAI-compatible LLM, expanding fields as new DataFrame columns.",
   "category": "ai",
   "icon": "FileCheck",

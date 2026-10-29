@@ -100,7 +100,7 @@ class ZendeskUserUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ZendeskUserUpsertComponent
+        type: dagster_community_components.ZendeskUserUpsertComponent
         attributes:
           asset_name: zendesk_users_mirror
           upstream_asset_key: dbt_marts_customers

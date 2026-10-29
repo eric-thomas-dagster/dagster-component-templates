@@ -27,7 +27,7 @@ Wraps the official `dagstermill` package.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.DagstermillNotebookAssetComponent
+type: dagster_community_components.DagstermillNotebookAssetComponent
 attributes:
   asset_name: <fill in>
   notebook_path: <fill in>

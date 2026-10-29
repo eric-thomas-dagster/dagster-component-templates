@@ -1,4 +1,4 @@
-type: dagster_component_templates.DatabaseReplicationComponent
+type: dagster_community_components.DatabaseReplicationComponent
 attributes:
   asset_name: customers_replicated
   # Source connection (Sling URL — supports postgres / mysql / mssql / oracle / db2 / snowflake / bigquery / redshift / databricks / etc.)

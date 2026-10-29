@@ -80,7 +80,7 @@ Confluence and Jira are both Atlassian Cloud products with the same auth mechani
 
 ## Example
 ```yaml
-type: dagster_component_templates.ConfluencePageUpsertComponent
+type: dagster_community_components.ConfluencePageUpsertComponent
 attributes:
   asset_name: confluence_release_notes_sync
   upstream_asset_key: dbt_marts_release_notes

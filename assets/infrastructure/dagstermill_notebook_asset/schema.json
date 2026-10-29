@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DagstermillNotebookAssetComponent",
+  "component_type": "dagster_community_components.DagstermillNotebookAssetComponent",
   "description": "Run a Jupyter notebook as a Dagster asset via dagstermill.",
   "category": "infrastructure",
   "icon": "BookOpen",

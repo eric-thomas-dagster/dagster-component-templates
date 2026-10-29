@@ -44,7 +44,7 @@ This mirrors `context_engineering_pipeline`'s dual-ingestion design, so this com
 ### Basic Configuration
 
 ```yaml
-type: dagster_component_templates.DocumentChunkerComponent
+type: dagster_community_components.DocumentChunkerComponent
 attributes:
   asset_name: document_chunks
   strategy: recursive
@@ -61,7 +61,7 @@ attributes:
 Best general-purpose strategy. Splits by separators hierarchically:
 
 ```yaml
-type: dagster_component_templates.DocumentChunkerComponent
+type: dagster_community_components.DocumentChunkerComponent
 attributes:
   asset_name: document_chunks
   strategy: recursive
@@ -76,7 +76,7 @@ attributes:
 Ensures chunks fit within LLM token limits:
 
 ```yaml
-type: dagster_component_templates.DocumentChunkerComponent
+type: dagster_community_components.DocumentChunkerComponent
 attributes:
   asset_name: llm_ready_chunks
   strategy: token_aware
@@ -92,7 +92,7 @@ attributes:
 Keeps semantic units (paragraphs) together:
 
 ```yaml
-type: dagster_component_templates.DocumentChunkerComponent
+type: dagster_community_components.DocumentChunkerComponent
 attributes:
   asset_name: semantic_chunks
   strategy: semantic
@@ -106,7 +106,7 @@ attributes:
 Splits at sentence boundaries:
 
 ```yaml
-type: dagster_component_templates.DocumentChunkerComponent
+type: dagster_community_components.DocumentChunkerComponent
 attributes:
   asset_name: sentence_chunks
   strategy: sentence
@@ -121,7 +121,7 @@ attributes:
 Simple character-based splitting:
 
 ```yaml
-type: dagster_component_templates.DocumentChunkerComponent
+type: dagster_community_components.DocumentChunkerComponent
 attributes:
   asset_name: fixed_chunks
   strategy: fixed
@@ -136,7 +136,7 @@ attributes:
 Preserve document metadata across chunks:
 
 ```yaml
-type: dagster_component_templates.DocumentChunkerComponent
+type: dagster_community_components.DocumentChunkerComponent
 attributes:
   asset_name: knowledge_base_chunks
   strategy: recursive
@@ -350,13 +350,13 @@ Process chunks with:
 
 ```yaml
 # 1. Extract text from PDFs
-- type: dagster_component_templates.DocumentTextExtractorComponent
+- type: dagster_community_components.DocumentTextExtractorComponent
   attributes:
     asset_name: extracted_documents
     file_path_column: pdf_path
 
 # 2. Chunk documents
-- type: dagster_component_templates.DocumentChunkerComponent
+- type: dagster_community_components.DocumentChunkerComponent
   attributes:
     asset_name: document_chunks
     strategy: recursive
@@ -367,7 +367,7 @@ Process chunks with:
     add_chunk_metadata: true
 
 # 3. Generate embeddings
-- type: dagster_component_templates.EmbeddingsGeneratorComponent
+- type: dagster_community_components.EmbeddingsGeneratorComponent
   attributes:
     asset_name: chunk_embeddings
     provider: openai
@@ -375,7 +375,7 @@ Process chunks with:
     input_column: chunk
 
 # 4. Store in vector database
-- type: dagster_component_templates.VectorStoreWriterComponent
+- type: dagster_community_components.VectorStoreWriterComponent
   attributes:
     asset_name: vector_store
     provider: pinecone
@@ -386,13 +386,13 @@ Process chunks with:
 
 ```yaml
 # 1. Load research papers
-- type: dagster_component_templates.CSVFileIngestionComponent
+- type: dagster_community_components.CSVFileIngestionComponent
   attributes:
     asset_name: research_papers
     file_path: "data/papers.csv"
 
 # 2. Chunk with token awareness
-- type: dagster_component_templates.DocumentChunkerComponent
+- type: dagster_community_components.DocumentChunkerComponent
   attributes:
     asset_name: paper_chunks
     strategy: token_aware
@@ -403,7 +403,7 @@ Process chunks with:
     metadata_columns: "paper_id,title,authors,year"
 
 # 3. Analyze each chunk
-- type: dagster_component_templates.OpenAILLMComponent
+- type: dagster_community_components.OpenAILLMComponent
   attributes:
     asset_name: paper_analysis
     model: gpt-4-turbo

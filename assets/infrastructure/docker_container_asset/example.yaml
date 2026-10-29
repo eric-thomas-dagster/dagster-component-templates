@@ -1,4 +1,4 @@
-type: dagster_component_templates.DockerContainerAssetComponent
+type: dagster_community_components.DockerContainerAssetComponent
 attributes:
   asset_name: <fill in>
   image: <fill in>

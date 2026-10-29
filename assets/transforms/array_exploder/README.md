@@ -89,7 +89,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 
 ## Example YAML
 ```yaml
-component_type: dagster_component_templates.ArrayExploderComponent
+component_type: dagster_community_components.ArrayExploderComponent
 asset_name: exploded_tags
 upstream_asset_key: raw_documents
 column: tags

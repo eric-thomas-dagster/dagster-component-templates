@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.NotionDatabaseSensorComponent",
+  "component_type": "dagster_community_components.NotionDatabaseSensorComponent",
   "description": "Trigger a run when a Notion database has new or updated rows.",
   "category": "sensor",
   "icon": "si:notion",

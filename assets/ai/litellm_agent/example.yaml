@@ -1,4 +1,4 @@
-type: dagster_component_templates.LiteLLMAgentComponent
+type: dagster_community_components.LiteLLMAgentComponent
 attributes:
   asset_name: filesystem_agent_run
   prompt: "List the three largest files in /tmp by size and return their paths."

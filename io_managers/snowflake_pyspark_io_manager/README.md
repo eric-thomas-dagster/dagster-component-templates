@@ -35,7 +35,7 @@ Wraps the official `dagster-snowflake-pyspark` package.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.SnowflakePySparkIOManagerComponent
+type: dagster_community_components.SnowflakePySparkIOManagerComponent
 attributes:
   resource_key: <fill in>
   account: <fill in>

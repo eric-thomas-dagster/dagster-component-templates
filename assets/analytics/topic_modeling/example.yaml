@@ -1,4 +1,4 @@
-type: dagster_component_templates.TopicModelingComponent
+type: dagster_community_components.TopicModelingComponent
 attributes:
   description: Discover 8 latent topics in customer support tickets for routing and analysis.
   asset_name: support_ticket_topics

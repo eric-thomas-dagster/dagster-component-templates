@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeToSecurityLakeComponent
+type: dagster_community_components.DataframeToSecurityLakeComponent
 attributes:
   asset_name: dagster_plus_audit_security_lake
   upstream_asset_key: dagster_plus_audit_ocsf

@@ -1,4 +1,4 @@
-type: dagster_component_templates.DynatraceResourceComponent
+type: dagster_community_components.DynatraceResourceComponent
 attributes:
   resource_key: dynatrace
   environment_url: https://example.com

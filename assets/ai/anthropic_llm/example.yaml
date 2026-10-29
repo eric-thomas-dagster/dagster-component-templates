@@ -1,4 +1,4 @@
-type: dagster_component_templates.AnthropicLLMComponent
+type: dagster_community_components.AnthropicLLMComponent
 attributes:
   asset_name: document_analysis
   upstream_asset_key: raw_documents

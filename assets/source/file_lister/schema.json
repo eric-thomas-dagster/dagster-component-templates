@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FileListerComponent",
+  "component_type": "dagster_community_components.FileListerComponent",
   "name": "File Lister",
   "description": "List files matching a glob from any fsspec location (S3, GCS, ADLS, local) into a DataFrame of paths, optionally downloading each to a local cache.",
   "category": "source",

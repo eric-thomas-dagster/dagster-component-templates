@@ -78,7 +78,7 @@ Detect the language of text in a column and output ISO 639-1 language codes (e.g
 
 ## Example YAML
 ```yaml
-component_type: dagster_component_templates.LanguageDetectorComponent
+component_type: dagster_community_components.LanguageDetectorComponent
 asset_name: language_detected_text
 upstream_asset_key: raw_text_data
 input_column: content

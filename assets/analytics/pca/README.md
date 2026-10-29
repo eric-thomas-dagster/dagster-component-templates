@@ -16,7 +16,7 @@ Two ways to get the rows in, set exactly one:
 `CREATE MODEL ... OPTIONS(model_type='PCA', num_principal_components=N)` + `ML.PREDICT`. BigQuery's `ML.PREDICT` for a PCA model returns `principal_component_1..N` columns -- aliased to `{output_prefix}1..N` in the final `SELECT` so the output shape matches the python-mode column names.
 
 ```yaml
-type: dagster_component_templates.PcaComponent
+type: dagster_community_components.PcaComponent
 attributes:
   asset_name: product_features_pca_sql
   source:
@@ -122,7 +122,7 @@ When `keep_original: true`, the PC columns are appended alongside the original f
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.PcaComponent
+type: dagster_community_components.PcaComponent
 attributes:
   asset_name: product_features_pca
   upstream_asset_key: product_features_scaled

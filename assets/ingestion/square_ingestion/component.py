@@ -216,7 +216,7 @@ class SquareIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.SquareIngestionComponent
+        type: dagster_community_components.SquareIngestionComponent
         attributes:
           asset_name: square_ingestion
           access_token: "${SQUARE_ACCESS_TOKEN}"

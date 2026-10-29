@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DagsterCheckResultsPruneJobComponent",
+  "component_type": "dagster_community_components.DagsterCheckResultsPruneJobComponent",
   "description": "Op-shaped job that deletes old AssetCheckResult events from the event log. Filters by max_age_days and optional per-asset scoping.",
   "category": "jobs",
   "icon": "Trash",

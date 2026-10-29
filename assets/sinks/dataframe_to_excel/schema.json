@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToExcelComponent",
+  "component_type": "dagster_community_components.DataframeToExcelComponent",
   "description": "Write a DataFrame to an Excel (.xlsx) file.",
   "category": "sink",
   "icon": "si:microsoftexcel",

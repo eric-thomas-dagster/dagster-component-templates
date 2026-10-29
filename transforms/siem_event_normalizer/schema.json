@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SiemEventNormalizerComponent",
+  "component_type": "dagster_community_components.SiemEventNormalizerComponent",
   "description": "Normalize heterogeneous audit-log events to a common schema (OCSF or ECS) before shipping to a SIEM.",
   "category": "security",
   "vertical": "security",

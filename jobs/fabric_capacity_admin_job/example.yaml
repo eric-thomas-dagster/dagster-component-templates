@@ -1,4 +1,4 @@
-type: dagster_component_templates.FabricCapacityAdminJobComponent
+type: dagster_community_components.FabricCapacityAdminJobComponent
 attributes:
   job_name: fabric_capacity_pause_nightly
   action: suspend           # 'suspend' | 'resume' | 'scale'

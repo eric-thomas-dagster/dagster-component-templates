@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SegmentTrackComponent",
+  "component_type": "dagster_community_components.SegmentTrackComponent",
   "description": "Reverse-ETL sink \u2014 batch-POST DataFrame rows to Segment via POST /v1/batch. Two modes: `identify` (traits sync) or `track` (event stream). Auto-packs ops under Segment's 500KB per-batch limit.",
   "category": "reverse_etl",
   "x-dagster-io": {

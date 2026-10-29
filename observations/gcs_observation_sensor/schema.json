@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GcsObservationSensorComponent",
+  "component_type": "dagster_community_components.GcsObservationSensorComponent",
   "description": "Periodically connect to GCS and record an AssetObservation on the target external asset \u2014 surfaces health metrics in the Dagster UI without triggering a pipeline run.",
   "category": "observation",
   "icon": "si:googlecloud",

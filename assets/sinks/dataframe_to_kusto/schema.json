@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToKustoComponent",
+  "component_type": "dagster_community_components.DataframeToKustoComponent",
   "description": "Push a DataFrame to a Kusto table on an ADX cluster. Queued ingestion (durable) by default; streaming ingestion (low latency) optional.",
   "category": "sink",
   "icon": "Upload",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.HelpScoutConversationUpsertComponent",
+  "component_type": "dagster_community_components.HelpScoutConversationUpsertComponent",
   "description": "Reverse-ETL sink: create-or-update an upstream DataFrame into Help Scout conversations. A row with a conversation_id present updates the existing conversation (tags/note/status); otherwise a new conversation is created, which natively auto-upserts the underlying Customer by email.",
   "category": "reverse_etl",
   "icon": "si:helpscout",

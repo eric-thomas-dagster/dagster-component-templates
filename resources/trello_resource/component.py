@@ -51,7 +51,7 @@ class TrelloResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.TrelloResourceComponent
+        type: dagster_community_components.TrelloResourceComponent
         attributes:
           resource_key: trello_resource
           api_key_env_var: TRELLO_API_KEY

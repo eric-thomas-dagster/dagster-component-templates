@@ -403,7 +403,7 @@ class OpenaiLlmBatchComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.OpenaiLlmBatchComponent
+        type: dagster_community_components.OpenaiLlmBatchComponent
         attributes:
           asset_name: support_reply_results
           upstream_asset_key: support_tickets

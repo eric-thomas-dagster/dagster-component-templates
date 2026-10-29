@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CreatePointsComponent",
+  "component_type": "dagster_community_components.CreatePointsComponent",
   "description": "Build a `geometry` column of shapely Points from lat/lng columns.",
   "category": "analytics",
   "icon": "MapPin",

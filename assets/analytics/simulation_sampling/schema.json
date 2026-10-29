@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SimulationSamplingComponent",
+  "component_type": "dagster_community_components.SimulationSamplingComponent",
   "description": "Component for Monte Carlo simulation sampling.",
   "category": "analytics",
   "icon": "BarChart2",

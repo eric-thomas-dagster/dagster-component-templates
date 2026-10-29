@@ -1,4 +1,4 @@
-type: dagster_component_templates.ShellCommandJobComponent
+type: dagster_community_components.ShellCommandJobComponent
 attributes:
   job_name: shell_command_job_example
   schedule: "0 3 * * *"

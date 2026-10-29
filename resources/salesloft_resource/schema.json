@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SalesloftResourceComponent",
+  "component_type": "dagster_community_components.SalesloftResourceComponent",
   "description": "Register a SalesloftResource wrapping Salesloft's REST API (Bearer API key auth) for use by other components",
   "category": "resource",
   "icon": "si:salesloft",

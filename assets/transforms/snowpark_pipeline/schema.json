@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SnowparkPipelineComponent",
+  "component_type": "dagster_community_components.SnowparkPipelineComponent",
   "description": "Multi-step Snowpark pipeline — all compute pushed to Snowflake (one query plan per asset).",
   "category": "transformation",
   "icon": "Snowflake",

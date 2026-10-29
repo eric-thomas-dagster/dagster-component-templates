@@ -61,7 +61,7 @@ Two modes — same field surface:
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.CronScheduleComponent
+type: dagster_community_components.CronScheduleComponent
 attributes:
   schedule_name: nightly_etl
   cron_expression: "0 2 * * *"

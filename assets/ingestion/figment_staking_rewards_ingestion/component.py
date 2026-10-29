@@ -173,7 +173,7 @@ class FigmentStakingRewardsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.FigmentStakingRewardsIngestionComponent
+        type: dagster_community_components.FigmentStakingRewardsIngestionComponent
         attributes:
           asset_name: figment_eth_staking_rewards
           resource_key: figment_resource

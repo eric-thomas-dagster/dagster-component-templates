@@ -155,28 +155,56 @@ Not a Blue Prism killer. If you're standardizing on Dagster and can pull the RPA
 
 ## Fields
 
-### Required
+### Connection
 
-| Field | Type | Description |
-|---|---|---|
-| `process_id` | `str` | Blue Prism GUID for the process (as registered in the Blue Prism control room). |
-| `asset_name` | `str` | Dagster asset name that wraps this Blue Prism process. |
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `endpoint` | `str` | `"https://blueprism.internal/api/v7"` | Blue Prism Web API base URL (used when demo_mode=false). |
+
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `poll_interval_seconds` | `int` | `10` | Seconds between Blue Prism session status polls. |
+| `max_retries` | `int` | `2` | Dagster-side asset retries on failure. |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `description` | `str` | — | Prose description shown in the Dagster UI. |
+| `group_name` | `str` | `"blue_prism_integration"` | Dagster asset group for the process assets. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_start_date` | `str` | `"2024-01-01"` | Start date for the daily partitioned assets. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_delay_seconds` | `int` | `60` | Delay between Dagster asset retries. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `source_tables` | `List[BluePrismSourceTableSpec]` | `list()` | Tables loaded by Blue Prism that Dagster observes (adds to lineage). |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_id` | `str` | — | Target runtime resource GUID (analog to Control-M host / RMJ queue). |
-| `resource_group` | `str` | — | Business tag for the resource group (e.g. Finance, HR). |
-| `application` | `str` | — | Business tag for the enclosing Blue Prism application / environment. |
-| `inputs` | `dict` | `dict()` | Blue Prism startup inputs. Values templated with {partition_key}. |
-| `run_as` | `str` | `"svc_dagster"` | OS user Blue Prism runs the process as. |
+| `demo_mode` | `bool` | `true` | Simulate the REST API on stdout (no external calls). |
+| `jobs` | `List[BluePrismProcessSpec]` | `list()` | Blue Prism processes to wrap as daily-partitioned Dagster assets. |
+| `upstream_deps` | `List[str]` | `list()` | Upstream asset keys (slash-separated for nested keys) that must complete before jobs run. |
+| `blue_prism_user_env` | `str` | `"BLUE_PRISM_USER"` | Env var holding the Blue Prism REST username. |
+| `blue_prism_password_env` | `str` | `"BLUE_PRISM_PASSWORD"` | Env var holding the Blue Prism REST password. |
+| `blue_prism_api_key_env` | `str` | `"BLUE_PRISM_API_KEY"` | Env var holding the Blue Prism 7 Web API key (alternative to user+password). |
+| `poll_timeout_seconds` | `int` | `3600` | Total seconds to wait for terminal status before failing. |
+| `log_retrieval` | `bool` | `true` | Retrieve session logs on completion. |
+| `reconciliation_cron` | `str` | `"0 * * * *"` | Cron for the Blue Prism vs Dagster state reconciliation job. |
 
 [//]: # (FIELDS:END)
 

@@ -1,4 +1,4 @@
-type: dagster_component_templates.IntervalScheduleComponent
+type: dagster_community_components.IntervalScheduleComponent
 attributes:
   schedule_name: poll_inventory
   every: 30m

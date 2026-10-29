@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FronteggIngestionComponent",
+  "component_type": "dagster_community_components.FronteggIngestionComponent",
   "description": "Ingest Frontegg (auth-as-a-service) user and tenant data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "security",

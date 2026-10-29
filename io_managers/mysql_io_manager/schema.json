@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MySQLIOManagerComponent",
+  "component_type": "dagster_community_components.MySQLIOManagerComponent",
   "description": "Persist DataFrames to a MySQL/MariaDB schema, one table per asset.",
   "category": "io_manager",
   "icon": "si:mysql",

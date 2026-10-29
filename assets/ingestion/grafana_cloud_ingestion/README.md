@@ -101,7 +101,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.GrafanaCloudIngestionComponent
+type: dagster_community_components.GrafanaCloudIngestionComponent
 attributes:
   asset_name: grafana_cloud_ingestion
   stack_url: "https://mystack.grafana.net"

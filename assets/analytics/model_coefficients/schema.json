@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ModelCoefficientsComponent",
+  "component_type": "dagster_community_components.ModelCoefficientsComponent",
   "description": "Fit a linear or logistic regression and emit one row per coefficient (β + std error + p-value).",
   "category": "analytics",
   "icon": "ListOrdered",

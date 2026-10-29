@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AggregateFreshnessSensorComponent",
+  "component_type": "dagster_community_components.AggregateFreshnessSensorComponent",
   "description": "Alert when an entire selection of assets has gone silent, as one signal instead of hundreds of per-asset alerts. Polls the most recent materialization (or observation) across a whole selection. alert_mode picks how that gets reported: 'check' (default) emits an AssetCheckEvaluation against a declared rollup asset, alertable via Dagster+'s Asset alert type; 'fail_tick' raises on the sensor itself (no asset created), alertable via Dagster+'s Automation alert type targeting this exact sensor by name. Distinct from post_processing's per-asset attributes.freshness_policy, which answers 'is this one asset stale' rather than 'did the whole feed stop'.",
   "category": "sensor",
   "icon": "Sensors",

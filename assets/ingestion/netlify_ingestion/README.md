@@ -109,7 +109,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.NetlifyIngestionComponent
+type: dagster_community_components.NetlifyIngestionComponent
 attributes:
   asset_name: netlify_ingestion
   access_token: "${NETLIFY_ACCESS_TOKEN}"
@@ -118,7 +118,7 @@ attributes:
 
 To pull deploys/forms/submissions for a specific site:
 ```yaml
-type: dagster_component_templates.NetlifyIngestionComponent
+type: dagster_community_components.NetlifyIngestionComponent
 attributes:
   asset_name: netlify_site_activity
   access_token: "${NETLIFY_ACCESS_TOKEN}"

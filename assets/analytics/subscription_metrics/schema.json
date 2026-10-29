@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SubscriptionMetricsComponent",
+  "component_type": "dagster_community_components.SubscriptionMetricsComponent",
   "description": "Component for calculating subscription and revenue metrics.",
   "category": "analytics",
   "icon": "BarChart2",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ConvertKitIngestionComponent",
+  "component_type": "dagster_community_components.ConvertKitIngestionComponent",
   "description": "Ingest ConvertKit (rebranded 'Kit') subscriber, broadcast, and tag data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "marketing",

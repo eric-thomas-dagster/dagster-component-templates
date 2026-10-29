@@ -84,7 +84,7 @@ This component receives a DataFrame from an upstream Dagster asset and writes it
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.DataframeToGcsComponent
+type: dagster_community_components.DataframeToGcsComponent
 attributes:
   asset_name: gcs_session_data
   upstream_asset_key: processed_session_data

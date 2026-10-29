@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.S3ParquetIOManagerComponent",
+  "component_type": "dagster_community_components.S3ParquetIOManagerComponent",
   "description": "Register an IO manager that stores assets as Parquet files on Amazon S3",
   "category": "io_manager",
   "icon": "si:amazons3",

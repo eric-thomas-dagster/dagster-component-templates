@@ -216,7 +216,7 @@ class NetSuiteIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.NetSuiteIngestionComponent
+        type: dagster_community_components.NetSuiteIngestionComponent
         attributes:
           asset_name: netsuite_ingestion
           account_id: "1234567"

@@ -98,7 +98,7 @@ The `RedisReaderComponent` connects to Redis, scans for keys matching a pattern,
 ### Read all string keys
 
 ```yaml
-type: dagster_component_templates.RedisReaderComponent
+type: dagster_community_components.RedisReaderComponent
 attributes:
   asset_name: redis_config_values
   key_pattern: "config:*"
@@ -108,7 +108,7 @@ attributes:
 ### Read hash keys (e.g. user profiles)
 
 ```yaml
-type: dagster_component_templates.RedisReaderComponent
+type: dagster_community_components.RedisReaderComponent
 attributes:
   asset_name: user_profiles
   host_env_var: REDIS_HOST
@@ -122,7 +122,7 @@ attributes:
 ### Auto-detect data types
 
 ```yaml
-type: dagster_component_templates.RedisReaderComponent
+type: dagster_community_components.RedisReaderComponent
 attributes:
   asset_name: mixed_redis_keys
   key_pattern: "app:*"

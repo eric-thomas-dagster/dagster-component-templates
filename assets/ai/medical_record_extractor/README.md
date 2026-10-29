@@ -120,7 +120,7 @@ The Medical Record Extractor Component uses a large language model to parse unst
 ### Basic Medical Record Extraction
 
 ```yaml
-type: dagster_component_templates.MedicalRecordExtractorComponent
+type: dagster_community_components.MedicalRecordExtractorComponent
 attributes:
   asset_name: parsed_medical_records
   upstream_asset_key: raw_clinical_notes
@@ -138,7 +138,7 @@ attributes:
 ### Full Extraction with File Input
 
 ```yaml
-type: dagster_component_templates.MedicalRecordExtractorComponent
+type: dagster_community_components.MedicalRecordExtractorComponent
 attributes:
   asset_name: parsed_medical_records
   upstream_asset_key: record_file_list

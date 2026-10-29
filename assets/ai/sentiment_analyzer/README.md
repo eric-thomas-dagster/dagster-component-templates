@@ -45,7 +45,7 @@ The Sentiment Analyzer Component analyzes the emotional tone and sentiment of te
 Fast, local sentiment analysis:
 
 ```yaml
-type: dagster_component_templates.SentimentAnalyzerComponent
+type: dagster_community_components.SentimentAnalyzerComponent
 attributes:
   asset_name: review_sentiment
   method: transformer
@@ -62,7 +62,7 @@ attributes:
 More flexible and customizable:
 
 ```yaml
-type: dagster_component_templates.SentimentAnalyzerComponent
+type: dagster_community_components.SentimentAnalyzerComponent
 attributes:
   asset_name: feedback_sentiment
   method: llm
@@ -85,7 +85,7 @@ attributes:
 Analyze sentiment for specific aspects:
 
 ```yaml
-type: dagster_component_templates.SentimentAnalyzerComponent
+type: dagster_community_components.SentimentAnalyzerComponent
 attributes:
   asset_name: product_sentiment
   method: llm
@@ -120,7 +120,7 @@ Output includes `aspect_sentiments` column:
 Detect specific emotions:
 
 ```yaml
-type: dagster_component_templates.SentimentAnalyzerComponent
+type: dagster_community_components.SentimentAnalyzerComponent
 attributes:
   asset_name: emotion_analysis
   method: llm
@@ -145,7 +145,7 @@ attributes:
 Define your own categories:
 
 ```yaml
-type: dagster_component_templates.SentimentAnalyzerComponent
+type: dagster_community_components.SentimentAnalyzerComponent
 attributes:
   asset_name: custom_sentiment
   method: llm
@@ -164,7 +164,7 @@ attributes:
 Filter uncertain predictions:
 
 ```yaml
-type: dagster_component_templates.SentimentAnalyzerComponent
+type: dagster_community_components.SentimentAnalyzerComponent
 attributes:
   asset_name: high_confidence_sentiment
   method: transformer
@@ -377,13 +377,13 @@ Use sentiment results with:
 
 ```yaml
 # 1. Load feedback
-- type: dagster_component_templates.CSVFileIngestionComponent
+- type: dagster_community_components.CSVFileIngestionComponent
   attributes:
     asset_name: customer_feedback
     file_path: "data/feedback.csv"
 
 # 2. Analyze sentiment
-- type: dagster_component_templates.SentimentAnalyzerComponent
+- type: dagster_community_components.SentimentAnalyzerComponent
   attributes:
     asset_name: sentiment_analyzed
     method: transformer
@@ -393,7 +393,7 @@ Use sentiment results with:
     confidence_threshold: 0.7
 
 # 3. Store results
-- type: dagster_component_templates.DuckDBTableWriterComponent
+- type: dagster_community_components.DuckDBTableWriterComponent
   attributes:
     asset_name: feedback_stored
     table_name: analyzed_feedback
@@ -403,13 +403,13 @@ Use sentiment results with:
 
 ```yaml
 # 1. Load reviews
-- type: dagster_component_templates.DatabaseQueryComponent
+- type: dagster_community_components.DatabaseQueryComponent
   attributes:
     asset_name: product_reviews
     query: "SELECT id, product_id, review_text FROM reviews WHERE created_at > NOW() - INTERVAL '7 days'"
 
 # 2. Aspect-based sentiment
-- type: dagster_component_templates.SentimentAnalyzerComponent
+- type: dagster_community_components.SentimentAnalyzerComponent
   attributes:
     asset_name: review_sentiment
     method: llm

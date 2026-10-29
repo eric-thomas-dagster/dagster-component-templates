@@ -1,4 +1,4 @@
-type: dagster_component_templates.ODataResourceComponent
+type: dagster_community_components.ODataResourceComponent
 attributes:
   resource_key: sap_s4_odata
 

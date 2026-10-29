@@ -100,7 +100,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 ## Example
 
 ```yaml
-type: dagster_component_templates.BambooHrIngestionComponent
+type: dagster_community_components.BambooHrIngestionComponent
 attributes:
   asset_name: bamboohr_ingestion
   company_domain: "mycompany"

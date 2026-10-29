@@ -92,7 +92,7 @@ Run SQL queries against any SQLAlchemy-compatible database and materialize the r
 ### Basic Query
 
 ```yaml
-type: dagster_component_templates.DatabaseQueryComponent
+type: dagster_community_components.DatabaseQueryComponent
 attributes:
   asset_name: daily_sales
   database_url: ${DATABASE_URL}
@@ -102,7 +102,7 @@ attributes:
 ### Aggregation Query
 
 ```yaml
-type: dagster_component_templates.DatabaseQueryComponent
+type: dagster_community_components.DatabaseQueryComponent
 attributes:
   asset_name: monthly_revenue
   database_url: ${DATABASE_URL}
@@ -119,7 +119,7 @@ attributes:
 ### With Caching
 
 ```yaml
-type: dagster_component_templates.DatabaseQueryComponent
+type: dagster_community_components.DatabaseQueryComponent
 attributes:
   asset_name: customer_metrics
   database_url: ${DATABASE_URL}
@@ -168,7 +168,7 @@ snowflake://user:password@account/database/schema?warehouse=wh
 ### 1. Daily Aggregations
 
 ```yaml
-type: dagster_component_templates.DatabaseQueryComponent
+type: dagster_community_components.DatabaseQueryComponent
 attributes:
   asset_name: daily_metrics
   database_url: ${DATABASE_URL}
@@ -186,7 +186,7 @@ attributes:
 ### 2. Data Extraction
 
 ```yaml
-type: dagster_component_templates.DatabaseQueryComponent
+type: dagster_community_components.DatabaseQueryComponent
 attributes:
   asset_name: active_customers
   database_url: ${DATABASE_URL}

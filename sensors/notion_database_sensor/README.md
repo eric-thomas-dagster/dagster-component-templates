@@ -37,7 +37,7 @@ Polls a Notion database via the official API. Triggers a RunRequest for each row
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.NotionDatabaseSensorComponent
+type: dagster_community_components.NotionDatabaseSensorComponent
 attributes:
   sensor_name: notion_release_notes_sensor
   asset_keys: [release_notes_doc]

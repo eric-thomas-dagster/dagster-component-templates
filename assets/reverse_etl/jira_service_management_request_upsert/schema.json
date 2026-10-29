@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.JiraServiceManagementRequestUpsertComponent",
+  "component_type": "dagster_community_components.JiraServiceManagementRequestUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Jira Service Management customer requests via search-then-write. JSM has no native upsert and no servicedeskapi-scoped search, so this JQL-searches /rest/api/3/search/jql scoped to project_key + key_field, then PUTs the match (core API) or POSTs a new request (servicedeskapi).",
   "category": "reverse_etl",
   "icon": "si:jira",

@@ -1,4 +1,4 @@
-type: dagster_component_templates.InsuranceClaimExtractorComponent
+type: dagster_community_components.InsuranceClaimExtractorComponent
 attributes:
   asset_name: extracted_insurance_claims
   upstream_asset_key: raw_insurance_claims

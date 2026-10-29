@@ -31,7 +31,7 @@ Beyond the raw `.get_client()` escape hatch (an authenticated `requests.Session`
 
 ## Example
 ```yaml
-type: dagster_component_templates.MailchimpResourceComponent
+type: dagster_community_components.MailchimpResourceComponent
 attributes:
   resource_key: mailchimp
   api_key_env_var: MAILCHIMP_API_KEY

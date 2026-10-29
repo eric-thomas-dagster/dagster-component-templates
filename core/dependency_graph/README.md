@@ -80,7 +80,7 @@ Separate the "what" (components) from the "how" (dependencies). The `DependencyG
 # defs.yaml - Single file defining entire pipeline
 
 # 1. Fetch data from API
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: sales_api
   api_url: https://api.example.com/sales
@@ -89,7 +89,7 @@ attributes:
 ---
 
 # 2. Clean and transform
-type: dagster_component_templates.DataFrameTransformerComponent
+type: dagster_community_components.DataFrameTransformerComponent
 attributes:
   asset_name: sales_cleaned
   drop_duplicates: true
@@ -98,7 +98,7 @@ attributes:
 ---
 
 # 3. Aggregate daily
-type: dagster_component_templates.DataFrameTransformerComponent
+type: dagster_community_components.DataFrameTransformerComponent
 attributes:
   asset_name: daily_summary
   group_by: "date"
@@ -107,7 +107,7 @@ attributes:
 ---
 
 # 4. Wire up dependencies
-type: dagster_component_templates.DependencyGraphComponent
+type: dagster_community_components.DependencyGraphComponent
 attributes:
   edges:
     - source: sales_api
@@ -180,7 +180,7 @@ def daily_summary(sales_cleaned):  # ← Implicit dependency
 ### 1. Component Storage (YAML)
 The `DependencyGraphComponent` stores edges in your `defs.yaml`:
 ```yaml
-type: dagster_component_templates.DependencyGraphComponent
+type: dagster_community_components.DependencyGraphComponent
 attributes:
   edges:
     - source: api_data
@@ -267,14 +267,14 @@ attributes:
 
 ---
 
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: api_data
   api_url: https://api.example.com/data
 
 ---
 
-type: dagster_component_templates.AssetReferenceComponent
+type: dagster_community_components.AssetReferenceComponent
 attributes:
   asset_name: my_custom_python_asset
   module: my_project.assets
@@ -282,7 +282,7 @@ attributes:
 ---
 
 # Wire them all together
-type: dagster_component_templates.DependencyGraphComponent
+type: dagster_community_components.DependencyGraphComponent
 attributes:
   edges:
     - source: api_data
@@ -294,7 +294,7 @@ attributes:
 ### Multiple Dependencies
 
 ```yaml
-type: dagster_component_templates.DependencyGraphComponent
+type: dagster_community_components.DependencyGraphComponent
 attributes:
   edges:
     # Asset can depend on multiple sources
@@ -322,7 +322,7 @@ def joined_data(customers_api, orders_api):
 
 The component validates edges:
 ```yaml
-type: dagster_component_templates.DependencyGraphComponent
+type: dagster_community_components.DependencyGraphComponent
 attributes:
   edges:
     - source: upstream  # ✅ Valid
@@ -359,7 +359,7 @@ attributes:
 ### 1. Single Dependency Graph per Project
 ```yaml
 # ✅ Good: One DependencyGraphComponent with all edges
-type: dagster_component_templates.DependencyGraphComponent
+type: dagster_community_components.DependencyGraphComponent
 attributes:
   edges:
     - source: a
@@ -373,13 +373,13 @@ attributes:
 ```yaml
 # ❌ Avoid: Multiple DependencyGraphComponents
 # (While supported, makes graph harder to understand)
-type: dagster_component_templates.DependencyGraphComponent
+type: dagster_community_components.DependencyGraphComponent
 attributes:
   edges:
     - source: a
       target: b
 ---
-type: dagster_component_templates.DependencyGraphComponent
+type: dagster_community_components.DependencyGraphComponent
 attributes:
   edges:
     - source: b
@@ -389,16 +389,16 @@ attributes:
 ### 2. Place at End of YAML File
 ```yaml
 # All asset definitions first
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 # ...
 
 ---
-type: dagster_component_templates.DataFrameTransformerComponent
+type: dagster_community_components.DataFrameTransformerComponent
 # ...
 
 ---
 # Dependency graph at end for clarity
-type: dagster_component_templates.DependencyGraphComponent
+type: dagster_community_components.DependencyGraphComponent
 attributes:
   edges:
     # All dependencies in one place
@@ -411,14 +411,14 @@ attributes:
 ### 3. Use with AssetReferenceComponent
 ```yaml
 # Reference existing assets
-type: dagster_component_templates.AssetReferenceComponent
+type: dagster_community_components.AssetReferenceComponent
 attributes:
   asset_name: existing_dbt_model
 
 ---
 
 # Wire new and existing assets together
-type: dagster_component_templates.DependencyGraphComponent
+type: dagster_community_components.DependencyGraphComponent
 attributes:
   edges:
     - source: new_api_asset
@@ -483,7 +483,7 @@ If you're using the `DependencyGraphComponent` without the Dagster Designer tool
 1. **Add the component to your YAML**:
 ```yaml
 # defs.yaml
-type: dagster_component_templates.DependencyGraphComponent
+type: dagster_community_components.DependencyGraphComponent
 attributes:
   edges:
     - source: upstream_asset

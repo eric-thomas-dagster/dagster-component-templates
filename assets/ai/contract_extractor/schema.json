@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ContractExtractorComponent",
+  "component_type": "dagster_community_components.ContractExtractorComponent",
   "description": "Extract key clauses and metadata from legal contracts using an LLM.",
   "category": "ai",
   "icon": "FileText",

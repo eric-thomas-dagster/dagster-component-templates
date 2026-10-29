@@ -3,7 +3,7 @@
 Per-row LLM inference via [Mammouth AI](https://mammouth.ai) (mammouth.ai) — a real, OpenAI-compatible multi-model-routing API. One API key, one endpoint (`POST https://api.mammouth.ai/v1/chat/completions`), and the underlying model is selected simply by passing its name straight through in `model`. Drop-in peer of `openai_llm` / `anthropic_llm` / `gemini_llm` / `groq_llm` / `openrouter_llm`.
 
 ```yaml
-type: dagster_component_templates.MammouthLLMComponent
+type: dagster_community_components.MammouthLLMComponent
 attributes:
   asset_name: support_ticket_summaries
   upstream_asset_key: support_tickets

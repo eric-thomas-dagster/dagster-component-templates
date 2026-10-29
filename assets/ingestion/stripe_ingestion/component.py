@@ -191,7 +191,7 @@ class StripeIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.StripeIngestionComponent
+        type: dagster_community_components.StripeIngestionComponent
         attributes:
           asset_name: stripe_data
           api_key: "{{ env('STRIPE_API_KEY') }}"

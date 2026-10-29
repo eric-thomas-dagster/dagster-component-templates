@@ -99,7 +99,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.WebexIngestionComponent
+type: dagster_community_components.WebexIngestionComponent
 attributes:
   asset_name: webex_ingestion
   bot_token: "${WEBEX_BOT_TOKEN}"

@@ -99,7 +99,7 @@ class FreshdeskContactUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.FreshdeskContactUpsertComponent
+        type: dagster_community_components.FreshdeskContactUpsertComponent
         attributes:
           asset_name: freshdesk_contacts_mirror
           upstream_asset_key: dbt_marts_customers

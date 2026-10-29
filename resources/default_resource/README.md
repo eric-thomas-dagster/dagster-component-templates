@@ -59,7 +59,7 @@ Non-2xx responses raise `RuntimeError` with the HTTP status, Default's structure
 ## Example
 
 ```yaml
-type: dagster_component_templates.DefaultResourceComponent
+type: dagster_community_components.DefaultResourceComponent
 attributes:
   resource_key: default_resource  # key other components use
   api_key_env_var: DEFAULT_API_KEY  # env var holding your Default API key

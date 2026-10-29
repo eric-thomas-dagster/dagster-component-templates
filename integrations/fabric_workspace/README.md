@@ -84,7 +84,7 @@ emits `AssetObservation` for them, the same `polling_sensor` convention as
 `FivetranAccountComponent` / `SnowflakeWorkspaceComponent`:
 
 ```yaml
-type: dagster_component_templates.FabricWorkspaceComponent
+type: dagster_community_components.FabricWorkspaceComponent
 attributes:
   workspace:
     workspace_id: "{{ env.FABRIC_WORKSPACE_ID }}"

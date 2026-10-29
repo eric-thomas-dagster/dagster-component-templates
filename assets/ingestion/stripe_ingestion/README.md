@@ -32,7 +32,7 @@ By default this asset runs an in-memory DuckDB pipeline and returns a pandas Dat
 
 
 ```yaml
-type: dagster_component_templates.StripeIngestionComponent
+type: dagster_community_components.StripeIngestionComponent
 attributes:
   asset_name: stripe_data
   api_key: "${STRIPE_API_KEY}"
@@ -137,7 +137,7 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 ## Example — DataFrame mode (default)
 
 ```yaml
-type: dagster_component_templates.StripeIngestionComponent
+type: dagster_community_components.StripeIngestionComponent
 attributes:
   asset_name: stripe_data
   api_key: "{{ env('STRIPE_API_KEY') }}"
@@ -152,7 +152,7 @@ The asset emits a pandas DataFrame combining all selected resources, with a `_re
 ## Example — persist to Snowflake
 
 ```yaml
-type: dagster_component_templates.StripeIngestionComponent
+type: dagster_community_components.StripeIngestionComponent
 attributes:
   asset_name: stripe_data
   api_key: "{{ env('STRIPE_API_KEY') }}"

@@ -95,7 +95,7 @@ Perfect for:
 ### No Authentication (Development)
 
 ```yaml
-type: dagster_component_templates.KafkaMonitorSensorComponent
+type: dagster_community_components.KafkaMonitorSensorComponent
 attributes:
   sensor_name: kafka_sensor
   bootstrap_servers: localhost:9092
@@ -108,7 +108,7 @@ attributes:
 ### SASL/PLAIN (Confluent Cloud, MSK with IAM, etc.)
 
 ```yaml
-type: dagster_component_templates.KafkaMonitorSensorComponent
+type: dagster_community_components.KafkaMonitorSensorComponent
 attributes:
   sensor_name: kafka_sensor
   bootstrap_servers: pkc-xxxxx.us-east-1.aws.confluent.cloud:9092
@@ -142,7 +142,7 @@ attributes:
 
 ```yaml
 # File: defs/components/kafka_sensor.yaml
-type: dagster_component_templates.KafkaMonitorSensorComponent
+type: dagster_community_components.KafkaMonitorSensorComponent
 attributes:
   sensor_name: user_events_sensor
   bootstrap_servers: broker1:9092,broker2:9092
@@ -158,7 +158,7 @@ attributes:
 For topics with high message volume, increase `max_messages_per_poll` and reduce `minimum_interval_seconds`:
 
 ```yaml
-type: dagster_component_templates.KafkaMonitorSensorComponent
+type: dagster_community_components.KafkaMonitorSensorComponent
 attributes:
   sensor_name: clickstream_sensor
   bootstrap_servers: broker1:9092
@@ -175,7 +175,7 @@ attributes:
 For topics where each message must be processed individually:
 
 ```yaml
-type: dagster_component_templates.KafkaMonitorSensorComponent
+type: dagster_community_components.KafkaMonitorSensorComponent
 attributes:
   sensor_name: alerts_sensor
   bootstrap_servers: broker1:9092
@@ -264,7 +264,7 @@ def route_event(context: AssetExecutionContext, config: KafkaMessageConfig):
 
 ```yaml
 # defs/components/order_events_sensor.yaml
-type: dagster_component_templates.KafkaMonitorSensorComponent
+type: dagster_community_components.KafkaMonitorSensorComponent
 attributes:
   sensor_name: order_events_sensor
   bootstrap_servers: broker1:9092,broker2:9092

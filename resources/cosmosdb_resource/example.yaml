@@ -1,4 +1,4 @@
-type: dagster_component_templates.CosmosDBResourceComponent
+type: dagster_community_components.CosmosDBResourceComponent
 attributes:
   resource_key: cosmosdb_resource
   endpoint: "https://myaccount.documents.azure.com:443/"

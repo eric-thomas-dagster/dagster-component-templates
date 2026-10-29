@@ -1,4 +1,4 @@
-type: dagster_component_templates.NeuralNetworkModelComponent
+type: dagster_community_components.NeuralNetworkModelComponent
 attributes:
   asset_name: renewal_mlp_predictions
   upstream_asset_key: subscription_features

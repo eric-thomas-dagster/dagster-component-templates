@@ -1,4 +1,4 @@
-type: dagster_component_templates.DatabaseTablesMigrationComponent
+type: dagster_community_components.DatabaseTablesMigrationComponent
 attributes:
   asset_name: warehouse_ddl_ready
   source_connection_env_var: SOURCE_DB_URL

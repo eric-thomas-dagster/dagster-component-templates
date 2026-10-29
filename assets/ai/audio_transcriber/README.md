@@ -80,7 +80,7 @@ Transcribe audio files from a file path column using OpenAI Whisper (local model
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.AudioTranscriberComponent
+type: dagster_community_components.AudioTranscriberComponent
 attributes:
   asset_name: transcribed_audio
   upstream_asset_key: audio_file_records

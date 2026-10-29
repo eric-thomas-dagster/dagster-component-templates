@@ -35,7 +35,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.GainsightResourceComponent
+type: dagster_community_components.GainsightResourceComponent
 attributes:
   resource_key: gainsight_resource  # key other components use
   base_url: "https://yourcompany.gainsightcloud.com"

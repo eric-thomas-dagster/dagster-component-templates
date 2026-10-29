@@ -195,7 +195,7 @@ class PinterestAdsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.PinterestAdsIngestionComponent
+        type: dagster_community_components.PinterestAdsIngestionComponent
         attributes:
           asset_name: pinterest_ads_data
           access_token: "${PINTEREST_ACCESS_TOKEN}"

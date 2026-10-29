@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MistralLLMComponent",
+  "component_type": "dagster_community_components.MistralLLMComponent",
   "description": "Native Mistral AI LLM inference via Mistral's OpenAI-compatible API. Drop-in peer of openai_llm / anthropic_llm / gemini_llm / groq_llm. Mistral's wire format is identical to OpenAI's Chat Completions — swap in a Mistral API key and model name and existing OpenAI-client code works unchanged. For multi-vendor routing use litellm_inference_asset.",
   "category": "ai",
   "icon": "lu:wind",

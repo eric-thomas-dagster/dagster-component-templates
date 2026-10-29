@@ -104,7 +104,7 @@ The Document Layout Analyzer Component uses HuggingFace document layout analysis
 ### Detect All Regions
 
 ```yaml
-type: dagster_component_templates.DocumentLayoutAnalyzerComponent
+type: dagster_community_components.DocumentLayoutAnalyzerComponent
 attributes:
   asset_name: document_layout
   upstream_asset_key: page_images
@@ -115,7 +115,7 @@ attributes:
 ### Detect Only Tables and Figures
 
 ```yaml
-type: dagster_component_templates.DocumentLayoutAnalyzerComponent
+type: dagster_community_components.DocumentLayoutAnalyzerComponent
 attributes:
   asset_name: tables_and_figures
   upstream_asset_key: pdf_pages

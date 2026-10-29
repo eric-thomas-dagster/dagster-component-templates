@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CoordinateTransformerComponent",
+  "component_type": "dagster_community_components.CoordinateTransformerComponent",
   "description": "Reproject coordinate columns from one CRS to another using pyproj.",
   "category": "analytics",
   "icon": "BarChart2",

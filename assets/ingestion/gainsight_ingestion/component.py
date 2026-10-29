@@ -192,7 +192,7 @@ class GainsightCompanyIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.GainsightCompanyIngestionComponent
+        type: dagster_community_components.GainsightCompanyIngestionComponent
         attributes:
           asset_name: gainsight_companies
           resource_key: gainsight_resource

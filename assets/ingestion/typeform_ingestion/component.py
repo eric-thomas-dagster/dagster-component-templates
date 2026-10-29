@@ -216,7 +216,7 @@ class TypeformIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.TypeformIngestionComponent
+        type: dagster_community_components.TypeformIngestionComponent
         attributes:
           asset_name: typeform_ingestion
           access_token: "${TYPEFORM_ACCESS_TOKEN}"

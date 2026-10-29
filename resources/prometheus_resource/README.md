@@ -30,7 +30,7 @@ Wraps the official `dagster-prometheus` package.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.PrometheusResourceComponent
+type: dagster_community_components.PrometheusResourceComponent
 attributes:
   gateway: http://prometheus-pushgateway:9091
   timeout: 30

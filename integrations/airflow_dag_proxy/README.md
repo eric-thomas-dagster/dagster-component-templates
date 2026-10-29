@@ -25,7 +25,7 @@ Wraps the official `dagster-airflow` package.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.AirflowDagProxyComponent
+type: dagster_community_components.AirflowDagProxyComponent
 attributes:
   dag_module: <fill in>
   dag_id: <fill in>

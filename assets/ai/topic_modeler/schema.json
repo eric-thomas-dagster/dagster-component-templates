@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TopicModelerComponent",
+  "component_type": "dagster_community_components.TopicModelerComponent",
   "description": "Assign topic labels to rows using LDA or NMF topic modeling.",
   "category": "ai",
   "icon": "Layers",

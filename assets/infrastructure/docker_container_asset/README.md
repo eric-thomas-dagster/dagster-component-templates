@@ -34,7 +34,7 @@ Wraps the official `dagster-docker` package.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.DockerContainerAssetComponent
+type: dagster_community_components.DockerContainerAssetComponent
 attributes:
   asset_name: nightly_export
   image: my-registry/exporter:1.4.0

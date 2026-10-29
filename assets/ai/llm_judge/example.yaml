@@ -1,4 +1,4 @@
-type: dagster_component_templates.LlmJudgeComponent
+type: dagster_community_components.LlmJudgeComponent
 attributes:
   asset_name: evaluated_chatbot_responses
   upstream_asset_key: chatbot_response_log

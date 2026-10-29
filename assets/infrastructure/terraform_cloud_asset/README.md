@@ -90,7 +90,7 @@ Set `plan_only: true` to create non-destructive plan runs. No infrastructure is 
 - Pull-request checks that validate Terraform plans before merge
 
 ```yaml
-type: dagster_component_templates.TerraformCloudAssetComponent
+type: dagster_community_components.TerraformCloudAssetComponent
 attributes:
   api_token_env_var: TFC_TOKEN
   organization: my-company
@@ -121,7 +121,7 @@ terraform_job = dg.define_asset_job(
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.TerraformCloudAssetComponent
+type: dagster_community_components.TerraformCloudAssetComponent
 attributes:
   api_token_env_var: TFC_TOKEN
   organization: my-company

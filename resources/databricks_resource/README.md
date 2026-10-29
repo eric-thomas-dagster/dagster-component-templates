@@ -34,7 +34,7 @@ Register a Databricks workspace resource for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.DatabricksResourceComponent
+type: dagster_community_components.DatabricksResourceComponent
 attributes:
   resource_key: databricks_resource  # key other components use
   # Required

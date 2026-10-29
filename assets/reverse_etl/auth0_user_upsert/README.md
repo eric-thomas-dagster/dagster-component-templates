@@ -110,7 +110,7 @@ Required because Auth0's create-user endpoint needs to know which connection to 
 ## Example
 
 ```yaml
-type: dagster_component_templates.Auth0UserUpsertComponent
+type: dagster_community_components.Auth0UserUpsertComponent
 attributes:
   asset_name: auth0_employee_sync
   upstream_asset_key: dbt_marts_active_employees
@@ -126,7 +126,7 @@ attributes:
 ## Example — explicit deactivation (separate asset)
 
 ```yaml
-type: dagster_component_templates.Auth0UserUpsertComponent
+type: dagster_community_components.Auth0UserUpsertComponent
 attributes:
   asset_name: auth0_offboard_deactivate
   upstream_asset_key: dbt_marts_offboarded_employees

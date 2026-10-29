@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SalesforceResourceComponent",
+  "component_type": "dagster_community_components.SalesforceResourceComponent",
   "description": "Self-contained Salesforce REST API workhorse. Two auth modes: OAuth 2.0 password grant or OAuth 2.0 JWT Bearer (SF-recommended for new orgs). Retry on 401 (token refresh) / 429 / 5xx. Convenience methods for read (soql cursor, describe_sobject, get_record, find_record) + write (create_record, update_record, upsert_record via native External-ID, composite_upsert, bulk_upsert via Bulk 2.0 async API, delete_record).",
   "category": "resource",
   "icon": "si:salesforce",

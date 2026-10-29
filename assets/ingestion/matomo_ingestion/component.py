@@ -223,7 +223,7 @@ class MatomoIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.MatomoIngestionComponent
+        type: dagster_community_components.MatomoIngestionComponent
         attributes:
           asset_name: matomo_data
           api_url: "https://analytics.example.com"

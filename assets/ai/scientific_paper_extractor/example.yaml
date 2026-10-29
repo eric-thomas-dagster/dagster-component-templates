@@ -1,4 +1,4 @@
-type: dagster_component_templates.ScientificPaperExtractorComponent
+type: dagster_community_components.ScientificPaperExtractorComponent
 attributes:
   asset_name: extracted_scientific_papers
   upstream_asset_key: raw_scientific_papers

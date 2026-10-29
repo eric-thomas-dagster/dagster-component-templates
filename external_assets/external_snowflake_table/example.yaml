@@ -1,4 +1,4 @@
-type: dagster_component_templates.ExternalSnowflakeTableAsset
+type: dagster_community_components.ExternalSnowflakeTableAsset
 attributes:
   asset_key: snowflake/raw/orders
   account: myorg-us-east-1

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DriftConversationsIngestionComponent",
+  "component_type": "dagster_community_components.DriftConversationsIngestionComponent",
   "description": "Ingest Drift conversations (and optionally their messages) via GET /conversations/list (page_token pagination) and return a pandas DataFrame.",
   "category": "source",
   "vertical": "support-cx",

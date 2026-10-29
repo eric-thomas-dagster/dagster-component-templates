@@ -326,7 +326,7 @@ class BoundingBoxFilterComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.BoundingBoxFilterComponent
+        type: dagster_community_components.BoundingBoxFilterComponent
         attributes:
           asset_name: us_events
           upstream_asset_key: all_events

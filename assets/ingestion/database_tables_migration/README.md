@@ -119,7 +119,7 @@ The pre-flight log surfaces a `⚠` for each non-enforced constraint at the star
 Pipe to `dataframe_to_csv` for the migration completion artifact:
 
 ```yaml
-type: dagster_component_templates.DataframeToCsvComponent
+type: dagster_community_components.DataframeToCsvComponent
 attributes:
   asset_name: ddl_migration_report
   upstream_asset_key: warehouse_ddl_ready
@@ -129,7 +129,7 @@ attributes:
 ## Example: Postgres → DuckDB DDL-first
 
 ```yaml
-type: dagster_component_templates.DatabaseTablesMigrationComponent
+type: dagster_community_components.DatabaseTablesMigrationComponent
 attributes:
   asset_name: warehouse_ddl_ready
   source_connection_env_var: SOURCE_DB_URL
@@ -148,7 +148,7 @@ attributes:
 
 ```yaml
 # 1. Create the target tables with PKs + FKs + NOT NULL
-type: dagster_component_templates.DatabaseTablesMigrationComponent
+type: dagster_community_components.DatabaseTablesMigrationComponent
 attributes:
   asset_name: warehouse_ddl_ready
   # …
@@ -157,7 +157,7 @@ attributes:
 ```yaml
 # 2. Stream data into pre-shaped tables — note: mode: append (NOT full_refresh,
 #    which would DROP and recreate without your DDL)
-type: dagster_component_templates.DatabaseReplicationComponent
+type: dagster_community_components.DatabaseReplicationComponent
 attributes:
   asset_name: orders_in_warehouse
   source_table: app.orders

@@ -194,7 +194,7 @@ class DynamodbReaderComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.DynamodbReaderComponent
+        type: dagster_community_components.DynamodbReaderComponent
         attributes:
           asset_name: dynamo_orders
           table_name: orders

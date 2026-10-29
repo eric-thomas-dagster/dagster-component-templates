@@ -7,7 +7,7 @@ in the YAML config. No Python required.
 Example: the NYC-metro stores dataset from the store_coverage demo
 
 ```yaml
-type: dagster_component_templates.ParametricDataGeneratorComponent
+type: dagster_community_components.ParametricDataGeneratorComponent
 attributes:
   asset_name: stores
   row_count: 200

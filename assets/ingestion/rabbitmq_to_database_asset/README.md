@@ -101,7 +101,7 @@ sqlalchemy>=2.0.0
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.RabbitMQToDatabaseAssetComponent
+type: dagster_community_components.RabbitMQToDatabaseAssetComponent
 attributes:
   asset_name: rabbitmq_orders_ingest
   amqp_url_env_var: RABBITMQ_URL

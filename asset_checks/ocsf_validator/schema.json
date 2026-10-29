@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OcsfValidatorComponent",
+  "component_type": "dagster_community_components.OcsfValidatorComponent",
   "description": "Asset check: validates OCSF v1.x conformance \u2014 required fields, severity range, known class_uid set.",
   "category": "check",
   "icon": "ShieldCheck",

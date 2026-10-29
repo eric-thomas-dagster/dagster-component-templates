@@ -1,4 +1,4 @@
-type: dagster_component_templates.SlackIngestionComponent
+type: dagster_community_components.SlackIngestionComponent
 attributes:
   asset_name: slack_data
 

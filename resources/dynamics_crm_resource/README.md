@@ -86,7 +86,7 @@ Unlike Salesforce (`/composite/sobjects`, Bulk 2.0), Dataverse has no single-cal
 ## Example
 
 ```yaml
-type: dagster_component_templates.DynamicsCrmResourceComponent
+type: dagster_community_components.DynamicsCrmResourceComponent
 attributes:
   resource_key: dynamics_crm
   org_url: "https://myorg.crm.dynamics.com"

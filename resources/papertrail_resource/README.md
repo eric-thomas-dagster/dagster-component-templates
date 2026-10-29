@@ -25,7 +25,7 @@ Wraps the official `dagster-papertrail` package.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.PapertrailResourceComponent
+type: dagster_community_components.PapertrailResourceComponent
 attributes:
   papertrail_hostname: logs1.papertrailapp.com
   papertrail_port: 12345

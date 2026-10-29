@@ -68,7 +68,7 @@ This component does not read from or write to S3. It is a **lineage declaration 
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ExternalS3Asset
+type: dagster_community_components.ExternalS3Asset
 attributes:
   asset_key: my_service/asset
   bucket_name: my_bucket_name
@@ -84,7 +84,7 @@ Set `create_observation_sensor: true` to also get the polling sensor that keeps 
 health/data-version current — one component, one YAML, no manual `asset_key` wiring:
 
 ```yaml
-type: dagster_component_templates.ExternalS3Asset
+type: dagster_community_components.ExternalS3Asset
 attributes:
   asset_key: external/s3
   bucket_name: my_bucket
@@ -98,7 +98,7 @@ asset and sensor on independent lifecycles), pair this component with the standa
 
 ```yaml
 # 1. Declare the external asset (lineage node)
-type: dagster_component_templates.ExternalS3Asset
+type: dagster_community_components.ExternalS3Asset
 attributes:
   asset_key: external/s3
   bucket_name: my_bucket
@@ -106,7 +106,7 @@ attributes:
 ---
 
 # 2. Observe it on a schedule
-type: dagster_component_templates.S3ObservationSensorComponent
+type: dagster_community_components.S3ObservationSensorComponent
 attributes:
   sensor_name: s3_asset_observer
   asset_key: external/s3
@@ -120,7 +120,7 @@ several bucket/prefix sources from one `ExternalS3Asset` instance, instead of on
 source:
 
 ```yaml
-type: dagster_component_templates.ExternalS3Asset
+type: dagster_community_components.ExternalS3Asset
 attributes:
   group_name: s3_sources
   sources:

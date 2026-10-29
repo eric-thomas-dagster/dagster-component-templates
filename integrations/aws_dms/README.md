@@ -57,7 +57,7 @@ Import AWS DMS entities as Dagster assets for orchestrating database migrations 
 
 ### Basic Example
 ```yaml
-type: dagster_component_templates.AWSDMSComponent
+type: dagster_community_components.AWSDMSComponent
 attributes:
   aws_region: us-east-1
   aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
@@ -67,7 +67,7 @@ attributes:
 
 ### Advanced Example
 ```yaml
-type: dagster_component_templates.AWSDMSComponent
+type: dagster_community_components.AWSDMSComponent
 attributes:
   aws_region: us-east-1
   aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"

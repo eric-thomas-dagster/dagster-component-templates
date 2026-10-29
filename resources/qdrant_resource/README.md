@@ -25,7 +25,7 @@ Register a dagster-qdrant QdrantResource for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.QdrantResourceComponent
+type: dagster_community_components.QdrantResourceComponent
 attributes:
   resource_key: qdrant_resource  # key other components use
   # Optional

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TextPreprocessingComponent",
+  "component_type": "dagster_community_components.TextPreprocessingComponent",
   "description": "Clean and normalize text data for NLP tasks.",
   "category": "analytics",
   "icon": "BarChart2",

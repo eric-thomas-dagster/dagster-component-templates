@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataikuAssetComponent",
+  "component_type": "dagster_community_components.DataikuAssetComponent",
   "description": "Dataiku DSS scenario component — one Dagster asset per Dataiku scenario.",
   "category": "analytics",
   "icon": "si:dataiku",

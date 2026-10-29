@@ -103,7 +103,7 @@ Together they cover both directions of Google Ads data movement.
 ## Example
 
 ```yaml
-type: dagster_component_templates.GoogleAdsCustomerMatchUpsertComponent
+type: dagster_community_components.GoogleAdsCustomerMatchUpsertComponent
 attributes:
   asset_name: google_ads_churned_customers_audience
   upstream_asset_key: dbt_marts_churned_customers
@@ -119,7 +119,7 @@ attributes:
 ## Example — suppression
 
 ```yaml
-type: dagster_component_templates.GoogleAdsCustomerMatchUpsertComponent
+type: dagster_community_components.GoogleAdsCustomerMatchUpsertComponent
 attributes:
   asset_name: google_ads_suppress_converted
   upstream_asset_key: dbt_marts_recent_conversions

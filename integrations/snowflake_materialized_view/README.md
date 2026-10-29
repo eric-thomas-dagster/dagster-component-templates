@@ -89,7 +89,7 @@ uvx --from dagster-community-components-cli dagster-component add snowflake_mate
 See [`example.yaml`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_materialized_view/example.yaml) for a copy-pastable starting point.
 
 ```yaml
-type: dagster_component_templates.SnowflakeMaterializedViewComponent
+type: dagster_community_components.SnowflakeMaterializedViewComponent
 attributes:
   asset_name: customer_ltv_mv
   mv_name: CUSTOMER_LIFETIME_VALUE_MV

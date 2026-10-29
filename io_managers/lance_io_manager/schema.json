@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LanceIOManagerComponent",
+  "component_type": "dagster_community_components.LanceIOManagerComponent",
   "description": "Register a LanceDB IO manager for ML-optimised columnar storage ideal for embeddings and vector data",
   "category": "io_manager",
   "icon": "Save",

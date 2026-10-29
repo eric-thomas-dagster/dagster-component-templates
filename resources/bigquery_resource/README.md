@@ -35,7 +35,7 @@ Register a dagster-gcp BigQueryResource for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.BigQueryResourceComponent
+type: dagster_community_components.BigQueryResourceComponent
 attributes:
   resource_key: bigquery_resource  # key other components use
   # Required

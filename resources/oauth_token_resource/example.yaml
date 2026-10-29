@@ -1,4 +1,4 @@
-type: dagster_component_templates.OAuthTokenResourceComponent
+type: dagster_community_components.OAuthTokenResourceComponent
 attributes:
   resource_key: my_oauth_token
 

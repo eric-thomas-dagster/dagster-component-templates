@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MonteCarloCheckComponent",
+  "component_type": "dagster_community_components.MonteCarloCheckComponent",
   "description": "Trigger a Monte Carlo custom rule or monitor run and surface results as a Dagster asset check.",
   "category": "check",
   "icon": "CheckCircle",

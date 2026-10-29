@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RecordIdComponent",
+  "component_type": "dagster_community_components.RecordIdComponent",
   "description": "Add a unique sequential identifier to each row.",
   "category": "transformation",
   "icon": "Shuffle",

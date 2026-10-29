@@ -1,4 +1,4 @@
-type: dagster_component_templates.ElasticsearchResourceComponent
+type: dagster_community_components.ElasticsearchResourceComponent
 attributes:
   resource_key: elasticsearch_resource
   hosts: "https://my-cluster.es.io:9243"

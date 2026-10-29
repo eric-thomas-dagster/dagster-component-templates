@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AlterRowComponent",
+  "component_type": "dagster_community_components.AlterRowComponent",
   "description": "Mark each row with a CDC operation (insert / update / delete / upsert) based on conditions — same semantics as ADF Alter Row.",
   "category": "transformation",
   "x-dagster-io": {

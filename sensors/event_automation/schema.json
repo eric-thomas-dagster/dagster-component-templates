@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.EventAutomationComponent",
+  "component_type": "dagster_community_components.EventAutomationComponent",
   "description": "35 declarative triggers → 27 actions in one YAML component. Prefect-Automations analog on top of real Dagster sensors + Dagster+ GraphQL mutations.",
   "category": "sensor",
   "icon": "Bell",

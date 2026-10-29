@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.EventLogToDatadogJobComponent",
+  "component_type": "dagster_community_components.EventLogToDatadogJobComponent",
   "description": "Op-shaped job that ships new Dagster event log entries to Datadog as log entries via the HTTP intake API. Batches up to 1000 events per POST.",
   "category": "jobs",
   "icon": "Upload",

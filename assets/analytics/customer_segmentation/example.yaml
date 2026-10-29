@@ -1,4 +1,4 @@
-type: dagster_component_templates.CustomerSegmentationComponent
+type: dagster_community_components.CustomerSegmentationComponent
 attributes:
   asset_name: customer_rfm_segments
   transaction_data_asset_key: orders

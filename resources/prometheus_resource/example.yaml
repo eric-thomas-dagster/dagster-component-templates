@@ -1,4 +1,4 @@
-type: dagster_component_templates.PrometheusResourceComponent
+type: dagster_community_components.PrometheusResourceComponent
 attributes:
   gateway: <fill in>
   timeout: 0

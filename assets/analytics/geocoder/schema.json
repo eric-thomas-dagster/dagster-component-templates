@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GeocoderComponent",
+  "component_type": "dagster_community_components.GeocoderComponent",
   "description": "Component for geocoding addresses to latitude/longitude coordinates.",
   "category": "analytics",
   "icon": "BarChart2",

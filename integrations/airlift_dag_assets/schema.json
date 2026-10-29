@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AirliftDagAssetsComponent",
+  "component_type": "dagster_community_components.AirliftDagAssetsComponent",
   "description": "Mirror an Airflow DAG as Dagster assets via dagster-airlift.",
   "category": "integration",
   "icon": "ArrowRight",

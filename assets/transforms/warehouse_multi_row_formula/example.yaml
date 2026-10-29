@@ -1,4 +1,4 @@
-type: dagster_component_templates.WarehouseMultiRowFormulaComponent
+type: dagster_community_components.WarehouseMultiRowFormulaComponent
 attributes:
   asset_name: orders_with_running
   database_url: snowflake://user:pass@account/db/schema?warehouse=COMPUTE_WH

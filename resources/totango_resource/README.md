@@ -30,7 +30,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.TotangoResourceComponent
+type: dagster_community_components.TotangoResourceComponent
 attributes:
   resource_key: totango_resource  # key other components use
   region: us  # or 'eu'

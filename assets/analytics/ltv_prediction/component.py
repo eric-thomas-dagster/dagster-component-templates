@@ -337,7 +337,7 @@ class LTVPredictionComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LTVPredictionComponent
+        type: dagster_community_components.LTVPredictionComponent
         attributes:
           asset_name: customer_ltv
           upstream_asset_key: transaction_data

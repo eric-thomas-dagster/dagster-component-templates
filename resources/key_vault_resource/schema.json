@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.KeyVaultResourceComponent",
+  "component_type": "dagster_community_components.KeyVaultResourceComponent",
   "description": "Azure Key Vault client for runtime secret retrieval. Replaces per-component *_env_var fields with centralized secret management following Azure RBAC.",
   "category": "resource",
   "icon": "Key",

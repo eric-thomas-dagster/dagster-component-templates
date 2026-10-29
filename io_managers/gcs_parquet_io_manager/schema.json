@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GCSParquetIOManagerComponent",
+  "component_type": "dagster_community_components.GCSParquetIOManagerComponent",
   "description": "Register an IO manager that stores assets as Parquet files on Google Cloud Storage",
   "category": "io_manager",
   "icon": "si:googlecloudstorage",

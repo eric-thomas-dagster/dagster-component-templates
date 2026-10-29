@@ -101,7 +101,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.StatsigIngestionComponent
+type: dagster_community_components.StatsigIngestionComponent
 attributes:
   asset_name: statsig_ingestion
   console_api_key: "${STATSIG_CONSOLE_API_KEY}"

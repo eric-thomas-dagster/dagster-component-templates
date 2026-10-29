@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SSHAssetComponent",
+  "component_type": "dagster_community_components.SSHAssetComponent",
   "description": "Run shell commands on a remote host via SSH as a Dagster asset.",
   "category": "ingestion",
 

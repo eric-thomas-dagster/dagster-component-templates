@@ -1,4 +1,4 @@
-type: dagster_component_templates.WindowCalculationComponent
+type: dagster_community_components.WindowCalculationComponent
 attributes:
   asset_name: window_calculation_output
   upstream_asset_key: upstream_data

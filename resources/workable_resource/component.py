@@ -83,7 +83,7 @@ class WorkableResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.WorkableResourceComponent
+        type: dagster_community_components.WorkableResourceComponent
         attributes:
           resource_key: workable_resource
           api_token_env_var: WORKABLE_API_TOKEN

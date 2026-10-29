@@ -1,4 +1,4 @@
-type: dagster_component_templates.TsModelFactoryComponent
+type: dagster_community_components.TsModelFactoryComponent
 attributes:
   asset_name: product_forecasts
   upstream_asset_key: product_sales_history

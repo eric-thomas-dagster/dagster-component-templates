@@ -90,7 +90,7 @@ The assessment surfaces these in the materialization metadata (visible in Dagste
 ## Example: Oracle → Snowflake assessment
 
 ```yaml
-type: dagster_component_templates.DatabaseMigrationAssessmentComponent
+type: dagster_community_components.DatabaseMigrationAssessmentComponent
 attributes:
   asset_name: oracle_migration_assessment
   source_connection_env_var: ORACLE_DB_URL
@@ -111,7 +111,7 @@ attributes:
 Pipe the report to CSV for the team:
 
 ```yaml
-type: dagster_component_templates.DataframeToCsvComponent
+type: dagster_community_components.DataframeToCsvComponent
 attributes:
   asset_name: migration_assessment_csv
   upstream_asset_key: oracle_migration_assessment

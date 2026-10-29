@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AudioTransformAssetComponent",
+  "component_type": "dagster_community_components.AudioTransformAssetComponent",
   "description": "AudioTransformAssetComponent — ffmpeg-based audio resample / convert / trim.",
   "category": "transformation",
   "x-dagster-io": {

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PropensityScoringComponent",
+  "component_type": "dagster_community_components.PropensityScoringComponent",
   "description": "Component for calculating customer propensity scores.",
   "category": "analytics",
   "icon": "BarChart2",

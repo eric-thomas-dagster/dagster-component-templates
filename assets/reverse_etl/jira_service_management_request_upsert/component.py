@@ -145,7 +145,7 @@ class JiraServiceManagementRequestUpsertComponent(dg.Component, dg.Model, dg.Res
 
     Example — upstream asset:
         ```yaml
-        type: dagster_component_templates.JiraServiceManagementRequestUpsertComponent
+        type: dagster_community_components.JiraServiceManagementRequestUpsertComponent
         attributes:
           asset_name: jsm_requests_from_tickets
           upstream_asset_key: support_tickets

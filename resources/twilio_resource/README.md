@@ -28,7 +28,7 @@ Register a dagster-twilio TwilioResource for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.TwilioResourceComponent
+type: dagster_community_components.TwilioResourceComponent
 attributes:
   resource_key: twilio_resource  # key other components use
   # Required

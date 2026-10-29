@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PolarsIOManagerComponent",
+  "component_type": "dagster_community_components.PolarsIOManagerComponent",
   "description": "Wrap the official `dagster-polars` PolarsParquetIOManager so polars.DataFrame assets persist as Parquet.",
   "category": "io_manager",
   "icon": "si:polars",

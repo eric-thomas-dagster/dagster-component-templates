@@ -55,7 +55,7 @@ botocore>=1.29.0
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.AWSRedshiftComponent
+type: dagster_community_components.AWSRedshiftComponent
 attributes:
   aws_region: us-east-1
   cluster_identifier: my-redshift-cluster

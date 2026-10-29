@@ -1,4 +1,4 @@
-type: dagster_component_templates.NewRelicResourceComponent
+type: dagster_community_components.NewRelicResourceComponent
 attributes:
   resource_key: newrelic
   api_key_env_var: API_KEY

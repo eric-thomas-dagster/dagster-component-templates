@@ -1,4 +1,4 @@
-type: dagster_component_templates.ModalAssetComponent
+type: dagster_community_components.ModalAssetComponent
 attributes:
   asset_name: train_churn_model
   app_file: "{{ project_root }}/ml/training_app.py"

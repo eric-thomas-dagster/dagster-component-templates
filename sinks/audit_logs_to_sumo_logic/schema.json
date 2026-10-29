@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AuditLogsToSumoLogicComponent",
+  "component_type": "dagster_community_components.AuditLogsToSumoLogicComponent",
   "description": "Ship audit-log DataFrame to Sumo Logic via an HTTP Hosted Collector.",
   "category": "security",
   "vertical": "security",

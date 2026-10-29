@@ -80,7 +80,7 @@ Plain HTTP+JSON API -- no native Druid Python client required.
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.DruidSqlQueryComponent
+type: dagster_community_components.DruidSqlQueryComponent
 attributes:
   asset_name: daily_pageviews
   broker_url: http://druid-broker:8082

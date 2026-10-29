@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToNewRelicLogsComponent",
+  "component_type": "dagster_community_components.DataframeToNewRelicLogsComponent",
   "description": "Push DataFrame rows as log events to New Relic. Each row becomes one log entry; configurable timestamp + message fields, with logtype for downstream parsing.",
   "category": "sink",
   "icon": "Upload",

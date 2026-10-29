@@ -3,7 +3,7 @@
 YAML wrapper around `dagster_dataform.DataformRepositoryResource` (community package). Exposes Dataform compilation, workflow invocation, asset loading, and asset-check loading without writing Python.
 
 ```yaml
-type: dagster_component_templates.DataformRepositoryResourceComponent
+type: dagster_community_components.DataformRepositoryResourceComponent
 attributes:
   resource_key: dataform_repo
   location: us-central1

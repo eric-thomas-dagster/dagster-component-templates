@@ -1,4 +1,4 @@
-type: dagster_component_templates.CouchdbReaderComponent
+type: dagster_community_components.CouchdbReaderComponent
 attributes:
   asset_name: couchdb_active_orders
   url_env_var: COUCHDB_URL

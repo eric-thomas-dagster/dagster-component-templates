@@ -79,7 +79,7 @@ Reads a CSV file from the local filesystem and outputs a Pandas DataFrame asset.
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.DataframeFromCsvComponent
+type: dagster_community_components.DataframeFromCsvComponent
 attributes:
   asset_name: sales_data
   file_path: "${DATA_DIR}/sales/2024_sales.csv"

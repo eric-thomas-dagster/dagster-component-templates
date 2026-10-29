@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ModalAssetComponent",
+  "component_type": "dagster_community_components.ModalAssetComponent",
   "description": "Trigger a Modal function as a Dagster asset.",
   "category": "infrastructure",
   "icon": "si:modal",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.IcebergCatalogResourceComponent",
+  "component_type": "dagster_community_components.IcebergCatalogResourceComponent",
   "description": "Register a PyIceberg catalog (REST / Glue / Hive / Hadoop / SQL) once and reuse across many ingestion / sink / observation components.",
   "category": "resource",
   "icon": "si:apacheiceberg",

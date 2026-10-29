@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.EnrichedDbtCloudWorkspaceComponent",
+  "component_type": "dagster_community_components.EnrichedDbtCloudWorkspaceComponent",
   "description": "Enriched drop-in for DbtCloudComponent — mid-run per-model monitor, dbt-style job-selection DSL, plus the same manifest-based enrichments as EnrichedDbtProjectComponent (freshness policies, exposures as AssetSpecs, contract asset checks, mesh via external_packages). All opt-in; defaults preserve base DbtCloudComponent behavior.",
   "category": "dbt",
   "icon": "si:dbt",

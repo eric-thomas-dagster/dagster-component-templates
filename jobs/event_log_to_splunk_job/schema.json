@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.EventLogToSplunkJobComponent",
+  "component_type": "dagster_community_components.EventLogToSplunkJobComponent",
   "description": "Op-shaped job that ships new Dagster event log entries to Splunk via the HTTP Event Collector (HEC). Simpler than dagster_plus_to_siem_job: OSS event log only, single-destination.",
   "category": "jobs",
   "icon": "Upload",

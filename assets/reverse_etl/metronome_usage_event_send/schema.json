@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MetronomeUsageEventSendComponent",
+  "component_type": "dagster_community_components.MetronomeUsageEventSendComponent",
   "description": "Reverse-ETL usage-based billing activation: send a Metronome usage event (POST /ingest) for each row of an upstream DataFrame. Batched up to 100 events per request; transaction_id is Metronome's idempotency key so retries never double-bill.",
   "category": "reverse_etl",
   "icon": "si:metronome",

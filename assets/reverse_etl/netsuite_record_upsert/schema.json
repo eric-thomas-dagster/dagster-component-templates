@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.NetSuiteRecordUpsertComponent",
+  "component_type": "dagster_community_components.NetSuiteRecordUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into NetSuite Customer records. NetSuite's SuiteTalk REST record/v1 API has no single-call upsert -- this component performs GET /customer?q=<lookup_field> IS \"<value>\" to find an existing record, then PATCH /customer/{id} (update) or POST /customer (create). One GET + one POST-or-PATCH per row; no bulk/composite batching available in record/v1.",
   "category": "reverse_etl",
   "icon": "si:oracle",

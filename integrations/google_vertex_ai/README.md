@@ -58,7 +58,7 @@ google-auth>=2.17.0
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.GoogleVertexAIComponent
+type: dagster_community_components.GoogleVertexAIComponent
 attributes:
   project_id: my-gcp-project
   location: us-central1

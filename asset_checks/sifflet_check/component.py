@@ -23,7 +23,7 @@ class SiffletCheckComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SiffletCheckComponent
+        type: dagster_community_components.SiffletCheckComponent
         attributes:
           asset_key: warehouse/orders
           sifflet_tenant_env_var: SIFFLET_TENANT

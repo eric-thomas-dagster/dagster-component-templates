@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RedshiftIOManagerComponent",
+  "component_type": "dagster_community_components.RedshiftIOManagerComponent",
   "description": "Register a Redshift IO manager so assets are automatically stored in and loaded from Amazon Redshift",
   "category": "io_manager",
   "icon": "si:amazonredshift",

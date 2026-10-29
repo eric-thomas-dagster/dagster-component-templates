@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ScaleAIIngestionComponent",
+  "component_type": "dagster_community_components.ScaleAIIngestionComponent",
   "description": "Ingest Scale AI data-labeling task, batch, and project data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "devops-observability",

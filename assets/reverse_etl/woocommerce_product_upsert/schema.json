@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WooCommerceProductUpsertComponent",
+  "component_type": "dagster_community_components.WooCommerceProductUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into WooCommerce Products via the REST API v3. Search-then-write per row (WooCommerce has no native upsert) — GET /products?sku=X → PUT the match or POST a new product.",
   "category": "reverse_etl",
   "icon": "si:woocommerce",

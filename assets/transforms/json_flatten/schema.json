@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.JsonFlattenComponent",
+  "component_type": "dagster_community_components.JsonFlattenComponent",
   "description": "Recursively flatten nested dict columns into dot-notation columns.",
   "category": "transformation",
   "icon": "Braces",

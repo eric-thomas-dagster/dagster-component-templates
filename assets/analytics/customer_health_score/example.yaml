@@ -1,4 +1,4 @@
-type: dagster_component_templates.CustomerHealthScoreComponent
+type: dagster_community_components.CustomerHealthScoreComponent
 attributes:
   asset_name: customer_health_scores
   customer_data_asset_key: crm_customers

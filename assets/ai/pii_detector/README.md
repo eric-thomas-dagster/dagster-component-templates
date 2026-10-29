@@ -86,7 +86,7 @@ Each row in `output_column` contains a list of dicts:
 
 ## Example YAML
 ```yaml
-component_type: dagster_component_templates.PiiDetectorComponent
+component_type: dagster_community_components.PiiDetectorComponent
 asset_name: pii_detected_text
 upstream_asset_key: raw_user_messages
 input_column: message_body

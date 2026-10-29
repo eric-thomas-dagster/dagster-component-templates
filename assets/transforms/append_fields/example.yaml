@@ -1,4 +1,4 @@
-type: dagster_component_templates.AppendFields
+type: dagster_community_components.AppendFields
 attributes:
   asset_name: orders_with_config
   upstream_asset_key: orders

@@ -104,7 +104,7 @@ The Image Metadata Extractor Component uses PIL/Pillow to read image technical p
 ### Basic Metadata
 
 ```yaml
-type: dagster_component_templates.ImageMetadataExtractorComponent
+type: dagster_community_components.ImageMetadataExtractorComponent
 attributes:
   asset_name: image_metadata
   upstream_asset_key: raw_images
@@ -117,7 +117,7 @@ attributes:
 ### Dimensions Only (No EXIF)
 
 ```yaml
-type: dagster_component_templates.ImageMetadataExtractorComponent
+type: dagster_community_components.ImageMetadataExtractorComponent
 attributes:
   asset_name: image_dimensions
   upstream_asset_key: product_images

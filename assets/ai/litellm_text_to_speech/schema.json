@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LitellmTextToSpeechComponent",
+  "component_type": "dagster_community_components.LitellmTextToSpeechComponent",
   "description": "LitellmTextToSpeechComponent — multi-provider TTS via LiteLLM.",
   "category": "ai",
   "x-dagster-io": {

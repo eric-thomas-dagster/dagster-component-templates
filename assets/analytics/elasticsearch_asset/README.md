@@ -9,7 +9,7 @@ Index data into [Elasticsearch](https://www.elastic.co/elasticsearch) or query a
 Takes the DataFrame from the upstream asset (`upstream_asset_key`) and bulk-indexes its rows as documents into an Elasticsearch index using `elasticsearch.helpers.bulk()`.
 
 ```yaml
-type: dagster_component_templates.ElasticsearchAssetComponent
+type: dagster_community_components.ElasticsearchAssetComponent
 attributes:
   asset_name: product_search_index
   elasticsearch_url_env_var: ELASTICSEARCH_URL
@@ -28,7 +28,7 @@ Materialization metadata: `index`, `num_docs`, `chunk_size`, `id_field`.
 Runs an Elasticsearch DSL query against an index and writes the matching document `_source` fields to a destination database table.
 
 ```yaml
-type: dagster_component_templates.ElasticsearchAssetComponent
+type: dagster_community_components.ElasticsearchAssetComponent
 attributes:
   asset_name: electronics_search_results
   elasticsearch_url_env_var: ELASTICSEARCH_URL
@@ -161,7 +161,7 @@ Instead of `upstream_asset_key`, set `source` to run a SQL query and feed its ro
 `source` is only valid in `mode: index` (the DataFrame-input mode); `query` mode takes no DataFrame input.
 
 ```yaml
-type: dagster_component_templates.ElasticsearchAssetComponent
+type: dagster_community_components.ElasticsearchAssetComponent
 attributes:
   asset_name: product_search_index
   mode: index

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MagentoResourceComponent",
+  "component_type": "dagster_community_components.MagentoResourceComponent",
   "description": "Register a MagentoResource wrapping the Magento/Adobe Commerce REST API for use by other components",
   "category": "resource",
   "icon": "si:magento",

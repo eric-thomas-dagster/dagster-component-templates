@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MSSQLIOManagerComponent",
+  "component_type": "dagster_community_components.MSSQLIOManagerComponent",
   "description": "Persist DataFrames to a Microsoft SQL Server schema, one table per asset.",
   "category": "io_manager",
   "icon": "Save",

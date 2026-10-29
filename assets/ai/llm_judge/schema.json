@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LlmJudgeComponent",
+  "component_type": "dagster_community_components.LlmJudgeComponent",
   "description": "Evaluate and score LLM outputs against configurable criteria using another LLM as a judge, writing numeric scores and reasoning to new columns.",
   "category": "ai",
   "icon": "Star",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToDeltaTableComponent",
+  "component_type": "dagster_community_components.DataframeToDeltaTableComponent",
   "description": "Write a pandas DataFrame to an EXISTING Delta Lake table (append / overwrite / merge). Uses delta-rs — no Spark / JVM. For cross-engine Delta scenarios on S3 / ADLS / GCS / Unity Catalog.",
   "category": "sink",
   "icon": "si:databricks",

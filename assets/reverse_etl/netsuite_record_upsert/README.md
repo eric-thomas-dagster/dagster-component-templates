@@ -91,7 +91,7 @@ Defaults to `externalId` — NetSuite's dedicated field for external-system matc
 ## Example
 
 ```yaml
-type: dagster_component_templates.NetSuiteRecordUpsertComponent
+type: dagster_community_components.NetSuiteRecordUpsertComponent
 attributes:
   asset_name: netsuite_customers_mirror
   upstream_asset_key: dbt_marts_customers

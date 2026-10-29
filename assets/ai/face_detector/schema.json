@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FaceDetectorComponent",
+  "component_type": "dagster_community_components.FaceDetectorComponent",
   "description": "Detect faces in images and return bounding boxes, face count, and optional landmark positions.",
   "category": "ai",
   "icon": "SmilePlus",

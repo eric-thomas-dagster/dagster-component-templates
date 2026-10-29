@@ -27,7 +27,7 @@ your existing Splunk instance.
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.EventLogToSplunkJobComponent
+type: dagster_community_components.EventLogToSplunkJobComponent
 attributes:
   job_name: dagster_events_to_splunk
   schedule: "*/5 * * * *"

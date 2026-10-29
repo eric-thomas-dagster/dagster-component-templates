@@ -114,7 +114,7 @@ class MatillionRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example (env vars):
         ```yaml
-        type: dagster_component_templates.MatillionRunAssetComponent
+        type: dagster_community_components.MatillionRunAssetComponent
         attributes:
           asset_key: matillion/transforms/load_orders
           project: MyProject
@@ -127,7 +127,7 @@ class MatillionRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example (resource):
         ```yaml
-        type: dagster_component_templates.MatillionRunAssetComponent
+        type: dagster_community_components.MatillionRunAssetComponent
         attributes:
           asset_key: matillion/transforms/load_orders
           project: MyProject

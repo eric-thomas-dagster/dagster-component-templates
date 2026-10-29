@@ -31,27 +31,67 @@ Steps that fire *after* a `done` step short-circuit to no-op rows.
 
 | Field | Type | Description |
 |---|---|---|
-| `name` | `str` | Tool name — planner picks by this. |
-| `description` | `str` | One-line description shown to the planner. |
-| `system_message` | `str` | System prompt for this tool's LLM persona. Receives the planner's `args` field (JSON-encoded) as the user message. |
+| `synthesis_asset_name` | `str` | Final synthesis asset name. |
+| `task` | `str` | The task the iterative agent works on. |
+| `tools` | `List[IterativeSupervisorAgentToolSpec]` | Bounded list of tools the planner can pick at each step. |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `api_key_env_var` | `str` | — | Per-tool API key env var (falls back to component-level). |
+| `api_key_env_var` | `str` | `"OPENAI_API_KEY"` | — |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `group_name` | `str` | — | — |
+| `kinds` | `List[str]` | — | — |
+| `owners` | `List[str]` | — | Asset owners. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Asset tags. |
+
+### Freshness
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `freshness_max_lag_minutes` | `int` | — | FreshnessPolicy max lag minutes. |
+| `freshness_cron` | `str` | — | FreshnessPolicy cron schedule. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' |
+| `partition_start` | `str` | — | ISO date for time-based partitions. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitions. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_policy_max_retries` | `int` | — | RetryPolicy max retries. |
+| `retry_policy_delay_seconds` | `int` | — | Seconds between retries. |
+| `retry_policy_backoff` | `str` | `"exponential"` | 'linear' or 'exponential'. |
 
 ### Source / target
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `model` | `str` | — | Optional per-tool model override. Falls back to component-level model when None. Use a search-capable model (e.g. 'perplexity/sonar-pro' via Vercel AI Gateway) for tools that genuinely need retrieval, cheap model for math. |
+| `model` | `str` | `"gpt-4o-mini"` | — |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `api_base_env_var` | `str` | — | Per-tool base URL env var (e.g., VERCEL_AI_GATEWAY_URL). |
+| `step_asset_prefix` | `str` | `"agent_step"` | Prefix for the N step assets. Assets are named <prefix>_1, <prefix>_2, ... |
+| `max_iterations` | `int` | `5` | Max steps before forced termination. Also the number of step assets declared. |
+| `api_base_env_var` | `str` | — | — |
+| `temperature` | `float` | `0.1` | Lower is better for tool-picking discipline. |
+| `planner_max_tokens` | `int` | `400` | — |
+| `tool_max_tokens` | `int` | `500` | — |
+| `synthesis_max_tokens` | `int` | `600` | — |
+| `synthesis_system_message` | `str` | — | — |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)
 

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.InsightlyResourceComponent",
+  "component_type": "dagster_community_components.InsightlyResourceComponent",
   "description": "Self-contained Insightly CRM REST API v3.1 workhorse. HTTP Basic auth (API key as username, blank password) against a pod-specific host (https://api.{pod}.insightly.com/v3.1). Retries on 429 (logs X-RateLimit headers) / 5xx. .get()/.post()/.put() primitives plus .search() (field_name/field_value lookup) and .upsert() (emulated find-then-create-or-update — Insightly has no native upsert).",
   "category": "resource",
   "icon": "Plug",

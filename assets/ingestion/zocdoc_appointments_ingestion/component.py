@@ -272,7 +272,7 @@ class ZocdocAppointmentsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ZocdocAppointmentsIngestionComponent
+        type: dagster_community_components.ZocdocAppointmentsIngestionComponent
         attributes:
           asset_name: zocdoc_appointments
           resource_key: zocdoc_resource

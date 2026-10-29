@@ -86,7 +86,7 @@ Compute semantic or lexical similarity between two text columns, or between each
 
 ## Example YAML
 ```yaml
-component_type: dagster_component_templates.TextSimilarityComponent
+component_type: dagster_community_components.TextSimilarityComponent
 asset_name: text_similarity_scores
 upstream_asset_key: document_pairs
 text_column_a: question

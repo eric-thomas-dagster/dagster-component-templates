@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CloseCrmLeadUpsertComponent",
+  "component_type": "dagster_community_components.CloseCrmLeadUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Close CRM Leads. Close has no native atomic upsert endpoint (unlike Salesforce's External-ID upsert or HubSpot's batch/upsert), so this emulates one via search-then-write: POST /data/search/ (Advanced Filtering) to find an existing Lead by dedupe_field, then PUT /lead/{id}/ or POST /lead/. NOT race-condition-safe under concurrent writers.",
   "category": "reverse_etl",
   "vertical": "crm-sales",

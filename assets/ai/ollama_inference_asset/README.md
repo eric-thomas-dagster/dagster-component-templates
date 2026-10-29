@@ -199,7 +199,7 @@ The enriched DataFrame is returned as the asset value; there are no destination 
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.OllamaInferenceAssetComponent
+type: dagster_community_components.OllamaInferenceAssetComponent
 attributes:
   asset_name: categorized_feedback
   upstream_asset_key: raw_feedback
@@ -217,7 +217,7 @@ Instead of `upstream_asset_key`, set `source` to run a SQL query and feed its ro
 `source` is `{kind: warehouse_query, sql: <query>, resource_key: <registered resource> OR database_url_env_var: <env var>}`. `resource_key` names a Dagster resource exposing `.get_engine()`, `.get_connection()` or `.get_client()` (Postgres, Snowflake, DuckDB, BigQuery, Redshift, ...); `database_url_env_var` names an env var holding a SQLAlchemy URL.
 
 ```yaml
-type: dagster_component_templates.OllamaInferenceAssetComponent
+type: dagster_community_components.OllamaInferenceAssetComponent
 attributes:
   asset_name: categorized_feedback
   model: llama3.2
@@ -245,7 +245,7 @@ Results stay a DataFrame (this adds no database write-back); compose with a sink
 If multiple components in your project connect to the same Ollama server, define an `OllamaResource` once and reference it by key. This avoids repeating host and model configuration across YAML files.
 
 ```python
-from dagster_component_templates.ollama_inference_asset.component import OllamaResource
+from dagster_community_components.ollama_inference_asset.component import OllamaResource
 
 defs = dg.Definitions(
     resources={

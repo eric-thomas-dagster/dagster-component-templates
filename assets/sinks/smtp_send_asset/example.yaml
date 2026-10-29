@@ -1,4 +1,4 @@
-type: dagster_component_templates.SmtpSendAssetComponent
+type: dagster_community_components.SmtpSendAssetComponent
 attributes:
   asset_name: email_send_log
   upstream_asset_key: notifications

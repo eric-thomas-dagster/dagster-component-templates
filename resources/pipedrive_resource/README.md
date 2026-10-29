@@ -35,7 +35,7 @@ pip install pipedrive-python-lib
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.PipedriveResourceComponent
+type: dagster_community_components.PipedriveResourceComponent
 attributes:
   resource_key: pipedrive_resource  # key other components use
   api_token_env_var: PIPEDRIVE_API_TOKEN  # env var holding your API token

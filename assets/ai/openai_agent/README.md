@@ -86,22 +86,70 @@ mcp_servers:
 
 | Field | Type | Description |
 |---|---|---|
-| `name` | `str` | Short name used to prefix tool names (e.g. 'fs' → 'fs__list_files'). |
+| `asset_name` | `str` | Output Dagster asset name. |
+| `prompt` | `str` | User prompt sent to the model on the first turn. |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `url` | `str` | — | http / sse: full URL of the MCP endpoint. |
+| `api_key_env_var` | `str` | `"OPENAI_API_KEY"` | Env var holding the OpenAI API key. |
+| `base_url_env_var` | `str` | — | Optional env var holding a custom base_url (Azure OpenAI / proxies / OpenAI-compatible endpoints). |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `group_name` | `str` | — | Dagster asset group name. |
+| `description` | `str` | — | Asset description. |
+| `owners` | `List[str]` | — | Asset owners. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags. |
+| `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['llm', 'agent', 'openai']. |
+| `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
+
+### Freshness
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `freshness_max_lag_minutes` | `int` | — | FreshnessPolicy max lag in minutes. |
+| `freshness_cron` | `str` | — | FreshnessPolicy deadline cron schedule. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'multi' \| 'dynamic'. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | ISO date for time-based partitions. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static/multi. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_policy_max_retries` | `int` | — | Max retries on failure. |
+| `retry_policy_delay_seconds` | `int` | — | Seconds between retries. |
+| `retry_policy_backoff` | `str` | `"exponential"` | 'linear' or 'exponential'. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `model` | `str` | `"gpt-4o-mini"` | OpenAI model id (e.g. gpt-4o, gpt-4o-mini, gpt-4-turbo, o1-mini). |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `type` | `str` | `"stdio"` | Transport: 'stdio' (subprocess), 'http' (streamable-HTTP — modern MCP, what `claude mcp add --transport http` uses), or 'sse' (legacy server-sent events). |
-| `command` | `List[str]` | — | stdio only: [executable, ...args]. |
-| `env` | `Dict[str, str]` | — | stdio only: extra env vars for the subprocess. |
-| `headers` | `Dict[str, str]` | — | http / sse: literal HTTP headers (don't put secrets here — use `headers_env`). |
-| `headers_env` | `Dict[str, str]` | — | http / sse: map of header_name → env_var_name; the header value is read from the named env var at materialization time. |
+| `system_prompt` | `str` | — | System prompt prepended to the message list. |
+| `organization_env_var` | `str` | — | Optional env var holding the OpenAI organization id. |
+| `temperature` | `float` | `0.0` | Sampling temperature. |
+| `max_tokens` | `int` | `2048` | Max tokens per model call. |
+| `reasoning_effort` | `str` | — | Reasoning-model effort level: 'low' \| 'medium' \| 'high'. Forwarded to OpenAI o1/o3/o4 reasoning models. Passed through unchanged for other OpenAI models — OpenAI returns 400 if the model doesn't accept it, so only set… _(full docs in schema.json + component README)_ |
+| `max_iterations` | `int` | `10` | Max tool-call rounds before bailing. |
+| `mcp_servers` | `List[MCPServerSpec]` | `list()` | List of MCP servers to expose as tools. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)

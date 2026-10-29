@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.QuickBooksIngestionComponent",
+  "component_type": "dagster_community_components.QuickBooksIngestionComponent",
   "description": "Ingest QuickBooks Online accounting data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "finance-hr",

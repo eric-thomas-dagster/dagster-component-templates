@@ -1,3 +1,3 @@
-component_type: dagster_component_templates.GoogleVertexAIComponent
+component_type: dagster_community_components.GoogleVertexAIComponent
 name: Google Vertex AI
 description: Import Google Vertex AI training jobs, batch prediction, custom jobs, and ML pipelines

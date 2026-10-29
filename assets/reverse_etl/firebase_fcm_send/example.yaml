@@ -10,7 +10,7 @@
 #
 # Requires a FirebaseResourceComponent registered under the same resource_key.
 
-type: dagster_component_templates.FirebaseFcmSendComponent
+type: dagster_community_components.FirebaseFcmSendComponent
 attributes:
   asset_name: firebase_cart_abandoned_push
   upstream_asset_key: dbt_marts_cart_abandoned_today

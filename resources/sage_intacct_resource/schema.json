@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SageIntacctResourceComponent",
+  "component_type": "dagster_community_components.SageIntacctResourceComponent",
   "description": "Register a SageIntacctResource wrapping Sage Intacct's legacy XML Web Services gateway (xmlgw.phtml) for use by other components",
   "category": "resource",
   "vertical": "finance-ops",

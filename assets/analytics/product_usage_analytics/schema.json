@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ProductUsageAnalyticsComponent",
+  "component_type": "dagster_community_components.ProductUsageAnalyticsComponent",
   "description": "Component that analyzes product feature usage and user engagement.",
   "category": "analytics",
   "icon": "BarChart2",

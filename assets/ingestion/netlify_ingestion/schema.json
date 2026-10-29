@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.NetlifyIngestionComponent",
+  "component_type": "dagster_community_components.NetlifyIngestionComponent",
   "description": "Ingest Netlify site, deploy, form, and form-submission data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "devops-observability",

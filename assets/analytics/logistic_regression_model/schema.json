@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LogisticRegressionModelComponent",
+  "component_type": "dagster_community_components.LogisticRegressionModelComponent",
   "description": "Fit a logistic regression classifier and output predictions.",
   "category": "analytics",
   "icon": "BarChart2",

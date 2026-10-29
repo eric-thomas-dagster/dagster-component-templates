@@ -223,7 +223,7 @@ attributes:
 
 ```yaml
 # File: defs/components/orders_to_db.yaml
-type: dagster_component_templates.S3ToDatabaseAssetComponent
+type: dagster_community_components.S3ToDatabaseAssetComponent
 attributes:
   asset_name: orders_ingestion
   database_url: ${DATABASE_URL}
@@ -314,7 +314,7 @@ snowflake://user:password@account/database/schema?warehouse=wh
 ### CSV with Column Mapping and Types
 
 ```yaml
-type: dagster_component_templates.S3ToDatabaseAssetComponent
+type: dagster_community_components.S3ToDatabaseAssetComponent
 attributes:
   asset_name: customers_ingestion
   database_url: ${DATABASE_URL}
@@ -328,7 +328,7 @@ attributes:
 ### JSON Files
 
 ```yaml
-type: dagster_component_templates.S3ToDatabaseAssetComponent
+type: dagster_community_components.S3ToDatabaseAssetComponent
 attributes:
   asset_name: events_ingestion
   database_url: ${DATABASE_URL}
@@ -341,7 +341,7 @@ attributes:
 ### Parquet with Schema
 
 ```yaml
-type: dagster_component_templates.S3ToDatabaseAssetComponent
+type: dagster_community_components.S3ToDatabaseAssetComponent
 attributes:
   asset_name: analytics_data
   database_url: ${DATABASE_URL}
@@ -354,7 +354,7 @@ attributes:
 ### Auto-Detect Format
 
 ```yaml
-type: dagster_component_templates.S3ToDatabaseAssetComponent
+type: dagster_community_components.S3ToDatabaseAssetComponent
 attributes:
   asset_name: multi_format_ingestion
   database_url: ${DATABASE_URL}
@@ -408,7 +408,7 @@ attributes:
 
 ### 2. S3 to DB Asset Configuration
 ```yaml
-type: dagster_component_templates.S3ToDatabaseAssetComponent
+type: dagster_community_components.S3ToDatabaseAssetComponent
 attributes:
   asset_name: orders_raw
   database_url: ${DATABASE_URL}

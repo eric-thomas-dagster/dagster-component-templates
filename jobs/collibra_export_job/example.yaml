@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/collibra_export_job/schema.json
-type: dagster_component_templates.CollibraExportJobComponent
+type: dagster_community_components.CollibraExportJobComponent
 attributes:
   job_name: sync_dagster_lineage_to_collibra
   schedule: "0 3 * * *"

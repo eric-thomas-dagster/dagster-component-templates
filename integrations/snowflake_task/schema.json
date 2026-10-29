@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SnowflakeTaskComponent",
+  "component_type": "dagster_community_components.SnowflakeTaskComponent",
   "description": "Define a Snowflake TASK as Dagster YAML. Materialization runs CREATE OR REPLACE TASK and (optionally) EXECUTE TASK.",
   "category": "integration",
   "icon": "si:snowflake",

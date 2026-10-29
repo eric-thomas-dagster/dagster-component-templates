@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DefaultResourceComponent",
+  "component_type": "dagster_community_components.DefaultResourceComponent",
   "description": "Register a DefaultResource wrapping the Default (default.com) GTM/revenue-operations platform REST API -- workflow triggers and meeting scheduling -- for use by other components.",
   "category": "resource",
   "icon": "Workflow",

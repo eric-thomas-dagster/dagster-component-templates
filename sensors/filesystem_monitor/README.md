@@ -80,7 +80,7 @@ Monitor a directory for CSV files:
 
 ```yaml
 # File: defs/components/csv_sensor.yaml
-type: dagster_component_templates.FilesystemMonitorSensorComponent
+type: dagster_community_components.FilesystemMonitorSensorComponent
 attributes:
   sensor_name: csv_files_sensor
   directory_path: /data/incoming
@@ -94,7 +94,7 @@ attributes:
 Monitor directory and all subdirectories:
 
 ```yaml
-type: dagster_component_templates.FilesystemMonitorSensorComponent
+type: dagster_community_components.FilesystemMonitorSensorComponent
 attributes:
   sensor_name: recursive_file_sensor
   directory_path: /data/warehouse
@@ -108,7 +108,7 @@ attributes:
 Monitor for different file formats:
 
 ```yaml
-type: dagster_component_templates.FilesystemMonitorSensorComponent
+type: dagster_community_components.FilesystemMonitorSensorComponent
 attributes:
   sensor_name: multi_format_sensor
   directory_path: /data/exports
@@ -140,7 +140,7 @@ This sensor passes file information to downstream assets via run_config:
 
 ```yaml
 # File: defs/components/file_processor.yaml
-type: dagster_component_templates.FileTransformerAssetComponent
+type: dagster_community_components.FileTransformerAssetComponent
 attributes:
   asset_name: process_incoming_files
   # This asset will receive file info from sensor
@@ -187,7 +187,7 @@ attributes:
 
 ```yaml
 # defs/components/data_files_sensor.yaml
-type: dagster_component_templates.FilesystemMonitorSensorComponent
+type: dagster_community_components.FilesystemMonitorSensorComponent
 attributes:
   sensor_name: data_files_sensor
   directory_path: /data/incoming
@@ -200,7 +200,7 @@ attributes:
 
 ```yaml
 # defs/components/ingest_file.yaml
-type: dagster_component_templates.FileTransformerAssetComponent
+type: dagster_community_components.FileTransformerAssetComponent
 attributes:
   asset_name: ingest_data_file
   output_format: parquet
@@ -411,7 +411,7 @@ Set `batch_into_one_run: true` for that kind of job:
 It needs `partition_mode: run_config` (the default).
 
 ```yaml
-type: dagster_component_templates.FilesystemMonitorSensorComponent
+type: dagster_community_components.FilesystemMonitorSensorComponent
 attributes:
   sensor_name: invoice_fields_new_files
   directory_path: /data/invoices

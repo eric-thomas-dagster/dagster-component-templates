@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OllamaInferenceAssetComponent",
+  "component_type": "dagster_community_components.OllamaInferenceAssetComponent",
   "description": "Shared Ollama connection config for use across multiple components.",
   "category": "ai",
   "icon": "si:ollama",

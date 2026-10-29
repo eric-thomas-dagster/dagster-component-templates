@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TwilioSmsSendComponent",
+  "component_type": "dagster_community_components.TwilioSmsSendComponent",
   "description": "Reverse-ETL message activation: send a personalized SMS via Twilio to each row of an upstream DataFrame (`client.messages.create(to=..., from_=..., body=...)`). Sends REAL messages the moment this asset materializes -- no upload-for-later-matching indirection, and Twilio bills per message segment.",
   "category": "reverse_etl",
   "icon": "si:twilio",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.UniqueDedupComponent",
+  "component_type": "dagster_community_components.UniqueDedupComponent",
   "description": "Remove or flag duplicate records from a DataFrame.",
   "category": "transformation",
   "icon": "Shuffle",

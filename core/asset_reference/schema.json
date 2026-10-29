@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AssetReferenceComponent",
+  "component_type": "dagster_community_components.AssetReferenceComponent",
   "name": "Asset Reference",
   "category": "core",
   "icon": "Link",

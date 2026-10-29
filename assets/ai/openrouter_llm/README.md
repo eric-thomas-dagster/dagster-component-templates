@@ -5,7 +5,7 @@ Per-row LLM inference via [OpenRouter](https://openrouter.ai) — a hosted LLM g
 Drop-in shape parallel to `openai_llm` / `anthropic_llm` / `gemini_llm` / `groq_llm` — native single-integration, but multi-vendor backend.
 
 ```yaml
-type: dagster_component_templates.OpenRouterLLMComponent
+type: dagster_community_components.OpenRouterLLMComponent
 attributes:
   asset_name: ticket_summaries
   upstream_asset_key: support_tickets

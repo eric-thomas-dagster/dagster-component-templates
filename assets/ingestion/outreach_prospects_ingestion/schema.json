@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OutreachProspectsIngestionComponent",
+  "component_type": "dagster_community_components.OutreachProspectsIngestionComponent",
   "description": "Ingest Outreach Prospects via Outreach's JSON:API REST API and return a flattened pandas DataFrame.",
   "category": "source",
   "vertical": "sales-engagement",

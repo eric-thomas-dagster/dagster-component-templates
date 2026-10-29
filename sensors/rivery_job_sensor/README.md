@@ -46,7 +46,7 @@ On each tick, the sensor:
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.RiveryJobSensorComponent
+type: dagster_community_components.RiveryJobSensorComponent
 attributes:
   sensor_name: my_sensor_name
   river_id: my_river_id

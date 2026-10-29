@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DruidSqlQueryComponent",
+  "component_type": "dagster_community_components.DruidSqlQueryComponent",
   "name": "Druid SQL Query",
   "category": "source",
   "icon": "si:apachedruid",

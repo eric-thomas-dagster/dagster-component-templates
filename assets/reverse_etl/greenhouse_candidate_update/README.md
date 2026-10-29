@@ -91,7 +91,7 @@ Reverse-ETL sink: update existing **Greenhouse candidates'** tags and/or custom 
 
 ## Example
 ```yaml
-type: dagster_component_templates.GreenhouseCandidateUpdateComponent
+type: dagster_community_components.GreenhouseCandidateUpdateComponent
 attributes:
   asset_name: greenhouse_candidate_scores
   upstream_asset_key: candidate_screening_scores

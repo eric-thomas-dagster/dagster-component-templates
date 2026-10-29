@@ -3,7 +3,7 @@
 Generate small test MP4s via ffmpeg's built-in `testsrc` (color-bar pattern) + `sine` audio generators. Emits a DataFrame with one row per video.
 
 ```yaml
-type: dagster_component_templates.SyntheticVideoGeneratorComponent
+type: dagster_community_components.SyntheticVideoGeneratorComponent
 attributes:
   asset_name: sample_videos
   samples: default

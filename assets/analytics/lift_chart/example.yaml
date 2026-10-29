@@ -1,4 +1,4 @@
-type: dagster_component_templates.LiftChartComponent
+type: dagster_community_components.LiftChartComponent
 attributes:
   description: Generate a decile lift chart for a churn propensity model.
   asset_name: churn_lift_chart

@@ -1,4 +1,4 @@
-type: dagster_component_templates.DuckDBIOManagerComponent
+type: dagster_community_components.DuckDBIOManagerComponent
 attributes:
   resource_key: io_manager
   database: data/warehouse.duckdb

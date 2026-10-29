@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.O365AuditLogIngestionComponent",
+  "component_type": "dagster_community_components.O365AuditLogIngestionComponent",
   "description": "Pull Microsoft 365 / Office 365 Unified Audit Log entries via the Management Activity API.",
   "category": "security",
   "vertical": "security",

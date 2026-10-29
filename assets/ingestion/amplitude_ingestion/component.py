@@ -216,7 +216,7 @@ class AmplitudeIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.AmplitudeIngestionComponent
+        type: dagster_community_components.AmplitudeIngestionComponent
         attributes:
           asset_name: amplitude_ingestion
           api_key: "${AMPLITUDE_API_KEY}"

@@ -1,4 +1,4 @@
-type: dagster_component_templates.TotangoResourceComponent
+type: dagster_community_components.TotangoResourceComponent
 attributes:
   resource_key: totango_resource
   region: us

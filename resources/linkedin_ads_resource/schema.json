@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LinkedInAdsResourceComponent",
+  "component_type": "dagster_community_components.LinkedInAdsResourceComponent",
   "description": "Register a LinkedInAdsResource for the LinkedIn Marketing API for use by other components",
   "category": "resource",
   "icon": "si:linkedin",

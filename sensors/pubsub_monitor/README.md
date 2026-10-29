@@ -66,7 +66,7 @@ Uses Application Default Credentials (ADC): Workload Identity, `GOOGLE_APPLICATI
 ## Usage
 
 ```yaml
-type: dagster_component_templates.PubSubMonitorSensorComponent
+type: dagster_community_components.PubSubMonitorSensorComponent
 attributes:
   sensor_name: pubsub_orders_sensor
   project: my-gcp-project

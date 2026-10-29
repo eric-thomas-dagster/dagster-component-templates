@@ -1,4 +1,4 @@
-type: dagster_component_templates.ClickhouseIOManagerComponent
+type: dagster_community_components.ClickhouseIOManagerComponent
 attributes:
   resource_key: <fill in>
   host: <fill in>

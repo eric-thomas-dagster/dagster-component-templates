@@ -223,7 +223,7 @@ class PersonioIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.PersonioIngestionComponent
+        type: dagster_community_components.PersonioIngestionComponent
         attributes:
           asset_name: personio_data
           client_id: "{{ env('PERSONIO_CLIENT_ID') }}"

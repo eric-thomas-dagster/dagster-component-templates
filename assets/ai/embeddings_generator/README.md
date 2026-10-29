@@ -55,7 +55,7 @@ Both additions mirror `context_engineering_pipeline`'s design, so this component
 ### OpenAI Embeddings
 
 ```yaml
-type: dagster_component_templates.EmbeddingsGeneratorComponent
+type: dagster_community_components.EmbeddingsGeneratorComponent
 attributes:
   asset_name: openai_embeddings
   provider: openai
@@ -71,7 +71,7 @@ attributes:
 ### Local Sentence Transformers (No API)
 
 ```yaml
-type: dagster_component_templates.EmbeddingsGeneratorComponent
+type: dagster_community_components.EmbeddingsGeneratorComponent
 attributes:
   asset_name: local_embeddings
   provider: sentence_transformers
@@ -85,7 +85,7 @@ attributes:
 ### Cohere Embeddings
 
 ```yaml
-type: dagster_component_templates.EmbeddingsGeneratorComponent
+type: dagster_community_components.EmbeddingsGeneratorComponent
 attributes:
   asset_name: cohere_embeddings
   provider: cohere
@@ -101,7 +101,7 @@ attributes:
 Reduce embedding dimensions to save storage:
 
 ```yaml
-type: dagster_component_templates.EmbeddingsGeneratorComponent
+type: dagster_community_components.EmbeddingsGeneratorComponent
 attributes:
   asset_name: reduced_embeddings
   provider: openai
@@ -122,7 +122,7 @@ attributes:
 Compute pairwise similarities:
 
 ```yaml
-type: dagster_component_templates.EmbeddingsGeneratorComponent
+type: dagster_community_components.EmbeddingsGeneratorComponent
 attributes:
   asset_name: embeddings_with_similarity
   provider: sentence_transformers
@@ -140,7 +140,7 @@ attributes:
 Cache embeddings to disk:
 
 ```yaml
-type: dagster_component_templates.EmbeddingsGeneratorComponent
+type: dagster_community_components.EmbeddingsGeneratorComponent
 attributes:
   asset_name: cached_embeddings
   provider: openai
@@ -375,13 +375,13 @@ Use embeddings with:
 
 ```yaml
 # 1. Load documents
-- type: dagster_component_templates.CSVFileIngestionComponent
+- type: dagster_community_components.CSVFileIngestionComponent
   attributes:
     asset_name: documents
     file_path: "data/docs.csv"
 
 # 2. Chunk documents
-- type: dagster_component_templates.DocumentChunkerComponent
+- type: dagster_community_components.DocumentChunkerComponent
   attributes:
     asset_name: chunks
     strategy: recursive
@@ -390,7 +390,7 @@ Use embeddings with:
     source_column: text
 
 # 3. Generate embeddings
-- type: dagster_component_templates.EmbeddingsGeneratorComponent
+- type: dagster_community_components.EmbeddingsGeneratorComponent
   attributes:
     asset_name: embeddings
     provider: openai
@@ -400,7 +400,7 @@ Use embeddings with:
     output_column: embedding
 
 # 4. Store in vector database
-- type: dagster_component_templates.VectorStoreWriterComponent
+- type: dagster_community_components.VectorStoreWriterComponent
   attributes:
     asset_name: vector_store
     provider: pinecone
@@ -411,13 +411,13 @@ Use embeddings with:
 
 ```yaml
 # 1. Load content
-- type: dagster_component_templates.DatabaseQueryComponent
+- type: dagster_community_components.DatabaseQueryComponent
   attributes:
     asset_name: articles
     query: "SELECT id, title, content FROM articles"
 
 # 2. Generate embeddings with similarity
-- type: dagster_component_templates.EmbeddingsGeneratorComponent
+- type: dagster_community_components.EmbeddingsGeneratorComponent
   attributes:
     asset_name: article_embeddings
     provider: sentence_transformers

@@ -71,7 +71,7 @@ Given a baseline conversion rate, minimum detectable effect (MDE), significance 
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ABControlsComponent
+type: dagster_community_components.ABControlsComponent
 attributes:
   asset_name: checkout_v2_sample_size
   upstream_asset_key: any_upstream

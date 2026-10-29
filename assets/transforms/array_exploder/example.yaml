@@ -1,4 +1,4 @@
-type: dagster_component_templates.ArrayExploderComponent
+type: dagster_community_components.ArrayExploderComponent
 attributes:
   asset_name: exploded_tags
   upstream_asset_key: raw_documents

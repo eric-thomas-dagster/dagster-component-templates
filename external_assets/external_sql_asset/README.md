@@ -73,7 +73,7 @@ This component does not read from or write to Sql. It is a **lineage declaration
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ExternalSqlAsset
+type: dagster_community_components.ExternalSqlAsset
 attributes:
   asset_key: my_service/asset
   table_name: my_table_name
@@ -88,7 +88,7 @@ Set `create_observation_sensor: true` to also get the polling sensor that keeps 
 health/data-version current — one component, one YAML, no manual `asset_key` wiring:
 
 ```yaml
-type: dagster_component_templates.ExternalSqlAsset
+type: dagster_community_components.ExternalSqlAsset
 attributes:
   asset_key: external/sql
   table_name: my_table
@@ -104,7 +104,7 @@ asset and sensor on independent lifecycles), pair this component with the standa
 
 ```yaml
 # 1. Declare the external asset (lineage node)
-type: dagster_component_templates.ExternalSqlAsset
+type: dagster_community_components.ExternalSqlAsset
 attributes:
   asset_key: external/sql
   table_name: my_table
@@ -113,7 +113,7 @@ attributes:
 ---
 
 # 2. Observe it on a schedule
-type: dagster_component_templates.SqlObservationSensorComponent
+type: dagster_community_components.SqlObservationSensorComponent
 attributes:
   sensor_name: sql_asset_observer
   asset_key: external/sql
@@ -128,7 +128,7 @@ Use `tables:` instead of the top-level `asset_key`/`table_name` fields to declar
 from one `ExternalSqlAsset` instance, instead of one YAML block per table:
 
 ```yaml
-type: dagster_component_templates.ExternalSqlAsset
+type: dagster_community_components.ExternalSqlAsset
 attributes:
   connection_string_env_var: CONNECTION_STRING_ENV_VAR
   group_name: warehouse_sources

@@ -216,7 +216,7 @@ class WrikeIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.WrikeIngestionComponent
+        type: dagster_community_components.WrikeIngestionComponent
         attributes:
           asset_name: wrike_ingestion
           access_token: "${WRIKE_ACCESS_TOKEN}"

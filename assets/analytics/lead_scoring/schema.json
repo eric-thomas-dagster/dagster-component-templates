@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LeadScoringComponent",
+  "component_type": "dagster_community_components.LeadScoringComponent",
   "description": "Component that scores and qualifies leads for sales prioritization.",
   "category": "analytics",
   "icon": "BarChart2",

@@ -100,7 +100,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.RunningTotalComponent
+type: dagster_community_components.RunningTotalComponent
 attributes:
   asset_name: cumulative_revenue_by_region
   upstream_asset_key: daily_sales

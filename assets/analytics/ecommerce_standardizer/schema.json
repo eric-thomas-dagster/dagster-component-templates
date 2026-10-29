@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.EcommerceStandardizerComponent",
+  "component_type": "dagster_community_components.EcommerceStandardizerComponent",
   "description": "Component for standardizing e-commerce data across platforms.",
   "category": "analytics",
   "icon": "BarChart2",

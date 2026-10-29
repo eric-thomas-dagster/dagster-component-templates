@@ -216,7 +216,7 @@ class IntercomIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.IntercomIngestionComponent
+        type: dagster_community_components.IntercomIngestionComponent
         attributes:
           asset_name: intercom_ingestion
           access_token: "${INTERCOM_ACCESS_TOKEN}"

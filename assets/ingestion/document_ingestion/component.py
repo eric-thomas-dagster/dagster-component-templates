@@ -214,7 +214,7 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.DocumentIngestionComponent
+        type: dagster_community_components.DocumentIngestionComponent
         attributes:
           asset_name: knowledge_base_docs
           source_path: "/path/to/documents"

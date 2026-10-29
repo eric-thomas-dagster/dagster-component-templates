@@ -349,7 +349,7 @@ class EventDataStandardizerComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.EventDataStandardizerComponent
+        type: dagster_community_components.EventDataStandardizerComponent
         attributes:
           asset_name: standardized_events
           platform: "segment"

@@ -67,7 +67,7 @@ Access tokens are cached in-memory (class-level, keyed by tenant + client_id env
 
 ## Example
 ```yaml
-type: dagster_component_templates.Auth0ResourceComponent
+type: dagster_community_components.Auth0ResourceComponent
 attributes:
   resource_key: auth0_resource
   tenant_domain: "mycompany.us.auth0.com"

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SpannerQueryAssetComponent",
+  "component_type": "dagster_community_components.SpannerQueryAssetComponent",
   "description": "SpannerQueryAssetComponent \u2014 run a SQL query against Cloud Spanner.",
   "category": "source",
   "x-dagster-io": {

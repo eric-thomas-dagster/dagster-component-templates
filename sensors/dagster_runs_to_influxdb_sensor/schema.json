@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DagsterRunsToInfluxdbSensorComponent",
+  "component_type": "dagster_community_components.DagsterRunsToInfluxdbSensorComponent",
   "description": "Push Dagster run lifecycle metrics (duration / count / run_id) to InfluxDB 2.x / 3.x (and AWS Timestream for InfluxDB) as line protocol on every run completion.",
   "category": "sensor",
   "icon": "si:influxdb",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DefaultWorkflowTriggerComponent",
+  "component_type": "dagster_community_components.DefaultWorkflowTriggerComponent",
   "description": "Reverse-ETL sink: fire one Default (default.com) API trigger per row of an upstream DataFrame, running whichever workflow is wired to that API trigger node (lead routing, scheduling, automations). Default has no upsert concept for trigger firings -- re-running on the same data re-fires the workflow.",
   "category": "reverse_etl",
   "icon": "Zap",

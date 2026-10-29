@@ -1,4 +1,4 @@
-type: dagster_component_templates.GCSParquetIOManagerComponent
+type: dagster_community_components.GCSParquetIOManagerComponent
 attributes:
   resource_key: io_manager
   bucket: my-gcs-bucket

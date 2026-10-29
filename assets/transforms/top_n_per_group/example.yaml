@@ -1,4 +1,4 @@
-type: dagster_component_templates.TopNPerGroupComponent
+type: dagster_community_components.TopNPerGroupComponent
 attributes:
   asset_name: top_products_per_category
   upstream_asset_key: product_sales

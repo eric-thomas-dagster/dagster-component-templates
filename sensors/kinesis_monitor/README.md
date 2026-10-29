@@ -62,7 +62,7 @@ Uses the standard boto3 credential chain. Requires `kinesis:GetRecords`, `kinesi
 ## Usage
 
 ```yaml
-type: dagster_component_templates.KinesisMonitorSensorComponent
+type: dagster_community_components.KinesisMonitorSensorComponent
 attributes:
   sensor_name: clickstream_sensor
   stream_name: clickstream-events

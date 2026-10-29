@@ -40,7 +40,7 @@ requests>=2.28.0
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.CoalesceJobSensorComponent
+type: dagster_community_components.CoalesceJobSensorComponent
 attributes:
   sensor_name: coalesce_transform_done
   environment_id: "prod-environment-abc123"

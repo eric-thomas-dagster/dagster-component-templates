@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DistanceCalculatorComponent",
+  "component_type": "dagster_community_components.DistanceCalculatorComponent",
   "description": "Calculate geographic distance between two coordinate pairs per row.",
   "category": "analytics",
   "icon": "BarChart2",

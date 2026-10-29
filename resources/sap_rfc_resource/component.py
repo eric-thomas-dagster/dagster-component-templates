@@ -61,7 +61,7 @@ class SapRFCResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     Example — direct connect to ECC on-prem:
 
         ```yaml
-        type: dagster_component_templates.SapRFCResourceComponent
+        type: dagster_community_components.SapRFCResourceComponent
         attributes:
           resource_key: sap_ecc
           ashost: sapecc01.acme.com

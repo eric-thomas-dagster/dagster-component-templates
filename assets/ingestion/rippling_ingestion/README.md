@@ -97,7 +97,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.RippleIngestionComponent
+type: dagster_community_components.RippleIngestionComponent
 attributes:
   asset_name: rippling_ingestion
   api_token: "${RIPPLING_API_TOKEN}"

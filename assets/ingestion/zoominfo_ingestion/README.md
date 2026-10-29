@@ -115,7 +115,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.ZoomInfoIngestionComponent
+type: dagster_community_components.ZoomInfoIngestionComponent
 attributes:
   asset_name: zoominfo_ingestion
   client_id: "${ZOOMINFO_CLIENT_ID}"

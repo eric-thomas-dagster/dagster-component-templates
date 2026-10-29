@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CastordocExportJobComponent",
+  "component_type": "dagster_community_components.CastordocExportJobComponent",
   "description": "Op-shaped job that walks the live Dagster asset graph and enriches existing Castor (CastorDoc / Coalesce Catalog) tables with Dagster-sourced descriptions, tags, data-quality signal, and lineage edges.",
   "category": "jobs",
   "icon": "Activity",

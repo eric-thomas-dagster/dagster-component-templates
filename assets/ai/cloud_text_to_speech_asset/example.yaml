@@ -1,4 +1,4 @@
-type: dagster_component_templates.CloudTextToSpeechAssetComponent
+type: dagster_community_components.CloudTextToSpeechAssetComponent
 attributes:
   asset_name: announcements_audio
   upstream_asset_key: announcements

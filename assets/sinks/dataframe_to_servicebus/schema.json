@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToServiceBusComponent",
+  "component_type": "dagster_community_components.DataframeToServiceBusComponent",
   "description": "Send each DataFrame row to an Azure Service Bus queue or topic as a JSON message. Mirrors dataframe_to_eventhub for SB workloads — completes the registry's existing servicebus_monitor + servicebus_to_database_asset (consumer) pair.",
   "category": "sink",
   "icon": "MessageSquare",

@@ -164,7 +164,7 @@ class SapHanaIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.SapHanaIngestionComponent
+        type: dagster_community_components.SapHanaIngestionComponent
         attributes:
           asset_name: customer_metrics
           host: myhana.hanacloud.ondemand.com

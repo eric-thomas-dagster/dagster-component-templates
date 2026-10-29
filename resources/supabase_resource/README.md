@@ -31,7 +31,7 @@ pip install "supabase>=2.0.0" "requests>=2.28"
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.SupabaseResourceComponent
+type: dagster_community_components.SupabaseResourceComponent
 attributes:
   resource_key: supabase_resource
   url_env_var: SUPABASE_URL

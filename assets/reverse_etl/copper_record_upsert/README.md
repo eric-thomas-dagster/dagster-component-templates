@@ -98,7 +98,7 @@ All three object types accept `phone_numbers: [{"number": ..., "category": "work
 ## Example
 
 ```yaml
-type: dagster_component_templates.CopperRecordUpsertComponent
+type: dagster_community_components.CopperRecordUpsertComponent
 attributes:
   asset_name: copper_people_mirror
   upstream_asset_key: dbt_marts_contacts
@@ -119,7 +119,7 @@ attributes:
 ## Example — Companies (note: email_domain, not email)
 
 ```yaml
-type: dagster_component_templates.CopperRecordUpsertComponent
+type: dagster_community_components.CopperRecordUpsertComponent
 attributes:
   asset_name: copper_companies_mirror
   upstream_asset_key: dbt_marts_accounts

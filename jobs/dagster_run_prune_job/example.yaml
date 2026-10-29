@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_run_prune_job/schema.json
-type: dagster_component_templates.DagsterRunPruneJobComponent
+type: dagster_community_components.DagsterRunPruneJobComponent
 attributes:
   job_name: prune_dagster_run_history
   schedule: "0 4 * * *"                # daily at 4am

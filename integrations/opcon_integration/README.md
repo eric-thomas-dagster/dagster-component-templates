@@ -154,28 +154,59 @@ A shop running two or three schedulers can present a single Dagster pane of glas
 
 ## Fields
 
-### Required
+### Connection
 
-| Field | Type | Description |
-|---|---|---|
-| `job_name` | `str` | OpCon Job name (as registered on the OpCon schedule). |
-| `asset_name` | `str` | Dagster asset name that wraps this Job. |
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `endpoint` | `str` | `"https://opcon.internal"` | OpCon REST API base URL (used when demo_mode=false); scheduleactions/dailyjobs/tokens are relative to this. |
+
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `poll_interval_seconds` | `int` | `10` | Seconds between OpCon daily-job status polls (real mode only -- demo mode doesn't sleep). |
+| `max_retries` | `int` | `2` | Dagster-side asset retries on failure. |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `description` | `str` | — | Prose description shown in the Dagster UI. |
-| `deps` | `List[str]` | `list()` | Upstream asset keys (slash-separated for nested keys) that must complete before THIS job runs -- per-job, not shared across every job. |
+| `group_name` | `str` | `"opcon_integration"` | Dagster asset group for the job assets. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_start_date` | `str` | `"2024-01-01"` | Start date for the daily partitioned assets. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_delay_seconds` | `int` | `60` | Delay between Dagster asset retries. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `source_tables` | `List[OpConSourceTableSpec]` | `list()` | Tables loaded by OpCon that Dagster observes (adds to lineage). |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `schedule_name` | `str` | — | OpCon Schedule the job belongs to. |
-| `machine` | `str` | — | OpCon Machine (agent) the job runs on. |
-| `department` | `str` | — | OpCon Department the job is organized under. |
-| `force_restart` | `bool` | `true` | Use JOB:FORCERESTART (ignores dependencies, starts immediately) instead of JOB:START (honors dependencies). |
+| `demo_mode` | `bool` | `true` | Use the demo client (logs a simulated REST lifecycle, no external calls) instead of the real REST client. |
+| `jobs` | `List[OpConJobSpec]` | `list()` | OpCon Daily Jobs to wrap as daily-partitioned Dagster assets. |
+| `opcon_user_env` | `str` | `"OPCON_USER"` | Env var holding the OpCon username for token exchange. |
+| `opcon_password_env` | `str` | `"OPCON_PASSWORD"` | Env var holding the OpCon password for token exchange. |
+| `poll_timeout_seconds` | `int` | `3600` | Total seconds to wait for terminal state before failing. |
+| `generate_external_monitor_sensor` | `bool` | `true` | Build the opcon_external_execution_monitor sensor (observes OpCon-initiated runs Dagster didn't trigger). Cycles through every declared job, not just the first. |
+| `generate_inbound_trigger_sensor` | `bool` | `false` | Build the opcon_inbound_trigger sensor. It only logs a simulated message in demo mode and does nothing in real mode until you wire a real webhook/event source -- off by default. |
+| `generate_force_restart_job` | `bool` | `false` | Build the opcon_force_restart_job op-backed job. Off by default -- Dagster+'s own re-execution-from-failure covers most of what this would be used for. |
+| `generate_hold_release_cancel_jobs` | `bool` | `false` | Build the opcon_hold_job / opcon_release_job / opcon_cancel_job op-backed jobs. |
+| `generate_reconciliation` | `bool` | `false` | Build the reconciliation op/job and its hourly schedule. |
+| `reconciliation_cron` | `str` | `"0 * * * *"` | Cron for the OpCon vs Dagster state reconciliation job (only used when generate_reconciliation=true). |
+| `translation` | `TranslationFn[OpConJobSpec]` | — | Optional per-job customization hook applied to each job's AssetSpec (e.g. `translation: {tags: {team: '{{ job.department }}'}}`). group_name/kinds/deps/description/owners are REPLACED by whatever you set; tags/metadata a… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 

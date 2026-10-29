@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ExternalServiceBusAsset",
+  "component_type": "dagster_community_components.ExternalServiceBusAsset",
   "description": "Declare a Service Bus queue or topic as an external asset in the Dagster asset graph — makes it visible for lineage without materializing it from Dagster.",
   "category": "external",
   "icon": "Link",

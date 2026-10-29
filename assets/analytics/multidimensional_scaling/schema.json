@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MultidimensionalScalingComponent",
+  "component_type": "dagster_community_components.MultidimensionalScalingComponent",
   "description": "Reduce feature dimensions to 2D/3D via metric MDS for visualization.",
   "category": "analytics",
   "icon": "Map",

@@ -66,7 +66,7 @@ For small frames or single-machine work, `polars_pipeline` is lighter weight. Fo
 ## YAML
 
 ```yaml
-type: dagster_component_templates.PySparkPipelineComponent
+type: dagster_community_components.PySparkPipelineComponent
 attributes:
   asset_name: paid_orders_summary
   spark_config:

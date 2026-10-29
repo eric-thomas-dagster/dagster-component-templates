@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SmtpSendAssetComponent",
+  "component_type": "dagster_community_components.SmtpSendAssetComponent",
   "description": "SmtpSendAssetComponent \u2014 send emails via SMTP.",
   "category": "sink",
   "x-dagster-io": {

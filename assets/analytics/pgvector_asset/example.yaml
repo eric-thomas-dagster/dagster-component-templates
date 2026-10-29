@@ -1,4 +1,4 @@
-type: dagster_component_templates.PgvectorAssetComponent
+type: dagster_community_components.PgvectorAssetComponent
 attributes:
   asset_name: product_description_embeddings
   upstream_asset_key: rows_to_index

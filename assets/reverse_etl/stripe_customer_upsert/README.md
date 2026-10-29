@@ -98,7 +98,7 @@ Every managed customer gets `metadata.dagster_key = <key_column value>` stamped 
 
 ## Example
 ```yaml
-type: dagster_component_templates.StripeCustomerUpsertComponent
+type: dagster_community_components.StripeCustomerUpsertComponent
 attributes:
   asset_name: stripe_customers_mirror
   upstream_asset_key: customers_seed

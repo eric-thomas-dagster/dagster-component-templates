@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AutoMLAssetComponent",
+  "component_type": "dagster_community_components.AutoMLAssetComponent",
   "name": "AutoML Asset",
   "description": "Real AutoML for tabular data: searches across model families (LightGBM, XGBoost, random forest, extra trees, linear models, ...) via FLAML and picks the winner -- unlike ml_pipeline's grid_search/random_search/bayesian_search ops, which tune hyperparameters for a single model_type you already specify. Caches the winning recipe and does a cheap refit on every subsequent run instead of always re-searching.",
   "category": "analytics",

@@ -57,7 +57,7 @@ def my_custom_asset(fabric: FabricWorkspaceResource):
 ```
 
 ```yaml
-type: dagster_component_templates.FabricWorkspaceResourceComponent
+type: dagster_community_components.FabricWorkspaceResourceComponent
 attributes:
   resource_key: fabric
   workspace_id: "12345678-1234-1234-1234-123456789012"

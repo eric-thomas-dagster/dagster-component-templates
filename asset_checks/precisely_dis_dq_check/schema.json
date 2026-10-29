@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PreciselyDISDQCheckComponent",
+  "component_type": "dagster_community_components.PreciselyDISDQCheckComponent",
   "description": "Wrap a Precisely DIS Data Quality rule set as N Dagster asset checks.\n\nExample:\n    ```yaml\n    type: dagster_community_components.PreciselyDISDQCheckComponent\n    attributes:\n      asset_key: warehouse/orders\n      dataset_id: \"ds-abc-123\"\n      rule_ids: [\"rule-001\", \"rule-002\", \"rule-003\"]\n      client_id_env_var: PRECISELY_DIS_CLIENT_ID\n      client_secret_env_var: PRECISELY_DIS_CLIENT_SECRET\n    ```\n\nThe DIS dataset is referenced by ``dataset_id`` (the DIS-side\nidentifier, not the Dagster asset key). Each rule becomes its own\nDagster asset check named ``dis_dq__{rule_id}`` on the target asset.",
   "category": "check",
   "icon": "Search",

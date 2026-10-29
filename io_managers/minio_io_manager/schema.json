@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MinIOIOManagerComponent",
+  "component_type": "dagster_community_components.MinIOIOManagerComponent",
   "description": "Register a Delta Lake IO manager pointed at MinIO for S3-compatible lakehouse storage",
   "category": "io_manager",
   "icon": "si:minio",

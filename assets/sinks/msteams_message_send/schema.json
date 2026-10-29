@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MSTeamsMessageSendComponent",
+  "component_type": "dagster_community_components.MSTeamsMessageSendComponent",
   "description": "MSTeamsMessageSendComponent \u2014 post business-data-driven alerts to Microsoft Teams.",
   "category": "sink",
   "x-dagster-io": {

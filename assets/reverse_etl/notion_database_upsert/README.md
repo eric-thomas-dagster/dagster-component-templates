@@ -90,7 +90,7 @@ Property values are serialized based on the database's schema, retrieved from th
 
 ## Example
 ```yaml
-type: dagster_component_templates.NotionDatabaseUpsertComponent
+type: dagster_community_components.NotionDatabaseUpsertComponent
 attributes:
   asset_name: notion_incidents_mirror
   upstream_asset_key: incidents_current

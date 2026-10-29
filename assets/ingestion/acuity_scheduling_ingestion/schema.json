@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AcuitySchedulingIngestionComponent",
+  "component_type": "dagster_community_components.AcuitySchedulingIngestionComponent",
   "description": "Ingest Acuity Scheduling appointment, client, and calendar data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "productivity",

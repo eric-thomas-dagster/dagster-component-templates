@@ -216,7 +216,7 @@ class SegmentIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.SegmentIngestionComponent
+        type: dagster_community_components.SegmentIngestionComponent
         attributes:
           asset_name: segment_ingestion
           access_token: "${SEGMENT_ACCESS_TOKEN}"

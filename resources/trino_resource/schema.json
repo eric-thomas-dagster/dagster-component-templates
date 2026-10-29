@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TrinoResourceComponent",
+  "component_type": "dagster_community_components.TrinoResourceComponent",
   "description": "Register a Trino distributed SQL query engine resource for use by other components",
   "category": "resource",
   "icon": "si:trino",

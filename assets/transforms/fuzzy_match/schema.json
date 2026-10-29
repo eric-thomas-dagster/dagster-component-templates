@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FuzzyMatch",
+  "component_type": "dagster_community_components.FuzzyMatch",
   "description": "Find and optionally deduplicate rows with similar string values using fuzzy matching.",
   "category": "transformation",
   "icon": "Shuffle",

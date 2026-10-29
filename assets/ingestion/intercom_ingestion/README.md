@@ -105,7 +105,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 ## Example
 
 ```yaml
-type: dagster_component_templates.IntercomIngestionComponent
+type: dagster_community_components.IntercomIngestionComponent
 attributes:
   asset_name: intercom_ingestion
   access_token: "${INTERCOM_ACCESS_TOKEN}"
@@ -115,7 +115,7 @@ attributes:
 ## Example — sharing credentials with an IntercomResourceComponent
 
 ```yaml
-type: dagster_component_templates.IntercomIngestionComponent
+type: dagster_community_components.IntercomIngestionComponent
 attributes:
   asset_name: intercom_ingestion
   resource_key: intercom   # matches IntercomResourceComponent's default resource_key

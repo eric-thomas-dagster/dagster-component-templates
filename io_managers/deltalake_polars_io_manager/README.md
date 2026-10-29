@@ -36,7 +36,7 @@ Wraps the official `dagster-deltalake-polars` package.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.DeltaLakePolarsIOManagerComponent
+type: dagster_community_components.DeltaLakePolarsIOManagerComponent
 attributes:
   resource_key: <fill in>
   root_uri: <fill in>

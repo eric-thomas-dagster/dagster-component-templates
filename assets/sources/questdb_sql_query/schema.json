@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.QuestdbSqlQueryComponent",
+  "component_type": "dagster_community_components.QuestdbSqlQueryComponent",
   "name": "QuestDB SQL Query",
   "category": "source",
   "icon": "si:questdb",

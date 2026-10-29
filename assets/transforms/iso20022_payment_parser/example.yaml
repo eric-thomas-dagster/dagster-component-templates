@@ -1,4 +1,4 @@
-type: dagster_component_templates.Iso20022PaymentParserComponent
+type: dagster_community_components.Iso20022PaymentParserComponent
 attributes:
   asset_name: payments_flat
   upstream_asset_key: iso20022_messages

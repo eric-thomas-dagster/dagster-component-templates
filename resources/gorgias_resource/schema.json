@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GorgiasResourceComponent",
+  "component_type": "dagster_community_components.GorgiasResourceComponent",
   "description": "Register a GorgiasResource wrapping Gorgias's REST API (HTTP Basic Auth) for use by other components",
   "category": "resource",
   "icon": "si:gorgias",

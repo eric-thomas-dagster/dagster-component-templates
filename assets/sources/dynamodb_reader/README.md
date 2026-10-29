@@ -96,7 +96,7 @@ The `DynamodbReaderComponent` performs a full table scan on an AWS DynamoDB tabl
 ### Basic scan
 
 ```yaml
-type: dagster_component_templates.DynamodbReaderComponent
+type: dagster_community_components.DynamodbReaderComponent
 attributes:
   asset_name: dynamo_users
   table_name: users
@@ -106,7 +106,7 @@ attributes:
 ### Scan with limit using GSI
 
 ```yaml
-type: dagster_component_templates.DynamodbReaderComponent
+type: dagster_community_components.DynamodbReaderComponent
 attributes:
   asset_name: recent_orders
   table_name: orders
@@ -119,7 +119,7 @@ attributes:
 ### With explicit AWS credentials
 
 ```yaml
-type: dagster_component_templates.DynamodbReaderComponent
+type: dagster_community_components.DynamodbReaderComponent
 attributes:
   asset_name: prod_records
   table_name: production_data

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.StripeEventSensorComponent",
+  "component_type": "dagster_community_components.StripeEventSensorComponent",
   "description": "Trigger a run when Stripe emits new events (charges, subscriptions, invoices, etc).",
   "category": "sensor",
   "icon": "si:stripe",

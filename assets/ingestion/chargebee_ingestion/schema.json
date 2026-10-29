@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ChargebeeIngestionComponent",
+  "component_type": "dagster_community_components.ChargebeeIngestionComponent",
   "description": "Ingest Chargebee subscription billing data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "finance-hr",

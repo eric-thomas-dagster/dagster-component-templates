@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BigCommerceResourceComponent",
+  "component_type": "dagster_community_components.BigCommerceResourceComponent",
   "description": "Register a BigCommerceResource (X-Auth-Token REST client for the Catalog API v3) for use by other components",
   "category": "resource",
   "icon": "si:bigcommerce",

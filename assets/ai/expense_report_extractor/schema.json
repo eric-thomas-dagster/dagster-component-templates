@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ExpenseReportExtractorComponent",
+  "component_type": "dagster_community_components.ExpenseReportExtractorComponent",
   "description": "Extract structured data from employee expense reports using an LLM.",
   "category": "ai",
   "icon": "DollarSign",

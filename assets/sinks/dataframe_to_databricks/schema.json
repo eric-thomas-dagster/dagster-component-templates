@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToDatabricksComponent",
+  "component_type": "dagster_community_components.DataframeToDatabricksComponent",
   "description": "Write a DataFrame to a Databricks Delta Lake table.",
   "category": "sink",
   "icon": "si:databricks",

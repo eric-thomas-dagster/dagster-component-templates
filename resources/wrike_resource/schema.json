@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WrikeResourceComponent",
+  "component_type": "dagster_community_components.WrikeResourceComponent",
   "description": "Wrike REST API v4 client wrapper. Permanent access token sent as a standard Bearer token in the Authorization header.",
   "category": "resource",
   "icon": "si:wrike",

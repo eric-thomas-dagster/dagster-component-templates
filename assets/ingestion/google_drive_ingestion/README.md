@@ -149,7 +149,7 @@ When `download=true` and the file's MIME type is `application/vnd.google-apps.*`
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.GoogleDriveIngestionComponent
+type: dagster_community_components.GoogleDriveIngestionComponent
 attributes:
   asset_name: drive_invoices
   credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}

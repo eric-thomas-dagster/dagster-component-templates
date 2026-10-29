@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MCPToolCallComponent",
+  "component_type": "dagster_community_components.MCPToolCallComponent",
   "description": "Deterministic single-shot call to one MCP tool — no LLM in the loop. Args templating supports {partition_key}, {partition_keys.<dim>}, {run_id}.",
   "category": "source",
   "icon": "Network",

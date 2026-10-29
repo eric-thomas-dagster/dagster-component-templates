@@ -74,7 +74,7 @@ Grant the Service app **only** the `okta.users.manage` scope — it covers every
 
 ## Example
 ```yaml
-type: dagster_component_templates.OktaResourceComponent
+type: dagster_community_components.OktaResourceComponent
 attributes:
   resource_key: okta_resource
   org_url: "https://mycompany.okta.com"

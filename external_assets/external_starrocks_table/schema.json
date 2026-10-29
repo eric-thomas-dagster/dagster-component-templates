@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ExternalStarRocksTableAsset",
+  "component_type": "dagster_community_components.ExternalStarRocksTableAsset",
   "description": "Declare a StarRocks table as an external Dagster asset.\n\nExample:\n    ```yaml\n    type: dagster_community_components.ExternalStarRocksTableAsset\n    attributes:\n      asset_key: starrocks/analytics/events_realtime\n      database: analytics\n      table: events_realtime\n      fe_host: starrocks-fe.mycompany.com\n      group_name: starrocks\n    ```",
   "category": "external",
   "x-dagster-io": {

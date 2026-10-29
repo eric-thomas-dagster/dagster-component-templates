@@ -331,7 +331,7 @@ class CustomerJourneyMappingComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.CustomerJourneyMappingComponent
+        type: dagster_community_components.CustomerJourneyMappingComponent
         attributes:
           asset_name: customer_journeys
           source_asset: customer_events

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PolarsPipelineComponent",
+  "component_type": "dagster_community_components.PolarsPipelineComponent",
   "description": "Multi-step polars LazyFrame pipeline in a single Dagster asset (query-plan fusion across all steps).",
   "category": "transformation",
   "icon": "si:polars",

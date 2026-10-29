@@ -216,7 +216,7 @@ class ClickUpIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ClickUpIngestionComponent
+        type: dagster_community_components.ClickUpIngestionComponent
         attributes:
           asset_name: clickup_ingestion
           team_id: "${CLICKUP_TEAM_ID}"

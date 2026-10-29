@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DatabricksSqlResourceComponent",
+  "component_type": "dagster_community_components.DatabricksSqlResourceComponent",
   "description": "Register a databricks-sql-connector connection to a Databricks SQL Warehouse for use by other components' source:{kind: warehouse_query} field. Not the same as databricks_resource (job/cluster management, no SQL query capability).",
   "category": "resource",
   "icon": "si:databricks",

@@ -1,4 +1,4 @@
-type: dagster_component_templates.FhirResourceNormalizerComponent
+type: dagster_community_components.FhirResourceNormalizerComponent
 attributes:
   asset_name: patients_flat
   upstream_asset_key: fhir_resources

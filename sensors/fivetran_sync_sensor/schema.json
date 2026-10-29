@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FivetranSyncSensorComponent",
+  "component_type": "dagster_community_components.FivetranSyncSensorComponent",
   "description": "Trigger a job when a Fivetran connector sync completes.",
   "category": "sensor",
   "icon": "si:fivetran",

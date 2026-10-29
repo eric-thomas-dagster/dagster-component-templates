@@ -319,7 +319,7 @@ class EntityExtractorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.EntityExtractorComponent
+        type: dagster_community_components.EntityExtractorComponent
         attributes:
           asset_name: extracted_entities
           method: spacy

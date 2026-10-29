@@ -61,7 +61,7 @@ Import Azure Stream Analytics entities as Dagster assets for orchestrating real-
 
 ### Basic Example
 ```yaml
-type: dagster_component_templates.AzureStreamAnalyticsComponent
+type: dagster_community_components.AzureStreamAnalyticsComponent
 attributes:
   subscription_id: "12345678-1234-1234-1234-123456789012"
   resource_group_name: my-resource-group
@@ -73,7 +73,7 @@ attributes:
 
 ### Advanced Example
 ```yaml
-type: dagster_component_templates.AzureStreamAnalyticsComponent
+type: dagster_community_components.AzureStreamAnalyticsComponent
 attributes:
   subscription_id: "12345678-1234-1234-1234-123456789012"
   resource_group_name: my-resource-group

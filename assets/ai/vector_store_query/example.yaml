@@ -1,7 +1,7 @@
 # Vector Store Query receives query embeddings from upstream assets via IO manager
 # Draw connection from Embedding Generator or any asset producing query embeddings
 
-type: dagster_component_templates.VectorStoreQueryComponent
+type: dagster_community_components.VectorStoreQueryComponent
 attributes:
   asset_name: search_results
   upstream_asset_key: queries

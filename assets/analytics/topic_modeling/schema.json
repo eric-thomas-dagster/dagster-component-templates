@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TopicModelingComponent",
+  "component_type": "dagster_community_components.TopicModelingComponent",
   "description": "Discover topics in a text column using Latent Dirichlet Allocation (LDA).",
   "category": "analytics",
   "icon": "BarChart2",

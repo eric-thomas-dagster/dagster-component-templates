@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PdfTextExtractorComponent",
+  "component_type": "dagster_community_components.PdfTextExtractorComponent",
   "description": "Extract text from a column containing PDF file paths or PDF bytes.",
   "category": "transformation",
   "icon": "FileText",

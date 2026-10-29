@@ -1,4 +1,4 @@
-type: dagster_component_templates.LineageToCollibraComponent
+type: dagster_community_components.LineageToCollibraComponent
 attributes:
   asset_name: lineage_to_collibra
   upstream_asset_key: lineage_graph

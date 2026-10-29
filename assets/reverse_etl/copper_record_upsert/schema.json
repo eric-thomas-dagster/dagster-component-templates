@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CopperRecordUpsertComponent",
+  "component_type": "dagster_community_components.CopperRecordUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Copper CRM People / Leads / Companies via search-then-write. Copper has no native atomic upsert endpoint, so this searches /{object_type}/search by dedupe_field, then PUTs the match or POSTs a new record. NOT race-condition-safe under concurrent writers.",
   "category": "reverse_etl",
   "icon": "UsersRound",

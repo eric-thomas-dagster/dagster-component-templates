@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MixpanelEventTrackComponent",
+  "component_type": "dagster_community_components.MixpanelEventTrackComponent",
   "description": "Reverse-ETL sink \u2014 POST DataFrame rows to Mixpanel via bulk endpoints. Two modes: `events` (POST /import, service-account auth, up to 2000/batch) or `profiles` (POST /engage#profile-set, project-token auth, up to 50/batch).",
   "category": "reverse_etl",
   "x-dagster-io": {

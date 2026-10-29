@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.StripeResourceComponent",
+  "component_type": "dagster_community_components.StripeResourceComponent",
   "description": "Register a StripeResource wrapping the Stripe Python SDK for use by other components",
   "category": "resource",
   "icon": "si:stripe",

@@ -1,4 +1,4 @@
-type: dagster_component_templates.CloudMonitoringMetricsAssetComponent
+type: dagster_community_components.CloudMonitoringMetricsAssetComponent
 attributes:
   asset_name: gce_cpu_utilization
   # credentials_path: /path/to/sa.json  # or GOOGLE_APPLICATION_CREDENTIALS

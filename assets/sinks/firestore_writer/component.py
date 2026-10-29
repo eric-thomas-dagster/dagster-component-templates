@@ -250,7 +250,7 @@ class FirestoreWriterComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.FirestoreWriterComponent
+        type: dagster_community_components.FirestoreWriterComponent
         attributes:
           asset_name: write_users_to_firestore
           upstream_asset_key: processed_users

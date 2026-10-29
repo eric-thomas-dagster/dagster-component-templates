@@ -65,7 +65,7 @@ Execute a SQL query against a database and get a polars DataFrame back. The data
 ## YAML
 
 ```yaml
-type: dagster_component_templates.PolarsReadDatabaseComponent
+type: dagster_community_components.PolarsReadDatabaseComponent
 attributes:
   asset_name: paid_orders_q1
   connection_uri: postgresql://user:pass@host:5432/orders

@@ -3,7 +3,7 @@
 Structured document parsing via Google Cloud Document AI. Pass a column of document references (PDFs, images) — get back text, form fields, entities, and tables in a structured DataFrame.
 
 ```yaml
-type: dagster_component_templates.DocumentAiExtractorComponent
+type: dagster_community_components.DocumentAiExtractorComponent
 attributes:
   asset_name: parsed_invoices
   upstream_asset_key: invoice_files

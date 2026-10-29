@@ -110,7 +110,7 @@ Insightly's generic Search endpoint matches on "any standard or custom field" pe
 ## Example
 
 ```yaml
-type: dagster_component_templates.InsightlyRecordUpsertComponent
+type: dagster_community_components.InsightlyRecordUpsertComponent
 attributes:
   asset_name: insightly_contacts_mirror
   upstream_asset_key: dbt_marts_customers
@@ -131,7 +131,7 @@ attributes:
 ## Example — Leads (flat fields, no CONTACTINFOS)
 
 ```yaml
-type: dagster_component_templates.InsightlyRecordUpsertComponent
+type: dagster_community_components.InsightlyRecordUpsertComponent
 attributes:
   asset_name: insightly_leads_mirror
   upstream_asset_key: dbt_marts_mqls

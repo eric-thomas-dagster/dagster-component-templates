@@ -3,7 +3,7 @@
 Trigger a single deployed Cloud Run job, wait for it to finish, surface the execution result + log link as Dagster metadata. Same shape as `matillion_run_asset` / `rivery_run_asset` / `precisely_run_asset`.
 
 ```yaml
-type: dagster_component_templates.CloudRunJobTriggerAssetComponent
+type: dagster_community_components.CloudRunJobTriggerAssetComponent
 attributes:
   asset_name: nightly_etl_run
   credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}

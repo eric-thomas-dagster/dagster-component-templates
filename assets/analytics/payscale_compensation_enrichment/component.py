@@ -458,7 +458,7 @@ class PayscaleCompensationEnrichmentComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.PayscaleCompensationEnrichmentComponent
+        type: dagster_community_components.PayscaleCompensationEnrichmentComponent
         attributes:
           asset_name: compensation_benchmarked_roles
           upstream_asset_key: open_roles

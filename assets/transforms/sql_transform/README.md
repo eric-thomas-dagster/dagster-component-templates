@@ -140,7 +140,7 @@ When the asset runs, the following are available in the template (no need to dec
 ### Daily-partitioned Snowflake CTAS (uses auto-injected `partition_key`)
 
 ```yaml
-type: dagster_component_templates.SqlTransformComponent
+type: dagster_community_components.SqlTransformComponent
 attributes:
   asset_name: daily_revenue
   connection_url_env_var: SNOWFLAKE_URL
@@ -163,7 +163,7 @@ attributes:
 For data that doesn't exist on weekends (market data, bank feeds), `partition_type: cron` restricts the date axis to any cron expression instead of every calendar day:
 
 ```yaml
-type: dagster_component_templates.SqlTransformComponent
+type: dagster_community_components.SqlTransformComponent
 attributes:
   asset_name: daily_reconciliation
   connection_url_env_var: SNOWFLAKE_URL
@@ -179,7 +179,7 @@ attributes:
 ### Inline read mode (DataFrame for downstream pandas)
 
 ```yaml
-type: dagster_component_templates.SqlTransformComponent
+type: dagster_community_components.SqlTransformComponent
 attributes:
   asset_name: top_customers
   connection_url_env_var: SNOWFLAKE_URL
@@ -218,7 +218,7 @@ The `{% raw %}` block above has to wrap the WHOLE templated body, including the 
 ### BigQuery aggregation
 
 ```yaml
-type: dagster_component_templates.SqlTransformComponent
+type: dagster_community_components.SqlTransformComponent
 attributes:
   asset_name: daily_revenue
   connection_url_env_var: BIGQUERY_URL

@@ -1,5 +1,5 @@
 # Basic configuration - reads databricks.yml from project root
-type: dagster_component_templates.DatabricksAssetBundleComponent
+type: dagster_community_components.DatabricksAssetBundleComponent
 attributes:
   databricks_config_path: databricks.yml
   workspace_host: https://dbc-abc123.cloud.databricks.com
@@ -8,7 +8,7 @@ attributes:
 
 ---
 # Advanced configuration - with asset key prefix
-type: dagster_component_templates.DatabricksAssetBundleComponent
+type: dagster_community_components.DatabricksAssetBundleComponent
 attributes:
   databricks_config_path: bundles/production/databricks.yml
   workspace_host: https://dbc-abc123.cloud.databricks.com

@@ -179,7 +179,7 @@ class LinkedInMatchedAudienceUpsertComponent(dg.Component, dg.Model, dg.Resolvab
 
     Example:
         ```yaml
-        type: dagster_component_templates.LinkedInMatchedAudienceUpsertComponent
+        type: dagster_community_components.LinkedInMatchedAudienceUpsertComponent
         attributes:
           asset_name: linkedin_high_ltv_customers_segment
           upstream_asset_key: dbt_marts_high_ltv_customers

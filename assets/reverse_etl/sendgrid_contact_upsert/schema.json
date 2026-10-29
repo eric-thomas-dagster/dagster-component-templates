@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SendGridContactUpsertComponent",
+  "component_type": "dagster_community_components.SendGridContactUpsertComponent",
   "description": "Reverse-ETL sink \u2014 batch-PUT DataFrame rows to SendGrid Marketing as contact upserts via the async bulk-import endpoint (PUT /v3/marketing/contacts, up to 30000/request).",
   "category": "reverse_etl",
   "x-dagster-io": {

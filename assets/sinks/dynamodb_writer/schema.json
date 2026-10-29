@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DynamodbWriterComponent",
+  "component_type": "dagster_community_components.DynamodbWriterComponent",
   "description": "Component for writing a DataFrame to an AWS DynamoDB table.",
   "category": "sink",
   "icon": "si:amazondynamodb",

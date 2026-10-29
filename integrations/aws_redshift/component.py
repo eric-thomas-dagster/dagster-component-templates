@@ -62,7 +62,7 @@ class AWSRedshiftComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.AWSRedshiftComponent
+        type: dagster_community_components.AWSRedshiftComponent
         attributes:
           aws_region: us-east-1
           cluster_identifier: my-redshift-cluster

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SQLToDatabaseAssetComponent",
+  "component_type": "dagster_community_components.SQLToDatabaseAssetComponent",
   "description": "Read from a source database and write to a destination database table.",
   "category": "ingestion",
   "vertical": "database",

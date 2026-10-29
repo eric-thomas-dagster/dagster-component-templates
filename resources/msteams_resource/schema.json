@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MSTeamsResourceComponent",
+  "component_type": "dagster_community_components.MSTeamsResourceComponent",
   "description": "Microsoft Teams notification resource via dagster-msteams.",
   "category": "resource",
   "icon": "MessageSquare",

@@ -1,4 +1,4 @@
-type: dagster_component_templates.FreshdeskIngestionComponent
+type: dagster_community_components.FreshdeskIngestionComponent
 attributes:
   asset_name: freshdesk_support_data
 

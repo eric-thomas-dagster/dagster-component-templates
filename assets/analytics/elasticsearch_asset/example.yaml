@@ -1,4 +1,4 @@
-type: dagster_component_templates.ElasticsearchAssetComponent
+type: dagster_community_components.ElasticsearchAssetComponent
 attributes:
   asset_name: product_search_index
   upstream_asset_key: rows_to_index

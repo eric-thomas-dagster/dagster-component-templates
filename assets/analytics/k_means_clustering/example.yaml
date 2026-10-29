@@ -1,4 +1,4 @@
-type: dagster_component_templates.KMeansClusteringComponent
+type: dagster_community_components.KMeansClusteringComponent
 attributes:
   asset_name: customer_segments
   upstream_asset_key: customer_features_enriched

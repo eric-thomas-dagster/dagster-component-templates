@@ -108,7 +108,7 @@ Confirm it is on your PATH (or set `ansible_bin` to an absolute path).
 ## Quick start
 
 ```yaml
-type: dagster_component_templates.AnsibleAssetComponent
+type: dagster_community_components.AnsibleAssetComponent
 attributes:
   asset_name: configure_data_servers
   playbook: "{{ project_root }}/ansible/configure_etl_servers.yml"

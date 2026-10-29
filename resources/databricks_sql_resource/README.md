@@ -23,7 +23,7 @@ Register this resource, then reference its `resource_key` from any
 component's `source` field:
 
 ```yaml
-type: dagster_component_templates.DatabricksSqlResourceComponent
+type: dagster_community_components.DatabricksSqlResourceComponent
 attributes:
   resource_key: databricks_sql_resource
   server_hostname: dbc-a1b2345c-d6e7.cloud.databricks.com
@@ -32,7 +32,7 @@ attributes:
 ```
 
 ```yaml
-type: dagster_component_templates.HashComponent
+type: dagster_community_components.HashComponent
 attributes:
   asset_name: hashed_customers
   source:

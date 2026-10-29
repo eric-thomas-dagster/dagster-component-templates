@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PandaDocIngestionComponent",
+  "component_type": "dagster_community_components.PandaDocIngestionComponent",
   "description": "Ingest PandaDoc document, template, and folder data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "productivity",

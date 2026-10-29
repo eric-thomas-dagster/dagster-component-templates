@@ -1,4 +1,4 @@
-type: dagster_component_templates.GoogleAdsIngestionComponent
+type: dagster_community_components.GoogleAdsIngestionComponent
 attributes:
   asset_name: google_ads_data
 

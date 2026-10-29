@@ -9,7 +9,7 @@ Nothing in the catalog combined transcription with speaker attribution. `speech_
 ## Usage
 
 ```yaml
-type: dagster_component_templates.AudioDiarizedTranscriberComponent
+type: dagster_community_components.AudioDiarizedTranscriberComponent
 attributes:
   asset_name: call_transcripts
   upstream_asset_key: call_audio_files

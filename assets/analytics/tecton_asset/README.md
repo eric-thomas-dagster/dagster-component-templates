@@ -95,7 +95,7 @@ export TECTON_API_KEY=your-api-key-here
 ## Quick start
 
 ```yaml
-type: dagster_component_templates.TectonAssetComponent
+type: dagster_community_components.TectonAssetComponent
 attributes:
   asset_name: tecton_features
   workspace: production

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WebflowIngestionComponent",
+  "component_type": "dagster_community_components.WebflowIngestionComponent",
   "description": "Ingest Webflow CMS data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "productivity",

@@ -1,7 +1,7 @@
 # Text Chunker receives text from upstream assets via IO manager
 # Draw connection from Document Text Extractor or any text-producing asset
 
-type: dagster_component_templates.TextChunkerComponent
+type: dagster_community_components.TextChunkerComponent
 attributes:
   asset_name: document_chunks
   upstream_asset_key: raw_text

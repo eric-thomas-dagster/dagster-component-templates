@@ -36,7 +36,7 @@ class GCSMonitorSensorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.GCSMonitorSensorComponent
+        type: dagster_community_components.GCSMonitorSensorComponent
         attributes:
           sensor_name: gcs_data_sensor
           bucket_name: my-data-bucket

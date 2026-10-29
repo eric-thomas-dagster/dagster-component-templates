@@ -94,7 +94,7 @@ REST endpoint base: `https://{host}:{port}/AEWS/api`
 ### REST API — Finance ETL jobs
 
 ```yaml
-type: dagster_component_templates.AutoSysAssetComponent
+type: dagster_community_components.AutoSysAssetComponent
 attributes:
   host: autosys.internal.company.com
   port: 9443
@@ -111,7 +111,7 @@ attributes:
 ### Token auth
 
 ```yaml
-type: dagster_component_templates.AutoSysAssetComponent
+type: dagster_community_components.AutoSysAssetComponent
 attributes:
   host: autosys.internal.company.com
   token_env_var: AUTOSYS_TOKEN
@@ -122,7 +122,7 @@ attributes:
 ### CLI-only (older AutoSys / no REST API)
 
 ```yaml
-type: dagster_component_templates.AutoSysAssetComponent
+type: dagster_community_components.AutoSysAssetComponent
 attributes:
   host: autosys-server
   use_cli: true

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CommunityComponentInstallerComponent",
+  "component_type": "dagster_community_components.CommunityComponentInstallerComponent",
   "description": "Download other community components from the registry at refresh-state time, configured via YAML.",
   "category": "infrastructure",
   "icon": "Download",

@@ -47,7 +47,7 @@ google-auth>=2.17.0
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.GoogleCloudFunctionsComponent
+type: dagster_community_components.GoogleCloudFunctionsComponent
 attributes:
   project_id: my-gcp-project
   location: us-central1

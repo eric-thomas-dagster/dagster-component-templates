@@ -52,7 +52,7 @@ class DependencyGraphComponent(Component, Model, Resolvable):
 
     Example:
         # Define three assets using different components
-        type: dagster_component_templates.RestApiIngestionComponent
+        type: dagster_community_components.RestApiIngestionComponent
         attributes:
           asset_name: api_data
           api_url: https://api.example.com/data
@@ -60,7 +60,7 @@ class DependencyGraphComponent(Component, Model, Resolvable):
 
         ---
 
-        type: dagster_component_templates.DataFrameTransformerComponent
+        type: dagster_community_components.DataFrameTransformerComponent
         attributes:
           asset_name: cleaned_data
           drop_duplicates: true
@@ -68,7 +68,7 @@ class DependencyGraphComponent(Component, Model, Resolvable):
         ---
 
         # Wire them together with DependencyGraphComponent
-        type: dagster_component_templates.DependencyGraphComponent
+        type: dagster_community_components.DependencyGraphComponent
         attributes:
           edges:
             - source: api_data

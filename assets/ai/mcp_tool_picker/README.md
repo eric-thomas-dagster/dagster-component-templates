@@ -31,23 +31,66 @@ Emits `2 + N` assets per YAML block:
 
 | Field | Type | Description |
 |---|---|---|
-| `name` | `str` | Short label for logs. |
+| `plan_asset_name` | `str` | Planner asset name. |
+| `synthesis_asset_name` | `str` | Synthesizer asset name. |
+| `task` | `str` | The task the planner is planning against. |
+| `tools` | `List[MCPToolPickerToolSpec]` | Bounded list of MCP tools. |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `url` | `str` | — | http/sse: MCP endpoint URL. |
+| `api_key_env_var` | `str` | `"OPENAI_API_KEY"` | — |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `group_name` | `str` | — | — |
+| `kinds` | `List[str]` | — | — |
+| `owners` | `List[str]` | — | Asset owners. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Asset tags. |
+
+### Freshness
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `freshness_max_lag_minutes` | `int` | — | FreshnessPolicy max lag minutes. |
+| `freshness_cron` | `str` | — | FreshnessPolicy cron schedule. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' |
+| `partition_start` | `str` | — | ISO date for time-based partitions. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitions. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_policy_max_retries` | `int` | — | RetryPolicy max retries. |
+| `retry_policy_delay_seconds` | `int` | — | Seconds between retries. |
+| `retry_policy_backoff` | `str` | `"exponential"` | 'linear' or 'exponential'. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `model` | `str` | `"gpt-4o-mini"` | OpenAI-compatible model name. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `type` | `str` | `"stdio"` | Transport: 'stdio' \| 'http' \| 'sse'. |
-| `command` | `List[str]` | — | stdio: [executable, ...args]. |
-| `env` | `Dict[str, str]` | — | stdio: extra env vars — LITERAL values only, no `${VAR}` interpolation (the dict is passed straight to `StdioServerParameters`). If you need to pass a secret without inlining it in YAML, leave `env` unset — the stdio sub… _(full docs in schema.json + component README)_ |
-| `headers` | `Dict[str, str]` | — | http/sse: literal HTTP headers. |
-| `headers_env` | `Dict[str, str]` | — | http/sse: map of header_name → env_var_name (value read from env at call time). Use this for deferred secrets — the secret name lives in YAML, the secret value never does. |
+| `api_base_env_var` | `str` | — | — |
+| `temperature` | `float` | `0.2` | — |
+| `planner_max_tokens` | `int` | `500` | — |
+| `synthesis_max_tokens` | `int` | `800` | — |
+| `max_picks` | `int` | `5` | Upper bound on MCP tool calls the planner may pick in one shot. The prompt tells the LLM 'pick minimum 1, maximum N'. |
+| `synthesis_system_message` | `str` | — | Optional override for the synthesizer's system prompt. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)
 

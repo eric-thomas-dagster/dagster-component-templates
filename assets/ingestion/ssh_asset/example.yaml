@@ -1,4 +1,4 @@
-type: dagster_component_templates.SSHAssetComponent
+type: dagster_community_components.SSHAssetComponent
 attributes:
   asset_name: prepare_etl_server
   host_env_var: ETL_HOST

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FivetranAssetsComponent",
+  "component_type": "dagster_community_components.FivetranAssetsComponent",
   "description": "Import each Fivetran connector as a Dagster external asset via dagster-fivetran.",
   "category": "integration",
   "icon": "Cloud",

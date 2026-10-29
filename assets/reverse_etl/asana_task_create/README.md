@@ -95,7 +95,7 @@ Reverse-ETL sink: **create one Asana task per row** of an upstream DataFrame.
 
 ## Example
 ```yaml
-type: dagster_component_templates.AsanaTaskCreateComponent
+type: dagster_community_components.AsanaTaskCreateComponent
 attributes:
   asset_name: asana_dq_failure_tasks
   upstream_asset_key: dq_check_failures

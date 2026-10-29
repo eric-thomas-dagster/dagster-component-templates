@@ -336,7 +336,7 @@ if _HAS_STATE_BACKED:
 
         Example:
             ```yaml
-            type: dagster_component_templates.OpenAPIIngestionComponent
+            type: dagster_community_components.OpenAPIIngestionComponent
             attributes:
               spec_url: "https://petstore3.swagger.io/api/v3/openapi.json"
               api_base_url_env_var: API_BASE_URL

@@ -1,4 +1,4 @@
-type: dagster_component_templates.SurvivalAnalysisComponent
+type: dagster_community_components.SurvivalAnalysisComponent
 attributes:
   description: Estimate subscription survival curves by plan tier using Kaplan-Meier.
   asset_name: subscription_survival_curves

@@ -73,7 +73,7 @@ Merge two document DataFrames on a key column. Wraps `pandas.merge()` but design
 
 ## Example YAML
 ```yaml
-component_type: dagster_component_templates.DocumentMergerComponent
+component_type: dagster_community_components.DocumentMergerComponent
 asset_name: merged_orders_customers
 left_asset_key: cleaned_orders
 right_asset_key: cleaned_customers

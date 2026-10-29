@@ -1,4 +1,4 @@
-type: dagster_component_templates.TimeSeriesGeneratorComponent
+type: dagster_community_components.TimeSeriesGeneratorComponent
 
 attributes:
   asset_name: hourly_metrics

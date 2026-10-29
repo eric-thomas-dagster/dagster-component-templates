@@ -35,7 +35,7 @@ Wraps `dagster-fivetran`'s `FivetranWorkspace` to materialize one Dagster asset 
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.FivetranAssetsComponent
+type: dagster_community_components.FivetranAssetsComponent
 attributes:
   account_id: my_fivetran_account
   api_key_env_var: FIVETRAN_API_KEY

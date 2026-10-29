@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_audit_to_warehouse_job/schema.json
-type: dagster_component_templates.DagsterAuditToWarehouseJobComponent
+type: dagster_community_components.DagsterAuditToWarehouseJobComponent
 attributes:
   job_name: dagster_audit_log_to_snowflake
   schedule: "0 * * * *"                 # hourly

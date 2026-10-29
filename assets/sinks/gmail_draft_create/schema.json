@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GmailDraftCreateComponent",
+  "component_type": "dagster_community_components.GmailDraftCreateComponent",
   "description": "GmailDraftCreateComponent — create a Gmail DRAFT (never sends) templated from an upstream asset's row.",
   "category": "sink",
   "x-dagster-io": {

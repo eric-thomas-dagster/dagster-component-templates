@@ -1,4 +1,4 @@
-type: dagster_component_templates.GoogleDriveIngestionComponent
+type: dagster_community_components.GoogleDriveIngestionComponent
 attributes:
   asset_name: drive_files
 

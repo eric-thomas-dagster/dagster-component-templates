@@ -94,7 +94,7 @@ Zendesk atomically creates or updates based on matching `email` (or `external_id
 
 ## Example
 ```yaml
-type: dagster_component_templates.ZendeskUserUpsertComponent
+type: dagster_community_components.ZendeskUserUpsertComponent
 attributes:
   asset_name: zendesk_users_mirror
   upstream_asset_key: dbt_marts_customers

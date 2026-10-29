@@ -68,7 +68,7 @@ Read parquet via polars's lazy scanner. When you supply `predicate:` and/or `col
 ## YAML
 
 ```yaml
-type: dagster_component_templates.PolarsScanParquetComponent
+type: dagster_community_components.PolarsScanParquetComponent
 attributes:
   asset_name: paid_orders_recent
   path: s3://bucket/orders/year=2026/*.parquet

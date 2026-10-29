@@ -7,7 +7,7 @@ Two source modes:
 - **`source_query`** — uses `EXPORT DATA OPTIONS(...) AS <query>`: charged like a normal query, more flexible (joins, projections, filters).
 
 ```yaml
-type: dagster_component_templates.BigQueryExportToGcsAssetComponent
+type: dagster_community_components.BigQueryExportToGcsAssetComponent
 attributes:
   asset_name: orders_export
   credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}

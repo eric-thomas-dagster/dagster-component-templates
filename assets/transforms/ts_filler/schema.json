@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TsFillerComponent",
+  "component_type": "dagster_community_components.TsFillerComponent",
   "description": "Fill gaps in a time series by resampling to a regular frequency.",
   "category": "transformation",
   "icon": "Shuffle",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FirestoreReaderComponent",
+  "component_type": "dagster_community_components.FirestoreReaderComponent",
   "description": "Component for reading documents from a Google Cloud Firestore collection.",
   "category": "source",
   "icon": "si:firebase",

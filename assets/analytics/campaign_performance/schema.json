@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CampaignPerformanceComponent",
+  "component_type": "dagster_community_components.CampaignPerformanceComponent",
   "description": "Component for analyzing marketing campaign performance.",
   "category": "analytics",
   "icon": "BarChart2",

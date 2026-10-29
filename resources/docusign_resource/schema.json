@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DocuSignResourceComponent",
+  "component_type": "dagster_community_components.DocuSignResourceComponent",
   "description": "Register a DocuSignResource (JWT Grant OAuth2 eSignature REST API client) for use by other components",
   "category": "resource",
   "icon": "si:docusign",

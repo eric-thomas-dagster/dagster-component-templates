@@ -183,7 +183,7 @@ docs_text → doc_chunks → embeddings → vector_index
 
 ### ChromaDB (Local)
 ```yaml
-type: dagster_component_templates.VectorStoreWriterComponent
+type: dagster_community_components.VectorStoreWriterComponent
 attributes:
   asset_name: vector_index
   provider: chromadb
@@ -193,7 +193,7 @@ attributes:
 
 ### Pinecone (Cloud)
 ```yaml
-type: dagster_component_templates.VectorStoreWriterComponent
+type: dagster_community_components.VectorStoreWriterComponent
 attributes:
   asset_name: pinecone_index
   provider: pinecone

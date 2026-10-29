@@ -95,7 +95,7 @@ DATABASE_URL=sqlite:///path/to/database.db
 
 ### Monitor new orders by timestamp
 ```yaml
-type: dagster_component_templates.SQLMonitorSensorComponent
+type: dagster_community_components.SQLMonitorSensorComponent
 attributes:
   sensor_name: new_orders_sensor
   connection_string_env_var: DATABASE_URL
@@ -109,7 +109,7 @@ attributes:
 
 ### Monitor updated records by auto-increment ID
 ```yaml
-type: dagster_component_templates.SQLMonitorSensorComponent
+type: dagster_community_components.SQLMonitorSensorComponent
 attributes:
   sensor_name: events_sensor
   connection_string_env_var: DATABASE_URL
@@ -122,7 +122,7 @@ attributes:
 
 ### Monitor a non-default schema
 ```yaml
-type: dagster_component_templates.SQLMonitorSensorComponent
+type: dagster_community_components.SQLMonitorSensorComponent
 attributes:
   sensor_name: staging_sensor
   connection_string_env_var: DATABASE_URL

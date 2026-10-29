@@ -1,4 +1,4 @@
-type: dagster_component_templates.ExternalRedisStreamAsset
+type: dagster_community_components.ExternalRedisStreamAsset
 attributes:
   asset_key: streaming/events
   stream_name: events:incoming

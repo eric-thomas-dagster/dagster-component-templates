@@ -188,7 +188,7 @@ class MetronomeUsageEventSendComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.MetronomeUsageEventSendComponent
+        type: dagster_community_components.MetronomeUsageEventSendComponent
         attributes:
           asset_name: metronome_api_usage_events
           upstream_asset_key: dbt_marts_api_calls_today

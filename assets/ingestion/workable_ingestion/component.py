@@ -222,7 +222,7 @@ class WorkableIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.WorkableIngestionComponent
+        type: dagster_community_components.WorkableIngestionComponent
         attributes:
           asset_name: workable_data
           api_token: "{{ env('WORKABLE_API_TOKEN') }}"

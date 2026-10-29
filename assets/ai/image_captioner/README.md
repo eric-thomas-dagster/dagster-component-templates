@@ -87,7 +87,7 @@
 
 ## Example YAML
 ```yaml
-component_type: dagster_component_templates.ImageCaptionerComponent
+component_type: dagster_community_components.ImageCaptionerComponent
 asset_name: captioned_images
 upstream_asset_key: image_file_records
 image_path_column: image_path

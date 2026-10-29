@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/dagster_compute_logs_archive_job/schema.json
-type: dagster_component_templates.DagsterComputeLogsArchiveJobComponent
+type: dagster_community_components.DagsterComputeLogsArchiveJobComponent
 attributes:
   job_name: archive_dagster_compute_logs
   schedule: "0 6 * * *"                # daily at 6am

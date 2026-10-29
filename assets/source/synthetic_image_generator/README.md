@@ -3,7 +3,7 @@
 Generate sample PNG images and emit a DataFrame describing them. PNG sibling of `synthetic_pdf_generator` — designed to exercise Cloud Vision label detection without committing binary fixtures.
 
 ```yaml
-type: dagster_component_templates.SyntheticImageGeneratorComponent
+type: dagster_community_components.SyntheticImageGeneratorComponent
 attributes:
   asset_name: sample_images
   samples: default

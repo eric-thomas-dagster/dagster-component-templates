@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AnthropicAgentComponent",
+  "component_type": "dagster_community_components.AnthropicAgentComponent",
   "description": "Single-shot LLM agent with MCP tool support, using the Anthropic SDK directly (no LiteLLM dependency). Runs a tool-calling loop until the model returns a final answer or max_iterations.",
   "category": "ai",
   "icon": "si:anthropic",

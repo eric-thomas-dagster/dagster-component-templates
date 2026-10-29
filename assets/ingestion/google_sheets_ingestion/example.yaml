@@ -1,4 +1,4 @@
-type: dagster_component_templates.GoogleSheetsIngestionComponent
+type: dagster_community_components.GoogleSheetsIngestionComponent
 attributes:
   asset_name: google_sheets_data
 

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BasecampResourceComponent",
+  "component_type": "dagster_community_components.BasecampResourceComponent",
   "description": "Basecamp 3/4 REST API client wrapper. Every request is scoped under a per-account URL (https://3.basecampapi.com/<account_id>/...); auth is an OAuth2 Bearer access token obtained via a 3-legged authorization-code grant.",
   "category": "resource",
   "icon": "si:basecamp",

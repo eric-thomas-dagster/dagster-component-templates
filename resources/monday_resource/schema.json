@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MondayResourceComponent",
+  "component_type": "dagster_community_components.MondayResourceComponent",
   "description": "Register a MondayResource wrapping the monday.com GraphQL API for use by other components",
   "category": "resource",
   "vertical": "productivity",

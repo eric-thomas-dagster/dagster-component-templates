@@ -1,4 +1,4 @@
-type: dagster_component_templates.UnpivotComponent
+type: dagster_community_components.UnpivotComponent
 attributes:
   asset_name: unpivot_output
   upstream_asset_key: upstream_data

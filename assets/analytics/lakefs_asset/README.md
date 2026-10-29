@@ -108,7 +108,7 @@ Without the explicit commit step, lakeFS object writes stay in a "staged" state 
 ## Quick start
 
 ```yaml
-type: dagster_component_templates.LakeFSAssetComponent
+type: dagster_community_components.LakeFSAssetComponent
 attributes:
   asset_name: data_version_commit
   endpoint: http://localhost:8000

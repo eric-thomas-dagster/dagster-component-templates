@@ -99,7 +99,7 @@ The `CouchdbReaderComponent` uses the CouchDB `_find` (Mango) endpoint to query 
 ### Read all documents
 
 ```yaml
-type: dagster_component_templates.CouchdbReaderComponent
+type: dagster_community_components.CouchdbReaderComponent
 attributes:
   asset_name: all_products
   database: products
@@ -108,7 +108,7 @@ attributes:
 ### Filtered query with field projection
 
 ```yaml
-type: dagster_component_templates.CouchdbReaderComponent
+type: dagster_community_components.CouchdbReaderComponent
 attributes:
   asset_name: active_orders
   url_env_var: COUCHDB_URL

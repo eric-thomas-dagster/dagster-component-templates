@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SchemaValidatorComponent",
+  "component_type": "dagster_community_components.SchemaValidatorComponent",
   "description": "Validate each row against a JSON Schema; drop, tag, or raise on validation failures.",
   "category": "transformation",
   "icon": "CheckCircle",

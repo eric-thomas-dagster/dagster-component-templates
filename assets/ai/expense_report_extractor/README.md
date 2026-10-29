@@ -120,7 +120,7 @@ The Expense Report Extractor Component uses a large language model to parse unst
 ### Basic Expense Report Extraction
 
 ```yaml
-type: dagster_component_templates.ExpenseReportExtractorComponent
+type: dagster_community_components.ExpenseReportExtractorComponent
 attributes:
   asset_name: parsed_expense_reports
   upstream_asset_key: raw_expense_reports

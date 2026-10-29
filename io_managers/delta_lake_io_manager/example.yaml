@@ -1,4 +1,4 @@
-type: dagster_component_templates.DeltaLakeIOManagerComponent
+type: dagster_community_components.DeltaLakeIOManagerComponent
 attributes:
   resource_key: io_manager
   root_uri: s3://my-bucket/delta

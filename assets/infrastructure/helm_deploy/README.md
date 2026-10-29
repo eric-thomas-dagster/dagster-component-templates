@@ -123,7 +123,7 @@ Downstream assets declare the dependency in their own component YAML:
 
 ```yaml
 # downstream inference asset (any component type)
-type: dagster_component_templates.SomeOtherAssetComponent
+type: dagster_community_components.SomeOtherAssetComponent
 attributes:
   asset_name: run_batch_inference_gpu
   deps:
@@ -135,7 +135,7 @@ Dagster enforces the ordering: `deploy_ml_serving` must materialize successfully
 ## Quick start
 
 ```yaml
-type: dagster_component_templates.HelmDeployComponent
+type: dagster_community_components.HelmDeployComponent
 attributes:
   asset_name: deploy_ml_serving
   release_name: ml-serving

@@ -1,4 +1,4 @@
-type: dagster_component_templates.TextPreprocessingComponent
+type: dagster_community_components.TextPreprocessingComponent
 attributes:
   description: Clean and normalize customer support ticket text for downstream NLP modeling.
   asset_name: support_tickets_clean_text

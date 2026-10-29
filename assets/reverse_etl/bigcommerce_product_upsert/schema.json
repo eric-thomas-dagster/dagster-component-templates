@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BigCommerceProductUpsertComponent",
+  "component_type": "dagster_community_components.BigCommerceProductUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into BigCommerce Products via the Catalog API v3. Search-then-write per row (BigCommerce has no native upsert) — GET /catalog/products?sku=X → PUT the match or POST a new product. CREATE requires name, type, weight, and price at minimum.",
   "category": "reverse_etl",
   "icon": "si:bigcommerce",

@@ -1,4 +1,4 @@
-type: dagster_component_templates.AwsCloudwatchMetricsQueryComponent
+type: dagster_community_components.AwsCloudwatchMetricsQueryComponent
 attributes:
   asset_name: lambda_invocations
   region: us-east-1

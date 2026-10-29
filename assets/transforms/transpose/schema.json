@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TransposeComponent",
+  "component_type": "dagster_community_components.TransposeComponent",
   "description": "Transpose a DataFrame — rows become columns.",
   "category": "transformation",
   "icon": "Shuffle",

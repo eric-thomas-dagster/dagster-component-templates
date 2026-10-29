@@ -128,7 +128,7 @@ The component is designed to run in Dagster Daemon, CI, k8s — no interactive a
 
 ```yaml
 # resources/concur_token.yaml
-type: dagster_component_templates.OAuthTokenResourceComponent
+type: dagster_community_components.OAuthTokenResourceComponent
 attributes:
   resource_key: concur_token
   token_endpoint: https://us.api.concursolutions.com/oauth2/v0/token
@@ -141,7 +141,7 @@ attributes:
 
 ```yaml
 # defs/concur_expense/defs.yaml
-type: dagster_component_templates.OAuthRestIngestionComponent
+type: dagster_community_components.OAuthRestIngestionComponent
 attributes:
   asset_name: concur_expense_reports
   api_url: https://us.api.concursolutions.com/expensereports/v4/reports

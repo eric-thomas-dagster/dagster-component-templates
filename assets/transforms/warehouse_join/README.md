@@ -7,7 +7,7 @@ For N-way joins, chain multiple `warehouse_join` assets — each output_table be
 ## YAML
 
 ```yaml
-type: dagster_component_templates.WarehouseJoinComponent
+type: dagster_community_components.WarehouseJoinComponent
 attributes:
   asset_name: orders_with_customers
   database_url: snowflake://...

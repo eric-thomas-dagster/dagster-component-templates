@@ -1,4 +1,4 @@
-type: dagster_component_templates.FabricWorkspaceResourceComponent
+type: dagster_community_components.FabricWorkspaceResourceComponent
 attributes:
   resource_key: fabric
   workspace_id: <required>

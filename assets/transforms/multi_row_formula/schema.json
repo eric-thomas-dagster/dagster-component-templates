@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MultiRowFormulaComponent",
+  "component_type": "dagster_community_components.MultiRowFormulaComponent",
   "description": "Apply formulas that reference neighboring rows.",
   "category": "transformation",
   "icon": "Shuffle",

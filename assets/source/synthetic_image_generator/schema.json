@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SyntheticImageGeneratorComponent",
+  "component_type": "dagster_community_components.SyntheticImageGeneratorComponent",
   "description": "SyntheticImageGeneratorComponent — generate sample PNGs for Vision / OCR demos.",
   "category": "source",
   "x-dagster-io": {

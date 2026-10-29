@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SyntheticDataComponent",
+  "component_type": "dagster_community_components.SyntheticDataComponent",
   "description": "Generate synthetic data rows using an LLM based on a schema definition.",
   "category": "ai",
   "icon": "Sparkles",

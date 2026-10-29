@@ -1,4 +1,4 @@
-type: dagster_component_templates.ServiceNowIngestionComponent
+type: dagster_community_components.ServiceNowIngestionComponent
 attributes:
   asset_name: incidents_last_30d
   instance_env_var: SNOW_INSTANCE        # subdomain only — e.g. 'mycompany'

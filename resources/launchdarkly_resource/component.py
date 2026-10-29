@@ -76,7 +76,7 @@ class LaunchDarklyResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LaunchDarklyResourceComponent
+        type: dagster_community_components.LaunchDarklyResourceComponent
         attributes:
           resource_key: launchdarkly
           api_token_env_var: LAUNCHDARKLY_API_TOKEN

@@ -1,4 +1,4 @@
-type: dagster_component_templates.TerraformAssetComponent
+type: dagster_community_components.TerraformAssetComponent
 attributes:
   asset_name: provision_data_infrastructure
   working_dir: "{{ project_root }}/terraform/data_platform"

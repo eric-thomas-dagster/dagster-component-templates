@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeToOtlpTracesComponent
+type: dagster_community_components.DataframeToOtlpTracesComponent
 attributes:
   asset_name: otlp_traces_sink
   upstream_asset_key: trace_dataframe

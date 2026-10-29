@@ -1,4 +1,4 @@
-type: dagster_component_templates.RagGroundingCheckComponent
+type: dagster_community_components.RagGroundingCheckComponent
 attributes:
   asset_name: support_bot_grounding
   upstream_asset_key: support_bot_answers

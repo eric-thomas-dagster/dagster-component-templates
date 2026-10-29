@@ -331,7 +331,7 @@ class RFMSegmentationComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.RFMSegmentationComponent
+        type: dagster_community_components.RFMSegmentationComponent
         attributes:
           asset_name: customer_rfm_segments
           source_asset: transactions_data

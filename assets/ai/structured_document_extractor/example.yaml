@@ -1,4 +1,4 @@
-type: dagster_component_templates.StructuredDocumentExtractorComponent
+type: dagster_community_components.StructuredDocumentExtractorComponent
 attributes:
   asset_name: invoice_fields
   upstream_asset_key: incoming_invoices   # e.g. a file_lister asset -- mutually exclusive with `path` below

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OrbIngestionComponent",
+  "component_type": "dagster_community_components.OrbIngestionComponent",
   "description": "Ingest Orb (withorb.com) customer, subscription, and invoice data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "finance-hr",

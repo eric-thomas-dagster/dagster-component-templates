@@ -49,7 +49,7 @@ On each tick, the sensor:
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.MatillionJobSensorComponent
+type: dagster_community_components.MatillionJobSensorComponent
 attributes:
   sensor_name: my_sensor_name
   project: my_project

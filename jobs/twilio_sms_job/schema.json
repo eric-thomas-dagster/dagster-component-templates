@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TwilioSmsJobComponent",
+  "component_type": "dagster_community_components.TwilioSmsJobComponent",
   "description": "Send an SMS via Twilio as a job \u2014 useful for on-call paging without a full PagerDuty stack.",
   "category": "jobs",
   "icon": "Cog",

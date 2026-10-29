@@ -1,4 +1,4 @@
-type: dagster_component_templates.ReverseGeocoderComponent
+type: dagster_community_components.ReverseGeocoderComponent
 attributes:
   description: Reverse geocode GPS event coordinates to human-readable addresses.
   asset_name: gps_events_with_address

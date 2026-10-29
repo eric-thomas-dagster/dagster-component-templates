@@ -1,4 +1,4 @@
-type: dagster_component_templates.DocumentAiExtractorComponent
+type: dagster_community_components.DocumentAiExtractorComponent
 attributes:
   asset_name: parsed_invoices
   upstream_asset_key: invoice_files

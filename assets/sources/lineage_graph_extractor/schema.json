@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LineageGraphExtractorComponent",
+  "component_type": "dagster_community_components.LineageGraphExtractorComponent",
   "description": "Materialize the canonical Dagster asset lineage graph (nodes + edges + source system identity) as an asset. Downstream lineage_to_<catalog> components fan out from this single source so multiple catalogs stay in lock-step.",
   "category": "source",
   "icon": "Network",

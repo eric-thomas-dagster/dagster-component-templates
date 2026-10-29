@@ -1,4 +1,4 @@
-type: dagster_component_templates.CrossTabComponent
+type: dagster_community_components.CrossTabComponent
 attributes:
   asset_name: sales_by_region_and_quarter
   upstream_asset_key: sales_data

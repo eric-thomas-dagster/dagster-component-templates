@@ -75,7 +75,7 @@ Set `target_stage` to the stage you want to act on.  Most teams trigger on `Prod
 ## Usage Example
 
 ```yaml
-type: dagster_component_templates.MLflowModelSensor
+type: dagster_community_components.MLflowModelSensor
 attributes:
   sensor_name: production_model_trigger
   tracking_uri_env_var: MLFLOW_TRACKING_URI
@@ -88,7 +88,7 @@ attributes:
 ### With extra run config
 
 ```yaml
-type: dagster_component_templates.MLflowModelSensor
+type: dagster_community_components.MLflowModelSensor
 attributes:
   sensor_name: fraud_model_trigger
   tracking_uri_env_var: MLFLOW_TRACKING_URI

@@ -1,4 +1,4 @@
-type: dagster_component_templates.NotionIngestionComponent
+type: dagster_community_components.NotionIngestionComponent
 attributes:
   asset_name: notion_workspace_data
 

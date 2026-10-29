@@ -27,7 +27,7 @@ Consider partitioning by `DATE(timestamp_ts)` for larger deployments.
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.EventLogToBigQueryJobComponent
+type: dagster_community_components.EventLogToBigQueryJobComponent
 attributes:
   job_name: dagster_events_to_bigquery
   schedule: "*/15 * * * *"

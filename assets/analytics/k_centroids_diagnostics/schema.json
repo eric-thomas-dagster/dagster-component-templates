@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.KCentroidsDiagnosticsComponent",
+  "component_type": "dagster_community_components.KCentroidsDiagnosticsComponent",
   "description": "Compute silhouette + elbow scores across a range of k values to choose the optimal cluster count.",
   "category": "analytics",
   "icon": "Activity",

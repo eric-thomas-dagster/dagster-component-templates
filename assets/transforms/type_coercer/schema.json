@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TypeCoercerComponent",
+  "component_type": "dagster_community_components.TypeCoercerComponent",
   "description": "Cast DataFrame columns to specified types, handling mixed types common in document database output.",
   "category": "transformation",
   "icon": "RefreshCw",

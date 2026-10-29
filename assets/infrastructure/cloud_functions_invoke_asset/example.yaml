@@ -1,4 +1,4 @@
-type: dagster_component_templates.CloudFunctionsInvokeAssetComponent
+type: dagster_community_components.CloudFunctionsInvokeAssetComponent
 attributes:
   asset_name: notify_function
   credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}

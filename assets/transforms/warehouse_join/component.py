@@ -152,7 +152,7 @@ class WarehouseJoinComponent(Component, Model, Resolvable):
     """Join two tables in the warehouse via CTAS — no Python materialization.
 
     Example:
-        type: dagster_component_templates.WarehouseJoinComponent
+        type: dagster_community_components.WarehouseJoinComponent
         attributes:
           asset_name: orders_with_customers
           database_url: snowflake://...

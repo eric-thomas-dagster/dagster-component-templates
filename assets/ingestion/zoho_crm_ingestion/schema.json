@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ZohoCrmIngestionComponent",
+  "component_type": "dagster_community_components.ZohoCrmIngestionComponent",
   "description": "Ingest Zoho CRM records using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "crm-sales",

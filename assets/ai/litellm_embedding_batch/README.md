@@ -97,7 +97,7 @@ Generate embeddings for a text column using LiteLLM with automatic model routing
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.LitellmEmbeddingBatchComponent
+type: dagster_community_components.LitellmEmbeddingBatchComponent
 attributes:
   asset_name: article_embeddings
   upstream_asset_key: processed_articles

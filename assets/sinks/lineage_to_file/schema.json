@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LineageToFileComponent",
+  "component_type": "dagster_community_components.LineageToFileComponent",
   "description": "Sink that writes the upstream lineage_graph as JSON to a local or mounted path. For demos / debugging / audit trails.",
   "category": "sink",
   "icon": "ArrowRightLeft",

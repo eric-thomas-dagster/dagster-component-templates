@@ -71,7 +71,7 @@ Group rows into baskets (e.g. by transaction_id), one-hot encode item presence p
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.MarketBasketRulesComponent
+type: dagster_community_components.MarketBasketRulesComponent
 attributes:
   asset_name: cart_rules
   upstream_asset_key: order_line_items

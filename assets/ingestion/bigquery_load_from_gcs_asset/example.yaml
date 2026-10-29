@@ -1,4 +1,4 @@
-type: dagster_component_templates.BigQueryLoadFromGcsAssetComponent
+type: dagster_community_components.BigQueryLoadFromGcsAssetComponent
 attributes:
   asset_name: orders_landing
   credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}

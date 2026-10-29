@@ -216,7 +216,7 @@ class GustoIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.GustoIngestionComponent
+        type: dagster_community_components.GustoIngestionComponent
         attributes:
           asset_name: gusto_ingestion
           company_id: "${GUSTO_COMPANY_ID}"

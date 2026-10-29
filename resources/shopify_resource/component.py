@@ -347,7 +347,7 @@ class ShopifyResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ShopifyResourceComponent
+        type: dagster_community_components.ShopifyResourceComponent
         attributes:
           resource_key: shopify
           shop_url: mystore.myshopify.com

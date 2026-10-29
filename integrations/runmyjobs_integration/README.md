@@ -137,38 +137,55 @@ Not a RunMyJobs killer. If you're doing a full migration off RMJ, the `airflow_d
 
 ## Fields
 
-### Required
+### Connection
 
-| Field | Type | Description |
-|---|---|---|
-| `job_definition` | `str` | RunMyJobs JobDefinition name (as registered in the RMJ scheduler). |
-| `asset_name` | `str` | Dagster asset name that wraps this JobDefinition. |
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `endpoint` | `str` | `"https://runmyjobs.internal:8443/RunMyJobs/api-rest"` | RunMyJobs REST API base URL (used when demo_mode=false). |
+
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `poll_interval_seconds` | `int` | `10` | Seconds between RunMyJobs process status polls. |
+| `max_retries` | `int` | `2` | Dagster-side asset retries on failure. |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `description` | `str` | — | Prose description shown in the Dagster UI. |
+| `group_name` | `str` | `"runmyjobs_integration"` | Dagster asset group for the job assets. |
 
 ### Partitions
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_type` | `str` | — | Business tag for the job (e.g. CORE_BANKING). |
+| `partition_start_date` | `str` | `"2024-01-01"` | Start date for the daily partitioned assets. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_delay_seconds` | `int` | `60` | Delay between Dagster asset retries. |
 
 ### Source / target
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `queue` | `str` | — | RunMyJobs Queue the job runs on (analog to Control-M Agent). |
+| `source_tables` | `List[RunMyJobsSourceTableSpec]` | `list()` | Tables loaded by RunMyJobs that Dagster observes (adds to lineage). |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `application` | `str` | — | RunMyJobs Application (analog to Control-M Folder). |
-| `sub_partition_type` | `str` | — | Business sub-tag (e.g. SETTLEMENT). |
-| `run_as` | `str` | `"svc_dagster"` | OS user RunMyJobs runs the job as. |
+| `demo_mode` | `bool` | `true` | Simulate the REST API on stdout (no external calls). |
+| `jobs` | `List[RunMyJobsJobSpec]` | `list()` | RunMyJobs JobDefinitions to wrap as daily-partitioned Dagster assets. |
+| `upstream_deps` | `List[str]` | `list()` | Upstream asset keys (slash-separated for nested keys) that must complete before jobs run. |
+| `runmyjobs_user_env` | `str` | `"RUNMYJOBS_USER"` | Env var holding the RunMyJobs REST username. |
+| `runmyjobs_password_env` | `str` | `"RUNMYJOBS_PASSWORD"` | Env var holding the RunMyJobs REST password. |
+| `poll_timeout_seconds` | `int` | `3600` | Total seconds to wait for terminal status before failing. |
+| `stdout_retrieval` | `bool` | `true` | Retrieve process stdout on completion. |
+| `reconciliation_cron` | `str` | `"0 * * * *"` | Cron for the RunMyJobs vs Dagster state reconciliation job. |
 
 [//]: # (FIELDS:END)
 

@@ -97,7 +97,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.PayPalIngestionComponent
+type: dagster_community_components.PayPalIngestionComponent
 attributes:
   asset_name: paypal_ingestion
   client_id: "${PAYPAL_CLIENT_ID}"

@@ -315,7 +315,7 @@ class OllamaInferenceAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.OllamaInferenceAssetComponent
+        type: dagster_community_components.OllamaInferenceAssetComponent
         attributes:
           asset_name: categorized_feedback
           upstream_asset_key: raw_feedback

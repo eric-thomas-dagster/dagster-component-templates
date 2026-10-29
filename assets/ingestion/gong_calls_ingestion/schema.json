@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GongCallsIngestionComponent",
+  "component_type": "dagster_community_components.GongCallsIngestionComponent",
   "description": "Ingest Gong call metadata and transcripts via Gong API v2 and return a pandas DataFrame.",
   "category": "source",
   "vertical": "crm-sales",

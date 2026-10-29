@@ -1,4 +1,4 @@
-type: dagster_component_templates.QlikCloudAppReloadComponent
+type: dagster_community_components.QlikCloudAppReloadComponent
 attributes:
   asset_key: bi/finance_consolidated_app
   app_id: <fill in>

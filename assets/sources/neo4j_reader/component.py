@@ -194,7 +194,7 @@ class Neo4jReaderComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.Neo4jReaderComponent
+        type: dagster_community_components.Neo4jReaderComponent
         attributes:
           asset_name: neo4j_people
           query: "MATCH (n:Person) RETURN n.name AS name, n.age AS age LIMIT 100"

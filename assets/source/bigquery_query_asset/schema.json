@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BigQueryQueryAssetComponent",
+  "component_type": "dagster_community_components.BigQueryQueryAssetComponent",
   "description": "Run a SQL query against Google BigQuery and return a pandas DataFrame. Drop-in peer of duckdb_query_reader (DuckDB) and database_query (generic SQL). For multi-asset 'import every BQ entity as an asset' use google_bigquery instead.",
   "category": "source",
   "icon": "si:googlebigquery",

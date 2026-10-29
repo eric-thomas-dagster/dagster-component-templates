@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RFMSegmentationComponent",
+  "component_type": "dagster_community_components.RFMSegmentationComponent",
   "description": "Component for RFM (Recency, Frequency, Monetary) customer segmentation.",
   "category": "analytics",
   "icon": "si:segment",

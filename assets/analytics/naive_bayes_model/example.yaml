@@ -1,4 +1,4 @@
-type: dagster_component_templates.NaiveBayesModelComponent
+type: dagster_community_components.NaiveBayesModelComponent
 attributes:
   asset_name: lead_quality_nb_predictions
   upstream_asset_key: lead_features_enriched

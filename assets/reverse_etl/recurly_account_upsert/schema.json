@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RecurlyAccountUpsertComponent",
+  "component_type": "dagster_community_components.RecurlyAccountUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Recurly Account records. Recurly's PUT /accounts/{account_id} ONLY updates -- it 404s (never creates) if the account doesn't exist. This component checks existence first via GET /accounts/code-<value> (using lookup_field's value as the account code), then issues PUT (update) if found or POST /accounts (create) if not. Two API calls per row.",
   "category": "reverse_etl",
   "icon": "Repeat",

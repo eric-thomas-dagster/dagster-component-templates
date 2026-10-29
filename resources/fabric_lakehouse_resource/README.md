@@ -52,7 +52,7 @@ def my_filtered_orders(fabric_lakehouse: FabricLakehouseResource) -> pd.DataFram
 ## YAML
 
 ```yaml
-type: dagster_component_templates.FabricLakehouseResourceComponent
+type: dagster_community_components.FabricLakehouseResourceComponent
 attributes:
   resource_key: fabric_lakehouse
   workspace_id: "12345678-1234-1234-1234-123456789012"

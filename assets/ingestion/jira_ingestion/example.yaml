@@ -1,4 +1,4 @@
-type: dagster_component_templates.JiraIngestionComponent
+type: dagster_community_components.JiraIngestionComponent
 attributes:
   asset_name: jira_issue_data
 

@@ -24,7 +24,7 @@ Create Dagster assets from Databricks Asset Bundle YAML configuration files. Eac
 
 ### Basic Example
 ```yaml
-type: dagster_component_templates.DatabricksAssetBundleComponent
+type: dagster_community_components.DatabricksAssetBundleComponent
 attributes:
   databricks_config_path: databricks.yml
   workspace_host: https://dbc-abc123.cloud.databricks.com
@@ -34,7 +34,7 @@ attributes:
 
 ### Advanced Example
 ```yaml
-type: dagster_component_templates.DatabricksAssetBundleComponent
+type: dagster_community_components.DatabricksAssetBundleComponent
 attributes:
   databricks_config_path: bundles/production/databricks.yml
   workspace_host: https://dbc-abc123.cloud.databricks.com
@@ -287,7 +287,7 @@ resources:
 2. **Configure Component**:
 ```yaml
 # component.yaml
-type: dagster_component_templates.DatabricksAssetBundleComponent
+type: dagster_community_components.DatabricksAssetBundleComponent
 attributes:
   databricks_config_path: databricks.yml
   workspace_host: https://my-workspace.cloud.databricks.com

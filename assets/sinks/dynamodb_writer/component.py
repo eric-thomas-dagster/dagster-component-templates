@@ -250,7 +250,7 @@ class DynamodbWriterComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.DynamodbWriterComponent
+        type: dagster_community_components.DynamodbWriterComponent
         attributes:
           asset_name: write_orders_to_dynamo
           upstream_asset_key: processed_orders

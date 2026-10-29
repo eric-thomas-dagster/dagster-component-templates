@@ -112,7 +112,7 @@ class ZohoCrmRecordUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ZohoCrmRecordUpsertComponent
+        type: dagster_community_components.ZohoCrmRecordUpsertComponent
         attributes:
           asset_name: zoho_crm_leads_mirror
           upstream_asset_key: dbt_marts_leads

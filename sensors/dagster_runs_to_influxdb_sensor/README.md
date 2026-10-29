@@ -50,7 +50,7 @@ dagster_run,job_name=ingest_orders,status=success,location=prod-east \
 ## Example
 
 ```yaml
-type: dagster_component_templates.DagsterRunsToInfluxdbSensorComponent
+type: dagster_community_components.DagsterRunsToInfluxdbSensorComponent
 attributes:
   sensor_name: dagster_runs_to_influxdb
   base_url_env_var: INFLUX_URL

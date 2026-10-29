@@ -1,4 +1,4 @@
-type: dagster_component_templates.PostgresBackupJobComponent
+type: dagster_community_components.PostgresBackupJobComponent
 attributes:
   job_name: postgres_backup_job_example
   schedule: "0 3 * * *"

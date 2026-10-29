@@ -23,7 +23,7 @@ class AcceldataCheckComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.AcceldataCheckComponent
+        type: dagster_community_components.AcceldataCheckComponent
         attributes:
           asset_key: warehouse/orders
           api_url_env_var: ACCELDATA_API_URL

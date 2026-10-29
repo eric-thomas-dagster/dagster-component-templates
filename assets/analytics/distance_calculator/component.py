@@ -327,7 +327,7 @@ class DistanceCalculatorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.DistanceCalculatorComponent
+        type: dagster_community_components.DistanceCalculatorComponent
         attributes:
           asset_name: deliveries_with_distance
           upstream_asset_key: deliveries

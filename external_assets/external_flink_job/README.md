@@ -61,7 +61,7 @@ Unlike a Kafka topic name, a Flink job's `jid` is **not stable** -- it's assigne
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.ExternalFlinkJobComponent
+type: dagster_community_components.ExternalFlinkJobComponent
 attributes:
   jobmanager_url: http://flink-jobmanager:8081
   jobs:
@@ -78,7 +78,7 @@ attributes:
 ## Single-job mode
 
 ```yaml
-type: dagster_component_templates.ExternalFlinkJobComponent
+type: dagster_community_components.ExternalFlinkJobComponent
 attributes:
   jobmanager_url: http://flink-jobmanager:8081
   asset_key: streaming/clickstream_enrichment

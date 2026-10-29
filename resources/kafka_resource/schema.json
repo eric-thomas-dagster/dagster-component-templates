@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.KafkaResourceComponent",
+  "component_type": "dagster_community_components.KafkaResourceComponent",
   "description": "Register a Kafka resource providing producer and consumer factories",
   "category": "resource",
   "icon": "si:apachekafka",

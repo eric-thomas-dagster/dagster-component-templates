@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.HeapResourceComponent",
+  "component_type": "dagster_community_components.HeapResourceComponent",
   "description": "Register a HeapResource for use by other components, with an add_user_properties convenience method. Heap's public API is write-only -- there is no read/list endpoint, so this resource exists purely for reverse-ETL.",
   "category": "resource",
   "icon": "si:heap",

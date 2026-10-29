@@ -158,7 +158,7 @@ Standardized product analytics metrics:
 ### GA4 Standardization
 
 ```yaml
-type: dagster_component_templates.ProductAnalyticsStandardizerComponent
+type: dagster_community_components.ProductAnalyticsStandardizerComponent
 attributes:
   asset_name: standardized_ga4_metrics
   platform: google_analytics_4
@@ -169,7 +169,7 @@ attributes:
 ### Matomo Standardization
 
 ```yaml
-type: dagster_component_templates.ProductAnalyticsStandardizerComponent
+type: dagster_community_components.ProductAnalyticsStandardizerComponent
 attributes:
   asset_name: standardized_matomo_metrics
   platform: matomo
@@ -181,21 +181,21 @@ attributes:
 
 ```yaml
 # ga4.yaml
-type: dagster_component_templates.ProductAnalyticsStandardizerComponent
+type: dagster_community_components.ProductAnalyticsStandardizerComponent
 attributes:
   asset_name: std_ga4_metrics
   platform: google_analytics_4
 
 ---
 # matomo.yaml
-type: dagster_component_templates.ProductAnalyticsStandardizerComponent
+type: dagster_community_components.ProductAnalyticsStandardizerComponent
 attributes:
   asset_name: std_matomo_metrics
   platform: matomo
 
 ---
 # Combine downstream
-type: dagster_component_templates.DataFrameCombinerComponent
+type: dagster_community_components.DataFrameCombinerComponent
 attributes:
   asset_name: all_analytics_metrics
   source_assets: ["std_ga4_metrics", "std_matomo_metrics"]

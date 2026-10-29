@@ -3,7 +3,7 @@
 Pull emails from any IMAP-compliant mailbox (Gmail, Outlook/O365, Yahoo, FastMail, Dovecot, …) and emit one DataFrame row per message.
 
 ```yaml
-type: dagster_component_templates.ImapInboxSourceComponent
+type: dagster_community_components.ImapInboxSourceComponent
 attributes:
   asset_name: inbound_emails
   host: imap.gmail.com

@@ -40,7 +40,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.SageIntacctResourceComponent
+type: dagster_community_components.SageIntacctResourceComponent
 attributes:
   resource_key: sage_intacct_resource
   sender_id: dagster_integration

@@ -2,7 +2,7 @@
 
 # ── Shape (a): flat shape — one source, one ops chain, one sink.
 
-type: dagster_component_templates.PolarsPipelineComponent
+type: dagster_community_components.PolarsPipelineComponent
 attributes:
   asset_name: top_customers_by_region
   upstream_asset_key: raw_orders
@@ -36,7 +36,7 @@ attributes:
 #               op:sql escape hatch (polars SQLContext), optional side sinks.
 # ────────────────────────────────────────────────────────────────────────────
 #
-# type: dagster_component_templates.PolarsPipelineComponent
+# type: dagster_community_components.PolarsPipelineComponent
 # attributes:
 #   asset_name: regional_top_paid
 #   steps:

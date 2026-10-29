@@ -99,7 +99,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.NavanIngestionComponent
+type: dagster_community_components.NavanIngestionComponent
 attributes:
   asset_name: navan_ingestion
   access_token: "${NAVAN_ACCESS_TOKEN}"

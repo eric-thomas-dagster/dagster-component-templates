@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.EventDataStandardizerComponent",
+  "component_type": "dagster_community_components.EventDataStandardizerComponent",
   "description": "Component for standardizing event tracking data across platforms.",
   "category": "analytics",
   "icon": "BarChart2",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ExternalFlinkJobComponent",
+  "component_type": "dagster_community_components.ExternalFlinkJobComponent",
   "name": "External Flink Job",
   "category": "external",
   "icon": "si:apacheflink",

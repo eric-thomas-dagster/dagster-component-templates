@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MotherDuckIOManagerComponent",
+  "component_type": "dagster_community_components.MotherDuckIOManagerComponent",
   "description": "Register a DuckDB IO manager connected to MotherDuck (serverless DuckDB cloud) for asset storage",
   "category": "io_manager",
   "icon": "si:duckdb",

@@ -98,7 +98,7 @@ sftp_monitor  →  [Dagster job]  →  sftp_to_database_asset
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.SFTPToDatabaseAssetComponent
+type: dagster_community_components.SFTPToDatabaseAssetComponent
 attributes:
   asset_name: sftp_orders_ingest
   host_env_var: SFTP_HOST

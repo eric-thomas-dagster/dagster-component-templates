@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LangGraphAgentComponent",
+  "component_type": "dagster_community_components.LangGraphAgentComponent",
   "description": "Multi-step LangGraph StateGraph as a Dagster asset. Either a declarative prompt-chain DSL (`steps`) or a bring-your-own pre-built graph (`graph_fn`) -- exactly one of the two must be set.",
   "category": "ai",
   "icon": "si:langgraph",

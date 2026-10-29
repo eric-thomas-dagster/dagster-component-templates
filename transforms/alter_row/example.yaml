@@ -1,4 +1,4 @@
-type: dagster_component_templates.AlterRowComponent
+type: dagster_community_components.AlterRowComponent
 attributes:
   asset_name: alter_row_output
   upstream_asset_key: upstream_data

@@ -1,4 +1,4 @@
-type: dagster_component_templates.SftpMonitorSensorComponent
+type: dagster_community_components.SftpMonitorSensorComponent
 attributes:
   sensor_name: sftp_orders_monitor
   host: sftp.partner.com

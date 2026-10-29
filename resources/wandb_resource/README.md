@@ -36,7 +36,7 @@ pip install wandb
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.WandbResourceComponent
+type: dagster_community_components.WandbResourceComponent
 attributes:
   resource_key: wandb_resource
   api_key_env_var: WANDB_API_KEY

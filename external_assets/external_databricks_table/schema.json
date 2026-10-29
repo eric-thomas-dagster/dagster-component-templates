@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ExternalDatabricksTableAsset",
+  "component_type": "dagster_community_components.ExternalDatabricksTableAsset",
   "description": "Declare a Databricks Delta table (Unity Catalog or Hive Metastore) as an observable external asset.",
   "category": "external",
   "icon": "Link",

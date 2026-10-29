@@ -62,7 +62,7 @@ Implemented as a [`ConfigurableIOManager`](https://docs.dagster.io/_apidocs/io-m
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.DatabricksIOManagerComponent
+type: dagster_community_components.DatabricksIOManagerComponent
 attributes:
   resource_key: io_manager
   server_hostname: adb-1234567890.12.azuredatabricks.net

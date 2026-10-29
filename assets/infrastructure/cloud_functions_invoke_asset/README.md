@@ -5,7 +5,7 @@ Invoke a deployed Cloud Function (gen 1 / gen 2) or any Cloud Run-deployed funct
 **Static call** — single request, returns the function's response:
 
 ```yaml
-type: dagster_component_templates.CloudFunctionsInvokeAssetComponent
+type: dagster_community_components.CloudFunctionsInvokeAssetComponent
 attributes:
   asset_name: notify_pipeline_done
   credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}

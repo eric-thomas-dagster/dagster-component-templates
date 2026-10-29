@@ -67,7 +67,7 @@ This component does not read from or write to Eventhubs. It is a **lineage decla
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ExternalEventHubsAsset
+type: dagster_community_components.ExternalEventHubsAsset
 attributes:
   asset_key: my_service/asset
   namespace: my_namespace
@@ -82,7 +82,7 @@ Set `create_observation_sensor: true` to also get the polling sensor that keeps 
 health/data-version current — one component, one YAML, no manual `asset_key` wiring:
 
 ```yaml
-type: dagster_component_templates.ExternalEventHubsAsset
+type: dagster_community_components.ExternalEventHubsAsset
 attributes:
   asset_key: external/eventhubs
   namespace: my_namespace
@@ -97,7 +97,7 @@ asset and sensor on independent lifecycles), pair this component with the standa
 
 ```yaml
 # 1. Declare the external asset (lineage node)
-type: dagster_component_templates.ExternalEventHubsAsset
+type: dagster_community_components.ExternalEventHubsAsset
 attributes:
   asset_key: external/eventhubs
   namespace: my_namespace
@@ -106,7 +106,7 @@ attributes:
 ---
 
 # 2. Observe it on a schedule
-type: dagster_component_templates.EventHubsObservationSensorComponent
+type: dagster_community_components.EventHubsObservationSensorComponent
 attributes:
   sensor_name: eventhubs_asset_observer
   asset_key: external/eventhubs

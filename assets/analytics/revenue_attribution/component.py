@@ -288,7 +288,7 @@ class RevenueAttributionComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.RevenueAttributionComponent
+        type: dagster_community_components.RevenueAttributionComponent
         attributes:
           asset_name: revenue_attribution
           marketing_data_asset: "standardized_marketing_data"

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MLflowResourceComponent",
+  "component_type": "dagster_community_components.MLflowResourceComponent",
   "description": "Register an MLflow resource for experiment tracking and model registry",
   "category": "resource",
   "icon": "si:mlflow",

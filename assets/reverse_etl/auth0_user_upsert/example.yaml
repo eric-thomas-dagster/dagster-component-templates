@@ -5,7 +5,7 @@
 # one that does. It can never block or delete anyone -- see README.md's
 # "Safety" section before pointing this at a production tenant.
 
-type: dagster_component_templates.Auth0UserUpsertComponent
+type: dagster_community_components.Auth0UserUpsertComponent
 attributes:
   asset_name: auth0_employee_sync
   upstream_asset_key: dbt_marts_active_employees

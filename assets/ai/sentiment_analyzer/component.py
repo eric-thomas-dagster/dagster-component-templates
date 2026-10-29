@@ -315,7 +315,7 @@ class SentimentAnalyzerComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SentimentAnalyzerComponent
+        type: dagster_community_components.SentimentAnalyzerComponent
         attributes:
           asset_name: analyzed_reviews
           method: transformer

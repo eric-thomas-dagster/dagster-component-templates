@@ -91,7 +91,7 @@ The `ChromadbReaderComponent` connects to a local persistent or in-memory Chroma
 ### Persistent ChromaDB
 
 ```yaml
-type: dagster_component_templates.ChromadbReaderComponent
+type: dagster_community_components.ChromadbReaderComponent
 attributes:
   asset_name: kb_results
   collection_name: knowledge_base
@@ -104,7 +104,7 @@ attributes:
 ### Multiple queries with filter
 
 ```yaml
-type: dagster_component_templates.ChromadbReaderComponent
+type: dagster_community_components.ChromadbReaderComponent
 attributes:
   asset_name: filtered_docs
   collection_name: documents

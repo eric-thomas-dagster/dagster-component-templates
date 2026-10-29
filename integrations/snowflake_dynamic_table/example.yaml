@@ -1,4 +1,4 @@
-type: dagster_component_templates.SnowflakeDynamicTableComponent
+type: dagster_community_components.SnowflakeDynamicTableComponent
 attributes:
   asset_name: paid_orders_dt
   dt_name: PAID_ORDERS_DT

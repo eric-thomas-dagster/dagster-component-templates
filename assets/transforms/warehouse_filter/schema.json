@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WarehouseFilterComponent",
+  "component_type": "dagster_community_components.WarehouseFilterComponent",
   "description": "Filter rows in the warehouse via CTAS (predicate pushdown). No Python materialization.",
   "category": "transformation",
   "icon": "Filter",

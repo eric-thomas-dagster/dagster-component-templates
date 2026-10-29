@@ -78,7 +78,7 @@ Also requires a `KustomerResourceComponent` on the same code location for authen
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.KustomerConversationsIngestionComponent
+type: dagster_community_components.KustomerConversationsIngestionComponent
 attributes:
   asset_name: kustomer_conversations
   resource_key: kustomer_resource

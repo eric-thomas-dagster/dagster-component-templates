@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MySQLResourceComponent",
+  "component_type": "dagster_community_components.MySQLResourceComponent",
   "x-dagster-io": {},
   "x-dagster-provides": [
     "mysql_resource"

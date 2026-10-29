@@ -1,4 +1,4 @@
-type: dagster_component_templates.MSTeamsMessageSendComponent
+type: dagster_community_components.MSTeamsMessageSendComponent
 attributes:
   asset_name: customer_health_teams_alert
   upstream_asset_key: customers_crossing_health_threshold

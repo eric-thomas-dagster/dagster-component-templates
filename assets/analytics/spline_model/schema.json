@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SplineModelComponent",
+  "component_type": "dagster_community_components.SplineModelComponent",
   "description": "Fit an OLS regression with cubic-spline transformed features for smooth non-linear effects.",
   "category": "analytics",
   "icon": "LineChart",

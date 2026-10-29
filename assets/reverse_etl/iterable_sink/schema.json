@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.IterableSinkComponent",
+  "component_type": "dagster_community_components.IterableSinkComponent",
   "description": "Reverse-ETL sink \u2014 POST DataFrame rows to Iterable via bulk endpoints. Two modes: `users` (POST /api/users/bulkUpdate, up to 1000/batch) or `events` (POST /api/events/trackBulk, up to 1000/batch).",
   "category": "reverse_etl",
   "x-dagster-io": {

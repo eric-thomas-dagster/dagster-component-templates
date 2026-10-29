@@ -98,7 +98,7 @@ Transform files automatically when triggered by file sensors, or process files o
 
 ```yaml
 # Sensor detects CSV files, asset converts to Parquet
-type: dagster_component_templates.FileTransformerComponent
+type: dagster_community_components.FileTransformerComponent
 attributes:
   asset_name: csv_to_parquet
   output_format: parquet
@@ -108,7 +108,7 @@ attributes:
 ### Standalone (Fixed File)
 
 ```yaml
-type: dagster_component_templates.FileTransformerComponent
+type: dagster_community_components.FileTransformerComponent
 attributes:
   asset_name: transform_data
   input_file_path: /data/input/data.csv
@@ -119,7 +119,7 @@ attributes:
 ### With Data Processing
 
 ```yaml
-type: dagster_component_templates.FileTransformerComponent
+type: dagster_community_components.FileTransformerComponent
 attributes:
   asset_name: clean_and_convert
   output_format: parquet
@@ -166,7 +166,7 @@ When triggered by Filesystem Sensor:
 ### 1. Filesystem Sensor
 
 ```yaml
-type: dagster_component_templates.FilesystemMonitorSensorComponent
+type: dagster_community_components.FilesystemMonitorSensorComponent
 attributes:
   sensor_name: watch_csv_files
   directory_path: /data/incoming
@@ -177,7 +177,7 @@ attributes:
 ### 2. File Transformer Asset
 
 ```yaml
-type: dagster_component_templates.FileTransformerComponent
+type: dagster_community_components.FileTransformerComponent
 attributes:
   asset_name: convert_to_parquet
   output_format: parquet

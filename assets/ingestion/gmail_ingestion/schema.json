@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GmailIngestionComponent",
+  "component_type": "dagster_community_components.GmailIngestionComponent",
   "description": "Ingest Gmail messages/labels metadata via the Gmail API using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "productivity",

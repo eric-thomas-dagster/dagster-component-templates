@@ -216,7 +216,7 @@ class TrelloIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.TrelloIngestionComponent
+        type: dagster_community_components.TrelloIngestionComponent
         attributes:
           asset_name: trello_ingestion
           api_key: "${TRELLO_API_KEY}"

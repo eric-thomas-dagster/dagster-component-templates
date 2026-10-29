@@ -16,7 +16,7 @@ If you're producing data that downstream Kafka/EH consumers will read, Avro give
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.DataframeToAvroComponent
+type: dagster_community_components.DataframeToAvroComponent
 attributes:
   asset_name: events_avro
   upstream_asset_key: events_summary

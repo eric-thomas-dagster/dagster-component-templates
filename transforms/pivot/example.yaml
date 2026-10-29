@@ -1,4 +1,4 @@
-type: dagster_component_templates.PivotComponent
+type: dagster_community_components.PivotComponent
 attributes:
   asset_name: pivot_output
   upstream_asset_key: upstream_data

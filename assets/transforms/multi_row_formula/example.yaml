@@ -1,4 +1,4 @@
-type: dagster_component_templates.MultiRowFormulaComponent
+type: dagster_community_components.MultiRowFormulaComponent
 attributes:
   asset_name: sales_with_trends
   upstream_asset_key: daily_sales

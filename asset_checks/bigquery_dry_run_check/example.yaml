@@ -1,4 +1,4 @@
-type: dagster_component_templates.BigqueryDryRunCheckComponent
+type: dagster_community_components.BigqueryDryRunCheckComponent
 attributes:
   asset_key: nightly_revenue_rollup
   check_name: nightly_revenue_rollup_cost_guard

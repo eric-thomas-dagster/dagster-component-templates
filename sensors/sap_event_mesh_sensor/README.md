@@ -30,7 +30,7 @@ Pair with [`oauth_token_resource`](../../resources/oauth_token_resource/):
 
 ```yaml
 # resources/em_token.yaml
-type: dagster_component_templates.OAuthTokenResourceComponent
+type: dagster_community_components.OAuthTokenResourceComponent
 attributes:
   resource_key: em_token
   token_endpoint: https://my-tenant.authentication.eu10.hana.ondemand.com/oauth/token

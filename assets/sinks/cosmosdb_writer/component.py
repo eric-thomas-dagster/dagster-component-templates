@@ -250,7 +250,7 @@ class CosmosdbWriterComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.CosmosdbWriterComponent
+        type: dagster_community_components.CosmosdbWriterComponent
         attributes:
           asset_name: write_orders_to_cosmos
           upstream_asset_key: processed_orders

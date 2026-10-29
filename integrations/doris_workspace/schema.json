@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DorisWorkspaceComponent",
+  "component_type": "dagster_community_components.DorisWorkspaceComponent",
   "description": "Auto-discover tables / views / MVs in an Apache Doris database; emit one observable Dagster asset per entity.",
   "category": "integration",
   "icon": "Database",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PiiRedactorComponent",
+  "component_type": "dagster_community_components.PiiRedactorComponent",
   "description": "Detect and redact PII from text columns, replacing entities with type placeholders or custom values.",
   "category": "ai",
   "icon": "EyeOff",

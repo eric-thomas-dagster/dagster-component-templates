@@ -1,3 +1,3 @@
-type: dagster_component_templates.GeminiResourceComponent
+type: dagster_community_components.GeminiResourceComponent
 attributes:
   resource_key: gemini_resource

@@ -139,7 +139,7 @@ If a row fails (rate limit exhausted, no inline image returned, transient error 
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.GeminiImageGenerationComponent
+type: dagster_community_components.GeminiImageGenerationComponent
 attributes:
   asset_name: product_hero_images
   upstream_asset_key: product_descriptions

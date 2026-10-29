@@ -1,4 +1,4 @@
-type: dagster_component_templates.SnowflakeIcebergTableComponent
+type: dagster_community_components.SnowflakeIcebergTableComponent
 attributes:
   asset_name: iceberg_demo
 

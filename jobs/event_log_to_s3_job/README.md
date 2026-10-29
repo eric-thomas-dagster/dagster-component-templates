@@ -27,7 +27,7 @@ data lake.
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.EventLogToS3JobComponent
+type: dagster_community_components.EventLogToS3JobComponent
 attributes:
   job_name: dagster_events_to_s3
   schedule: "*/15 * * * *"

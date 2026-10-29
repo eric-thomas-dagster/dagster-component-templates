@@ -5,7 +5,7 @@
 #   1. `upstream_asset_key:` — chain from an existing Dagster asset that produces a DataFrame.
 #   2. `source:` block       — read the DataFrame inline at run time (SQL / CSV / inline rows).
 
-type: dagster_component_templates.HelpScoutConversationUpsertComponent
+type: dagster_community_components.HelpScoutConversationUpsertComponent
 attributes:
   asset_name: help_scout_conversations_mirror
 

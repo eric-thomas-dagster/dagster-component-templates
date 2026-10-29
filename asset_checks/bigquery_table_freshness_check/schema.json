@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BigqueryTableFreshnessCheckComponent",
+  "component_type": "dagster_community_components.BigqueryTableFreshnessCheckComponent",
   "description": "BigqueryTableFreshnessCheckComponent \u2014 SLO check on max-age of a BQ table.",
   "category": "check",
   "icon": "si:googlebigquery",

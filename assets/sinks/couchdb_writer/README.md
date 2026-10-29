@@ -97,7 +97,7 @@ The `CouchdbWriterComponent` accepts an upstream DataFrame asset and writes each
 ### Upsert with custom document ID
 
 ```yaml
-type: dagster_component_templates.CouchdbWriterComponent
+type: dagster_community_components.CouchdbWriterComponent
 attributes:
   asset_name: write_products_to_couchdb
   upstream_asset_key: enriched_products
@@ -110,7 +110,7 @@ attributes:
 ### Insert new documents (auto-generated IDs)
 
 ```yaml
-type: dagster_component_templates.CouchdbWriterComponent
+type: dagster_community_components.CouchdbWriterComponent
 attributes:
   asset_name: insert_events_to_couchdb
   upstream_asset_key: new_events

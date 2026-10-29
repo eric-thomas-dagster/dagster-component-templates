@@ -100,7 +100,7 @@ Downstream assets declare the dependency in their own component YAML:
 
 ```yaml
 # downstream asset (any component type)
-type: dagster_component_templates.SomeOtherAssetComponent
+type: dagster_community_components.SomeOtherAssetComponent
 attributes:
   asset_name: load_raw_events
   deps:
@@ -112,7 +112,7 @@ Dagster enforces the ordering: `provision_cloud_resources` must materialize succ
 ## Quick start
 
 ```yaml
-type: dagster_component_templates.PulumiAssetComponent
+type: dagster_community_components.PulumiAssetComponent
 attributes:
   asset_name: provision_cloud_resources
   stack_name: my-org/data-platform/production

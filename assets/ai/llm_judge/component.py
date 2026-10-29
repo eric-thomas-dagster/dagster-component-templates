@@ -306,7 +306,7 @@ class LlmJudgeComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LlmJudgeComponent
+        type: dagster_community_components.LlmJudgeComponent
         attributes:
           asset_name: evaluated_responses
           upstream_asset_key: llm_responses

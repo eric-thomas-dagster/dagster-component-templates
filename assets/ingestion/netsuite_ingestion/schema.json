@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.NetSuiteIngestionComponent",
+  "component_type": "dagster_community_components.NetSuiteIngestionComponent",
   "description": "Ingest Oracle NetSuite (SuiteTalk REST) data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "finance-hr",

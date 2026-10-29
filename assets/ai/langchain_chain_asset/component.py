@@ -296,7 +296,7 @@ class LangChainChainAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LangChainChainAssetComponent
+        type: dagster_community_components.LangChainChainAssetComponent
         attributes:
           asset_name: summarized_articles
           upstream_asset_key: raw_articles

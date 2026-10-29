@@ -95,7 +95,7 @@ This is more scalable than a text-search or label-marker approach: no per-row "s
 ## Example
 
 ```yaml
-type: dagster_component_templates.LinearIssueUpsertComponent
+type: dagster_community_components.LinearIssueUpsertComponent
 attributes:
   asset_name: linear_incidents_mirror
   upstream_asset_key: incidents_seed

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToPrometheusComponent",
+  "component_type": "dagster_community_components.DataframeToPrometheusComponent",
   "description": "Push DataFrame rows as Prometheus metrics via a pushgateway. Each row becomes a metric sample with labels from configured columns. Useful for batch-job metrics that surface in operational dashboards.",
   "category": "sink",
   "icon": "Upload",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PrecisionMatchComponent",
+  "component_type": "dagster_community_components.PrecisionMatchComponent",
   "description": "LLM-assisted fuzzy matching to standardize varied string representations to canonical forms.",
   "category": "ai",
   "icon": "Sparkles",

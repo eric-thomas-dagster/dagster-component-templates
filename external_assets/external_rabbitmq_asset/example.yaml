@@ -1,4 +1,4 @@
-type: dagster_component_templates.ExternalRabbitmqAsset
+type: dagster_community_components.ExternalRabbitmqAsset
 attributes:
   asset_key: queue/tasks
   host: localhost

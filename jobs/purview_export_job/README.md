@@ -19,7 +19,7 @@ Each run produces:
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.PurviewExportJobComponent
+type: dagster_community_components.PurviewExportJobComponent
 attributes:
   job_name: sync_dagster_lineage_to_purview
   schedule: "0 3 * * *"

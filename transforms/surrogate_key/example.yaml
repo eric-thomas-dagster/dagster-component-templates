@@ -1,4 +1,4 @@
-type: dagster_component_templates.SurrogateKeyComponent
+type: dagster_community_components.SurrogateKeyComponent
 attributes:
   asset_name: surrogate_key_output
   upstream_asset_key: upstream_data

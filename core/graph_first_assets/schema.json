@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GraphFirstAssetsComponent",
+  "component_type": "dagster_community_components.GraphFirstAssetsComponent",
   "name": "Graph-First Assets",
   "category": "core",
   "icon": "Link",

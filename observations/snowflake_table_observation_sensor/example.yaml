@@ -1,4 +1,4 @@
-type: dagster_component_templates.SnowflakeTableObservationSensorComponent
+type: dagster_community_components.SnowflakeTableObservationSensorComponent
 attributes:
   sensor_name: snowflake_orders_obs
   asset_key: snowflake/raw/orders

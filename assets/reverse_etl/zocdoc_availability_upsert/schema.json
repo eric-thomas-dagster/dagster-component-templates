@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ZocdocAvailabilityUpsertComponent",
+  "component_type": "dagster_community_components.ZocdocAvailabilityUpsertComponent",
   "description": "Reverse-ETL sink: push warehouse-computed provider availability/timeslots into Zocdoc via PUT /v1/providers/{provider_id}/calendar/timeslots (full replace per provider_id+date). PHI-safe by design: materialization metadata, logs, and error messages never carry request/response bodies -- counts and bare group identifiers only.",
   "category": "reverse_etl",
   "icon": "ClipboardCheck",

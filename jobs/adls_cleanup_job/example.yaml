@@ -1,4 +1,4 @@
-type: dagster_component_templates.AdlsCleanupJobComponent
+type: dagster_community_components.AdlsCleanupJobComponent
 attributes:
   job_name: adls_cleanup_job_example
   schedule: "0 3 * * *"

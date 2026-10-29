@@ -250,7 +250,7 @@ class RedisWriterComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.RedisWriterComponent
+        type: dagster_community_components.RedisWriterComponent
         attributes:
           asset_name: write_sessions_to_redis
           upstream_asset_key: computed_sessions

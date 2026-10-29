@@ -1,4 +1,4 @@
-type: dagster_component_templates.CrossJoinComponent
+type: dagster_community_components.CrossJoinComponent
 attributes:
   asset_name: cross_join_output
   upstream_asset_key: upstream_data

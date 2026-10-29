@@ -49,7 +49,7 @@ On each tick, the sensor:
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ServiceNowSensorComponent
+type: dagster_community_components.ServiceNowSensorComponent
 attributes:
   sensor_name: my_sensor_name
   instance_env_var: INSTANCE_ENV_VAR

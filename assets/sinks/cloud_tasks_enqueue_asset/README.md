@@ -3,7 +3,7 @@
 Push one [Cloud Tasks](https://cloud.google.com/tasks) HTTP task per row of an upstream DataFrame onto a queue. The queue's worker (Cloud Run, Cloud Function, etc.) then processes them asynchronously — Dagster doesn't wait.
 
 ```yaml
-type: dagster_component_templates.CloudTasksEnqueueAssetComponent
+type: dagster_community_components.CloudTasksEnqueueAssetComponent
 attributes:
   asset_name: tasks_enqueued
   upstream_asset_key: pending_jobs

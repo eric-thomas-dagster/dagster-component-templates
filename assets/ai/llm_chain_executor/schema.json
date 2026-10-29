@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LLMChainExecutorComponent",
+  "component_type": "dagster_community_components.LLMChainExecutorComponent",
   "description": "Component for executing LLM chains row-by-row over an upstream DataFrame.",
   "category": "ai",
   "icon": "Sparkles",

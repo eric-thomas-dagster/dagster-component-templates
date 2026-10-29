@@ -101,7 +101,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.ChargifyIngestionComponent
+type: dagster_community_components.ChargifyIngestionComponent
 attributes:
   asset_name: chargify_ingestion
   subdomain: "mysite"

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MailchimpMemberUpsertComponent",
+  "component_type": "dagster_community_components.MailchimpMemberUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into a Mailchimp audience via the native upsert endpoint. `PUT /lists/{list_id}/members/{subscriber_hash}` atomically creates or updates based on the member's email.",
   "category": "reverse_etl",
   "icon": "si:mailchimp",

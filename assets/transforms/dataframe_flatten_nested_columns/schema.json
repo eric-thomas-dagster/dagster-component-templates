@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeFlattenNestedColumnsComponent",
+  "component_type": "dagster_community_components.DataframeFlattenNestedColumnsComponent",
   "description": "DataframeFlattenNestedColumnsComponent — JSON-stringify dict/list columns.",
   "category": "transformation",
   "x-dagster-io": {

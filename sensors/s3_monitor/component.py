@@ -35,7 +35,7 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.S3MonitorSensorComponent
+        type: dagster_community_components.S3MonitorSensorComponent
         attributes:
           sensor_name: s3_data_sensor
           bucket_name: my-data-bucket

@@ -256,7 +256,7 @@ class RerankerComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.RerankerComponent
+        type: dagster_community_components.RerankerComponent
         attributes:
           asset_name: reranked_search_results
           source_asset: vector_search_results

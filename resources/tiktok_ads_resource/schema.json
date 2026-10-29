@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TikTokAdsResourceComponent",
+  "component_type": "dagster_community_components.TikTokAdsResourceComponent",
   "description": "Register a TikTokAdsResource for the TikTok Marketing API for use by other components",
   "category": "resource",
   "icon": "si:tiktok",

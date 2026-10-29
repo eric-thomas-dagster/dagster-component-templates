@@ -1,4 +1,4 @@
-type: dagster_component_templates.SlackMessageSendComponent
+type: dagster_community_components.SlackMessageSendComponent
 attributes:
   asset_name: customer_health_slack_alert
   upstream_asset_key: customers_crossing_health_threshold

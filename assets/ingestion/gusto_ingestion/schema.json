@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GustoIngestionComponent",
+  "component_type": "dagster_community_components.GustoIngestionComponent",
   "description": "Ingest Gusto HR/payroll data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "finance-hr",

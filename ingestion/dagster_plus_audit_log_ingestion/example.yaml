@@ -1,4 +1,4 @@
-type: dagster_component_templates.DagsterPlusAuditLogIngestionComponent
+type: dagster_community_components.DagsterPlusAuditLogIngestionComponent
 attributes:
   asset_name: dagster_plus_audit_log
 

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AdlsCleanupJobComponent",
+  "component_type": "dagster_community_components.AdlsCleanupJobComponent",
   "description": "Delete Azure ADLS Gen2 / Blob objects older than N days under a prefix.",
   "category": "jobs",
   "icon": "Cog",

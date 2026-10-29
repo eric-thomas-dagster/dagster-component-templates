@@ -104,7 +104,7 @@ class LaunchDarklySegmentUpdateComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LaunchDarklySegmentUpdateComponent
+        type: dagster_community_components.LaunchDarklySegmentUpdateComponent
         attributes:
           asset_name: launchdarkly_beta_testers_sync
           upstream_asset_key: computed_beta_cohort

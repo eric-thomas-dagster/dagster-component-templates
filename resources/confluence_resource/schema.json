@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ConfluenceResourceComponent",
+  "component_type": "dagster_community_components.ConfluenceResourceComponent",
   "description": "Register a ConfluenceResource wrapping the Confluence Cloud REST v2 API (pages/spaces) for use by other components",
   "category": "resource",
   "icon": "si:confluence",

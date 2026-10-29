@@ -70,7 +70,7 @@ Labels: `job_name`, `status` (success / failure), `location` (configurable). The
 ## Example — Prometheus Push Gateway
 
 ```yaml
-type: dagster_component_templates.DagsterRunsToPrometheusSensorComponent
+type: dagster_community_components.DagsterRunsToPrometheusSensorComponent
 attributes:
   sensor_name: dagster_runs_to_prometheus
   base_url_env_var: PROM_PUSHGATEWAY_URL
@@ -84,7 +84,7 @@ Export `PROM_PUSHGATEWAY_URL=http://prometheus-pushgateway.svc:9091`.
 ## Example — VictoriaMetrics direct
 
 ```yaml
-type: dagster_component_templates.DagsterRunsToPrometheusSensorComponent
+type: dagster_community_components.DagsterRunsToPrometheusSensorComponent
 attributes:
   sensor_name: dagster_runs_to_vm
   base_url_env_var: VM_BASE_URL
@@ -97,7 +97,7 @@ Export `VM_BASE_URL=http://victoriametrics.svc:8428`.
 ## Example — filter to specific jobs
 
 ```yaml
-type: dagster_component_templates.DagsterRunsToPrometheusSensorComponent
+type: dagster_community_components.DagsterRunsToPrometheusSensorComponent
 attributes:
   sensor_name: dagster_runs_to_prometheus_critical
   base_url_env_var: PROM_PUSHGATEWAY_URL

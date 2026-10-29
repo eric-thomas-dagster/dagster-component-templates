@@ -1,4 +1,4 @@
-type: dagster_component_templates.SpannerQueryAssetComponent
+type: dagster_community_components.SpannerQueryAssetComponent
 attributes:
   asset_name: active_orders
   instance_id: my-instance

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ZendeskTicketSensorComponent",
+  "component_type": "dagster_community_components.ZendeskTicketSensorComponent",
   "description": "Trigger a run when Zendesk has new or updated tickets matching a query.",
   "category": "sensor",
   "icon": "si:zendesk",

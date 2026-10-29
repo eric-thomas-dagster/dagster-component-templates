@@ -13,7 +13,7 @@ Supports every BQML model type: `LINEAR_REG`, `LOGISTIC_REG`, `KMEANS`, `ARIMA_P
 Asset's stored value is the result of `ML.EVALUATE` (model fit metrics: r2, log_loss, AUC, etc.). Headline metrics are also surfaced as Dagster materialization metadata for use in `freshness_check` / `quality_check`-style asset checks downstream.
 
 ```yaml
-type: dagster_component_templates.BigQueryMLTrainAssetComponent
+type: dagster_community_components.BigQueryMLTrainAssetComponent
 attributes:
   asset_name: iris_logreg
   credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}

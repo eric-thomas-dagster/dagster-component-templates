@@ -95,7 +95,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.FeatureScalerComponent
+type: dagster_community_components.FeatureScalerComponent
 attributes:
   asset_name: scaled_customer_features
   upstream_asset_key: encoded_customer_features

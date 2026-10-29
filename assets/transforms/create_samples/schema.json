@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CreateSamplesComponent",
+  "component_type": "dagster_community_components.CreateSamplesComponent",
   "description": "Split a DataFrame into train/test/validation sets.",
   "category": "transformation",
   "icon": "Shuffle",

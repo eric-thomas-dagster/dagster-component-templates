@@ -1,4 +1,4 @@
-type: dagster_component_templates.DagsterPlusRunEventsIngestionComponent
+type: dagster_community_components.DagsterPlusRunEventsIngestionComponent
 attributes:
   asset_name: dagster_plus_run_events
   endpoint_url: https://my-org.dagster.cloud/prod/graphql

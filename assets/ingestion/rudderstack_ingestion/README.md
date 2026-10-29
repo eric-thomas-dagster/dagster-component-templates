@@ -114,7 +114,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.RudderStackIngestionComponent
+type: dagster_community_components.RudderStackIngestionComponent
 attributes:
   asset_name: rudderstack_ingestion
   service_access_token: "${RUDDERSTACK_SERVICE_ACCESS_TOKEN}"

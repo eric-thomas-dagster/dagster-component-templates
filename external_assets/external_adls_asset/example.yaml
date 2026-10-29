@@ -1,4 +1,4 @@
-type: dagster_component_templates.ExternalAdlsAsset
+type: dagster_community_components.ExternalAdlsAsset
 attributes:
   asset_key: raw/events
   account_name: mystorageaccount

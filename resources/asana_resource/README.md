@@ -35,7 +35,7 @@ pip install asana
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.AsanaResourceComponent
+type: dagster_community_components.AsanaResourceComponent
 attributes:
   resource_key: asana_resource  # key other components use
   access_token_env_var: ASANA_ACCESS_TOKEN  # env var holding your personal access token

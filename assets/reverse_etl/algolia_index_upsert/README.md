@@ -103,7 +103,7 @@ cannot write.
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.AlgoliaIndexUpsertComponent
+type: dagster_community_components.AlgoliaIndexUpsertComponent
 attributes:
   asset_name: algolia_product_catalog_sync
   upstream_asset_key: dbt_marts_product_catalog

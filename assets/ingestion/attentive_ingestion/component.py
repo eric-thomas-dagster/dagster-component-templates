@@ -274,7 +274,7 @@ class AttentiveIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.AttentiveIngestionComponent
+        type: dagster_community_components.AttentiveIngestionComponent
         attributes:
           asset_name: attentive_ingestion
           api_key: "${ATTENTIVE_API_KEY}"

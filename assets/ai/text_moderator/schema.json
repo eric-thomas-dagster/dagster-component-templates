@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TextModeratorComponent",
+  "component_type": "dagster_community_components.TextModeratorComponent",
   "description": "Component for content moderation and safety detection.",
   "category": "ai",
   "icon": "Sparkles",

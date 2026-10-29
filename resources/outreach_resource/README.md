@@ -33,7 +33,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.OutreachResourceComponent
+type: dagster_community_components.OutreachResourceComponent
 attributes:
   resource_key: outreach_resource
   client_id_env_var: OUTREACH_CLIENT_ID

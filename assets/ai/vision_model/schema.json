@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.VisionModelComponent",
+  "component_type": "dagster_community_components.VisionModelComponent",
   "description": "Component for image analysis using vision-capable LLMs.",
   "category": "ai",
   "icon": "Sparkles",

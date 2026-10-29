@@ -216,7 +216,7 @@ class RampIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.RampIngestionComponent
+        type: dagster_community_components.RampIngestionComponent
         attributes:
           asset_name: ramp_ingestion
           access_token: "${RAMP_ACCESS_TOKEN}"

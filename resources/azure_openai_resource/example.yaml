@@ -1,4 +1,4 @@
-type: dagster_component_templates.AzureOpenAIResourceComponent
+type: dagster_community_components.AzureOpenAIResourceComponent
 attributes:
   resource_key: azure_openai
   azure_endpoint: https://example.com

@@ -32,7 +32,7 @@ CREATE TABLE dagster_audit_log (
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.DagsterAuditToWarehouseJobComponent
+type: dagster_community_components.DagsterAuditToWarehouseJobComponent
 attributes:
   job_name: dagster_audit_log_to_snowflake
   schedule: "0 * * * *"                # hourly

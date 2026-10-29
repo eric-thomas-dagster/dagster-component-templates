@@ -89,7 +89,7 @@ class PreciselyJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.PreciselyJobSensorComponent
+        type: dagster_community_components.PreciselyJobSensorComponent
         attributes:
           sensor_name: precisely_etl_done
           job_run_id: "abc-123-def-456"          # the Precisely run-id to watch

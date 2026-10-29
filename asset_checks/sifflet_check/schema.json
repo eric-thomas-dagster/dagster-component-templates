@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SiffletCheckComponent",
+  "component_type": "dagster_community_components.SiffletCheckComponent",
   "description": "Trigger a Sifflet monitor run and surface results as a Dagster asset check.",
   "category": "check",
   "icon": "CheckCircle",

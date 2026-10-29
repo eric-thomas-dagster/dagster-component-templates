@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MatillionJobSensorComponent",
+  "component_type": "dagster_community_components.MatillionJobSensorComponent",
   "description": "Trigger a Dagster job when a Matillion ETL job run completes.",
   "category": "sensor",
   "icon": "si:matillion",

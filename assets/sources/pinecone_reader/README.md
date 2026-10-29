@@ -101,7 +101,7 @@ The `PineconeReaderComponent` queries a Pinecone index using similarity search a
 ### Search by text
 
 ```yaml
-type: dagster_component_templates.PineconeReaderComponent
+type: dagster_community_components.PineconeReaderComponent
 attributes:
   asset_name: similar_articles
   index_name: article-embeddings
@@ -114,7 +114,7 @@ attributes:
 ### Search with metadata filter
 
 ```yaml
-type: dagster_component_templates.PineconeReaderComponent
+type: dagster_community_components.PineconeReaderComponent
 attributes:
   asset_name: filtered_products
   index_name: product-embeddings

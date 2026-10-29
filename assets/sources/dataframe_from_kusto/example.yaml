@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeFromKustoComponent
+type: dagster_community_components.DataframeFromKustoComponent
 attributes:
   asset_name: ioc_alerts_last_hour
   cluster_url: https://mycluster.eastus.kusto.windows.net

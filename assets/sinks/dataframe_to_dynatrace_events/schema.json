@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToDynatraceEventsComponent",
+  "component_type": "dagster_community_components.DataframeToDynatraceEventsComponent",
   "description": "Push DataFrame rows as Dynatrace events via the v2 Events API. Use for batch-job markers (deployments, ETL completions, anomalies) that should annotate Dynatrace's timeline.",
   "category": "sink",
   "icon": "Upload",

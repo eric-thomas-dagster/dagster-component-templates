@@ -1,4 +1,4 @@
-type: dagster_component_templates.SqlCommandJobComponent
+type: dagster_community_components.SqlCommandJobComponent
 attributes:
   job_name: sql_command_job_example
   schedule: "0 3 * * *"

@@ -1,4 +1,4 @@
-type: dagster_component_templates.RFMSegmentationComponent
+type: dagster_community_components.RFMSegmentationComponent
 attributes:
   asset_name: customer_rfm_segments
 

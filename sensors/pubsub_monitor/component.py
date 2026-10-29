@@ -33,7 +33,7 @@ class PubSubMonitorSensorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.PubSubMonitorSensorComponent
+        type: dagster_community_components.PubSubMonitorSensorComponent
         attributes:
           sensor_name: pubsub_events_sensor
           project: my-gcp-project

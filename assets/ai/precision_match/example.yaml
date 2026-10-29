@@ -1,4 +1,4 @@
-type: dagster_component_templates.PrecisionMatchComponent
+type: dagster_community_components.PrecisionMatchComponent
 attributes:
   description: Standardize product category strings in CRM data against a canonical taxonomy asset.
   asset_name: crm_categories_standardized

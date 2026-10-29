@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.IntercomContactUpsertComponent",
+  "component_type": "dagster_community_components.IntercomContactUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Intercom contacts via search-then-write. Intercom has no single-call native upsert, so this searches /contacts/search by external_id or email, then updates the match or creates a new contact.",
   "category": "reverse_etl",
   "icon": "si:intercom",

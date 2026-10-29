@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.EmbeddingsGeneratorComponent",
+  "component_type": "dagster_community_components.EmbeddingsGeneratorComponent",
   "description": "Component for generating text embeddings for RAG and semantic search.",
   "category": "ai",
   "icon": "Sparkles",

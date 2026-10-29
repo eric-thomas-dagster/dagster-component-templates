@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GreenhouseResourceComponent",
+  "component_type": "dagster_community_components.GreenhouseResourceComponent",
   "description": "Register a GreenhouseResource (Harvest API key auth) for use by other components, with an update_candidate convenience method.",
   "category": "resource",
   "icon": "si:greenhouse",

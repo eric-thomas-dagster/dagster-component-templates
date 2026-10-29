@@ -1,4 +1,4 @@
-type: dagster_component_templates.ExternalSqlAsset
+type: dagster_community_components.ExternalSqlAsset
 attributes:
   asset_key: db/orders
   table_name: orders

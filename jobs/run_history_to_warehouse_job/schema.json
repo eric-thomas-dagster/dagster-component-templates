@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RunHistoryToWarehouseJobComponent",
+  "component_type": "dagster_community_components.RunHistoryToWarehouseJobComponent",
   "description": "Op-shaped job that MERGEs new/updated Dagster runs into a warehouse table (Snowflake | BigQuery | Postgres). Run-level (one row per run) — complement to event-log exports.",
   "category": "jobs",
   "icon": "Upload",

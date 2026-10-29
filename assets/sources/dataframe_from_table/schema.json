@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeFromTableComponent",
+  "component_type": "dagster_community_components.DataframeFromTableComponent",
   "description": "Read a database table and output a DataFrame.",
   "category": "source",
   "icon": "Database",

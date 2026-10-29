@@ -87,7 +87,7 @@ Think of it as a YAML-defined view-building or stored-procedure-shape — analog
 ## YAML
 
 ```yaml
-type: dagster_component_templates.WarehousePipelineComponent
+type: dagster_community_components.WarehousePipelineComponent
 attributes:
   asset_name: top_5_categories_by_revenue
   database_url: snowflake://...

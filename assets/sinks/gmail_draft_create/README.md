@@ -7,7 +7,7 @@ component, and shares its exact OAuth2 convention: a bearer access token in the
 `access_token` field.
 
 ```yaml
-type: dagster_component_templates.GmailDraftCreateComponent
+type: dagster_community_components.GmailDraftCreateComponent
 attributes:
   asset_name: nightly_brief_gmail_draft
   access_token: "${GMAIL_ACCESS_TOKEN}"

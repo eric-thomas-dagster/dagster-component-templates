@@ -25,7 +25,7 @@ Wraps the official `dagster-duckdb-pyspark` package.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.DuckDBPySparkIOManagerComponent
+type: dagster_community_components.DuckDBPySparkIOManagerComponent
 attributes:
   resource_key: <fill in>
   database: <fill in>

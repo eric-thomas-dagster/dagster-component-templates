@@ -87,7 +87,7 @@ Magento's catalog product REST endpoint has **no native upsert**. `PUT /V1/produ
 ## Example
 
 ```yaml
-type: dagster_component_templates.MagentoProductUpsertComponent
+type: dagster_community_components.MagentoProductUpsertComponent
 attributes:
   asset_name: magento_products_mirror
   upstream_asset_key: catalog_products

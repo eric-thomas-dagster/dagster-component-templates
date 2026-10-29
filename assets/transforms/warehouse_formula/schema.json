@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WarehouseFormulaComponent",
+  "component_type": "dagster_community_components.WarehouseFormulaComponent",
   "description": "Add/replace columns via inline SQL expressions (CTAS pushdown). Alteryx Formula In-DB equivalent.",
   "category": "transformation",
   "icon": "Calculator",

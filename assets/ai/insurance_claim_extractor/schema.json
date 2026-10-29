@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.InsuranceClaimExtractorComponent",
+  "component_type": "dagster_community_components.InsuranceClaimExtractorComponent",
   "description": "Extract structured data from insurance claim documents using an LLM.",
   "category": "ai",
   "icon": "Shield",

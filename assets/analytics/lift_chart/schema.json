@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LiftChartComponent",
+  "component_type": "dagster_community_components.LiftChartComponent",
   "description": "Compute a lift/gains chart from actual binary labels and predicted probabilities.",
   "category": "analytics",
   "icon": "BarChart2",

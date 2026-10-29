@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RevenueAttributionComponent",
+  "component_type": "dagster_community_components.RevenueAttributionComponent",
   "description": "Component for attributing revenue to marketing campaigns.",
   "category": "analytics",
   "icon": "BarChart2",

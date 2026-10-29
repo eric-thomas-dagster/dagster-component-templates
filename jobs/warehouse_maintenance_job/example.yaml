@@ -1,4 +1,4 @@
-type: dagster_component_templates.WarehouseMaintenanceJobComponent
+type: dagster_community_components.WarehouseMaintenanceJobComponent
 attributes:
   job_name: warehouse_maintenance_job_example
   schedule: "0 3 * * *"

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SparkLivyBatchAssetComponent",
+  "component_type": "dagster_community_components.SparkLivyBatchAssetComponent",
   "name": "Spark Livy Batch",
   "category": "infrastructure",
   "icon": "si:apachespark",

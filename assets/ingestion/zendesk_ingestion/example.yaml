@@ -1,4 +1,4 @@
-type: dagster_component_templates.ZendeskIngestionComponent
+type: dagster_community_components.ZendeskIngestionComponent
 attributes:
   asset_name: zendesk_support_data
 

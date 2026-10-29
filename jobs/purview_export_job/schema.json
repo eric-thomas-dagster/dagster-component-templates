@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PurviewExportJobComponent",
+  "component_type": "dagster_community_components.PurviewExportJobComponent",
   "description": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to Microsoft Purview Data Map (Apache Atlas v2 entity bulk API).",
   "category": "jobs",
   "icon": "Activity",

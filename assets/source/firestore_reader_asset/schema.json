@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FirestoreReaderAssetComponent",
+  "component_type": "dagster_community_components.FirestoreReaderAssetComponent",
   "description": "Read documents from a Firestore collection (or collection group) into a pandas DataFrame. Supports where filters, ordering, limit. The doc id lands in a `_id` column.",
   "category": "source",
   "icon": "si:firebase",

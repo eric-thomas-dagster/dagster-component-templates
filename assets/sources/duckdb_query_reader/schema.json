@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DuckDBQueryReaderComponent",
+  "component_type": "dagster_community_components.DuckDBQueryReaderComponent",
   "description": "Component for reading data from DuckDB tables using SQL queries.",
   "category": "source",
   "icon": "si:duckdb",

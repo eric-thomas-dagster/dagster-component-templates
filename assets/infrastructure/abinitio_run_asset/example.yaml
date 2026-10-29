@@ -1,5 +1,5 @@
 # Using env vars directly
-type: dagster_component_templates.AbInitioRunAssetComponent
+type: dagster_community_components.AbInitioRunAssetComponent
 attributes:
   asset_key: abinitio/etl/load_orders
   job_path: /prod/etl/load_orders
@@ -15,7 +15,7 @@ attributes:
 ---
 
 # Using a shared AbInitioResource (recommended when running multiple Ab Initio jobs)
-type: dagster_component_templates.AbInitioRunAssetComponent
+type: dagster_community_components.AbInitioRunAssetComponent
 attributes:
   asset_key: abinitio/etl/load_customers
   job_path: /prod/etl/load_customers

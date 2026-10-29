@@ -46,12 +46,12 @@ export OPENMETADATA_API_TOKEN=<jwt>
 
 ```yaml
 # defs/lineage_graph_extractor/defs.yaml
-type: dagster_component_templates.LineageGraphExtractorComponent
+type: dagster_community_components.LineageGraphExtractorComponent
 attributes:
   asset_name: lineage_graph
 
 # defs/lineage_to_openmetadata/defs.yaml
-type: dagster_component_templates.LineageToOpenMetadataComponent
+type: dagster_community_components.LineageToOpenMetadataComponent
 attributes:
   asset_name: lineage_to_openmetadata
   upstream_asset_key: lineage_graph

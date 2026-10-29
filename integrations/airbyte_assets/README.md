@@ -35,7 +35,7 @@ Wraps `dagster-airbyte`'s `load_assets_from_airbyte_instance` (or `AirbyteCloudW
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.AirbyteAssetsComponent
+type: dagster_community_components.AirbyteAssetsComponent
 attributes:
   workspace_id: 3f1c2a9e-0000-4000-8000-000000000000
   client_id_env_var: AIRBYTE_CLIENT_ID

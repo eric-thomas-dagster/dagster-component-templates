@@ -95,7 +95,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 
 ## Example YAML
 ```yaml
-component_type: dagster_component_templates.NestedFieldExtractorComponent
+component_type: dagster_community_components.NestedFieldExtractorComponent
 asset_name: extracted_address_fields
 upstream_asset_key: raw_customers
 extractions:

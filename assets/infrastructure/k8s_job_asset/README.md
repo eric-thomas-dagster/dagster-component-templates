@@ -36,7 +36,7 @@ Wraps the official `dagster-k8s` package.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.K8sJobAssetComponent
+type: dagster_community_components.K8sJobAssetComponent
 attributes:
   asset_name: model_training_job
   image: my-registry/trainer:2.1.0

@@ -1,4 +1,4 @@
-type: dagster_component_templates.ExternalBigQueryTableAsset
+type: dagster_community_components.ExternalBigQueryTableAsset
 attributes:
   asset_key: bq/analytics/orders
   project_id: my-gcp-project

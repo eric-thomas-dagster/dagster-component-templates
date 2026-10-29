@@ -89,22 +89,69 @@ mcp_servers:
 
 | Field | Type | Description |
 |---|---|---|
-| `name` | `str` | Short name used to prefix tool names. |
+| `asset_name` | `str` | Output Dagster asset name. |
+| `prompt` | `str` | User prompt sent to the model on the first turn. |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `url` | `str` | — | http / sse: full URL. |
+| `api_key_env_var` | `str` | `"GEMINI_API_KEY"` | Env var with the Gemini API key. |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `group_name` | `str` | — | Dagster asset group name. |
+| `description` | `str` | — | Asset description. |
+| `owners` | `List[str]` | — | Asset owners. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags. |
+| `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Defaults to ['llm', 'agent', 'gemini']. |
+| `deps` | `List[str]` | — | Lineage-only upstream asset keys. |
+
+### Freshness
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `freshness_max_lag_minutes` | `int` | — | FreshnessPolicy max lag in minutes. |
+| `freshness_cron` | `str` | — | FreshnessPolicy deadline cron schedule. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'multi' \| 'dynamic'. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | ISO date for time-based partitions. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static/multi. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_policy_max_retries` | `int` | — | Max retries on failure. |
+| `retry_policy_delay_seconds` | `int` | — | Seconds between retries. |
+| `retry_policy_backoff` | `str` | `"exponential"` | 'linear' or 'exponential'. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `model` | `str` | `"gemini-2.5-flash"` | Gemini model id (e.g. gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite). |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `type` | `str` | `"stdio"` | Transport: 'stdio' (subprocess), 'http' (streamable-HTTP), or 'sse' (legacy). |
-| `command` | `List[str]` | — | stdio: [executable, ...args]. |
-| `env` | `Dict[str, str]` | — | stdio: extra env vars. |
-| `headers` | `Dict[str, str]` | — | http / sse: literal HTTP headers. |
-| `headers_env` | `Dict[str, str]` | — | http / sse: header_name → env_var_name, value read from env. |
+| `system_prompt` | `str` | — | System instruction. |
+| `temperature` | `float` | `0.0` | Sampling temperature. |
+| `max_output_tokens` | `int` | `2048` | Max output tokens per model call. |
+| `thinking_budget` | `int` | `0` | Gemini 2.5+ thinking budget. Defaults to 0 — thinking tokens come out of max_output_tokens and can silently truncate short outputs. Raise (e.g. 1024) only if your prompt needs multi-step reasoning beyond what the iterati… _(full docs in schema.json + component README)_ |
+| `reasoning_effort` | `str` | — | Gemini 2.5+ reasoning effort: 'low' \| 'medium' \| 'high'. Applied via the underlying `thinking_config.include_thoughts` + implicit budget scaling on models that support it. Prefer explicit `thinking_budget` for fine-gra… _(full docs in schema.json + component README)_ |
+| `max_iterations` | `int` | `10` | Max tool-call rounds. |
+| `mcp_servers` | `List[MCPServerSpec]` | `list()` | MCP servers to expose as tools. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)

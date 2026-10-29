@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DatabricksIOManagerComponent",
+  "component_type": "dagster_community_components.DatabricksIOManagerComponent",
   "description": "Register a Databricks IO manager that reads and writes DataFrames as Unity Catalog Delta tables via Databricks SQL",
   "category": "io_manager",
   "icon": "si:databricks",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DltRestApiSourceComponent",
+  "component_type": "dagster_community_components.DltRestApiSourceComponent",
   "description": "Bring-your-own REST API source config -- the generic escape hatch for any REST API, using dlt's rest_api_source engine directly. Advanced option: prefer a dedicated hand-built component for your vendor if one exists in this catalog.",
   "category": "ingestion",
   "vertical": "internal",

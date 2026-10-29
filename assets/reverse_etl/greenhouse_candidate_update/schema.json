@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GreenhouseCandidateUpdateComponent",
+  "component_type": "dagster_community_components.GreenhouseCandidateUpdateComponent",
   "description": "Reverse-ETL sink: update existing Greenhouse candidates' tags and/or custom fields via PATCH /v1/candidates/{id}. Update-only, not an upsert -- candidates must already exist in Greenhouse.",
   "category": "reverse_etl",
   "icon": "si:greenhouse",

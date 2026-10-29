@@ -1,4 +1,4 @@
-type: dagster_component_templates.CloudTasksEnqueueAssetComponent
+type: dagster_community_components.CloudTasksEnqueueAssetComponent
 attributes:
   asset_name: tasks_enqueued
   upstream_asset_key: pending_jobs

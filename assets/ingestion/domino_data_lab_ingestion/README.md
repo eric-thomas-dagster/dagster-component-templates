@@ -108,7 +108,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.DominoDataLabIngestionComponent
+type: dagster_community_components.DominoDataLabIngestionComponent
 attributes:
   asset_name: domino_data_lab_ingestion
   deployment_url: "https://domino.mycompany.com"

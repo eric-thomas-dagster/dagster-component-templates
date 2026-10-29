@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ChromadbReaderComponent",
+  "component_type": "dagster_community_components.ChromadbReaderComponent",
   "description": "Component for querying a ChromaDB collection.",
   "category": "source",
   "icon": "Database",

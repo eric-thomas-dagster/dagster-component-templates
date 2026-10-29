@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OneSignalResourceComponent",
+  "component_type": "dagster_community_components.OneSignalResourceComponent",
   "description": "Register a OneSignalResource (REST API app id + key auth) for use by other components",
   "category": "resource",
   "icon": "si:onesignal",

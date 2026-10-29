@@ -1,4 +1,4 @@
-type: dagster_component_templates.LangGraphAgentComponent
+type: dagster_community_components.LangGraphAgentComponent
 attributes:
   asset_name: research_report
   input_prompt: "How do vector databases handle high-cardinality metadata filters efficiently?"

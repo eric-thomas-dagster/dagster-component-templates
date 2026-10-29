@@ -13,7 +13,7 @@ Use cases:
 Example — confirm 1+ business partners exist:
 
     ```yaml
-    type: dagster_component_templates.ODataCheckComponent
+    type: dagster_community_components.ODataCheckComponent
     attributes:
       asset_key: sap/business_partners
       service_url: https://my300000.s4hana.cloud.sap/sap/opu/odata/sap/API_BUSINESS_PARTNER

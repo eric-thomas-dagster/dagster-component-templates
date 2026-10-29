@@ -101,7 +101,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.OmniIngestionComponent
+type: dagster_community_components.OmniIngestionComponent
 attributes:
   asset_name: omni_ingestion
   organization: "myorg"

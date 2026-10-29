@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SnowflakePolarsIOManagerComponent",
+  "component_type": "dagster_community_components.SnowflakePolarsIOManagerComponent",
   "description": "Wrap dagster-snowflake-polars so polars.DataFrame assets persist to Snowflake.",
   "category": "io_manager",
   "icon": "si:snowflake",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RssFeedSensorComponent",
+  "component_type": "dagster_community_components.RssFeedSensorComponent",
   "description": "Trigger a run when an RSS / Atom feed publishes a new entry.",
   "category": "sensor",
   "icon": "Bell",

@@ -100,7 +100,7 @@ class HeapUserPropertySyncComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.HeapUserPropertySyncComponent
+        type: dagster_community_components.HeapUserPropertySyncComponent
         attributes:
           asset_name: heap_user_properties_sync
           upstream_asset_key: dbt_marts_customers

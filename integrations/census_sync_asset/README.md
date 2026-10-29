@@ -29,7 +29,7 @@ Wraps `dagster-census` to expose a Census sync as a Dagster asset. Materializing
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.CensusSyncAssetComponent
+type: dagster_community_components.CensusSyncAssetComponent
 attributes:
   api_key_env_var: <fill in>
   sync_id: <fill in>

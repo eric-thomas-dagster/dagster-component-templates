@@ -1,4 +1,4 @@
-type: dagster_component_templates.LookupComponent
+type: dagster_community_components.LookupComponent
 attributes:
   asset_name: lookup_output
   upstream_asset_key: upstream_data

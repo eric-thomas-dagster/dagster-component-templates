@@ -3,7 +3,7 @@
 Multi-provider TTS via LiteLLM. Same DataFrame-in → audio-files-out shape as `cloud_text_to_speech_asset`, but routes to OpenAI / ElevenLabs / Azure / etc.
 
 ```yaml
-type: dagster_component_templates.LitellmTextToSpeechComponent
+type: dagster_community_components.LitellmTextToSpeechComponent
 attributes:
   asset_name: announcements_audio
   upstream_asset_key: announcements

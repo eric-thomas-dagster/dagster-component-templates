@@ -102,7 +102,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 ## Example
 
 ```yaml
-type: dagster_component_templates.WebflowIngestionComponent
+type: dagster_community_components.WebflowIngestionComponent
 attributes:
   asset_name: webflow_ingestion
   access_token: "${WEBFLOW_ACCESS_TOKEN}"

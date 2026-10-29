@@ -1,4 +1,4 @@
-type: dagster_component_templates.PdfTextExtractorComponent
+type: dagster_community_components.PdfTextExtractorComponent
 attributes:
   asset_name: extracted_pdf_text
   upstream_asset_key: raw_pdf_files

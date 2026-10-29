@@ -1,7 +1,7 @@
 # Vector Store Writer receives embeddings from upstream assets via IO manager
 # Draw connection from Embedding Generator or any asset producing embeddings DataFrame
 
-type: dagster_component_templates.VectorStoreWriterComponent
+type: dagster_community_components.VectorStoreWriterComponent
 attributes:
   asset_name: vector_index
   upstream_asset_key: rows_to_index

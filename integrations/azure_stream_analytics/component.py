@@ -68,7 +68,7 @@ class AzureStreamAnalyticsComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.AzureStreamAnalyticsComponent
+        type: dagster_community_components.AzureStreamAnalyticsComponent
         attributes:
           subscription_id: "12345678-1234-1234-1234-123456789012"
           resource_group_name: my-resource-group

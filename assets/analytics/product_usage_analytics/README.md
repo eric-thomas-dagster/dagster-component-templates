@@ -108,7 +108,7 @@ The Product Usage Analytics Component helps you understand how users interact wi
 Track overall product engagement:
 
 ```yaml
-type: dagster_component_templates.ProductUsageAnalyticsComponent
+type: dagster_community_components.ProductUsageAnalyticsComponent
 attributes:
   asset_name: user_engagement_metrics
 
@@ -132,7 +132,7 @@ attributes:
 Track specific feature usage:
 
 ```yaml
-type: dagster_component_templates.ProductUsageAnalyticsComponent
+type: dagster_community_components.ProductUsageAnalyticsComponent
 attributes:
   asset_name: feature_adoption_metrics
 
@@ -151,7 +151,7 @@ attributes:
 Identify your most engaged users:
 
 ```yaml
-type: dagster_component_templates.ProductUsageAnalyticsComponent
+type: dagster_community_components.ProductUsageAnalyticsComponent
 attributes:
   asset_name: power_users
 
@@ -169,7 +169,7 @@ attributes:
 Calculate monthly product health metrics:
 
 ```yaml
-type: dagster_component_templates.ProductUsageAnalyticsComponent
+type: dagster_community_components.ProductUsageAnalyticsComponent
 attributes:
   asset_name: monthly_product_metrics
 
@@ -263,7 +263,7 @@ Combine with other components to create user segments:
 
 ```yaml
 # Step 1: Calculate engagement metrics
-- type: dagster_component_templates.ProductUsageAnalyticsComponent
+- type: dagster_community_components.ProductUsageAnalyticsComponent
   attributes:
     asset_name: engagement_metrics
     event_data_asset_key: product_events
@@ -278,7 +278,7 @@ Combine with other components to create user segments:
 Track multi-step feature adoption:
 
 ```yaml
-type: dagster_component_templates.ProductUsageAnalyticsComponent
+type: dagster_community_components.ProductUsageAnalyticsComponent
 attributes:
   asset_name: feature_funnel
   event_data_asset_key: product_events
@@ -294,7 +294,7 @@ attributes:
 Identify users becoming less engaged:
 
 ```yaml
-type: dagster_component_templates.ProductUsageAnalyticsComponent
+type: dagster_community_components.ProductUsageAnalyticsComponent
 attributes:
   asset_name: churn_risk_users
   event_data_asset_key: product_events
@@ -311,7 +311,7 @@ attributes:
 ### SaaS Product Analytics
 
 ```yaml
-type: dagster_component_templates.ProductUsageAnalyticsComponent
+type: dagster_community_components.ProductUsageAnalyticsComponent
 attributes:
   asset_name: saas_product_metrics
   event_data_asset_key: application_events
@@ -329,7 +329,7 @@ attributes:
 ### Mobile App Analytics
 
 ```yaml
-type: dagster_component_templates.ProductUsageAnalyticsComponent
+type: dagster_community_components.ProductUsageAnalyticsComponent
 attributes:
   asset_name: mobile_engagement
   event_data_asset_key: mobile_events
@@ -344,7 +344,7 @@ attributes:
 ### B2B Platform Usage
 
 ```yaml
-type: dagster_component_templates.ProductUsageAnalyticsComponent
+type: dagster_community_components.ProductUsageAnalyticsComponent
 attributes:
   asset_name: platform_usage
   event_data_asset_key: platform_events

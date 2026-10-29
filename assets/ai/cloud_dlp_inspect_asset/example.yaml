@@ -1,4 +1,4 @@
-type: dagster_component_templates.CloudDlpInspectAssetComponent
+type: dagster_community_components.CloudDlpInspectAssetComponent
 attributes:
   asset_name: tickets_dlp_scanned
   upstream_asset_key: support_tickets

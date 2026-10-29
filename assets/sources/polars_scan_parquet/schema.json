@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PolarsScanParquetComponent",
+  "component_type": "dagster_community_components.PolarsScanParquetComponent",
   "description": "Read parquet via polars's lazy scanner with predicate + column pushdown.",
   "category": "source",
   "icon": "si:polars",

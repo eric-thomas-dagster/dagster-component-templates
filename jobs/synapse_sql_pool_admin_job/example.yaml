@@ -1,4 +1,4 @@
-type: dagster_component_templates.SynapseSqlPoolAdminJobComponent
+type: dagster_community_components.SynapseSqlPoolAdminJobComponent
 attributes:
   job_name: synapse_pool_pause_nightly
   action: pause           # 'pause' | 'resume' | 'scale'

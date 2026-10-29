@@ -73,7 +73,7 @@ Import BigQuery entities as Dagster assets with comprehensive orchestration and 
 
 ### Basic Example
 ```yaml
-type: dagster_component_templates.GoogleBigQueryComponent
+type: dagster_community_components.GoogleBigQueryComponent
 attributes:
   project_id: my-gcp-project
   credentials_path: "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}"
@@ -83,7 +83,7 @@ attributes:
 
 ### Advanced Example
 ```yaml
-type: dagster_component_templates.GoogleBigQueryComponent
+type: dagster_community_components.GoogleBigQueryComponent
 attributes:
   project_id: my-gcp-project
   credentials_path: "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}"

@@ -1,4 +1,4 @@
-type: dagster_component_templates.LogisticRegressionModelComponent
+type: dagster_community_components.LogisticRegressionModelComponent
 attributes:
   asset_name: churn_predictions
   upstream_asset_key: customer_features_clean

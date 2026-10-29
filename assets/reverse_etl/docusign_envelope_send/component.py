@@ -150,7 +150,7 @@ class DocuSignEnvelopeSendComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.DocuSignEnvelopeSendComponent
+        type: dagster_community_components.DocuSignEnvelopeSendComponent
         attributes:
           asset_name: docusign_contracts_sent
           upstream_asset_key: dbt_marts_contracts_ready_for_signature

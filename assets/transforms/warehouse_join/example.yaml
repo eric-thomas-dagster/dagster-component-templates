@@ -1,4 +1,4 @@
-type: dagster_component_templates.WarehouseJoinComponent
+type: dagster_community_components.WarehouseJoinComponent
 attributes:
   asset_name: orders_with_customers
   database_url: snowflake://user:pass@account/db/schema?warehouse=COMPUTE_WH

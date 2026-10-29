@@ -2,7 +2,7 @@
 # (search-index activation) using the native Documents Import NDJSON endpoint.
 # id_field's value becomes each document's string 'id' field.
 
-type: dagster_component_templates.TypesenseIndexUpsertComponent
+type: dagster_community_components.TypesenseIndexUpsertComponent
 attributes:
   asset_name: typesense_product_catalog_sync
   upstream_asset_key: dbt_marts_product_catalog

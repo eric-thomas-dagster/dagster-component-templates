@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TwilioNotificationSensor",
+  "component_type": "dagster_community_components.TwilioNotificationSensor",
   "description": "Component that sends SMS or WhatsApp notifications when Dagster assets",
   "category": "sensor",
   "icon": "si:twilio",

@@ -81,7 +81,7 @@ Materialize a DataFrame from a KQL query against an Azure Log Analytics workspac
 ## Config
 
 ```yaml
-type: dagster_component_templates.AzureLogAnalyticsQueryComponent
+type: dagster_community_components.AzureLogAnalyticsQueryComponent
 attributes:
   asset_name: signin_failures_last_hour
   workspace_id: "12345678-1234-1234-1234-123456789012"

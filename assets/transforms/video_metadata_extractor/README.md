@@ -3,7 +3,7 @@
 Pull container + per-stream metadata from video files via `ffprobe` (ships with ffmpeg). Adds video/audio codec, resolution, fps, duration, bitrate, sample rate, channels, plus the full `streams_raw` JSON.
 
 ```yaml
-type: dagster_component_templates.VideoMetadataExtractorComponent
+type: dagster_community_components.VideoMetadataExtractorComponent
 attributes:
   asset_name: video_meta
   upstream_asset_key: sample_videos

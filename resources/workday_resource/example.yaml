@@ -1,4 +1,4 @@
-type: dagster_component_templates.WorkdayResourceComponent
+type: dagster_community_components.WorkdayResourceComponent
 attributes:
   resource_key: workday
   tenant_url: "https://wd5-impl-services1.workday.com/ccx/api/v1/mytenant"

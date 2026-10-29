@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.EventLogToS3JobComponent",
+  "component_type": "dagster_community_components.EventLogToS3JobComponent",
   "description": "Op-shaped job that streams new Dagster event log entries to S3 as gzipped JSONL batches, partitioned by hour. Cursor-based; only sends new events since prior successful run.",
   "category": "jobs",
   "icon": "Upload",

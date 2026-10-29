@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SharePointMonitorSensorComponent",
+  "component_type": "dagster_community_components.SharePointMonitorSensorComponent",
   "description": "Monitor a SharePoint document library for new or modified files.",
   "category": "sensor",
   "icon": "Radar",

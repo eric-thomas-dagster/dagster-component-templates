@@ -16,7 +16,7 @@ would otherwise accumulate huge histories.
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.DagsterAssetMaterializationPruneJobComponent
+type: dagster_community_components.DagsterAssetMaterializationPruneJobComponent
 attributes:
   job_name: prune_high_frequency_asset_history
   schedule: "0 5 * * 0"                # weekly Sunday at 5am

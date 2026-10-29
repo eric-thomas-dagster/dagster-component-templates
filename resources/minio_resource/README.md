@@ -33,7 +33,7 @@ pip install minio
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.MinIOResourceComponent
+type: dagster_community_components.MinIOResourceComponent
 attributes:
   resource_key: minio_resource
   endpoint: localhost:9000

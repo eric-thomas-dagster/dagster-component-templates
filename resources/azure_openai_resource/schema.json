@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AzureOpenAIResourceComponent",
+  "component_type": "dagster_community_components.AzureOpenAIResourceComponent",
   "description": "Azure OpenAI Service client (distinct from generic OpenAI). Supports Azure deployment IDs, regional endpoints, api_version, and Microsoft Entra OAuth (or API key) auth.",
   "category": "resource",
   "icon": "Sparkles",

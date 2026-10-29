@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DagsterStalePartitionCleanupJobComponent",
+  "component_type": "dagster_community_components.DagsterStalePartitionCleanupJobComponent",
   "description": "Op-shaped job that detects orphaned partition materialization events for assets whose PartitionsDefinition has been re-shaped. Reports by default; opt-in wipe when threshold exceeded.",
   "category": "jobs",
   "icon": "Trash",

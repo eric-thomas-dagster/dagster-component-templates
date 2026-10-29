@@ -1,4 +1,4 @@
-type: dagster_component_templates.DatabaseConstraintsMigrationComponent
+type: dagster_community_components.DatabaseConstraintsMigrationComponent
 attributes:
   asset_name: constraints_applied
   source_connection_env_var: SOURCE_DB_URL

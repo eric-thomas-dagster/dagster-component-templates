@@ -81,7 +81,7 @@ For smaller frames or chains that include Python transforms, use the regular `su
 ## YAML
 
 ```yaml
-type: dagster_component_templates.WarehouseSummarizeComponent
+type: dagster_community_components.WarehouseSummarizeComponent
 attributes:
   asset_name: revenue_by_region
   database_url: snowflake://user:pass@account/db/schema?warehouse=COMPUTE_WH

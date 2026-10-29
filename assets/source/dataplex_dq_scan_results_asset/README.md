@@ -9,7 +9,7 @@ Dataplex DQ scans are managed, BigQuery-native rule evaluations — uniqueness, 
 - Historical DQ trends are queryable from a single source
 
 ```yaml
-type: dagster_component_templates.DataplexDqScanResultsAssetComponent
+type: dagster_community_components.DataplexDqScanResultsAssetComponent
 attributes:
   asset_name: orders_dq_results
   project_id: my-project

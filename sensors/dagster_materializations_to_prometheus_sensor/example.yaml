@@ -1,4 +1,4 @@
-type: dagster_component_templates.DagsterMaterializationsToPrometheusSensorComponent
+type: dagster_community_components.DagsterMaterializationsToPrometheusSensorComponent
 attributes:
   sensor_name: dagster_asset_materializations
   base_url_env_var: PROM_PUSHGATEWAY_URL

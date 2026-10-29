@@ -229,7 +229,7 @@ class TwitterAdsTailoredAudienceUpsertComponent(dg.Component, dg.Model, dg.Resol
 
     Example:
         ```yaml
-        type: dagster_component_templates.TwitterAdsTailoredAudienceUpsertComponent
+        type: dagster_community_components.TwitterAdsTailoredAudienceUpsertComponent
         attributes:
           asset_name: twitter_high_ltv_customers_audience
           upstream_asset_key: dbt_marts_high_ltv_customers

@@ -156,7 +156,7 @@ class OktaUserUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.OktaUserUpsertComponent
+        type: dagster_community_components.OktaUserUpsertComponent
         attributes:
           asset_name: okta_employee_sync
           upstream_asset_key: dbt_marts_active_employees

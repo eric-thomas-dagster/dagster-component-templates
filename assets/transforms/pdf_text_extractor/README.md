@@ -77,7 +77,7 @@ Extract text from a column containing PDF file paths or PDF bytes. Uses `pdfplum
 
 ## Example YAML
 ```yaml
-component_type: dagster_component_templates.PdfTextExtractorComponent
+component_type: dagster_community_components.PdfTextExtractorComponent
 asset_name: extracted_pdf_text
 upstream_asset_key: raw_pdf_files
 column: file_path

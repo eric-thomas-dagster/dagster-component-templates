@@ -216,7 +216,7 @@ class HoneycombIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.HoneycombIngestionComponent
+        type: dagster_community_components.HoneycombIngestionComponent
         attributes:
           asset_name: honeycomb_ingestion
           api_key: "${HONEYCOMB_API_KEY}"

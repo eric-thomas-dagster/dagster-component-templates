@@ -18,7 +18,7 @@ This component transforms DataFrames automatically passed from upstream assets v
 
 ```yaml
 # REST API that produces DataFrame
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: api_data
   api_url: https://api.example.com/sales
@@ -29,7 +29,7 @@ attributes:
 
 ```yaml
 # No upstream_asset_key needed - set by drawing connections!
-type: dagster_component_templates.DataFrameTransformerComponent
+type: dagster_community_components.DataFrameTransformerComponent
 attributes:
   asset_name: cleaned_data
   drop_duplicates: true
@@ -177,14 +177,14 @@ That's it! The IO manager automatically passes the DataFrame.
 
 ```yaml
 # 1. Fetch from API
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: sales_api
   api_url: https://api.example.com/sales
   output_format: dataframe
 
 # 2. Clean data
-type: dagster_component_templates.DataFrameTransformerComponent
+type: dagster_community_components.DataFrameTransformerComponent
 attributes:
   asset_name: sales_cleaned
   drop_duplicates: true
@@ -192,7 +192,7 @@ attributes:
   fill_na_value: "0"
 
 # 3. Aggregate
-type: dagster_component_templates.DataFrameTransformerComponent
+type: dagster_community_components.DataFrameTransformerComponent
 attributes:
   asset_name: daily_summary
   group_by: "date"

@@ -194,7 +194,7 @@ class RedisReaderComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.RedisReaderComponent
+        type: dagster_community_components.RedisReaderComponent
         attributes:
           asset_name: redis_user_sessions
           key_pattern: "session:*"

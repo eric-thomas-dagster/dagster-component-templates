@@ -317,7 +317,7 @@ class TicketClassifierComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.TicketClassifierComponent
+        type: dagster_community_components.TicketClassifierComponent
         attributes:
           asset_name: classified_tickets
           method: llm

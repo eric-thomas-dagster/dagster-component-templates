@@ -39,7 +39,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.TwitterAdsResourceComponent
+type: dagster_community_components.TwitterAdsResourceComponent
 attributes:
   resource_key: twitter_ads_resource
   consumer_key_env_var: TWITTER_ADS_CONSUMER_KEY

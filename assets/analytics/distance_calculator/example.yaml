@@ -1,4 +1,4 @@
-type: dagster_component_templates.DistanceCalculatorComponent
+type: dagster_community_components.DistanceCalculatorComponent
 attributes:
   description: Calculate haversine distance between pickup and dropoff coordinates for deliveries.
   asset_name: deliveries_with_distance

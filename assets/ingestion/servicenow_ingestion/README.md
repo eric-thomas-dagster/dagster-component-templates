@@ -151,7 +151,7 @@ See <https://www.servicenow.com/docs/bundle/yokohama-platform-user-interface/pag
 Last 30 days of P1 / P2 incidents:
 
 ```yaml
-type: dagster_component_templates.ServiceNowIngestionComponent
+type: dagster_community_components.ServiceNowIngestionComponent
 attributes:
   asset_name: high_priority_incidents
   instance_env_var: SNOW_INSTANCE
@@ -167,7 +167,7 @@ attributes:
 Open change requests with a specific assignment group, OAuth auth:
 
 ```yaml
-type: dagster_component_templates.ServiceNowIngestionComponent
+type: dagster_community_components.ServiceNowIngestionComponent
 attributes:
   asset_name: open_data_eng_changes
   instance_env_var: SNOW_INSTANCE
@@ -179,7 +179,7 @@ attributes:
 Full CMDB snapshot (server CIs only):
 
 ```yaml
-type: dagster_component_templates.ServiceNowIngestionComponent
+type: dagster_community_components.ServiceNowIngestionComponent
 attributes:
   asset_name: cmdb_servers
   instance_env_var: SNOW_INSTANCE

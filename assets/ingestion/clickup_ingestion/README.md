@@ -100,7 +100,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 ## Example
 
 ```yaml
-type: dagster_component_templates.ClickUpIngestionComponent
+type: dagster_community_components.ClickUpIngestionComponent
 attributes:
   asset_name: clickup_ingestion
   team_id: "${CLICKUP_TEAM_ID}"

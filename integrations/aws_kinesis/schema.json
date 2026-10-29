@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AWSKinesisComponent",
+  "component_type": "dagster_community_components.AWSKinesisComponent",
   "description": "Component for importing AWS Kinesis entities as Dagster assets.",
   "category": "integration",
   "icon": "si:amazonkinesis",

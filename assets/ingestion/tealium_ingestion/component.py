@@ -302,7 +302,7 @@ class TealiumIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.TealiumIngestionComponent
+        type: dagster_community_components.TealiumIngestionComponent
         attributes:
           asset_name: tealium_ingestion
           account: "mycompany"

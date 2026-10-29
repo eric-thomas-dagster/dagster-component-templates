@@ -105,7 +105,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.DynamicsCrmIngestionComponent
+type: dagster_community_components.DynamicsCrmIngestionComponent
 attributes:
   asset_name: dynamics_crm_ingestion
   org_url: "https://myorg.crm.dynamics.com"

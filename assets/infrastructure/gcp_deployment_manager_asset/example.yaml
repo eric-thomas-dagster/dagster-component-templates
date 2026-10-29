@@ -1,4 +1,4 @@
-type: dagster_component_templates.GcpDeploymentManagerAssetComponent
+type: dagster_community_components.GcpDeploymentManagerAssetComponent
 attributes:
   asset_name: gcp_data_platform
   project_id: my-project-12345

@@ -1,4 +1,4 @@
-type: dagster_component_templates.ShellCommandAssetComponent
+type: dagster_community_components.ShellCommandAssetComponent
 attributes:
   asset_name: raw_data_export
   command: "./scripts/export_raw.sh"

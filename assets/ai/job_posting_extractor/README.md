@@ -120,7 +120,7 @@ The Job Posting Extractor Component uses a large language model to parse unstruc
 ### Basic Job Posting Extraction
 
 ```yaml
-type: dagster_component_templates.JobPostingExtractorComponent
+type: dagster_community_components.JobPostingExtractorComponent
 attributes:
   asset_name: parsed_job_postings
   upstream_asset_key: raw_job_postings

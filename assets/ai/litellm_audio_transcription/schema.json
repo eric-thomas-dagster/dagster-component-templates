@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LitellmAudioTranscriptionComponent",
+  "component_type": "dagster_community_components.LitellmAudioTranscriptionComponent",
   "description": "Transcribe audio files referenced in a DataFrame column using Whisper via LiteLLM and write transcription text to a new column.",
   "category": "ai",
   "icon": "si:openai",

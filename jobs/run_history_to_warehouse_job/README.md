@@ -38,7 +38,7 @@ CREATE TABLE dagster_run_history (
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.RunHistoryToWarehouseJobComponent
+type: dagster_community_components.RunHistoryToWarehouseJobComponent
 attributes:
   job_name: dagster_run_history_to_snowflake
   schedule: "*/15 * * * *"

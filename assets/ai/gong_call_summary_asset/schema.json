@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GongCallSummaryAssetComponent",
+  "component_type": "dagster_community_components.GongCallSummaryAssetComponent",
   "description": "Summarize Gong call transcripts into short summaries + action items using an OpenAI-compatible LLM.",
   "category": "ai",
   "icon": "si:gong",

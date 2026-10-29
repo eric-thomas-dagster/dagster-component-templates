@@ -1,4 +1,4 @@
-type: dagster_component_templates.ContractExtractorComponent
+type: dagster_community_components.ContractExtractorComponent
 attributes:
   asset_name: extracted_contracts
   upstream_asset_key: raw_contracts

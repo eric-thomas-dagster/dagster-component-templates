@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RecurlyResourceComponent",
+  "component_type": "dagster_community_components.RecurlyResourceComponent",
   "description": "Register a RecurlyResource wrapping the Recurly API v3. HTTP Basic auth (private API key as username, blank password). Every request pins a dated API version via the Accept header (application/vnd.recurly.v<version>+json). request() returns None on 404 (not an exception) so upsert-style existence checks can branch on it directly. Exposes a generic request().",
   "category": "resource",
   "icon": "Repeat",

@@ -1,4 +1,4 @@
-type: dagster_component_templates.AudioDiarizedTranscriberComponent
+type: dagster_community_components.AudioDiarizedTranscriberComponent
 attributes:
   asset_name: call_transcripts
   upstream_asset_key: call_audio_files    # e.g. video_audio_extract_asset, or synthetic_audio_generator for testing

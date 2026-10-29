@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PandaDocDocumentCreateComponent",
+  "component_type": "dagster_community_components.PandaDocDocumentCreateComponent",
   "description": "Reverse-ETL e-signature activation: create (and, by default, send) a PandaDoc document from a template for each row of an upstream DataFrame (`POST /documents` with template_uuid + recipients + tokens, then poll to `document.draft` and `POST /documents/{id}/send`). Creates REAL documents and, by default, immediately emails a signature request the moment this asset materializes.",
   "category": "reverse_etl",
   "icon": "si:pandadoc",

@@ -110,7 +110,7 @@ class QlikCloudAppReloadComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.QlikCloudAppReloadComponent
+        type: dagster_community_components.QlikCloudAppReloadComponent
         attributes:
           asset_key: bi/finance_consolidated_app
           app_id: 60f1b3e2a1b2c3d4e5f6a7b8

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.Auth0UserUpsertComponent",
+  "component_type": "dagster_community_components.Auth0UserUpsertComponent",
   "description": "Reverse-ETL sink: sync an upstream DataFrame of user records into Auth0. Default operation ('sync') only creates users that don't exist or updates profile attributes on ones that do -- it can never block or delete anyone. Deactivation requires the explicit, separate operation: 'deactivate' and only ever blocks (never deletes) users matched by email; rows with no match are skipped, never created. There is no delete operation.",
   "category": "reverse_etl",
   "icon": "si:auth0",

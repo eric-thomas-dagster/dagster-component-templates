@@ -19,7 +19,7 @@ doesn't expose `delete_events`, this job logs a warning and no-ops.
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.DagsterCheckResultsPruneJobComponent
+type: dagster_community_components.DagsterCheckResultsPruneJobComponent
 attributes:
   job_name: prune_asset_check_results
   schedule: "0 5 * * 0"

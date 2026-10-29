@@ -36,7 +36,7 @@ class MQTTMonitorSensorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.MQTTMonitorSensorComponent
+        type: dagster_community_components.MQTTMonitorSensorComponent
         attributes:
           sensor_name: mqtt_telemetry_sensor
           broker_host: mqtt.example.com

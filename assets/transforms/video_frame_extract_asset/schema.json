@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.VideoFrameExtractAssetComponent",
+  "component_type": "dagster_community_components.VideoFrameExtractAssetComponent",
   "description": "VideoFrameExtractAssetComponent \u2014 pull N frames per video as image files.",
   "category": "transformation",
   "x-dagster-io": {

@@ -189,7 +189,7 @@ class CalendlyIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.CalendlyIngestionComponent
+        type: dagster_community_components.CalendlyIngestionComponent
         attributes:
           asset_name: calendly_ingestion
           access_token: "${CALENDLY_ACCESS_TOKEN}"

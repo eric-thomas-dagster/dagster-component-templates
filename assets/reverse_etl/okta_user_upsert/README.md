@@ -104,7 +104,7 @@ Exactly one value **must** be `login` (the match key — and required by Okta to
 ## Example
 
 ```yaml
-type: dagster_component_templates.OktaUserUpsertComponent
+type: dagster_community_components.OktaUserUpsertComponent
 attributes:
   asset_name: okta_employee_sync
   upstream_asset_key: dbt_marts_active_employees
@@ -119,7 +119,7 @@ attributes:
 ## Example — explicit deactivation (separate asset)
 
 ```yaml
-type: dagster_component_templates.OktaUserUpsertComponent
+type: dagster_community_components.OktaUserUpsertComponent
 attributes:
   asset_name: okta_offboard_deactivate
   upstream_asset_key: dbt_marts_offboarded_employees

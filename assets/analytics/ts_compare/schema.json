@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TsCompareComponent",
+  "component_type": "dagster_community_components.TsCompareComponent",
   "description": "Component for comparing ARIMA and ETS model performance on a time series.",
   "category": "analytics",
   "icon": "BarChart2",

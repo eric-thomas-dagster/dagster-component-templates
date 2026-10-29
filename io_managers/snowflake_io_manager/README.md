@@ -40,7 +40,7 @@ pip install dagster-snowflake-pandas
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.SnowflakeIOManagerComponent
+type: dagster_community_components.SnowflakeIOManagerComponent
 attributes:
   resource_key: io_manager
   account: xy12345.us-east-1

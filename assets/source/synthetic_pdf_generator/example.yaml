@@ -1,4 +1,4 @@
-type: dagster_component_templates.SyntheticPdfGeneratorComponent
+type: dagster_community_components.SyntheticPdfGeneratorComponent
 attributes:
   asset_name: sample_documents
   output_dir: /tmp/synthetic_pdfs

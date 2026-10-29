@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LineageToCastordocComponent",
+  "component_type": "dagster_community_components.LineageToCastordocComponent",
   "description": "Sink that enriches existing Castor (CastorDoc / Coalesce Catalog) tables with Dagster-sourced descriptions, tags, data-quality signal, and lineage edges from the upstream lineage_graph.",
   "category": "sink",
   "icon": "ArrowRightLeft",

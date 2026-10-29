@@ -1,4 +1,4 @@
-type: dagster_component_templates.PcaComponent
+type: dagster_community_components.PcaComponent
 attributes:
   asset_name: product_features_pca
   upstream_asset_key: product_features_scaled

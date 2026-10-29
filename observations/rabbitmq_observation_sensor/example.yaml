@@ -1,4 +1,4 @@
-type: dagster_component_templates.RabbitmqObservationSensorComponent
+type: dagster_community_components.RabbitmqObservationSensorComponent
 attributes:
   sensor_name: rabbitmq_tasks_obs
   asset_key: queue/tasks

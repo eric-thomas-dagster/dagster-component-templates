@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ServiceNowResourceComponent",
+  "component_type": "dagster_community_components.ServiceNowResourceComponent",
   "description": "Shared ServiceNow Table API connection (instance subdomain + auth). Supports basic auth for dev instances and bearer-token OAuth for production. Pairs with servicenow_ingestion (read) and servicenow_sensor (event-driven trigger).",
   "category": "resource",
   "icon": "Server",

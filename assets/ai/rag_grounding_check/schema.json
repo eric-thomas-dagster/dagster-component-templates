@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RagGroundingCheckComponent",
+  "component_type": "dagster_community_components.RagGroundingCheckComponent",
   "name": "RAG Grounding Check",
   "description": "Verify RAG-generated answers are actually grounded in their retrieved source chunks -- rag_eval's sibling for generation faithfulness rather than retrieval quality. Deterministic n-gram overlap + fabricated-number detection by default (free, no API key), with an opt-in mode='llm_judge' for nuanced cases. Attached asset check fails on regression vs the prior materialization, mirroring rag_eval.",
   "category": "ai",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeFromYxdbComponent",
+  "component_type": "dagster_community_components.DataframeFromYxdbComponent",
   "description": "Read an Alteryx .yxdb file as a pandas DataFrame asset. Wraps the import-yxdb package (preferred — whole-file → DataFrame) with a fallback to the lower-level yxdb iterator.",
   "category": "source",
   "icon": "Database",

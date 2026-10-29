@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FeastAssetComponent",
+  "component_type": "dagster_community_components.FeastAssetComponent",
   "description": "Materialize features from a source table into a Feast feature store.",
   "category": "analytics",
   "icon": "BarChart2",

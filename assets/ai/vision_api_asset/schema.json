@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.VisionApiAssetComponent",
+  "component_type": "dagster_community_components.VisionApiAssetComponent",
   "description": "Cloud Vision API per-row image analysis. Supports LABEL_DETECTION, OBJECT_LOCALIZATION, FACE_DETECTION, LANDMARK_DETECTION, LOGO_DETECTION, TEXT_DETECTION (basic OCR), DOCUMENT_TEXT_DETECTION, SAFE_SEARCH_DETECTION, IMAGE_PROPERTIES, CROP_HINTS, WEB_DETECTION. For form/table/structured-document parsing, prefer Document AI.",
   "category": "ai",
   "icon": "si:googlecloud",

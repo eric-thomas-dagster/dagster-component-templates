@@ -109,7 +109,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.MParticleIngestionComponent
+type: dagster_community_components.MParticleIngestionComponent
 attributes:
   asset_name: mparticle_ingestion
   account_id: "123456"

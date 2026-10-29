@@ -76,7 +76,7 @@ Executes an arbitrary SQL query against a relational database and returns the re
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.DataframeFromSqlComponent
+type: dagster_community_components.DataframeFromSqlComponent
 attributes:
   asset_name: monthly_revenue
   query: |

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AlgoliaIndexUpsertComponent",
+  "component_type": "dagster_community_components.AlgoliaIndexUpsertComponent",
   "description": "Reverse-ETL / search-index activation: sync an upstream DataFrame into an Algolia index via the native /1/indexes/{index}/batch endpoint. id_field's value becomes each record's objectID; all other columns become document fields. Supports 'upsert' (updateObject, create-or-replace) and 'delete' (deleteObject).",
   "category": "reverse_etl",
   "icon": "si:algolia",

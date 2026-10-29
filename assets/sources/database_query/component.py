@@ -183,7 +183,7 @@ class DatabaseQueryComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.DatabaseQueryComponent
+        type: dagster_community_components.DatabaseQueryComponent
         attributes:
           asset_name: daily_sales
           database_url: ${DATABASE_URL}

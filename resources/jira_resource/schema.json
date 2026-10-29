@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.JiraResourceComponent",
+  "component_type": "dagster_community_components.JiraResourceComponent",
   "description": "Register a JiraResource wrapping the Jira Python client for use by other components",
   "category": "resource",
   "icon": "si:jira",

@@ -247,7 +247,7 @@ class LitellmAudioTranscriptionComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LitellmAudioTranscriptionComponent
+        type: dagster_community_components.LitellmAudioTranscriptionComponent
         attributes:
           asset_name: transcribed_interviews
           upstream_asset_key: interview_audio_files

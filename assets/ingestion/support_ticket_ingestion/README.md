@@ -30,7 +30,7 @@ Zendesk credentials are read from environment variables at run-time:
 By default this asset runs an in-memory DuckDB pipeline and returns a pandas DataFrame for downstream Dagster transformations. To persist directly to a warehouse or object store, set `destination`:
 
 ```yaml
-type: dagster_component_templates.SupportTicketIngestionComponent
+type: dagster_community_components.SupportTicketIngestionComponent
 attributes:
   asset_name: support_tickets
   platform: zendesk
@@ -122,7 +122,7 @@ Credentials come from env vars (`DESTINATION__SNOWFLAKE__CREDENTIALS__*`) or, fo
 ## Example — DataFrame mode (default)
 
 ```yaml
-type: dagster_component_templates.SupportTicketIngestionComponent
+type: dagster_community_components.SupportTicketIngestionComponent
 attributes:
   asset_name: support_tickets
   platform: zendesk
@@ -134,7 +134,7 @@ The asset emits a pandas DataFrame of tickets. If Zendesk credentials are missin
 ## Example — persist to Snowflake
 
 ```yaml
-type: dagster_component_templates.SupportTicketIngestionComponent
+type: dagster_community_components.SupportTicketIngestionComponent
 attributes:
   asset_name: support_tickets
   platform: zendesk

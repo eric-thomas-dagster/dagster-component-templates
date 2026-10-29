@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AsanaResourceComponent",
+  "component_type": "dagster_community_components.AsanaResourceComponent",
   "description": "Register an AsanaResource wrapping the Asana Python SDK for use by other components",
   "category": "resource",
   "icon": "si:asana",

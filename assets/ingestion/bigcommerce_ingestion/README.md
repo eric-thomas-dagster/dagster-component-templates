@@ -99,7 +99,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.BigCommerceIngestionComponent
+type: dagster_community_components.BigCommerceIngestionComponent
 attributes:
   asset_name: bigcommerce_ingestion
   store_hash: "abc123def"

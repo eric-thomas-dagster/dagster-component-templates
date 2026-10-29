@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.StarburstResourceComponent",
+  "component_type": "dagster_community_components.StarburstResourceComponent",
   "description": "Register a Starburst resource — alias for ``trino_resource``.\n\nSame field surface as ``trino_resource``; differs only in:\n\n  * Default ``resource_key`` is ``starburst_resource``\n  * Default ``port`` is 443 (Starburst Galaxy default)\n  * Vendor grouping (Starburst vs Trino) in the registry UI\n\nExample (Starburst Galaxy):\n\n    ```yaml\n    type: dagster_community_components.StarburstResourceComponent\n    attributes:\n      resource_key: starburst_resource\n      host: my-cluster.galaxy.starburst.io\n      port: 443\n      user: my-user@example.com\n      catalog: tpch\n      schema_name: sf1\n      password_env_var: STARBURST_PASSWORD\n    ```",
   "category": "resource",
   "icon": "Plug",

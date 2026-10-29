@@ -235,7 +235,7 @@ class TextChunkerComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.TextChunkerComponent
+        type: dagster_community_components.TextChunkerComponent
         attributes:
           asset_name: text_chunks
           chunking_strategy: fixed_tokens

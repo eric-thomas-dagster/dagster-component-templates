@@ -67,7 +67,7 @@ This component does not read from or write to Pubsub. It is a **lineage declarat
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ExternalPubsubAsset
+type: dagster_community_components.ExternalPubsubAsset
 attributes:
   asset_key: my_service/asset
   project_id: my_project_id
@@ -82,7 +82,7 @@ Set `create_observation_sensor: true` to also get the polling sensor that keeps 
 health/data-version current — one component, one YAML, no manual `asset_key` wiring:
 
 ```yaml
-type: dagster_component_templates.ExternalPubsubAsset
+type: dagster_community_components.ExternalPubsubAsset
 attributes:
   asset_key: external/pubsub
   project_id: PROJECT_ID
@@ -97,7 +97,7 @@ asset and sensor on independent lifecycles), pair this component with the standa
 
 ```yaml
 # 1. Declare the external asset (lineage node)
-type: dagster_component_templates.ExternalPubsubAsset
+type: dagster_community_components.ExternalPubsubAsset
 attributes:
   asset_key: external/pubsub
   project_id: PROJECT_ID
@@ -106,7 +106,7 @@ attributes:
 ---
 
 # 2. Observe it on a schedule
-type: dagster_component_templates.PubsubObservationSensorComponent
+type: dagster_community_components.PubsubObservationSensorComponent
 attributes:
   sensor_name: pubsub_asset_observer
   asset_key: external/pubsub

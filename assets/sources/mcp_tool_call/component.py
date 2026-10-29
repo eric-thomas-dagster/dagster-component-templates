@@ -193,7 +193,7 @@ class MCPToolCallComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.MCPToolCallComponent
+        type: dagster_community_components.MCPToolCallComponent
         attributes:
           asset_name: dagster_plus_recent_failures
           server:

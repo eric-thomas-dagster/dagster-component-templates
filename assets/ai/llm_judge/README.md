@@ -93,7 +93,7 @@ Evaluate and score LLM outputs against a rubric using another LLM as a judge. Us
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.LlmJudgeComponent
+type: dagster_community_components.LlmJudgeComponent
 attributes:
   asset_name: evaluated_responses
   upstream_asset_key: llm_responses

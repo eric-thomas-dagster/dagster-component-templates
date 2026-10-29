@@ -216,7 +216,7 @@ class AdyenIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.AdyenIngestionComponent
+        type: dagster_community_components.AdyenIngestionComponent
         attributes:
           asset_name: adyen_ingestion
           api_key: "${ADYEN_API_KEY}"

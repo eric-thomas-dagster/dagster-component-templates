@@ -216,7 +216,7 @@ class LeverIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.LeverIngestionComponent
+        type: dagster_community_components.LeverIngestionComponent
         attributes:
           asset_name: lever_ingestion
           api_key: "${LEVER_API_KEY}"

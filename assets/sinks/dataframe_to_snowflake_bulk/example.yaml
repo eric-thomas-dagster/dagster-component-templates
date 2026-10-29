@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeToSnowflakeBulkComponent
+type: dagster_community_components.DataframeToSnowflakeBulkComponent
 attributes:
   asset_name: snowflake_orders_bulk
   upstream_asset_key: large_orders_dataframe

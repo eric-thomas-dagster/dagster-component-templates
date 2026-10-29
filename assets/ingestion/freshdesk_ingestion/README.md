@@ -30,7 +30,7 @@ By default this asset runs an in-memory DuckDB pipeline and returns a pandas Dat
 
 
 ```yaml
-type: dagster_component_templates.FreshdeskIngestionComponent
+type: dagster_community_components.FreshdeskIngestionComponent
 attributes:
   asset_name: freshdesk_data
   api_key: "${FRESHDESK_API_KEY}"
@@ -134,7 +134,7 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 ## Example — DataFrame mode (default)
 
 ```yaml
-type: dagster_component_templates.FreshdeskIngestionComponent
+type: dagster_community_components.FreshdeskIngestionComponent
 attributes:
   asset_name: freshdesk_data
   api_key: "{{ env('FRESHDESK_API_KEY') }}"
@@ -149,7 +149,7 @@ The asset emits a pandas DataFrame combining all selected resources, with a `_re
 ## Example — persist to Postgres
 
 ```yaml
-type: dagster_component_templates.FreshdeskIngestionComponent
+type: dagster_community_components.FreshdeskIngestionComponent
 attributes:
   asset_name: freshdesk_data
   api_key: "{{ env('FRESHDESK_API_KEY') }}"

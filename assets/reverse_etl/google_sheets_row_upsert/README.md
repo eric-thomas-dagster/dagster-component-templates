@@ -93,7 +93,7 @@ Reverse-ETL sink: mirror an upstream DataFrame into a **Google Sheets worksheet*
 
 ## Example
 ```yaml
-type: dagster_component_templates.GoogleSheetsRowUpsertComponent
+type: dagster_community_components.GoogleSheetsRowUpsertComponent
 attributes:
   asset_name: sheets_customers_mirror
   upstream_asset_key: dbt_marts_customers

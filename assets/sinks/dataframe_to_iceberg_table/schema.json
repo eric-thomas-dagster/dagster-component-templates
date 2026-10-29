@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToIcebergTableComponent",
+  "component_type": "dagster_community_components.DataframeToIcebergTableComponent",
   "description": "Write a pandas DataFrame to an EXISTING Iceberg table (append or overwrite). For Iceberg tables shared with other engines — Snowflake, Trino, Spark, Flink, Databricks.",
   "category": "sink",
   "icon": "si:apacheiceberg",

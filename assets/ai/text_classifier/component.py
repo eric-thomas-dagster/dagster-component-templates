@@ -296,7 +296,7 @@ class TextClassifierComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.TextClassifierComponent
+        type: dagster_community_components.TextClassifierComponent
         attributes:
           asset_name: text_classification
           upstream_asset_key: documents

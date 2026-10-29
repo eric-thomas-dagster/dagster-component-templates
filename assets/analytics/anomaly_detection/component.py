@@ -561,7 +561,7 @@ class AnomalyDetectionComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.AnomalyDetectionComponent
+        type: dagster_community_components.AnomalyDetectionComponent
         attributes:
           asset_name: transaction_anomalies
           upstream_asset_key: transactions

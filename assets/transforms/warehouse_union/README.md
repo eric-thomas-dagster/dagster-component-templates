@@ -7,7 +7,7 @@ Sibling of [`dataframe_union`](../dataframe_union) (pandas/polars).
 ## YAML
 
 ```yaml
-type: dagster_component_templates.WarehouseUnionComponent
+type: dagster_community_components.WarehouseUnionComponent
 attributes:
   asset_name: orders_all_regions
   database_url: snowflake://...

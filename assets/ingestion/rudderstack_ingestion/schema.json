@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RudderStackIngestionComponent",
+  "component_type": "dagster_community_components.RudderStackIngestionComponent",
   "description": "Ingest RudderStack Data Catalog tracking-plan, audit-log, and usage data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "marketing",

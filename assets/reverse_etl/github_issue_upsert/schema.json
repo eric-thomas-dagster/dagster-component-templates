@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GitHubIssueUpsertComponent",
+  "component_type": "dagster_community_components.GitHubIssueUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into GitHub Issues in a target repo. Rows are matched to existing issues by a stable key marker embedded in the issue body, not by title (so a human editing the title doesn't break the sync).",
   "category": "reverse_etl",
   "icon": "si:github",

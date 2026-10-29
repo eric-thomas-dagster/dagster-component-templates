@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LinearRegressionModelComponent",
+  "component_type": "dagster_community_components.LinearRegressionModelComponent",
   "description": "Fit a linear regression model and output predictions and/or model coefficients.",
   "category": "analytics",
   "icon": "si:linear",

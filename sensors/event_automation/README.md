@@ -1268,13 +1268,20 @@ If you're already on Dagster+ Pro, the native notifications UI is more polished 
 
 | Field | Type | Description |
 |---|---|---|
-| `from_ts` | `str` | ISO8601 start (e.g. '2024-01-15T02:00:00Z'). |
-| `to_ts` | `str` | ISO8601 end. |
+| `name` | `str` | Automation name. Prefix for generated sensor / schedule names. |
+| `when` | `List[Trigger]` | Triggers that fire the automation. OR semantics. |
+| `then` | `List[Action]` | Actions to run when a trigger fires. All run, sequentially. |
 
-### Other
+### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `reason` | `str` | — | Free-form reason shown in logs. |
+| `description` | `str` | — | Free-form description shown in the UI. |
+
+### Sensor configuration
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `default_status` | `str` | `"STOPPED"` | RUNNING \| STOPPED for the generated sensors / schedules. |
 
 [//]: # (FIELDS:END)

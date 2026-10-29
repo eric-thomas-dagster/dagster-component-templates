@@ -7,7 +7,7 @@ The expression template uses `{col}` as the placeholder for each column name.
 ## YAML
 
 ```yaml
-type: dagster_component_templates.WarehouseMultiFieldFormulaComponent
+type: dagster_community_components.WarehouseMultiFieldFormulaComponent
 attributes:
   asset_name: customers_normalized
   database_url: snowflake://...

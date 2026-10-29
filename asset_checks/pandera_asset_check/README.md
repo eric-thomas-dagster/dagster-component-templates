@@ -32,7 +32,7 @@ Wraps the official `dagster-pandera` package.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.PanderaAssetCheckComponent
+type: dagster_community_components.PanderaAssetCheckComponent
 attributes:
   asset_key: customers
   schema_module: my_project.schemas

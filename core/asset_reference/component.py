@@ -56,7 +56,7 @@ class AssetReferenceComponent(Component, Model, Resolvable):
 
     Example - Mix dbt and API assets:
         # Reference existing dbt model
-        type: dagster_component_templates.AssetReferenceComponent
+        type: dagster_community_components.AssetReferenceComponent
         attributes:
           asset_name: dbt_staging_customers
           module: my_project.dbt_assets
@@ -65,7 +65,7 @@ class AssetReferenceComponent(Component, Model, Resolvable):
         ---
 
         # New API asset
-        type: dagster_component_templates.RestApiIngestionComponent
+        type: dagster_community_components.RestApiIngestionComponent
         attributes:
           asset_name: api_enrichment_data
           api_url: https://api.example.com/enrichment
@@ -73,7 +73,7 @@ class AssetReferenceComponent(Component, Model, Resolvable):
         ---
 
         # Wire them together
-        type: dagster_component_templates.DependencyGraphComponent
+        type: dagster_community_components.DependencyGraphComponent
         attributes:
           edges:
             - source: dbt_staging_customers
@@ -86,7 +86,7 @@ class AssetReferenceComponent(Component, Model, Resolvable):
             return expensive_computation()
 
         # In defs.yaml:
-        type: dagster_component_templates.AssetReferenceComponent
+        type: dagster_community_components.AssetReferenceComponent
         attributes:
           asset_name: my_custom_calculation
           module: my_project.assets

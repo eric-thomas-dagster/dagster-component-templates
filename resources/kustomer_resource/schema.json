@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.KustomerResourceComponent",
+  "component_type": "dagster_community_components.KustomerResourceComponent",
   "description": "Register a KustomerResource wrapping Kustomer's REST API (Bearer API key) for use by other components",
   "category": "resource",
   "icon": "si:kustomer",

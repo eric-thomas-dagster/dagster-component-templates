@@ -1,4 +1,4 @@
-type: dagster_component_templates.MarkdownStripperComponent
+type: dagster_community_components.MarkdownStripperComponent
 attributes:
   asset_name: stripped_markdown_docs
   upstream_asset_key: raw_markdown_docs

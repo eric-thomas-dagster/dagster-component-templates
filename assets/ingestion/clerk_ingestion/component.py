@@ -216,7 +216,7 @@ class ClerkIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ClerkIngestionComponent
+        type: dagster_community_components.ClerkIngestionComponent
         attributes:
           asset_name: clerk_ingestion
           secret_key: "${CLERK_SECRET_KEY}"

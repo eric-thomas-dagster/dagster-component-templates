@@ -2,7 +2,7 @@
 """Validate every YAML example that names one of our components -- not just each component's own example.yaml.
 
 Walks files/dirs you give it (markdown recipes, *.yaml, READMEs), extracts every YAML document that has a
-`type: dagster_community_components.<Class>` (or dagster_component_templates.<Class>) and `attributes:`, resolves
+`type: dagster_community_components.<Class>` and `attributes:`, resolves
 <Class> through this repo's registry (`_CLASS_PATHS`), then does what tools/validate_manifest.py does for
 example.yaml: import component.py, instantiate from the attributes, and call build_defs() with a stub context.
 
@@ -37,7 +37,7 @@ import validate_manifest as vm  # noqa: E402  (reuses the stub context + skip cl
 FENCE = re.compile(r"```(?:ya?ml)\s*\n(.*?)```", re.S)
 # `dagster_community_components.Class` (package form) or `<pkg>.components.<name>.component.Class` (what the CLI vendors
 # into a scaffolded project; the demo scripts write `$PKG` there)
-TYPE_RE = re.compile(r"^(?:(?:dagster_community_components|dagster_component_templates)\.|\w+\.components\.\w+\.component\.)(\w+)$")
+TYPE_RE = re.compile(r"^(?:dagster_community_components\.|\w+\.components\.\w+\.component\.)(\w+)$")
 HEREDOC = re.compile(r"<<-?\s*['\"]?(\w+)['\"]?[^\n]*\n(.*?)\n\s*\1\b", re.S)
 
 

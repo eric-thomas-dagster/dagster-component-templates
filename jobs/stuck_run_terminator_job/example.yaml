@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/stuck_run_terminator_job/schema.json
-type: dagster_component_templates.StuckRunTerminatorJobComponent
+type: dagster_community_components.StuckRunTerminatorJobComponent
 attributes:
   job_name: terminate_stuck_runs
   schedule: "*/15 * * * *"     # every 15 minutes

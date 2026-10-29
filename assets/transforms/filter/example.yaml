@@ -1,4 +1,4 @@
-type: dagster_component_templates.FilterComponent
+type: dagster_community_components.FilterComponent
 attributes:
   asset_name: active_adult_customers
   upstream_asset_key: raw_customers

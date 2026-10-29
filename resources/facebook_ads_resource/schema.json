@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FacebookAdsResourceComponent",
+  "component_type": "dagster_community_components.FacebookAdsResourceComponent",
   "description": "Register a FacebookAdsResource wrapping the Facebook Business SDK for use by other components",
   "category": "resource",
   "icon": "si:facebook",

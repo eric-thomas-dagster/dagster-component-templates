@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TsForecastComponent",
+  "component_type": "dagster_community_components.TsForecastComponent",
   "description": "Component for generating time series forecasts using ARIMA or ETS models.",
   "category": "analytics",
   "icon": "BarChart2",

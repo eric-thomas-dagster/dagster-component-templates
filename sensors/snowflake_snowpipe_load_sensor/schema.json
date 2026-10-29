@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SnowflakeSnowpipeLoadSensorComponent",
+  "component_type": "dagster_community_components.SnowflakeSnowpipeLoadSensorComponent",
   "description": "Watch a Snowflake PIPE for new file-level loads (COPY_HISTORY) and trigger downstream Dagster runs per ingested file.",
   "category": "sensor",
   "icon": "si:snowflake",

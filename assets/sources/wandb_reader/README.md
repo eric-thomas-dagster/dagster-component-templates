@@ -95,7 +95,7 @@ The `WandbReaderComponent` connects to the W&B API and retrieves experiment run 
 ### Fetch finished runs
 
 ```yaml
-type: dagster_component_templates.WandbReaderComponent
+type: dagster_community_components.WandbReaderComponent
 attributes:
   asset_name: training_runs
   project: image-classification
@@ -108,7 +108,7 @@ attributes:
 ### All runs with history
 
 ```yaml
-type: dagster_component_templates.WandbReaderComponent
+type: dagster_community_components.WandbReaderComponent
 attributes:
   asset_name: all_experiments
   project: nlp-experiments

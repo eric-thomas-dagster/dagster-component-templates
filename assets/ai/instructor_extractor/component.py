@@ -249,7 +249,7 @@ class InstructorExtractorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.InstructorExtractorComponent
+        type: dagster_community_components.InstructorExtractorComponent
         attributes:
           asset_name: extracted_invoice_fields
           upstream_asset_key: raw_invoices

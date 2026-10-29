@@ -34,7 +34,7 @@ Wraps the official `dagster-clickhouse-polars` package.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ClickhousePolarsIOManagerComponent
+type: dagster_community_components.ClickhousePolarsIOManagerComponent
 attributes:
   resource_key: io_manager
   host: my-instance.clickhouse.cloud

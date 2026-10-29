@@ -96,7 +96,7 @@ The Moderation Scorer component analyzes content from upstream sources and assig
 ## Usage
 
 ```yaml
-type: dagster_component_templates.ModerationScorerComponent
+type: dagster_community_components.ModerationScorerComponent
 attributes:
   asset_name: moderated_content
   upstream_asset_key: user_content

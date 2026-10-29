@@ -1,4 +1,4 @@
-type: dagster_component_templates.SftpPathObservationSensorComponent
+type: dagster_community_components.SftpPathObservationSensorComponent
 attributes:
   sensor_name: sftp_orders_obs
   asset_key: sftp/partner/orders

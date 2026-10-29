@@ -70,7 +70,7 @@ This component does not read from or write to Sharepoint Library. It is a **line
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ExternalSharePointLibraryAsset
+type: dagster_community_components.ExternalSharePointLibraryAsset
 attributes:
   asset_key: my_service/asset
   site_url: my_site_url
@@ -86,7 +86,7 @@ health/data-version current — one component, one YAML, no manual `asset_key` w
 the sql/s3/sftp/kafka `ExternalXAsset` siblings):
 
 ```yaml
-type: dagster_component_templates.ExternalSharePointLibraryAsset
+type: dagster_community_components.ExternalSharePointLibraryAsset
 attributes:
   asset_key: external/sharepoint_library
   site_url: SITE_URL
@@ -103,7 +103,7 @@ Or set `resource_key` to a Dagster resource exposing `.observe(source) -> dict` 
 `'site_url/library_name'`) instead of the native Graph path:
 
 ```yaml
-type: dagster_component_templates.ExternalSharePointLibraryAsset
+type: dagster_community_components.ExternalSharePointLibraryAsset
 attributes:
   asset_key: external/sharepoint_library
   site_url: SITE_URL

@@ -260,7 +260,7 @@ class OpenAILLMComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.OpenAILLMComponent
+        type: dagster_community_components.OpenAILLMComponent
         attributes:
           asset_name: product_descriptions_enriched
           api_key: "${OPENAI_API_KEY}"

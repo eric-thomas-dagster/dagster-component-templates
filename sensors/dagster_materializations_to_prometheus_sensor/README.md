@@ -59,7 +59,7 @@ Filtered mode is more efficient at high asset counts since Dagster's framework h
 ## Example — workspace-wide push to Push Gateway
 
 ```yaml
-type: dagster_component_templates.DagsterMaterializationsToPrometheusSensorComponent
+type: dagster_community_components.DagsterMaterializationsToPrometheusSensorComponent
 attributes:
   sensor_name: dagster_asset_materializations
   base_url_env_var: PROM_PUSHGATEWAY_URL
@@ -71,7 +71,7 @@ attributes:
 ## Example — filtered to critical assets, push to VictoriaMetrics
 
 ```yaml
-type: dagster_component_templates.DagsterMaterializationsToPrometheusSensorComponent
+type: dagster_community_components.DagsterMaterializationsToPrometheusSensorComponent
 attributes:
   sensor_name: critical_asset_freshness
   base_url_env_var: VM_BASE_URL

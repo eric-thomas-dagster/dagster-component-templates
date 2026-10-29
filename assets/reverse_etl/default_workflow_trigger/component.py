@@ -123,7 +123,7 @@ class DefaultWorkflowTriggerComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.DefaultWorkflowTriggerComponent
+        type: dagster_community_components.DefaultWorkflowTriggerComponent
         attributes:
           asset_name: default_lead_routing_triggers
           upstream_asset_key: scored_leads

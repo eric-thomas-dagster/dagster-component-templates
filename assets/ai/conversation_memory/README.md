@@ -146,7 +146,7 @@ The component outputs a dictionary with complete conversation memory:
 
 ### Basic Usage
 ```yaml
-type: dagster_component_templates.ConversationMemoryComponent
+type: dagster_community_components.ConversationMemoryComponent
 attributes:
   asset_name: chat_memory
   upstream_asset_key: incoming_messages   # DataFrame with a `user_message` column
@@ -156,7 +156,7 @@ attributes:
 
 ### With Custom System Prompt
 ```yaml
-type: dagster_component_templates.ConversationMemoryComponent
+type: dagster_community_components.ConversationMemoryComponent
 attributes:
   asset_name: support_memory
   upstream_asset_key: support_messages
@@ -171,13 +171,13 @@ attributes:
 
 ```yaml
 # Step 1: Capture user input
-type: dagster_component_templates.UserInputComponent
+type: dagster_community_components.UserInputComponent
 attributes:
   asset_name: user_input
   input_type: text
 
 # Step 2: Update conversation memory (automatically receives user_input)
-type: dagster_component_templates.ConversationMemoryComponent
+type: dagster_community_components.ConversationMemoryComponent
 attributes:
   asset_name: conversation_state
   memory_file: ./chat_memory.json
@@ -185,7 +185,7 @@ attributes:
   system_prompt: "You are a helpful assistant."
 
 # Step 3: Generate LLM response using conversation history
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: assistant_response
   provider: openai
@@ -193,7 +193,7 @@ attributes:
   api_key: ${OPENAI_API_KEY}
 
 # Step 4: Update memory with assistant response
-type: dagster_component_templates.ConversationMemoryComponent
+type: dagster_community_components.ConversationMemoryComponent
 attributes:
   asset_name: updated_conversation
   memory_file: ./chat_memory.json
@@ -209,14 +209,14 @@ user_input → conversation_state → assistant_response → updated_conversatio
 
 ```yaml
 # Step 1: Receive customer message from API
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: customer_message
   api_url: https://api.example.com/messages/latest
   output_format: dict
 
 # Step 2: Load conversation memory
-type: dagster_component_templates.ConversationMemoryComponent
+type: dagster_community_components.ConversationMemoryComponent
 attributes:
   asset_name: support_history
   memory_file: ./support/customer_${CUSTOMER_ID}.json
@@ -224,7 +224,7 @@ attributes:
   system_prompt: "You are a knowledgeable customer support agent. Be helpful and professional."
 
 # Step 3: Generate contextual response
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: support_response
   provider: anthropic
@@ -242,13 +242,13 @@ customer_message → support_history → support_response
 
 ```yaml
 # Step 1: Read question from file
-type: dagster_component_templates.TextFileReaderComponent
+type: dagster_community_components.TextFileReaderComponent
 attributes:
   asset_name: user_question
   file_path: /data/questions/latest.txt
 
 # Step 2: Update conversation with question
-type: dagster_component_templates.ConversationMemoryComponent
+type: dagster_community_components.ConversationMemoryComponent
 attributes:
   asset_name: qa_memory
   memory_file: ./qa_session.json
@@ -256,7 +256,7 @@ attributes:
   system_prompt: "You are an expert Q&A assistant. Provide detailed, accurate answers."
 
 # Step 3: Generate answer using LLM chain
-type: dagster_component_templates.LLMChainExecutorComponent
+type: dagster_community_components.LLMChainExecutorComponent
 attributes:
   asset_name: detailed_answer
   provider: openai
@@ -278,14 +278,14 @@ user_question → qa_memory → detailed_answer
 
 ```yaml
 # Step 1: Get user input from database
-type: dagster_component_templates.DatabaseQueryComponent
+type: dagster_community_components.DatabaseQueryComponent
 attributes:
   asset_name: latest_user_message
   query: "SELECT message_text, user_id FROM messages ORDER BY created_at DESC LIMIT 1"
   connection_string: ${DATABASE_URL}
 
 # Step 2: Load user-specific conversation
-type: dagster_component_templates.ConversationMemoryComponent
+type: dagster_community_components.ConversationMemoryComponent
 attributes:
   asset_name: user_conversation
   memory_file: ./conversations/user_${user_id}_memory.json
@@ -293,7 +293,7 @@ attributes:
   system_prompt: "You are a personalized AI assistant. Remember context from previous conversations."
 
 # Step 3: Generate personalized response
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: personalized_response
   provider: openai
@@ -302,7 +302,7 @@ attributes:
   temperature: 0.8
 
 # Step 4: Save response to database
-type: dagster_component_templates.DatabaseInsertComponent
+type: dagster_community_components.DatabaseInsertComponent
 attributes:
   asset_name: saved_response
   table_name: messages
@@ -318,14 +318,14 @@ latest_user_message → user_conversation → personalized_response → saved_re
 
 ```yaml
 # Step 1: Stream messages from queue
-type: dagster_component_templates.MessageQueueConsumerComponent
+type: dagster_community_components.MessageQueueConsumerComponent
 attributes:
   asset_name: incoming_messages
   queue_url: ${QUEUE_URL}
   message_format: json
 
 # Step 2: Maintain conversation state
-type: dagster_component_templates.ConversationMemoryComponent
+type: dagster_community_components.ConversationMemoryComponent
 attributes:
   asset_name: streaming_memory
   memory_file: ./stream_conversation.json
@@ -333,7 +333,7 @@ attributes:
   system_prompt: "You are a real-time conversation assistant."
 
 # Step 3: Generate streaming response
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: streaming_response
   provider: openai
@@ -352,13 +352,13 @@ incoming_messages → streaming_memory → streaming_response
 
 ```yaml
 # Step 1: Extract document text
-type: dagster_component_templates.DocumentTextExtractorComponent
+type: dagster_community_components.DocumentTextExtractorComponent
 attributes:
   asset_name: document_content
   file_path: /data/docs/report.pdf
 
 # Step 2: Add to conversation as context
-type: dagster_component_templates.ConversationMemoryComponent
+type: dagster_community_components.ConversationMemoryComponent
 attributes:
   asset_name: analysis_context
   memory_file: ./doc_analysis_memory.json
@@ -366,7 +366,7 @@ attributes:
   system_prompt: "You are analyzing a document. Remember previous questions and answers about this document."
 
 # Step 3: Run analysis chain with memory
-type: dagster_component_templates.LLMChainExecutorComponent
+type: dagster_community_components.LLMChainExecutorComponent
 attributes:
   asset_name: document_insights
   provider: anthropic

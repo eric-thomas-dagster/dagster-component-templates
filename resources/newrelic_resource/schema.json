@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.NewRelicResourceComponent",
+  "component_type": "dagster_community_components.NewRelicResourceComponent",
   "description": "New Relic API client wrapper (NerdGraph + Logs/Metrics/Events ingestion endpoints). Supports US + EU regions.",
   "category": "resource",
   "icon": "si:newrelic",

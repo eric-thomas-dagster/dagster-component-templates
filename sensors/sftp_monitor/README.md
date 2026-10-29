@@ -50,7 +50,7 @@ On each tick, the sensor:
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.SftpMonitorSensorComponent
+type: dagster_community_components.SftpMonitorSensorComponent
 attributes:
   sensor_name: my_sensor_name
   host: my-service.internal.company.com

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OneHotEncodingComponent",
+  "component_type": "dagster_community_components.OneHotEncodingComponent",
   "description": "Expand categorical columns into binary indicator columns with optional rare-category bucketing.",
   "category": "transformation",
   "icon": "Grid3x3",

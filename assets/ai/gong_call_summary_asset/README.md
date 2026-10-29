@@ -88,7 +88,7 @@ Empty transcripts (when `skip_empty: true`) yield `""` and `[]` without an API c
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.GongCallSummaryAssetComponent
+type: dagster_community_components.GongCallSummaryAssetComponent
 attributes:
   asset_name: gong_call_summaries
   upstream_asset_key: gong_calls

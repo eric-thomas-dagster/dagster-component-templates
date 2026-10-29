@@ -74,7 +74,7 @@ Also requires a `SalesloftResourceComponent` on the same code location for authe
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.SalesloftPeopleIngestionComponent
+type: dagster_community_components.SalesloftPeopleIngestionComponent
 attributes:
   asset_name: salesloft_people
   resource_key: salesloft_resource

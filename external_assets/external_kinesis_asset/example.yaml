@@ -1,4 +1,4 @@
-type: dagster_component_templates.ExternalKinesisAsset
+type: dagster_community_components.ExternalKinesisAsset
 attributes:
   asset_key: streaming/clickstream
   stream_name: my-kinesis-stream

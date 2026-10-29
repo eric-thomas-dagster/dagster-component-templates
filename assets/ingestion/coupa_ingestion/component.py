@@ -216,7 +216,7 @@ class CoupaIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.CoupaIngestionComponent
+        type: dagster_community_components.CoupaIngestionComponent
         attributes:
           asset_name: coupa_ingestion
           instance: "mycompany"

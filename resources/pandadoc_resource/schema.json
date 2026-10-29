@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PandaDocResourceComponent",
+  "component_type": "dagster_community_components.PandaDocResourceComponent",
   "description": "Register a PandaDocResource (static API Key REST API client) for use by other components",
   "category": "resource",
   "icon": "si:pandadoc",

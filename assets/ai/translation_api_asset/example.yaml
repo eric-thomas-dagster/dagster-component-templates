@@ -1,4 +1,4 @@
-type: dagster_component_templates.TranslationApiAssetComponent
+type: dagster_community_components.TranslationApiAssetComponent
 attributes:
   asset_name: ticket_translations
   upstream_asset_key: support_tickets

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.QuickBooksResourceComponent",
+  "component_type": "dagster_community_components.QuickBooksResourceComponent",
   "description": "Register a QuickBooksResource wrapping the QuickBooks Online Accounting API. OAuth2 refresh-token flow; every request is scoped to realm_id (the QuickBooks company/tenant id). Exposes request() + query() (QBO's SQL-like query language).",
   "category": "resource",
   "icon": "si:quickbooks",

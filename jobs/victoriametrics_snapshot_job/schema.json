@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.VictoriaMetricsSnapshotJobComponent",
+  "component_type": "dagster_community_components.VictoriaMetricsSnapshotJobComponent",
   "description": "Create a VictoriaMetrics snapshot via /snapshot/create, optionally with retention-based cleanup of older snapshots. Job-shaped; can be scheduled.",
   "category": "jobs",
   "icon": "Cog",

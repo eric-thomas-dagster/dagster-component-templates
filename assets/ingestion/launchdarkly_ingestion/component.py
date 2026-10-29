@@ -216,7 +216,7 @@ class LaunchDarklyIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.LaunchDarklyIngestionComponent
+        type: dagster_community_components.LaunchDarklyIngestionComponent
         attributes:
           asset_name: launchdarkly_ingestion
           api_token: "${LAUNCHDARKLY_API_TOKEN}"

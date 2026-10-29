@@ -32,7 +32,7 @@ pip install facebook-business
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.FacebookAdsResourceComponent
+type: dagster_community_components.FacebookAdsResourceComponent
 attributes:
   resource_key: facebook_ads_resource  # key other components use
   app_id_env_var: FACEBOOK_APP_ID  # env var holding your App ID

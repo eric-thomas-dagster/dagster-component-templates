@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OAuthTokenResourceComponent",
+  "component_type": "dagster_community_components.OAuthTokenResourceComponent",
   "description": "Headless OAuth 2.0 token resource. Supports client_credentials, refresh_token, and password grants. Handles refresh-token rotation via configurable writeback (file or command).",
   "category": "resource",
   "icon": "si:oauth",

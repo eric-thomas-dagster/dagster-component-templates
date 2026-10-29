@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TextChunkerComponent",
+  "component_type": "dagster_community_components.TextChunkerComponent",
   "description": "Component for chunking text into smaller pieces.",
   "category": "ai",
   "icon": "Sparkles",

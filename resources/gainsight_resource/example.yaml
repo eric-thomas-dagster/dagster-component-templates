@@ -1,4 +1,4 @@
-type: dagster_component_templates.GainsightResourceComponent
+type: dagster_community_components.GainsightResourceComponent
 attributes:
   resource_key: gainsight_resource
   base_url: "https://yourcompany.gainsightcloud.com"

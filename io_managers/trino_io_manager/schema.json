@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TrinoIOManagerComponent",
+  "component_type": "dagster_community_components.TrinoIOManagerComponent",
   "description": "Register a Trino IO manager that reads and writes Pandas DataFrames via Trino SQL",
   "category": "io_manager",
   "icon": "si:trino",

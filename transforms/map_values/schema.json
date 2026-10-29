@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MapValuesComponent",
+  "component_type": "dagster_community_components.MapValuesComponent",
   "description": "Replace values in a column according to a lookup dict — country code → country name, status code → status text, etc.",
   "category": "transformation",
   "x-dagster-io": {

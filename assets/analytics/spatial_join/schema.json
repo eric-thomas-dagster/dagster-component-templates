@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SpatialJoinComponent",
+  "component_type": "dagster_community_components.SpatialJoinComponent",
   "description": "Spatially join a points DataFrame against a regions DataFrame.",
   "category": "analytics",
   "icon": "BarChart2",

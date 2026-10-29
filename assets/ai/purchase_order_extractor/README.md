@@ -120,7 +120,7 @@ The Purchase Order Extractor Component uses a large language model to parse unst
 ### Basic Purchase Order Extraction
 
 ```yaml
-type: dagster_component_templates.PurchaseOrderExtractorComponent
+type: dagster_community_components.PurchaseOrderExtractorComponent
 attributes:
   asset_name: parsed_purchase_orders
   upstream_asset_key: raw_purchase_orders
@@ -138,7 +138,7 @@ attributes:
 ### Full Extraction with File Input
 
 ```yaml
-type: dagster_component_templates.PurchaseOrderExtractorComponent
+type: dagster_community_components.PurchaseOrderExtractorComponent
 attributes:
   asset_name: parsed_purchase_orders
   upstream_asset_key: po_file_list

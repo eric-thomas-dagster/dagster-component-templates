@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DagsterRunsToSplunkHecSensorComponent",
+  "component_type": "dagster_community_components.DagsterRunsToSplunkHecSensorComponent",
   "description": "Push Dagster run lifecycle events (success + failure) directly to Splunk via HTTP Event Collector (HEC). One hop, no OTel Collector required.",
   "category": "sensor",
   "icon": "si:splunk",

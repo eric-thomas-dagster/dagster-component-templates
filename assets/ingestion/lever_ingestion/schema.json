@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LeverIngestionComponent",
+  "component_type": "dagster_community_components.LeverIngestionComponent",
   "description": "Ingest Lever recruiting data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "finance-hr",

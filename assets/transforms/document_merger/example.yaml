@@ -1,4 +1,4 @@
-type: dagster_component_templates.DocumentMergerComponent
+type: dagster_community_components.DocumentMergerComponent
 attributes:
   asset_name: merged_orders_customers
   left_asset_key: cleaned_orders

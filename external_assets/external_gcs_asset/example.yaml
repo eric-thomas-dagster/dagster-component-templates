@@ -1,4 +1,4 @@
-type: dagster_component_templates.ExternalGcsAsset
+type: dagster_community_components.ExternalGcsAsset
 attributes:
   asset_key: raw/data
   bucket_name: my-gcs-bucket

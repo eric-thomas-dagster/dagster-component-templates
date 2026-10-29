@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SapCPIObservationSensorComponent",
+  "component_type": "dagster_community_components.SapCPIObservationSensorComponent",
   "description": "Poll SAP Integration Suite (CPI) Message Processing Logs and emit AssetObservations per iFlow run. Cloud middleware observability without owning the iFlow in Dagster.",
   "category": "observation",
   "icon": "si:sap",

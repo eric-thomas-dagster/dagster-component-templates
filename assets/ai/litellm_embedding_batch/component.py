@@ -247,7 +247,7 @@ class LitellmEmbeddingBatchComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LitellmEmbeddingBatchComponent
+        type: dagster_community_components.LitellmEmbeddingBatchComponent
         attributes:
           asset_name: document_embeddings
           upstream_asset_key: processed_documents

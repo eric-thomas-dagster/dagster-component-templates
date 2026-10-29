@@ -86,7 +86,7 @@ Set exactly one:
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.SnowflakeTimeTravelAssetComponent
+type: dagster_community_components.SnowflakeTimeTravelAssetComponent
 attributes:
   asset_name: orders_one_hour_ago
   account:     "{{ env('SNOWFLAKE_ACCOUNT') }}"

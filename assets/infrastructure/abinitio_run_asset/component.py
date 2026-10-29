@@ -28,7 +28,7 @@ class AbInitioResource(ConfigurableResource):
     Example:
         ```python
         from dagster import EnvVar, Definitions
-        from dagster_component_templates.assets.abinitio_run_asset.component import AbInitioResource
+        from dagster_community_components.assets.abinitio_run_asset.component import AbInitioResource
 
         defs = Definitions(
             resources={
@@ -137,7 +137,7 @@ class AbInitioRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example (env vars):
         ```yaml
-        type: dagster_component_templates.AbInitioRunAssetComponent
+        type: dagster_community_components.AbInitioRunAssetComponent
         attributes:
           asset_key: abinitio/etl/load_orders
           job_path: /prod/etl/load_orders
@@ -151,7 +151,7 @@ class AbInitioRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example (resource):
         ```yaml
-        type: dagster_component_templates.AbInitioRunAssetComponent
+        type: dagster_community_components.AbInitioRunAssetComponent
         attributes:
           asset_key: abinitio/etl/load_orders
           job_path: /prod/etl/load_orders

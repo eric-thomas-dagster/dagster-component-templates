@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.StructuredDocumentExtractorComponent",
+  "component_type": "dagster_community_components.StructuredDocumentExtractorComponent",
   "name": "Structured Document Extractor",
   "description": "Extract structured fields from any document type using an LLM \u2014 one component, document_type picks the preset (invoice, receipt, resume, ...) or 'custom' for your own fields.",
   "category": "ai",

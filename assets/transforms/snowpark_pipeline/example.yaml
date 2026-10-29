@@ -2,7 +2,7 @@
 
 # ── Shape (a): flat shape — one source, one ops chain, one sink.
 
-type: dagster_component_templates.SnowparkPipelineComponent
+type: dagster_community_components.SnowparkPipelineComponent
 attributes:
   asset_name: top_customers_by_region
   connection:
@@ -40,7 +40,7 @@ attributes:
 #               runs server-side; nothing flows through Python.
 # ────────────────────────────────────────────────────────────────────────────
 #
-# type: dagster_component_templates.SnowparkPipelineComponent
+# type: dagster_community_components.SnowparkPipelineComponent
 # attributes:
 #   asset_name: regional_top_paid
 #   connection:

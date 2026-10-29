@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TypesenseResourceComponent",
+  "component_type": "dagster_community_components.TypesenseResourceComponent",
   "description": "Register a TypesenseResource for the Typesense REST API for use by other components",
   "category": "resource",
   "icon": "si:typesense",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeUnion",
+  "component_type": "dagster_community_components.DataframeUnion",
   "description": "Stack multiple DataFrame assets vertically (like SQL UNION ALL).",
   "category": "transformation",
   "icon": "Shuffle",

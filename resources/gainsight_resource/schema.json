@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GainsightResourceComponent",
+  "component_type": "dagster_community_components.GainsightResourceComponent",
   "description": "Register a GainsightResource wrapping Gainsight NXT's REST API v1 (access-key auth) for use by other components",
   "category": "resource",
   "icon": "Heart",

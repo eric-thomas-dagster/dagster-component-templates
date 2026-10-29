@@ -102,7 +102,7 @@ class GoogleSheetsRowUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.GoogleSheetsRowUpsertComponent
+        type: dagster_community_components.GoogleSheetsRowUpsertComponent
         attributes:
           asset_name: sheets_customers_mirror
           upstream_asset_key: dbt_marts_customers

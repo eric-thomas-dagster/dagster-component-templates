@@ -31,7 +31,7 @@ pip install dagster-duckdb-pandas duckdb
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.MotherDuckIOManagerComponent
+type: dagster_community_components.MotherDuckIOManagerComponent
 attributes:
   resource_key: io_manager
   motherduck_token_env_var: MOTHERDUCK_TOKEN

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TopNPerGroupComponent",
+  "component_type": "dagster_community_components.TopNPerGroupComponent",
   "description": "Keep the top N rows per group, sorted by a value column. Equivalent to SQL ROW_NUMBER() OVER (PARTITION BY ... ORDER BY ... DESC) <= N.",
   "category": "transformation",
   "icon": "Trophy",

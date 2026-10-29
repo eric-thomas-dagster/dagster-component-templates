@@ -140,7 +140,7 @@ class WrikeTaskUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.WrikeTaskUpsertComponent
+        type: dagster_community_components.WrikeTaskUpsertComponent
         attributes:
           asset_name: wrike_incidents_mirror
           upstream_asset_key: incidents_seed

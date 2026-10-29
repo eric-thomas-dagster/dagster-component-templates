@@ -126,7 +126,7 @@ class DremioIngestionComponent(Component, Model, Resolvable):
     Example — PAT auth (Dremio 24.0+):
 
         ```yaml
-        type: dagster_component_templates.DremioIngestionComponent
+        type: dagster_community_components.DremioIngestionComponent
         attributes:
           asset_name: customer_revenue
           host: https://dremio.example.com

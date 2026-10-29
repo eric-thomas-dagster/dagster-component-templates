@@ -70,7 +70,7 @@ Reads a WKT `geometry` column and replaces each geometry with its buffer at the 
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.BufferComponent
+type: dagster_community_components.BufferComponent
 attributes:
   asset_name: store_service_areas
   upstream_asset_key: stores_with_geometry

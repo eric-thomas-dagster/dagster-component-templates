@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DynamicFanoutAssetComponent",
+  "component_type": "dagster_community_components.DynamicFanoutAssetComponent",
   "description": "Generic DynamicOut fan-out AS AN ASSET: discover → map → collect.",
   "category": "transformation",
   "icon": "GitBranch",

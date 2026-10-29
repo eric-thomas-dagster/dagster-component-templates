@@ -109,7 +109,7 @@ The upstream DataFrame should have one row per decision variable:
 ### Minimize cost example
 
 ```yaml
-type: dagster_component_templates.OptimizationComponent
+type: dagster_community_components.OptimizationComponent
 attributes:
   asset_name: production_plan
   upstream_asset_key: production_problem
@@ -123,7 +123,7 @@ attributes:
 ### Maximize return example
 
 ```yaml
-type: dagster_component_templates.OptimizationComponent
+type: dagster_community_components.OptimizationComponent
 attributes:
   asset_name: portfolio_weights
   upstream_asset_key: portfolio_problem

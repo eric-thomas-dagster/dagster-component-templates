@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RedisStreamsMonitorSensorComponent",
+  "component_type": "dagster_community_components.RedisStreamsMonitorSensorComponent",
   "description": "Component for monitoring a Redis Stream for new entries.",
   "category": "sensor",
   "icon": "si:redis",

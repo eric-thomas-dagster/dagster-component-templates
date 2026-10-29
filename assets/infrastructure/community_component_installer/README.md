@@ -45,7 +45,7 @@ This component subclasses `StateBackedComponent`, so:
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.CommunityComponentInstallerComponent
+type: dagster_community_components.CommunityComponentInstallerComponent
 attributes:
   components:
     - postgres_resource                    # latest (HEAD of main)

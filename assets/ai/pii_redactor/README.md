@@ -86,7 +86,7 @@ Detect and redact PII from text columns using Microsoft Presidio, replacing enti
 
 ## Example YAML
 ```yaml
-component_type: dagster_component_templates.PiiRedactorComponent
+component_type: dagster_community_components.PiiRedactorComponent
 asset_name: redacted_messages
 upstream_asset_key: raw_user_messages
 input_column: message_body

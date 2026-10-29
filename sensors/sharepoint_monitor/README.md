@@ -50,7 +50,7 @@ On each tick, the sensor:
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.SharePointMonitorSensorComponent
+type: dagster_community_components.SharePointMonitorSensorComponent
 attributes:
   sensor_name: my_sensor_name
   site_url: my_site_url

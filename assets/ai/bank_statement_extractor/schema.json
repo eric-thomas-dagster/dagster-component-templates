@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BankStatementExtractorComponent",
+  "component_type": "dagster_community_components.BankStatementExtractorComponent",
   "description": "Extract account info and transactions from bank statements using an LLM.",
   "category": "ai",
   "icon": "Landmark",

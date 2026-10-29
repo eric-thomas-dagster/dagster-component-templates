@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PineconeAssetComponent",
+  "component_type": "dagster_community_components.PineconeAssetComponent",
   "description": "Upsert, query, or manage a Pinecone vector index as a Dagster asset.",
   "category": "analytics",
   "icon": "si:pinecone",

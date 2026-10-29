@@ -1,4 +1,4 @@
-type: dagster_component_templates.DetectChangesComponent
+type: dagster_community_components.DetectChangesComponent
 attributes:
   asset_name: detect_changes_output
   upstream_asset_key: upstream_data

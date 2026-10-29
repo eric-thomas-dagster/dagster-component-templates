@@ -106,7 +106,7 @@ The Image Object Detector Component uses HuggingFace's `transformers` object-det
 ### Detect All Objects
 
 ```yaml
-type: dagster_component_templates.ImageObjectDetectorComponent
+type: dagster_community_components.ImageObjectDetectorComponent
 attributes:
   asset_name: all_objects
   upstream_asset_key: raw_images
@@ -117,7 +117,7 @@ attributes:
 ### Detect Only People and Vehicles
 
 ```yaml
-type: dagster_component_templates.ImageObjectDetectorComponent
+type: dagster_community_components.ImageObjectDetectorComponent
 attributes:
   asset_name: people_and_vehicles
   upstream_asset_key: camera_frames

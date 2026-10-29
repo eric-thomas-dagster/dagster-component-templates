@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AudioDiarizedTranscriberComponent",
+  "component_type": "dagster_community_components.AudioDiarizedTranscriberComponent",
   "name": "Audio Diarized Transcriber",
   "description": "Transcribe audio AND label who's speaking when -- per file, returns a list of {speaker, start_seconds, end_seconds, text} segments instead of one flat transcript string. Two backends: google_cloud_speech (cloud, native diarization) or pyannote (local pyannote.audio + local Whisper).",
   "category": "ai",

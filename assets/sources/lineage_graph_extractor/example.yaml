@@ -1,4 +1,4 @@
-type: dagster_component_templates.LineageGraphExtractorComponent
+type: dagster_community_components.LineageGraphExtractorComponent
 attributes:
   asset_name: lineage_graph
   scope: code_location          # or "deployment" for full Dagster+ graph

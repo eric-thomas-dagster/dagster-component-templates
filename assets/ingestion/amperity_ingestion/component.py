@@ -282,7 +282,7 @@ class AmperityIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.AmperityIngestionComponent
+        type: dagster_community_components.AmperityIngestionComponent
         attributes:
           asset_name: amperity_ingestion
           tenant: "mycompany"

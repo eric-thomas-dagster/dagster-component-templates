@@ -85,7 +85,7 @@ asset overhead and a single dial to schedule.
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.OpenLineageExportJobComponent
+type: dagster_community_components.OpenLineageExportJobComponent
 attributes:
   job_name: emit_openlineage_lineage
   schedule: "0 */4 * * *"             # every 4 hours

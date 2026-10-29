@@ -1,4 +1,4 @@
-type: dagster_component_templates.AuditLogsToChronicleComponent
+type: dagster_community_components.AuditLogsToChronicleComponent
 attributes:
   asset_name: audit_logs_to_chronicle_shipped
   upstream_asset_key: normalized_audit_events

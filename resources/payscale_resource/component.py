@@ -304,7 +304,7 @@ class PayscaleResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.PayscaleResourceComponent
+        type: dagster_community_components.PayscaleResourceComponent
         attributes:
           resource_key: payscale_resource
           customer_id: "123456"

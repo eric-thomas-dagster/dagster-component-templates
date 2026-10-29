@@ -1,4 +1,4 @@
-type: dagster_component_templates.FunnelAnalysisComponent
+type: dagster_community_components.FunnelAnalysisComponent
 attributes:
   asset_name: checkout_funnel
 

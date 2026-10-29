@@ -108,7 +108,7 @@ The Time Series Model Factory Component is designed for multi-entity forecasting
 ### Per-product Forecasting
 
 ```yaml
-type: dagster_component_templates.TsModelFactoryComponent
+type: dagster_community_components.TsModelFactoryComponent
 attributes:
   asset_name: product_level_forecasts
   upstream_asset_key: product_sales
@@ -123,7 +123,7 @@ attributes:
 ### Per-store ARIMA
 
 ```yaml
-type: dagster_component_templates.TsModelFactoryComponent
+type: dagster_community_components.TsModelFactoryComponent
 attributes:
   asset_name: store_forecasts
   upstream_asset_key: store_sales

@@ -1,4 +1,4 @@
-type: dagster_component_templates.CoordinateTransformerComponent
+type: dagster_community_components.CoordinateTransformerComponent
 attributes:
   description: Reproject event coordinates from WGS84 to Web Mercator for map tile rendering.
   asset_name: events_web_mercator

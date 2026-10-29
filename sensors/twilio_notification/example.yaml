@@ -1,4 +1,4 @@
-type: dagster_component_templates.TwilioNotificationSensor
+type: dagster_community_components.TwilioNotificationSensor
 attributes:
   sensor_name: pipeline_sms_alerts
   account_sid_env_var: TWILIO_ACCOUNT_SID

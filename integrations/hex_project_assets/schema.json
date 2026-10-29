@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.HexProjectAssetsComponent",
+  "component_type": "dagster_community_components.HexProjectAssetsComponent",
   "description": "Run a Hex project on materialization via dagster-hex.",
   "category": "integration",
   "icon": "BookOpen",

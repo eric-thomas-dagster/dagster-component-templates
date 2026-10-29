@@ -30,7 +30,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.TypesenseResourceComponent
+type: dagster_community_components.TypesenseResourceComponent
 attributes:
   resource_key: typesense_resource
   host: "https://xxx.a1.typesense.net:443"

@@ -240,7 +240,7 @@ class GmailDraftCreateComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.GmailDraftCreateComponent
+        type: dagster_community_components.GmailDraftCreateComponent
         attributes:
           asset_name: nightly_brief_gmail_draft
           access_token: "${GMAIL_ACCESS_TOKEN}"

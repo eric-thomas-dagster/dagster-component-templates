@@ -100,7 +100,7 @@ Must be a value present in `fields_map`, and must be one of the fields Close's A
 ## Example
 
 ```yaml
-type: dagster_component_templates.CloseCrmLeadUpsertComponent
+type: dagster_community_components.CloseCrmLeadUpsertComponent
 attributes:
   asset_name: close_crm_leads_mirror
   upstream_asset_key: dbt_marts_leads

@@ -15,7 +15,7 @@ class ServiceNowSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ServiceNowSensorComponent
+        type: dagster_community_components.ServiceNowSensorComponent
         attributes:
           sensor_name: snow_change_approved_sensor
           instance_env_var: SNOW_INSTANCE

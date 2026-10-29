@@ -216,7 +216,7 @@ class BigCommerceIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.BigCommerceIngestionComponent
+        type: dagster_community_components.BigCommerceIngestionComponent
         attributes:
           asset_name: bigcommerce_ingestion
           store_hash: "abc123def"

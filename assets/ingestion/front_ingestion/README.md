@@ -98,7 +98,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 ## Example
 
 ```yaml
-type: dagster_component_templates.FrontIngestionComponent
+type: dagster_community_components.FrontIngestionComponent
 attributes:
   asset_name: front_ingestion
   api_token: "${FRONT_API_TOKEN}"

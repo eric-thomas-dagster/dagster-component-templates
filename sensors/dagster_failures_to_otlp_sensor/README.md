@@ -74,7 +74,7 @@ Per OTLP/HTTP logs spec — one ResourceLog with one ScopeLog with one LogRecord
 ## Example — Honeycomb
 
 ```yaml
-type: dagster_component_templates.DagsterFailuresToOtlpSensorComponent
+type: dagster_community_components.DagsterFailuresToOtlpSensorComponent
 attributes:
   sensor_name: dagster_failures_to_honeycomb
   otlp_endpoint_env_var: HONEYCOMB_OTLP_ENDPOINT   # https://api.honeycomb.io
@@ -93,7 +93,7 @@ HONEYCOMB_OTLP_HEADERS=x-honeycomb-team=<your_api_key>,x-honeycomb-dataset=dagst
 ## Example — Datadog OTel ingest
 
 ```yaml
-type: dagster_component_templates.DagsterFailuresToOtlpSensorComponent
+type: dagster_community_components.DagsterFailuresToOtlpSensorComponent
 attributes:
   sensor_name: dagster_failures_to_datadog
   otlp_endpoint_env_var: DD_OTLP_ENDPOINT
@@ -111,7 +111,7 @@ DD_OTLP_HEADERS=DD-API-KEY=<your_api_key>
 ## Example — OTel Collector → Grafana Loki
 
 ```yaml
-type: dagster_component_templates.DagsterFailuresToOtlpSensorComponent
+type: dagster_community_components.DagsterFailuresToOtlpSensorComponent
 attributes:
   sensor_name: dagster_failures_to_loki
   otlp_endpoint_env_var: OTEL_COLLECTOR_ENDPOINT   # http://otel-collector.svc:4318

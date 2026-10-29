@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FilesystemMonitorSensorComponent",
+  "component_type": "dagster_community_components.FilesystemMonitorSensorComponent",
   "description": "Component for monitoring filesystem directories for new files.",
   "category": "sensor",
   "icon": "Radar",

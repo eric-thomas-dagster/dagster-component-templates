@@ -101,7 +101,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.QuickBooksIngestionComponent
+type: dagster_community_components.QuickBooksIngestionComponent
 attributes:
   asset_name: quickbooks_ingestion
   client_id: "${QUICKBOOKS_CLIENT_ID}"

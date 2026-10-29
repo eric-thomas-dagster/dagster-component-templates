@@ -35,7 +35,7 @@ With `bootstrap_namespace: true` (default), `build_defs` creates `namespace` in 
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.IcebergIOManagerComponent
+type: dagster_community_components.IcebergIOManagerComponent
 attributes:
   resource_key: io_manager
   catalog_name: <fill in>

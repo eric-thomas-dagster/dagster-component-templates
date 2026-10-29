@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeJoin",
+  "component_type": "dagster_community_components.DataframeJoin",
   "description": "Join two DataFrame assets on common or specified columns.",
   "category": "transformation",
   "icon": "Shuffle",

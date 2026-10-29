@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ServiceNowSensorComponent",
+  "component_type": "dagster_community_components.ServiceNowSensorComponent",
   "description": "Trigger a job when ServiceNow records match a target state.",
   "category": "sensor",
   "icon": "Radar",

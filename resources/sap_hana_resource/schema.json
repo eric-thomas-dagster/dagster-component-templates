@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SapHanaResourceComponent",
+  "component_type": "dagster_community_components.SapHanaResourceComponent",
   "description": "SAP HANA database resource — provides a SQLAlchemy URL helper. Works with HANA Cloud, on-prem, and Azure HANA (preview). Use with existing dataframe_to_table / dataframe_from_sql.",
   "category": "resource",
   "icon": "si:sap",

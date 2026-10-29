@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DatadogResourceComponent",
+  "component_type": "dagster_community_components.DatadogResourceComponent",
   "description": "Register a dagster-datadog DatadogResource for use by other components",
   "category": "resource",
   "icon": "si:datadog",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GorgiasTicketsIngestionComponent",
+  "component_type": "dagster_community_components.GorgiasTicketsIngestionComponent",
   "description": "Ingest Gorgias support tickets via GET /api/tickets (cursor pagination) and return a pandas DataFrame.",
   "category": "source",
   "vertical": "support-cx",

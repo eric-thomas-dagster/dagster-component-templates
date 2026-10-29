@@ -122,7 +122,7 @@ class BigCommerceProductUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.BigCommerceProductUpsertComponent
+        type: dagster_community_components.BigCommerceProductUpsertComponent
         attributes:
           asset_name: bigcommerce_products_mirror
           upstream_asset_key: catalog_products

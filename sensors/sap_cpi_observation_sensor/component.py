@@ -39,7 +39,7 @@ class SapCPIObservationSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.SapCPIObservationSensorComponent
+        type: dagster_community_components.SapCPIObservationSensorComponent
         attributes:
           sensor_name: cpi_orders_iflow_observer
           tmn_host: https://my-tenant.it-cpi017.cfapps.us10-002.hana.ondemand.com

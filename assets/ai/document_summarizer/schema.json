@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DocumentSummarizerComponent",
+  "component_type": "dagster_community_components.DocumentSummarizerComponent",
   "description": "Component for summarizing documents with LLMs.",
   "category": "ai",
   "icon": "Sparkles",

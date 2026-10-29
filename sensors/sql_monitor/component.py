@@ -39,7 +39,7 @@ class SQLMonitorSensorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SQLMonitorSensorComponent
+        type: dagster_community_components.SQLMonitorSensorComponent
         attributes:
           sensor_name: orders_table_sensor
           connection_string_env_var: DATABASE_URL

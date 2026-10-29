@@ -20,7 +20,7 @@ Same 3-dialect asymmetry as `logistic_regression_model`:
 `execution_mode: sql` only supports `output_mode: predictions` -- there's no server-side equivalent to the sklearn `feature_importances_` output.
 
 ```yaml
-type: dagster_component_templates.GradientBoostingModelComponent
+type: dagster_community_components.GradientBoostingModelComponent
 attributes:
   asset_name: churn_gbm_sql
   source:

@@ -1,4 +1,4 @@
-type: dagster_component_templates.DLTDataFrameWriterComponent
+type: dagster_community_components.DLTDataFrameWriterComponent
 attributes:
   asset_name: customer_scores_written
   table: customer_scores

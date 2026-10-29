@@ -114,7 +114,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.WorkdayIngestionComponent
+type: dagster_community_components.WorkdayIngestionComponent
 attributes:
   asset_name: workday_ingestion
   base_url: "https://wd2-impl-services1.workday.com/ccx/api/v1/acme_gms1"

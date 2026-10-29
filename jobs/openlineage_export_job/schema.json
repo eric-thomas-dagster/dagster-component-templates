@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OpenLineageExportJobComponent",
+  "component_type": "dagster_community_components.OpenLineageExportJobComponent",
   "description": "Op-shaped job that walks the live Dagster asset graph and emits one OpenLineage RunEvent per asset to a collector (Marquez, OpenLineage Proxy, Datakin).",
   "category": "jobs",
   "icon": "Activity",

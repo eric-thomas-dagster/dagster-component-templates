@@ -1,4 +1,4 @@
-type: dagster_component_templates.SqsObservationSensorComponent
+type: dagster_community_components.SqsObservationSensorComponent
 attributes:
   sensor_name: sqs_orders_obs
   asset_key: queue/orders

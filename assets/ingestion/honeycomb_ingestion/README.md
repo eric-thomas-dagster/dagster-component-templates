@@ -101,7 +101,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.HoneycombIngestionComponent
+type: dagster_community_components.HoneycombIngestionComponent
 attributes:
   asset_name: honeycomb_ingestion
   api_key: "${HONEYCOMB_API_KEY}"

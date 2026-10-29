@@ -1,7 +1,7 @@
 # Every knob of the context pipeline in one runnable example (python execution mode, YAML only).
 # Delete what you don't need: a pipeline is just `chunk` plus whichever steps you want after it.
 # tests/test_example_all_knobs.py runs this file end to end, so it stays correct.
-type: dagster_component_templates.ContextEngineeringPipelineComponent
+type: dagster_community_components.ContextEngineeringPipelineComponent
 attributes:
   # --- what to build and from what ---------------------------------------------------------
   asset_name: support_kb

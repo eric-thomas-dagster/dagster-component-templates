@@ -109,7 +109,7 @@ Validated at `build_defs` time — missing a required target, or mapping to an u
 ## Example
 
 ```yaml
-type: dagster_component_templates.ZocdocAvailabilityUpsertComponent
+type: dagster_community_components.ZocdocAvailabilityUpsertComponent
 attributes:
   asset_name: zocdoc_availability_sync
   upstream_asset_key: dbt_marts_provider_open_slots

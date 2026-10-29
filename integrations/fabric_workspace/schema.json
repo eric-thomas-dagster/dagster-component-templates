@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FabricWorkspaceComponent",
+  "component_type": "dagster_community_components.FabricWorkspaceComponent",
   "description": "Import Microsoft Fabric workspace items (Lakehouse, Warehouse, Notebook, DataPipeline, Dataflow) as Dagster assets via the Fabric REST API.",
   "category": "integration",
   "icon": "si:microsoftazure",

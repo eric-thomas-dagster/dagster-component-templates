@@ -216,7 +216,7 @@ class BitbucketIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.BitbucketIngestionComponent
+        type: dagster_community_components.BitbucketIngestionComponent
         attributes:
           asset_name: bitbucket_ingestion
           workspace: "my-team"

@@ -90,27 +90,42 @@ Values from `pmcmd getworkflowdetails` "Status:" line:
 
 | Field | Type | Description |
 |---|---|---|
-| `domain_name` | `str` | Informatica domain name (matches the PowerCenter domain config). |
-| `integration_service` | `str` | Integration Service name to run workflows against. |
-| `repository` | `str` | PowerCenter repository name (target of pmrep connect + pmcmd -sv). |
+| `workspace` | `PowerCenterWorkspaceConfig` | Connection to the PowerCenter domain + repository. |
 
-### Connection
+### Execution
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `username` | `str` | — | PowerCenter username. Prefer `username_env_var` for secrets. |
-| `username_env_var` | `str` | — | Env var holding the PowerCenter username. |
-| `password` | `str` | — | PowerCenter password. Prefer `password_env_var` for secrets. |
-| `password_env_var` | `str` | — | Env var holding the PowerCenter password. |
+| `wait_for_completion` | `bool` | `true` | Only used when `action: execute`. If true, poll getworkflowdetails until a terminal status; if false, return once pmcmd accepts the trigger. |
+| `poll_interval_seconds` | `int` | `30` | Seconds between `pmcmd getworkflowdetails` polls. |
+| `timeout_seconds` | `int` | `3600` | Overall timeout for a synchronous workflow. Set 0 for no timeout. |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `group_name` | `str` | `"informatica_powercenter"` | Dagster asset group. |
+| `kinds` | `List[str]` | — | Asset kinds badge (Dagster catalog UI). Default: `['informatica', 'powercenter', 'etl']`. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Additional asset tags. |
+| `owners` | `List[str]` | — | Asset owners (team names / email addresses). |
+
+### Freshness
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `freshness_lag_threshold_seconds` | `int` | — | If set, attach an asset check per workflow that fails when the last successful run is older than this many seconds. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `domain_host` | `str` | — | Optional domain gateway hostname (informational — pmcmd reads domain config from $INFA_DOMAINS_FILE). |
-| `security_domain` | `str` | `"Native"` | Informatica security domain — `Native`, `LDAP`, or a custom-configured name. |
-| `pmcmd_path` | `str` | `"pmcmd"` | Path to the pmcmd binary. Default assumes it's on PATH. |
-| `pmrep_path` | `str` | `"pmrep"` | Path to the pmrep binary. Default assumes it's on PATH. |
-| `command_timeout_seconds` | `int` | `120` | Timeout for a single pmcmd / pmrep invocation. |
+| `workflow_selector` | `PowerCenterWorkflowSelector` | — | Filter which workflows become assets. Default = every workflow in the repository. |
+| `workflow_overrides` | `List[PowerCenterWorkflowOverride]` | — | Parameter file + variable overrides applied at execute time via pmcmd startworkflow. Only used when `action: execute`. See `PowerCenterWorkflowOverride` for shape. |
+| `translation` | `TranslationFn[PowerCenterWorkflowProps]` | — | Optional per-asset translation callable. Receives a PowerCenterWorkflowProps and returns a dict of AssetSpec kwargs (key / group_name / tags / owners / kinds / metadata / description). |
+| `action` | `str` | `"noop"` | What materialize() does. `noop` = external asset (declare-only). `execute` = shell out to `pmcmd startworkflow`. |
+| `polling_sensor` | `bool` | `false` | If true, emit a sensor that polls the last-run status for each workflow and emits AssetObservation on new terminal states. |
+| `observation_interval_seconds` | `int` | `300` | Sensor tick interval. Only used when `polling_sensor: true`. |
+| `asset_key_prefix` | `List[str]` | — | Prefix for every emitted asset key. Default: `['informatica', 'powercenter', <repository>]`. |
+| `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | StateBackedComponent state config. Default: local filesystem cache keyed on repository+integration_service. |
 
 [//]: # (FIELDS:END)

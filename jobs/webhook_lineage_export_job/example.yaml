@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/jobs/webhook_lineage_export_job/schema.json
-type: dagster_component_templates.WebhookLineageExportJobComponent
+type: dagster_community_components.WebhookLineageExportJobComponent
 attributes:
   job_name: push_dagster_lineage_to_webhook
   schedule: "0 3 * * *"

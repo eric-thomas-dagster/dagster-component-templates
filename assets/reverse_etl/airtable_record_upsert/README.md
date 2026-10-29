@@ -97,7 +97,7 @@ Airtable atomically creates or updates each record based on matching `key_fields
 
 ## Example
 ```yaml
-type: dagster_component_templates.AirtableRecordUpsertComponent
+type: dagster_community_components.AirtableRecordUpsertComponent
 attributes:
   asset_name: airtable_tasks_mirror
   upstream_asset_key: tasks_seed

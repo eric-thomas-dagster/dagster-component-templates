@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.KafkaMonitorSensorComponent",
+  "component_type": "dagster_community_components.KafkaMonitorSensorComponent",
   "description": "Component for monitoring a Kafka topic for new messages.",
   "category": "sensor",
   "icon": "si:apachekafka",

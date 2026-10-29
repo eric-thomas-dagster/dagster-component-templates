@@ -1,4 +1,4 @@
-type: dagster_component_templates.CosmosdbReaderComponent
+type: dagster_community_components.CosmosdbReaderComponent
 attributes:
   asset_name: cosmos_active_orders
   endpoint_env_var: COSMOS_ENDPOINT

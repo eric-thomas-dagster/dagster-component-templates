@@ -38,7 +38,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.PinterestAdsResourceComponent
+type: dagster_community_components.PinterestAdsResourceComponent
 attributes:
   resource_key: pinterest_ads_resource
   access_token_env_var: PINTEREST_ADS_ACCESS_TOKEN

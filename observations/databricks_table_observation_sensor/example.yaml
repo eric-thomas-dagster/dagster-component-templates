@@ -1,4 +1,4 @@
-type: dagster_component_templates.DatabricksTableObservationSensorComponent
+type: dagster_community_components.DatabricksTableObservationSensorComponent
 attributes:
   sensor_name: databricks_orders_obs
   asset_key: databricks/gold/orders

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SquareIngestionComponent",
+  "component_type": "dagster_community_components.SquareIngestionComponent",
   "description": "Ingest Square customer, catalog, and payment data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "finance-hr",

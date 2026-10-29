@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeToAzureTableComponent
+type: dagster_community_components.DataframeToAzureTableComponent
 attributes:
   asset_name: orders_in_table_storage
   upstream_asset_key: orders_raw

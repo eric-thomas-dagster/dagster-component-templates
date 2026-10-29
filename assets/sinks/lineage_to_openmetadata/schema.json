@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LineageToOpenMetadataComponent",
+  "component_type": "dagster_community_components.LineageToOpenMetadataComponent",
   "description": "Lineage → OpenMetadata sink. Pushes the upstream lineage_graph payload to OpenMetadata via REST API (service → database → schema → table hierarchy + lineage edges).",
   "category": "sink",
   "x-dagster-io": {

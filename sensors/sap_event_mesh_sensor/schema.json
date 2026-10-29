@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SapEventMeshSensorComponent",
+  "component_type": "dagster_community_components.SapEventMeshSensorComponent",
   "description": "Poll an SAP Event Mesh queue and trigger Dagster runs per event (job or dynamic-partition mode). REST polling against Event Mesh on BTP, OAuth client_credentials via XSUAA.",
   "category": "sensor",
   "icon": "si:sap",

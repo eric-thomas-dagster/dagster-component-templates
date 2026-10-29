@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PostgresIOManagerComponent",
+  "component_type": "dagster_community_components.PostgresIOManagerComponent",
   "description": "Register a PostgreSQL IO manager so assets are automatically stored in and loaded from Postgres tables",
   "category": "io_manager",
   "icon": "si:postgresql",

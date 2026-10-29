@@ -236,7 +236,7 @@ class DocumentSummarizerComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.DocumentSummarizerComponent
+        type: dagster_community_components.DocumentSummarizerComponent
         attributes:
           asset_name: document_summary
           upstream_asset_key: extracted_documents

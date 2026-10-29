@@ -98,7 +98,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 ## Example
 
 ```yaml
-type: dagster_component_templates.ZohoCrmIngestionComponent
+type: dagster_community_components.ZohoCrmIngestionComponent
 attributes:
   asset_name: zoho_crm_ingestion
   access_token: "${ZOHO_ACCESS_TOKEN}"

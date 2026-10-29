@@ -189,7 +189,7 @@ class ProductboardIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ProductboardIngestionComponent
+        type: dagster_community_components.ProductboardIngestionComponent
         attributes:
           asset_name: productboard_ingestion
           access_token: "${PRODUCTBOARD_ACCESS_TOKEN}"

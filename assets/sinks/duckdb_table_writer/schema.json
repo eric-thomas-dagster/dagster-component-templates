@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DuckDBTableWriterComponent",
+  "component_type": "dagster_community_components.DuckDBTableWriterComponent",
   "description": "Component for writing pandas DataFrames to DuckDB tables.",
   "category": "sink",
   "icon": "si:duckdb",

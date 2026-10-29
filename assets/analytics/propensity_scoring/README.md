@@ -14,7 +14,7 @@ Two ways to get the rows in, set exactly one, for either `scoring_method`:
 **None of the 4 `propensity_type` formulas below are fit against any observed outcome** -- they're all pure behavioral recency/frequency proxies. There is no "did purchase"/"did upgrade"/"did refer" boolean anywhere in the input schema. So `scoring_method='ml'` is opt-in and requires you bring your own label (e.g. a historical `converted` boolean) via `target_column`, plus `feature_columns` naming which columns to train on. `propensity_type` becomes purely a label/description string in `ml` mode -- it no longer selects a different formula.
 
 ```yaml
-type: dagster_component_templates.PropensityScoringComponent
+type: dagster_community_components.PropensityScoringComponent
 attributes:
   asset_name: purchase_propensity_ml
   upstream_asset_key: customer_behavior_with_conversion_label
@@ -163,7 +163,7 @@ Scores range 0-100, classified as High/Medium/Low propensity.
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.PropensityScoringComponent
+type: dagster_community_components.PropensityScoringComponent
 attributes:
   asset_name: purchase_propensity
   upstream_asset_key: customer_behavior

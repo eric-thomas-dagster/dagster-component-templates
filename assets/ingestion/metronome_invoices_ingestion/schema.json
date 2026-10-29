@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MetronomeInvoicesIngestionComponent",
+  "component_type": "dagster_community_components.MetronomeInvoicesIngestionComponent",
   "description": "Ingest Metronome customers and their invoices via the Metronome billing API and return a pandas DataFrame (one row per invoice) for finance reporting.",
   "category": "source",
   "vertical": "billing-metering",

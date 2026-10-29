@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SigmaWorkbookIngestionComponent",
+  "component_type": "dagster_community_components.SigmaWorkbookIngestionComponent",
   "description": "Ingest a catalog of Sigma workbooks + their elements (via GET /v2/workbooks and GET /v2/workbooks/{id}/elements) and return a pandas DataFrame, one row per (workbook, element). Identifies Input Table elements via type == 'input-table' (Sigma's own documented approach). Surfaces workbook-level createdBy/updatedBy/timestamps/latestVersion as the closest API-exposed audit proxy -- true per-row Input Table audit history is a Sigma UI-only feature not exposed via the public REST API.",
   "category": "source",
   "vertical": "business-intelligence",

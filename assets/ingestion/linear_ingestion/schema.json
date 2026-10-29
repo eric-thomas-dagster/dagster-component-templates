@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LinearIngestionComponent",
+  "component_type": "dagster_community_components.LinearIngestionComponent",
   "description": "Ingest Linear issue-tracker data via Linear's GraphQL API.",
   "category": "ingestion",
   "vertical": "devops-observability",

@@ -76,7 +76,7 @@ Writes a Pandas DataFrame to an Excel `.xlsx` file. This is a terminal sink comp
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.DataframeToExcelComponent
+type: dagster_community_components.DataframeToExcelComponent
 attributes:
   asset_name: write_quarterly_report_excel
   upstream_asset_key: quarterly_summary

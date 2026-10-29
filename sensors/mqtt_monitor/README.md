@@ -77,7 +77,7 @@ This sensor connects to an MQTT broker, subscribes to a topic, collects messages
 ## Usage
 
 ```yaml
-type: dagster_component_templates.MQTTMonitorSensorComponent
+type: dagster_community_components.MQTTMonitorSensorComponent
 attributes:
   sensor_name: factory_telemetry_sensor
   broker_host: mqtt.factory.internal

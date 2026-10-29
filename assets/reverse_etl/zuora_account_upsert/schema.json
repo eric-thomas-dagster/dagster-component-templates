@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ZuoraAccountUpsertComponent",
+  "component_type": "dagster_community_components.ZuoraAccountUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Zuora Account records via the generic Object CRUD API. Zuora has no upsert-by-key endpoint and no filter-by-field GET -- this component queries by lookup_field first via ZOQL (POST /v1/action/query) to discover an existing Account Id, then issues PUT /v1/object/account/{id} (update) or POST /v1/object/account (create). Two API calls per row. Create requires Name, Currency, BillCycleDay, and Status in fields_map -- no defaults are supplied.",
   "category": "reverse_etl",
   "icon": "Repeat",

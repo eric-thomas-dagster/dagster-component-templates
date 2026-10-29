@@ -261,7 +261,7 @@ class VisionModelComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.VisionModelComponent
+        type: dagster_community_components.VisionModelComponent
         attributes:
           asset_name: product_image_analysis
           source_asset: product_images

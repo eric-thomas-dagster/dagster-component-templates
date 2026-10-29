@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataHubExportJobComponent",
+  "component_type": "dagster_community_components.DataHubExportJobComponent",
   "description": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to DataHub via the Rest.li ingestProposal endpoint.",
   "category": "jobs",
   "icon": "Activity",

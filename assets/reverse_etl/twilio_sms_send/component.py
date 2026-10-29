@@ -139,7 +139,7 @@ class TwilioSmsSendComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.TwilioSmsSendComponent
+        type: dagster_community_components.TwilioSmsSendComponent
         attributes:
           asset_name: twilio_order_shipped_sms
           upstream_asset_key: dbt_marts_orders_shipped_today

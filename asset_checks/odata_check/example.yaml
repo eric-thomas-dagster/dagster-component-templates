@@ -1,4 +1,4 @@
-type: dagster_component_templates.ODataCheckComponent
+type: dagster_community_components.ODataCheckComponent
 attributes:
   asset_key: sap/business_partners
   check_name: business_partners_reachable

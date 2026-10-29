@@ -36,7 +36,7 @@ No extra packages required (uses Python stdlib)
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.SMTPResourceComponent
+type: dagster_community_components.SMTPResourceComponent
 attributes:
   resource_key: smtp_resource  # key other components use
   # Required

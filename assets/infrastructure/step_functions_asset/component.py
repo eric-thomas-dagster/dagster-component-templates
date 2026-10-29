@@ -314,7 +314,7 @@ if _HAS_STATE_BACKED:
 
         Example:
             ```yaml
-            type: dagster_component_templates.StepFunctionsAssetComponent
+            type: dagster_community_components.StepFunctionsAssetComponent
             attributes:
               region_name: us-east-1
               name_prefix: "data-pipeline-"

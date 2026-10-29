@@ -22,7 +22,7 @@ Register a dagster-anthropic AnthropicResource for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.AnthropicResourceComponent
+type: dagster_community_components.AnthropicResourceComponent
 attributes:
   resource_key: anthropic_resource  # key other components use
   # Optional

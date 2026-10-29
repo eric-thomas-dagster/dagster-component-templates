@@ -95,7 +95,7 @@ The `FirestoreReaderComponent` connects to Google Cloud Firestore and reads docu
 ### Basic read
 
 ```yaml
-type: dagster_component_templates.FirestoreReaderComponent
+type: dagster_community_components.FirestoreReaderComponent
 attributes:
   asset_name: firestore_products
   collection: products
@@ -105,7 +105,7 @@ attributes:
 ### Filtered query
 
 ```yaml
-type: dagster_component_templates.FirestoreReaderComponent
+type: dagster_community_components.FirestoreReaderComponent
 attributes:
   asset_name: active_users
   collection: users
@@ -124,7 +124,7 @@ attributes:
 ### With service account credentials
 
 ```yaml
-type: dagster_component_templates.FirestoreReaderComponent
+type: dagster_community_components.FirestoreReaderComponent
 attributes:
   asset_name: secure_collection
   collection: sensitive_data

@@ -68,7 +68,7 @@ This component does not read from or write to Mqtt. It is a **lineage declaratio
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ExternalMqttAsset
+type: dagster_community_components.ExternalMqttAsset
 attributes:
   asset_key: my_service/asset
   broker_host: my-service.internal.company.com
@@ -84,7 +84,7 @@ Set `create_observation_sensor: true` to also get the polling sensor that keeps 
 health/data-version current — one component, one YAML, no manual `asset_key` wiring:
 
 ```yaml
-type: dagster_component_templates.ExternalMqttAsset
+type: dagster_community_components.ExternalMqttAsset
 attributes:
   asset_key: external/mqtt
   broker_host: my-mqtt.internal
@@ -99,7 +99,7 @@ asset and sensor on independent lifecycles), pair this component with the standa
 
 ```yaml
 # 1. Declare the external asset (lineage node)
-type: dagster_component_templates.ExternalMqttAsset
+type: dagster_community_components.ExternalMqttAsset
 attributes:
   asset_key: external/mqtt
   broker_host: my-mqtt.internal
@@ -108,7 +108,7 @@ attributes:
 ---
 
 # 2. Observe it on a schedule
-type: dagster_component_templates.MqttObservationSensorComponent
+type: dagster_community_components.MqttObservationSensorComponent
 attributes:
   sensor_name: mqtt_asset_observer
   asset_key: external/mqtt

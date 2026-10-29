@@ -3,7 +3,7 @@
 Pull one field out of a column whose values are lists or dicts. Common pattern after API-driven assets (Vision, DLP, OCR, embeddings) that emit nested response shapes.
 
 ```yaml
-type: dagster_component_templates.DataframeExtractFieldComponent
+type: dagster_community_components.DataframeExtractFieldComponent
 attributes:
   asset_name: top_label_per_image
   upstream_asset_key: image_analysis

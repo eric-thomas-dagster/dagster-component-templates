@@ -1,4 +1,4 @@
-type: dagster_component_templates.SapRFCResourceComponent
+type: dagster_community_components.SapRFCResourceComponent
 attributes:
   resource_key: sap_ecc
 

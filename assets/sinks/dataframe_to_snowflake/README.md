@@ -98,7 +98,7 @@ This component receives a DataFrame from an upstream Dagster asset and writes it
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.DataframeToSnowflakeComponent
+type: dagster_community_components.DataframeToSnowflakeComponent
 attributes:
   asset_name: snowflake_orders
   upstream_asset_key: processed_orders

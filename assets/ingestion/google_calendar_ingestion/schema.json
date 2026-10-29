@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GoogleCalendarIngestionComponent",
+  "component_type": "dagster_community_components.GoogleCalendarIngestionComponent",
   "description": "List events from a Google Calendar via a service account. Returns one row per event with summary, time, location, attendees, organizer, html_link.",
   "category": "source",
   "vertical": "productivity",

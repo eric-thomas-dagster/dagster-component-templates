@@ -216,7 +216,7 @@ class ZohoCrmIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ZohoCrmIngestionComponent
+        type: dagster_community_components.ZohoCrmIngestionComponent
         attributes:
           asset_name: zoho_crm_ingestion
           access_token: "${ZOHO_ACCESS_TOKEN}"

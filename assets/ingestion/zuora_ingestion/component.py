@@ -216,7 +216,7 @@ class ZuoraIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ZuoraIngestionComponent
+        type: dagster_community_components.ZuoraIngestionComponent
         attributes:
           asset_name: zuora_ingestion
           base_url: "https://rest.na.zuora.com"

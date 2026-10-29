@@ -29,7 +29,7 @@ Wraps `dagster-looker`'s LookerResource to surface Looker explores, dashboards, 
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.LookerAssetsComponent
+type: dagster_community_components.LookerAssetsComponent
 attributes:
   base_url: <fill in>
   client_id_env_var: <fill in>

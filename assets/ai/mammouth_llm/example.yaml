@@ -1,4 +1,4 @@
-type: dagster_component_templates.MammouthLLMComponent
+type: dagster_community_components.MammouthLLMComponent
 attributes:
   asset_name: support_ticket_summaries
   upstream_asset_key: support_tickets

@@ -121,7 +121,7 @@ Asset key strings use `/` as the namespace separator, matching the display in th
 ### Basic failure alerts
 
 ```yaml
-type: dagster_component_templates.TwilioNotificationSensor
+type: dagster_community_components.TwilioNotificationSensor
 attributes:
   sensor_name: pipeline_sms_alerts
   account_sid_env_var: TWILIO_ACCOUNT_SID
@@ -137,7 +137,7 @@ attributes:
 ### WhatsApp alerts on specific assets
 
 ```yaml
-type: dagster_component_templates.TwilioNotificationSensor
+type: dagster_community_components.TwilioNotificationSensor
 attributes:
   sensor_name: critical_asset_whatsapp_alerts
   account_sid_env_var: TWILIO_ACCOUNT_SID

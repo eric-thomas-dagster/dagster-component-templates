@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GoogleAdsIngestionComponent",
+  "component_type": "dagster_community_components.GoogleAdsIngestionComponent",
   "description": "Component for ingesting Google Ads data using dlt - returns DataFrames.",
   "category": "ingestion",
   "vertical": "marketing",

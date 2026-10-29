@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GithubResourceComponent",
+  "component_type": "dagster_community_components.GithubResourceComponent",
   "description": "Register a dagster-github GithubResource for use by other components",
   "category": "resource",
   "icon": "si:github",

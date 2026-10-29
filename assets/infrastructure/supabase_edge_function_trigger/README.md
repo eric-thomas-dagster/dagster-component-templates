@@ -53,7 +53,7 @@ Requires a `SupabaseResource` (see `resources/supabase_resource`).
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.SupabaseEdgeFunctionTriggerComponent
+type: dagster_community_components.SupabaseEdgeFunctionTriggerComponent
 attributes:
   asset_key: supabase/send_welcome_email
   function_name: send-welcome-email

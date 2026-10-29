@@ -216,7 +216,7 @@ class GrafanaCloudIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.GrafanaCloudIngestionComponent
+        type: dagster_community_components.GrafanaCloudIngestionComponent
         attributes:
           asset_name: grafana_cloud_ingestion
           stack_url: "https://mystack.grafana.net"

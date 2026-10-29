@@ -103,7 +103,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.EgnyteIngestionComponent
+type: dagster_community_components.EgnyteIngestionComponent
 attributes:
   asset_name: egnyte_ingestion
   domain: "mycompany"

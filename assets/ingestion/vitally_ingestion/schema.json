@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.VitallyAccountsIngestionComponent",
+  "component_type": "dagster_community_components.VitallyAccountsIngestionComponent",
   "description": "Ingest Vitally Accounts (health/NPS data) via Vitally REST API and return a pandas DataFrame.",
   "category": "source",
   "vertical": "customer-success",

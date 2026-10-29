@@ -25,7 +25,7 @@ Wraps `dagster-tableau`'s workspace clients to materialize Tableau workbooks, da
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.TableauAssetsComponent
+type: dagster_community_components.TableauAssetsComponent
 attributes:
   server_url: https://10ay.online.tableau.com
   site_name: my-site

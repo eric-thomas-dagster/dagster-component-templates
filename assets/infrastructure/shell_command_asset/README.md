@@ -32,7 +32,7 @@ Wraps `dagster-shell`'s `execute_shell_command` so a shell command (or script) i
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ShellCommandAssetComponent
+type: dagster_community_components.ShellCommandAssetComponent
 attributes:
   asset_name: refresh_reports
   command: ./scripts/refresh_reports.sh

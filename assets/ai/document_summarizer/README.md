@@ -20,7 +20,7 @@ Perfect for report generation, content digestion, and document analysis.
 ### 1. Extract Text from Document
 
 ```yaml
-type: dagster_component_templates.DocumentTextExtractorComponent
+type: dagster_community_components.DocumentTextExtractorComponent
 attributes:
   asset_name: report_text
   # file path is supplied at run time (RunConfig: ops.report_text.config.file_path, e.g. /path/to/report.pdf),
@@ -31,7 +31,7 @@ attributes:
 
 ```yaml
 # No upstream_asset_key needed - set by drawing connections!
-type: dagster_component_templates.DocumentSummarizerComponent
+type: dagster_community_components.DocumentSummarizerComponent
 attributes:
   asset_name: report_summary
   provider: openai
@@ -172,14 +172,14 @@ That's it! The IO manager automatically passes the text.
 
 ```yaml
 # Step 1: Extract text from document
-type: dagster_component_templates.DocumentTextExtractorComponent
+type: dagster_community_components.DocumentTextExtractorComponent
 attributes:
   asset_name: report_text
   # file path is supplied at run time (RunConfig: ops.report_text.config.file_path, e.g. /path/to/report.pdf),
   # or by an upstream asset -- it is not a YAML field
 
 # Step 2: Summarize the document
-type: dagster_component_templates.DocumentSummarizerComponent
+type: dagster_community_components.DocumentSummarizerComponent
 attributes:
   asset_name: report_summary
   provider: openai
@@ -189,7 +189,7 @@ attributes:
   api_key: ${OPENAI_API_KEY}
 
 # Step 3: Classify the summary sentiment (optional)
-type: dagster_component_templates.TextClassifierComponent
+type: dagster_community_components.TextClassifierComponent
 attributes:
   asset_name: summary_sentiment
   provider: openai
@@ -207,7 +207,7 @@ report_text → report_summary → summary_sentiment
 
 ### Concise Summary
 ```yaml
-type: dagster_component_templates.DocumentSummarizerComponent
+type: dagster_community_components.DocumentSummarizerComponent
 attributes:
   asset_name: brief_summary
   provider: openai
@@ -219,7 +219,7 @@ attributes:
 
 ### Executive Summary with Anthropic
 ```yaml
-type: dagster_component_templates.DocumentSummarizerComponent
+type: dagster_community_components.DocumentSummarizerComponent
 attributes:
   asset_name: executive_summary
   provider: anthropic
@@ -231,7 +231,7 @@ attributes:
 
 ### Bullet Points
 ```yaml
-type: dagster_component_templates.DocumentSummarizerComponent
+type: dagster_community_components.DocumentSummarizerComponent
 attributes:
   asset_name: key_points
   provider: openai

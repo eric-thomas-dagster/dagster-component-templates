@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.KustomerConversationsIngestionComponent",
+  "component_type": "dagster_community_components.KustomerConversationsIngestionComponent",
   "description": "Ingest Kustomer conversations via the Search API (POST /v1/customers/search, queryContext=conversation) and return a pandas DataFrame.",
   "category": "source",
   "vertical": "support-cx",

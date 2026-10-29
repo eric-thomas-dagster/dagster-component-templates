@@ -1,4 +1,4 @@
-type: dagster_component_templates.DynatraceMetricsQueryComponent
+type: dagster_community_components.DynatraceMetricsQueryComponent
 attributes:
   asset_name: dynatrace_metrics_query_output
   environment_url: https://example.com

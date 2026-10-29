@@ -11,7 +11,7 @@ Pairs naturally with `rest_api_ingestion`, which handles JSON/CSV/DataFrame/Parq
 - **OpenStreetMap extracts** — `.osm.pbf`, **WorldBank** zips, **OECD** zips
 
 ```yaml
-type: dagster_component_templates.ArchiveFetcherComponent
+type: dagster_community_components.ArchiveFetcherComponent
 attributes:
   asset_name: movielens_raw
   url: https://files.grouplens.org/datasets/movielens/ml-latest-small.zip
@@ -37,7 +37,7 @@ Downstream assets can either:
 
 1. **Reference files by path** (recommended — predictable, no input-binding gymnastics):
    ```yaml
-   type: dagster_component_templates.CSVFileIngestionComponent
+   type: dagster_community_components.CSVFileIngestionComponent
    attributes:
      asset_name: movies
      file_path: /tmp/movielens/movies.csv

@@ -110,7 +110,7 @@ class SmartsheetRowUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SmartsheetRowUpsertComponent
+        type: dagster_community_components.SmartsheetRowUpsertComponent
         attributes:
           asset_name: smartsheet_tasks_mirror
           upstream_asset_key: tasks_seed

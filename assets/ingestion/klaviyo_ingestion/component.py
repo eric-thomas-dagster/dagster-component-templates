@@ -216,7 +216,7 @@ class KlaviyoIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.KlaviyoIngestionComponent
+        type: dagster_community_components.KlaviyoIngestionComponent
         attributes:
           asset_name: klaviyo_ingestion
           api_key: "${KLAVIYO_API_KEY}"

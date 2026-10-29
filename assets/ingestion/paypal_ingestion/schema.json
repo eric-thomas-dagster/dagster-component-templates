@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PayPalIngestionComponent",
+  "component_type": "dagster_community_components.PayPalIngestionComponent",
   "description": "Ingest PayPal transaction and invoice data (REST API, not Braintree) using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "finance-hr",

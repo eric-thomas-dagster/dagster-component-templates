@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TimeSeriesGeneratorComponent",
+  "component_type": "dagster_community_components.TimeSeriesGeneratorComponent",
   "description": "Component for generating synthetic time-series data with various patterns.",
   "category": "analytics",
   "icon": "BarChart2",

@@ -97,7 +97,7 @@ Together they cover both directions of LinkedIn Ads data movement.
 ## Example
 
 ```yaml
-type: dagster_component_templates.LinkedInMatchedAudienceUpsertComponent
+type: dagster_community_components.LinkedInMatchedAudienceUpsertComponent
 attributes:
   asset_name: linkedin_high_ltv_customers_segment
   upstream_asset_key: dbt_marts_high_ltv_customers
@@ -112,7 +112,7 @@ attributes:
 ## Example — suppression
 
 ```yaml
-type: dagster_component_templates.LinkedInMatchedAudienceUpsertComponent
+type: dagster_community_components.LinkedInMatchedAudienceUpsertComponent
 attributes:
   asset_name: linkedin_suppress_converted
   upstream_asset_key: dbt_marts_recent_conversions

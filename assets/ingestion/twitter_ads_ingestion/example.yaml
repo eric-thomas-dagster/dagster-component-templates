@@ -1,4 +1,4 @@
-type: dagster_component_templates.TwitterAdsIngestionComponent
+type: dagster_community_components.TwitterAdsIngestionComponent
 attributes:
   asset_name: twitter_ads_data
 

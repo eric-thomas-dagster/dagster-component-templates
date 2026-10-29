@@ -8,7 +8,7 @@
 # Requires a CloseCrmResourceComponent registered under the same
 # resource_key.
 
-type: dagster_component_templates.CloseCrmLeadUpsertComponent
+type: dagster_community_components.CloseCrmLeadUpsertComponent
 attributes:
   asset_name: close_crm_leads_mirror
   upstream_asset_key: dbt_marts_leads

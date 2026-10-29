@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ChromaResourceComponent",
+  "component_type": "dagster_community_components.ChromaResourceComponent",
   "description": "Register a dagster-chroma ChromaResource for use by other components",
   "category": "resource",
   "icon": "si:chromatic",

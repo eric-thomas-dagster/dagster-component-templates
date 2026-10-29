@@ -3,7 +3,7 @@
 Parse a column of ISO 20022 XML payment messages into a flat per-transaction DataFrame. Handles the four most-common message families out of the box; falls back to a generic header-only extractor for others.
 
 ```yaml
-type: dagster_component_templates.Iso20022PaymentParserComponent
+type: dagster_community_components.Iso20022PaymentParserComponent
 attributes:
   asset_name: payments_flat
   upstream_asset_key: iso20022_messages

@@ -11,7 +11,7 @@ Typical wiring:
 
     ```yaml
     # resources/sap_s4_odata.yaml
-    type: dagster_component_templates.ODataResourceComponent
+    type: dagster_community_components.ODataResourceComponent
     attributes:
       resource_key: sap_s4_odata
       service_url: https://my300000.s4hana.cloud.sap/sap/opu/odata/sap/API_BUSINESS_PARTNER

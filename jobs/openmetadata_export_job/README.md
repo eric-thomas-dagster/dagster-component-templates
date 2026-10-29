@@ -65,7 +65,7 @@ Two complementary OpenMetadata paths in the registry:
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.OpenMetadataExportJobComponent
+type: dagster_community_components.OpenMetadataExportJobComponent
 attributes:
   job_name: sync_dagster_lineage_to_openmetadata
   schedule: "0 3 * * *"                  # nightly at 3am

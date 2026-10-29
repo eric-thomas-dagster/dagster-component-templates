@@ -38,7 +38,7 @@ pip install dagster-gcp-pandas
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.BigQueryIOManagerComponent
+type: dagster_community_components.BigQueryIOManagerComponent
 attributes:
   resource_key: io_manager
   project: my-gcp-project

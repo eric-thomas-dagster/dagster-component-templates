@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FeatureScalerComponent",
+  "component_type": "dagster_community_components.FeatureScalerComponent",
   "description": "Rescale numeric columns using standard, min-max, robust, or max-abs scaling.",
   "category": "transformation",
   "icon": "TrendingUp",

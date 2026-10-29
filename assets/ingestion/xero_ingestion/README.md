@@ -103,7 +103,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.XeroIngestionComponent
+type: dagster_community_components.XeroIngestionComponent
 attributes:
   asset_name: xero_ingestion
   client_id: "${XERO_CLIENT_ID}"

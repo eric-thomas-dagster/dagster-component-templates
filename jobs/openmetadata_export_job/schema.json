@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OpenMetadataExportJobComponent",
+  "component_type": "dagster_community_components.OpenMetadataExportJobComponent",
   "description": "Op-shaped job that walks the live Dagster asset graph and pushes lineage + metadata to OpenMetadata's REST API (service → database → schemas → tables → lineage edges). Idempotent PUTs.",
   "category": "jobs",
   "icon": "Activity",

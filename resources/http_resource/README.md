@@ -39,7 +39,7 @@ Register an HTTP resource (base URL + auth header) for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.HTTPResourceComponent
+type: dagster_community_components.HTTPResourceComponent
 attributes:
   resource_key: http_resource  # key other components use
   # Required

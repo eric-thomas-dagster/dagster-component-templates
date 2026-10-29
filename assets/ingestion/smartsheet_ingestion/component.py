@@ -216,7 +216,7 @@ class SmartsheetIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.SmartsheetIngestionComponent
+        type: dagster_community_components.SmartsheetIngestionComponent
         attributes:
           asset_name: smartsheet_ingestion
           access_token: "${SMARTSHEET_ACCESS_TOKEN}"

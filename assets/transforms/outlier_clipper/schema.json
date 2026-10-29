@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OutlierClipperComponent",
+  "component_type": "dagster_community_components.OutlierClipperComponent",
   "description": "Detect and clip, drop, or flag outliers in numeric columns using IQR, z-score, or quantile thresholds.",
   "category": "transformation",
   "icon": "Crop",

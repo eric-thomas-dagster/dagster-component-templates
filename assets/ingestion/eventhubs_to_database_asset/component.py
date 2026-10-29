@@ -218,7 +218,7 @@ class EventHubsToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.EventHubsToDatabaseAssetComponent
+        type: dagster_community_components.EventHubsToDatabaseAssetComponent
         attributes:
           asset_name: eventhubs_events_ingest
           connection_string_env_var: EVENTHUB_CONNECTION_STRING

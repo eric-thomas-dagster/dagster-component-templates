@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RampReimbursementCardWriteComponent",
+  "component_type": "dagster_community_components.RampReimbursementCardWriteComponent",
   "description": "Reverse-ETL sink: write upstream DataFrame rows into Ramp -- create a mileage reimbursement, upload a receipt (optionally OCR'd into a draft reimbursement), issue a virtual card via Ramp's Vault API (production requires Ramp's approval review; works in Sandbox for all customers), or update a physical card's display_name/fund_id/automatic_routing_enabled (Ramp's API has no spend-limit-update endpoint for any card type).",
   "category": "reverse_etl",
   "icon": "si:ramp",

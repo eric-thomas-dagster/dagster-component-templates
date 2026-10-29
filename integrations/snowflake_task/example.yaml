@@ -1,4 +1,4 @@
-type: dagster_component_templates.SnowflakeTaskComponent
+type: dagster_community_components.SnowflakeTaskComponent
 attributes:
   asset_name: daily_orders_rollup
   task_name: DAILY_ORDERS_ROLLUP

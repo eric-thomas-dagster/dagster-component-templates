@@ -10,7 +10,7 @@ Components are reusable, YAML-configurable building blocks that package common d
 
 ```yaml
 # defs/components/sqs_ingest.yaml
-type: dagster_component_templates.SQSToDatabaseAssetComponent
+type: dagster_community_components.SQSToDatabaseAssetComponent
 attributes:
   asset_name: raw_events
   queue_url_env_var: SQS_QUEUE_URL
@@ -217,7 +217,7 @@ dg utils refresh-defs-state
 Every asset component supports a `deps` field for declaring upstream dependencies in the asset graph:
 
 ```yaml
-type: dagster_component_templates.LiteLLMInferenceAssetComponent
+type: dagster_community_components.LiteLLMInferenceAssetComponent
 attributes:
   asset_name: enriched_tickets
   upstream_asset_key: raw_tickets   # loads data + draws lineage edge
@@ -305,7 +305,7 @@ Most sensors are designed to trigger a companion ingestion asset. The sensor det
 The `dbt_docs_enriched_project` component is a drop-in replacement for `DbtProjectComponent` that adds rich metadata from the dbt manifest to every asset in the Dagster UI:
 
 ```yaml
-type: dagster_component_templates.DbtDocsEnrichedProjectComponent
+type: dagster_community_components.DbtDocsEnrichedProjectComponent
 attributes:
   project: "{{ project_root }}/dbt_project"
   dbt_docs_url: "https://dbt-docs.internal.mycompany.com"
@@ -338,7 +338,7 @@ cp -r assets/s3_to_database_asset/ my_project/defs/components/
 
 ```yaml
 # defs/components/my_s3_ingest.yaml
-type: dagster_component_templates.S3ToDatabaseAssetComponent
+type: dagster_community_components.S3ToDatabaseAssetComponent
 attributes:
   asset_name: raw_orders
   database_url: ${DATABASE_URL}

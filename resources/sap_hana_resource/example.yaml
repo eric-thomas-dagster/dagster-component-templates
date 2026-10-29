@@ -1,4 +1,4 @@
-type: dagster_component_templates.SapHanaResourceComponent
+type: dagster_community_components.SapHanaResourceComponent
 attributes:
   resource_key: sap_hana
   host: myhana.hanacloud.ondemand.com

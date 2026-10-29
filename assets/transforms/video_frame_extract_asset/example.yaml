@@ -1,4 +1,4 @@
-type: dagster_component_templates.VideoFrameExtractAssetComponent
+type: dagster_community_components.VideoFrameExtractAssetComponent
 attributes:
   asset_name: video_frames
   upstream_asset_key: sample_videos

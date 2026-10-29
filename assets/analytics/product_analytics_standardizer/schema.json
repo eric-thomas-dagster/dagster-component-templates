@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ProductAnalyticsStandardizerComponent",
+  "component_type": "dagster_community_components.ProductAnalyticsStandardizerComponent",
   "description": "Component for standardizing product analytics data across platforms.",
   "category": "analytics",
   "icon": "BarChart2",

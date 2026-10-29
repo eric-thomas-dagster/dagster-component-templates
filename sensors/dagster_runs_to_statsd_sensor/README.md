@@ -62,7 +62,7 @@ Set `dogstatsd_tags: false` to drop the `|#…` tag block (plain statsd protocol
 ## Example
 
 ```yaml
-type: dagster_component_templates.DagsterRunsToStatsdSensorComponent
+type: dagster_community_components.DagsterRunsToStatsdSensorComponent
 attributes:
   sensor_name: dagster_runs_to_datadog
   statsd_host: 127.0.0.1

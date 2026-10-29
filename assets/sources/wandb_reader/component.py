@@ -181,7 +181,7 @@ class WandbReaderComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.WandbReaderComponent
+        type: dagster_community_components.WandbReaderComponent
         attributes:
           asset_name: experiment_runs
           project: my-ml-project

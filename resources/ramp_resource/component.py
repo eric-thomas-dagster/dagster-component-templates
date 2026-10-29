@@ -370,7 +370,7 @@ class RampResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.RampResourceComponent
+        type: dagster_community_components.RampResourceComponent
         attributes:
           resource_key: ramp_resource
           client_id_env_var: RAMP_CLIENT_ID

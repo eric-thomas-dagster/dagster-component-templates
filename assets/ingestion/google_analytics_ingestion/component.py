@@ -223,7 +223,7 @@ class GoogleAnalyticsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.GoogleAnalyticsIngestionComponent
+        type: dagster_community_components.GoogleAnalyticsIngestionComponent
         attributes:
           asset_name: ga4_data
           property_id: "123456789"

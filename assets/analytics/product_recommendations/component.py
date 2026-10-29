@@ -337,7 +337,7 @@ class ProductRecommendationsComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ProductRecommendationsComponent
+        type: dagster_community_components.ProductRecommendationsComponent
         attributes:
           asset_name: product_recommendations
           upstream_asset_key: order_items

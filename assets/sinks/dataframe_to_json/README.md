@@ -77,7 +77,7 @@ Writes a Pandas DataFrame to a JSON or JSON Lines file. This is a terminal sink 
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.DataframeToJsonComponent
+type: dagster_community_components.DataframeToJsonComponent
 attributes:
   asset_name: write_events_jsonl
   upstream_asset_key: processed_events

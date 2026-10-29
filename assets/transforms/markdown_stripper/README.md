@@ -94,7 +94,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 
 ## Example YAML
 ```yaml
-component_type: dagster_component_templates.MarkdownStripperComponent
+component_type: dagster_community_components.MarkdownStripperComponent
 asset_name: stripped_markdown_docs
 upstream_asset_key: raw_markdown_docs
 columns: [content, summary]

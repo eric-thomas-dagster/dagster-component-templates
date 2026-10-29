@@ -40,7 +40,7 @@ def db_writer(kv: KeyVaultResource):
 ## YAML
 
 ```yaml
-type: dagster_component_templates.KeyVaultResourceComponent
+type: dagster_community_components.KeyVaultResourceComponent
 attributes:
   resource_key: key_vault
   vault_url: https://my-kv.vault.azure.net

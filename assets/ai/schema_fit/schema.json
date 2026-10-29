@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SchemaFitComponent",
+  "component_type": "dagster_community_components.SchemaFitComponent",
   "description": "Component for LLM-driven schema mapping and transformation.",
   "category": "ai",
   "icon": "Sparkles",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TwitterAdsResourceComponent",
+  "component_type": "dagster_community_components.TwitterAdsResourceComponent",
   "description": "Register a TwitterAdsResource (OAuth 1.0a) for the X (Twitter) Ads API for use by other components",
   "category": "resource",
   "icon": "si:x",

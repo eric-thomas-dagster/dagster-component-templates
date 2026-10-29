@@ -83,7 +83,7 @@ The notebook must already exist in the clean room and already be approved by all
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.DatabricksCleanRoomNotebookRunComponent
+type: dagster_community_components.DatabricksCleanRoomNotebookRunComponent
 attributes:
   asset_name: shared_attribution_analysis
   clean_room_name: acme_retail_media_room

@@ -143,7 +143,7 @@ The component returns the upstream DataFrame with one extra column (`output_colu
 
 ### Parse JSON
 ```yaml
-type: dagster_component_templates.LLMOutputParserComponent
+type: dagster_community_components.LLMOutputParserComponent
 attributes:
   asset_name: parsed_json
   upstream_asset_key: llm_response_text
@@ -153,7 +153,7 @@ attributes:
 
 ### Extract List
 ```yaml
-type: dagster_component_templates.LLMOutputParserComponent
+type: dagster_community_components.LLMOutputParserComponent
 attributes:
   asset_name: bullet_list
   upstream_asset_key: llm_response_text
@@ -162,7 +162,7 @@ attributes:
 
 ### Parse CSV
 ```yaml
-type: dagster_component_templates.LLMOutputParserComponent
+type: dagster_community_components.LLMOutputParserComponent
 attributes:
   asset_name: csv_data
   upstream_asset_key: llm_response_text
@@ -171,7 +171,7 @@ attributes:
 
 ### Custom Regex
 ```yaml
-type: dagster_component_templates.LLMOutputParserComponent
+type: dagster_community_components.LLMOutputParserComponent
 attributes:
   asset_name: custom_extraction
   upstream_asset_key: llm_response_text
@@ -185,7 +185,7 @@ attributes:
 
 ```yaml
 # Step 1: Execute LLM prompt
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: llm_raw_response
   provider: openai
@@ -195,7 +195,7 @@ attributes:
   response_format: json
 
 # Step 2: Parse and validate JSON output (automatically receives llm_raw_response)
-type: dagster_component_templates.LLMOutputParserComponent
+type: dagster_community_components.LLMOutputParserComponent
 attributes:
   asset_name: parsed_customer_data
   upstream_asset_key: llm_raw_response
@@ -222,7 +222,7 @@ llm_raw_response → parsed_customer_data
 
 ```yaml
 # Step 1: Generate list with LLM
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: recommendations_text
   provider: anthropic
@@ -231,7 +231,7 @@ attributes:
   api_key: ${ANTHROPIC_API_KEY}
 
 # Step 2: Parse list into structured format
-type: dagster_component_templates.LLMOutputParserComponent
+type: dagster_community_components.LLMOutputParserComponent
 attributes:
   asset_name: recommendations_list
   upstream_asset_key: recommendations_text
@@ -258,13 +258,13 @@ recommendations_text → recommendations_list
 
 ```yaml
 # Step 1: Extract data from document
-type: dagster_component_templates.DocumentTextExtractorComponent
+type: dagster_community_components.DocumentTextExtractorComponent
 attributes:
   asset_name: invoice_text
   file_path: /data/invoices/invoice_001.pdf
 
 # Step 2: Extract structured data with LLM
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: extracted_items
   provider: openai
@@ -273,7 +273,7 @@ attributes:
   api_key: ${OPENAI_API_KEY}
 
 # Step 3: Parse CSV to DataFrame
-type: dagster_component_templates.LLMOutputParserComponent
+type: dagster_community_components.LLMOutputParserComponent
 attributes:
   asset_name: invoice_dataframe
   upstream_asset_key: extracted_items
@@ -297,7 +297,7 @@ invoice_text → extracted_items → invoice_dataframe
 
 ```yaml
 # Step 1: Generate comparison table
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: comparison_table
   provider: openai
@@ -307,7 +307,7 @@ attributes:
   response_format: markdown
 
 # Step 2: Parse markdown table to DataFrame
-type: dagster_component_templates.LLMOutputParserComponent
+type: dagster_community_components.LLMOutputParserComponent
 attributes:
   asset_name: language_comparison_df
   upstream_asset_key: comparison_table
@@ -323,7 +323,7 @@ comparison_table → language_comparison_df
 
 ```yaml
 # Step 1: Generate code with LLM
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: generated_code
   provider: openai
@@ -333,7 +333,7 @@ attributes:
   api_key: ${OPENAI_API_KEY}
 
 # Step 2: Extract code blocks from response
-type: dagster_component_templates.LLMOutputParserComponent
+type: dagster_community_components.LLMOutputParserComponent
 attributes:
   asset_name: clean_code
   upstream_asset_key: generated_code
@@ -352,14 +352,14 @@ generated_code → clean_code
 
 ```yaml
 # Step 1: Fetch data
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: user_reviews
   api_url: https://api.example.com/reviews
   output_format: dict
 
 # Step 2: Analyze with LLM chain
-type: dagster_component_templates.LLMChainExecutorComponent
+type: dagster_community_components.LLMChainExecutorComponent
 attributes:
   asset_name: review_analysis
   provider: openai
@@ -371,7 +371,7 @@ attributes:
   ]'
 
 # Step 3: Parse sentiment JSON from chain output
-type: dagster_component_templates.LLMOutputParserComponent
+type: dagster_community_components.LLMOutputParserComponent
 attributes:
   asset_name: sentiment_structured
   upstream_asset_key: review_analysis
@@ -388,7 +388,7 @@ user_reviews → review_analysis → sentiment_structured
 
 ```yaml
 # Step 1: Extract metadata
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: document_metadata
   provider: anthropic
@@ -397,7 +397,7 @@ attributes:
   api_key: ${ANTHROPIC_API_KEY}
 
 # Step 2: Parse key-value pairs
-type: dagster_component_templates.LLMOutputParserComponent
+type: dagster_community_components.LLMOutputParserComponent
 attributes:
   asset_name: metadata_dict
   upstream_asset_key: document_metadata

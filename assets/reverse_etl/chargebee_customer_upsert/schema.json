@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ChargebeeCustomerUpsertComponent",
+  "component_type": "dagster_community_components.ChargebeeCustomerUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Chargebee Customer records. Chargebee uses POST for every mutating operation and has no upsert-by-key call -- POST /customers creates (fails if the id already exists), POST /customers/{id} updates (404s if it doesn't exist). This component looks up by lookup_field first via the list endpoint's '<field>[is]=' filter to discover an existing customer id, then issues the appropriate create-or-update POST. Two API calls per row.",
   "category": "reverse_etl",
   "icon": "Receipt",

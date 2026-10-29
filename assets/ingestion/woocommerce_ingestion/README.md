@@ -97,7 +97,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.WooCommerceIngestionComponent
+type: dagster_community_components.WooCommerceIngestionComponent
 attributes:
   asset_name: woocommerce_ingestion
   store_url: "https://mystore.com"

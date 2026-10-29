@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GenerateRowsComponent",
+  "component_type": "dagster_community_components.GenerateRowsComponent",
   "description": "Expand a DataFrame by repeating, appending, or cross-joining rows.",
   "category": "transformation",
   "icon": "Shuffle",

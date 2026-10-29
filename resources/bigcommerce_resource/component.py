@@ -289,7 +289,7 @@ class BigCommerceResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.BigCommerceResourceComponent
+        type: dagster_community_components.BigCommerceResourceComponent
         attributes:
           resource_key: bigcommerce
           store_hash: abc123def

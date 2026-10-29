@@ -105,7 +105,7 @@ class ExternalDeltaTableAsset(dg.Component, dg.Model, dg.Resolvable):
     Example — Delta on S3 owned by Spark:
 
         ```yaml
-        type: dagster_component_templates.ExternalDeltaTableAsset
+        type: dagster_community_components.ExternalDeltaTableAsset
         attributes:
           asset_key: lakehouse/events
           table_uri: s3://my-bucket/lakehouse/events

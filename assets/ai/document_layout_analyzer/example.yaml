@@ -1,4 +1,4 @@
-type: dagster_component_templates.DocumentLayoutAnalyzerComponent
+type: dagster_community_components.DocumentLayoutAnalyzerComponent
 attributes:
   asset_name: document_layout_regions
   upstream_asset_key: document_page_images

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LinearIssueUpsertComponent",
+  "component_type": "dagster_community_components.LinearIssueUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Linear issues. Uses a uuid5 derived from (team_id, key_column value) as Linear's own client-settable IssueCreateInput.id -- the same key always maps to the same issue, so re-runs update rather than duplicate, with no body-marker hack needed.",
   "category": "reverse_etl",
   "icon": "si:linear",

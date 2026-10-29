@@ -224,7 +224,7 @@ class AirtableIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.AirtableIngestionComponent
+        type: dagster_community_components.AirtableIngestionComponent
         attributes:
           asset_name: airtable_data
           api_key: "{{ env('AIRTABLE_API_KEY') }}"

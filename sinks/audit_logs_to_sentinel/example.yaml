@@ -1,4 +1,4 @@
-type: dagster_component_templates.AuditLogsToSentinelComponent
+type: dagster_community_components.AuditLogsToSentinelComponent
 attributes:
   asset_name: audit_logs_to_sentinel_shipped
   upstream_asset_key: normalized_audit_events

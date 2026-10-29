@@ -19,7 +19,7 @@ Each run produces:
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.CollibraExportJobComponent
+type: dagster_community_components.CollibraExportJobComponent
 attributes:
   job_name: sync_dagster_lineage_to_collibra
   schedule: "0 3 * * *"

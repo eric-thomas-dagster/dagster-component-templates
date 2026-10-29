@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DltPipelineAssetsComponent",
+  "component_type": "dagster_community_components.DltPipelineAssetsComponent",
   "description": "Run a dlt (data-load-tool) pipeline as Dagster assets via dagster-dlt.",
   "category": "integration",
   "icon": "ArrowRight",

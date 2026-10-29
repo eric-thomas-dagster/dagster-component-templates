@@ -80,7 +80,7 @@ Use both if you want layered orchestration: row-count sensor for cheap polling, 
 ## Example
 
 ```yaml
-type: dagster_component_templates.SnowflakeSnowpipeLoadSensorComponent
+type: dagster_community_components.SnowflakeSnowpipeLoadSensorComponent
 attributes:
   sensor_name: orders_pipe_load_sensor
   job_name: process_new_orders_job

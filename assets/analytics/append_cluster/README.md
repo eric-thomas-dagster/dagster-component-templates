@@ -76,7 +76,7 @@ Trains a k-means model in-place on the input DataFrame and appends a `cluster` c
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.AppendClusterComponent
+type: dagster_community_components.AppendClusterComponent
 attributes:
   asset_name: customers_with_cluster
   upstream_asset_key: customer_rfm_metrics

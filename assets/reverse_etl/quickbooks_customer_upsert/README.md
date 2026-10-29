@@ -93,7 +93,7 @@ Other `fields_map` values can use **dotted keys** to build QBO's nested object f
 ## Example
 
 ```yaml
-type: dagster_component_templates.QuickBooksCustomerUpsertComponent
+type: dagster_community_components.QuickBooksCustomerUpsertComponent
 attributes:
   asset_name: quickbooks_customers_mirror
   upstream_asset_key: dbt_marts_customers

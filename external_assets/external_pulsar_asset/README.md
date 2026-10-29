@@ -68,7 +68,7 @@ This component does not read from or write to Pulsar. It is a **lineage declarat
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ExternalPulsarAsset
+type: dagster_community_components.ExternalPulsarAsset
 attributes:
   asset_key: my_service/asset
   service_url: my_service_url
@@ -83,7 +83,7 @@ Set `create_observation_sensor: true` to also get the polling sensor that keeps 
 health/data-version current — one component, one YAML, no manual `asset_key` wiring:
 
 ```yaml
-type: dagster_component_templates.ExternalPulsarAsset
+type: dagster_community_components.ExternalPulsarAsset
 attributes:
   asset_key: external/pulsar
   service_url: SERVICE_URL
@@ -98,7 +98,7 @@ asset and sensor on independent lifecycles), pair this component with the standa
 
 ```yaml
 # 1. Declare the external asset (lineage node)
-type: dagster_component_templates.ExternalPulsarAsset
+type: dagster_community_components.ExternalPulsarAsset
 attributes:
   asset_key: external/pulsar
   service_url: SERVICE_URL
@@ -107,7 +107,7 @@ attributes:
 ---
 
 # 2. Observe it on a schedule
-type: dagster_component_templates.PulsarObservationSensorComponent
+type: dagster_community_components.PulsarObservationSensorComponent
 attributes:
   sensor_name: pulsar_asset_observer
   asset_key: external/pulsar

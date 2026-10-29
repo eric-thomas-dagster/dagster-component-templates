@@ -49,7 +49,7 @@ Observations appear in the **Asset Activity** timeline, giving you a health hist
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ServiceBusObservationSensorComponent
+type: dagster_community_components.ServiceBusObservationSensorComponent
 attributes:
   sensor_name: my_sensor_name
   asset_key: my_service/asset
@@ -68,14 +68,14 @@ This sensor observes an external asset declared with `ExternalServiceBusAsset`. 
 
 ```yaml
 # 1. Declare the external asset
-type: dagster_component_templates.ExternalServiceBusAsset
+type: dagster_community_components.ExternalServiceBusAsset
 attributes:
   asset_key: external/servicebus
 
 ---
 
 # 2. Observe it
-type: dagster_component_templates.ServiceBusObservationSensorComponent
+type: dagster_community_components.ServiceBusObservationSensorComponent
 attributes:
   sensor_name: servicebus_observation_sensor_sensor
   asset_key: external/servicebus

@@ -106,7 +106,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.ChorusByZoomInfoIngestionComponent
+type: dagster_community_components.ChorusByZoomInfoIngestionComponent
 attributes:
   asset_name: chorus_by_zoominfo_ingestion
   api_token: "${CHORUS_API_TOKEN}"

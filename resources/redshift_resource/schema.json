@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RedshiftResourceComponent",
+  "component_type": "dagster_community_components.RedshiftResourceComponent",
   "description": "Register a dagster-aws RedshiftClientResource for use by other components",
   "category": "resource",
   "icon": "si:amazonredshift",

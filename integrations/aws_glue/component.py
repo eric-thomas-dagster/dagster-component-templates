@@ -627,7 +627,7 @@ if _HAS_STATE_BACKED:
 
         Example:
             ```yaml
-            type: dagster_component_templates.AWSGlueComponent
+            type: dagster_community_components.AWSGlueComponent
             attributes:
               region_name: us-east-1
               aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"
@@ -961,7 +961,7 @@ else:
 
         Example:
             ```yaml
-            type: dagster_component_templates.AWSGlueComponent
+            type: dagster_community_components.AWSGlueComponent
             attributes:
               region_name: us-east-1
               import_jobs: true

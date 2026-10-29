@@ -48,7 +48,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.QuickBooksResourceComponent
+type: dagster_community_components.QuickBooksResourceComponent
 attributes:
   resource_key: quickbooks
   realm_id: "9130354234523456"

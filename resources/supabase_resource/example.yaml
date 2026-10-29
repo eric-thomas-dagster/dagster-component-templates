@@ -1,4 +1,4 @@
-type: dagster_component_templates.SupabaseResourceComponent
+type: dagster_community_components.SupabaseResourceComponent
 attributes:
   resource_key: supabase_resource
   url_env_var: SUPABASE_URL

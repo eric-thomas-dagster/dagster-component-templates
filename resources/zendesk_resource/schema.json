@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ZendeskResourceComponent",
+  "component_type": "dagster_community_components.ZendeskResourceComponent",
   "description": "Register a ZendeskResource wrapping the Zenpy client for use by other components",
   "category": "resource",
   "icon": "si:zendesk",

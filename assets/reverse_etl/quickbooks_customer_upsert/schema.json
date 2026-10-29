@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.QuickBooksCustomerUpsertComponent",
+  "component_type": "dagster_community_components.QuickBooksCustomerUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into QuickBooks Online Customer records. QBO has no single-call upsert -- POST /customer is used for both create and update, with behavior determined by the request body (Id + SyncToken present = sparse update; absent = create). This component queries by lookup_field first to discover the current SyncToken, then issues the appropriate create-or-update POST. Two API calls per row.",
   "category": "reverse_etl",
   "icon": "si:quickbooks",

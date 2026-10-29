@@ -29,7 +29,7 @@ ConfigurableIOManager that writes pandas DataFrames to SQL Server via SQLAlchemy
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.MSSQLIOManagerComponent
+type: dagster_community_components.MSSQLIOManagerComponent
 attributes:
   resource_key: io_manager
   connection_url_env_var: <fill in>

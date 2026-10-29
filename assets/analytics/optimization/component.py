@@ -325,7 +325,7 @@ class OptimizationComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.OptimizationComponent
+        type: dagster_community_components.OptimizationComponent
         attributes:
           asset_name: portfolio_optimization
           upstream_asset_key: portfolio_problem

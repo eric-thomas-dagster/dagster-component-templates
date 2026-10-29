@@ -1,4 +1,4 @@
-type: dagster_component_templates.OversampleFieldComponent
+type: dagster_community_components.OversampleFieldComponent
 attributes:
   description: Balance a highly imbalanced churn dataset using SMOTE before model training.
   asset_name: churn_balanced_features

@@ -32,7 +32,7 @@ class KinesisMonitorSensorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.KinesisMonitorSensorComponent
+        type: dagster_community_components.KinesisMonitorSensorComponent
         attributes:
           sensor_name: kinesis_events_sensor
           stream_name: my-event-stream

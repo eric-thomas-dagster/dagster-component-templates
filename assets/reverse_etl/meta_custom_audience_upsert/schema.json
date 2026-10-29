@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MetaCustomAudienceUpsertComponent",
+  "component_type": "dagster_community_components.MetaCustomAudienceUpsertComponent",
   "description": "Reverse-ETL / audience activation: upload an upstream DataFrame into a Meta (Facebook/Instagram) Custom Audience via the native /{custom_audience_id}/users endpoint. Identifiers (email/phone) are normalized and SHA-256 hashed before upload — never sent to Meta in plaintext. Supports 'add' (activation) and 'remove' (suppression).",
   "category": "reverse_etl",
   "icon": "si:meta",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BigQueryMLPredictAssetComponent",
+  "component_type": "dagster_community_components.BigQueryMLPredictAssetComponent",
   "description": "Run ML.PREDICT / ML.FORECAST / ML.EXPLAIN_PREDICT / ML.DETECT_ANOMALIES against a BQML model and return a DataFrame.",
   "category": "ai",
   "icon": "si:googlebigquery",

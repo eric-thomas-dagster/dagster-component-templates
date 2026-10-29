@@ -158,7 +158,7 @@ cohort_period  cohort_size  period_0  period_1  period_2  period_3
 ### Basic Retention Analysis
 
 ```yaml
-type: dagster_component_templates.CohortAnalysisComponent
+type: dagster_community_components.CohortAnalysisComponent
 attributes:
   asset_name: customer_cohort_retention
   cohort_period: monthly
@@ -170,7 +170,7 @@ attributes:
 ### With Revenue Tracking
 
 ```yaml
-type: dagster_component_templates.CohortAnalysisComponent
+type: dagster_community_components.CohortAnalysisComponent
 attributes:
   asset_name: cohort_revenue_retention
   cohort_period: monthly

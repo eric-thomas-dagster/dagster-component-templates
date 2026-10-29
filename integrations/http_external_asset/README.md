@@ -181,7 +181,7 @@ Use Dagster `EnvVar()` for secrets:
 ```python
 # definitions.py
 from dagster import EnvVar
-from dagster_component_templates.HttpExternalAssetComponent import BearerTokenAuth
+from dagster_community_components.HttpExternalAssetComponent import BearerTokenAuth
 
 resources = {
     "api_auth": BearerTokenAuth(token=EnvVar("MY_API_TOKEN")),
@@ -200,21 +200,25 @@ For HMAC signing, OAuth refresh, etc., subclass `HttpAuthResource` and override 
 
 ## Fields
 
+### Required
+
+| Field | Type | Description |
+|---|---|---|
+| `base_url` | `str` | Base URL prepended to every endpoint path. Supports Jinja templating. |
+| `assets` | `List[_AssetSpec]` | One or more asset specs. Each emits a Dagster asset. |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `source` | `ConditionSource` | `"status_response"` | Where to pull the value from. |
-| `group` | `int` | — | Capture group for regex extractor. |
-| `in` | `List[Any]` | — | — |
-| `not` | `Any` | — | — |
+| `auth_resource_key` | `str` | — | Resource key of an HttpAuthResource subclass (BearerTokenAuth, BasicAuth, HeaderAuth, or a custom subclass). Resource must be wired in your Definitions resources dict. |
 
 [//]: # (FIELDS:END)
 
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.HttpExternalAssetComponent
+type: dagster_community_components.HttpExternalAssetComponent
 attributes:
   base_url: https://api.example.com
   auth_resource_key: api_auth

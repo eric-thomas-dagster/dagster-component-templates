@@ -103,7 +103,7 @@ uvx --from dagster-community-components-cli dagster-component add snowflake_task
 See [`example.yaml`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_task/example.yaml) for a copy-pastable starting point.
 
 ```yaml
-type: dagster_component_templates.SnowflakeTaskComponent
+type: dagster_community_components.SnowflakeTaskComponent
 attributes:
   asset_name: daily_orders_rollup
   task_name: DAILY_ORDERS_ROLLUP

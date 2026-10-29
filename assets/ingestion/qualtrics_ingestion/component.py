@@ -216,7 +216,7 @@ class QualtricsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.QualtricsIngestionComponent
+        type: dagster_community_components.QualtricsIngestionComponent
         attributes:
           asset_name: qualtrics_ingestion
           datacenter_id: "iad1"

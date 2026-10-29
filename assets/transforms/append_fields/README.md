@@ -96,7 +96,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 ## YAML Example
 
 ```yaml
-type: dagster_component_templates.AppendFields
+type: dagster_community_components.AppendFields
 attributes:
   asset_name: orders_with_config
   upstream_asset_key: orders
@@ -111,7 +111,7 @@ attributes:
 ### Append all fields from source
 
 ```yaml
-type: dagster_component_templates.AppendFields
+type: dagster_community_components.AppendFields
 attributes:
   asset_name: enriched_events
   upstream_asset_key: events

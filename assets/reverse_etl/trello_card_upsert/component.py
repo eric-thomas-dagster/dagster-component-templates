@@ -137,7 +137,7 @@ class TrelloCardUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.TrelloCardUpsertComponent
+        type: dagster_community_components.TrelloCardUpsertComponent
         attributes:
           asset_name: trello_incidents_mirror
           upstream_asset_key: incidents_seed

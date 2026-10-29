@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MedicalRecordExtractorComponent",
+  "component_type": "dagster_community_components.MedicalRecordExtractorComponent",
   "description": "Extract clinical data from medical records and clinical notes using an LLM.",
   "category": "ai",
   "icon": "Heart",

@@ -84,7 +84,7 @@ A `feature_store.yaml` must exist at `feature_store_repo_path` (defaults to `.`)
 ## Quick start
 
 ```yaml
-type: dagster_component_templates.FeastAssetComponent
+type: dagster_community_components.FeastAssetComponent
 attributes:
   asset_name: customer_features
   feature_store_repo_path: ./feature_repo

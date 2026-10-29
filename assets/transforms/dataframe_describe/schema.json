@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeDescribeComponent",
+  "component_type": "dagster_community_components.DataframeDescribeComponent",
   "description": "Profile every column in a DataFrame — pandas describe() exposed as an asset. Numeric columns get count/mean/std/min/quartiles/max; non-numeric get count/unique/top/freq.",
   "category": "transformation",
   "icon": "Activity",

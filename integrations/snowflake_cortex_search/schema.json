@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SnowflakeCortexSearchComponent",
+  "component_type": "dagster_community_components.SnowflakeCortexSearchComponent",
   "description": "Query a Snowflake Cortex Search Service and materialize the results as a Dagster asset.",
   "category": "ai",
   "icon": "si:snowflake",

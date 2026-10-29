@@ -10,7 +10,7 @@ import re
 from pathlib import Path
 
 def parse_old_format_yaml(yaml_path):
-    """Parse old format YAML (type: dagster_component_templates.XComponent)"""
+    """Parse old format YAML (type: dagster_community_components.XComponent)"""
     with open(yaml_path, 'r') as f:
         content = f.read()
 
@@ -23,7 +23,7 @@ def parse_old_format_yaml(yaml_path):
             continue
 
         # Extract type
-        type_match = re.search(r'type:\s*dagster_component_templates\.(\w+)', section)
+        type_match = re.search(r'type:\s*dagster_community_components\.(\w+)', section)
         if not type_match:
             continue
 
@@ -134,7 +134,7 @@ def update_manifest():
         'content_moderation': 'content_moderation_pipeline.yaml'
     }
 
-    # Pipelines that use old format (type: dagster_component_templates.X)
+    # Pipelines that use old format (type: dagster_community_components.X)
     old_format_pipelines = {
         'customer_ltv_pipeline',
         'marketing_attribution_pipeline',

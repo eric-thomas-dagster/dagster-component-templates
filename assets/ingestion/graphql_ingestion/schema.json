@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GraphQLIngestionComponent",
+  "component_type": "dagster_community_components.GraphQLIngestionComponent",
   "description": "Execute GraphQL queries and write results to a database.",
   "category": "ingestion",
   "vertical": "internal",

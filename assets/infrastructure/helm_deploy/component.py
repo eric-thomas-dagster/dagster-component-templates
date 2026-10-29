@@ -98,7 +98,7 @@ class HelmDeployComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.HelmDeployComponent
+        type: dagster_community_components.HelmDeployComponent
         attributes:
           asset_name: deploy_ml_serving
           release_name: ml-serving

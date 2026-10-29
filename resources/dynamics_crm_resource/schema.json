@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DynamicsCrmResourceComponent",
+  "component_type": "dagster_community_components.DynamicsCrmResourceComponent",
   "description": "Self-contained Microsoft Dynamics 365 (Dataverse) Web API workhorse. Azure AD OAuth 2.0 client_credentials auth (requires a matching Dataverse Application User + security role), retry on 401 (token refresh) / 429 / 5xx. .get()/.post()/.patch() HTTP methods plus upsert_by_key() wrapping Dataverse's native alternate-key upsert (PATCH with Prefer: return=representation to disambiguate created vs updated and recover the row's GUID).",
   "category": "resource",
   "vertical": "crm-sales",

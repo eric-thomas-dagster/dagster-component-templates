@@ -99,7 +99,7 @@ The `MongodbWriterComponent` accepts an upstream DataFrame asset and writes its 
 ### Replace mode (drop + insert)
 
 ```yaml
-type: dagster_component_templates.MongodbWriterComponent
+type: dagster_community_components.MongodbWriterComponent
 attributes:
   asset_name: write_products_to_mongo
   upstream_asset_key: transformed_products
@@ -112,7 +112,7 @@ attributes:
 ### Append mode
 
 ```yaml
-type: dagster_component_templates.MongodbWriterComponent
+type: dagster_community_components.MongodbWriterComponent
 attributes:
   asset_name: append_events_to_mongo
   upstream_asset_key: new_events
@@ -124,7 +124,7 @@ attributes:
 ### Upsert mode
 
 ```yaml
-type: dagster_component_templates.MongodbWriterComponent
+type: dagster_community_components.MongodbWriterComponent
 attributes:
   asset_name: upsert_users_to_mongo
   upstream_asset_key: user_updates

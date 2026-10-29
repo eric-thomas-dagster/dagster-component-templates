@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PinterestAudienceUpsertComponent",
+  "component_type": "dagster_community_components.PinterestAudienceUpsertComponent",
   "description": "Reverse-ETL / audience activation: upload an upstream DataFrame into an existing Pinterest Customer List (the object behind a CUSTOMER_LIST-type Audience) via the PATCH customer_lists update endpoint. Rows are sent as records_v2 (one object per customer, carrying email and/or hashed_phone_number). Identifiers are SHA-256 hashed before upload. Supports 'add' (operation_type=ADD) and 'remove' (operation_type=REMOVE).",
   "category": "reverse_etl",
   "icon": "si:pinterest",

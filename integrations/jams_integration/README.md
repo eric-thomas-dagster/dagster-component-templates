@@ -147,27 +147,55 @@ Not a JAMS killer. If you're doing a full migration off JAMS, the `airflow_dag_p
 
 ## Fields
 
-### Required
+### Connection
 
-| Field | Type | Description |
-|---|---|---|
-| `job_name` | `str` | JAMS Job name (as registered in the JAMS scheduler). |
-| `asset_name` | `str` | Dagster asset name that wraps this JAMS Job. |
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `endpoint` | `str` | `"https://jams.internal/jams/rest/api"` | JAMS REST API base URL (used when demo_mode=false). |
+
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `poll_interval_seconds` | `int` | `10` | Seconds between JAMS entry status polls. |
+| `max_retries` | `int` | `2` | Dagster-side asset retries on failure. |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `description` | `str` | — | Prose description shown in the Dagster UI. |
+| `group_name` | `str` | `"jams_integration"` | Dagster asset group for the job assets. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_start_date` | `str` | `"2024-01-01"` | Start date for the daily partitioned assets. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_delay_seconds` | `int` | `60` | Delay between Dagster asset retries. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `source_tables` | `List[JAMSSourceTableSpec]` | `list()` | Tables loaded by JAMS that Dagster observes (adds to lineage). |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `folder` | `str` | — | JAMS Folder (analog to Control-M Folder / RMJ Application). |
-| `agent` | `str` | — | JAMS Agent the job runs on (analog to Control-M host / RMJ Queue). |
-| `application` | `str` | — | Business tag for the job (e.g. CORE_BANKING). |
-| `run_as` | `str` | `"svc_dagster"` | OS user JAMS runs the job as. |
+| `demo_mode` | `bool` | `true` | Simulate the REST API on stdout (no external calls). |
+| `jobs` | `List[JAMSJobSpec]` | `list()` | JAMS Jobs to wrap as daily-partitioned Dagster assets. |
+| `upstream_deps` | `List[str]` | `list()` | Upstream asset keys (slash-separated for nested keys) that must complete before jobs run. |
+| `jams_user_env` | `str` | `"JAMS_USER"` | Env var holding the JAMS REST username. |
+| `jams_password_env` | `str` | `"JAMS_PASSWORD"` | Env var holding the JAMS REST password. |
+| `poll_timeout_seconds` | `int` | `3600` | Total seconds to wait for terminal state before failing. |
+| `log_retrieval` | `bool` | `true` | Retrieve entry log on completion. |
+| `reconciliation_cron` | `str` | `"0 * * * *"` | Cron for the JAMS vs Dagster state reconciliation job. |
 
 [//]: # (FIELDS:END)
 

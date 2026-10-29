@@ -1,4 +1,4 @@
-type: dagster_component_templates.FirestoreReaderComponent
+type: dagster_community_components.FirestoreReaderComponent
 attributes:
   asset_name: firestore_active_users
   collection: users

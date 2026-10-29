@@ -127,7 +127,7 @@ Each entry in `operations` is a dict with the following keys:
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.MultiRowFormulaComponent
+type: dagster_community_components.MultiRowFormulaComponent
 attributes:
   asset_name: sales_with_trends
   upstream_asset_key: daily_sales

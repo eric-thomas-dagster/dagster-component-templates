@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToODataComponent",
+  "component_type": "dagster_community_components.DataframeToODataComponent",
   "description": "Sink — write a pandas DataFrame to an OData v2/v4 entity set via POST / PATCH / DELETE.",
   "category": "sink",
   "icon": "si:odata",

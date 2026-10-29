@@ -1,4 +1,4 @@
-type: dagster_component_templates.GoogleAnalyticsResourceComponent
+type: dagster_community_components.GoogleAnalyticsResourceComponent
 attributes:
   resource_key: google_analytics_resource
   property_id: "123456789"

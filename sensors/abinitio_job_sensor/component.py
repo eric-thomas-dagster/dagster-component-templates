@@ -87,7 +87,7 @@ class AbInitioJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example (env vars):
         ```yaml
-        type: dagster_component_templates.AbInitioJobSensorComponent
+        type: dagster_community_components.AbInitioJobSensorComponent
         attributes:
           sensor_name: abinitio_etl_done
           eme_url_env_var: ABINITIO_EME_URL
@@ -99,7 +99,7 @@ class AbInitioJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example (resource):
         ```yaml
-        type: dagster_component_templates.AbInitioJobSensorComponent
+        type: dagster_community_components.AbInitioJobSensorComponent
         attributes:
           sensor_name: abinitio_etl_done
           resource_key: abinitio

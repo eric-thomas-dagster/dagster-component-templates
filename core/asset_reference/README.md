@@ -76,7 +76,7 @@ The `AssetReferenceComponent` allows you to include existing assets from your co
 # models/staging/stg_customers.sql already exists
 
 # Reference it in defs.yaml:
-type: dagster_component_templates.AssetReferenceComponent
+type: dagster_community_components.AssetReferenceComponent
 attributes:
   asset_name: stg_customers
   module: my_project.dbt_assets
@@ -97,7 +97,7 @@ def complex_calculation():
 
 ```yaml
 # Reference it in defs.yaml:
-type: dagster_component_templates.AssetReferenceComponent
+type: dagster_community_components.AssetReferenceComponent
 attributes:
   asset_name: complex_calculation
   module: my_project.custom_assets
@@ -112,7 +112,7 @@ Mix existing and new assets:
 # defs.yaml
 
 # 1. Reference existing dbt staging model
-type: dagster_component_templates.AssetReferenceComponent
+type: dagster_community_components.AssetReferenceComponent
 attributes:
   asset_name: dbt_staging_customers
   module: my_project.dbt_assets
@@ -121,7 +121,7 @@ attributes:
 ---
 
 # 2. Fetch enrichment data from API (new asset)
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: api_enrichment
   api_url: https://api.example.com/customer-enrichment
@@ -130,7 +130,7 @@ attributes:
 ---
 
 # 3. Transform and join (new asset)
-type: dagster_component_templates.DataFrameTransformerComponent
+type: dagster_community_components.DataFrameTransformerComponent
 attributes:
   asset_name: enriched_customers
   # Will receive both dbt_staging_customers and api_enrichment
@@ -138,7 +138,7 @@ attributes:
 ---
 
 # 4. Reference existing custom Python asset
-type: dagster_component_templates.AssetReferenceComponent
+type: dagster_community_components.AssetReferenceComponent
 attributes:
   asset_name: ml_predictions
   module: my_project.ml_assets
@@ -146,7 +146,7 @@ attributes:
 ---
 
 # 5. Wire everything together
-type: dagster_component_templates.DependencyGraphComponent
+type: dagster_community_components.DependencyGraphComponent
 attributes:
   edges:
     - source: dbt_staging_customers
@@ -163,14 +163,14 @@ attributes:
 
 ```yaml
 # Reference multiple dbt models
-type: dagster_component_templates.AssetReferenceComponent
+type: dagster_community_components.AssetReferenceComponent
 attributes:
   asset_name: dbt_customers
   module: my_project.dbt_assets
 
 ---
 
-type: dagster_component_templates.AssetReferenceComponent
+type: dagster_community_components.AssetReferenceComponent
 attributes:
   asset_name: dbt_orders
   module: my_project.dbt_assets
@@ -178,7 +178,7 @@ attributes:
 ---
 
 # Create dependency between them and new assets
-type: dagster_component_templates.DependencyGraphComponent
+type: dagster_community_components.DependencyGraphComponent
 attributes:
   edges:
     - source: dbt_customers
@@ -191,7 +191,7 @@ attributes:
 
 ```yaml
 # Reference existing Python assets
-type: dagster_component_templates.AssetReferenceComponent
+type: dagster_community_components.AssetReferenceComponent
 attributes:
   asset_name: legacy_etl_asset
   module: my_project.legacy_assets
@@ -199,7 +199,7 @@ attributes:
 ---
 
 # Add new component-based assets
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: new_api_data
   api_url: https://api.example.com/v2/data
@@ -207,7 +207,7 @@ attributes:
 ---
 
 # Wire old and new together
-type: dagster_component_templates.DependencyGraphComponent
+type: dagster_community_components.DependencyGraphComponent
 attributes:
   edges:
     - source: legacy_etl_asset
@@ -218,7 +218,7 @@ attributes:
 
 ```yaml
 # Reference Sling-managed assets
-type: dagster_component_templates.AssetReferenceComponent
+type: dagster_community_components.AssetReferenceComponent
 attributes:
   asset_name: sling_postgres_to_duckdb
   module: my_project.sling_assets
@@ -227,13 +227,13 @@ attributes:
 ---
 
 # Transform the replicated data
-type: dagster_component_templates.DataFrameTransformerComponent
+type: dagster_community_components.DataFrameTransformerComponent
 attributes:
   asset_name: cleaned_replicated_data
 
 ---
 
-type: dagster_component_templates.DependencyGraphComponent
+type: dagster_community_components.DependencyGraphComponent
 attributes:
   edges:
     - source: sling_postgres_to_duckdb
@@ -298,7 +298,7 @@ def process_customers():
 
 ```yaml
 # In YAML:
-type: dagster_component_templates.AssetReferenceComponent
+type: dagster_community_components.AssetReferenceComponent
 attributes:
   asset_name: customer_data  # ← Must match exactly
 ```
@@ -343,28 +343,28 @@ ModuleNotFoundError: No module named 'my_project.assets'
 
 ```yaml
 # Keep all asset references together
-type: dagster_component_templates.AssetReferenceComponent
+type: dagster_community_components.AssetReferenceComponent
 attributes:
   asset_name: dbt_model_1
 ---
-type: dagster_component_templates.AssetReferenceComponent
+type: dagster_community_components.AssetReferenceComponent
 attributes:
   asset_name: dbt_model_2
 ---
-type: dagster_component_templates.AssetReferenceComponent
+type: dagster_community_components.AssetReferenceComponent
 attributes:
   asset_name: dbt_model_3
 
 # Then define new assets
 ---
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 # ...
 ```
 
 ### 2. Use Descriptive Descriptions
 
 ```yaml
-type: dagster_component_templates.AssetReferenceComponent
+type: dagster_community_components.AssetReferenceComponent
 attributes:
   asset_name: complex_ml_model
   module: my_project.ml_assets
@@ -383,7 +383,7 @@ def stg_customers():
 
 ```yaml
 # In YAML - use same group:
-type: dagster_component_templates.AssetReferenceComponent
+type: dagster_community_components.AssetReferenceComponent
 attributes:
   asset_name: stg_customers
   group_name: staging  # ← Matches existing group

@@ -1,4 +1,4 @@
-type: dagster_component_templates.ExternalPubsubAsset
+type: dagster_community_components.ExternalPubsubAsset
 attributes:
   asset_key: streaming/events
   project_id: my-gcp-project

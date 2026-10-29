@@ -72,7 +72,7 @@ Uses the standard boto3 credential chain: environment variables (`AWS_ACCESS_KEY
 ## Usage
 
 ```yaml
-type: dagster_component_templates.SQSMonitorSensorComponent
+type: dagster_community_components.SQSMonitorSensorComponent
 attributes:
   sensor_name: order_events_sensor
   queue_url: https://sqs.us-east-1.amazonaws.com/123456789/order-events

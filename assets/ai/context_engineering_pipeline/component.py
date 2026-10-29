@@ -18,7 +18,7 @@ against.
 
 Example (support tickets → a searchable, classified knowledge base):
 
-    type: dagster_component_templates.ContextEngineeringPipelineComponent
+    type: dagster_community_components.ContextEngineeringPipelineComponent
     attributes:
       asset_name: support_kb
       upstream_asset_key: raw_support_tickets

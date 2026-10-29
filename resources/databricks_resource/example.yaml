@@ -1,4 +1,4 @@
-type: dagster_component_templates.DatabricksResourceComponent
+type: dagster_community_components.DatabricksResourceComponent
 attributes:
   resource_key: databricks_resource
   host: <host>

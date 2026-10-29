@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MQTTMonitorSensorComponent",
+  "component_type": "dagster_community_components.MQTTMonitorSensorComponent",
   "description": "Component for subscribing to an MQTT broker topic for new messages.",
   "category": "sensor",
   "icon": "si:mqtt",

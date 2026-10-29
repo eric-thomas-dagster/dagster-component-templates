@@ -98,7 +98,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 ## Example
 
 ```yaml
-type: dagster_component_templates.GreenhouseHarvestIngestionComponent
+type: dagster_community_components.GreenhouseHarvestIngestionComponent
 attributes:
   asset_name: greenhouse_harvest_ingestion
   api_key: "${GREENHOUSE_API_KEY}"

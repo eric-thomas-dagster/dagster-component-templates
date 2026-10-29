@@ -84,7 +84,7 @@ Basecamp has no native "upsert" endpoint for to-dos, so (same as `github_issue_u
 ## Example
 
 ```yaml
-type: dagster_component_templates.BasecampTodoUpsertComponent
+type: dagster_community_components.BasecampTodoUpsertComponent
 attributes:
   asset_name: basecamp_incidents_mirror
   upstream_asset_key: incidents_seed

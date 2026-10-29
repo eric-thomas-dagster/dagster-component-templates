@@ -103,7 +103,7 @@ None of `boards`, `users`, or `items` are bound to the partition window -- `boar
 
 ## Example
 ```yaml
-type: dagster_component_templates.MondayIngestionComponent
+type: dagster_community_components.MondayIngestionComponent
 attributes:
   asset_name: monday_ingestion
   api_token: "${MONDAY_API_TOKEN}"

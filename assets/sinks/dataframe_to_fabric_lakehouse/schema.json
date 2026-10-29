@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToFabricLakehouseComponent",
+  "component_type": "dagster_community_components.DataframeToFabricLakehouseComponent",
   "description": "Write a DataFrame to a Microsoft Fabric Lakehouse table as Delta on OneLake. Auto-registers in the Fabric SQL endpoint for use from Fabric Data Warehouse / Power BI / Synapse Serverless.",
   "category": "sink",
   "icon": "si:microsoftazure",

@@ -141,7 +141,7 @@ class IcebergIngestionComponent(Component, Model, Resolvable):
     Example — read from a REST catalog (Nessie / Polaris / Lakekeeper):
 
         ```yaml
-        type: dagster_component_templates.IcebergIngestionComponent
+        type: dagster_community_components.IcebergIngestionComponent
         attributes:
           asset_name: orders_iceberg
           catalog_type: rest

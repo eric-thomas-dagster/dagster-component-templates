@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DagsterPlusAuditLogIngestionComponent",
+  "component_type": "dagster_community_components.DagsterPlusAuditLogIngestionComponent",
   "description": "Pull Dagster+ audit-log entries (logins, deployment changes, permission edits) via the Dagster+ GraphQL API.",
   "category": "security",
   "vertical": "security",

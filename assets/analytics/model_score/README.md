@@ -77,7 +77,7 @@ Loads a pickled scikit-learn estimator from disk and runs `predict` (and `predic
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ModelScoreComponent
+type: dagster_community_components.ModelScoreComponent
 attributes:
   asset_name: today_predictions
   upstream_asset_key: new_customers_features

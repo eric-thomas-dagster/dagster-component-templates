@@ -5,7 +5,7 @@ YAML-driven synthetic data — declare the columns + types + ranges in your `def
 The complementary `synthetic_data_generator` ships 24 *named* schemas (`customers`, `fhir_patients`, `x12_messages`, …). This component is the **freeform** alternative: when you need a one-off shape — say, "200 fake store rows with lat/lng in NYC bounds, annual revenue between $50k and $5M, store_type weighted urban/suburban/rural" — you just describe the columns inline.
 
 ```yaml
-type: dagster_component_templates.ParametricDataGeneratorComponent
+type: dagster_community_components.ParametricDataGeneratorComponent
 attributes:
   asset_name: stores
   row_count: 200

@@ -1,4 +1,4 @@
-type: dagster_component_templates.SnowflakeResourceComponent
+type: dagster_community_components.SnowflakeResourceComponent
 attributes:
   resource_key: snowflake_resource
   account: <account>

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FirestoreWriterAssetComponent",
+  "component_type": "dagster_community_components.FirestoreWriterAssetComponent",
   "description": "Write DataFrame rows to a Firestore collection — one document per row. Set / merge / create write modes; doc id from a column or auto-generated. Useful as a real-time-readable sink behind ML scoring, customer 360, dynamic config tables.",
   "category": "sink",
   "icon": "si:firebase",

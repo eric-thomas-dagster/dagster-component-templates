@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PrometheusResourceComponent",
+  "component_type": "dagster_community_components.PrometheusResourceComponent",
   "description": "Push metrics to a Prometheus pushgateway via dagster-prometheus.",
   "category": "resource",
   "icon": "si:prometheus",

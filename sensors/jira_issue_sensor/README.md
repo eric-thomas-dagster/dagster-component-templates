@@ -39,7 +39,7 @@ Polls Jira's search API with a JQL query (auto-augmented with `updated >= cursor
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.JiraIssueSensorComponent
+type: dagster_community_components.JiraIssueSensorComponent
 attributes:
   sensor_name: ops_critical_jira_sensor
   asset_keys: [incident_report]

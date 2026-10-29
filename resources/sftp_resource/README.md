@@ -41,7 +41,7 @@ pip install paramiko
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.SFTPResourceComponent
+type: dagster_community_components.SFTPResourceComponent
 attributes:
   resource_key: sftp_resource
   host: sftp.example.com

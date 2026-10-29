@@ -195,7 +195,7 @@ class LinkedInAdsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.LinkedInAdsIngestionComponent
+        type: dagster_community_components.LinkedInAdsIngestionComponent
         attributes:
           asset_name: linkedin_ads_data
           access_token: "${LINKEDIN_ACCESS_TOKEN}"

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LanguageDetectorComponent",
+  "component_type": "dagster_community_components.LanguageDetectorComponent",
   "description": "Detect the language of text in a column and output ISO 639-1 language codes.",
   "category": "ai",
   "icon": "Globe",

@@ -75,7 +75,7 @@ Pick one (or combine `strip_patterns` with anything):
 ### NBA scoreboard (no auth)
 
 ```yaml
-type: dagster_component_templates.HttpPollSensorComponent
+type: dagster_community_components.HttpPollSensorComponent
 attributes:
   sensor_name: nba_scoreboard_sensor
   asset_keys: [nba_scoreboard_summary]

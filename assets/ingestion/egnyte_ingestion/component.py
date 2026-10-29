@@ -216,7 +216,7 @@ class EgnyteIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.EgnyteIngestionComponent
+        type: dagster_community_components.EgnyteIngestionComponent
         attributes:
           asset_name: egnyte_ingestion
           domain: "mycompany"

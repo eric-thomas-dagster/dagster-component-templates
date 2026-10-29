@@ -68,7 +68,7 @@ Supports JWT token authentication via environment variable. Unauthenticated clus
 ## Usage
 
 ```yaml
-type: dagster_component_templates.PulsarMonitorSensorComponent
+type: dagster_community_components.PulsarMonitorSensorComponent
 attributes:
   sensor_name: pulsar_orders_sensor
   service_url: pulsar+ssl://pulsar.example.com:6651

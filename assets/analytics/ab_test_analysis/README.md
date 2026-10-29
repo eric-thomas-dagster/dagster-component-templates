@@ -132,7 +132,7 @@ Statistical A/B test analysis including:
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.ABTestAnalysisComponent
+type: dagster_community_components.ABTestAnalysisComponent
 attributes:
   asset_name: ab_test_results
   confidence_level: 0.95

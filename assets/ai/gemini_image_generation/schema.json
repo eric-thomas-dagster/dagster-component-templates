@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GeminiImageGenerationComponent",
+  "component_type": "dagster_community_components.GeminiImageGenerationComponent",
   "description": "Native (no-LiteLLM) image generation / edit per DataFrame row using Google's Gemini 2.5 Flash Image — the model the community nicknames 'Nano Banana'. Default model: gemini-2.5-flash-image-preview. Supports text-to-image and image-to-image editing. For multi-vendor workflows, use litellm_image_generation instead.",
   "category": "ai",
   "icon": "si:google",

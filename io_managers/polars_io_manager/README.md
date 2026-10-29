@@ -24,7 +24,7 @@ This component **wraps the official `dagster-polars` package** rather than reimp
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.PolarsIOManagerComponent
+type: dagster_community_components.PolarsIOManagerComponent
 attributes:
   resource_key: io_manager
   base_dir: <fill in>

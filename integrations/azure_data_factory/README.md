@@ -171,7 +171,7 @@ per-deploy for Dagster Cloud).
 
 ```yaml
 # defs/azure_data_factory/component.yaml
-type: dagster_component_templates.AzureDataFactoryComponent
+type: dagster_community_components.AzureDataFactoryComponent
 attributes:
   subscription_id: "12345678-1234-1234-1234-123456789012"
   resource_group_name: my-resource-group
@@ -214,7 +214,7 @@ dagster dev                    # automatic in development
 ### Advanced Example
 
 ```yaml
-type: dagster_component_templates.AzureDataFactoryComponent
+type: dagster_community_components.AzureDataFactoryComponent
 attributes:
   subscription_id: "12345678-1234-1234-1234-123456789012"
   resource_group_name: my-resource-group

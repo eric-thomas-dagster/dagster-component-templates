@@ -1,4 +1,4 @@
-type: dagster_component_templates.SparkLivyBatchAssetComponent
+type: dagster_community_components.SparkLivyBatchAssetComponent
 attributes:
   asset_name: nightly_aggregation_batch
   livy_url: http://livy-server:8998

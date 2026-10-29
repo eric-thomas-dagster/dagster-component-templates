@@ -1,4 +1,4 @@
-type: dagster_component_templates.SapEventMeshSensorComponent
+type: dagster_community_components.SapEventMeshSensorComponent
 attributes:
   sensor_name: sap_em_orders_sensor
 

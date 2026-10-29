@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.S3MonitorSensorComponent",
+  "component_type": "dagster_community_components.S3MonitorSensorComponent",
   "description": "Component for monitoring an S3 bucket prefix for new objects.",
   "category": "sensor",
   "icon": "Radar",

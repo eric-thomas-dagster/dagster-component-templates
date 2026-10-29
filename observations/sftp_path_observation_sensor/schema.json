@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SftpPathObservationSensorComponent",
+  "component_type": "dagster_community_components.SftpPathObservationSensorComponent",
   "description": "Emit health observations for an external SFTP path.",
   "category": "observation",
   "icon": "Eye",

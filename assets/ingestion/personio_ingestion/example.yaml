@@ -1,4 +1,4 @@
-type: dagster_component_templates.PersonioIngestionComponent
+type: dagster_community_components.PersonioIngestionComponent
 attributes:
   asset_name: personio_hr_data
 

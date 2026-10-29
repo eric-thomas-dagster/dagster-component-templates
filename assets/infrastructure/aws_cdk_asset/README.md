@@ -114,7 +114,7 @@ The core use case is ensuring infrastructure exists before data flows through it
 
 ```yaml
 # component.yaml — infrastructure provisioning
-type: dagster_component_templates.AWSCDKAssetComponent
+type: dagster_community_components.AWSCDKAssetComponent
 attributes:
   asset_name: provision_data_platform
   working_dir: /opt/pipelines/cdk
@@ -223,7 +223,7 @@ outputs_file: /opt/pipelines/cdk_outputs.json
 ## Full Example
 
 ```yaml
-type: dagster_component_templates.AWSCDKAssetComponent
+type: dagster_community_components.AWSCDKAssetComponent
 attributes:
   asset_name: provision_data_platform
   working_dir: "{{ project_root }}/cdk"

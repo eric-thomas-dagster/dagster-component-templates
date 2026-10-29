@@ -1,7 +1,7 @@
 # Example 1: simple single-resource GET, API-key auth (query-param style).
 # Shape mirrors chargify_ingestion's real `customers`/`subscriptions`
 # resources in this repo, generalized to the raw config shape.
-type: dagster_component_templates.DltRestApiSourceComponent
+type: dagster_community_components.DltRestApiSourceComponent
 attributes:
   asset_name: my_vendor_ingestion
   client:
@@ -24,7 +24,7 @@ attributes:
 # Example 2: bearer-token auth + cursor pagination (uncomment / use as a
 # separate component instance). Mirrors the shape used by hotjar_ingestion's
 # `surveys` resource in this repo (cursor + next_cursor response field).
-# type: dagster_component_templates.DltRestApiSourceComponent
+# type: dagster_community_components.DltRestApiSourceComponent
 # attributes:
 #   asset_name: my_other_vendor_ingestion
 #   client:
@@ -50,7 +50,7 @@ attributes:
 # a parent resource. Mirrors hotjar_ingestion's real `survey_details` /
 # `survey_responses` resources, which N+1 off of `surveys` via dlt's
 # `resolve` mechanism (uncomment / use as a separate component instance).
-# type: dagster_component_templates.DltRestApiSourceComponent
+# type: dagster_community_components.DltRestApiSourceComponent
 # attributes:
 #   asset_name: my_vendor_parent_child_ingestion
 #   client:

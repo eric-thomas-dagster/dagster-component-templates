@@ -185,7 +185,7 @@ class ChurnZeroAccountsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ChurnZeroAccountsIngestionComponent
+        type: dagster_community_components.ChurnZeroAccountsIngestionComponent
         attributes:
           asset_name: churnzero_accounts
           resource_key: churnzero_resource

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DuckDBIOManagerComponent",
+  "component_type": "dagster_community_components.DuckDBIOManagerComponent",
   "description": "Register a DuckDBPandasIOManager so assets are automatically stored in and loaded from a local DuckDB file",
   "category": "io_manager",
   "icon": "si:duckdb",

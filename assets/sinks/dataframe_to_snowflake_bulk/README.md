@@ -88,7 +88,7 @@ Memory-efficient bulk load of a pandas DataFrame into a Snowflake table via chun
 ## Example: append mode
 
 ```yaml
-type: dagster_component_templates.DataframeToSnowflakeBulkComponent
+type: dagster_community_components.DataframeToSnowflakeBulkComponent
 attributes:
   asset_name: events_loaded
   upstream_asset_key: daily_events
@@ -103,7 +103,7 @@ attributes:
 ## Example: merge mode (upsert by primary key)
 
 ```yaml
-type: dagster_component_templates.DataframeToSnowflakeBulkComponent
+type: dagster_community_components.DataframeToSnowflakeBulkComponent
 attributes:
   asset_name: customers_upserted
   upstream_asset_key: customer_updates

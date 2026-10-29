@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AzureSearchIndexerComponent",
+  "component_type": "dagster_community_components.AzureSearchIndexerComponent",
   "description": "Push DataFrame rows as documents to an Azure AI Search index. Backbone of RAG, semantic search, enterprise knowledge bases. Each row = one document; the DataFrame must include the index's key field.",
   "category": "sink",
   "icon": "Search",

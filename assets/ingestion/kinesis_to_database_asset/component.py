@@ -218,7 +218,7 @@ class KinesisToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.KinesisToDatabaseAssetComponent
+        type: dagster_community_components.KinesisToDatabaseAssetComponent
         attributes:
           asset_name: kinesis_events_ingest
           stream_name: my-stream

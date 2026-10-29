@@ -385,7 +385,7 @@ if _HAS_STATE_BACKED:
 
         Example:
             ```yaml
-            type: dagster_component_templates.DataikuAssetComponent
+            type: dagster_community_components.DataikuAssetComponent
             attributes:
               host_env_var: DATAIKU_HOST
               api_key_env_var: DATAIKU_API_KEY

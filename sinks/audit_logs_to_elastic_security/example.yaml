@@ -1,4 +1,4 @@
-type: dagster_component_templates.AuditLogsToElasticSecurityComponent
+type: dagster_community_components.AuditLogsToElasticSecurityComponent
 attributes:
   asset_name: audit_logs_to_elastic_security_shipped
   upstream_asset_key: normalized_audit_events

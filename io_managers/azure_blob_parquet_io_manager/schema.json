@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AzureBlobParquetIOManagerComponent",
+  "component_type": "dagster_community_components.AzureBlobParquetIOManagerComponent",
   "description": "Store DataFrames as Parquet on Azure Blob Storage.",
   "category": "io_manager",
   "icon": "si:microsoftazure",

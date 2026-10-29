@@ -35,7 +35,7 @@ Wraps the official `dagster-snowflake-polars` package.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.SnowflakePolarsIOManagerComponent
+type: dagster_community_components.SnowflakePolarsIOManagerComponent
 attributes:
   resource_key: <fill in>
   account: <fill in>

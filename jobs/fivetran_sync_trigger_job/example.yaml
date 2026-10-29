@@ -1,4 +1,4 @@
-type: dagster_component_templates.FivetranSyncTriggerJobComponent
+type: dagster_community_components.FivetranSyncTriggerJobComponent
 attributes:
   job_name: fivetran_sync_trigger_job_example
   schedule: "0 3 * * *"

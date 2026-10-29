@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PagerDutyResourceComponent",
+  "component_type": "dagster_community_components.PagerDutyResourceComponent",
   "description": "Register a dagster-pagerduty PagerDutyService for use by other components",
   "category": "resource",
   "icon": "si:pagerduty",

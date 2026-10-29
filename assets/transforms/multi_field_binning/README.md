@@ -89,7 +89,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.MultiFieldBinningComponent
+type: dagster_community_components.MultiFieldBinningComponent
 attributes:
   asset_name: customers_binned
   upstream_asset_key: customer_features

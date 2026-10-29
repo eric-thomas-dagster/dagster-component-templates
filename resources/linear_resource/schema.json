@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LinearResourceComponent",
+  "component_type": "dagster_community_components.LinearResourceComponent",
   "description": "Linear GraphQL API client wrapper. Personal API key or OAuth2 access token, sent raw (no Bearer prefix) in the Authorization header.",
   "category": "resource",
   "icon": "si:linear",

@@ -250,7 +250,7 @@ class CassandraWriterComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.CassandraWriterComponent
+        type: dagster_community_components.CassandraWriterComponent
         attributes:
           asset_name: write_events_to_cassandra
           upstream_asset_key: processed_events

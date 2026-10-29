@@ -73,7 +73,7 @@ class OracleResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     Example (Docker Oracle Free):
 
         ```yaml
-        type: dagster_component_templates.OracleResourceComponent
+        type: dagster_community_components.OracleResourceComponent
         attributes:
           resource_key: oracle_resource
           host: localhost
@@ -86,7 +86,7 @@ class OracleResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     Example (Oracle Autonomous Database):
 
         ```yaml
-        type: dagster_component_templates.OracleResourceComponent
+        type: dagster_community_components.OracleResourceComponent
         attributes:
           resource_key: oracle_resource
           host: adb.us-ashburn-1.oraclecloud.com

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.HTTPResourceComponent",
+  "component_type": "dagster_community_components.HTTPResourceComponent",
   "description": "Register an HTTP resource (base URL + auth header) for use by other components",
   "category": "resource",
   "icon": "si:curl",

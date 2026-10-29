@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeFromPrometheusComponent
+type: dagster_community_components.DataframeFromPrometheusComponent
 attributes:
   asset_name: cpu_usage_last_hour
   server_url: http://prometheus.example.com:9090

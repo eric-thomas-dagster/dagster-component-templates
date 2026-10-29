@@ -10,7 +10,7 @@
 #
 # Requires a OneSignalResourceComponent registered under the same resource_key.
 
-type: dagster_component_templates.OneSignalPushSendComponent
+type: dagster_community_components.OneSignalPushSendComponent
 attributes:
   asset_name: onesignal_cart_abandoned_push
   upstream_asset_key: dbt_marts_cart_abandoned_today

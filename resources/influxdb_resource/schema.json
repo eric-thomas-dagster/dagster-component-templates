@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.InfluxDBResourceComponent",
+  "component_type": "dagster_community_components.InfluxDBResourceComponent",
   "description": "Register an InfluxDB resource.\n\nExample (local Docker InfluxDB 2.x):\n\n    ```yaml\n    type: dagster_community_components.InfluxDBResourceComponent\n    attributes:\n      resource_key: influxdb_resource\n      url: http://localhost:8086\n      token_env_var: INFLUXDB_TOKEN\n      org: my-org\n      bucket: metrics\n    ```\n\nExample (InfluxDB Cloud 3.x):\n\n    ```yaml\n    type: dagster_community_components.InfluxDBResourceComponent\n    attributes:\n      resource_key: influxdb_resource\n      url: https://us-east-1-1.aws.cloud2.influxdata.com\n      token_env_var: INFLUXDB_TOKEN\n      org: my-org\n      bucket: events\n    ```",
   "category": "resource",
   "icon": "si:influxdb",

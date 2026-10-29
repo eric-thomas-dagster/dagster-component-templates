@@ -1,4 +1,4 @@
-type: dagster_component_templates.AzureActivityLogIngestionComponent
+type: dagster_community_components.AzureActivityLogIngestionComponent
 attributes:
   asset_name: azure_activity_log_ingestion_events
   subscription_id: 00000000-0000-0000-0000-000000000000

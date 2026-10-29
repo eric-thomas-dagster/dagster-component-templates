@@ -101,7 +101,7 @@ The `PgvectorReaderComponent` connects to a PostgreSQL database and performs app
 ### Search by text (auto-embed)
 
 ```yaml
-type: dagster_component_templates.PgvectorReaderComponent
+type: dagster_community_components.PgvectorReaderComponent
 attributes:
   asset_name: similar_docs
   table_name: document_embeddings
@@ -113,7 +113,7 @@ attributes:
 ### Search by pre-computed embedding
 
 ```yaml
-type: dagster_component_templates.PgvectorReaderComponent
+type: dagster_community_components.PgvectorReaderComponent
 attributes:
   asset_name: similar_products
   table_name: product_embeddings

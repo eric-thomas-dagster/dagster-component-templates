@@ -31,7 +31,7 @@ class SQSMonitorSensorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SQSMonitorSensorComponent
+        type: dagster_community_components.SQSMonitorSensorComponent
         attributes:
           sensor_name: sqs_events_sensor
           queue_url: https://sqs.us-east-1.amazonaws.com/123456789/my-queue

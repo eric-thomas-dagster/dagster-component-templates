@@ -115,7 +115,7 @@ The Image LLM Extractor Component sends each image to a vision-capable large lan
 ### Product Image Extraction
 
 ```yaml
-type: dagster_component_templates.ImageLlmExtractorComponent
+type: dagster_community_components.ImageLlmExtractorComponent
 attributes:
   asset_name: product_data
   upstream_asset_key: product_images
@@ -132,7 +132,7 @@ attributes:
 ### Using Claude with URL Images
 
 ```yaml
-type: dagster_component_templates.ImageLlmExtractorComponent
+type: dagster_community_components.ImageLlmExtractorComponent
 attributes:
   asset_name: image_analysis
   upstream_asset_key: image_urls

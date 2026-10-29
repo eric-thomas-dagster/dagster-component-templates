@@ -193,7 +193,7 @@ class LinearIssueUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LinearIssueUpsertComponent
+        type: dagster_community_components.LinearIssueUpsertComponent
         attributes:
           asset_name: linear_incidents_mirror
           upstream_asset_key: incidents_seed

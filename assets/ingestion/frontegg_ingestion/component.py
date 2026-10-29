@@ -216,7 +216,7 @@ class FronteggIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.FronteggIngestionComponent
+        type: dagster_community_components.FronteggIngestionComponent
         attributes:
           asset_name: frontegg_ingestion
           client_id: "${FRONTEGG_CLIENT_ID}"

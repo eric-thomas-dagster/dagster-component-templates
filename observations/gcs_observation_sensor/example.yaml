@@ -1,4 +1,4 @@
-type: dagster_component_templates.GcsObservationSensorComponent
+type: dagster_community_components.GcsObservationSensorComponent
 attributes:
   sensor_name: gcs_data_obs
   asset_key: raw/data

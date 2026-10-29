@@ -31,7 +31,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.ChurnZeroResourceComponent
+type: dagster_community_components.ChurnZeroResourceComponent
 attributes:
   resource_key: churnzero_resource  # key other components use
   base_url: "https://yourtenant.churnzero.net"

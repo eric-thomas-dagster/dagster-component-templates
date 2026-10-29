@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeToOtlpMetricsComponent
+type: dagster_community_components.DataframeToOtlpMetricsComponent
 attributes:
   asset_name: otlp_metrics_sink
   upstream_asset_key: metric_dataframe

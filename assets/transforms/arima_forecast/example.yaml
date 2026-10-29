@@ -1,4 +1,4 @@
-type: dagster_component_templates.ArimaForecastComponent
+type: dagster_community_components.ArimaForecastComponent
 attributes:
   description: Forecast monthly retail sales 12 periods ahead using ARIMA(1,1,1).
   asset_name: retail_sales_forecast

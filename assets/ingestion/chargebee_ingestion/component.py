@@ -189,7 +189,7 @@ class ChargebeeIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ChargebeeIngestionComponent
+        type: dagster_community_components.ChargebeeIngestionComponent
         attributes:
           asset_name: chargebee_ingestion
           site: "mysite"

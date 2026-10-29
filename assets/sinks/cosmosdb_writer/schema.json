@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CosmosdbWriterComponent",
+  "component_type": "dagster_community_components.CosmosdbWriterComponent",
   "name": "CosmosDB Writer",
   "category": "sink",
   "description": "Write a DataFrame to an Azure Cosmos DB container with upsert or insert mode",

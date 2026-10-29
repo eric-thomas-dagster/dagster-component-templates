@@ -140,7 +140,7 @@ class WarehouseSummarizeComponent(Component, Model, Resolvable):
     `warehouse_*` components compose against it by table name.
 
     Example:
-        type: dagster_component_templates.WarehouseSummarizeComponent
+        type: dagster_community_components.WarehouseSummarizeComponent
         attributes:
           asset_name: revenue_by_region
           database_url: snowflake://user:pass@account/db/schema?warehouse=COMPUTE_WH

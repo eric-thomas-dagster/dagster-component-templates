@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MakeGroupComponent",
+  "component_type": "dagster_community_components.MakeGroupComponent",
   "description": "Assign a group ID per unique combination of key columns.",
   "category": "transformation",
   "icon": "Tag",

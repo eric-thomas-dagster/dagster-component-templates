@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WorkableResourceComponent",
+  "component_type": "dagster_community_components.WorkableResourceComponent",
   "description": "Register a WorkableResource for the Workable SPI v3 REST API (recruiting/ATS) for use by other components",
   "category": "resource",
   "icon": "si:workable",

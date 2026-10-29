@@ -1,4 +1,4 @@
-type: dagster_component_templates.ReceiptExtractorComponent
+type: dagster_community_components.ReceiptExtractorComponent
 attributes:
   asset_name: extracted_receipts
   upstream_asset_key: raw_receipts

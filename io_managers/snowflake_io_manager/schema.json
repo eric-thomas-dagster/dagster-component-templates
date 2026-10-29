@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SnowflakeIOManagerComponent",
+  "component_type": "dagster_community_components.SnowflakeIOManagerComponent",
   "description": "Register a SnowflakePandasIOManager so assets are automatically stored in and loaded from Snowflake",
   "category": "io_manager",
   "icon": "si:snowflake",

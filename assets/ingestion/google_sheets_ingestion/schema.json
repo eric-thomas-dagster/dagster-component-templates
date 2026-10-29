@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GoogleSheetsIngestionComponent",
+  "component_type": "dagster_community_components.GoogleSheetsIngestionComponent",
   "description": "Component for ingesting Google Sheets data using dlt.",
   "category": "ingestion",
   "vertical": "productivity",

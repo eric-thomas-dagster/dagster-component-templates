@@ -1,4 +1,4 @@
-type: dagster_component_templates.ExternalKafkaAsset
+type: dagster_community_components.ExternalKafkaAsset
 attributes:
   asset_key: streaming/orders
   bootstrap_servers: localhost:9092

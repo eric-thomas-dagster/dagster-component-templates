@@ -91,7 +91,7 @@ uvx --from dagster-community-components-cli dagster-component add snowflake_aler
 See [`example.yaml`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_alert/example.yaml) for a copy-pastable starting point.
 
 ```yaml
-type: dagster_component_templates.SnowflakeAlertComponent
+type: dagster_community_components.SnowflakeAlertComponent
 attributes:
   asset_name: high_revenue_alert
   alert_name: HIGH_REVENUE_DAY_ALERT

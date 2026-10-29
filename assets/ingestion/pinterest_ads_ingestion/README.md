@@ -31,7 +31,7 @@ dlt handles authentication, pagination, rate limiting, and incremental loading. 
 By default this asset runs an in-memory DuckDB pipeline and returns a pandas DataFrame for downstream Dagster transformations. To persist directly to a warehouse or object store, set `destination`:
 
 ```yaml
-type: dagster_component_templates.PinterestAdsIngestionComponent
+type: dagster_community_components.PinterestAdsIngestionComponent
 attributes:
   asset_name: pinterest_ads
   access_token: "${PINTEREST_ACCESS_TOKEN}"
@@ -133,7 +133,7 @@ Credentials come from env vars (`DESTINATION__BIGQUERY__CREDENTIALS__*`) or, for
 ## Example — DataFrame mode (default)
 
 ```yaml
-type: dagster_component_templates.PinterestAdsIngestionComponent
+type: dagster_community_components.PinterestAdsIngestionComponent
 attributes:
   asset_name: pinterest_ads_data
   access_token: "${PINTEREST_ACCESS_TOKEN}"
@@ -151,7 +151,7 @@ The asset emits a pandas DataFrame combining all selected resources, with a `_re
 ## Example — persist to BigQuery
 
 ```yaml
-type: dagster_component_templates.PinterestAdsIngestionComponent
+type: dagster_community_components.PinterestAdsIngestionComponent
 attributes:
   asset_name: pinterest_ads
   access_token: "${PINTEREST_ACCESS_TOKEN}"

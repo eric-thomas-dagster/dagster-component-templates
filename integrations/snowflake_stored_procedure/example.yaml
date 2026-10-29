@@ -1,4 +1,4 @@
-type: dagster_component_templates.SnowflakeStoredProcedureComponent
+type: dagster_community_components.SnowflakeStoredProcedureComponent
 attributes:
   asset_name: sp_recompute_tiers
   procedure_name: SP_RECOMPUTE_TIERS

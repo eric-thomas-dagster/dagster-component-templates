@@ -21,7 +21,7 @@ Perfect for sentiment analysis, topic classification, and content moderation.
 ### 1. Extract Text from Document
 
 ```yaml
-type: dagster_component_templates.DocumentTextExtractorComponent
+type: dagster_community_components.DocumentTextExtractorComponent
 attributes:
   asset_name: feedback_text
   # file path is supplied at run time (RunConfig: ops.feedback_text.config.file_path, e.g. /path/to/feedback.txt),
@@ -32,7 +32,7 @@ attributes:
 
 ```yaml
 # No upstream_asset_key needed - set by drawing connections!
-type: dagster_component_templates.TextClassifierComponent
+type: dagster_community_components.TextClassifierComponent
 attributes:
   asset_name: sentiment
   provider: openai
@@ -178,14 +178,14 @@ That's it! The IO manager automatically passes the text.
 
 ```yaml
 # Step 1: Extract text from document
-type: dagster_component_templates.DocumentTextExtractorComponent
+type: dagster_community_components.DocumentTextExtractorComponent
 attributes:
   asset_name: feedback_text
   # file path is supplied at run time (RunConfig: ops.feedback_text.config.file_path, e.g. /path/to/feedback.txt),
   # or by an upstream asset -- it is not a YAML field
 
 # Step 2: Classify the sentiment
-type: dagster_component_templates.TextClassifierComponent
+type: dagster_community_components.TextClassifierComponent
 attributes:
   asset_name: sentiment
   provider: openai
@@ -206,14 +206,14 @@ feedback_text → sentiment
 
 ```yaml
 # Step 1: Extract text
-type: dagster_component_templates.DocumentTextExtractorComponent
+type: dagster_community_components.DocumentTextExtractorComponent
 attributes:
   asset_name: report_text
   # file path is supplied at run time (RunConfig: ops.report_text.config.file_path, e.g. /path/to/report.pdf),
   # or by an upstream asset -- it is not a YAML field
 
 # Step 2: Summarize
-type: dagster_component_templates.DocumentSummarizerComponent
+type: dagster_community_components.DocumentSummarizerComponent
 attributes:
   asset_name: report_summary
   provider: openai
@@ -222,7 +222,7 @@ attributes:
   api_key: ${OPENAI_API_KEY}
 
 # Step 3: Classify summary topic
-type: dagster_component_templates.TextClassifierComponent
+type: dagster_community_components.TextClassifierComponent
 attributes:
   asset_name: report_topic
   provider: openai
@@ -241,7 +241,7 @@ report_text → report_summary → report_topic
 
 ### Sentiment Analysis
 ```yaml
-type: dagster_component_templates.TextClassifierComponent
+type: dagster_community_components.TextClassifierComponent
 attributes:
   asset_name: sentiment
   provider: openai
@@ -253,7 +253,7 @@ attributes:
 
 ### Topic Classification with Reasoning
 ```yaml
-type: dagster_component_templates.TextClassifierComponent
+type: dagster_community_components.TextClassifierComponent
 attributes:
   asset_name: topic
   provider: openai
@@ -266,7 +266,7 @@ attributes:
 
 ### Content Moderation
 ```yaml
-type: dagster_component_templates.TextClassifierComponent
+type: dagster_community_components.TextClassifierComponent
 attributes:
   asset_name: content_flag
   provider: openai

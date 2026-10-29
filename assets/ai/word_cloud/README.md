@@ -107,7 +107,7 @@ The Word Cloud Component aggregates word counts across all rows in a text column
 ### Frequency Table (default)
 
 ```yaml
-type: dagster_component_templates.WordCloudComponent
+type: dagster_community_components.WordCloudComponent
 attributes:
   asset_name: word_frequencies
   upstream_asset_key: raw_text
@@ -120,7 +120,7 @@ attributes:
 ### Top N Words
 
 ```yaml
-type: dagster_component_templates.WordCloudComponent
+type: dagster_community_components.WordCloudComponent
 attributes:
   asset_name: top_100_words
   upstream_asset_key: raw_text
@@ -132,7 +132,7 @@ attributes:
 ### TF-IDF Weighted
 
 ```yaml
-type: dagster_component_templates.WordCloudComponent
+type: dagster_community_components.WordCloudComponent
 attributes:
   asset_name: tfidf_words
   upstream_asset_key: raw_text

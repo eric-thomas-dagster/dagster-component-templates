@@ -198,7 +198,7 @@ The enriched DataFrame is returned as the asset value; there are no destination 
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.LiteLLMInferenceAssetComponent
+type: dagster_community_components.LiteLLMInferenceAssetComponent
 attributes:
   asset_name: enriched_support_tickets
   upstream_asset_key: raw_support_tickets
@@ -230,7 +230,7 @@ Instead of `upstream_asset_key`, set `source` to run a SQL query and feed its ro
 `source` is `{kind: warehouse_query, sql: <query>, resource_key: <registered resource> OR database_url_env_var: <env var>}`. `resource_key` names a Dagster resource exposing `.get_engine()`, `.get_connection()` or `.get_client()` (Postgres, Snowflake, DuckDB, BigQuery, Redshift, ...); `database_url_env_var` names an env var holding a SQLAlchemy URL.
 
 ```yaml
-type: dagster_component_templates.LiteLLMInferenceAssetComponent
+type: dagster_community_components.LiteLLMInferenceAssetComponent
 attributes:
   asset_name: enriched_tickets
   model: gpt-4o-mini
@@ -251,7 +251,7 @@ Results stay a DataFrame (this adds no database write-back); compose with a sink
 If multiple components in your project use the same LLM, define a `LiteLLMResource` once and reference it by key:
 
 ```python
-from dagster_component_templates.litellm_inference_asset.component import LiteLLMResource
+from dagster_community_components.litellm_inference_asset.component import LiteLLMResource
 
 defs = dg.Definitions(
     resources={

@@ -24,7 +24,7 @@ class MonteCarloCheckComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.MonteCarloCheckComponent
+        type: dagster_community_components.MonteCarloCheckComponent
         attributes:
           asset_key: warehouse/orders
           mcd_id_env_var: MCD_ID

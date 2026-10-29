@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MammouthLLMComponent",
+  "component_type": "dagster_community_components.MammouthLLMComponent",
   "description": "Per-row LLM inference via Mammouth AI's OpenAI-compatible multi-model-routing API. One API key, one endpoint; pass any underlying model name directly (gpt-5.4, claude-opus-5-5, gemini-3.8-flash, mistral-medium-3-5) or the 'mammouth-recommended' alias. Drop-in peer of openai_llm / anthropic_llm / gemini_llm / groq_llm / openrouter_llm. For local (non-gateway) multi-vendor routing use litellm_inference_asset.",
   "category": "ai",
   "icon": "lu:route",

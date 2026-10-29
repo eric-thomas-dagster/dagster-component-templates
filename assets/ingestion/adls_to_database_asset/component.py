@@ -217,7 +217,7 @@ class ADLSToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ADLSToDatabaseAssetComponent
+        type: dagster_community_components.ADLSToDatabaseAssetComponent
         attributes:
           asset_name: adls_orders_ingest
           connection_string_env_var: AZURE_STORAGE_CONNECTION_STRING

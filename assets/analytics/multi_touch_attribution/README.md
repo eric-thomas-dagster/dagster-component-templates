@@ -164,7 +164,7 @@ Returns one row per attributed touchpoint:
 ### Time Decay Attribution (Recommended)
 
 ```yaml
-type: dagster_component_templates.MultiTouchAttributionComponent
+type: dagster_community_components.MultiTouchAttributionComponent
 attributes:
   asset_name: channel_attribution
   attribution_model: time_decay
@@ -177,7 +177,7 @@ attributes:
 
 ```yaml
 # Linear model
-type: dagster_component_templates.MultiTouchAttributionComponent
+type: dagster_community_components.MultiTouchAttributionComponent
 attributes:
   asset_name: attribution_linear
   attribution_model: linear
@@ -185,7 +185,7 @@ attributes:
 
 ---
 # U-shaped model
-type: dagster_component_templates.MultiTouchAttributionComponent
+type: dagster_community_components.MultiTouchAttributionComponent
 attributes:
   asset_name: attribution_u_shaped
   attribution_model: u_shaped
@@ -193,7 +193,7 @@ attributes:
 
 ---
 # Last touch (for comparison)
-type: dagster_component_templates.MultiTouchAttributionComponent
+type: dagster_community_components.MultiTouchAttributionComponent
 attributes:
   asset_name: attribution_last_touch
   attribution_model: last_touch

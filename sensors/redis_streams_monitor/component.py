@@ -31,7 +31,7 @@ class RedisStreamsMonitorSensorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.RedisStreamsMonitorSensorComponent
+        type: dagster_community_components.RedisStreamsMonitorSensorComponent
         attributes:
           sensor_name: redis_stream_sensor
           stream_name: events:incoming

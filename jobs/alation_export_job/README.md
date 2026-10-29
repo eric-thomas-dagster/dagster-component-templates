@@ -19,7 +19,7 @@ Each run produces:
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.AlationExportJobComponent
+type: dagster_community_components.AlationExportJobComponent
 attributes:
   job_name: sync_dagster_lineage_to_alation
   schedule: "0 3 * * *"

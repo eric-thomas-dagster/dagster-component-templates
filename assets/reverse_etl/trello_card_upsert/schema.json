@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TrelloCardUpsertComponent",
+  "component_type": "dagster_community_components.TrelloCardUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Trello cards in a target List. Rows are matched to existing cards by a key marker embedded in the card description (e.g. <!-- dagster-key: INC-1001 -->); Trello has no native upsert endpoint for cards.",
   "category": "reverse_etl",
   "icon": "si:trello",

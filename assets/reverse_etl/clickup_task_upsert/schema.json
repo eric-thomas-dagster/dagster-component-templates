@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ClickUpTaskUpsertComponent",
+  "component_type": "dagster_community_components.ClickUpTaskUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into ClickUp tasks in a target List. Rows are matched to existing tasks by a key marker embedded in the task description (e.g. <!-- dagster-key: INC-1001 -->); ClickUp has no native upsert endpoint for tasks.",
   "category": "reverse_etl",
   "icon": "si:clickup",

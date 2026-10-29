@@ -31,7 +31,7 @@ class RabbitMQMonitorSensorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.RabbitMQMonitorSensorComponent
+        type: dagster_community_components.RabbitMQMonitorSensorComponent
         attributes:
           sensor_name: rabbitmq_events_sensor
           host: localhost

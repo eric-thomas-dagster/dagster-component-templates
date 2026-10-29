@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SpatialClusterComponent",
+  "component_type": "dagster_community_components.SpatialClusterComponent",
   "description": "Cluster geographic points using DBSCAN or K-means.",
   "category": "analytics",
   "icon": "BarChart2",

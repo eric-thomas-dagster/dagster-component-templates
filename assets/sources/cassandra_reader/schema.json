@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CassandraReaderComponent",
+  "component_type": "dagster_community_components.CassandraReaderComponent",
   "description": "Component for executing CQL queries against an Apache Cassandra keyspace.",
   "category": "source",
   "icon": "si:apachecassandra",

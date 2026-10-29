@@ -1,4 +1,4 @@
-type: dagster_component_templates.WarehouseSummarizeComponent
+type: dagster_community_components.WarehouseSummarizeComponent
 attributes:
   asset_name: revenue_by_region
   database_url: duckdb:///./warehouse.duckdb

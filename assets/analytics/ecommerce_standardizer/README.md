@@ -164,7 +164,7 @@ Standardized e-commerce data with unified fields:
 ### Shopify Orders Standardization
 
 ```yaml
-type: dagster_component_templates.EcommerceStandardizerComponent
+type: dagster_community_components.EcommerceStandardizerComponent
 attributes:
   asset_name: standardized_shopify_orders
   platform: shopify
@@ -176,7 +176,7 @@ attributes:
 ### Stripe Payments Standardization
 
 ```yaml
-type: dagster_component_templates.EcommerceStandardizerComponent
+type: dagster_community_components.EcommerceStandardizerComponent
 attributes:
   asset_name: standardized_stripe_charges
   platform: stripe
@@ -189,7 +189,7 @@ attributes:
 
 ```yaml
 # shopify_orders.yaml
-type: dagster_component_templates.EcommerceStandardizerComponent
+type: dagster_community_components.EcommerceStandardizerComponent
 attributes:
   asset_name: std_shopify_orders
   platform: shopify
@@ -197,7 +197,7 @@ attributes:
 
 ---
 # stripe_orders.yaml
-type: dagster_component_templates.EcommerceStandardizerComponent
+type: dagster_community_components.EcommerceStandardizerComponent
 attributes:
   asset_name: std_stripe_orders
   platform: stripe
@@ -205,7 +205,7 @@ attributes:
 
 ---
 # Combine downstream
-type: dagster_component_templates.DataFrameCombinerComponent
+type: dagster_community_components.DataFrameCombinerComponent
 attributes:
   asset_name: all_orders
   source_assets: ["std_shopify_orders", "std_stripe_orders"]

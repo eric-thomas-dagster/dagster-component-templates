@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.IterableResourceComponent",
+  "component_type": "dagster_community_components.IterableResourceComponent",
   "description": "Register an IterableResource under a resource key. Holds auth (API key) + exposes bulk_update_users and bulk_track_events for downstream Iterable sinks.",
   "category": "resource",
   "icon": "si:iterable",

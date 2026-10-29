@@ -75,7 +75,7 @@ By default a Lambda-side error (`FunctionError` in the real boto3 response -- th
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.LambdaInvokeAssetComponent
+type: dagster_community_components.LambdaInvokeAssetComponent
 attributes:
   asset_name: score_transaction
   function_name: fraud-scoring-fn

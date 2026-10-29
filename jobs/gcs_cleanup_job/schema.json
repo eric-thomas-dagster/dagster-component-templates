@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GcsCleanupJobComponent",
+  "component_type": "dagster_community_components.GcsCleanupJobComponent",
   "description": "Delete GCS objects older than N days under a prefix.",
   "category": "jobs",
   "icon": "Cog",

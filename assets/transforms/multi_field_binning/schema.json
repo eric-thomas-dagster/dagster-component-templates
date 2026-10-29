@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MultiFieldBinningComponent",
+  "component_type": "dagster_community_components.MultiFieldBinningComponent",
   "description": "Bin multiple numeric columns at once into quantile or fixed-width bins.",
   "category": "transformation",
   "icon": "Grid",

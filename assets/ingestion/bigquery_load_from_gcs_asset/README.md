@@ -5,7 +5,7 @@ Native BQ load-job API. Data never round-trips through the Dagster executor — 
 Supports parquet, CSV, JSONL, AVRO, ORC. Optional explicit schema, partitioning, and clustering on the destination.
 
 ```yaml
-type: dagster_component_templates.BigQueryLoadFromGcsAssetComponent
+type: dagster_community_components.BigQueryLoadFromGcsAssetComponent
 attributes:
   asset_name: orders_landing
   credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}

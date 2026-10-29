@@ -41,7 +41,7 @@ On each tick, the sensor:
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.FivetranSyncSensorComponent
+type: dagster_community_components.FivetranSyncSensorComponent
 attributes:
   sensor_name: my_sensor_name
   connector_id: my_connector_id

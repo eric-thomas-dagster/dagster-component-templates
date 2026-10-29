@@ -77,7 +77,7 @@ The component outputs the LLM response in the specified format:
 ### Basic GPT-4 Prompt
 
 ```yaml
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: product_description
   provider: openai
@@ -89,7 +89,7 @@ attributes:
 ### With System Prompt
 
 ```yaml
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: code_review
   provider: openai
@@ -103,7 +103,7 @@ attributes:
 ### Claude with Temperature Control
 
 ```yaml
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: creative_writing
   provider: anthropic
@@ -118,7 +118,7 @@ attributes:
 ### Structured JSON Output
 
 ```yaml
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: sentiment_analysis
   provider: openai
@@ -132,7 +132,7 @@ attributes:
 ### With Streaming
 
 ```yaml
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: story_generator
   provider: openai
@@ -146,7 +146,7 @@ attributes:
 ### Cohere for Classification
 
 ```yaml
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: topic_classification
   provider: cohere
@@ -159,7 +159,7 @@ attributes:
 ### With Response Caching
 
 ```yaml
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: cached_analysis
   provider: openai
@@ -262,13 +262,13 @@ attributes:
 
 ```yaml
 # Step 1: Read prompt from file or template
-type: dagster_component_templates.TextFileReaderComponent
+type: dagster_community_components.TextFileReaderComponent
 attributes:
   asset_name: user_prompt
   file_path: /data/prompts/analysis_prompt.txt
 
 # Step 2: Execute prompt with LLM (automatically receives prompt from user_prompt)
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: llm_response
   provider: openai
@@ -288,19 +288,19 @@ The IO manager automatically passes the prompt text from `user_prompt` to `llm_r
 
 ```yaml
 # Step 1: Extract text from document
-type: dagster_component_templates.DocumentTextExtractorComponent
+type: dagster_community_components.DocumentTextExtractorComponent
 attributes:
   asset_name: document_text
   file_path: /data/documents/report.pdf
 
 # Step 2: Generate analysis prompt
-type: dagster_component_templates.PromptTemplateComponent
+type: dagster_community_components.PromptTemplateComponent
 attributes:
   asset_name: analysis_prompt
   template: "Analyze this document and extract key insights: {text}"
 
 # Step 3: Execute LLM analysis
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: analysis_result
   provider: anthropic
@@ -319,13 +319,13 @@ document_text → analysis_prompt → analysis_result
 
 ```yaml
 # Step 1: Create prompt
-type: dagster_component_templates.StaticTextComponent
+type: dagster_community_components.StaticTextComponent
 attributes:
   asset_name: sentiment_prompt
   text: "Analyze the sentiment of this customer feedback: 'The product is amazing but shipping was slow'"
 
 # Step 2: Execute with structured JSON output
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: sentiment_analysis
   provider: openai
@@ -347,13 +347,13 @@ Output format: `{"sentiment": "positive", "score": 0.75, "reasoning": "..."}`
 
 ```yaml
 # Step 1: Source text
-type: dagster_component_templates.TextFileReaderComponent
+type: dagster_community_components.TextFileReaderComponent
 attributes:
   asset_name: english_text
   file_path: /data/content/english.txt
 
 # Step 2: Translate to Spanish
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: spanish_translation
   provider: openai
@@ -364,7 +364,7 @@ attributes:
   temperature: 0.3
 
 # Step 3: Translate to French
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: french_translation
   provider: openai
@@ -486,7 +486,7 @@ json_schema: '{
 ### 1. Content Generation
 
 ```yaml
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: blog_post
   provider: openai
@@ -503,7 +503,7 @@ attributes:
 ### 2. Code Generation
 
 ```yaml
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: generated_code
   provider: openai
@@ -519,7 +519,7 @@ attributes:
 ### 3. Data Analysis
 
 ```yaml
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: data_insights
   provider: anthropic
@@ -534,7 +534,7 @@ attributes:
 ### 4. Translation
 
 ```yaml
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: translated_text
   provider: openai
@@ -548,7 +548,7 @@ attributes:
 ### 5. Sentiment Analysis
 
 ```yaml
-type: dagster_component_templates.LLMPromptExecutorComponent
+type: dagster_community_components.LLMPromptExecutorComponent
 attributes:
   asset_name: sentiment_score
   provider: openai

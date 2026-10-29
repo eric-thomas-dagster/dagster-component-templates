@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.JiraIssueUpsertComponent",
+  "component_type": "dagster_community_components.JiraIssueUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into Jira issues in a target project. Rows are matched to existing issues by a Jira label of the form dagsterkey-<value>; JQL filters by label server-side, so this scales cleanly.",
   "category": "reverse_etl",
   "icon": "si:jira",

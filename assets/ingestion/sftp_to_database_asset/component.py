@@ -217,7 +217,7 @@ class SFTPToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SFTPToDatabaseAssetComponent
+        type: dagster_community_components.SFTPToDatabaseAssetComponent
         attributes:
           asset_name: sftp_orders_ingest
           host_env_var: SFTP_HOST

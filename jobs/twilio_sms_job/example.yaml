@@ -1,4 +1,4 @@
-type: dagster_component_templates.TwilioSmsJobComponent
+type: dagster_community_components.TwilioSmsJobComponent
 attributes:
   job_name: twilio_sms_job_example
   schedule: "0 3 * * *"

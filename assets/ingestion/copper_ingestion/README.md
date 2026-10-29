@@ -100,7 +100,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 ## Example
 
 ```yaml
-type: dagster_component_templates.CopperIngestionComponent
+type: dagster_community_components.CopperIngestionComponent
 attributes:
   asset_name: copper_ingestion
   api_key: "${COPPER_API_KEY}"

@@ -352,7 +352,7 @@ class SupportTicketStandardizerComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SupportTicketStandardizerComponent
+        type: dagster_community_components.SupportTicketStandardizerComponent
         attributes:
           asset_name: standardized_support_tickets
           platform: "zendesk"

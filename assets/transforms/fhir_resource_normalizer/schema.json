@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FhirResourceNormalizerComponent",
+  "component_type": "dagster_community_components.FhirResourceNormalizerComponent",
   "description": "FhirResourceNormalizerComponent \u2014 flatten FHIR R4/R5 resources to a DataFrame.",
   "category": "transformation",
   "x-dagster-io": {

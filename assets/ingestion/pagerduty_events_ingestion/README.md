@@ -91,7 +91,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 ## Example
 
 ```yaml
-type: dagster_component_templates.PagerDutyIngestionComponent
+type: dagster_community_components.PagerDutyIngestionComponent
 attributes:
   asset_name: pagerduty_events_ingestion
   api_token: "${PAGERDUTY_API_TOKEN}"

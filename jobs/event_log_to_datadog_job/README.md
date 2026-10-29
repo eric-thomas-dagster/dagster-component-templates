@@ -16,7 +16,7 @@ is Datadog — get Dagster reliability alongside your app + infra logs.
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.EventLogToDatadogJobComponent
+type: dagster_community_components.EventLogToDatadogJobComponent
 attributes:
   job_name: dagster_events_to_datadog
   schedule: "*/5 * * * *"

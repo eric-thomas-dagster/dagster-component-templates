@@ -39,7 +39,7 @@ pip install google-ads
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.GoogleAdsResourceComponent
+type: dagster_community_components.GoogleAdsResourceComponent
 attributes:
   resource_key: google_ads_resource
   developer_token_env_var: GOOGLE_ADS_DEVELOPER_TOKEN

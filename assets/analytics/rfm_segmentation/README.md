@@ -156,7 +156,7 @@ Returns a DataFrame with one row per customer and their RFM analysis:
 ## Example Configuration
 
 ```yaml
-type: dagster_component_templates.RFMSegmentationComponent
+type: dagster_community_components.RFMSegmentationComponent
 attributes:
   asset_name: customer_rfm_segments
   scoring_method: quintile

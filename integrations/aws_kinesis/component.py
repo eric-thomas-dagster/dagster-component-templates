@@ -66,7 +66,7 @@ class AWSKinesisComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.AWSKinesisComponent
+        type: dagster_community_components.AWSKinesisComponent
         attributes:
           aws_region: us-east-1
           aws_access_key_id: "{{ env('AWS_ACCESS_KEY_ID') }}"

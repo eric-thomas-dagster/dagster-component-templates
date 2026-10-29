@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataformRepositoryResourceComponent",
+  "component_type": "dagster_community_components.DataformRepositoryResourceComponent",
   "description": "DataformRepositoryResourceComponent — YAML wrapper around dagster_dataform.DataformRepositoryResource.",
   "category": "resource",
   "icon": "si:googlecloud",

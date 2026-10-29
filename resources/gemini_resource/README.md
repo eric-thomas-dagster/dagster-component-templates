@@ -22,7 +22,7 @@ Register a dagster-gemini GeminiResource for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.GeminiResourceComponent
+type: dagster_community_components.GeminiResourceComponent
 attributes:
   resource_key: gemini_resource  # key other components use
   # Optional

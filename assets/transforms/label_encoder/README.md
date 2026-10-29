@@ -103,7 +103,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.LabelEncoderComponent
+type: dagster_community_components.LabelEncoderComponent
 attributes:
   asset_name: encoded_lookup_features
   upstream_asset_key: cleaned_lookup_features

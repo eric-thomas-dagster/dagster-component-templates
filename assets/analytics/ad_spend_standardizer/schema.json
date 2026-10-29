@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AdSpendStandardizerComponent",
+  "component_type": "dagster_community_components.AdSpendStandardizerComponent",
   "description": "Component for standardizing advertising spend data across platforms.",
   "category": "analytics",
   "icon": "BarChart2",

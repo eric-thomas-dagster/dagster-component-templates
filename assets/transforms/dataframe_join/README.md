@@ -89,7 +89,7 @@ Join two upstream DataFrame assets using pandas merge. Supports all standard joi
 ## YAML Example
 
 ```yaml
-type: dagster_component_templates.DataframeJoin
+type: dagster_community_components.DataframeJoin
 attributes:
   asset_name: orders_with_customers
   left_asset_key: orders

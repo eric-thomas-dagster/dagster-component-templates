@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.VictoriaMetricsResourceComponent",
+  "component_type": "dagster_community_components.VictoriaMetricsResourceComponent",
   "description": "Register a VictoriaMetrics resource for use by other components.\n\nExample (local docker / single-node):\n\n    ```yaml\n    type: dagster_community_components.VictoriaMetricsResourceComponent\n    attributes:\n      resource_key: vm_resource\n      base_url: http://localhost:8428\n    ```\n\nExample (production cluster fronted by vmauth):\n\n    ```yaml\n    type: dagster_community_components.VictoriaMetricsResourceComponent\n    attributes:\n      resource_key: vm_resource\n      base_url: https://vm.mycompany.com\n      bearer_token_env_var: VM_TOKEN\n    ```",
   "category": "resource",
   "icon": "si:victoriametrics",

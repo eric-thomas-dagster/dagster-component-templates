@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LineageToPurviewComponent",
+  "component_type": "dagster_community_components.LineageToPurviewComponent",
   "description": "Sink that pushes the upstream lineage_graph to Microsoft Purview Data Map (Apache Atlas v2 entity bulk API).",
   "category": "sink",
   "icon": "ArrowRightLeft",

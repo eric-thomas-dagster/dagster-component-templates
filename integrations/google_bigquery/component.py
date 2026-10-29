@@ -72,7 +72,7 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.GoogleBigQueryComponent
+        type: dagster_community_components.GoogleBigQueryComponent
         attributes:
           project_id: my-gcp-project
           credentials_path: "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}"

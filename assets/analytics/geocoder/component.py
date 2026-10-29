@@ -327,7 +327,7 @@ class GeocoderComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.GeocoderComponent
+        type: dagster_community_components.GeocoderComponent
         attributes:
           asset_name: geocoded_customers
           upstream_asset_key: customers

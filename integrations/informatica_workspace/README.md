@@ -94,22 +94,47 @@ The **`{partition_key}`** token substitutes at run time (via `str.format`) — p
 
 ## Fields
 
-### Connection
+### Required
+
+| Field | Type | Description |
+|---|---|---|
+| `workspace` | `InformaticaWorkspaceConfig` | IDMC connection details. |
+
+### Execution
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `username` | `str` | — | IDMC username. Prefer `username_env_var` for secrets. |
-| `username_env_var` | `str` | — | Env var holding the IDMC username. |
-| `password` | `str` | — | IDMC password. Prefer `password_env_var` for secrets. |
-| `password_env_var` | `str` | — | Env var holding the IDMC password. |
+| `wait_for_completion` | `bool` | `true` | — |
+| `poll_interval_seconds` | `int` | `30` | — |
+| `timeout_seconds` | `int` | `3600` | — |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `group_name` | `str` | `"informatica_idmc"` | — |
+| `kinds` | `List[str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
+| `owners` | `List[str]` | — | — |
+
+### Freshness
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `freshness_lag_threshold_seconds` | `int` | — | — |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `login_url` | `str` | `"https://dm-us.informaticacloud.com"` | IDMC regional login URL. `https://dm-us.informaticacloud.com` (US), `https://dm-em.informaticacloud.com` (EU), `https://dm-ap.informaticacloud.com` (AP). |
-| `request_timeout_seconds` | `int` | `60` | — |
-| `verify_ssl` | `bool` | `true` | — |
+| `task_selector` | `InformaticaTaskSelector` | — | — |
+| `task_overrides` | `List[InformaticaTaskOverride]` | — | Runtime parameters + input files applied at execute time in the `POST /api/v2/job` body. Only used when `action: execute`. Multiple entries can match — parameters merge (later wins). See `InformaticaTaskOverride` for shape. |
+| `translation` | `TranslationFn[InformaticaTaskProps]` | — | Optional per-asset translation callable. Receives an InformaticaTaskProps and returns AssetSpec overrides. Use for per-folder / per-kind customization. |
+| `action` | `str` | `"noop"` | — |
+| `polling_sensor` | `bool` | `false` | — |
+| `observation_interval_seconds` | `int` | `300` | — |
+| `asset_key_prefix` | `List[str]` | — | Default: `['informatica', 'idmc']`. |
+| `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | StateBackedComponent state config. Default: local filesystem cache. |
 
 [//]: # (FIELDS:END)
 

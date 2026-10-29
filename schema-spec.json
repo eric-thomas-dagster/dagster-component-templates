@@ -15,10 +15,10 @@
     "properties": {
       "component_type": {
         "type": "string",
-        "description": "Fully-qualified Python class path. Format: 'dagster_component_templates.<ClassName>'",
+        "description": "Fully-qualified Python class path. Format: 'dagster_community_components.<ClassName>'",
         "examples": [
-          "dagster_component_templates.SummarizeComponent",
-          "dagster_component_templates.CsvSinkComponent"
+          "dagster_community_components.SummarizeComponent",
+          "dagster_community_components.CsvSinkComponent"
         ]
       },
       "description": {

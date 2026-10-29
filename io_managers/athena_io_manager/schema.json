@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AthenaIOManagerComponent",
+  "component_type": "dagster_community_components.AthenaIOManagerComponent",
   "description": "Register an Athena IO manager that stores assets as Parquet on S3 and queries them via Amazon Athena",
   "category": "io_manager",
   "icon": "si:amazonwebservices",

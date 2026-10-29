@@ -216,7 +216,7 @@ class WebexIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.WebexIngestionComponent
+        type: dagster_community_components.WebexIngestionComponent
         attributes:
           asset_name: webex_ingestion
           bot_token: "${WEBEX_BOT_TOKEN}"

@@ -1,4 +1,4 @@
-type: dagster_component_templates.VideoAudioExtractAssetComponent
+type: dagster_community_components.VideoAudioExtractAssetComponent
 attributes:
   asset_name: video_audio
   upstream_asset_key: sample_videos

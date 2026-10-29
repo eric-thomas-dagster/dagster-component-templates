@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BrexIngestionComponent",
+  "component_type": "dagster_community_components.BrexIngestionComponent",
   "description": "Ingest Brex user, location, vendor, and transfer data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "finance-hr",

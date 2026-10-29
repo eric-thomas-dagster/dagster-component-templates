@@ -36,7 +36,7 @@ If the SodaCL YAML can't be pre-parsed, the component falls back to a single agg
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.SodaCheckComponent
+type: dagster_community_components.SodaCheckComponent
 attributes:
   asset_key: warehouse/orders
   data_source_name: my_postgres

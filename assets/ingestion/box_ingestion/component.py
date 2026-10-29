@@ -216,7 +216,7 @@ class BoxIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.BoxIngestionComponent
+        type: dagster_community_components.BoxIngestionComponent
         attributes:
           asset_name: box_ingestion
           client_id: "${BOX_CLIENT_ID}"

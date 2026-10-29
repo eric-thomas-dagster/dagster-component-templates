@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LinkedInMatchedAudienceUpsertComponent",
+  "component_type": "dagster_community_components.LinkedInMatchedAudienceUpsertComponent",
   "description": "Reverse-ETL / audience activation: upload an upstream DataFrame into a LinkedIn Matched Audiences DMP Segment via POST /rest/dmpSegments/{id}/users (BATCH_CREATE, up to 5,000 per request). Email is SHA-256 hashed (lowercase, all whitespace removed) before upload. Supports 'add' (ADD) and 'remove' (REMOVE). Email is the only supported identifier type -- LinkedIn's API documents no phone identifier.",
   "category": "reverse_etl",
   "icon": "si:linkedin",

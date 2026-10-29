@@ -1,4 +1,4 @@
-type: dagster_component_templates.AuditLogsToQradarComponent
+type: dagster_community_components.AuditLogsToQradarComponent
 attributes:
   asset_name: audit_logs_to_qradar_shipped
   upstream_asset_key: normalized_audit_events

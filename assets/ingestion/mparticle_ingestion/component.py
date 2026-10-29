@@ -295,7 +295,7 @@ class MParticleIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.MParticleIngestionComponent
+        type: dagster_community_components.MParticleIngestionComponent
         attributes:
           asset_name: mparticle_ingestion
           account_id: "123456"

@@ -32,7 +32,7 @@ class NATSMonitorSensorComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.NATSMonitorSensorComponent
+        type: dagster_community_components.NATSMonitorSensorComponent
         attributes:
           sensor_name: nats_events_sensor
           servers: nats://localhost:4222

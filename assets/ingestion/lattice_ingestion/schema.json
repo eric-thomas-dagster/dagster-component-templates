@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LatticeIngestionComponent",
+  "component_type": "dagster_community_components.LatticeIngestionComponent",
   "description": "Ingest Lattice performance-management, OKR/goal, and engagement data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "hr",

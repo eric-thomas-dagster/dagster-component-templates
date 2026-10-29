@@ -1,4 +1,4 @@
-type: dagster_component_templates.DatabaseSchemaInventoryComponent
+type: dagster_community_components.DatabaseSchemaInventoryComponent
 attributes:
   asset_name: oracle_migration_inventory
   connection_env_var: ORACLE_DB_URL

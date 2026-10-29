@@ -85,7 +85,7 @@ For OAuth-token flows, use `oauth_token_resource` alongside this one:
 
 ```yaml
 # 1. Configure the token resource:
-type: dagster_component_templates.OAuthTokenResourceComponent
+type: dagster_community_components.OAuthTokenResourceComponent
 attributes:
   resource_key: sap_concur_token
   token_endpoint: https://www.concursolutions.com/oauth2/v0/token
@@ -97,7 +97,7 @@ attributes:
 
 ```yaml
 # 2. Reference it from this resource:
-type: dagster_component_templates.ODataResourceComponent
+type: dagster_community_components.ODataResourceComponent
 attributes:
   resource_key: sap_concur_odata
   service_url: https://www.concursolutions.com/odata/...

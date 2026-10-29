@@ -156,7 +156,7 @@ class XeroContactUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.XeroContactUpsertComponent
+        type: dagster_community_components.XeroContactUpsertComponent
         attributes:
           asset_name: xero_contacts_mirror
           upstream_asset_key: dbt_marts_customers

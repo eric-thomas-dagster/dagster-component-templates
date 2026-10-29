@@ -102,7 +102,7 @@ HTTP request.
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.OpenSearchIndexUpsertComponent
+type: dagster_community_components.OpenSearchIndexUpsertComponent
 attributes:
   asset_name: opensearch_product_catalog_sync
   upstream_asset_key: dbt_marts_product_catalog

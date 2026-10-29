@@ -301,7 +301,7 @@ class RudderStackIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.RudderStackIngestionComponent
+        type: dagster_community_components.RudderStackIngestionComponent
         attributes:
           asset_name: rudderstack_ingestion
           service_access_token: "${RUDDERSTACK_SERVICE_ACCESS_TOKEN}"

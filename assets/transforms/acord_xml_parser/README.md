@@ -5,7 +5,7 @@ Parse ACORD (Association for Cooperative Operations Research and Development) in
 ACORD is the dominant data-exchange standard across the global insurance industry — carriers, agencies, brokers, rating engines, and reinsurers all speak ACORD XML for policies / claims / quotes / certificates / appraisals / MVR pulls.
 
 ```yaml
-type: dagster_component_templates.AcordXmlParserComponent
+type: dagster_community_components.AcordXmlParserComponent
 attributes:
   asset_name: acord_flat
   upstream_asset_key: acord_messages

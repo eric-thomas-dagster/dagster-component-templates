@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DorisResourceComponent",
+  "component_type": "dagster_community_components.DorisResourceComponent",
   "description": "Register an Apache Doris resource for use by other components.\n\nPairs with the generic SQL components (``sql_transform``,\n``dataframe_to_table``, ``database_schema_inventory``) by exposing\nits SQLAlchemy URL, and with ``dataframe_to_doris`` for Stream-Load-\nbased bulk ingestion via the HTTP frontend.\n\nExample:\n\n    ```yaml\n    type: dagster_community_components.DorisResourceComponent\n    attributes:\n      resource_key: doris_resource\n      host: doris-fe.mycompany.com\n      query_port: 9030\n      http_port: 8030\n      database: analytics\n      username: dagster_runner\n      password_env_var: DORIS_PASSWORD\n    ```",
   "category": "resource",
   "icon": "si:apache",

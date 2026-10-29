@@ -110,7 +110,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.ImputationComponent
+type: dagster_community_components.ImputationComponent
 attributes:
   asset_name: imputed_sensor_readings
   upstream_asset_key: raw_sensor_readings

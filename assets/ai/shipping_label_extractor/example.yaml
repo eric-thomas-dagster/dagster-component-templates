@@ -1,4 +1,4 @@
-type: dagster_component_templates.ShippingLabelExtractorComponent
+type: dagster_community_components.ShippingLabelExtractorComponent
 attributes:
   asset_name: extracted_shipping_labels
   upstream_asset_key: raw_shipping_labels

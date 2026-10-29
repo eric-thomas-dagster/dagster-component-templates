@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ZocdocAppointmentsIngestionComponent",
+  "component_type": "dagster_community_components.ZocdocAppointmentsIngestionComponent",
   "description": "Ingest booked Zocdoc appointments via GET /v1/appointments into a pandas DataFrame, for operational/analytics reporting. PHI-safe by design: materialization metadata, logs, and error messages never carry a data preview -- row counts and configured filters only.",
   "category": "source",
   "vertical": "healthcare-scheduling",

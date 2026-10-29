@@ -1,4 +1,4 @@
-type: dagster_component_templates.FileListerComponent
+type: dagster_community_components.FileListerComponent
 attributes:
   asset_name: incoming_invoices
   path: s3://my-bucket/invoices/**/*.pdf

@@ -85,7 +85,7 @@ The "failed" row is informative — it tells you exactly which orphan rows are b
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.DatabaseConstraintsMigrationComponent
+type: dagster_community_components.DatabaseConstraintsMigrationComponent
 attributes:
   asset_name: warehouse_constraints_applied
   source_connection_env_var: SOURCE_DB_URL
@@ -103,7 +103,7 @@ attributes:
 Pipe the report to CSV:
 
 ```yaml
-type: dagster_component_templates.DataframeToCsvComponent
+type: dagster_community_components.DataframeToCsvComponent
 attributes:
   asset_name: constraints_migration_report
   upstream_asset_key: warehouse_constraints_applied

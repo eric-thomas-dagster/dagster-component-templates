@@ -15,7 +15,7 @@
 
 ---
 # Component 1: CRM Data Ingestion
-type: dagster_component_templates.HubSpotIngestionComponent
+type: dagster_community_components.HubSpotIngestionComponent
 attributes:
   asset_name: hubspot_contacts
   resource_type: contacts
@@ -24,7 +24,7 @@ attributes:
 
 ---
 # Component 2: Product Analytics Events
-type: dagster_component_templates.ProductAnalyticsStandardizerComponent
+type: dagster_community_components.ProductAnalyticsStandardizerComponent
 attributes:
   asset_name: product_usage_events
   platform: mixpanel  # or amplitude, segment, etc.
@@ -34,7 +34,7 @@ attributes:
 
 ---
 # Component 3: Support Ticket Data
-type: dagster_component_templates.SupportTicketStandardizerComponent
+type: dagster_community_components.SupportTicketStandardizerComponent
 attributes:
   asset_name: support_tickets
   platform: zendesk
@@ -44,7 +44,7 @@ attributes:
 
 ---
 # Component 4: Customer 360 Profile
-type: dagster_component_templates.Customer360Component
+type: dagster_community_components.Customer360Component
 attributes:
   asset_name: customer_360
   crm_data_asset: hubspot_contacts
@@ -55,7 +55,7 @@ attributes:
 
 ---
 # Component 5: Churn Risk Prediction
-type: dagster_component_templates.ChurnPredictionComponent
+type: dagster_community_components.ChurnPredictionComponent
 attributes:
   asset_name: churn_risk_scores
   source_asset: customer_360
@@ -67,7 +67,7 @@ attributes:
 
 ---
 # Component 6: Customer LTV (for prioritization)
-type: dagster_component_templates.LTVPredictionComponent
+type: dagster_community_components.LTVPredictionComponent
 attributes:
   asset_name: customer_ltv_churn
   source_asset: product_usage_events
@@ -78,7 +78,7 @@ attributes:
 
 ---
 # Component 7: Propensity to Re-Engage
-type: dagster_component_templates.PropensityScoringComponent
+type: dagster_community_components.PropensityScoringComponent
 attributes:
   asset_name: reengagement_propensity
   source_asset: customer_360
@@ -89,7 +89,7 @@ attributes:
 
 ---
 # Component 8: Write Churn Analysis to Database
-type: dagster_component_templates.DLTDataFrameWriterComponent
+type: dagster_community_components.DLTDataFrameWriterComponent
 attributes:
   asset_name: churn_analysis_output
   source_asset: reengagement_propensity

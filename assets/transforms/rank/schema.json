@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.RankComponent",
+  "component_type": "dagster_community_components.RankComponent",
   "description": "Rank records by a column, with optional grouping.",
   "category": "transformation",
   "icon": "Shuffle",

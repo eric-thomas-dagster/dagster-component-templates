@@ -41,7 +41,7 @@ Observations appear in the **Asset Activity** timeline, giving you a health hist
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.KafkaObservationSensorComponent
+type: dagster_community_components.KafkaObservationSensorComponent
 attributes:
   sensor_name: my_sensor_name
   asset_key: my_service/asset
@@ -57,14 +57,14 @@ This sensor observes an external asset declared with `ExternalKafkaAsset`. Decla
 
 ```yaml
 # 1. Declare the external asset
-type: dagster_component_templates.ExternalKafkaAsset
+type: dagster_community_components.ExternalKafkaAsset
 attributes:
   asset_key: external/kafka
 
 ---
 
 # 2. Observe it
-type: dagster_component_templates.KafkaObservationSensorComponent
+type: dagster_community_components.KafkaObservationSensorComponent
 attributes:
   sensor_name: kafka_observation_sensor_sensor
   asset_key: external/kafka

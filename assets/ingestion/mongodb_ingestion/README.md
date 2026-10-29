@@ -29,7 +29,7 @@ By default this asset runs an in-memory DuckDB pipeline and returns a pandas Dat
 
 
 ```yaml
-type: dagster_component_templates.MongoDBIngestionComponent
+type: dagster_community_components.MongoDBIngestionComponent
 attributes:
   asset_name: mongodb_data
   # ... source config ...
@@ -125,7 +125,7 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 ## Example — DataFrame mode (default)
 
 ```yaml
-type: dagster_component_templates.MongoDBIngestionComponent
+type: dagster_community_components.MongoDBIngestionComponent
 attributes:
   asset_name: mongo_data
   connection_url: "{{ env('MONGODB_URL') }}"
@@ -140,7 +140,7 @@ The asset emits a pandas DataFrame combining all selected resources, with a `_re
 ## Example — persist to Postgres
 
 ```yaml
-type: dagster_component_templates.MongoDBIngestionComponent
+type: dagster_community_components.MongoDBIngestionComponent
 attributes:
   asset_name: mongo_data
   connection_url: "{{ env('MONGODB_URL') }}"

@@ -144,7 +144,7 @@ Track and optimize marketing campaigns with key performance metrics:
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.CampaignPerformanceComponent
+type: dagster_community_components.CampaignPerformanceComponent
 attributes:
   asset_name: campaign_performance
   target_roas: 3.0

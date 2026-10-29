@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DagsterComputeLogsArchiveJobComponent",
+  "component_type": "dagster_community_components.DagsterComputeLogsArchiveJobComponent",
   "description": "Op-shaped job that gzips + archives old Dagster compute log files to S3/GCS/local, then optionally deletes them from primary storage. Frees primary storage without losing audit trail.",
   "category": "jobs",
   "icon": "Archive",

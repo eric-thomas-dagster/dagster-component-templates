@@ -1,4 +1,4 @@
-type: dagster_component_templates.DltPipelineAssetsComponent
+type: dagster_community_components.DltPipelineAssetsComponent
 attributes:
   # Dotted path to a Python module exposing a dlt.Pipeline object.
   pipeline_module: my_project.dlt_pipelines

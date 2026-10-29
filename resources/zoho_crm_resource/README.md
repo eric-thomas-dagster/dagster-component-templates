@@ -96,7 +96,7 @@ Defaults to `v8` -- Zoho's current REST API version per its own developer docs, 
 ## Example
 
 ```yaml
-type: dagster_component_templates.ZohoCrmResourceComponent
+type: dagster_community_components.ZohoCrmResourceComponent
 attributes:
   resource_key: zoho_crm
   client_id_env_var:     ZOHO_CLIENT_ID

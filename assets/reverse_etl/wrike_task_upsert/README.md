@@ -77,7 +77,7 @@ Wrike wraps every API response — even single-record create/update calls — in
 ## Example
 
 ```yaml
-type: dagster_component_templates.WrikeTaskUpsertComponent
+type: dagster_community_components.WrikeTaskUpsertComponent
 attributes:
   asset_name: wrike_incidents_mirror
   upstream_asset_key: incidents_seed

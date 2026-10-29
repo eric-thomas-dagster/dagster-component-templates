@@ -307,7 +307,7 @@ class LitellmStructuredOutputComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LitellmStructuredOutputComponent
+        type: dagster_community_components.LitellmStructuredOutputComponent
         attributes:
           asset_name: extracted_entities
           upstream_asset_key: raw_documents

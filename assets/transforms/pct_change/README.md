@@ -110,7 +110,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 Week-over-week revenue growth per region:
 
 ```yaml
-type: dagster_component_templates.PctChangeComponent
+type: dagster_community_components.PctChangeComponent
 attributes:
   asset_name: revenue_wow
   upstream_asset_key: daily_revenue
@@ -124,7 +124,7 @@ attributes:
 Single-series MoM:
 
 ```yaml
-type: dagster_component_templates.PctChangeComponent
+type: dagster_community_components.PctChangeComponent
 attributes:
   asset_name: total_revenue_mom
   upstream_asset_key: monthly_totals

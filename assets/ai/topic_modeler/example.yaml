@@ -1,4 +1,4 @@
-type: dagster_component_templates.TopicModelerComponent
+type: dagster_community_components.TopicModelerComponent
 attributes:
   asset_name: topic_modeled_documents
   upstream_asset_key: document_corpus

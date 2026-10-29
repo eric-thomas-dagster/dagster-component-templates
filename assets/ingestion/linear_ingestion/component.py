@@ -194,7 +194,7 @@ class LinearIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.LinearIngestionComponent
+        type: dagster_community_components.LinearIngestionComponent
         attributes:
           asset_name: linear_ingestion
           api_key: "${LINEAR_API_KEY}"

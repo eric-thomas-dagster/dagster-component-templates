@@ -206,7 +206,7 @@ class ExternalClickHouseTableComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ExternalClickHouseTableComponent
+        type: dagster_community_components.ExternalClickHouseTableComponent
         attributes:
           asset_key: clickhouse/analytics/events
           database: analytics

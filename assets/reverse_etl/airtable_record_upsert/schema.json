@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AirtableRecordUpsertComponent",
+  "component_type": "dagster_community_components.AirtableRecordUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into an Airtable table via the native server-side upsert endpoint. `PATCH /v0/{baseId}/{tableName}?performUpsert[fieldsToMergeOn][]=<field>` atomically creates or updates records based on matching key_fields.",
   "category": "reverse_etl",
   "icon": "si:airtable",

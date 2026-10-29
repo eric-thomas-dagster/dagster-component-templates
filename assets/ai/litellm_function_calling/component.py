@@ -306,7 +306,7 @@ class LitellmFunctionCallingComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LitellmFunctionCallingComponent
+        type: dagster_community_components.LitellmFunctionCallingComponent
         attributes:
           asset_name: tool_call_results
           upstream_asset_key: raw_queries

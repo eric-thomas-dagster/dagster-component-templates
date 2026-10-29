@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SageIntacctArInvoicesIngestionComponent",
+  "component_type": "dagster_community_components.SageIntacctArInvoicesIngestionComponent",
   "description": "Ingest Sage Intacct AR Invoices (the ARINVOICE object) via the legacy XML Web Services readByQuery function and return a pandas DataFrame.",
   "category": "source",
   "vertical": "finance-ops",

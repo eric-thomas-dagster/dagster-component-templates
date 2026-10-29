@@ -93,22 +93,55 @@ The parsed value is the asset's output (loaded by your IO manager). Useful for p
 
 | Field | Type | Description |
 |---|---|---|
-| `name` | `str` | Short label for logs (also used as the asset's MCP server tag). |
+| `asset_name` | `str` | Output Dagster asset name. |
+| `server` | `MCPServerSpec` | MCP server to connect to. |
+| `tool_name` | `str` | Name of the MCP tool to call. |
 
-### Connection
+### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `url` | `str` | — | http / sse: full URL of the MCP endpoint. |
+| `group_name` | `str` | — | Dagster asset group name. |
+| `description` | `str` | — | Asset description. |
+| `owners` | `List[str]` | — | Asset owners. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags. |
+| `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog, e.g. ['mcp', 'python']. Auto-includes 'mcp' if not set. |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (one tool call per partition in the range, each with its own {partition_key} substitution; the asset's va… _(full docs in schema.json + component README)_ |
+| `deps` | `List[str]` | — | Lineage-only upstream asset keys. |
+
+### Freshness
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `freshness_max_lag_minutes` | `int` | — | FreshnessPolicy max lag in minutes. |
+| `freshness_cron` | `str` | — | FreshnessPolicy cron schedule. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'multi' \| 'dynamic' |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | ISO date for time-based partitions. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static/multi. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values} dicts. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_policy_max_retries` | `int` | — | RetryPolicy max retries. |
+| `retry_policy_delay_seconds` | `int` | — | Seconds between retries. |
+| `retry_policy_backoff` | `str` | `"exponential"` | 'linear' or 'exponential'. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `type` | `str` | `"stdio"` | Transport: 'stdio' \| 'http' \| 'sse'. |
-| `command` | `List[str]` | — | stdio: [executable, ...args]. |
-| `env` | `Dict[str, str]` | — | stdio: extra env vars. |
-| `headers` | `Dict[str, str]` | — | http / sse: literal HTTP headers. |
-| `headers_env` | `Dict[str, str]` | — | http / sse: map of header_name → env_var_name (value read from env). |
+| `tool_args` | `Dict[str, Any]` | `dict()` | Args passed to the tool. String leaves get template substitution: `{partition_key}`, `{partition_keys.<dim>}`, `{run_id}`. |
+| `parse_as` | `str` | `"auto"` | How to parse the tool's text response: 'json' (raise if not JSON), 'text' (raw string), 'auto' (try JSON, fall back to text). |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)

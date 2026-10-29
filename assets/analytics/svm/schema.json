@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SVMComponent",
+  "component_type": "dagster_community_components.SVMComponent",
   "description": "Fit a Support Vector Machine for classification or regression and emit predictions.",
   "category": "analytics",
   "icon": "Cpu",

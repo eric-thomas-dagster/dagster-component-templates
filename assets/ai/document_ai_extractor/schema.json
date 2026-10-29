@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DocumentAiExtractorComponent",
+  "component_type": "dagster_community_components.DocumentAiExtractorComponent",
   "description": "Cloud Document AI structured document parsing. Use a deployed processor (FORM_PARSER, INVOICE_PROCESSOR, OCR_PROCESSOR, LAYOUT_PARSER, custom CDE, etc.) to extract text, form fields, entities, and tables from documents (PDF / image). For flat OCR on photos, prefer vision_api_asset (DOCUMENT_TEXT_DETECTION).",
   "category": "ai",
   "icon": "si:googlecloud",

@@ -109,7 +109,7 @@ Together they cover both directions of Salesforce data movement.
 ## Example
 
 ```yaml
-type: dagster_component_templates.SalesforceRecordUpsertComponent
+type: dagster_community_components.SalesforceRecordUpsertComponent
 attributes:
   asset_name: salesforce_accounts_mirror
   upstream_asset_key: dbt_marts_accounts

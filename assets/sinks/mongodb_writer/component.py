@@ -250,7 +250,7 @@ class MongodbWriterComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.MongodbWriterComponent
+        type: dagster_community_components.MongodbWriterComponent
         attributes:
           asset_name: write_users_to_mongo
           upstream_asset_key: transformed_users

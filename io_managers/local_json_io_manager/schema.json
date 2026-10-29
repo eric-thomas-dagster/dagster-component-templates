@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LocalJsonIOManagerComponent",
+  "component_type": "dagster_community_components.LocalJsonIOManagerComponent",
   "description": "Store DataFrames as JSON Lines (.jsonl) files on the local filesystem.",
   "category": "io_manager",
   "icon": "Save",

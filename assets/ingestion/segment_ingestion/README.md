@@ -106,7 +106,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.SegmentIngestionComponent
+type: dagster_community_components.SegmentIngestionComponent
 attributes:
   asset_name: segment_ingestion
   access_token: "${SEGMENT_ACCESS_TOKEN}"

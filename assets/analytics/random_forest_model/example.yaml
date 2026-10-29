@@ -1,4 +1,4 @@
-type: dagster_component_templates.RandomForestModelComponent
+type: dagster_community_components.RandomForestModelComponent
 attributes:
   description: Predict customer lifetime value tier using a random forest regressor.
   asset_name: customer_ltv_predictions

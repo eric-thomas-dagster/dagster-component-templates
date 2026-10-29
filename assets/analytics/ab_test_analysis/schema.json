@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ABTestAnalysisComponent",
+  "component_type": "dagster_community_components.ABTestAnalysisComponent",
   "description": "Component for A/B test statistical analysis.",
   "category": "analytics",
   "icon": "BarChart2",

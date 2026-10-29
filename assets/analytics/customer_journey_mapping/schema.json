@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CustomerJourneyMappingComponent",
+  "component_type": "dagster_community_components.CustomerJourneyMappingComponent",
   "description": "Component for mapping and analyzing customer journeys.",
   "category": "analytics",
   "icon": "BarChart2",

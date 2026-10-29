@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.StepwiseComponent",
+  "component_type": "dagster_community_components.StepwiseComponent",
   "description": "Sequential forward feature selection — pick K best features by cross-validated score.",
   "category": "analytics",
   "icon": "Filter",

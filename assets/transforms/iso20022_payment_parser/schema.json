@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.Iso20022PaymentParserComponent",
+  "component_type": "dagster_community_components.Iso20022PaymentParserComponent",
   "description": "Iso20022PaymentParserComponent — parse ISO 20022 payment XML messages to a DataFrame.",
   "category": "transformation",
   "x-dagster-io": {

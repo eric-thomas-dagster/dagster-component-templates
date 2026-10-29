@@ -70,7 +70,7 @@ clickhouse-connect>=0.6.0
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.ExternalClickHouseTableComponent
+type: dagster_community_components.ExternalClickHouseTableComponent
 attributes:
   asset_key: clickhouse/analytics/events
   database: analytics
@@ -86,7 +86,7 @@ Set `create_observation_sensor: true` to also get the polling sensor that keeps 
 health/data-version current — one component, one YAML, no manual `asset_key` wiring:
 
 ```yaml
-type: dagster_component_templates.ExternalClickHouseTableComponent
+type: dagster_community_components.ExternalClickHouseTableComponent
 attributes:
   asset_key: clickhouse/analytics/events
   database: analytics
@@ -104,7 +104,7 @@ asset and sensor on independent lifecycles), pair this component with the standa
 
 ```yaml
 # 1. Declare the external asset (lineage node)
-type: dagster_component_templates.ExternalClickHouseTableComponent
+type: dagster_community_components.ExternalClickHouseTableComponent
 attributes:
   asset_key: clickhouse/analytics/events
   database: analytics
@@ -116,7 +116,7 @@ attributes:
 ---
 
 # 2. Observe it on a schedule
-type: dagster_component_templates.ClickHouseTableObservationSensorComponent
+type: dagster_community_components.ClickHouseTableObservationSensorComponent
 attributes:
   sensor_name: clickhouse_events_observation
   asset_key: clickhouse/analytics/events

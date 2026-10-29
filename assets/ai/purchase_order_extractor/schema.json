@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PurchaseOrderExtractorComponent",
+  "component_type": "dagster_community_components.PurchaseOrderExtractorComponent",
   "description": "Extract structured data from purchase orders using an LLM.",
   "category": "ai",
   "icon": "ShoppingCart",

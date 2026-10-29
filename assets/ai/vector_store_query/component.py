@@ -233,7 +233,7 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.VectorStoreQueryComponent
+        type: dagster_community_components.VectorStoreQueryComponent
         attributes:
           asset_name: search_results
           provider: chromadb

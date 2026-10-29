@@ -1,4 +1,4 @@
-type: dagster_component_templates.ImageObjectDetectorComponent
+type: dagster_community_components.ImageObjectDetectorComponent
 attributes:
   asset_name: detected_objects
   upstream_asset_key: raw_images

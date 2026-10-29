@@ -385,7 +385,7 @@ class HotjarIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.HotjarIngestionComponent
+        type: dagster_community_components.HotjarIngestionComponent
         attributes:
           asset_name: hotjar_ingestion
           site_id: "${HOTJAR_SITE_ID}"

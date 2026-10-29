@@ -41,7 +41,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.MondayResourceComponent
+type: dagster_community_components.MondayResourceComponent
 attributes:
   resource_key: monday_resource
   api_token_env_var: MONDAY_API_TOKEN

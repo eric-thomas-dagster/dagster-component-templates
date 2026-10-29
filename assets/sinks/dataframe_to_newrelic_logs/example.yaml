@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeToNewRelicLogsComponent
+type: dagster_community_components.DataframeToNewRelicLogsComponent
 attributes:
   asset_name: dataframe_to_newrelic_logs_output
   upstream_asset_key: upstream_data

@@ -296,7 +296,7 @@ class Customer360Component(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.Customer360Component
+        type: dagster_community_components.Customer360Component
         attributes:
           asset_name: customer_360
           stripe_customers_asset_key: "stripe_data"

@@ -1,4 +1,4 @@
-type: dagster_component_templates.SyntheticDataComponent
+type: dagster_community_components.SyntheticDataComponent
 attributes:
   description: Generate 500 synthetic e-commerce customer records for pipeline testing.
   asset_name: synthetic_customers

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GoogleDatastreamComponent",
+  "component_type": "dagster_community_components.GoogleDatastreamComponent",
   "description": "Component for importing Google Cloud Datastream entities as Dagster assets.",
   "category": "integration",
   "icon": "Plug",

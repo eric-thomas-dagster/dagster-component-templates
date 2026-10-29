@@ -107,7 +107,7 @@ The OCR Extractor Component uses `pytesseract` (a Python wrapper for Tesseract) 
 ### Basic OCR
 
 ```yaml
-type: dagster_component_templates.OcrExtractorComponent
+type: dagster_community_components.OcrExtractorComponent
 attributes:
   asset_name: ocr_text
   upstream_asset_key: document_images
@@ -118,7 +118,7 @@ attributes:
 ### Multi-language with Confidence
 
 ```yaml
-type: dagster_component_templates.OcrExtractorComponent
+type: dagster_community_components.OcrExtractorComponent
 attributes:
   asset_name: multilingual_ocr
   upstream_asset_key: document_images

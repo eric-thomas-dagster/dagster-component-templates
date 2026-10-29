@@ -100,7 +100,7 @@ class OpenAIAgentComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.OpenAIAgentComponent
+        type: dagster_community_components.OpenAIAgentComponent
         attributes:
           asset_name: dagster_plus_agent
           prompt: "Summarize the last 5 runs in this Dagster+ deployment."

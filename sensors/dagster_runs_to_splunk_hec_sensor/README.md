@@ -78,7 +78,7 @@ search index=dagster sourcetype=dagster:run_event
 ## Example
 
 ```yaml
-type: dagster_component_templates.DagsterRunsToSplunkHecSensorComponent
+type: dagster_community_components.DagsterRunsToSplunkHecSensorComponent
 attributes:
   sensor_name: dagster_runs_to_splunk
   hec_url_env_var: SPLUNK_HEC_URL

@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeToExcelComponent
+type: dagster_community_components.DataframeToExcelComponent
 attributes:
   asset_name: write_quarterly_report_excel
   upstream_asset_key: quarterly_summary

@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeFlattenNestedColumnsComponent
+type: dagster_community_components.DataframeFlattenNestedColumnsComponent
 attributes:
   asset_name: events_flat
   upstream_asset_key: recent_errors

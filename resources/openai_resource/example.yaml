@@ -1,3 +1,3 @@
-type: dagster_component_templates.OpenAIResourceComponent
+type: dagster_community_components.OpenAIResourceComponent
 attributes:
   resource_key: openai_resource

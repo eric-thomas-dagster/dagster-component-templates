@@ -22,7 +22,7 @@ Perfect for:
 ### 1. Extract Text from Document
 
 ```yaml
-type: dagster_component_templates.DocumentTextExtractorComponent
+type: dagster_community_components.DocumentTextExtractorComponent
 attributes:
   asset_name: document_text
   # file path is supplied at run time (RunConfig: ops.document_text.config.file_path, e.g. /path/to/document.pdf),
@@ -33,7 +33,7 @@ attributes:
 
 ```yaml
 # No upstream_asset_key needed - set by drawing connections!
-type: dagster_component_templates.TextChunkerComponent
+type: dagster_community_components.TextChunkerComponent
 attributes:
   asset_name: document_chunks
   chunking_strategy: fixed_tokens
@@ -174,14 +174,14 @@ That's it! The IO manager automatically passes the text.
 
 ```yaml
 # Step 1: Extract text from document
-type: dagster_component_templates.DocumentTextExtractorComponent
+type: dagster_community_components.DocumentTextExtractorComponent
 attributes:
   asset_name: document_text
   # file path is supplied at run time (RunConfig: ops.document_text.config.file_path, e.g. /path/to/document.pdf),
   # or by an upstream asset -- it is not a YAML field
 
 # Step 2: Chunk the text
-type: dagster_component_templates.TextChunkerComponent
+type: dagster_community_components.TextChunkerComponent
 attributes:
   asset_name: document_chunks
   chunking_strategy: fixed_tokens
@@ -190,7 +190,7 @@ attributes:
   output_format: list
 
 # Step 3: Process chunks further (e.g., embeddings)
-type: dagster_component_templates.EmbeddingGeneratorComponent
+type: dagster_community_components.EmbeddingGeneratorComponent
 attributes:
   asset_name: document_embeddings
   provider: openai
@@ -206,7 +206,7 @@ document_text → document_chunks → document_embeddings
 
 ### Token-Based for LLM
 ```yaml
-type: dagster_component_templates.TextChunkerComponent
+type: dagster_community_components.TextChunkerComponent
 attributes:
   asset_name: llm_chunks
   chunking_strategy: fixed_tokens
@@ -216,7 +216,7 @@ attributes:
 
 ### Sentence-Based with DataFrame Output
 ```yaml
-type: dagster_component_templates.TextChunkerComponent
+type: dagster_community_components.TextChunkerComponent
 attributes:
   asset_name: sentence_chunks
   chunking_strategy: sentence

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LitellmBatchCompletionComponent",
+  "component_type": "dagster_community_components.LitellmBatchCompletionComponent",
   "description": "Process a DataFrame column row-by-row through any LLM using LiteLLM with parallel threads, fallback routing, and cost tracking.",
   "category": "ai",
   "icon": "si:openai",

@@ -81,7 +81,7 @@ Together they cover **both directions** of ServiceNow data movement.
 ## Example
 
 ```yaml
-type: dagster_component_templates.ServiceNowRecordUpsertComponent
+type: dagster_community_components.ServiceNowRecordUpsertComponent
 attributes:
   asset_name: servicenow_incidents_from_alerts
   upstream_asset_key: alerts_to_incidents

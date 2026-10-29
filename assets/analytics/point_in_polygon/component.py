@@ -329,7 +329,7 @@ class PointInPolygonComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.PointInPolygonComponent
+        type: dagster_community_components.PointInPolygonComponent
         attributes:
           asset_name: events_with_region
           upstream_asset_key: events

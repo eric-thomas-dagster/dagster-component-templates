@@ -1,4 +1,4 @@
-type: dagster_component_templates.Hl7V2ParserComponent
+type: dagster_community_components.Hl7V2ParserComponent
 attributes:
   asset_name: hl7_segments
   upstream_asset_key: hl7_messages

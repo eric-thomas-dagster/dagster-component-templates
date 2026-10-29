@@ -19,7 +19,7 @@ Unlike every other component in this session's SQL-execution-mode family, **only
 Offering either as "train a Naive Bayes here" would be the same misleading "exact equivalent" framing this session avoided by skipping `decision_tree_model` entirely. Databricks' predict-only branch is honest regardless of algorithm, since it never claims to train or BE any specific algorithm anywhere in this component family -- it just calls `ai_query()` against a `model_name` that must already be an existing, already-served Model Serving endpoint.
 
 ```yaml
-type: dagster_component_templates.NaiveBayesModelComponent
+type: dagster_community_components.NaiveBayesModelComponent
 attributes:
   asset_name: lead_quality_nb_sql
   source:
@@ -124,7 +124,7 @@ attributes:
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.NaiveBayesModelComponent
+type: dagster_community_components.NaiveBayesModelComponent
 attributes:
   asset_name: lead_quality_nb_predictions
   upstream_asset_key: lead_features_enriched

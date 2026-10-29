@@ -56,7 +56,7 @@ Requires a `SupabaseResource` (see `resources/supabase_resource`).
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.SupabaseVectorSearchAssetComponent
+type: dagster_community_components.SupabaseVectorSearchAssetComponent
 attributes:
   asset_name: doc_matches
   resource_key: supabase_resource

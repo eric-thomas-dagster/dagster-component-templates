@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SqlServerChangeTrackingAssetComponent",
+  "component_type": "dagster_community_components.SqlServerChangeTrackingAssetComponent",
   "name": "SQL Server Change Tracking",
   "category": "source",
   "icon": "si:microsoftsqlserver",

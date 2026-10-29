@@ -216,7 +216,7 @@ class MetabaseIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.MetabaseIngestionComponent
+        type: dagster_community_components.MetabaseIngestionComponent
         attributes:
           asset_name: metabase_ingestion
           instance_url: "https://metabase.mycompany.com"

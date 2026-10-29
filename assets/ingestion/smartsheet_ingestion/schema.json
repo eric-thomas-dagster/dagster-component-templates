@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SmartsheetIngestionComponent",
+  "component_type": "dagster_community_components.SmartsheetIngestionComponent",
   "description": "Ingest Smartsheet sheet metadata, users, reports, and (optionally) one sheet's row data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "productivity",

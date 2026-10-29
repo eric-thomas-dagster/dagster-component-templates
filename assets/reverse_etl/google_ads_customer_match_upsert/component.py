@@ -184,7 +184,7 @@ class GoogleAdsCustomerMatchUpsertComponent(dg.Component, dg.Model, dg.Resolvabl
 
     Example:
         ```yaml
-        type: dagster_component_templates.GoogleAdsCustomerMatchUpsertComponent
+        type: dagster_community_components.GoogleAdsCustomerMatchUpsertComponent
         attributes:
           asset_name: google_ads_churned_customers_audience
           upstream_asset_key: dbt_marts_churned_customers

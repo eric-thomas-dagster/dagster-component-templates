@@ -3,7 +3,7 @@
 Flatten FHIR R4/R5 JSON resources (`Patient`, `Observation`, `Encounter`, `Condition`, `MedicationRequest`, plus a generic fallback) into a flat pandas DataFrame ready for warehouse loads or analytics.
 
 ```yaml
-type: dagster_component_templates.FhirResourceNormalizerComponent
+type: dagster_community_components.FhirResourceNormalizerComponent
 attributes:
   asset_name: patients_flat
   upstream_asset_key: fhir_resources

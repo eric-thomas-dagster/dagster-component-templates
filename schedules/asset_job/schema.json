@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AssetJobComponent",
+  "component_type": "dagster_community_components.AssetJobComponent",
   "description": "Define a named Dagster job from a set of asset keys (without scheduling it).",
   "category": "infrastructure",
   "icon": "Clock",

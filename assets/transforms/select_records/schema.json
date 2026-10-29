@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SelectRecordsComponent",
+  "component_type": "dagster_community_components.SelectRecordsComponent",
   "description": "Select rows by index range, head/tail, or specific row indices.",
   "category": "transformation",
   "icon": "ListFilter",

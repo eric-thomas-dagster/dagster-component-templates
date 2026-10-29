@@ -1,4 +1,4 @@
-type: dagster_component_templates.AutomationConditionApplicatorComponent
+type: dagster_community_components.AutomationConditionApplicatorComponent
 attributes:
   preserve_existing: true   # asset-level automation_condition wins over rules
 

@@ -1,4 +1,4 @@
-type: dagster_component_templates.PerplexityLLMComponent
+type: dagster_community_components.PerplexityLLMComponent
 attributes:
   asset_name: company_research_briefs
   upstream_asset_key: target_companies

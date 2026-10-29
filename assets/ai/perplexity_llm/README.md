@@ -9,7 +9,7 @@ Perplexity's wire format follows the standard `choices[].message.content` / `usa
 - materialization metadata: `total_citations` across the batch, and a sample of any `related_questions` Perplexity suggested
 
 ```yaml
-type: dagster_component_templates.PerplexityLLMComponent
+type: dagster_community_components.PerplexityLLMComponent
 attributes:
   asset_name: company_research_briefs
   upstream_asset_key: target_companies

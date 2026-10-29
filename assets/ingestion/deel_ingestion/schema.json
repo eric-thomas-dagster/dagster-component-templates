@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DeelIngestionComponent",
+  "component_type": "dagster_community_components.DeelIngestionComponent",
   "description": "Ingest Deel global payroll/contractor data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "finance-hr",

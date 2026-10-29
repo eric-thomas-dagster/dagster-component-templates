@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.NewRelicNrqlQueryComponent",
+  "component_type": "dagster_community_components.NewRelicNrqlQueryComponent",
   "description": "Run an NRQL query via NerdGraph → DataFrame. Use for ops dashboards, anomaly detection, capacity planning, alerting trends.",
   "category": "source",
   "icon": "Search",

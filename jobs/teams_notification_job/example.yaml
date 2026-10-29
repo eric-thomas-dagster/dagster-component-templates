@@ -1,4 +1,4 @@
-type: dagster_component_templates.TeamsNotificationJobComponent
+type: dagster_community_components.TeamsNotificationJobComponent
 attributes:
   job_name: teams_notification_job_example
   schedule: "0 3 * * *"

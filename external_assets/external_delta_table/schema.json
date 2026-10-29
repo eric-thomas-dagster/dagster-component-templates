@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ExternalDeltaTableAsset",
+  "component_type": "dagster_community_components.ExternalDeltaTableAsset",
   "description": "Declare an external Delta Lake table (written by Spark, Databricks, Trino, Flink, etc.) as an observable Dagster external asset. Engine-agnostic.",
   "category": "external",
   "x-dagster-io": {

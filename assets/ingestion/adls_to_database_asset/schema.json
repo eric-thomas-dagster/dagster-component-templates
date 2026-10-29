@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ADLSToDatabaseAssetComponent",
+  "component_type": "dagster_community_components.ADLSToDatabaseAssetComponent",
   "description": "Read a file from ADLS Gen2 and write it to a database table.",
   "category": "ingestion",
   "vertical": "cloud-storage",

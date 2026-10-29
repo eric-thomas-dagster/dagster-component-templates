@@ -216,7 +216,7 @@ class WorkOSIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.WorkOSIngestionComponent
+        type: dagster_community_components.WorkOSIngestionComponent
         attributes:
           asset_name: workos_ingestion
           api_key: "${WORKOS_API_KEY}"

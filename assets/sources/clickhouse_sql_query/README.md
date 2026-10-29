@@ -80,7 +80,7 @@ Plain HTTP+text API -- no native ClickHouse Python driver required.
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.ClickhouseSqlQueryComponent
+type: dagster_community_components.ClickhouseSqlQueryComponent
 attributes:
   asset_name: daily_pageviews
   host_url: http://clickhouse:8123

@@ -70,7 +70,7 @@ This component does not read from or write to Rabbitmq. It is a **lineage declar
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ExternalRabbitmqAsset
+type: dagster_community_components.ExternalRabbitmqAsset
 attributes:
   asset_key: my_service/asset
   host: my-service.internal.company.com
@@ -86,7 +86,7 @@ Set `create_observation_sensor: true` to also get the polling sensor that keeps 
 health/data-version current — one component, one YAML, no manual `asset_key` wiring:
 
 ```yaml
-type: dagster_component_templates.ExternalRabbitmqAsset
+type: dagster_community_components.ExternalRabbitmqAsset
 attributes:
   asset_key: external/rabbitmq
   host: my-rabbitmq.internal
@@ -101,7 +101,7 @@ asset and sensor on independent lifecycles), pair this component with the standa
 
 ```yaml
 # 1. Declare the external asset (lineage node)
-type: dagster_component_templates.ExternalRabbitmqAsset
+type: dagster_community_components.ExternalRabbitmqAsset
 attributes:
   asset_key: external/rabbitmq
   host: my-rabbitmq.internal
@@ -110,7 +110,7 @@ attributes:
 ---
 
 # 2. Observe it on a schedule
-type: dagster_component_templates.RabbitmqObservationSensorComponent
+type: dagster_community_components.RabbitmqObservationSensorComponent
 attributes:
   sensor_name: rabbitmq_asset_observer
   asset_key: external/rabbitmq

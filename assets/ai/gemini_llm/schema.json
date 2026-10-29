@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GeminiLLMComponent",
+  "component_type": "dagster_community_components.GeminiLLMComponent",
   "description": "Native (no-LiteLLM) per-row text generation with Google Gemini text models. Drop-in peer of openai_llm / anthropic_llm — same field shape so providers swap by changing `type:` and the api_key env var. For multi-vendor workflows use litellm_inference_asset.",
   "category": "ai",
   "icon": "si:google",

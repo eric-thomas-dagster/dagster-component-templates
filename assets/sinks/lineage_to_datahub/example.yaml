@@ -1,4 +1,4 @@
-type: dagster_component_templates.LineageToDataHubComponent
+type: dagster_community_components.LineageToDataHubComponent
 attributes:
   asset_name: lineage_to_datahub
   upstream_asset_key: lineage_graph

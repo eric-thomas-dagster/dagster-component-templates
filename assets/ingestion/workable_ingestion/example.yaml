@@ -1,4 +1,4 @@
-type: dagster_component_templates.WorkableIngestionComponent
+type: dagster_community_components.WorkableIngestionComponent
 attributes:
   asset_name: workable_recruitment_data
 

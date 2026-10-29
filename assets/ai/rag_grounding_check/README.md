@@ -5,7 +5,7 @@ Verify RAG-generated answers are actually grounded in their retrieved source chu
 Pairs naturally with `rag_pipeline`'s `generate` step output — same `query_column`/`answer_column`/`sources_column` shape, so you can point this straight at it.
 
 ```yaml
-type: dagster_component_templates.RagGroundingCheckComponent
+type: dagster_community_components.RagGroundingCheckComponent
 attributes:
   asset_name: support_bot_grounding
   upstream_asset_key: support_bot_answers

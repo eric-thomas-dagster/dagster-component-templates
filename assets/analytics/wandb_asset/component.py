@@ -293,7 +293,7 @@ class WandbAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.WandbAssetComponent
+        type: dagster_community_components.WandbAssetComponent
         attributes:
           asset_name: model_training_run
           project: churn-prediction

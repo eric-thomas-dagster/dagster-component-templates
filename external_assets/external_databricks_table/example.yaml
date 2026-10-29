@@ -1,4 +1,4 @@
-type: dagster_component_templates.ExternalDatabricksTableAsset
+type: dagster_community_components.ExternalDatabricksTableAsset
 attributes:
   asset_key: databricks/gold/orders
   workspace_url: https://myorg.azuredatabricks.net

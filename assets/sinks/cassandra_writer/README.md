@@ -99,7 +99,7 @@ The `CassandraWriterComponent` accepts an upstream DataFrame asset and writes ea
 ### Basic write
 
 ```yaml
-type: dagster_component_templates.CassandraWriterComponent
+type: dagster_community_components.CassandraWriterComponent
 attributes:
   asset_name: write_metrics_to_cassandra
   upstream_asset_key: computed_metrics
@@ -112,7 +112,7 @@ attributes:
 ### Multi-node cluster with authentication
 
 ```yaml
-type: dagster_component_templates.CassandraWriterComponent
+type: dagster_community_components.CassandraWriterComponent
 attributes:
   asset_name: write_events_to_cassandra
   upstream_asset_key: processed_events

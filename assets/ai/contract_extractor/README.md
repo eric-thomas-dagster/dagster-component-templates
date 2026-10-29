@@ -120,7 +120,7 @@ The Contract Extractor Component uses a large language model to parse unstructur
 ### Basic Contract Extraction
 
 ```yaml
-type: dagster_component_templates.ContractExtractorComponent
+type: dagster_community_components.ContractExtractorComponent
 attributes:
   asset_name: parsed_contracts
   upstream_asset_key: raw_contract_text
@@ -138,7 +138,7 @@ attributes:
 ### Full Extraction with Anthropic
 
 ```yaml
-type: dagster_component_templates.ContractExtractorComponent
+type: dagster_community_components.ContractExtractorComponent
 attributes:
   asset_name: parsed_contracts
   upstream_asset_key: raw_contract_text

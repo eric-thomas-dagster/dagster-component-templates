@@ -1,4 +1,4 @@
-type: dagster_component_templates.BasecampResourceComponent
+type: dagster_community_components.BasecampResourceComponent
 attributes:
   resource_key: basecamp_resource
   account_id: "195539477"

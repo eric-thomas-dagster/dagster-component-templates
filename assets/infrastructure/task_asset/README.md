@@ -402,7 +402,24 @@ Exports from `dagster_community_components`:
 
 | Field | Type | Description |
 |---|---|---|
-| `name` | `str` | Layer name. Becomes the mapped op's key in the run graph. |
-| `compute` | `str` | 'mod:fn' — the callable that processes items at this layer. |
+| `asset_name` | `str` | Dagster asset name. |
+| `layers` | `List[LayerSpec]` | Ordered list of processing layers. First layer's compute receives (context) and emits initial work items. Subsequent layers receive (context, task_spec) per item. A layer that yields (name, spec) pairs fans out to the ne… _(full docs in schema.json + component README)_ |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `group_name` | `str` | — | — |
+| `description` | `str` | — | — |
+| `owners` | `List[str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
+| `kinds` | `List[str]` | — | Default: ['python', 'task']. |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `upstream_asset_key` | `Union[str, List[str]]` | — | — |
+| `terminal` | `str` | — | Optional final `mod:fn` that receives (context, all_results: list) and returns the asset's final value. |
 
 [//]: # (FIELDS:END)

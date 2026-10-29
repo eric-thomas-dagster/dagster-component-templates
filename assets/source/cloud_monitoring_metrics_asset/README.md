@@ -3,7 +3,7 @@
 Pull GCP time-series metrics via Cloud Monitoring's [ListTimeSeries](https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.timeSeries/list) API into a pandas DataFrame.
 
 ```yaml
-type: dagster_component_templates.CloudMonitoringMetricsAssetComponent
+type: dagster_community_components.CloudMonitoringMetricsAssetComponent
 attributes:
   asset_name: gce_cpu_utilization
   filter: 'metric.type="compute.googleapis.com/instance/cpu/utilization"'

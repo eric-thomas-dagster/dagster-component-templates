@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DetectChangesComponent",
+  "component_type": "dagster_community_components.DetectChangesComponent",
   "description": "Diff incoming DataFrame against a prior snapshot — emit rows with a change_type column (insert/update/delete/unchanged).",
   "category": "transformation",
   "x-dagster-io": {

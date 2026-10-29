@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PartOfSpeechTaggerComponent",
+  "component_type": "dagster_community_components.PartOfSpeechTaggerComponent",
   "description": "Component for tagging parts of speech in text using spaCy.",
   "category": "ai",
   "icon": "Sparkles",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ScientificPaperExtractorComponent",
+  "component_type": "dagster_community_components.ScientificPaperExtractorComponent",
   "description": "Extract metadata and findings from scientific papers and research articles using an LLM.",
   "category": "ai",
   "icon": "BookOpen",

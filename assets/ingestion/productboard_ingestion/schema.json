@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ProductboardIngestionComponent",
+  "component_type": "dagster_community_components.ProductboardIngestionComponent",
   "description": "Ingest Productboard notes, features, components, and objectives using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "productivity",

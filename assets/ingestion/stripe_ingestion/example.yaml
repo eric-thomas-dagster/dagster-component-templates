@@ -1,4 +1,4 @@
-type: dagster_component_templates.StripeIngestionComponent
+type: dagster_community_components.StripeIngestionComponent
 attributes:
   asset_name: stripe_data
 

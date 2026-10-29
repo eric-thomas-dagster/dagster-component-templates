@@ -116,7 +116,7 @@ class MetronomeInvoicesIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.MetronomeInvoicesIngestionComponent
+        type: dagster_community_components.MetronomeInvoicesIngestionComponent
         attributes:
           asset_name: metronome_invoices
           resource_key: metronome_resource

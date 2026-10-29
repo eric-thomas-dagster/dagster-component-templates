@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CensusSyncAssetComponent",
+  "component_type": "dagster_community_components.CensusSyncAssetComponent",
   "description": "Run a Census reverse-ETL sync on materialization via dagster-census.",
   "category": "integration",
   "icon": "ArrowRight",

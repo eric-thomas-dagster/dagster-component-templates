@@ -97,7 +97,7 @@ Mailchimp atomically creates or updates each member based on email. No search-th
 
 ## Example
 ```yaml
-type: dagster_component_templates.MailchimpMemberUpsertComponent
+type: dagster_community_components.MailchimpMemberUpsertComponent
 attributes:
   asset_name: mailchimp_members_mirror
   upstream_asset_key: dbt_marts_customers

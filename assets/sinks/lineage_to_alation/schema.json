@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LineageToAlationComponent",
+  "component_type": "dagster_community_components.LineageToAlationComponent",
   "description": "Sink that pushes the upstream lineage_graph to Alation Data Catalog.",
   "category": "sink",
   "icon": "ArrowRightLeft",

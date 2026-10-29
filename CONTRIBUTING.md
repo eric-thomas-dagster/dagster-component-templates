@@ -120,7 +120,7 @@ Define the component schema for UI rendering:
 
 ```json
 {
-  "type": "dagster_component_templates.MyComponent",
+  "type": "dagster_community_components.MyComponent",
   "name": "My Component Name",
   "category": "sensors",
   "description": "One-line description of what this component does",
@@ -225,7 +225,7 @@ Brief description of what this component does and when to use it.
 ## Usage Example
 
 \`\`\`yaml
-type: dagster_component_templates.MyComponent
+type: dagster_community_components.MyComponent
 attributes:
   sensor_name: my_webhook_sensor
   webhook_url: https://api.example.com/webhook
@@ -288,7 +288,7 @@ MIT
 Provide a working example configuration:
 
 ```yaml
-type: dagster_component_templates.MyComponent
+type: dagster_community_components.MyComponent
 attributes:
   sensor_name: my_webhook_sensor
   webhook_url: https://api.example.com/webhook

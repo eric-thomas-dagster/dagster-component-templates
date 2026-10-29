@@ -1,4 +1,4 @@
-type: dagster_component_templates.AuditLogsToSplunkComponent
+type: dagster_community_components.AuditLogsToSplunkComponent
 attributes:
   asset_name: audit_logs_to_splunk_shipped
   upstream_asset_key: normalized_audit_events

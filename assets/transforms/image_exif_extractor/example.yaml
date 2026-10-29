@@ -1,4 +1,4 @@
-type: dagster_component_templates.ImageExifExtractorComponent
+type: dagster_community_components.ImageExifExtractorComponent
 attributes:
   asset_name: image_metadata
   upstream_asset_key: sample_images

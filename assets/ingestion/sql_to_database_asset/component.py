@@ -185,7 +185,7 @@ class SQLToDatabaseAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SQLToDatabaseAssetComponent
+        type: dagster_community_components.SQLToDatabaseAssetComponent
         attributes:
           asset_name: crm_contacts_sync
           source_url_env_var: SOURCE_DB_URL

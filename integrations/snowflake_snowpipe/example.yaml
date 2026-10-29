@@ -1,4 +1,4 @@
-type: dagster_component_templates.SnowflakeSnowpipeComponent
+type: dagster_community_components.SnowflakeSnowpipeComponent
 attributes:
   asset_name: orders_pipe
   pipe_name: ORDERS_PIPE

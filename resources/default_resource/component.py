@@ -163,7 +163,7 @@ class DefaultResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.DefaultResourceComponent
+        type: dagster_community_components.DefaultResourceComponent
         attributes:
           resource_key: default_resource
           api_key_env_var: DEFAULT_API_KEY

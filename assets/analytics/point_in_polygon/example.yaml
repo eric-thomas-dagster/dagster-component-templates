@@ -1,4 +1,4 @@
-type: dagster_component_templates.PointInPolygonComponent
+type: dagster_community_components.PointInPolygonComponent
 attributes:
   description: Tag each event with the US state it occurred in using a GeoJSON boundaries file.
   asset_name: events_with_state

@@ -3,7 +3,7 @@
 Translate a column of text to one or more target languages via Google Cloud Translation v3. Returns the upstream DataFrame with one new column per target language.
 
 ```yaml
-type: dagster_component_templates.TranslationApiAssetComponent
+type: dagster_community_components.TranslationApiAssetComponent
 attributes:
   asset_name: ticket_translations
   upstream_asset_key: support_tickets

@@ -103,7 +103,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.ZuoraIngestionComponent
+type: dagster_community_components.ZuoraIngestionComponent
 attributes:
   asset_name: zuora_ingestion
   base_url: "https://rest.na.zuora.com"

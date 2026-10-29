@@ -94,7 +94,7 @@ adls_monitor  →  [Dagster job]  →  adls_to_database_asset
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ADLSToDatabaseAssetComponent
+type: dagster_community_components.ADLSToDatabaseAssetComponent
 attributes:
   asset_name: adls_orders_ingest
   connection_string_env_var: AZURE_STORAGE_CONNECTION_STRING

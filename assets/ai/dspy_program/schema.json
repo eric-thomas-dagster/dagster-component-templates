@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DspyProgramComponent",
+  "component_type": "dagster_community_components.DspyProgramComponent",
   "description": "Run a DSPy program with automatic prompt optimization against a DataFrame column using a signature-based interface.",
   "category": "ai",
   "icon": "Cpu",

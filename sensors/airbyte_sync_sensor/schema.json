@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AirbyteSyncSensorComponent",
+  "component_type": "dagster_community_components.AirbyteSyncSensorComponent",
   "description": "Trigger a job when an Airbyte connection sync completes.",
   "category": "sensor",
   "icon": "si:airbyte",

@@ -12,7 +12,7 @@
 # it's stripped before being used in the Filter Tickets API query (filter syntax uses the
 # bare field name, never the nested payload path).
 
-type: dagster_component_templates.FreshserviceTicketUpsertComponent
+type: dagster_community_components.FreshserviceTicketUpsertComponent
 attributes:
   asset_name: freshservice_tickets_from_alerts
 

@@ -111,7 +111,7 @@ class HubSpotObjectUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.HubSpotObjectUpsertComponent
+        type: dagster_community_components.HubSpotObjectUpsertComponent
         attributes:
           asset_name: hubspot_contacts_mirror
           upstream_asset_key: dbt_marts_customers

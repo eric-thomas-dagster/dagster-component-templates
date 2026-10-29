@@ -1,4 +1,4 @@
-type: dagster_component_templates.TextModeratorComponent
+type: dagster_community_components.TextModeratorComponent
 attributes:
   asset_name: moderated_content
   upstream_asset_key: raw_comments

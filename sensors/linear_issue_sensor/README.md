@@ -37,7 +37,7 @@ Polls Linear's GraphQL API for issues updated since the cursor. Triggers a RunRe
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.LinearIssueSensorComponent
+type: dagster_community_components.LinearIssueSensorComponent
 attributes:
   sensor_name: linear_active_issues_sensor
   asset_keys: [linear_team_metrics]

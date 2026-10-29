@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OpsgenieIngestionComponent",
+  "component_type": "dagster_community_components.OpsgenieIngestionComponent",
   "description": "Ingest Opsgenie alerting/on-call data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "devops-observability",

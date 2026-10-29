@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeFromSqlComponent",
+  "component_type": "dagster_community_components.DataframeFromSqlComponent",
   "description": "Run a SQL query and return results as a DataFrame.",
   "category": "source",
   "icon": "Database",

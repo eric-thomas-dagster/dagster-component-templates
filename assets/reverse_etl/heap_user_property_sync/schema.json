@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.HeapUserPropertySyncComponent",
+  "component_type": "dagster_community_components.HeapUserPropertySyncComponent",
   "description": "Reverse-ETL sink: push computed user properties from an upstream DataFrame into Heap via add_user_properties. Heap's API is write-only with no read-back or dedup concept -- this calls the endpoint once per row every run.",
   "category": "reverse_etl",
   "icon": "si:heap",

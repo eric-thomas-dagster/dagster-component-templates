@@ -815,7 +815,7 @@ class AutomationConditionApplicatorComponent(dg.Component, dg.Model, dg.Resolvab
     Or for custom-Python flexibility (build rules inline instead of YAML):
 
         ```python
-        from dagster_component_templates.assets.infrastructure.automation_condition_applicator.component import (
+        from dagster_community_components.assets.infrastructure.automation_condition_applicator.component import (
             apply_rules,
         )
 
@@ -831,7 +831,7 @@ class AutomationConditionApplicatorComponent(dg.Component, dg.Model, dg.Resolvab
     Example YAML config (fall-through priority — narrow first, broad last):
 
         ```yaml
-        type: dagster_component_templates.AutomationConditionApplicatorComponent
+        type: dagster_community_components.AutomationConditionApplicatorComponent
         attributes:
           preserve_existing: true
           rules:

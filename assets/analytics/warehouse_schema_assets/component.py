@@ -147,7 +147,7 @@ if _HAS_STATE_BACKED:
 
         Example:
             ```yaml
-            type: dagster_component_templates.WarehouseSchemaAssetsComponent
+            type: dagster_community_components.WarehouseSchemaAssetsComponent
             attributes:
               database_url_env_var: WAREHOUSE_URL
               schema_names:

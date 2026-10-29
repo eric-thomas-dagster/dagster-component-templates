@@ -191,7 +191,7 @@ class GorgiasTicketsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.GorgiasTicketsIngestionComponent
+        type: dagster_community_components.GorgiasTicketsIngestionComponent
         attributes:
           asset_name: gorgias_tickets
           resource_key: gorgias_resource

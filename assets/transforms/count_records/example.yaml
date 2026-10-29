@@ -1,4 +1,4 @@
-type: dagster_component_templates.CountRecordsComponent
+type: dagster_community_components.CountRecordsComponent
 attributes:
   asset_name: orders_by_status
   upstream_asset_key: cleaned_orders

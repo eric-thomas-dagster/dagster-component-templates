@@ -68,7 +68,7 @@ Every materialization does **two** things:
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.AthenaIOManagerComponent
+type: dagster_community_components.AthenaIOManagerComponent
 attributes:
   resource_key: io_manager
   database: dagster_db

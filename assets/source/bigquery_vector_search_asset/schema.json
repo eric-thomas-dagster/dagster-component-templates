@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BigqueryVectorSearchAssetComponent",
+  "component_type": "dagster_community_components.BigqueryVectorSearchAssetComponent",
   "description": "BigqueryVectorSearchAssetComponent — k-NN similarity search against a BQ vector column.",
   "category": "source",
   "x-dagster-io": {

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToInfluxDBComponent",
+  "component_type": "dagster_community_components.DataframeToInfluxDBComponent",
   "description": "Bulk-write a Pandas DataFrame to InfluxDB as line-protocol points.\n\nExample:\n    ```yaml\n    type: dagster_community_components.DataframeToInfluxDBComponent\n    attributes:\n      asset_name: influxdb_metrics_write\n      upstream_asset_key: service_throughput_per_region\n      measurement: service_throughput\n      bucket: metrics\n      url_env_var: INFLUXDB_URL\n      token_env_var: INFLUXDB_TOKEN\n      org_env_var: INFLUXDB_ORG\n      timestamp_column: ts\n      tag_columns: [region, service]\n      field_columns: [throughput, errors]\n    ```",
   "category": "sink",
   "icon": "si:influxdb",

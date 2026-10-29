@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TextSimilarityComponent",
+  "component_type": "dagster_community_components.TextSimilarityComponent",
   "description": "Compute semantic or lexical similarity between two text columns or each row against a fixed query string.",
   "category": "ai",
   "icon": "GitCompare",

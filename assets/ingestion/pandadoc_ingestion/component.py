@@ -216,7 +216,7 @@ class PandaDocIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.PandaDocIngestionComponent
+        type: dagster_community_components.PandaDocIngestionComponent
         attributes:
           asset_name: pandadoc_ingestion
           api_key: "${PANDADOC_API_KEY}"

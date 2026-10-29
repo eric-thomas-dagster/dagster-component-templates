@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PreciselyAddressVerifyComponent",
+  "component_type": "dagster_community_components.PreciselyAddressVerifyComponent",
   "description": "Verify + standardize an address column via Precisely Address Verify.\n\nExample:\n    ```yaml\n    type: dagster_community_components.PreciselyAddressVerifyComponent\n    attributes:\n      asset_name: verified_customer_addresses\n      upstream_asset_key: customer_raw_addresses\n      address_column: full_address\n      country_column: country_code        # optional; defaults to USA\n      output_prefix: av_\n      client_id_env_var: PRECISELY_CLIENT_ID\n      client_secret_env_var: PRECISELY_CLIENT_SECRET\n    ```",
   "category": "transformation",
   "icon": "MapPin",

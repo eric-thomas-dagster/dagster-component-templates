@@ -93,7 +93,7 @@ This design is verified by `tests/test_phi_safety.py`, which asserts that patien
 ## Example
 
 ```yaml
-type: dagster_component_templates.ZocdocAppointmentsIngestionComponent
+type: dagster_community_components.ZocdocAppointmentsIngestionComponent
 attributes:
   asset_name: zocdoc_appointments
   resource_key: zocdoc_resource

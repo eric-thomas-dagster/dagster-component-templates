@@ -1,4 +1,4 @@
-type: dagster_component_templates.JobPostingExtractorComponent
+type: dagster_community_components.JobPostingExtractorComponent
 attributes:
   asset_name: extracted_job_postings
   upstream_asset_key: raw_job_postings

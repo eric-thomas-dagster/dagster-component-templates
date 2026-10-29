@@ -31,27 +31,67 @@ One YAML block → `2 + N` assets:
 
 | Field | Type | Description |
 |---|---|---|
-| `name` | `str` | Tool name — the planner picks by this name. |
-| `description` | `str` | One-line description of the tool. Shown to the planner LLM. Be specific so the planner picks well: 'search recent web' not 'search'. |
-| `system_message` | `str` | System prompt for the tool's LLM. This is the tool's persona: e.g., 'You are a web search agent. Return 3 relevant factual snippets with sources.' The tool receives the planner's `tool_input` field as the user message. |
+| `plan_asset_name` | `str` | Name of the plan asset (the planner's picks). |
+| `synthesis_asset_name` | `str` | Name of the final synthesis asset. |
+| `task` | `str` | The task / question the supervisor is planning against. |
+| `tools` | `List[SupervisorAgentToolSpec]` | Bounded list of tools the planner can pick from. |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `api_key_env_var` | `str` | — | Per-tool API key env var override (defaults to component-level). |
+| `api_key_env_var` | `str` | `"OPENAI_API_KEY"` | Env var containing the OpenAI-compatible API key. |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `group_name` | `str` | — | Asset group. |
+| `kinds` | `List[str]` | — | Asset kinds (auto-includes 'ai', 'agent'). |
+| `owners` | `List[str]` | — | Asset owners. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Asset tags. |
+
+### Freshness
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `freshness_max_lag_minutes` | `int` | — | FreshnessPolicy max lag minutes. |
+| `freshness_cron` | `str` | — | FreshnessPolicy cron schedule. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' |
+| `partition_start` | `str` | — | ISO date for time-based partitions. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitions. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_policy_max_retries` | `int` | — | RetryPolicy max retries. |
+| `retry_policy_delay_seconds` | `int` | — | Seconds between retries. |
+| `retry_policy_backoff` | `str` | `"exponential"` | 'linear' or 'exponential'. |
 
 ### Source / target
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `model` | `str` | — | Optional per-tool model override. When None (default), the component-level `model` is used for this tool. Set this to use a search-capable model (e.g., 'perplexity/sonar-pro' via Vercel AI Gateway) for tools that need re… _(full docs in schema.json + component README)_ |
+| `model` | `str` | `"gpt-4o-mini"` | OpenAI-compatible model name for the planner + tool LLMs + synthesis. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `api_base_env_var` | `str` | — | Per-tool base URL env var override — e.g., set to `VERCEL_AI_GATEWAY_URL` for a search-capable route. Defaults to component-level. |
+| `api_base_env_var` | `str` | — | Optional env var for a custom base URL — e.g. Vercel AI Gateway. |
+| `temperature` | `float` | `0.2` | LLM temperature. |
+| `planner_max_tokens` | `int` | `400` | Max tokens for the planner's response. |
+| `tool_max_tokens` | `int` | `400` | Max tokens per tool call. |
+| `synthesis_max_tokens` | `int` | `600` | Max tokens for the synthesizer's response. |
+| `max_picks` | `int` | `4` | Upper bound on how many tools the planner may pick in one shot. The prompt tells the LLM 'pick minimum 1, maximum N'. Increase for larger tool sets. |
+| `synthesis_system_message` | `str` | — | Optional override for the synthesizer's system prompt. Default: 'You are a research synthesizer. Given the original task and the outputs from each picked tool, write a concise, grounded answer that cites which tool provided each fact.' |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition. |
 
 [//]: # (FIELDS:END)
 

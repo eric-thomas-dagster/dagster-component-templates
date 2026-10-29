@@ -94,7 +94,7 @@ gcs_monitor  →  [Dagster job]  →  gcs_to_database_asset
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.GCSToDatabaseAssetComponent
+type: dagster_community_components.GCSToDatabaseAssetComponent
 attributes:
   asset_name: gcs_events_ingest
   database_url_env_var: DATABASE_URL

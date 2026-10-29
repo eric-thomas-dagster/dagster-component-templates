@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToGcsComponent",
+  "component_type": "dagster_community_components.DataframeToGcsComponent",
   "description": "Write a DataFrame to Google Cloud Storage as Parquet, CSV, or JSON.",
   "category": "sink",
   "icon": "si:googlecloud",

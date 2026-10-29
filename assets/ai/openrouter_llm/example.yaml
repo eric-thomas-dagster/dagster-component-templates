@@ -1,4 +1,4 @@
-type: dagster_component_templates.OpenRouterLLMComponent
+type: dagster_community_components.OpenRouterLLMComponent
 attributes:
   asset_name: ticket_summaries
   upstream_asset_key: support_tickets

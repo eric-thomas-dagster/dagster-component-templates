@@ -1,4 +1,4 @@
-type: dagster_component_templates.OpenAIAgentComponent
+type: dagster_community_components.OpenAIAgentComponent
 attributes:
   asset_name: dagster_plus_agent_run
   prompt: "List the 5 most recent runs in this Dagster Cloud deployment. Return their run_id and status."

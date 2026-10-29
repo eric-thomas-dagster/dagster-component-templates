@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ImageExifExtractorComponent",
+  "component_type": "dagster_community_components.ImageExifExtractorComponent",
   "description": "ImageExifExtractorComponent \u2014 pull EXIF + IPTC + XMP-ish metadata from images.",
   "category": "transformation",
   "x-dagster-io": {

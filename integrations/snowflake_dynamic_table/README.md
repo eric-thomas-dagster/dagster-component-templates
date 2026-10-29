@@ -92,7 +92,7 @@ uvx --from dagster-community-components-cli dagster-component add snowflake_dyna
 See [`example.yaml`](https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/snowflake_dynamic_table/example.yaml) for a copy-pastable starting point.
 
 ```yaml
-type: dagster_component_templates.SnowflakeDynamicTableComponent
+type: dagster_community_components.SnowflakeDynamicTableComponent
 attributes:
   asset_name: paid_orders_dt
   dt_name: PAID_ORDERS_DT

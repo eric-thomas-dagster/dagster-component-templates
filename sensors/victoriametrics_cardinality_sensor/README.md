@@ -48,7 +48,7 @@ VM (like Prometheus) performs poorly past ~10M active series. Runaway cardinalit
 ## Example — pure warning mode (no target job)
 
 ```yaml
-type: dagster_component_templates.VictoriaMetricsCardinalitySensorComponent
+type: dagster_community_components.VictoriaMetricsCardinalitySensorComponent
 attributes:
   sensor_name: vm_high_cardinality_watch
   base_url_env_var: VM_BASE_URL
@@ -62,7 +62,7 @@ The sensor stays in **SkipReason mode** — every evaluation logs the current ca
 ## Example — alert with remediation job
 
 ```yaml
-type: dagster_component_templates.VictoriaMetricsCardinalitySensorComponent
+type: dagster_community_components.VictoriaMetricsCardinalitySensorComponent
 attributes:
   sensor_name: vm_cardinality_alert
   base_url_env_var: VM_BASE_URL

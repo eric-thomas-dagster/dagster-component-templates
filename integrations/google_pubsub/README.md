@@ -54,7 +54,7 @@ google-auth>=2.17.0
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.GooglePubSubComponent
+type: dagster_community_components.GooglePubSubComponent
 attributes:
   project_id: my-gcp-project
   credentials_path: "{{ env('GOOGLE_APPLICATION_CREDENTIALS') }}"

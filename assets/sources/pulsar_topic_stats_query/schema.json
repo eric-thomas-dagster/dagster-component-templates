@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PulsarTopicStatsQueryComponent",
+  "component_type": "dagster_community_components.PulsarTopicStatsQueryComponent",
   "name": "Pulsar Topic Stats",
   "category": "source",
   "icon": "si:apachepulsar",

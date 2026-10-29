@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MongodbReaderComponent",
+  "component_type": "dagster_community_components.MongodbReaderComponent",
   "description": "Component for reading documents from a MongoDB collection.",
   "category": "source",
   "icon": "si:mongodb",

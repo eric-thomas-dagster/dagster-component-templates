@@ -216,7 +216,7 @@ class BuildkiteIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.BuildkiteIngestionComponent
+        type: dagster_community_components.BuildkiteIngestionComponent
         attributes:
           asset_name: buildkite_ingestion
           api_token: "${BUILDKITE_API_TOKEN}"

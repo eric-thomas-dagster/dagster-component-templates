@@ -1,4 +1,4 @@
-type: dagster_component_templates.ExternalNatsAsset
+type: dagster_community_components.ExternalNatsAsset
 attributes:
   asset_key: streaming/events
   servers: nats://localhost:4222

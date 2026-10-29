@@ -47,7 +47,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.RecurlyResourceComponent
+type: dagster_community_components.RecurlyResourceComponent
 attributes:
   resource_key: recurly
   api_key_env_var: RECURLY_API_KEY

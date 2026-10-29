@@ -55,7 +55,7 @@ requests>=2.28.0
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.PolytomicAssetComponent
+type: dagster_community_components.PolytomicAssetComponent
 attributes:
   api_key_env_var: POLYTOMIC_API_KEY
   group_name: reverse_etl
@@ -66,7 +66,7 @@ attributes:
 Advanced example with filtering:
 
 ```yaml
-type: dagster_component_templates.PolytomicAssetComponent
+type: dagster_community_components.PolytomicAssetComponent
 attributes:
   api_key_env_var: POLYTOMIC_API_KEY
   group_name: reverse_etl

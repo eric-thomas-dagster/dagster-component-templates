@@ -120,7 +120,7 @@ The Insurance Claim Extractor Component uses a large language model to parse uns
 ### Basic Insurance Claim Extraction
 
 ```yaml
-type: dagster_component_templates.InsuranceClaimExtractorComponent
+type: dagster_community_components.InsuranceClaimExtractorComponent
 attributes:
   asset_name: parsed_insurance_claims
   upstream_asset_key: raw_insurance_claims

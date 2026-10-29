@@ -28,7 +28,7 @@ Wraps `dagster-msteams`'s `MSTeamsResource` so any asset / op can post messages 
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.MSTeamsResourceComponent
+type: dagster_community_components.MSTeamsResourceComponent
 attributes:
   webhook_url_env_var: MSTEAMS_WEBHOOK_URL
   timeout_seconds: 60

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CloseCrmIngestionComponent",
+  "component_type": "dagster_community_components.CloseCrmIngestionComponent",
   "description": "Ingest Close CRM data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "crm-sales",

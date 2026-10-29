@@ -1,4 +1,4 @@
-type: dagster_component_templates.SnowflakeAlertComponent
+type: dagster_community_components.SnowflakeAlertComponent
 attributes:
   asset_name: high_revenue_alert
   alert_name: HIGH_REVENUE_DAY_ALERT

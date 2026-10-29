@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CloudFunctionsInvokeAssetComponent",
+  "component_type": "dagster_community_components.CloudFunctionsInvokeAssetComponent",
   "description": "Invoke a deployed Cloud Function (gen 1 or gen 2) or Cloud Run-deployed function with automatic OIDC authentication. Static-call mode (single request) or per-row mode (one call per upstream DataFrame row, with payload_template column substitution).",
   "category": "infrastructure",
   "icon": "si:googlecloud",

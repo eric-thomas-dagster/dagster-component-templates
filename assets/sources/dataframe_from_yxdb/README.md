@@ -82,7 +82,7 @@ dagster-component add dataframe_from_yxdb --auto-install
 ## Example
 
 ```yaml
-type: dagster_component_templates.DataframeFromYxdbComponent
+type: dagster_community_components.DataframeFromYxdbComponent
 attributes:
   asset_name: customer_master_from_alteryx
   file_path: ${ALTERYX_DATA_DIR}/customers.yxdb

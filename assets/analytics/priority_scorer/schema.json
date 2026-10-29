@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PriorityScorerComponent",
+  "component_type": "dagster_community_components.PriorityScorerComponent",
   "description": "Component for scoring ticket priority and predicting SLA breaches.",
   "category": "analytics",
   "icon": "BarChart2",

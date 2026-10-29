@@ -3,7 +3,7 @@
 Write DataFrame rows to a Firestore collection — one document per row. Useful as a real-time-readable sink behind ML scoring tables, customer-360 denormalized views, dynamic config tables that mobile / web clients should be able to read directly.
 
 ```yaml
-type: dagster_component_templates.FirestoreWriterAssetComponent
+type: dagster_community_components.FirestoreWriterAssetComponent
 attributes:
   asset_name: customer_360_to_firestore
   upstream_asset_key: customer_360

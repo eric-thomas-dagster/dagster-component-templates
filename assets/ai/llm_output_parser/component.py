@@ -235,7 +235,7 @@ class LLMOutputParserComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LLMOutputParserComponent
+        type: dagster_community_components.LLMOutputParserComponent
         attributes:
           asset_name: parsed_output
           upstream_asset_key: llm_enriched_data

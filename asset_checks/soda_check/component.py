@@ -22,7 +22,7 @@ class SodaCheckComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SodaCheckComponent
+        type: dagster_community_components.SodaCheckComponent
         attributes:
           asset_key: warehouse/orders
           data_source_name: my_postgres

@@ -216,7 +216,7 @@ class OpsgenieIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.OpsgenieIngestionComponent
+        type: dagster_community_components.OpsgenieIngestionComponent
         attributes:
           asset_name: opsgenie_ingestion
           api_key: "${OPSGENIE_API_KEY}"

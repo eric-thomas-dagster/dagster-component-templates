@@ -1,4 +1,4 @@
-type: dagster_component_templates.IntercomResourceComponent
+type: dagster_community_components.IntercomResourceComponent
 attributes:
   resource_key: intercom
   api_token_env_var: INTERCOM_ACCESS_TOKEN

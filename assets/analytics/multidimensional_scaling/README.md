@@ -70,7 +70,7 @@ Applies Multidimensional Scaling (sklearn.manifold.MDS) to compress a high-dimen
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.MultidimensionalScalingComponent
+type: dagster_community_components.MultidimensionalScalingComponent
 attributes:
   asset_name: customers_mds_2d
   upstream_asset_key: customer_features

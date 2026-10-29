@@ -214,7 +214,7 @@ class DataframeToODataComponent(Component, Model, Resolvable):
     Example — POST new business partners to S/4HANA:
 
         ```yaml
-        type: dagster_component_templates.DataframeToODataComponent
+        type: dagster_community_components.DataframeToODataComponent
         attributes:
           asset_name: business_partners_posted
           upstream_asset_key: new_business_partners

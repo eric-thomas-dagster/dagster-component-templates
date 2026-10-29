@@ -216,7 +216,7 @@ class FreshserviceIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.FreshserviceIngestionComponent
+        type: dagster_community_components.FreshserviceIngestionComponent
         attributes:
           asset_name: freshservice_ingestion
           domain: "mycompany.freshservice.com"

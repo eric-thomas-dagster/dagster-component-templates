@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CloudDlpInspectAssetComponent",
+  "component_type": "dagster_community_components.CloudDlpInspectAssetComponent",
   "description": "CloudDlpInspectAssetComponent \u2014 scan DataFrame text columns for PII via Cloud DLP.",
   "category": "ai",
   "x-dagster-io": {

@@ -1,4 +1,4 @@
-type: dagster_component_templates.SpatialClusterComponent
+type: dagster_community_components.SpatialClusterComponent
 attributes:
   description: Cluster store visit events by geographic proximity using DBSCAN.
   asset_name: store_visits_clustered

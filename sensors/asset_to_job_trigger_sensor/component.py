@@ -95,7 +95,7 @@ class AssetToJobTriggerSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
 
-        type: dagster_component_templates.AssetToJobTriggerSensorComponent
+        type: dagster_community_components.AssetToJobTriggerSensorComponent
         attributes:
           sensor_name: electricera_pipe_to_dbt_trigger_sensor
           monitored_selection: "group:electricera_snowpipes"

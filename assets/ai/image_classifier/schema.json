@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ImageClassifierComponent",
+  "component_type": "dagster_community_components.ImageClassifierComponent",
   "description": "Classify images using CLIP zero-shot or torchvision pre-trained models, returning top-N labels and confidence scores.",
   "category": "ai",
   "icon": "Tag",

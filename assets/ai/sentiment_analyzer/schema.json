@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SentimentAnalyzerComponent",
+  "component_type": "dagster_community_components.SentimentAnalyzerComponent",
   "description": "Component for analyzing sentiment in text.",
   "category": "ai",
   "icon": "Sparkles",

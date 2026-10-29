@@ -1,4 +1,4 @@
-type: dagster_component_templates.FieldMapperComponent
+type: dagster_community_components.FieldMapperComponent
 attributes:
   asset_name: normalized_events
   upstream_asset_key: raw_mongo_events

@@ -3,7 +3,7 @@
 Parse ASC X12 EDI envelopes (the dominant US-domestic B2B / healthcare exchange format) into a flat DataFrame with one row per ST/SE transaction set. ISA + GS envelope context is inherited as columns.
 
 ```yaml
-type: dagster_component_templates.X12EdiParserComponent
+type: dagster_community_components.X12EdiParserComponent
 attributes:
   asset_name: edi_transactions
   upstream_asset_key: x12_messages

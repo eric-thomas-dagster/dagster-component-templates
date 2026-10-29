@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.XeroResourceComponent",
+  "component_type": "dagster_community_components.XeroResourceComponent",
   "description": "Register a XeroResource wrapping the Xero Accounting API. OAuth2 refresh-token flow (client_id/client_secret/refresh_token posted as form fields, not Basic auth). Every request carries an Xero-tenant-id header -- the tenant id is auto-discovered via GET /connections unless supplied explicitly. Exposes a generic request().",
   "category": "resource",
   "icon": "si:xero",

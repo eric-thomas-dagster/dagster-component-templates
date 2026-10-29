@@ -3,7 +3,7 @@
 Pull N frames per video as image files via ffmpeg. Emits a NEW DataFrame with one row per extracted frame — fan-out from each upstream video.
 
 ```yaml
-type: dagster_component_templates.VideoFrameExtractAssetComponent
+type: dagster_community_components.VideoFrameExtractAssetComponent
 attributes:
   asset_name: video_frames
   upstream_asset_key: sample_videos

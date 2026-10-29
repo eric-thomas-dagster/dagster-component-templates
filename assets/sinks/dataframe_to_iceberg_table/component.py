@@ -254,7 +254,7 @@ class DataframeToIcebergTableComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.DataframeToIcebergTableComponent
+        type: dagster_community_components.DataframeToIcebergTableComponent
         attributes:
           asset_name: orders_iceberg_loaded
           upstream_asset_key: curated_orders

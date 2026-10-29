@@ -216,7 +216,7 @@ class XeroIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.XeroIngestionComponent
+        type: dagster_community_components.XeroIngestionComponent
         attributes:
           asset_name: xero_ingestion
           client_id: "${XERO_CLIENT_ID}"

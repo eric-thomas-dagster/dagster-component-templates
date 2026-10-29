@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.HubSpotResourceComponent",
+  "component_type": "dagster_community_components.HubSpotResourceComponent",
   "description": "Register a HubSpotResource wrapping the hubspot-api-client for use by other components",
   "category": "resource",
   "icon": "si:hubspot",

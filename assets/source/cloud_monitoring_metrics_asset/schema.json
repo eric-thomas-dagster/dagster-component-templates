@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CloudMonitoringMetricsAssetComponent",
+  "component_type": "dagster_community_components.CloudMonitoringMetricsAssetComponent",
   "description": "CloudMonitoringMetricsAssetComponent \u2014 pull GCP time-series metrics into a DataFrame.",
   "category": "source",
   "x-dagster-io": {

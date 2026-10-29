@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.AirflowDagProxyComponent",
+  "component_type": "dagster_community_components.AirflowDagProxyComponent",
   "description": "Convert an Airflow DAG to Dagster definitions via dagster-airflow.",
   "category": "integration",
   "icon": "ArrowRight",

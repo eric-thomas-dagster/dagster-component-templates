@@ -87,7 +87,7 @@ class WarehouseFilterComponent(Component, Model, Resolvable):
     """Filter rows in the warehouse via CTAS — no data through Python.
 
     Example:
-        type: dagster_component_templates.WarehouseFilterComponent
+        type: dagster_community_components.WarehouseFilterComponent
         attributes:
           asset_name: paid_orders
           database_url: snowflake://user:pass@account/db/schema?warehouse=COMPUTE_WH

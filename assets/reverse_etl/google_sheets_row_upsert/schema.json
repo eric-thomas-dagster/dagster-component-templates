@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GoogleSheetsRowUpsertComponent",
+  "component_type": "dagster_community_components.GoogleSheetsRowUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into a Google Sheets worksheet. Google Sheets has no upsert concept at the API level: this reads the entire worksheet, matches existing rows against key_column locally, updates changed rows in place, and appends new ones.",
   "category": "reverse_etl",
   "icon": "si:googlesheets",

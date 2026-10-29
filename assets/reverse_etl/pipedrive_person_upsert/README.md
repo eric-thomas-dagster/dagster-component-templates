@@ -88,7 +88,7 @@ Reverse-ETL sink: mirror an upstream DataFrame into **Pipedrive persons** via **
 
 ## Example
 ```yaml
-type: dagster_component_templates.PipedrivePersonUpsertComponent
+type: dagster_community_components.PipedrivePersonUpsertComponent
 attributes:
   asset_name: pipedrive_persons_mirror
   upstream_asset_key: dbt_marts_customers

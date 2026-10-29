@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MarketingDataStandardizerComponent",
+  "component_type": "dagster_community_components.MarketingDataStandardizerComponent",
   "description": "Component for standardizing marketing data across platforms.",
   "category": "analytics",
   "icon": "BarChart2",

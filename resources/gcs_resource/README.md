@@ -33,7 +33,7 @@ Register a dagster-gcp GCSResource for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.GCSResourceComponent
+type: dagster_community_components.GCSResourceComponent
 attributes:
   resource_key: gcs_resource  # key other components use
   # Required

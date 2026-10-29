@@ -1,4 +1,4 @@
-type: dagster_component_templates.SnowflakeMaterializedViewComponent
+type: dagster_community_components.SnowflakeMaterializedViewComponent
 attributes:
   asset_name: customer_ltv_mv
   mv_name: CUSTOMER_LIFETIME_VALUE_MV

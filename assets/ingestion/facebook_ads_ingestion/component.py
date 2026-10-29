@@ -224,7 +224,7 @@ class FacebookAdsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.FacebookAdsIngestionComponent
+        type: dagster_community_components.FacebookAdsIngestionComponent
         attributes:
           asset_name: facebook_ads_data
           account_id: act_123456789

@@ -101,7 +101,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.JiraServiceManagementIngestionComponent
+type: dagster_community_components.JiraServiceManagementIngestionComponent
 attributes:
   asset_name: jira_service_management_ingestion
   site_domain: "mysite"

@@ -143,7 +143,7 @@ class NetSuiteRecordUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.NetSuiteRecordUpsertComponent
+        type: dagster_community_components.NetSuiteRecordUpsertComponent
         attributes:
           asset_name: netsuite_customers_mirror
           upstream_asset_key: dbt_marts_customers

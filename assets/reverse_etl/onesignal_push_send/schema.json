@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OneSignalPushSendComponent",
+  "component_type": "dagster_community_components.OneSignalPushSendComponent",
   "description": "Reverse-ETL message activation: send a personalized push notification via the OneSignal REST API (`POST /notifications`, Subscription-ID targeting) to each row of an upstream DataFrame. Sends REAL push notifications the moment this asset materializes -- no upload-for-later-matching indirection.",
   "category": "reverse_etl",
   "icon": "si:onesignal",

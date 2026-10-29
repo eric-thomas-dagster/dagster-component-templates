@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataplexDqScanResultsAssetComponent",
+  "component_type": "dagster_community_components.DataplexDqScanResultsAssetComponent",
   "description": "DataplexDqScanResultsAssetComponent \u2014 pull the latest Dataplex Data-Quality scan results.",
   "category": "source",
   "x-dagster-io": {

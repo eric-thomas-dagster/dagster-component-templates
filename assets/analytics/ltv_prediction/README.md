@@ -158,7 +158,7 @@ Returns one row per customer with LTV predictions:
 ### Basic LTV Prediction
 
 ```yaml
-type: dagster_component_templates.LTVPredictionComponent
+type: dagster_community_components.LTVPredictionComponent
 attributes:
   asset_name: customer_ltv
   prediction_period_months: 24
@@ -168,7 +168,7 @@ attributes:
 ### With Custom Thresholds
 
 ```yaml
-type: dagster_component_templates.LTVPredictionComponent
+type: dagster_community_components.LTVPredictionComponent
 attributes:
   asset_name: high_value_customers
   prediction_period_months: 36
@@ -184,7 +184,7 @@ attributes:
 # In Dagster Designer, draw an edge from:
 # shopify_orders → customer_ltv
 
-type: dagster_component_templates.LTVPredictionComponent
+type: dagster_community_components.LTVPredictionComponent
 attributes:
   asset_name: customer_ltv
   prediction_period_months: 24

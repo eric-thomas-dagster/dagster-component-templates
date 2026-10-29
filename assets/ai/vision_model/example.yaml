@@ -1,4 +1,4 @@
-type: dagster_component_templates.VisionModelComponent
+type: dagster_community_components.VisionModelComponent
 attributes:
   asset_name: product_image_analysis
 

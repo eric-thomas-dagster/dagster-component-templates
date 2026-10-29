@@ -75,7 +75,7 @@ Writes a Pandas DataFrame to a Parquet file. This is a terminal sink component â
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.DataframeToParquetComponent
+type: dagster_community_components.DataframeToParquetComponent
 attributes:
   asset_name: write_events_parquet
   upstream_asset_key: processed_events

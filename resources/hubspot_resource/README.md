@@ -42,7 +42,7 @@ pip install hubspot-api-client
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.HubSpotResourceComponent
+type: dagster_community_components.HubSpotResourceComponent
 attributes:
   resource_key: hubspot_resource  # key other components use
   access_token_env_var: HUBSPOT_ACCESS_TOKEN  # env var name holding the token

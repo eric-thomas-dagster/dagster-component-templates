@@ -120,7 +120,7 @@ The Invoice Extractor Component uses a large language model to parse unstructure
 ### Basic Invoice Extraction
 
 ```yaml
-type: dagster_component_templates.InvoiceExtractorComponent
+type: dagster_community_components.InvoiceExtractorComponent
 attributes:
   asset_name: parsed_invoices
   upstream_asset_key: raw_invoice_text
@@ -138,7 +138,7 @@ attributes:
 ### Custom Fields with Anthropic
 
 ```yaml
-type: dagster_component_templates.InvoiceExtractorComponent
+type: dagster_community_components.InvoiceExtractorComponent
 attributes:
   asset_name: parsed_invoices
   upstream_asset_key: raw_invoice_text
@@ -163,7 +163,7 @@ attributes:
 ### File Path Input
 
 ```yaml
-type: dagster_component_templates.InvoiceExtractorComponent
+type: dagster_community_components.InvoiceExtractorComponent
 attributes:
   asset_name: parsed_invoices
   upstream_asset_key: invoice_file_list

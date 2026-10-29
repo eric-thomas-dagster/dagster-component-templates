@@ -1,7 +1,7 @@
 # execution_mode: sql on Snowflake (Cortex), learning from retrieval receipts that live in Snowflake tables.
 # One CREATE OR REPLACE TABLE statement chunks, stamps provenance, joins the receipt feedback, classifies and embeds; the corpus never leaves Snowflake.
 # Create the receipt tables with receipt_table_ddl(dataset, prefix, "snowflake") (the block inlined in component.py) or load them with your receipt writer.
-type: dagster_component_templates.ContextEngineeringPipelineComponent
+type: dagster_community_components.ContextEngineeringPipelineComponent
 attributes:
   asset_name: support_kb_sf
   source:

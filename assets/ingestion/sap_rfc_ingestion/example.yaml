@@ -1,4 +1,4 @@
-type: dagster_component_templates.SapRFCIngestionComponent
+type: dagster_community_components.SapRFCIngestionComponent
 attributes:
   asset_name: material_master
   sap_rfc_resource_key: sap_ecc      # registered via sap_rfc_resource

@@ -98,7 +98,7 @@ The `MongodbReaderComponent` connects to a MongoDB instance and reads documents 
 ### Basic read (all documents)
 
 ```yaml
-type: dagster_component_templates.MongodbReaderComponent
+type: dagster_community_components.MongodbReaderComponent
 attributes:
   asset_name: mongo_products
   database: ecommerce
@@ -108,7 +108,7 @@ attributes:
 ### Filtered and sorted read
 
 ```yaml
-type: dagster_component_templates.MongodbReaderComponent
+type: dagster_community_components.MongodbReaderComponent
 attributes:
   asset_name: active_users
   database: myapp
@@ -125,7 +125,7 @@ attributes:
 ### With field projection
 
 ```yaml
-type: dagster_component_templates.MongodbReaderComponent
+type: dagster_community_components.MongodbReaderComponent
 attributes:
   asset_name: user_emails
   database: myapp

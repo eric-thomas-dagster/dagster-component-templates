@@ -272,7 +272,7 @@ class SmartsheetResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.SmartsheetResourceComponent
+        type: dagster_community_components.SmartsheetResourceComponent
         attributes:
           resource_key: smartsheet
           access_token_env_var: SMARTSHEET_ACCESS_TOKEN

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DominoDataLabIngestionComponent",
+  "component_type": "dagster_community_components.DominoDataLabIngestionComponent",
   "description": "Ingest Domino Data Lab user, project, and environment metadata using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "devops-observability",

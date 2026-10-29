@@ -66,7 +66,7 @@ This component does not read from or write to Sqs. It is a **lineage declaration
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ExternalSqsAsset
+type: dagster_community_components.ExternalSqsAsset
 attributes:
   asset_key: my_service/asset
   queue_url: my_queue_url
@@ -81,7 +81,7 @@ Set `create_observation_sensor: true` to also get the polling sensor that keeps 
 health/data-version current — one component, one YAML, no manual `asset_key` wiring:
 
 ```yaml
-type: dagster_component_templates.ExternalSqsAsset
+type: dagster_community_components.ExternalSqsAsset
 attributes:
   asset_key: external/sqs
   queue_url: QUEUE_URL
@@ -95,7 +95,7 @@ asset and sensor on independent lifecycles), pair this component with the standa
 
 ```yaml
 # 1. Declare the external asset (lineage node)
-type: dagster_component_templates.ExternalSqsAsset
+type: dagster_community_components.ExternalSqsAsset
 attributes:
   asset_key: external/sqs
   queue_url: QUEUE_URL
@@ -103,7 +103,7 @@ attributes:
 ---
 
 # 2. Observe it on a schedule
-type: dagster_component_templates.SqsObservationSensorComponent
+type: dagster_community_components.SqsObservationSensorComponent
 attributes:
   sensor_name: sqs_asset_observer
   asset_key: external/sqs

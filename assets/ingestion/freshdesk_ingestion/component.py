@@ -223,7 +223,7 @@ class FreshdeskIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.FreshdeskIngestionComponent
+        type: dagster_community_components.FreshdeskIngestionComponent
         attributes:
           asset_name: freshdesk_data
           api_key: "{{ env('FRESHDESK_API_KEY') }}"

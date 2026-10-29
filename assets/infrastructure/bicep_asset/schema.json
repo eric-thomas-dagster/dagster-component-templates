@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BicepAssetComponent",
+  "component_type": "dagster_community_components.BicepAssetComponent",
   "description": "Deploy a Bicep template as a Dagster asset (compiles via `az bicep build` then deploys via ARM).",
   "category": "infrastructure",
   "x-dagster-io": {

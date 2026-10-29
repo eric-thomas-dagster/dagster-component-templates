@@ -383,7 +383,7 @@ class LiteLLMInferenceAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.LiteLLMInferenceAssetComponent
+        type: dagster_community_components.LiteLLMInferenceAssetComponent
         attributes:
           asset_name: enriched_support_tickets
           upstream_asset_key: raw_support_tickets

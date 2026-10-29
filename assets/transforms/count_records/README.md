@@ -105,7 +105,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.CountRecordsComponent
+type: dagster_community_components.CountRecordsComponent
 attributes:
   asset_name: orders_by_status
   upstream_asset_key: cleaned_orders
@@ -120,7 +120,7 @@ attributes:
 ### Simple Count Example
 
 ```yaml
-type: dagster_component_templates.CountRecordsComponent
+type: dagster_community_components.CountRecordsComponent
 attributes:
   asset_name: total_row_count
   upstream_asset_key: raw_events

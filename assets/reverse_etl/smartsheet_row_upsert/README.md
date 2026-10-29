@@ -88,7 +88,7 @@ Both write endpoints cap out at **500 rows per API call**; `add_rows` / `update_
 
 ## Example
 ```yaml
-type: dagster_component_templates.SmartsheetRowUpsertComponent
+type: dagster_community_components.SmartsheetRowUpsertComponent
 attributes:
   asset_name: smartsheet_tasks_mirror
   upstream_asset_key: tasks_seed

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PersonioResourceComponent",
+  "component_type": "dagster_community_components.PersonioResourceComponent",
   "description": "Register a PersonioResource wrapping the personio-py client for use by other components",
   "category": "resource",
   "icon": "si:personio",

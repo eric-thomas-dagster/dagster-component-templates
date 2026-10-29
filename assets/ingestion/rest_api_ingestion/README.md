@@ -141,7 +141,7 @@ This asset component makes HTTP requests to REST API endpoints and materializes 
 ### Basic GET Request
 
 ```yaml
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: users_data
   api_url: https://api.example.com/users
@@ -152,7 +152,7 @@ attributes:
 ### With Query Parameters
 
 ```yaml
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: filtered_data
   api_url: https://api.example.com/data
@@ -163,7 +163,7 @@ attributes:
 ### With Bearer Token Authentication
 
 ```yaml
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: protected_api_data
   api_url: https://api.example.com/protected/data
@@ -175,7 +175,7 @@ attributes:
 ### With Custom Headers
 
 ```yaml
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: api_with_headers
   api_url: https://api.example.com/data
@@ -186,7 +186,7 @@ attributes:
 ### POST Request with Body
 
 ```yaml
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: create_record
   api_url: https://api.example.com/records
@@ -199,7 +199,7 @@ attributes:
 ### Extract Nested Data with JSON Path
 
 ```yaml
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: nested_data
   api_url: https://api.example.com/response
@@ -210,7 +210,7 @@ attributes:
 ### With Caching
 
 ```yaml
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: cached_api_data
   api_url: https://api.example.com/data
@@ -319,7 +319,7 @@ json_path: data.results
 ### 1. Daily API Data Fetch
 
 ```yaml
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: daily_metrics
   api_url: https://api.example.com/metrics/daily
@@ -338,7 +338,7 @@ Create multiple assets for different pages:
 
 ```yaml
 # Page 1
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: data_page_1
   api_url: https://api.example.com/data
@@ -349,7 +349,7 @@ attributes:
 ### 3. External Data Integration
 
 ```yaml
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: weather_data
   api_url: https://api.weather.com/v3/current
@@ -361,7 +361,7 @@ attributes:
 ### 4. Webhook Response Data
 
 ```yaml
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: webhook_response
   api_url: https://api.example.com/webhook/data

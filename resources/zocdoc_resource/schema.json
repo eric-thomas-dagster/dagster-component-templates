@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ZocdocResourceComponent",
+  "component_type": "dagster_community_components.ZocdocResourceComponent",
   "description": "Register a ZocdocResource (OAuth2 client_credentials grant) wrapping Zocdoc's partner-gated Developer Platform API for use by other components. No self-serve signup -- Zocdoc must approve the integration before calls work.",
   "category": "resource",
   "icon": "HeartPulse",

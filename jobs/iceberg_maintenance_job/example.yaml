@@ -1,4 +1,4 @@
-type: dagster_component_templates.IcebergMaintenanceJobComponent
+type: dagster_community_components.IcebergMaintenanceJobComponent
 attributes:
   job_name: weekly_iceberg_maintenance
   schedule: "0 4 * * 0"   # Sundays 4am UTC

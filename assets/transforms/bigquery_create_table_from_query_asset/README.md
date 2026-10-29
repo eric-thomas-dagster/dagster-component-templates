@@ -3,7 +3,7 @@
 Materialize a SELECT as a real BigQuery table / view / materialized view. The transform layer of any BQ-native ELT.
 
 ```yaml
-type: dagster_component_templates.BigQueryCreateTableFromQueryAssetComponent
+type: dagster_community_components.BigQueryCreateTableFromQueryAssetComponent
 attributes:
   asset_name: orders_clean
   credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}

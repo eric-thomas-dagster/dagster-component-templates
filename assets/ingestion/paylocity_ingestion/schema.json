@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PaylocityIngestionComponent",
+  "component_type": "dagster_community_components.PaylocityIngestionComponent",
   "description": "Ingest Paylocity payroll/HR data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "finance-hr",

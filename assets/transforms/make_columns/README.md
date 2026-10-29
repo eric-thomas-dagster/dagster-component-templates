@@ -117,7 +117,7 @@ Values are distributed in column-first order (interleaved across columns).
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.MakeColumnsComponent
+type: dagster_community_components.MakeColumnsComponent
 attributes:
   asset_name: features_wide
   upstream_asset_key: feature_list
@@ -131,7 +131,7 @@ attributes:
 ### Two-Column Grid Example
 
 ```yaml
-type: dagster_component_templates.MakeColumnsComponent
+type: dagster_community_components.MakeColumnsComponent
 attributes:
   asset_name: tags_wide
   upstream_asset_key: tag_list

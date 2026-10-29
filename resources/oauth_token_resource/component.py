@@ -44,7 +44,7 @@ class OAuthTokenResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     Example — Ariba (client_credentials):
 
         ```yaml
-        type: dagster_component_templates.OAuthTokenResourceComponent
+        type: dagster_community_components.OAuthTokenResourceComponent
         attributes:
           resource_key: ariba_token
           token_endpoint: https://api.ariba.com/v2/oauth/token
@@ -57,7 +57,7 @@ class OAuthTokenResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     Example — Concur (refresh_token, with rotation):
 
         ```yaml
-        type: dagster_component_templates.OAuthTokenResourceComponent
+        type: dagster_community_components.OAuthTokenResourceComponent
         attributes:
           resource_key: concur_token
           token_endpoint: https://us.api.concursolutions.com/oauth2/v0/token

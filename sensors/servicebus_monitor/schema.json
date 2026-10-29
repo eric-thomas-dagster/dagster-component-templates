@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ServiceBusMonitorSensorComponent",
+  "component_type": "dagster_community_components.ServiceBusMonitorSensorComponent",
   "description": "Component for polling an Azure Service Bus queue or topic subscription.",
   "category": "sensor",
   "icon": "si:microsoftazure",

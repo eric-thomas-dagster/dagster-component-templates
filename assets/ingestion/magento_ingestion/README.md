@@ -101,7 +101,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.MagentoIngestionComponent
+type: dagster_community_components.MagentoIngestionComponent
 attributes:
   asset_name: magento_ingestion
   instance_url: "https://mystore.example.com"

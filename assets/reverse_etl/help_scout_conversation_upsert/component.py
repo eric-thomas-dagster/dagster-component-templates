@@ -132,7 +132,7 @@ class HelpScoutConversationUpsertComponent(dg.Component, dg.Model, dg.Resolvable
 
     Example:
         ```yaml
-        type: dagster_component_templates.HelpScoutConversationUpsertComponent
+        type: dagster_community_components.HelpScoutConversationUpsertComponent
         attributes:
           asset_name: help_scout_conversations_mirror
           upstream_asset_key: warehouse_support_events

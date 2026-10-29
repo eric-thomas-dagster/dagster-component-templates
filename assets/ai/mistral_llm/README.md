@@ -5,7 +5,7 @@ Native Mistral AI LLM inference via Mistral's OpenAI-compatible API. Drop-in pee
 Mistral's API is wire-compatible with OpenAI's Chat Completions format at `POST https://api.mistral.ai/v1/chat/completions`: the same `choices[].message.content` / `usage` response shape. Swap in a Mistral API key and model name and the standard `openai` Python client works unchanged — no dedicated resource needed.
 
 ```yaml
-type: dagster_component_templates.MistralLLMComponent
+type: dagster_community_components.MistralLLMComponent
 attributes:
   asset_name: ticket_summaries
   upstream_asset_key: support_tickets

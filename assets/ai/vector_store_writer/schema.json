@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.VectorStoreWriterComponent",
+  "component_type": "dagster_community_components.VectorStoreWriterComponent",
   "description": "Component for writing embeddings to vector stores.",
   "category": "ai",
   "icon": "Sparkles",

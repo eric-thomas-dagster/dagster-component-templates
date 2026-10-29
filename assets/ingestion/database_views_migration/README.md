@@ -84,7 +84,7 @@ Pipe the asset to `dataframe_to_csv` for a migration completion report artifact.
 ## Example: migrate all views from Postgres `app` schema to DuckDB `raw`
 
 ```yaml
-type: dagster_component_templates.DatabaseViewsMigrationComponent
+type: dagster_community_components.DatabaseViewsMigrationComponent
 attributes:
   asset_name: all_views_migrated
   source_connection_env_var: SOURCE_DB_URL
@@ -102,7 +102,7 @@ attributes:
 Then write the report to CSV:
 
 ```yaml
-type: dagster_component_templates.DataframeToCsvComponent
+type: dagster_community_components.DataframeToCsvComponent
 attributes:
   asset_name: views_migration_report
   upstream_asset_key: all_views_migrated

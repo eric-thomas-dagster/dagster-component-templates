@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SnowflakeMaterializedViewComponent",
+  "component_type": "dagster_community_components.SnowflakeMaterializedViewComponent",
   "description": "Define a Snowflake MATERIALIZED VIEW. Requires Enterprise+ edition. Materialization runs CREATE OR REPLACE MATERIALIZED VIEW.",
   "category": "integration",
   "icon": "si:snowflake",

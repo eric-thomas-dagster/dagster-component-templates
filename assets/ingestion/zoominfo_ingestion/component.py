@@ -328,7 +328,7 @@ class ZoomInfoIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ZoomInfoIngestionComponent
+        type: dagster_community_components.ZoomInfoIngestionComponent
         attributes:
           asset_name: zoominfo_ingestion
           client_id: "${ZOOMINFO_CLIENT_ID}"

@@ -216,7 +216,7 @@ class AdpWorkforceNowIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.AdpWorkforceNowIngestionComponent
+        type: dagster_community_components.AdpWorkforceNowIngestionComponent
         attributes:
           asset_name: adp_workforce_now_ingestion
           access_token: "${ADP_ACCESS_TOKEN}"

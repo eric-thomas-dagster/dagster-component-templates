@@ -101,7 +101,7 @@ The `RedisWriterComponent` accepts an upstream DataFrame asset and writes each r
 ### Write as hashes (recommended for structured data)
 
 ```yaml
-type: dagster_component_templates.RedisWriterComponent
+type: dagster_community_components.RedisWriterComponent
 attributes:
   asset_name: write_user_features_to_redis
   upstream_asset_key: computed_user_features
@@ -114,7 +114,7 @@ attributes:
 ### Write as JSON strings
 
 ```yaml
-type: dagster_component_templates.RedisWriterComponent
+type: dagster_community_components.RedisWriterComponent
 attributes:
   asset_name: write_product_cache
   upstream_asset_key: enriched_products
@@ -126,7 +126,7 @@ attributes:
 ### Append to lists
 
 ```yaml
-type: dagster_component_templates.RedisWriterComponent
+type: dagster_community_components.RedisWriterComponent
 attributes:
   asset_name: write_events_to_redis_list
   upstream_asset_key: new_events

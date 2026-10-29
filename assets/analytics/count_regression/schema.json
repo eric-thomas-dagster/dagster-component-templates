@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CountRegressionComponent",
+  "component_type": "dagster_community_components.CountRegressionComponent",
   "description": "Fit a Poisson regression for count outcomes and emit predictions.",
   "category": "analytics",
   "icon": "Calculator",

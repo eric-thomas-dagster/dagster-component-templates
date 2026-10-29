@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GoogleCloudRunJobsComponent",
+  "component_type": "dagster_community_components.GoogleCloudRunJobsComponent",
   "description": "Component for importing Google Cloud Run Jobs as Dagster assets.",
   "category": "integration",
   "icon": "si:googlecloud",

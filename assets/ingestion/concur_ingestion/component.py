@@ -216,7 +216,7 @@ class ConcurIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ConcurIngestionComponent
+        type: dagster_community_components.ConcurIngestionComponent
         attributes:
           asset_name: concur_ingestion
           access_token: "${CONCUR_ACCESS_TOKEN}"

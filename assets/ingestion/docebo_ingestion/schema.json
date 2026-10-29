@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DoceboIngestionComponent",
+  "component_type": "dagster_community_components.DoceboIngestionComponent",
   "description": "Ingest Docebo LMS user, course, and enrollment data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "finance-hr",

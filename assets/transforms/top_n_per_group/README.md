@@ -103,7 +103,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 Top 3 products per category by revenue:
 
 ```yaml
-type: dagster_component_templates.TopNPerGroupComponent
+type: dagster_community_components.TopNPerGroupComponent
 attributes:
   asset_name: top_products
   upstream_asset_key: product_sales
@@ -116,7 +116,7 @@ attributes:
 5 most recent orders per customer:
 
 ```yaml
-type: dagster_component_templates.TopNPerGroupComponent
+type: dagster_community_components.TopNPerGroupComponent
 attributes:
   asset_name: recent_orders_per_customer
   upstream_asset_key: orders
@@ -128,7 +128,7 @@ attributes:
 Bottom 10 (slowest) queries per host:
 
 ```yaml
-type: dagster_component_templates.TopNPerGroupComponent
+type: dagster_community_components.TopNPerGroupComponent
 attributes:
   asset_name: slowest_queries
   upstream_asset_key: query_log

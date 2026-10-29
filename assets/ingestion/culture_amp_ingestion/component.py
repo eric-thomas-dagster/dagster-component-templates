@@ -319,7 +319,7 @@ class CultureAmpIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.CultureAmpIngestionComponent
+        type: dagster_community_components.CultureAmpIngestionComponent
         attributes:
           asset_name: culture_amp_ingestion
           client_id: "${CULTURE_AMP_CLIENT_ID}"

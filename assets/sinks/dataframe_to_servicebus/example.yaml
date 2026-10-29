@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeToServiceBusComponent
+type: dagster_community_components.DataframeToServiceBusComponent
 attributes:
   asset_name: dataframe_to_servicebus_output
   upstream_asset_key: orders_raw

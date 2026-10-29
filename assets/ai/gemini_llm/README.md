@@ -134,7 +134,7 @@ The asset still materializes — one bad row doesn't fail the whole job.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.GeminiLLMComponent
+type: dagster_community_components.GeminiLLMComponent
 attributes:
   asset_name: ticket_summaries
   upstream_asset_key: support_tickets

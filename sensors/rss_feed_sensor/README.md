@@ -31,7 +31,7 @@ Polls a public RSS or Atom feed and triggers a RunRequest for each new entry see
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.RssFeedSensorComponent
+type: dagster_community_components.RssFeedSensorComponent
 attributes:
   sensor_name: hn_top_sensor
   asset_keys: [latest_news_summary]

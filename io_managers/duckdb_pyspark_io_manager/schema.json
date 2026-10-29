@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DuckDBPySparkIOManagerComponent",
+  "component_type": "dagster_community_components.DuckDBPySparkIOManagerComponent",
   "description": "Wrap dagster-duckdb-pyspark so PySpark DataFrames persist to DuckDB.",
   "category": "io_manager",
   "icon": "si:duckdb",

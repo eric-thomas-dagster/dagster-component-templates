@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BigtableReaderAssetComponent",
+  "component_type": "dagster_community_components.BigtableReaderAssetComponent",
   "description": "BigtableReaderAssetComponent — read rows from a Cloud Bigtable table into a DataFrame.",
   "category": "source",
   "x-dagster-io": {

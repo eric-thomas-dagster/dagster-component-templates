@@ -108,7 +108,7 @@ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa.json
 ## Example — explicit IDs
 
 ```yaml
-type: dagster_component_templates.GoogleDocsExtractorComponent
+type: dagster_community_components.GoogleDocsExtractorComponent
 attributes:
   asset_name: doc_texts
   credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
@@ -126,7 +126,7 @@ Two components, with the Docs extractor consuming the Drive listing:
 
 ```yaml
 # defs/drive_docs_listing/defs.yaml
-type: dagster_component_templates.GoogleDriveIngestionComponent
+type: dagster_community_components.GoogleDriveIngestionComponent
 attributes:
   asset_name: drive_docs_listing
   credentials_path: ${GOOGLE_APPLICATION_CREDENTIALS}
@@ -137,7 +137,7 @@ attributes:
 
 ```yaml
 # defs/doc_texts/defs.yaml
-type: dagster_component_templates.GoogleDocsExtractorComponent
+type: dagster_community_components.GoogleDocsExtractorComponent
 attributes:
   asset_name: doc_texts
   upstream_asset_key: drive_docs_listing

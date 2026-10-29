@@ -33,7 +33,7 @@ Register a dagster-datadog DatadogResource for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.DatadogResourceComponent
+type: dagster_community_components.DatadogResourceComponent
 attributes:
   resource_key: datadog_resource  # key other components use
   # Required

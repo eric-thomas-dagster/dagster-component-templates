@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MistralOcrComponent",
+  "component_type": "dagster_community_components.MistralOcrComponent",
   "description": "Native Mistral AI Document OCR via client.ocr.process -- a dedicated OCR model, not a chat-completions call. Trained on documents: multi-column layouts, tables, and multi-page PDFs come back as structured markdown, unlike local Tesseract OCR. Sibling of ocr_extractor (local-only, images only).",
   "category": "ai",
   "icon": "si:mistralai",

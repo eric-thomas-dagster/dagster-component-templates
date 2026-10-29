@@ -55,7 +55,7 @@ Register a `MagentoResource` wrapping the Magento/Adobe Commerce REST API for us
 ## Example
 
 ```yaml
-type: dagster_component_templates.MagentoResourceComponent
+type: dagster_community_components.MagentoResourceComponent
 attributes:
   resource_key: magento
   instance_url: "https://mystore.example.com"

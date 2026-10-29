@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PinotSqlQueryComponent",
+  "component_type": "dagster_community_components.PinotSqlQueryComponent",
   "name": "Pinot SQL Query",
   "category": "source",
   "icon": "si:apachepinot",

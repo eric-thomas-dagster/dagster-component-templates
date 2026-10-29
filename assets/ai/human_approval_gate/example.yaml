@@ -15,7 +15,7 @@
 # Pair with FilesystemMonitorSensorComponent pointed at `approval_dir` to
 # auto-progress the graph the moment a token drops (no manual re-materialize).
 
-type: dagster_component_templates.HumanApprovalGateComponent
+type: dagster_community_components.HumanApprovalGateComponent
 attributes:
   asset_name: response_approved
   upstream_asset_key: draft_response
@@ -26,7 +26,7 @@ attributes:
 
 # Partitioned example (per-case gating):
 #
-# type: dagster_component_templates.HumanApprovalGateComponent
+# type: dagster_community_components.HumanApprovalGateComponent
 # attributes:
 #   asset_name: response_approved
 #   upstream_asset_key: draft_response

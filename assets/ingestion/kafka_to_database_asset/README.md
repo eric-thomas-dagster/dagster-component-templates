@@ -104,7 +104,7 @@ kafka_monitor  →  [Dagster job]  →  kafka_to_database_asset
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.KafkaToDatabaseAssetComponent
+type: dagster_community_components.KafkaToDatabaseAssetComponent
 attributes:
   asset_name: kafka_events_ingest
   bootstrap_servers_env_var: KAFKA_BOOTSTRAP_SERVERS

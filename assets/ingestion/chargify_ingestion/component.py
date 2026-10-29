@@ -216,7 +216,7 @@ class ChargifyIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.ChargifyIngestionComponent
+        type: dagster_community_components.ChargifyIngestionComponent
         attributes:
           asset_name: chargify_ingestion
           subdomain: "mysite"

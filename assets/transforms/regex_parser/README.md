@@ -106,7 +106,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 ## YAML Example
 
 ```yaml
-type: dagster_component_templates.RegexParser
+type: dagster_community_components.RegexParser
 attributes:
   asset_name: extracted_phone_parts
   upstream_asset_key: raw_contacts

@@ -333,7 +333,7 @@ class CampaignPerformanceComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.CampaignPerformanceComponent
+        type: dagster_community_components.CampaignPerformanceComponent
         attributes:
           asset_name: campaign_performance
           upstream_asset_key: campaign_metrics

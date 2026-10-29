@@ -1,4 +1,4 @@
-type: dagster_component_templates.SyntheticVideoGeneratorComponent
+type: dagster_community_components.SyntheticVideoGeneratorComponent
 attributes:
   asset_name: sample_videos
   output_dir: /tmp/synthetic_videos

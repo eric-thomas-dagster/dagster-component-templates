@@ -71,7 +71,7 @@ Tile the bounding box of the input geometries (or an explicit bbox) into a regul
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.MakeGridComponent
+type: dagster_community_components.MakeGridComponent
 attributes:
   asset_name: city_grid_cells
   upstream_asset_key: cities_with_geometry

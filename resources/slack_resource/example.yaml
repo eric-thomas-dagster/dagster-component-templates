@@ -1,4 +1,4 @@
-type: dagster_component_templates.SlackResourceComponent
+type: dagster_community_components.SlackResourceComponent
 attributes:
   resource_key: slack_resource
   token_env_var: MY_TOKEN_ENV_VAR

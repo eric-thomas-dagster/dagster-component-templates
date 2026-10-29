@@ -274,7 +274,7 @@ class OrbIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.OrbIngestionComponent
+        type: dagster_community_components.OrbIngestionComponent
         attributes:
           asset_name: orb_ingestion
           api_key: "${ORB_API_KEY}"

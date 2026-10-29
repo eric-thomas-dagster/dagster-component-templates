@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BigQueryMLTrainAssetComponent",
+  "component_type": "dagster_community_components.BigQueryMLTrainAssetComponent",
   "description": "Train a BigQuery ML model from a SELECT statement. Supports LINEAR_REG, LOGISTIC_REG, ARIMA_PLUS, KMEANS, DNN_*, BOOSTED_TREE_*, AUTOML_*, MATRIX_FACTORIZATION, etc. — ML in pure SQL.",
   "category": "ai",
   "icon": "si:googlebigquery",

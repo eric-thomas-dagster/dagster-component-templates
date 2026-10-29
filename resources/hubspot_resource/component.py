@@ -294,7 +294,7 @@ class HubSpotResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.HubSpotResourceComponent
+        type: dagster_community_components.HubSpotResourceComponent
         attributes:
           resource_key: hubspot
           access_token_env_var: HUBSPOT_ACCESS_TOKEN

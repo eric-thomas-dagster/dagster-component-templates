@@ -128,7 +128,7 @@ class FreshserviceTicketUpsertComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example -- upstream asset:
         ```yaml
-        type: dagster_component_templates.FreshserviceTicketUpsertComponent
+        type: dagster_community_components.FreshserviceTicketUpsertComponent
         attributes:
           asset_name: freshservice_tickets_from_alerts
           upstream_asset_key: alerts_to_tickets

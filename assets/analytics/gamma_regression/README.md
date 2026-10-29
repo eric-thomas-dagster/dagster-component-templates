@@ -75,7 +75,7 @@ Fits a Gamma GLM (log link) for strictly-positive continuous outcomes like dolla
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.GammaRegressionComponent
+type: dagster_community_components.GammaRegressionComponent
 attributes:
   asset_name: claim_amount_predictions
   upstream_asset_key: insurance_claims

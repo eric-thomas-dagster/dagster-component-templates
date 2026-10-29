@@ -1,4 +1,4 @@
-type: dagster_component_templates.SentimentAnalyzerComponent
+type: dagster_community_components.SentimentAnalyzerComponent
 attributes:
   asset_name: sentiment_analyzed_reviews
   upstream_asset_key: raw_text

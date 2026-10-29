@@ -349,7 +349,7 @@ class PriorityScorerComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.PriorityScorerComponent
+        type: dagster_community_components.PriorityScorerComponent
         attributes:
           asset_name: prioritized_tickets
           method: rules

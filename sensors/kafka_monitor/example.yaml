@@ -1,4 +1,4 @@
-type: dagster_component_templates.KafkaMonitorSensorComponent
+type: dagster_community_components.KafkaMonitorSensorComponent
 attributes:
   sensor_name: kafka_events_sensor
   bootstrap_servers: broker1:9092,broker2:9092

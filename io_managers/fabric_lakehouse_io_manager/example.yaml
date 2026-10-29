@@ -1,4 +1,4 @@
-type: dagster_component_templates.FabricLakehouseIOManagerComponent
+type: dagster_community_components.FabricLakehouseIOManagerComponent
 attributes:
   resource_key: io_manager
   workspace_id: 00000000-0000-0000-0000-000000000000

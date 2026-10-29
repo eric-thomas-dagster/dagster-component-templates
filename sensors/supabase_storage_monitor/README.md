@@ -58,7 +58,7 @@ Requires a `SupabaseResource` (see `resources/supabase_resource`) providing the 
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.SupabaseStorageMonitorComponent
+type: dagster_community_components.SupabaseStorageMonitorComponent
 attributes:
   sensor_name: supabase_incoming_files_sensor
   bucket_name: incoming

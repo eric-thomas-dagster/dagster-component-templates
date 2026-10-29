@@ -70,7 +70,7 @@ Fits ordinary least squares using sklearn's SplineTransformer to allow smooth no
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.SplineModelComponent
+type: dagster_community_components.SplineModelComponent
 attributes:
   asset_name: temperature_predictions
   upstream_asset_key: weather_features

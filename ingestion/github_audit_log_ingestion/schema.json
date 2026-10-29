@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GithubAuditLogIngestionComponent",
+  "component_type": "dagster_community_components.GithubAuditLogIngestionComponent",
   "description": "Pull GitHub Enterprise / Org audit log via /orgs/:org/audit-log.",
   "category": "security",
   "vertical": "security",

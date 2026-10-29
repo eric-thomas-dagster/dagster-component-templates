@@ -1,4 +1,4 @@
-type: dagster_component_templates.LegalDocumentExtractorComponent
+type: dagster_community_components.LegalDocumentExtractorComponent
 attributes:
   asset_name: extracted_legal_documents
   upstream_asset_key: raw_legal_documents

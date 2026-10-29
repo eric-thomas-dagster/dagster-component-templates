@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GreenhouseHarvestIngestionComponent",
+  "component_type": "dagster_community_components.GreenhouseHarvestIngestionComponent",
   "description": "Ingest Greenhouse recruiting data using dlt's generic REST API source (Harvest API).",
   "category": "ingestion",
   "vertical": "finance-hr",

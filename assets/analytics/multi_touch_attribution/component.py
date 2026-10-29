@@ -336,7 +336,7 @@ class MultiTouchAttributionComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.MultiTouchAttributionComponent
+        type: dagster_community_components.MultiTouchAttributionComponent
         attributes:
           asset_name: channel_attribution
           upstream_asset_key: marketing_touchpoints

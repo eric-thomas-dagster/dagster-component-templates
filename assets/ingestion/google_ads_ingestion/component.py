@@ -223,7 +223,7 @@ class GoogleAdsIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.GoogleAdsIngestionComponent
+        type: dagster_community_components.GoogleAdsIngestionComponent
         attributes:
           asset_name: google_ads_data
           customer_id: "1234567890"

@@ -1,4 +1,4 @@
-type: dagster_component_templates.DeltaIngestionComponent
+type: dagster_community_components.DeltaIngestionComponent
 attributes:
   asset_name: events_delta
 

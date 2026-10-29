@@ -240,7 +240,7 @@ class FileTransformerComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.FileTransformerComponent
+        type: dagster_community_components.FileTransformerComponent
         attributes:
           asset_name: transform_csv_to_parquet
           output_format: parquet

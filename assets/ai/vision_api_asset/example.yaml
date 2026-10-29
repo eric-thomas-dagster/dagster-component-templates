@@ -1,4 +1,4 @@
-type: dagster_component_templates.VisionApiAssetComponent
+type: dagster_community_components.VisionApiAssetComponent
 attributes:
   asset_name: image_analysis
   upstream_asset_key: product_images

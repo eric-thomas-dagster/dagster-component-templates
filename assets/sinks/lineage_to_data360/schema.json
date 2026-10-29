@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.LineageToData360Component",
+  "component_type": "dagster_community_components.LineageToData360Component",
   "description": "Lineage → Precisely Data360 Govern — sink asset that depends on lineage_graph.\n\nExample:\n    ```yaml\n    type: dagster_community_components.LineageToData360Component\n    attributes:\n      asset_name: lineage_to_data360\n      upstream_asset_key: lineage_graph\n      catalog_url: https://api.data.precisely.com/data360/catalog\n      client_id_env: PRECISELY_DIS_CLIENT_ID\n      client_secret_env: PRECISELY_DIS_CLIENT_SECRET\n    ```\n\nPair with the registry's ``lineage_graph_extractor`` component as\nthe upstream — it produces the canonical lineage payload every\n``lineage_to_*`` sink consumes.",
   "category": "sink",
   "icon": "Network",

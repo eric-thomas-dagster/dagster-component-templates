@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GoogleAdsCustomerMatchUpsertComponent",
+  "component_type": "dagster_community_components.GoogleAdsCustomerMatchUpsertComponent",
   "description": "Reverse-ETL / audience activation: upload an upstream DataFrame into a Google Ads Customer Match user list via OfflineUserDataJobService. Identifiers (email/phone) are normalized and SHA-256 hashed before upload — never sent to Google in plaintext. Supports both 'add' (activation) and 'remove' (suppression) operations.",
   "category": "reverse_etl",
   "icon": "si:googleads",

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PulsarMonitorSensorComponent",
+  "component_type": "dagster_community_components.PulsarMonitorSensorComponent",
   "description": "Component for monitoring an Apache Pulsar topic for new messages.",
   "category": "sensor",
   "icon": "si:apachepulsar",

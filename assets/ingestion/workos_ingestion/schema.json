@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WorkOSIngestionComponent",
+  "component_type": "dagster_community_components.WorkOSIngestionComponent",
   "description": "Ingest WorkOS SSO/directory-sync data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "security",

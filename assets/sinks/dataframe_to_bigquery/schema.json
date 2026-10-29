@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataframeToBigqueryComponent",
+  "component_type": "dagster_community_components.DataframeToBigqueryComponent",
   "description": "Write a DataFrame to a Google BigQuery table.",
   "category": "sink",
   "icon": "si:googlebigquery",

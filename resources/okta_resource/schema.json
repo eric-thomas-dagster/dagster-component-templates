@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.OktaResourceComponent",
+  "component_type": "dagster_community_components.OktaResourceComponent",
   "description": "Register an OktaResource (OAuth2 client_credentials grant against an Okta API Service Integration) wrapping the Okta Users API for use by other components. Exposes only find/create/update/deactivate -- never delete.",
   "category": "resource",
   "icon": "si:okta",

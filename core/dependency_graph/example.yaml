@@ -1,7 +1,7 @@
 # Dependency Graph Component
 # Wires up dependencies between assets from different components
 
-type: dagster_component_templates.DependencyGraphComponent
+type: dagster_community_components.DependencyGraphComponent
 attributes:
   edges:
     - source: api_data

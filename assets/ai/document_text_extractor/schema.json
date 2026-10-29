@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DocumentTextExtractorComponent",
+  "component_type": "dagster_community_components.DocumentTextExtractorComponent",
   "description": "Component for extracting text from documents.",
   "category": "ai",
   "icon": "Sparkles",

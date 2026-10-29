@@ -1,4 +1,4 @@
-type: dagster_component_templates.RevenueAttributionComponent
+type: dagster_community_components.RevenueAttributionComponent
 attributes:
   asset_name: revenue_attribution
 

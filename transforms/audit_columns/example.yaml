@@ -1,4 +1,4 @@
-type: dagster_component_templates.AuditColumnsComponent
+type: dagster_community_components.AuditColumnsComponent
 attributes:
   asset_name: audit_columns_output
   upstream_asset_key: upstream_data

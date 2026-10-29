@@ -1,4 +1,4 @@
-type: dagster_component_templates.ABTrendComponent
+type: dagster_community_components.ABTrendComponent
 attributes:
   asset_name: checkout_v2_daily_trend
   upstream_asset_key: experiment_data

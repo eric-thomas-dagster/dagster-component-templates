@@ -79,7 +79,7 @@ Rule of thumb: if each step deserves its own catalog entry + lineage, use per-as
 ## YAML
 
 ```yaml
-type: dagster_component_templates.PolarsPipelineComponent
+type: dagster_community_components.PolarsPipelineComponent
 attributes:
   asset_name: top_customers_by_region
   upstream_asset_key: raw_orders

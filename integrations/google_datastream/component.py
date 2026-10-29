@@ -66,7 +66,7 @@ class GoogleDatastreamComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.GoogleDatastreamComponent
+        type: dagster_community_components.GoogleDatastreamComponent
         attributes:
           project_id: my-gcp-project
           location: us-central1

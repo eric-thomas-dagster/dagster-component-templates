@@ -3,7 +3,7 @@
 Per-row image analysis via Google Cloud Vision. Pass a column of image references (local paths, `gs://` URIs, or HTTP URLs) and one or more feature types; the component returns the upstream DataFrame with new `vision_*` columns per feature.
 
 ```yaml
-type: dagster_component_templates.VisionApiAssetComponent
+type: dagster_community_components.VisionApiAssetComponent
 attributes:
   asset_name: product_image_analysis
   upstream_asset_key: product_images

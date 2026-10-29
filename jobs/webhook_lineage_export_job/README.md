@@ -32,7 +32,7 @@ The POST body is the raw lineage payload:
 ## YAML example
 
 ```yaml
-type: dagster_component_templates.WebhookLineageExportJobComponent
+type: dagster_community_components.WebhookLineageExportJobComponent
 attributes:
   job_name: push_dagster_lineage_to_webhook
   schedule: "0 3 * * *"

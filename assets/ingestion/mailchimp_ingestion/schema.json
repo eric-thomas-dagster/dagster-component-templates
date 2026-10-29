@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MailchimpIngestionComponent",
+  "component_type": "dagster_community_components.MailchimpIngestionComponent",
   "description": "Ingest Mailchimp marketing data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "marketing",

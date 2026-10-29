@@ -25,7 +25,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.SalesloftResourceComponent
+type: dagster_community_components.SalesloftResourceComponent
 attributes:
   resource_key: salesloft_resource
   api_key_env_var: SALESLOFT_API_KEY

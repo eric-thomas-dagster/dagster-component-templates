@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DagsterAssetMaterializationPruneJobComponent",
+  "component_type": "dagster_community_components.DagsterAssetMaterializationPruneJobComponent",
   "description": "Op-shaped job that wipes asset materialization history for configured assets, preserving the last N via synthetic re-emission tagged _re_emitted_by_prune_job=true.",
   "category": "jobs",
   "icon": "Trash",

@@ -1,4 +1,4 @@
-type: dagster_component_templates.DuckDBResourceComponent
+type: dagster_community_components.DuckDBResourceComponent
 attributes:
   resource_key: duckdb_resource
   database: ":memory:"

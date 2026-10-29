@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ModerationScorerComponent",
+  "component_type": "dagster_community_components.ModerationScorerComponent",
   "description": "Component for scoring content for moderation decisions.",
   "category": "ai",
   "icon": "Sparkles",

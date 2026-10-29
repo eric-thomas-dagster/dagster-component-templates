@@ -85,7 +85,7 @@ class GeminiAgentComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.GeminiAgentComponent
+        type: dagster_community_components.GeminiAgentComponent
         attributes:
           asset_name: dagster_plus_gemini_agent
           prompt: "Summarize the last 5 runs in this Dagster+ deployment."

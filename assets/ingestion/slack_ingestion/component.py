@@ -223,7 +223,7 @@ class SlackIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.SlackIngestionComponent
+        type: dagster_community_components.SlackIngestionComponent
         attributes:
           asset_name: slack_data
           api_token: "{{ env('SLACK_API_TOKEN') }}"

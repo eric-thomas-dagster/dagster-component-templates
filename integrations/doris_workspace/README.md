@@ -51,7 +51,7 @@ Each asset is an `@observable_source_asset` that polls `information_schema.table
 ## Example — minimal
 
 ```yaml
-type: dagster_component_templates.DorisWorkspaceComponent
+type: dagster_community_components.DorisWorkspaceComponent
 attributes:
   host: doris.mycompany.com
   database: analytics
@@ -64,7 +64,7 @@ Discovers every table / view / MV in every non-system schema. Asset keys are `<s
 ## Example — filtered + grouped
 
 ```yaml
-type: dagster_component_templates.DorisWorkspaceComponent
+type: dagster_community_components.DorisWorkspaceComponent
 attributes:
   host: doris.mycompany.com
   database: analytics

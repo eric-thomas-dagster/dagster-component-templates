@@ -1,4 +1,4 @@
-type: dagster_component_templates.DorisWorkspaceComponent
+type: dagster_community_components.DorisWorkspaceComponent
 attributes:
   host: doris.mycompany.com
   query_port: 9030

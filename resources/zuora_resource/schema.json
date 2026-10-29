@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ZuoraResourceComponent",
+  "component_type": "dagster_community_components.ZuoraResourceComponent",
   "description": "Register a ZuoraResource wrapping the Zuora REST API. OAuth2 client-credentials flow -- Zuora deprecated session-based Z-Session auth for all tenants on 2024-08-01, so OAuth2 is the only supported mechanism now. Exposes a generic request() plus query() (ZOQL via POST /v1/action/query, used for lookup-before-write since the generic Object CRUD API has no filter-by-field GET).",
   "category": "resource",
   "icon": "Repeat",

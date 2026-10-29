@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DataCleansingComponent",
+  "component_type": "dagster_community_components.DataCleansingComponent",
   "description": "Fix common data quality issues in string columns of a DataFrame.",
   "category": "transformation",
   "icon": "Shuffle",

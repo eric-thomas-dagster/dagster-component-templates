@@ -3,7 +3,7 @@
 ffmpeg-based audio resample / convert / trim / normalize. Reads a column of audio file paths, applies the configured ffmpeg ops per row, writes new files.
 
 ```yaml
-type: dagster_component_templates.AudioTransformAssetComponent
+type: dagster_community_components.AudioTransformAssetComponent
 attributes:
   asset_name: whisper_ready_audio
   upstream_asset_key: raw_audio

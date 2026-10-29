@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MondayIngestionComponent",
+  "component_type": "dagster_community_components.MondayIngestionComponent",
   "description": "Ingest monday.com board/item/user data via its GraphQL API.",
   "category": "ingestion",
   "vertical": "productivity",

@@ -79,51 +79,31 @@ Every feed with a top-level `schedule:` field auto-registers a `ScheduleDefiniti
 
 | Field | Type | Description |
 |---|---|---|
-| `asset_name` | `str` | Output Dagster asset name |
+| `feeds_dir` | `str` | Path (relative to component YAML dir, or absolute) to the folder containing feed config files. Every `.json` / `.yaml` / `.yml` file at the top level becomes one Dagster multi_asset via PySparkPipelineComponent. |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `group_name` | `str` | — | — |
-| `description` | `str` | — | — |
-| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
-| `kinds` | `List[str]` | — | — |
-| `owners` | `List[str]` | — | — |
-| `deps` | `List[str]` | — | — |
-
-### Partitions
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `partition_type` | `str` | — | Partition type of this feed's asset ('daily', 'weekly', 'monthly', 'hourly', 'static', 'dynamic'), from the feed's `partitions:` block. |
-| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
-| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
-| `partition_start` | `str` | — | Start date for time partitions (ISO). |
-| `partition_values` | `Union[str, List[str]]` | — | Keys for static partitions. |
+| `group_name` | `str` | — | Fallback Dagster group name (feed-level `group_name` overrides). |
+| `kinds` | `List[str]` | — | Fallback asset kinds. Default: ['pyspark', 'spark']. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Fallback catalog tags (feed-level tags overlay). |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `spark_config` | `Dict[str, Any]` | — | SparkConf options. Stringified before passing to .config(...). |
-| `spark_app_name` | `str` | `"dagster-pyspark-pipeline"` | — |
-| `source` | `Dict[str, Any]` | — | Top-level single-source shape: {kind: parquet\|csv\|json\|orc\|delta\|table\|jdbc\|upstream, ...} |
-| `operations` | `List[Dict[str, Any]]` | — | — |
-| `sink` | `Dict[str, Any]` | — | Top-level single-sink shape. |
-| `upstream_asset_key` | `Union[str, List[str]]` | — | Only when (flat shape) source.kind='upstream'. |
-| `steps` | `List[Dict[str, Any]]` | — | Named steps. Each: {id, source: {kind: parquet\|table\|jdbc\|upstream\|ref\|..., ...}, operations: [...]} |
-| `sinks` | `List[Dict[str, Any]]` | — | Sinks. Each: {from: <step_id>, kind: parquet\|csv\|json\|delta\|table\|jdbc, path/table/url, mode}. |
-| `variables` | `Dict[str, Any]` | — | Feed-level constants available at run time via {{ vars.<key> }} in condition when: / for_each over: / SQL where relevant. Merged with prior-run `checkpoint.*` values (see checkpoint_dir). |
-| `checkpoint_dir` | `str` | — | Directory (relative to project root, or absolute) where `type: checkpoint` steps persist named values across runs. Default `checkpoints/` under the project root. On each run, `checkpoints/<asset_name>.json` is loaded and… _(full docs in schema.json + component README)_ |
-| `dynamic_partition_name` | `str` | — | Name for dynamic partitions. |
+| `file_glob` | `str` | `"*.json,*.yaml,*.yml"` | Comma-separated glob patterns for feed files (default matches JSON + YAML). |
+| `spark_config` | `Dict[str, Any]` | — | Base SparkConf applied to every feed. Feed-level `spark_config` overlays. |
+| `spark_app_name_prefix` | `str` | `"dagster-pyspark-feed"` | Spark app name is `<prefix>-<feed_name>`. |
+| `checkpoint_dir` | `str` | — | Checkpoint directory passed to every feed's PySparkPipelineComponent. Each feed writes `<checkpoint_dir>/<feed_name>.json`. |
 
 [//]: # (FIELDS:END)
 
 ## Example
 
 ```yaml
-type: dagster_component_templates.PySparkFeedOrchestratorComponent
+type: dagster_community_components.PySparkFeedOrchestratorComponent
 attributes:
   feeds_dir: feeds
   file_glob: "*.json,*.yaml,*.yml"

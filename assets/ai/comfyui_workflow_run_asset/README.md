@@ -91,7 +91,7 @@ ComfyUI's real power -- checkpoints, LoRAs, ControlNet, inpainting/masking, img2
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.ComfyUIWorkflowRunAssetComponent
+type: dagster_community_components.ComfyUIWorkflowRunAssetComponent
 attributes:
   asset_name: product_hero_image
   comfyui_url: http://comfyui-server:8188

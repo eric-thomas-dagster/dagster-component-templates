@@ -83,7 +83,7 @@ Then point this component at it via the `service_name` field.
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.SnowflakeCortexSearchComponent
+type: dagster_community_components.SnowflakeCortexSearchComponent
 attributes:
   asset_name: cortex_search_results
   account:     "{{ env('SNOWFLAKE_ACCOUNT') }}"

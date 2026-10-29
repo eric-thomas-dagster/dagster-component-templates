@@ -20,7 +20,7 @@ class CoalesceJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.CoalesceJobSensorComponent
+        type: dagster_community_components.CoalesceJobSensorComponent
         attributes:
           sensor_name: coalesce_transform_done
           environment_id: "my-env-id"

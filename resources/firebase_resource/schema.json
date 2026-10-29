@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FirebaseResourceComponent",
+  "component_type": "dagster_community_components.FirebaseResourceComponent",
   "description": "Register a Firebase Admin SDK resource (Firestore + Cloud Storage + Realtime DB) for use by other components.",
   "category": "resource",
   "icon": "si:firebase",

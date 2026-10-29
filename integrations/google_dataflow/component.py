@@ -67,7 +67,7 @@ class GoogleDataflowComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.GoogleDataflowComponent
+        type: dagster_community_components.GoogleDataflowComponent
         attributes:
           project_id: my-gcp-project
           location: us-central1

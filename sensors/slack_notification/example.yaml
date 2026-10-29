@@ -1,4 +1,4 @@
-type: dagster_component_templates.SlackNotificationSensorComponent
+type: dagster_community_components.SlackNotificationSensorComponent
 attributes:
   sensor_name: alert_monitor_sensor
   slack_token: ${SLACK_TOKEN}

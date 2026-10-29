@@ -168,7 +168,7 @@ class DocuSignResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.DocuSignResourceComponent
+        type: dagster_community_components.DocuSignResourceComponent
         attributes:
           resource_key: docusign_resource
           integration_key: "{{ env('DOCUSIGN_INTEGRATION_KEY') }}"

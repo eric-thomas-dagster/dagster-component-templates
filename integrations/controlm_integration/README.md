@@ -120,33 +120,55 @@ Not a Control-M killer. If you're doing a full migration off Control-M, the `air
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `job_name` | `str` | Control-M job name (as it appears in the folder definition). |
-| `asset_name` | `str` | Dagster asset name that wraps this job. |
-
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `host` | `str` | — | Control-M agent / server host that runs the job. |
+| `endpoint` | `str` | `"https://controlm.internal:8443/automation-api"` | Control-M Automation API base URL (used when demo_mode=false). |
+
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `poll_interval_seconds` | `int` | `10` | Seconds between Control-M status polls. |
+| `max_retries` | `int` | `2` | Dagster-side asset retries on failure. |
 
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `description` | `str` | — | Prose description shown in the Dagster UI. |
+| `group_name` | `str` | `"controlm_integration"` | Dagster asset group for the job assets. |
+
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_start_date` | `str` | `"2024-01-01"` | Start date for the daily partitioned assets (ODATE origin). |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_delay_seconds` | `int` | `60` | Delay between Dagster asset retries. |
+
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `source_tables` | `List[ControlMSourceTableSpec]` | `list()` | Tables loaded by Control-M that Dagster observes (adds to lineage). |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `folder` | `str` | — | Control-M folder that owns the job. |
-| `application` | `str` | — | Control-M application tag (e.g. CORE_BANKING). |
-| `sub_application` | `str` | — | Control-M sub-application tag (e.g. SETTLEMENT). |
-| `run_as` | `str` | `"svc_dagster"` | OS user Control-M runs the job as. |
+| `demo_mode` | `bool` | `true` | Simulate the Automation API on stdout (no external calls). |
+| `jobs` | `List[ControlMJobSpec]` | `list()` | Control-M jobs to wrap as daily-partitioned Dagster assets. |
+| `upstream_deps` | `List[str]` | `list()` | Upstream asset keys (slash-separated for nested keys) that must complete before jobs run. |
+| `controlm_user_env` | `str` | `"CONTROLM_USER"` | Env var holding the Automation API username. |
+| `controlm_password_env` | `str` | `"CONTROLM_PASSWORD"` | Env var holding the Automation API password. |
+| `poll_timeout_seconds` | `int` | `3600` | Total seconds to wait for terminal status before failing. |
+| `spool_retrieval` | `bool` | `true` | Retrieve job spool output on completion. |
+| `reconciliation_cron` | `str` | `"0 * * * *"` | Cron for the Control-M vs Dagster state reconciliation job. |
 
 [//]: # (FIELDS:END)
 

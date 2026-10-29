@@ -161,7 +161,7 @@ Order/transaction item data:
 ### Collaborative Filtering (Most Common)
 
 ```yaml
-type: dagster_component_templates.ProductRecommendationsComponent
+type: dagster_community_components.ProductRecommendationsComponent
 attributes:
   asset_name: product_recommendations
   recommendation_type: collaborative
@@ -173,7 +173,7 @@ attributes:
 ### Popular Products
 
 ```yaml
-type: dagster_component_templates.ProductRecommendationsComponent
+type: dagster_community_components.ProductRecommendationsComponent
 attributes:
   asset_name: popular_product_recommendations
   recommendation_type: popular
@@ -184,7 +184,7 @@ attributes:
 ### Frequently Bought Together (Bundles)
 
 ```yaml
-type: dagster_component_templates.ProductRecommendationsComponent
+type: dagster_community_components.ProductRecommendationsComponent
 attributes:
   asset_name: product_bundles
   recommendation_type: frequently_bought_together

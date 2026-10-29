@@ -38,7 +38,7 @@ Register a dagster-aws RedshiftClientResource for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.RedshiftResourceComponent
+type: dagster_community_components.RedshiftResourceComponent
 attributes:
   resource_key: redshift_resource  # key other components use
   # Required

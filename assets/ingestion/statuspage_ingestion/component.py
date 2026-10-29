@@ -216,7 +216,7 @@ class StatuspageIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.StatuspageIngestionComponent
+        type: dagster_community_components.StatuspageIngestionComponent
         attributes:
           asset_name: statuspage_ingestion
           page_id: "${STATUSPAGE_PAGE_ID}"

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ABTreatmentsComponent",
+  "component_type": "dagster_community_components.ABTreatmentsComponent",
   "description": "Deterministically assign each user to a control/treatment variant via hashing.",
   "category": "analytics",
   "icon": "GitBranch",

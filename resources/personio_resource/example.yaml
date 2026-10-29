@@ -1,4 +1,4 @@
-type: dagster_component_templates.PersonioResourceComponent
+type: dagster_community_components.PersonioResourceComponent
 attributes:
   resource_key: personio_resource
   client_id_env_var: PERSONIO_CLIENT_ID

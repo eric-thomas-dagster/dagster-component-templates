@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TectonAssetComponent",
+  "component_type": "dagster_community_components.TectonAssetComponent",
   "description": "Trigger Tecton feature view materialization jobs via the Tecton SDK.",
   "category": "analytics",
   "icon": "BarChart2",

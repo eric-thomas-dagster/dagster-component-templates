@@ -91,7 +91,7 @@ All segments are lowercased and non-alphanumeric characters are replaced with `_
 ### Minimal — all projects, all scenarios
 
 ```yaml
-type: dagster_component_templates.DataikuAssetComponent
+type: dagster_community_components.DataikuAssetComponent
 attributes:
   host_env_var: DATAIKU_HOST
   api_key_env_var: DATAIKU_API_KEY
@@ -100,7 +100,7 @@ attributes:
 ### Specific projects with filtering
 
 ```yaml
-type: dagster_component_templates.DataikuAssetComponent
+type: dagster_community_components.DataikuAssetComponent
 attributes:
   host_env_var: DATAIKU_HOST
   api_key_env_var: DATAIKU_API_KEY
@@ -114,7 +114,7 @@ attributes:
 ### Advanced — prefix filter, key prefix, longer timeout
 
 ```yaml
-type: dagster_component_templates.DataikuAssetComponent
+type: dagster_community_components.DataikuAssetComponent
 attributes:
   host_env_var: DATAIKU_HOST
   api_key_env_var: DATAIKU_API_KEY

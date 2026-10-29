@@ -29,7 +29,7 @@ Wraps `dagster-hex` to model a Hex project as a Dagster asset — materializing 
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.HexProjectAssetsComponent
+type: dagster_community_components.HexProjectAssetsComponent
 attributes:
   api_key_env_var: <fill in>
   project_id: <fill in>

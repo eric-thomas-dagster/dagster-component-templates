@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GongResourceComponent",
+  "component_type": "dagster_community_components.GongResourceComponent",
   "description": "Register a GongResource wrapping Gong API v2 Basic Auth credentials for use by other components",
   "category": "resource",
   "icon": "si:gong",

@@ -140,7 +140,7 @@ You will also need the appropriate SQLAlchemy dialect driver for your source dat
 ### Log metrics from a training table
 
 ```yaml
-type: dagster_component_templates.WandbAssetComponent
+type: dagster_community_components.WandbAssetComponent
 attributes:
   asset_name: model_training_run
   project: churn-prediction
@@ -164,7 +164,7 @@ attributes:
 ### Upload a model checkpoint
 
 ```yaml
-type: dagster_component_templates.WandbAssetComponent
+type: dagster_community_components.WandbAssetComponent
 attributes:
   asset_name: model_checkpoint_upload
   project: churn-prediction
@@ -209,7 +209,7 @@ Instead of `upstream_asset_key`, set `source` to run a SQL query and feed its ro
 `source` is only valid in `mode: log_metrics` (the DataFrame-input mode); `log_artifact` takes no DataFrame input.
 
 ```yaml
-type: dagster_component_templates.WandbAssetComponent
+type: dagster_community_components.WandbAssetComponent
 attributes:
   asset_name: model_training_run
   mode: log_metrics

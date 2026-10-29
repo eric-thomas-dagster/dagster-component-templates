@@ -1,4 +1,4 @@
-type: dagster_component_templates.CommunityComponentInstallerComponent
+type: dagster_community_components.CommunityComponentInstallerComponent
 attributes:
   components:
     # Latest from main:

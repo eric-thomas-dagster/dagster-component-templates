@@ -98,7 +98,7 @@ The `ElasticsearchReaderComponent` connects to an Elasticsearch cluster and exec
 ### Simple text search
 
 ```yaml
-type: dagster_component_templates.ElasticsearchReaderComponent
+type: dagster_community_components.ElasticsearchReaderComponent
 attributes:
   asset_name: product_search
   index_name: products
@@ -112,7 +112,7 @@ attributes:
 ### Query DSL
 
 ```yaml
-type: dagster_component_templates.ElasticsearchReaderComponent
+type: dagster_community_components.ElasticsearchReaderComponent
 attributes:
   asset_name: recent_errors
   index_name: application_logs
@@ -132,7 +132,7 @@ attributes:
 ### Authenticated cluster
 
 ```yaml
-type: dagster_component_templates.ElasticsearchReaderComponent
+type: dagster_community_components.ElasticsearchReaderComponent
 attributes:
   asset_name: secured_search
   index_name: documents

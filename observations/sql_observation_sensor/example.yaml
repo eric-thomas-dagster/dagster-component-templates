@@ -1,4 +1,4 @@
-type: dagster_component_templates.SqlObservationSensorComponent
+type: dagster_community_components.SqlObservationSensorComponent
 attributes:
   sensor_name: sql_orders_obs
   asset_key: db/orders

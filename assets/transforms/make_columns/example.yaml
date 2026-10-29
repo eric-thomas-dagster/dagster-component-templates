@@ -1,4 +1,4 @@
-type: dagster_component_templates.MakeColumnsComponent
+type: dagster_community_components.MakeColumnsComponent
 attributes:
   asset_name: features_wide
   upstream_asset_key: feature_list

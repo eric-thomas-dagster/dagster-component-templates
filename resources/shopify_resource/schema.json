@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ShopifyResourceComponent",
+  "component_type": "dagster_community_components.ShopifyResourceComponent",
   "description": "Register a ShopifyResource wrapping the ShopifyAPI client for use by other components",
   "category": "resource",
   "icon": "si:shopify",

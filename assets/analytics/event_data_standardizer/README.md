@@ -165,7 +165,7 @@ Standardized event data with unified schema:
 ### Segment Events Standardization
 
 ```yaml
-type: dagster_component_templates.EventDataStandardizerComponent
+type: dagster_community_components.EventDataStandardizerComponent
 attributes:
   asset_name: standardized_events
   platform: segment
@@ -176,7 +176,7 @@ attributes:
 ### With Filtering
 
 ```yaml
-type: dagster_component_templates.EventDataStandardizerComponent
+type: dagster_community_components.EventDataStandardizerComponent
 attributes:
   asset_name: filtered_events
   platform: rudderstack
@@ -189,7 +189,7 @@ attributes:
 ### Custom Platform
 
 ```yaml
-type: dagster_component_templates.EventDataStandardizerComponent
+type: dagster_community_components.EventDataStandardizerComponent
 attributes:
   asset_name: custom_events
   platform: custom

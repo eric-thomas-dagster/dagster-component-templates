@@ -33,7 +33,7 @@ If the suite JSON can't be pre-parsed (missing path, GE v2 layout, malformed JSO
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.GreatExpectationsCheckComponent
+type: dagster_community_components.GreatExpectationsCheckComponent
 attributes:
   asset_key: warehouse/orders
   ge_context_root_dir: ./great_expectations

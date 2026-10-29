@@ -1,4 +1,4 @@
-type: dagster_component_templates.CloudDlpPiiCheckComponent
+type: dagster_community_components.CloudDlpPiiCheckComponent
 attributes:
   asset_key: support_tickets
   check_name: no_payment_pii

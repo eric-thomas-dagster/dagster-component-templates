@@ -172,7 +172,7 @@ class JupyterNotebookAssetComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.JupyterNotebookAssetComponent
+        type: dagster_community_components.JupyterNotebookAssetComponent
         attributes:
           asset_name: monthly_revenue_report
           notebook_path: "{{ project_root }}/notebooks/revenue_analysis.ipynb"

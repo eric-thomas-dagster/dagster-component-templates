@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SupabaseStorageMonitorComponent",
+  "component_type": "dagster_community_components.SupabaseStorageMonitorComponent",
   "description": "Monitor a Supabase Storage bucket for new files and emit a RunRequest per new object.",
   "category": "sensor",
   "icon": "si:supabase",

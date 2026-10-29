@@ -16,7 +16,7 @@ class SftpMonitorSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.SftpMonitorSensorComponent
+        type: dagster_community_components.SftpMonitorSensorComponent
         attributes:
           sensor_name: sftp_drop_zone_monitor
           host: sftp.partner.com

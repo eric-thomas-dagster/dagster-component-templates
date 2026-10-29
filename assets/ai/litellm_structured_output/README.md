@@ -92,7 +92,7 @@ Extract structured JSON data from text using LiteLLM's JSON mode. Expands extrac
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.LitellmStructuredOutputComponent
+type: dagster_community_components.LitellmStructuredOutputComponent
 attributes:
   asset_name: extracted_contact_info
   upstream_asset_key: raw_emails

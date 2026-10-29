@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.DatabaseQueryComponent",
+  "component_type": "dagster_community_components.DatabaseQueryComponent",
   "description": "Component for executing SQL queries and materializing results.",
   "category": "source",
   "icon": "Database",

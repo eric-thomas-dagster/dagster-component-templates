@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SFTPResourceComponent",
+  "component_type": "dagster_community_components.SFTPResourceComponent",
   "description": "Register an SFTP resource for reading and writing files over SSH",
   "category": "resource",
   "icon": "si:openssh",

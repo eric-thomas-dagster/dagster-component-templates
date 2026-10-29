@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SnowflakeCortexAgentComponent",
+  "component_type": "dagster_community_components.SnowflakeCortexAgentComponent",
   "description": "Single-shot LLM agent backed by Snowflake Cortex COMPLETE REST API + MCP tools. Runs the same tool-calling loop as openai_agent / anthropic_agent / gemini_agent but routes through Snowflake's inference endpoint.",
   "category": "ai",
   "icon": "si:snowflake",

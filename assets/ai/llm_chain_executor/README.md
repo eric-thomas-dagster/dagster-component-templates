@@ -71,7 +71,7 @@ The component outputs a dictionary containing all chain step results:
 
 ### Two-Step Chain
 ```yaml
-type: dagster_component_templates.LLMChainExecutorComponent
+type: dagster_community_components.LLMChainExecutorComponent
 attributes:
   asset_name: analysis_chain
   provider: openai
@@ -86,7 +86,7 @@ attributes:
 
 ### Analysis Pipeline
 ```yaml
-type: dagster_component_templates.LLMChainExecutorComponent
+type: dagster_community_components.LLMChainExecutorComponent
 attributes:
   asset_name: research_pipeline
   provider: anthropic
@@ -186,13 +186,13 @@ attributes:
 
 ```yaml
 # Step 1: Extract text from document
-type: dagster_component_templates.DocumentTextExtractorComponent
+type: dagster_community_components.DocumentTextExtractorComponent
 attributes:
   asset_name: document_text
   file_path: /data/documents/research_paper.pdf
 
 # Step 2: Run LLM chain for analysis (automatically receives document_text)
-type: dagster_component_templates.LLMChainExecutorComponent
+type: dagster_community_components.LLMChainExecutorComponent
 attributes:
   asset_name: analysis_results
   provider: openai
@@ -226,14 +226,14 @@ document_text → analysis_results
 
 ```yaml
 # Step 1: Query database
-type: dagster_component_templates.DatabaseQueryComponent
+type: dagster_community_components.DatabaseQueryComponent
 attributes:
   asset_name: sales_data
   query: "SELECT product, SUM(revenue) as total_revenue FROM sales GROUP BY product"
   connection_string: ${DATABASE_URL}
 
 # Step 2: Run chain analysis on query results
-type: dagster_component_templates.LLMChainExecutorComponent
+type: dagster_community_components.LLMChainExecutorComponent
 attributes:
   asset_name: sales_insights
   provider: anthropic
@@ -256,14 +256,14 @@ sales_data → sales_insights
 
 ```yaml
 # Step 1: Fetch from REST API
-type: dagster_component_templates.RestApiIngestionComponent
+type: dagster_community_components.RestApiIngestionComponent
 attributes:
   asset_name: customer_feedback
   api_url: https://api.example.com/feedback
   output_format: dict
 
 # Step 2: Process feedback with chain
-type: dagster_component_templates.LLMChainExecutorComponent
+type: dagster_community_components.LLMChainExecutorComponent
 attributes:
   asset_name: feedback_analysis
   provider: openai
@@ -286,13 +286,13 @@ customer_feedback → feedback_analysis
 
 ```yaml
 # Step 1: Read content brief
-type: dagster_component_templates.TextFileReaderComponent
+type: dagster_community_components.TextFileReaderComponent
 attributes:
   asset_name: content_brief
   file_path: /data/briefs/blog_post_brief.txt
 
 # Step 2: Generate content through chain
-type: dagster_component_templates.LLMChainExecutorComponent
+type: dagster_community_components.LLMChainExecutorComponent
 attributes:
   asset_name: blog_content
   provider: openai
@@ -317,13 +317,13 @@ content_brief → blog_content
 
 ```yaml
 # Step 1: Extract data
-type: dagster_component_templates.DocumentTextExtractorComponent
+type: dagster_community_components.DocumentTextExtractorComponent
 attributes:
   asset_name: report_text
   file_path: /data/reports/annual_report.pdf
 
 # Step 2: First chain - extract structured data
-type: dagster_component_templates.LLMChainExecutorComponent
+type: dagster_community_components.LLMChainExecutorComponent
 attributes:
   asset_name: structured_data
   provider: openai
@@ -335,7 +335,7 @@ attributes:
   ]'
 
 # Step 3: Second chain - generate insights from structured data
-type: dagster_component_templates.LLMChainExecutorComponent
+type: dagster_community_components.LLMChainExecutorComponent
 attributes:
   asset_name: final_insights
   provider: anthropic

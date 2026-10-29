@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ArrayExploderComponent",
+  "component_type": "dagster_community_components.ArrayExploderComponent",
   "description": "Expand an array-valued column so each element becomes its own row.",
   "category": "transformation",
   "icon": "Rows",

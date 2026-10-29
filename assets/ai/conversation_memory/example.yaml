@@ -9,7 +9,7 @@
 # 2. Configure this component to receive that data via IO managers
 # 3. The upstream asset's output will be automatically passed as kwargs
 
-type: dagster_component_templates.ConversationMemoryComponent
+type: dagster_community_components.ConversationMemoryComponent
 attributes:
   asset_name: conversation
   upstream_asset_key: raw_messages

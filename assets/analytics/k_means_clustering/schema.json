@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.KMeansClusteringComponent",
+  "component_type": "dagster_community_components.KMeansClusteringComponent",
   "description": "Cluster records using K-means and assign cluster IDs.",
   "category": "analytics",
   "icon": "BarChart2",

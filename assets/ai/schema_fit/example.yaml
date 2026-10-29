@@ -1,4 +1,4 @@
-type: dagster_component_templates.SchemaFitComponent
+type: dagster_community_components.SchemaFitComponent
 attributes:
   asset_name: normalized_customers
   upstream_asset_key: raw_crm_export

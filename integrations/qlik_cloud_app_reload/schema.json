@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.QlikCloudAppReloadComponent",
+  "component_type": "dagster_community_components.QlikCloudAppReloadComponent",
   "description": "Trigger a Qlik Cloud app reload and poll it to completion, surfacing status/duration/error as materialization metadata.",
   "category": "integration",
   "icon": "RefreshCw",

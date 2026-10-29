@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GeminiAgentComponent",
+  "component_type": "dagster_community_components.GeminiAgentComponent",
   "description": "Single-shot LLM agent with MCP tool support, using the Google Gen AI SDK directly (no LiteLLM dependency). Runs a tool-calling loop until the model returns a final answer or max_iterations.",
   "category": "ai",
   "icon": "si:googlegemini",

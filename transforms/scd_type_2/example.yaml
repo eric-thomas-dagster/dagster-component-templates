@@ -1,4 +1,4 @@
-type: dagster_component_templates.ScdType2Component
+type: dagster_community_components.ScdType2Component
 attributes:
   asset_name: scd_type_2_output
   upstream_asset_key: upstream_data

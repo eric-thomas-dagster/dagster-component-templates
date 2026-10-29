@@ -20,7 +20,7 @@ Note: streaming intermediate node outputs and checkpointed execution are things 
 ## Example: `steps` mode
 
 ```yaml
-type: dagster_component_templates.LangGraphAgentComponent
+type: dagster_community_components.LangGraphAgentComponent
 attributes:
   asset_name: research_report
   input_prompt: "How do vector databases handle high-cardinality metadata filters?"
@@ -70,7 +70,7 @@ steps:
 ## Example: `graph_fn` mode (bring your own graph)
 
 ```yaml
-type: dagster_component_templates.LangGraphAgentComponent
+type: dagster_community_components.LangGraphAgentComponent
 attributes:
   asset_name: support_triage
   input_prompt: "{run_id}: escalation queue sweep"
@@ -117,25 +117,52 @@ The table below (auto-generated) documents the per-step fields — each entry in
 
 | Field | Type | Description |
 |---|---|---|
-| `name` | `str` | Unique node name. Referenced by `next` and templated as {outputs.<name>}. |
-| `prompt` | `str` | Prompt template. Use {input} for the initial user prompt and {outputs.<step_name>} to reference a prior step's output. |
+| `asset_name` | `str` | Output Dagster asset name. |
+
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `api_key_env_var` | `str` | — | Env var containing the provider API key. |
+
+### Catalog metadata
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `group_name` | `str` | — | Dagster asset group name. |
+| `description` | `str` | — | Asset description. |
+| `owners` | `List[str]` | — | Asset owners. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags. |
+| `kinds` | `List[str]` | — | Asset kinds. Defaults to ['ai', 'langgraph', 'agent']. |
+| `deps` | `List[str]` | — | Lineage-only upstream asset keys. |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_policy_max_retries` | `int` | — | Max retries on failure. |
+| `retry_policy_delay_seconds` | `int` | — | Seconds between retries. |
+| `retry_policy_backoff` | `str` | `"exponential"` | 'linear' or 'exponential'. |
 
 ### Source / target
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `model` | `str` | — | Optional per-step model override (defaults to component-level model). |
+| `input_prompt` | `str` | — | Initial user prompt. In `steps` mode: required, available as {input} in every step's template. In `graph_fn` mode: optional, merged into the initial state under the `input` key. Supports {run_id}, {partition_key}, {parti… _(full docs in schema.json + component README)_ |
+| `model` | `str` | `"gpt-4o-mini"` | Default model. Overridable per step. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `system_message` | `str` | — | Optional system message for this step (overrides component-level system_message). |
-| `temperature` | `float` | — | Optional per-step temperature override. |
-| `max_tokens` | `int` | — | Optional per-step max_tokens override. |
-| `next` | `str` | — | Next step name. Omitting this (or setting 'END') terminates this branch at END — there is no implicit fall-through to the next declared step, so every step that should continue must set this explicitly. |
-| `condition_regex` | `str` | — | Optional regex. If set, the step's output is tested against it: on match, routes to `next`; on no-match, routes to `condition_else` (or END if unset). Great for early-exit or self-review loops. |
-| `condition_else` | `str` | — | Where to route when condition_regex does NOT match. Defaults to END. |
+| `steps` | `List[LangGraphStep]` | — | Ordered list of LLM steps (declarative prompt-chain mode). Linear chain unless a step overrides `next`. Mutually exclusive with `graph_fn` — set exactly one. |
+| `graph_fn` | `str` | — | 'module.path:function_name' dotted path (colon-separated) to a callable, defined in your own project, that returns an already-built LangGraph graph exposing `.invoke(state) -> state` (a compiled StateGraph, or anything w… _(full docs in schema.json + component README)_ |
+| `initial_state` | `Dict[str, Any]` | — | Only used with `graph_fn`. Extra keys merged into the state dict passed to `graph.invoke(...)`. String values support {run_id}, {partition_key}, {partition_keys.<dim>} substitution (same as input_prompt). If `input_promp… _(full docs in schema.json + component README)_ |
+| `llm_provider` | `str` | `"openai"` | LLM provider: openai, anthropic, azure_openai, google, ollama. |
+| `api_base_env_var` | `str` | — | Env var containing a custom base URL (for Azure / Ollama / self-hosted). |
+| `system_message` | `str` | — | Default system message applied to every step. Overridable per step. |
+| `temperature` | `float` | `0.0` | Default sampling temperature. |
+| `max_tokens` | `int` | `1024` | Default max tokens per step. |
 
 [//]: # (FIELDS:END)
 

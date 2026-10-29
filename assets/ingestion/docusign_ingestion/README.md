@@ -103,7 +103,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.DocuSignIngestionComponent
+type: dagster_community_components.DocuSignIngestionComponent
 attributes:
   asset_name: docusign_ingestion
   integration_key: "${DOCUSIGN_INTEGRATION_KEY}"

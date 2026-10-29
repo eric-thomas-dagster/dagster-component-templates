@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PayscaleCompensationEnrichmentComponent",
+  "component_type": "dagster_community_components.PayscaleCompensationEnrichmentComponent",
   "description": "Enrich an upstream DataFrame of job records (title + location) with PayScale Jobalyzer compensation-benchmark columns -- one API lookup per row. Requires payscale_resource; PayScale credentials are NOT self-serve.",
   "category": "analytics",
   "icon": "DollarSign",

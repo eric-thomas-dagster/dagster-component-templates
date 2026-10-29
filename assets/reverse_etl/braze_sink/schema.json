@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BrazeSinkComponent",
+  "component_type": "dagster_community_components.BrazeSinkComponent",
   "description": "Reverse-ETL sink \u2014 batch-POST rows to Braze via the REST API. Supports two source shapes (upstream_asset_key OR inline source:) and two endpoints (users_track for user attribute sync, catalogs for custom catalog item upsert). Auth via a shared BrazeResource (recommended) or inline api_key + endpoint.",
   "category": "reverse_etl",
   "icon": "si:braze",

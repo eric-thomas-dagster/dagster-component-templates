@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BigQueryResourceComponent",
+  "component_type": "dagster_community_components.BigQueryResourceComponent",
   "description": "Register a dagster-gcp BigQueryResource for use by other components",
   "category": "resource",
   "icon": "si:googlebigquery",

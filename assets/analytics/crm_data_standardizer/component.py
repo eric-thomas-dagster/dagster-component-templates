@@ -341,7 +341,7 @@ class CRMDataStandardizerComponent(Component, Model, Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.CRMDataStandardizerComponent
+        type: dagster_community_components.CRMDataStandardizerComponent
         attributes:
           asset_name: standardized_crm_contacts
           platform: "hubspot"

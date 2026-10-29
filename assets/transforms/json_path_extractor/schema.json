@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.JsonPathExtractorComponent",
+  "component_type": "dagster_community_components.JsonPathExtractorComponent",
   "description": "Extract values from dict/JSON columns using JSONPath expressions.",
   "category": "transformation",
   "icon": "Search",

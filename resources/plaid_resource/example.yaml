@@ -1,4 +1,4 @@
-type: dagster_component_templates.PlaidResourceComponent
+type: dagster_community_components.PlaidResourceComponent
 attributes:
   resource_key: plaid
   environment: sandbox

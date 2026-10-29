@@ -47,7 +47,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.XeroResourceComponent
+type: dagster_community_components.XeroResourceComponent
 attributes:
   resource_key: xero
   client_id_env_var: XERO_CLIENT_ID

@@ -449,7 +449,7 @@ if _HAS_STATE_BACKED:
 
         Example:
             ```yaml
-            type: dagster_component_templates.TerraformCloudAssetComponent
+            type: dagster_community_components.TerraformCloudAssetComponent
             attributes:
               api_token_env_var: TFC_TOKEN
               organization: my-company

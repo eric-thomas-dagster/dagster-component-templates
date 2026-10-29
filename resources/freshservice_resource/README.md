@@ -32,7 +32,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.FreshserviceResourceComponent
+type: dagster_community_components.FreshserviceResourceComponent
 attributes:
   resource_key: freshservice_resource  # key other components use
   domain: mycompany.freshservice.com   # your Freshservice domain (full host)

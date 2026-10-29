@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ImageSimilarityScorerComponent",
+  "component_type": "dagster_community_components.ImageSimilarityScorerComponent",
   "description": "Score visual similarity between images using CLIP embeddings and cosine similarity.",
   "category": "ai",
   "icon": "GitCompare",

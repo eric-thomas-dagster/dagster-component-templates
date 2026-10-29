@@ -1,3 +1,3 @@
-component_type: dagster_component_templates.DatabricksAssetBundleComponent
+component_type: dagster_community_components.DatabricksAssetBundleComponent
 name: Databricks Asset Bundle
 description: Create Dagster assets from Databricks Asset Bundle YAML configuration files with automatic dependency tracking

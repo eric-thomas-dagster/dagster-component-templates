@@ -97,7 +97,7 @@ Downstream assets declare the dependency in their own component YAML:
 
 ```yaml
 # downstream asset
-type: dagster_component_templates.SomeOtherAssetComponent
+type: dagster_community_components.SomeOtherAssetComponent
 attributes:
   asset_name: load_raw_events
   deps:
@@ -107,7 +107,7 @@ attributes:
 ## Quick start
 
 ```yaml
-type: dagster_component_templates.TerraformAssetComponent
+type: dagster_community_components.TerraformAssetComponent
 attributes:
   asset_name: provision_data_infrastructure
   working_dir: "{{ project_root }}/terraform/data_platform"

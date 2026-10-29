@@ -2,7 +2,7 @@
 # (search-index activation) using the native _bulk NDJSON endpoint.
 # id_field's value becomes each document's _id.
 
-type: dagster_component_templates.OpenSearchIndexUpsertComponent
+type: dagster_community_components.OpenSearchIndexUpsertComponent
 attributes:
   asset_name: opensearch_product_catalog_sync
   upstream_asset_key: dbt_marts_product_catalog

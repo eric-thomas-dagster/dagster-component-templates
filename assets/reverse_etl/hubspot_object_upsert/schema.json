@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.HubSpotObjectUpsertComponent",
+  "component_type": "dagster_community_components.HubSpotObjectUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into a HubSpot CRM object type via the native batch upsert endpoint. `POST /crm/v3/objects/{objectType}/batch/upsert` atomically creates or updates records based on matching a unique key_property. Chunks at 100 records per HTTP call.",
   "category": "reverse_etl",
   "icon": "si:hubspot",

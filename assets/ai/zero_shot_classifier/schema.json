@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ZeroShotClassifierComponent",
+  "component_type": "dagster_community_components.ZeroShotClassifierComponent",
   "description": "Component for zero-shot text classification using HuggingFace transformers.",
   "category": "ai",
   "icon": "Sparkles",

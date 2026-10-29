@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ClickHouseResourceComponent",
+  "component_type": "dagster_community_components.ClickHouseResourceComponent",
   "description": "Register a ClickHouse resource for use by other components.\n\nExample:\n\n    ```yaml\n    type: dagster_community_components.ClickHouseResourceComponent\n    attributes:\n      resource_key: clickhouse_resource\n      host: clickhouse.mycompany.com\n      port: 8443\n      database: analytics\n      username: dagster_runner\n      password_env_var: CLICKHOUSE_PASSWORD\n      secure: true\n    ```\n\nPairs with:\n  - ``clickhouse_io_manager`` — Pandas asset persistence\n  - ``dataframe_to_clickhouse`` — bulk insert\n  - ``external_clickhouse_table`` — catalog declaration\n  - Generic SQL components via ``connection_string``",
   "category": "resource",
   "icon": "si:clickhouse",

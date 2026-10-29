@@ -3,7 +3,7 @@
 # monitored_selection is usually a selection string instead -- e.g.
 # "group:electricera_snowpipes" -- which resolves against whatever sibling
 # assets actually exist in the real project. See README.md.
-type: dagster_component_templates.AssetToJobTriggerSensorComponent
+type: dagster_community_components.AssetToJobTriggerSensorComponent
 attributes:
   sensor_name: electricera_pipe_to_dbt_trigger_sensor
   monitored_selection: [electricera/site_details_pipe]

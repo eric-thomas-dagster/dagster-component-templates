@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.BigQueryCreateTableFromQueryAssetComponent",
+  "component_type": "dagster_community_components.BigQueryCreateTableFromQueryAssetComponent",
   "description": "CTAS as a Dagster asset — CREATE OR REPLACE TABLE / VIEW / MATERIALIZED VIEW from a SELECT statement. The transform layer of any BQ-native ELT pipeline.",
   "category": "transformation",
   "icon": "si:googlebigquery",

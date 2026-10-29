@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TwilioResourceComponent",
+  "component_type": "dagster_community_components.TwilioResourceComponent",
   "description": "Register a dagster-twilio TwilioResource for use by other components",
   "category": "resource",
   "icon": "si:twilio",

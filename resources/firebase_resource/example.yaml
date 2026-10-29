@@ -1,4 +1,4 @@
-type: dagster_component_templates.FirebaseResourceComponent
+type: dagster_community_components.FirebaseResourceComponent
 attributes:
   resource_key: firebase_resource
   project_id_env_var: FIREBASE_PROJECT_ID

@@ -90,7 +90,7 @@ When the asset is materialized:
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.MatillionRunAssetComponent
+type: dagster_community_components.MatillionRunAssetComponent
 attributes:
   asset_key: matillion/transforms/load_orders
   project: MyProject

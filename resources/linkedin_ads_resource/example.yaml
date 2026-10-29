@@ -1,4 +1,4 @@
-type: dagster_component_templates.LinkedInAdsResourceComponent
+type: dagster_community_components.LinkedInAdsResourceComponent
 attributes:
   resource_key: linkedin_ads_resource
   access_token_env_var: LINKEDIN_ACCESS_TOKEN

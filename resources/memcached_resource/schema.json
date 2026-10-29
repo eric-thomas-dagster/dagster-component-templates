@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.MemcachedResourceComponent",
+  "component_type": "dagster_community_components.MemcachedResourceComponent",
   "x-dagster-io": {},
   "x-dagster-provides": [
     "memcached_resource"

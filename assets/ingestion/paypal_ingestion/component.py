@@ -189,7 +189,7 @@ class PayPalIngestionComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.PayPalIngestionComponent
+        type: dagster_community_components.PayPalIngestionComponent
         attributes:
           asset_name: paypal_ingestion
           client_id: "${PAYPAL_CLIENT_ID}"

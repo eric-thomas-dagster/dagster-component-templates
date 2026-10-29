@@ -26,7 +26,7 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 By default this asset runs an in-memory DuckDB pipeline and returns a pandas DataFrame for downstream Dagster transformations. To persist directly to a warehouse or object store, set `destination`:
 
 ```yaml
-type: dagster_component_templates.GitHubIngestionComponent
+type: dagster_community_components.GitHubIngestionComponent
 attributes:
   asset_name: github_repos
   access_token: "{{ env('GITHUB_ACCESS_TOKEN') }}"
@@ -129,7 +129,7 @@ Credentials come from env vars (`DESTINATION__SNOWFLAKE__CREDENTIALS__*`) or, fo
 ## Example — DataFrame mode (default)
 
 ```yaml
-type: dagster_component_templates.GitHubIngestionComponent
+type: dagster_community_components.GitHubIngestionComponent
 attributes:
   asset_name: github_activity
   access_token: "{{ env('GITHUB_ACCESS_TOKEN') }}"
@@ -144,7 +144,7 @@ The asset emits a pandas DataFrame combining all selected resources, with a `_re
 ## Example — persist to Snowflake
 
 ```yaml
-type: dagster_component_templates.GitHubIngestionComponent
+type: dagster_community_components.GitHubIngestionComponent
 attributes:
   asset_name: github_repos
   access_token: "{{ env('GITHUB_ACCESS_TOKEN') }}"

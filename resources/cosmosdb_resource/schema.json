@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CosmosDBResourceComponent",
+  "component_type": "dagster_community_components.CosmosDBResourceComponent",
   "x-dagster-io": {},
   "x-dagster-provides": [
     "cosmosdb_resource"

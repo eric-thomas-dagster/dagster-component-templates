@@ -21,7 +21,7 @@ dagster-component add inline_dataframe --auto-install
 ## Example
 
 ```yaml
-type: dagster_component_templates.InlineDataframeComponent
+type: dagster_community_components.InlineDataframeComponent
 attributes:
   asset_name: region_codes
   columns: [region_code, region_name]
@@ -38,7 +38,7 @@ attributes:
 Useful when YAML values come in as strings (e.g. from an Alteryx Text Input XML port) but downstream filters need numeric comparisons:
 
 ```yaml
-type: dagster_component_templates.InlineDataframeComponent
+type: dagster_community_components.InlineDataframeComponent
 attributes:
   asset_name: raw_sales
   columns: [region, product, quantity, unit_price]

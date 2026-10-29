@@ -26,7 +26,7 @@ pip install requests
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.SigmaResourceComponent
+type: dagster_community_components.SigmaResourceComponent
 attributes:
   resource_key: sigma_resource
   client_id_env_var: SIGMA_CLIENT_ID

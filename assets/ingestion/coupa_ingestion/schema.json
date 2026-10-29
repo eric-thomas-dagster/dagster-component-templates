@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.CoupaIngestionComponent",
+  "component_type": "dagster_community_components.CoupaIngestionComponent",
   "description": "Ingest Coupa procurement data using dlt's generic REST API source.",
   "category": "ingestion",
   "vertical": "finance-hr",

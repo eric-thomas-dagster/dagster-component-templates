@@ -39,7 +39,7 @@ By default this asset runs an in-memory DuckDB pipeline and returns a pandas Dat
 
 
 ```yaml
-type: dagster_component_templates.GoogleAdsIngestionComponent
+type: dagster_community_components.GoogleAdsIngestionComponent
 attributes:
   asset_name: google_ads_data
   # ... source config ...
@@ -150,7 +150,7 @@ Credentials come from env vars (`DESTINATION__<NAME>__CREDENTIALS__*`) or, for p
 ## Example — DataFrame mode (default)
 
 ```yaml
-type: dagster_component_templates.GoogleAdsIngestionComponent
+type: dagster_community_components.GoogleAdsIngestionComponent
 attributes:
   asset_name: google_ads_data
   customer_id: "1234567890"
@@ -168,7 +168,7 @@ The asset emits a pandas DataFrame combining all selected resources, with a `_re
 ## Example — persist to Bigquery
 
 ```yaml
-type: dagster_component_templates.GoogleAdsIngestionComponent
+type: dagster_community_components.GoogleAdsIngestionComponent
 attributes:
   asset_name: google_ads_data
   customer_id: "1234567890"

@@ -30,7 +30,7 @@ Register a dagster-chroma ChromaResource for use by other components
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.ChromaResourceComponent
+type: dagster_community_components.ChromaResourceComponent
 attributes:
   resource_key: chroma_resource  # key other components use
   # Optional

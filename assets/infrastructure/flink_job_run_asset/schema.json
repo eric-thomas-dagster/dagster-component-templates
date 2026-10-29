@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.FlinkJobRunAssetComponent",
+  "component_type": "dagster_community_components.FlinkJobRunAssetComponent",
   "name": "Flink Job Run",
   "category": "infrastructure",
   "icon": "si:apacheflink",

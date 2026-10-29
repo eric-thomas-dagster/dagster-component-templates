@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.Neo4jReaderComponent",
+  "component_type": "dagster_community_components.Neo4jReaderComponent",
   "description": "Component for executing Cypher queries against a Neo4j graph database.",
   "category": "source",
   "icon": "si:neo4j",

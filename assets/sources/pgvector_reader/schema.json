@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.PgvectorReaderComponent",
+  "component_type": "dagster_community_components.PgvectorReaderComponent",
   "description": "Component for querying a pgvector table for similar vectors.",
   "category": "source",
   "icon": "si:postgresql",

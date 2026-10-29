@@ -90,7 +90,7 @@ The `CassandraReaderComponent` connects to an Apache Cassandra cluster and execu
 ### Basic query
 
 ```yaml
-type: dagster_component_templates.CassandraReaderComponent
+type: dagster_community_components.CassandraReaderComponent
 attributes:
   asset_name: cassandra_sessions
   hosts:
@@ -102,7 +102,7 @@ attributes:
 ### Multi-node cluster with authentication
 
 ```yaml
-type: dagster_component_templates.CassandraReaderComponent
+type: dagster_community_components.CassandraReaderComponent
 attributes:
   asset_name: cassandra_events
   hosts:

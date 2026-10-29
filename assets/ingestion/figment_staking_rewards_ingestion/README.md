@@ -73,7 +73,7 @@ Also requires a `FigmentResourceComponent` on the same code location for authent
 ## Configuration
 
 ```yaml
-type: dagster_component_templates.FigmentStakingRewardsIngestionComponent
+type: dagster_community_components.FigmentStakingRewardsIngestionComponent
 attributes:
   asset_name: figment_eth_staking_rewards
   resource_key: figment_resource
@@ -85,7 +85,7 @@ attributes:
 ```
 
 ```yaml
-type: dagster_component_templates.FigmentStakingRewardsIngestionComponent
+type: dagster_community_components.FigmentStakingRewardsIngestionComponent
 attributes:
   asset_name: figment_sol_staking_rewards
   resource_key: figment_resource

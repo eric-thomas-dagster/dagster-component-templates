@@ -56,7 +56,7 @@ In the Acceldata UI: **Rules → Select Rule → Rule Details → ID**
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.AcceldataCheckComponent
+type: dagster_community_components.AcceldataCheckComponent
 attributes:
   asset_key: warehouse/orders
   api_url_env_var: ACCELDATA_API_URL

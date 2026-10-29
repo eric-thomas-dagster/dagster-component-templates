@@ -58,7 +58,7 @@ SQL Server only retains change history back to `CHANGE_TRACKING_MIN_VALID_VERSIO
 ## Example YAML
 
 ```yaml
-type: dagster_component_templates.SqlServerChangeTrackingAssetComponent
+type: dagster_community_components.SqlServerChangeTrackingAssetComponent
 attributes:
   asset_name: orders_changes
   connection_url_env_var: MSSQL_URL

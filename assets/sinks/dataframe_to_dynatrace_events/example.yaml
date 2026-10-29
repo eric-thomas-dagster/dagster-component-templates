@@ -1,4 +1,4 @@
-type: dagster_component_templates.DataframeToDynatraceEventsComponent
+type: dagster_community_components.DataframeToDynatraceEventsComponent
 attributes:
   asset_name: dataframe_to_dynatrace_events_output
   upstream_asset_key: upstream_data

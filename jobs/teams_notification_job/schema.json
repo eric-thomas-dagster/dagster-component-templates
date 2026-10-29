@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.TeamsNotificationJobComponent",
+  "component_type": "dagster_community_components.TeamsNotificationJobComponent",
   "description": "Send a message to a Microsoft Teams channel via incoming webhook.",
   "category": "jobs",
   "icon": "Cog",

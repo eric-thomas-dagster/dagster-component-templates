@@ -100,7 +100,7 @@ Zuora deprecated session-based (`Z-Session`) auth for all tenants on 2024-08-01.
 ## Example
 
 ```yaml
-type: dagster_component_templates.ZuoraAccountUpsertComponent
+type: dagster_community_components.ZuoraAccountUpsertComponent
 attributes:
   asset_name: zuora_accounts_mirror
   upstream_asset_key: dbt_marts_customers

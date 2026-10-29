@@ -147,7 +147,7 @@ The Reranker Component implements two-stage retrieval by reranking initial searc
 ### 1. RAG Pipeline Optimization
 Improve document retrieval for LLM context:
 ```yaml
-type: dagster_component_templates.RerankerComponent
+type: dagster_community_components.RerankerComponent
 attributes:
   asset_name: rag_reranked_chunks
   upstream_asset_key: vector_search_results
@@ -162,7 +162,7 @@ attributes:
 ### 2. Semantic Search Enhancement
 Boost search relevance for customer-facing search:
 ```yaml
-type: dagster_component_templates.RerankerComponent
+type: dagster_community_components.RerankerComponent
 attributes:
   asset_name: product_search_reranked
   upstream_asset_key: product_vector_search
@@ -177,7 +177,7 @@ attributes:
 ### 3. Hybrid Search (Vector + Keyword)
 Combine semantic and lexical signals:
 ```yaml
-type: dagster_component_templates.RerankerComponent
+type: dagster_community_components.RerankerComponent
 attributes:
   asset_name: hybrid_search_results
   upstream_asset_key: vector_search_results
@@ -192,7 +192,7 @@ attributes:
 ### 4. Question Answering
 Find best answer from candidate passages:
 ```yaml
-type: dagster_component_templates.RerankerComponent
+type: dagster_community_components.RerankerComponent
 attributes:
   asset_name: qa_reranked_passages
   upstream_asset_key: candidate_passages
@@ -209,7 +209,7 @@ attributes:
 ### Basic Configuration
 
 ```yaml
-type: dagster_component_templates.RerankerComponent
+type: dagster_community_components.RerankerComponent
 attributes:
   asset_name: reranked_results
   upstream_asset_key: search_results
@@ -222,7 +222,7 @@ attributes:
 ### Full Configuration Options
 
 ```yaml
-type: dagster_component_templates.RerankerComponent
+type: dagster_community_components.RerankerComponent
 attributes:
   # Required
   asset_name: reranked_results
@@ -437,7 +437,7 @@ Vector Search (top 500) → Fast Reranker (top 50) → Slow Reranker (top 10)
 ### Multi-Query Reranking
 Rerank results for multiple queries in one batch:
 ```yaml
-type: dagster_component_templates.RerankerComponent
+type: dagster_community_components.RerankerComponent
 attributes:
   asset_name: batch_reranked
   upstream_asset_key: batch_search_results  # Multiple queries
@@ -450,7 +450,7 @@ attributes:
 ### Score Normalization & Combination
 Blend rerank scores with original similarity scores:
 ```yaml
-type: dagster_component_templates.RerankerComponent
+type: dagster_community_components.RerankerComponent
 attributes:
   asset_name: blended_results
   upstream_asset_key: vector_results
@@ -464,7 +464,7 @@ attributes:
 ### Threshold-Based Filtering
 Remove low-relevance results:
 ```yaml
-type: dagster_component_templates.RerankerComponent
+type: dagster_community_components.RerankerComponent
 attributes:
   asset_name: filtered_results
   upstream_asset_key: search_results

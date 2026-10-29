@@ -71,7 +71,7 @@ Apply shapely's `simplify` (Douglas-Peucker) to each geometry, dropping points t
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.SmoothComponent
+type: dagster_community_components.SmoothComponent
 attributes:
   asset_name: simplified_zones
   upstream_asset_key: store_service_areas

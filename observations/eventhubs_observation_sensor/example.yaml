@@ -1,4 +1,4 @@
-type: dagster_component_templates.EventHubsObservationSensorComponent
+type: dagster_community_components.EventHubsObservationSensorComponent
 attributes:
   sensor_name: eventhubs_telemetry_obs
   asset_key: streaming/telemetry

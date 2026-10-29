@@ -99,7 +99,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 ## Example
 ```yaml
-type: dagster_component_templates.BrexIngestionComponent
+type: dagster_community_components.BrexIngestionComponent
 attributes:
   asset_name: brex_ingestion
   api_key: "${BREX_API_KEY}"

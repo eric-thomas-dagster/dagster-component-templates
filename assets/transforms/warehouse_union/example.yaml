@@ -1,4 +1,4 @@
-type: dagster_component_templates.WarehouseUnionComponent
+type: dagster_community_components.WarehouseUnionComponent
 attributes:
   asset_name: orders_all_regions
   database_url: snowflake://user:pass@account/db/schema?warehouse=COMPUTE_WH

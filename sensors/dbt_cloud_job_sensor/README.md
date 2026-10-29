@@ -41,7 +41,7 @@ On each tick, the sensor:
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.DbtCloudJobSensorComponent
+type: dagster_community_components.DbtCloudJobSensorComponent
 attributes:
   sensor_name: my_sensor_name
   account_id: 12345        # numeric dbt Cloud account ID

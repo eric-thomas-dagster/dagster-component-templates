@@ -250,7 +250,7 @@ class DataframeToDeltaTableComponent(Component, Model, Resolvable):
     Example — append to S3-backed Delta table:
 
         ```yaml
-        type: dagster_component_templates.DataframeToDeltaTableComponent
+        type: dagster_community_components.DataframeToDeltaTableComponent
         attributes:
           asset_name: events_delta_loaded
           upstream_asset_key: curated_events

@@ -362,7 +362,7 @@ class AutoMLAssetComponent(Component, Model, Resolvable):
     Example:
 
         ```yaml
-        type: dagster_component_templates.AutoMLAssetComponent
+        type: dagster_community_components.AutoMLAssetComponent
         attributes:
           asset_name: wine_quality_automl
           upstream_asset_key: wine_features

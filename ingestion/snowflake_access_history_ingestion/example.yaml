@@ -1,4 +1,4 @@
-type: dagster_component_templates.SnowflakeAccessHistoryIngestionComponent
+type: dagster_community_components.SnowflakeAccessHistoryIngestionComponent
 attributes:
   asset_name: snowflake_access_history_ingestion_events
   account: acme-prod

@@ -1,4 +1,4 @@
-type: dagster_component_templates.SyntheticImageGeneratorComponent
+type: dagster_community_components.SyntheticImageGeneratorComponent
 attributes:
   asset_name: sample_images
   output_dir: /tmp/synthetic_images

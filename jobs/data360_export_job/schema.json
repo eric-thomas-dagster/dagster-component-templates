@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.Data360ExportJobComponent",
+  "component_type": "dagster_community_components.Data360ExportJobComponent",
   "description": "Op-shaped job that walks the live Dagster asset graph and pushes lineage to Precisely Data360 Govern via the Catalog REST endpoint (OAuth2 client-credentials auth).",
   "category": "jobs",
   "icon": "Activity",

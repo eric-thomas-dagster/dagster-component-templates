@@ -1,4 +1,4 @@
-type: dagster_component_templates.BigqueryTableFreshnessCheckComponent
+type: dagster_community_components.BigqueryTableFreshnessCheckComponent
 attributes:
   asset_key: customer_summary
   check_name: customer_summary_freshness

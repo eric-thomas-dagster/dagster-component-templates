@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SnowflakeTableObservationSensorComponent",
+  "component_type": "dagster_community_components.SnowflakeTableObservationSensorComponent",
   "description": "Emit health observations for an external Snowflake table.",
   "category": "observation",
   "icon": "si:snowflake",

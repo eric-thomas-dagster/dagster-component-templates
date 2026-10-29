@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ClickUpResourceComponent",
+  "component_type": "dagster_community_components.ClickUpResourceComponent",
   "description": "ClickUp REST API v2 client wrapper. Personal API token or OAuth2 access token, sent raw (no Bearer prefix) in the Authorization header.",
   "category": "resource",
   "icon": "si:clickup",

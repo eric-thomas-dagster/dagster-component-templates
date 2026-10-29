@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.ExternalMqttAsset",
+  "component_type": "dagster_community_components.ExternalMqttAsset",
   "description": "Declare an MQTT topic as an external asset in the Dagster asset graph — makes it visible for lineage without materializing it from Dagster.",
   "category": "external",
   "icon": "Link",

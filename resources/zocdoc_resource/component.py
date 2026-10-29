@@ -172,7 +172,7 @@ class ZocdocResourceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     Example:
         ```yaml
-        type: dagster_component_templates.ZocdocResourceComponent
+        type: dagster_community_components.ZocdocResourceComponent
         attributes:
           resource_key: zocdoc_resource
           environment: sandbox

@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.GradientBoostingModelComponent",
+  "component_type": "dagster_community_components.GradientBoostingModelComponent",
   "description": "Fit a gradient boosting ensemble model for classification or regression.",
   "category": "analytics",
   "icon": "BarChart2",

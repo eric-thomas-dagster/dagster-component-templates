@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.SmartsheetRowUpsertComponent",
+  "component_type": "dagster_community_components.SmartsheetRowUpsertComponent",
   "description": "Reverse-ETL sink: mirror an upstream DataFrame into a Smartsheet sheet. Smartsheet has no native upsert/column-match endpoint, so the resource fetches the sheet once, matches rows client-side on key_column, and routes each incoming row to a batched PUT (update) or POST (add), chunked at Smartsheet's 500-rows-per-call limit.",
   "category": "reverse_etl",
   "icon": "si:smartsheet",

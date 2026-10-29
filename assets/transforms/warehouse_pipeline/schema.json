@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_component_templates.WarehousePipelineComponent",
+  "component_type": "dagster_community_components.WarehousePipelineComponent",
   "description": "Multi-step warehouse-native pipeline compiled to one CTE-CTAS plan per sink. YAML-defined stored-procedure shape.",
   "category": "transformation",
   "icon": "Workflow",

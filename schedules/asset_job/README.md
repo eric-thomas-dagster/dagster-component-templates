@@ -24,7 +24,7 @@ Creates a job over the configured asset selection so it shows up as a discrete u
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.AssetJobComponent
+type: dagster_community_components.AssetJobComponent
 attributes:
   job_name: backfill_revenue
   asset_keys: [orders_raw, orders_clean, daily_revenue, monthly_revenue]

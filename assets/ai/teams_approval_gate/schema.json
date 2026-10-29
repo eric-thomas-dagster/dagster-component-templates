@@ -4,55 +4,229 @@
   "category": "ai",
   "icon": "GroupAdd",
   "x-dagster-io": {
-    "inputs":  {"type": "text", "description": "Upstream asset's text is posted to Teams for approval."},
-    "outputs": {"type": "asset", "description": "One `{asset_name}_posted` asset (records the Teams message ID + sidecar state) + one `{asset_name}_watcher` sensor (polls votes + writes the approval token on quorum)."}
+    "inputs": {
+      "type": "string",
+      "description": "Upstream asset's text is posted to Teams for approval."
+    },
+    "outputs": {
+      "type": "any",
+      "description": "One `{asset_name}_posted` asset (records the Teams message ID + sidecar state) + one `{asset_name}_watcher` sensor (polls votes + writes the approval token on quorum)."
+    }
   },
   "attributes": {
-    "asset_name":                  {"description": "Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor.", "type": "string",  "required": true, "label": "Asset Name"},
-    "upstream_asset_key":          {"description": "Upstream asset whose text is posted to Teams for approval.", "type": "string",  "required": true, "label": "Upstream Asset Key"},
-    "approval_dir":                {"type": "string",  "required": true, "label": "Approval Dir",
-                                    "description": "Shared with HumanApprovalGateComponent — token file lands as `{safe_partition_key}.json`. Accepts local paths (`/tmp/approvals`) OR cloud URIs (`s3://bucket/prefix`, `gs://bucket/prefix`, `abfs://...`). Cloud URIs require the matching fsspec driver (`s3fs` / `gcsfs` / `adlfs`) — required for Dagster+ Serverless or distributed deploys where the local filesystem isn't shared across containers."},
-
-    "teams_tenant_id_env_var":     {"description": "Env var holding the Azure AD tenant id.", "type": "string",  "label": "Tenant ID Env Var", "default": "TEAMS_TENANT_ID"},
-    "teams_client_id_env_var":     {"description": "Env var holding the Azure AD app registration client id.", "type": "string",  "label": "Client ID Env Var", "default": "TEAMS_CLIENT_ID"},
-    "teams_client_secret_env_var": {"description": "Env var holding the Azure AD app registration client secret.", "type": "string",  "label": "Client Secret Env Var", "default": "TEAMS_CLIENT_SECRET"},
-    "teams_team_id":               {"description": "Teams team id (from Teams client → team → three-dot menu → Get link).", "type": "string",  "required": true, "label": "Teams Team ID"},
-    "teams_channel_id":            {"description": "Teams channel id inside the team (e.g. `19:xxx@thread.tacv2`).", "type": "string",  "required": true, "label": "Teams Channel ID"},
-
-    "mode":                        {"description": "'reactions' (default; approvers react with the configured emoji — Teams limits to 6 built-ins: like, heart, laugh, surprised, sad, angry) OR 'reply' (approvers post a thread reply containing the configured keyword — more flexible, allows context).", "type": "string",  "label": "Mode", "default": "reactions", "enum": ["reactions", "reply"]},
-    "approve_reaction":            {"type": "string",  "label": "Approve Reaction", "default": "like",
-                                    "description": "Reaction type for approval. One of: like, heart, laugh, surprised, sad, angry.",
-                                    "enum": ["like", "heart", "laugh", "surprised", "sad", "angry"]},
-    "reject_reaction":             {"type": "string",  "label": "Reject Reaction", "default": "angry",
-                                    "description": "Reaction type for rejection.",
-                                    "enum": ["like", "heart", "laugh", "surprised", "sad", "angry"]},
-    "approve_reply_keyword":       {"description": "Keyword (case-insensitive) that marks a reply as an approval vote (mode='reply').", "type": "string",  "label": "Approve Reply Keyword", "default": "APPROVE"},
-    "reject_reply_keyword":        {"description": "Keyword (case-insensitive) that marks a reply as a rejection vote.", "type": "string",  "label": "Reject Reply Keyword", "default": "REJECT"},
-    "message_template":            {"type": "string",  "label": "Message Template",
-                                    "description": "Optional custom HTML template. Placeholders: {upstream_text}, {approve}, {reject}, {required_approvers}, {n_allowlisted}, {partition_key}, {mode}, {vote_hint}."},
-
-    "required_approvers":          {"description": "How many allowlisted approvers must vote-approve before the token is written.", "type": "integer", "label": "Required Approvers", "default": 1},
-    "approver_allowlist":          {"type": "array",   "required": true, "label": "Approver Allowlist", "items": {"type": "string"},
-                                    "description": "Azure AD object IDs (GUIDs) allowed to vote."},
-    "timeout_hours":               {"description": "Optional. If quorum isn't reached within this many hours, applies `on_timeout` policy.", "type": "number",  "label": "Timeout Hours"},
-    "on_timeout":                  {"description": "`escalate` (default) \\| `reject` \\| `approve`", "type": "string",  "label": "On Timeout", "default": "escalate", "enum": ["escalate", "reject", "approve"]},
-    "escalate_teams_user":         {"description": "Azure AD object ID pinged when timeout escalates. Only used when `on_timeout: escalate`.", "type": "string",  "label": "Escalate Teams User"},
-    "poll_interval_seconds":       {"description": "Sensor cadence — how often to poll Teams for new votes. Default 60s (Teams API is rate-limited; 30s is fine for a handful of partitions but pump higher at scale).", "type": "integer", "label": "Poll Interval Seconds", "default": 60},
-
-    "group_name":                  {"description": "Dagster asset group name.", "type": "string",  "label": "Group Name"},
-    "kinds":                       {"type": "array",   "label": "Kinds", "items": {"type": "string"},
-                                    "description": "Default: ['human', 'approval', 'teams']."},
-    "owners":                      {"description": "Asset owners.", "type": "array",   "label": "Owners", "items": {"type": "string"}},
-    "tags":                        {"description": "Catalog tags.", "type": "object",  "label": "Tags"},
-    "description":                 {"description": "Asset description.", "type": "string",  "label": "Description"},
-
-    "partition_type":              {"type": "string",  "label": "Partition Type",
-                                    "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
-                                    "enum": ["daily", "weekly", "monthly", "hourly", "static", "dynamic", "multi"]},
-    "partition_start":             {"description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.", "type": "string",  "label": "Partition Start"},
-    "partition_values":            {"description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.", "type": "any",     "label": "Partition Values"},
-    "dynamic_partition_name":      {"description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').", "type": "string",  "label": "Dynamic Partition Name"},
-    "partition_dimensions":        {"description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.", "type": "array",   "label": "Partition Dimensions", "items": {"type": "object"}},
+    "asset_name": {
+      "description": "Base name. Emits `{asset_name}_posted` asset + `{asset_name}_watcher` sensor.",
+      "type": "string",
+      "required": true,
+      "label": "Asset Name"
+    },
+    "upstream_asset_key": {
+      "description": "Upstream asset whose text is posted to Teams for approval.",
+      "type": "string",
+      "required": true,
+      "label": "Upstream Asset Key"
+    },
+    "approval_dir": {
+      "type": "string",
+      "required": true,
+      "label": "Approval Dir",
+      "description": "Shared with HumanApprovalGateComponent — token file lands as `{safe_partition_key}.json`. Accepts local paths (`/tmp/approvals`) OR cloud URIs (`s3://bucket/prefix`, `gs://bucket/prefix`, `abfs://...`). Cloud URIs require the matching fsspec driver (`s3fs` / `gcsfs` / `adlfs`) — required for Dagster+ Serverless or distributed deploys where the local filesystem isn't shared across containers."
+    },
+    "teams_tenant_id_env_var": {
+      "description": "Env var holding the Azure AD tenant id.",
+      "type": "string",
+      "label": "Tenant ID Env Var",
+      "default": "TEAMS_TENANT_ID"
+    },
+    "teams_client_id_env_var": {
+      "description": "Env var holding the Azure AD app registration client id.",
+      "type": "string",
+      "label": "Client ID Env Var",
+      "default": "TEAMS_CLIENT_ID"
+    },
+    "teams_client_secret_env_var": {
+      "description": "Env var holding the Azure AD app registration client secret.",
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "default": "TEAMS_CLIENT_SECRET"
+    },
+    "teams_team_id": {
+      "description": "Teams team id (from Teams client → team → three-dot menu → Get link).",
+      "type": "string",
+      "required": true,
+      "label": "Teams Team ID"
+    },
+    "teams_channel_id": {
+      "description": "Teams channel id inside the team (e.g. `19:xxx@thread.tacv2`).",
+      "type": "string",
+      "required": true,
+      "label": "Teams Channel ID"
+    },
+    "mode": {
+      "description": "'reactions' (default; approvers react with the configured emoji — Teams limits to 6 built-ins: like, heart, laugh, surprised, sad, angry) OR 'reply' (approvers post a thread reply containing the configured keyword — more flexible, allows context).",
+      "type": "string",
+      "label": "Mode",
+      "default": "reactions",
+      "enum": [
+        "reactions",
+        "reply"
+      ]
+    },
+    "approve_reaction": {
+      "type": "string",
+      "label": "Approve Reaction",
+      "default": "like",
+      "description": "Reaction type for approval. One of: like, heart, laugh, surprised, sad, angry.",
+      "enum": [
+        "like",
+        "heart",
+        "laugh",
+        "surprised",
+        "sad",
+        "angry"
+      ]
+    },
+    "reject_reaction": {
+      "type": "string",
+      "label": "Reject Reaction",
+      "default": "angry",
+      "description": "Reaction type for rejection.",
+      "enum": [
+        "like",
+        "heart",
+        "laugh",
+        "surprised",
+        "sad",
+        "angry"
+      ]
+    },
+    "approve_reply_keyword": {
+      "description": "Keyword (case-insensitive) that marks a reply as an approval vote (mode='reply').",
+      "type": "string",
+      "label": "Approve Reply Keyword",
+      "default": "APPROVE"
+    },
+    "reject_reply_keyword": {
+      "description": "Keyword (case-insensitive) that marks a reply as a rejection vote.",
+      "type": "string",
+      "label": "Reject Reply Keyword",
+      "default": "REJECT"
+    },
+    "message_template": {
+      "type": "string",
+      "label": "Message Template",
+      "description": "Optional custom HTML template. Placeholders: {upstream_text}, {approve}, {reject}, {required_approvers}, {n_allowlisted}, {partition_key}, {mode}, {vote_hint}."
+    },
+    "required_approvers": {
+      "description": "How many allowlisted approvers must vote-approve before the token is written.",
+      "type": "integer",
+      "label": "Required Approvers",
+      "default": 1
+    },
+    "approver_allowlist": {
+      "type": "array",
+      "required": true,
+      "label": "Approver Allowlist",
+      "items": {
+        "type": "string"
+      },
+      "description": "Azure AD object IDs (GUIDs) allowed to vote."
+    },
+    "timeout_hours": {
+      "description": "Optional. If quorum isn't reached within this many hours, applies `on_timeout` policy.",
+      "type": "number",
+      "label": "Timeout Hours"
+    },
+    "on_timeout": {
+      "description": "`escalate` (default) \\| `reject` \\| `approve`",
+      "type": "string",
+      "label": "On Timeout",
+      "default": "escalate",
+      "enum": [
+        "escalate",
+        "reject",
+        "approve"
+      ]
+    },
+    "escalate_teams_user": {
+      "description": "Azure AD object ID pinged when timeout escalates. Only used when `on_timeout: escalate`.",
+      "type": "string",
+      "label": "Escalate Teams User"
+    },
+    "poll_interval_seconds": {
+      "description": "Sensor cadence — how often to poll Teams for new votes. Default 60s (Teams API is rate-limited; 30s is fine for a handful of partitions but pump higher at scale).",
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "default": 60
+    },
+    "group_name": {
+      "description": "Dagster asset group name.",
+      "type": "string",
+      "label": "Group Name"
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "items": {
+        "type": "string"
+      },
+      "description": "Default: ['human', 'approval', 'teams']."
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "label": "Owners",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "description": "Catalog tags.",
+      "type": "object",
+      "label": "Tags"
+    },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "dynamic",
+        "multi"
+      ]
+    },
+    "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+      "type": "string",
+      "label": "Partition Start"
+    },
+    "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
+      "type": "any",
+      "label": "Partition Values"
+    },
+    "dynamic_partition_name": {
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
+      "type": "string",
+      "label": "Dynamic Partition Name"
+    },
+    "partition_dimensions": {
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "type": "array",
+      "label": "Partition Dimensions",
+      "items": {
+        "type": "object"
+      }
+    },
     "partition_cron_schedule": {
       "type": "string",
       "label": "Partition Cron Schedule",
@@ -71,7 +245,10 @@
       "description": "Backfill execution strategy for a partitioned asset. 'single_run' sends ONE approval request covering the whole backfill range (the range's partition keys are joined into a single request/sidecar-state key, so one approve/reject decision applies to the entire range as a unit) rather than one request per partition. 'multi_run' launches one run -- and one separate approval request -- per partition. Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is not set.",
       "required": false,
       "default": null,
-      "enum": ["single_run", "multi_run"],
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
       "ui:widget": "select"
     },
     "backfill_policy_max_partitions_per_run": {

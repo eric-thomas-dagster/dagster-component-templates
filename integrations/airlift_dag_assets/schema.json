@@ -5,7 +5,7 @@
   "icon": "ArrowRight",
   "x-dagster-io": {
     "outputs": {
-      "type": "integration",
+      "type": "AssetSpec",
       "description": "Mirror an Airflow DAG as Dagster assets via dagster-airlift."
     }
   },

@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row -> one SMS send, personalized via message_template."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (messages_sent / messages_failed / rows_skipped_no_recipient). No downstream data -- the send side effect is a real SMS to the recipient's phone."
     }
   },
@@ -64,7 +64,12 @@
       "default": 1000,
       "description": "Max upstream rows per run (blast-radius safety cap, not a rate limit)."
     },
-    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name", "required": false },
+    "group_name": {
+      "description": "Dagster asset group name.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
@@ -127,10 +132,30 @@
       "required": false,
       "x-dagster-widget": "column"
     },
-    "description": {"description": "Asset description.", "type": "string", "label": "Description", "required": false },
-    "owners": {"description": "Asset owners.", "type": "array", "label": "Owners", "required": false },
-    "tags": {"description": "Catalog tags.", "type": "object", "label": "Tags", "required": false },
-    "kinds": {"description": "Asset kinds (auto-includes 'twilio').", "type": "array", "label": "Kinds", "required": false },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "label": "Owners",
+      "required": false
+    },
+    "tags": {
+      "description": "Catalog tags.",
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "kinds": {
+      "description": "Asset kinds (auto-includes 'twilio').",
+      "type": "array",
+      "label": "Kinds",
+      "required": false
+    },
     "partition_cron_schedule": {
       "type": "string",
       "label": "Partition Cron Schedule",

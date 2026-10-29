@@ -3,9 +3,7 @@
   "description": "Reusable Microsoft Fabric REST API client (token caching, list_items, trigger_item_run, wait_for_run helpers). Inject as a resource into custom ops that need ad-hoc Fabric API access.",
   "category": "resource",
   "icon": "si:microsoftazure",
-  "x-dagster-io": {
-    "supports_partitions": false
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "description": "Dagster resource key",

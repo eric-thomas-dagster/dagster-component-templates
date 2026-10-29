@@ -3,12 +3,7 @@
   "description": "Defines a ScheduleDefinition + underlying asset job that materializes the configured asset keys on cron. Two modes: (1) un-partitioned — ScheduleDefinition with your cron; (2) time-partitioned — build_schedule_from_partitioned_job, cron is decomposed into minute_of_hour/hour_of_day/day_of_week/day_of_month args and combined with the partitions_def cadence (Dagster forbids passing a raw cron_schedule for time-partitioned jobs). Cron validated against partitions_def cadence; static/dynamic partitions rejected in the partitioned path with a helpful error.",
   "category": "infrastructure",
   "icon": "Schedule",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "Schedule",
-      "description": "ScheduleDefinition + asset job"
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "schedule_name": {
       "type": "string",

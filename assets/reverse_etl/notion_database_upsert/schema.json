@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row -> one Notion database page (upserted via key_property)."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata. No downstream data -- write side effect lands in Notion."
     }
   },

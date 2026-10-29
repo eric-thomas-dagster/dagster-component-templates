@@ -10,7 +10,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row -> one document+upload(+submit) sequence in Vanta."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (documents_created / uploads_succeeded / documents_submitted / rows_errored). No downstream data -- write side effect lands in Vanta."
     }
   },
@@ -123,7 +123,10 @@
       "required": false,
       "default": "MOST_RECENT",
       "description": "Document timeSensitivity: 'MOST_RECENT' or 'DURING_AUDIT_WINDOW'.",
-      "enum": ["MOST_RECENT", "DURING_AUDIT_WINDOW"]
+      "enum": [
+        "MOST_RECENT",
+        "DURING_AUDIT_WINDOW"
+      ]
     },
     "cadence": {
       "type": "string",
@@ -131,7 +134,16 @@
       "required": false,
       "default": "P1Y",
       "description": "Document renewal cadence (ISO-8601 duration).",
-      "enum": ["P0D", "P1D", "P1W", "P1M", "P3M", "P6M", "P1Y", "P2Y"]
+      "enum": [
+        "P0D",
+        "P1D",
+        "P1W",
+        "P1M",
+        "P3M",
+        "P6M",
+        "P1Y",
+        "P2Y"
+      ]
     },
     "reminder_window": {
       "type": "string",
@@ -139,7 +151,13 @@
       "required": false,
       "default": "P1M",
       "description": "Notification lead time before renewal (ISO-8601 duration).",
-      "enum": ["P0D", "P1D", "P1W", "P1M", "P3M"]
+      "enum": [
+        "P0D",
+        "P1D",
+        "P1W",
+        "P1M",
+        "P3M"
+      ]
     },
     "is_sensitive": {
       "type": "boolean",

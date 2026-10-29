@@ -5,7 +5,7 @@
   "icon": "si:mistralai",
   "x-dagster-io": {
     "outputs": {
-      "type": "DataFrame",
+      "type": "dataframe",
       "description": "Upstream DataFrame with the OCR markdown column added (and optional pages/_error columns)."
     }
   },
@@ -35,7 +35,11 @@
       "label": "Input Kind",
       "required": false,
       "default": "auto",
-      "enum": ["auto", "document", "image"],
+      "enum": [
+        "auto",
+        "document",
+        "image"
+      ],
       "ui:widget": "select"
     },
     "api_key_env_var": {
@@ -142,7 +146,15 @@
       "label": "Partition Type",
       "required": false,
       "default": null,
-      "enum": ["daily", "hourly", "weekly", "monthly", "static", "multi", "dynamic"],
+      "enum": [
+        "daily",
+        "hourly",
+        "weekly",
+        "monthly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
       "ui:widget": "select"
     },
     "partition_start": {

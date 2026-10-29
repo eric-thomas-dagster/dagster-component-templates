@@ -5,7 +5,7 @@
   "icon": "ChartLine",
   "x-dagster-io": {
     "outputs": {
-      "type": "metadata",
+      "type": "any",
       "description": "status, dry_run, created/updated/deleted/unchanged counts, planned, errors, auto_discovered, auto_scope."
     }
   },

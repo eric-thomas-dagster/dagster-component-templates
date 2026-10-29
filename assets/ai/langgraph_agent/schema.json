@@ -4,11 +4,8 @@
   "category": "ai",
   "icon": "si:langgraph",
   "x-dagster-io": {
-    "inputs": {
-      "type": "none"
-    },
     "outputs": {
-      "type": "dict",
+      "type": "any",
       "description": "steps mode: {input, outputs, final, steps_run, stopped_by, model, provider}. graph_fn mode: whatever dict your own graph returns."
     }
   },
@@ -138,39 +135,57 @@
       "required": false,
       "default": null
     },
-    "group_name": {"label": "Group Name", "description": "Dagster asset group name.",
+    "group_name": {
+      "label": "Group Name",
+      "description": "Dagster asset group name.",
       "type": "string",
       "required": false
     },
-    "description": {"label": "Description", "description": "Asset description.",
+    "description": {
+      "label": "Description",
+      "description": "Asset description.",
       "type": "string",
       "required": false
     },
-    "owners": {"label": "Owners", "description": "Asset owners.",
+    "owners": {
+      "label": "Owners",
+      "description": "Asset owners.",
       "type": "array",
       "required": false
     },
-    "asset_tags": {"label": "Asset Tags", "description": "Extra asset tags.",
+    "asset_tags": {
+      "label": "Asset Tags",
+      "description": "Extra asset tags.",
       "type": "object",
       "required": false
     },
-    "kinds": {"label": "Kinds", "description": "Asset kinds. Defaults to ['ai', 'langgraph', 'agent'].",
+    "kinds": {
+      "label": "Kinds",
+      "description": "Asset kinds. Defaults to ['ai', 'langgraph', 'agent'].",
       "type": "array",
       "required": false
     },
-    "deps": {"label": "Deps", "description": "Lineage-only upstream asset keys.",
+    "deps": {
+      "label": "Deps",
+      "description": "Lineage-only upstream asset keys.",
       "type": "array",
       "required": false
     },
-    "retry_policy_max_retries": {"label": "Retry Policy Max Retries", "description": "Max retries on failure.",
+    "retry_policy_max_retries": {
+      "label": "Retry Policy Max Retries",
+      "description": "Max retries on failure.",
       "type": "integer",
       "required": false
     },
-    "retry_policy_delay_seconds": {"label": "Retry Policy Delay Seconds", "description": "Seconds between retries.",
+    "retry_policy_delay_seconds": {
+      "label": "Retry Policy Delay Seconds",
+      "description": "Seconds between retries.",
       "type": "integer",
       "required": false
     },
-    "retry_policy_backoff": {"label": "Retry Policy Backoff", "description": "'linear' or 'exponential'.",
+    "retry_policy_backoff": {
+      "label": "Retry Policy Backoff",
+      "description": "'linear' or 'exponential'.",
       "type": "string",
       "required": false,
       "default": "exponential",

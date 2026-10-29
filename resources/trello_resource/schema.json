@@ -3,9 +3,7 @@
   "description": "Trello REST API client wrapper. API key + token passed as query-string parameters on every request (Trello has no header-based auth).",
   "category": "resource",
   "icon": "si:trello",
-  "x-dagster-io": {
-    "supports_partitions": false
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "type": "string",

@@ -5,7 +5,7 @@
   "icon": "si:prefect",
   "x-dagster-io": {
     "outputs": {
-      "type": "integration",
+      "type": "AssetSpec",
       "description": "One triggerable Dagster asset per discovered Prefect deployment. See README for what each materialization does."
     }
   },
@@ -85,7 +85,9 @@
       "type": "array",
       "label": "Asset Key Prefix",
       "required": false,
-      "default": ["prefect"]
+      "default": [
+        "prefect"
+      ]
     },
     "compute_kind": {
       "description": "Compute kind tag for all imported assets.",

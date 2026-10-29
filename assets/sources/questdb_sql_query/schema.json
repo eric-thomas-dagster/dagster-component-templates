@@ -7,13 +7,8 @@
   "version": "1.0.0",
   "author": "Dagster Community",
   "x-dagster-io": {
-    "inputs": {
-      "type": "none",
-      "required": false,
-      "description": "Any deps are lineage-only"
-    },
     "outputs": {
-      "type": "DataFrame",
+      "type": "dataframe",
       "description": "pandas DataFrame of the query result"
     }
   },
@@ -74,7 +69,7 @@
       "required": false
     },
     "owners": {
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "items": {
         "type": "string"
       },

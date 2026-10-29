@@ -3,9 +3,7 @@
   "description": "New Relic API client wrapper (NerdGraph + Logs/Metrics/Events ingestion endpoints). Supports US + EU regions.",
   "category": "resource",
   "icon": "si:newrelic",
-  "x-dagster-io": {
-    "supports_partitions": false
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "description": "Dagster resource key",

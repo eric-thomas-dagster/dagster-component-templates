@@ -4,45 +4,124 @@
   "category": "integration",
   "icon": "Database",
   "x-dagster-io": {
-    "inputs":  {"type": "none", "description": "No upstream inputs — reads live Hub definition + jobs via REST."},
-    "outputs": {"type": "asset", "description": "One Dagster asset per (channel × target_loc × table). External asset when action=noop (default); materializable asset that triggers channel refresh when action=refresh."}
+    "outputs": {
+      "type": "AssetSpec",
+      "description": "One Dagster asset per (channel x target_loc x table). External asset when action=noop (default); materializable asset that triggers channel refresh when action=refresh."
+    }
   },
   "attributes": {
-    "workspace":                        {"type": "object",  "required": true,  "label": "Workspace",
-                                         "description": "HVR Hub connection as an HvrHubResource: `{hub_url, hub_name, username, password, api_version?, verify_ssl?}`. Secrets typically arrive via `{{ env.XXX }}` Jinja templating in defs.yaml. Mirrors the `workspace:` shape used by dagster-fivetran / dagster-databricks / dagster-powerbi."},
-    "translation":                      {"type": "string",  "label": "Translation",
-                                         "description": "Python callable path resolved via Dagster's TranslationFn — customizes per-asset AssetSpec (key rename, extra tags/metadata, group override). Signature: `def fn(props: HvrObjectProps) -> AssetSpec`. Same convention as dagster-fivetran."},
-
-    "channel_selector":                 {"type": "object",  "label": "Channel Selector",
-                                         "description": "Include/exclude filter for channel names: `{by_name?, by_pattern?, exclude_by_name?, exclude_by_pattern?}`. Globs (fnmatch) supported in the `*_by_pattern` variants. Exclusion always wins. Absent = all channels. Mirrors FivetranWorkspace connector_selector."},
-
-    "asset_key_prefix":                 {"type": "array",   "label": "Asset Key Prefix", "items": {"type": "string"},
-                                         "description": "Prefix parts. Default `['hvr', <hub_name>]`. Every asset gets `[<prefix>..., <channel>, <target_loc>, <table>]`."},
-    "group_name":                       {"description": "Dagster asset group for all emitted assets.", "type": "string",  "label": "Group Name", "default": "hvr"},
-    "kinds":                            {"type": "array",   "label": "Kinds", "items": {"type": "string"},
-                                         "description": "Asset kinds. Default `['hvr', 'cdc']`."},
-    "tags":                             {"description": "Extra tags applied to every emitted asset.", "type": "object",  "label": "Tags"},
-    "owners":                           {"description": "Asset owners applied to every emitted asset.", "type": "array",   "label": "Owners", "items": {"type": "string"}},
-
-    "action":                           {"type": "string",  "label": "Action", "default": "noop", "enum": ["noop", "refresh"],
-                                         "description": "What each asset does on materialize. `noop` — external assets, HVR CDC is continuous. `refresh` — POST /channels/{c}/refresh and poll to completion (Fivetran-style trigger pattern)."},
-    "wait_for_completion":              {"type": "boolean", "label": "Wait For Completion", "default": true,
-                                         "description": "When action=refresh, poll until the refresh completes."},
-    "poll_interval_seconds":            {"description": "Poll interval while waiting for refresh completion.", "type": "integer", "label": "Poll Interval Seconds", "default": 30},
-    "timeout_seconds":                  {"type": "integer", "label": "Timeout Seconds", "default": 3600,
-                                         "description": "Give up waiting after this many seconds (asset materialization fails)."},
-    "concurrency_key":                  {"type": "string", "label": "Concurrency Key", "required": false,
-                                         "description": "Tags each action=refresh asset's op with dagster/concurrency_key set to this value, so overlapping scheduled refreshes of the SAME channel can be prevented. Tagging alone only makes the key available -- the actual limit (e.g. 1 concurrent run) still has to be set separately, in Dagster+'s Concurrency settings or via run_coordinator.tag_concurrency_limits in your instance config. No default -- set explicitly if concurrent refreshes of the same channel would be unsafe."},
-
-    "polling_sensor":                   {"type": "boolean", "label": "Polling Sensor", "default": false,
-                                         "description": "Emit a sensor `{hub_name}_hvr_observer` polling `GET /jobs?fetch=latency` and emitting AssetMaterialization events (or AssetObservation — see emit_materialization) with integrate-lag metadata per asset. Per-job cursor dedup — only emits when lag or state actually changes."},
-    "observation_interval_seconds":     {"description": "Polling sensor cadence.", "type": "integer", "label": "Observation Interval Seconds", "default": 300},
-    "emit_materialization":             {"type": "boolean", "label": "Emit Materialization", "default": true,
-                                         "description": "When true (default), the polling sensor emits AssetMaterialization events — HVR asset tiles go GREEN in the Dagster UI when integrate lag or state advances, matching how snowflake_workspace, tasks, snowpipes, and dynamic tables surface external state. When false, emits AssetObservation instead (dashed / gray tile, 'observed' semantics). Both event types carry the same `dagster/data_version` tag."},
-    "freshness_lag_threshold_seconds":  {"type": "integer", "label": "Freshness Lag Threshold Seconds",
-                                         "description": "If set, emit an asset check `integrate_lag_within_sla` per asset — passes when the most recent `integrate_lag_seconds` observation ≤ threshold."},
-
-    "defs_state":                       {"type": "object",  "label": "Defs State",
-                                         "description": "State backend for cached workspace discovery. Local filesystem by default; override per-deploy for Dagster Cloud."}
+    "workspace": {
+      "type": "object",
+      "required": true,
+      "label": "Workspace",
+      "description": "HVR Hub connection as an HvrHubResource: `{hub_url, hub_name, username, password, api_version?, verify_ssl?}`. Secrets typically arrive via `{{ env.XXX }}` Jinja templating in defs.yaml. Mirrors the `workspace:` shape used by dagster-fivetran / dagster-databricks / dagster-powerbi."
+    },
+    "translation": {
+      "type": "string",
+      "label": "Translation",
+      "description": "Python callable path resolved via Dagster's TranslationFn — customizes per-asset AssetSpec (key rename, extra tags/metadata, group override). Signature: `def fn(props: HvrObjectProps) -> AssetSpec`. Same convention as dagster-fivetran."
+    },
+    "channel_selector": {
+      "type": "object",
+      "label": "Channel Selector",
+      "description": "Include/exclude filter for channel names: `{by_name?, by_pattern?, exclude_by_name?, exclude_by_pattern?}`. Globs (fnmatch) supported in the `*_by_pattern` variants. Exclusion always wins. Absent = all channels. Mirrors FivetranWorkspace connector_selector."
+    },
+    "asset_key_prefix": {
+      "type": "array",
+      "label": "Asset Key Prefix",
+      "items": {
+        "type": "string"
+      },
+      "description": "Prefix parts. Default `['hvr', <hub_name>]`. Every asset gets `[<prefix>..., <channel>, <target_loc>, <table>]`."
+    },
+    "group_name": {
+      "description": "Dagster asset group for all emitted assets.",
+      "type": "string",
+      "label": "Group Name",
+      "default": "hvr"
+    },
+    "kinds": {
+      "type": "array",
+      "label": "Kinds",
+      "items": {
+        "type": "string"
+      },
+      "description": "Asset kinds. Default `['hvr', 'cdc']`."
+    },
+    "tags": {
+      "description": "Extra tags applied to every emitted asset.",
+      "type": "object",
+      "label": "Tags"
+    },
+    "owners": {
+      "description": "Asset owners applied to every emitted asset.",
+      "type": "array",
+      "label": "Owners",
+      "items": {
+        "type": "string"
+      }
+    },
+    "action": {
+      "type": "string",
+      "label": "Action",
+      "default": "noop",
+      "enum": [
+        "noop",
+        "refresh"
+      ],
+      "description": "What each asset does on materialize. `noop` — external assets, HVR CDC is continuous. `refresh` — POST /channels/{c}/refresh and poll to completion (Fivetran-style trigger pattern)."
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "label": "Wait For Completion",
+      "default": true,
+      "description": "When action=refresh, poll until the refresh completes."
+    },
+    "poll_interval_seconds": {
+      "description": "Poll interval while waiting for refresh completion.",
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "default": 30
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "default": 3600,
+      "description": "Give up waiting after this many seconds (asset materialization fails)."
+    },
+    "concurrency_key": {
+      "type": "string",
+      "label": "Concurrency Key",
+      "required": false,
+      "description": "Tags each action=refresh asset's op with dagster/concurrency_key set to this value, so overlapping scheduled refreshes of the SAME channel can be prevented. Tagging alone only makes the key available -- the actual limit (e.g. 1 concurrent run) still has to be set separately, in Dagster+'s Concurrency settings or via run_coordinator.tag_concurrency_limits in your instance config. No default -- set explicitly if concurrent refreshes of the same channel would be unsafe."
+    },
+    "polling_sensor": {
+      "type": "boolean",
+      "label": "Polling Sensor",
+      "default": false,
+      "description": "Emit a sensor `{hub_name}_hvr_observer` polling `GET /jobs?fetch=latency` and emitting AssetMaterialization events (or AssetObservation — see emit_materialization) with integrate-lag metadata per asset. Per-job cursor dedup — only emits when lag or state actually changes."
+    },
+    "observation_interval_seconds": {
+      "description": "Polling sensor cadence.",
+      "type": "integer",
+      "label": "Observation Interval Seconds",
+      "default": 300
+    },
+    "emit_materialization": {
+      "type": "boolean",
+      "label": "Emit Materialization",
+      "default": true,
+      "description": "When true (default), the polling sensor emits AssetMaterialization events — HVR asset tiles go GREEN in the Dagster UI when integrate lag or state advances, matching how snowflake_workspace, tasks, snowpipes, and dynamic tables surface external state. When false, emits AssetObservation instead (dashed / gray tile, 'observed' semantics). Both event types carry the same `dagster/data_version` tag."
+    },
+    "freshness_lag_threshold_seconds": {
+      "type": "integer",
+      "label": "Freshness Lag Threshold Seconds",
+      "description": "If set, emit an asset check `integrate_lag_within_sla` per asset — passes when the most recent `integrate_lag_seconds` observation ≤ threshold."
+    },
+    "defs_state": {
+      "type": "object",
+      "label": "Defs State",
+      "description": "State backend for cached workspace discovery. Local filesystem by default; override per-deploy for Dagster Cloud."
+    }
   }
 }

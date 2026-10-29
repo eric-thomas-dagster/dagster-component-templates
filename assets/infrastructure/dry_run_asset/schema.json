@@ -5,7 +5,7 @@
   "icon": "Beaker",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "any",
       "description": "One @dg.asset. Emits MaterializeResult only (no value written); AssetObservation tagged dry_run=true when dry-mode fires."
     }
   },

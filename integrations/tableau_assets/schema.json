@@ -5,7 +5,7 @@
   "icon": "BarChart3",
   "x-dagster-io": {
     "outputs": {
-      "type": "integration",
+      "type": "AssetSpec",
       "description": "Import Tableau workbooks + sheets as Dagster external assets via dagster-tableau."
     }
   },

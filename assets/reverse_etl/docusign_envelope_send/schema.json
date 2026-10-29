@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row -> one DocuSign envelope created from a template, personalized via tabs_map / email_subject_template."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (envelopes_sent / envelopes_failed / rows_skipped_no_recipient / first_envelope_ids). No downstream data -- the send side effect is a real DocuSign envelope + signature-request email."
     }
   },
@@ -90,7 +90,12 @@
       "default": 500,
       "description": "Max upstream rows per run (blast-radius safety cap, not a rate limit)."
     },
-    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name", "required": false },
+    "group_name": {
+      "description": "Dagster asset group name.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
@@ -153,10 +158,30 @@
       "required": false,
       "x-dagster-widget": "column"
     },
-    "description": {"description": "Asset description.", "type": "string", "label": "Description", "required": false },
-    "owners": {"description": "Asset owners.", "type": "array", "label": "Owners", "required": false },
-    "tags": {"description": "Catalog tags.", "type": "object", "label": "Tags", "required": false },
-    "kinds": {"description": "Asset kinds (auto-includes 'docusign').", "type": "array", "label": "Kinds", "required": false },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "label": "Owners",
+      "required": false
+    },
+    "tags": {
+      "description": "Catalog tags.",
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "kinds": {
+      "description": "Asset kinds (auto-includes 'docusign').",
+      "type": "array",
+      "label": "Kinds",
+      "required": false
+    },
     "partition_cron_schedule": {
       "type": "string",
       "label": "Partition Cron Schedule",

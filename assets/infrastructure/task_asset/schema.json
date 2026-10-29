@@ -5,13 +5,23 @@
   "icon": "Fork",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "any",
       "description": "One graph asset. Each declared layer becomes a fan-out graph node (`<asset>.<layer>_process[?]`) — instances discovered at runtime."
     }
   },
   "attributes": {
-    "asset_name": {"description": "Output Dagster asset name.", "type": "string", "label": "Asset Name", "required": true},
-    "upstream_asset_key": {"type": "string", "label": "Upstream Asset Key", "required": false, "default": null},
+    "asset_name": {
+      "description": "Output Dagster asset name.",
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": false,
+      "default": null
+    },
     "layers": {
       "type": "array",
       "label": "Layers",
@@ -20,10 +30,19 @@
       "items": {
         "type": "object",
         "properties": {
-          "name": {"type": "string", "description": "Layer name; used as graph-node prefix."},
-          "compute": {"type": "string", "description": "'mod:fn' callable ref."}
+          "name": {
+            "type": "string",
+            "description": "Layer name; used as graph-node prefix."
+          },
+          "compute": {
+            "type": "string",
+            "description": "'mod:fn' callable ref."
+          }
         },
-        "required": ["name", "compute"]
+        "required": [
+          "name",
+          "compute"
+        ]
       }
     },
     "terminal": {
@@ -33,12 +52,53 @@
       "default": null,
       "description": "Optional 'mod:fn' receiving (context, all_results: list). Returns the asset's final value."
     },
-    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name", "required": false},
-    "description": {"description": "Asset description.", "type": "string", "label": "Description", "required": false},
-    "owners": {"description": "Asset owners.", "type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "tags": {"description": "Catalog tags.", "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"description": "Asset kinds for the Dagster catalog.", "type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"}
+    "group_name": {
+      "description": "Dagster asset group name.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "description": "Catalog tags.",
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds for the Dagster catalog.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    }
   },
-  "tags": ["task", "fan-out", "dynamic", "runtime-graph", "decorator", "infrastructure"],
+  "tags": [
+    "task",
+    "fan-out",
+    "dynamic",
+    "runtime-graph",
+    "decorator",
+    "infrastructure"
+  ],
   "name": "Task Asset"
 }

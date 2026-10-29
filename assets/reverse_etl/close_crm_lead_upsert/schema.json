@@ -10,7 +10,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row → one Close Lead (upserted via dedupe_field)."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / rows_skipped_no_key). No downstream data — the write side effect lands in Close CRM."
     }
   },
@@ -39,7 +39,11 @@
       "label": "Dedupe Field",
       "required": true,
       "description": "Close field used to search for an existing Lead (no native upsert — emulated via search-then-write; NOT race-condition-safe). One of 'email' (recommended), 'phone', 'name' (not guaranteed unique), or 'custom.cf_xxx'. MUST be present in fields_map values.",
-      "enum": ["email", "phone", "name"]
+      "enum": [
+        "email",
+        "phone",
+        "name"
+      ]
     },
     "fields_map": {
       "type": "object",
@@ -185,6 +189,5 @@
     "lead",
     "search-then-write"
   ],
-  "name": "Close CRM Lead Upsert",
-  "vertical": "crm-sales"
+  "name": "Close CRM Lead Upsert"
 }

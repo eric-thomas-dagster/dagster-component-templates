@@ -1,16 +1,16 @@
 {
   "component_type": "dagster_component_templates.SalesforceRecordUpsertComponent",
-  "description": "Reverse-ETL sink: mirror an upstream DataFrame into a Salesforce SObject via the native External-ID upsert endpoint. `PATCH /services/data/vXX.0/sobjects/{Object}/{ExtIdField}/{Value}` atomically creates or updates in one request \u2014 no search-then-write. Composite mode batches 200 records per HTTP call for high throughput.",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into a Salesforce SObject via the native External-ID upsert endpoint. `PATCH /services/data/vXX.0/sobjects/{Object}/{ExtIdField}/{Value}` atomically creates or updates in one request — no search-then-write. Composite mode batches 200 records per HTTP call for high throughput.",
   "category": "reverse_etl",
   "icon": "si:salesforce",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",
-      "description": "pandas DataFrame from an upstream asset. Each row \u2192 one Salesforce record (upserted via external_id_field)."
+      "description": "pandas DataFrame from an upstream asset. Each row → one Salesforce record (upserted via external_id_field)."
     },
     "outputs": {
-      "type": "sink",
-      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / composite_batching). No downstream data \u2014 the write side effect lands in Salesforce."
+      "type": "MaterializeResult",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / composite_batching). No downstream data — the write side effect lands in Salesforce."
     }
   },
   "attributes": {
@@ -55,7 +55,7 @@
       "type": "object",
       "label": "Fields Map",
       "required": true,
-      "description": "Upstream column \u2192 Salesforce field API name.",
+      "description": "Upstream column → Salesforce field API name.",
       "ui:widget": "key-value"
     },
     "batch_size": {
@@ -86,7 +86,7 @@
       "label": "Use Bulk 2.0",
       "required": false,
       "default": false,
-      "description": "Use the async Bulk 2.0 ingest API \u2014 10-100x faster for >200-row loads.",
+      "description": "Use the async Bulk 2.0 ingest API — 10-100x faster for >200-row loads.",
       "ui:widget": "checkbox"
     },
     "bulk_poll_interval_seconds": {

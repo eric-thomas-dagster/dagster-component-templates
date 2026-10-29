@@ -4,12 +4,7 @@
   "category": "resource",
   "vertical": "crm-sales",
   "icon": "favicon:close.com",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "resource",
-      "description": "CloseCrmResource with .get/.post/.put, find_lead_by_query (Advanced Filtering search), create_lead, update_lead, and upsert_lead (search-then-write). Consumed by close_crm_lead_upsert (sink) and by custom Dagster asset code that needs raw Close REST access."
-    }
-  },
+  "x-dagster-io": {},
   "x-dagster-provides": [
     "close_crm_resource"
   ],

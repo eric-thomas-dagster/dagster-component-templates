@@ -10,7 +10,7 @@
       "description": "Input DataFrame"
     },
     "outputs": {
-      "type": "multiple_dataframes",
+      "type": "dataframe",
       "description": "Two or three downstream DataFrame assets: <asset_name>_train, _test, and optionally _val"
     }
   },

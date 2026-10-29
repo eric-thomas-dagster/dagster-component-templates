@@ -4,7 +4,10 @@
   "category": "source",
   "icon": "LineChart",
   "x-dagster-io": {
-    "supports_partitions": false
+    "outputs": {
+      "type": "dataframe",
+      "description": "Output DataFrame"
+    }
   },
   "attributes": {
     "asset_name": {
@@ -109,7 +112,7 @@
       },
       "label": "Owners",
       "required": false,
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "ui:widget": "list"
     },
     "asset_tags": {
@@ -174,7 +177,7 @@
       "label": "Partition Type",
       "required": false,
       "default": null,
-      "description": "Enable partitioning: 'daily'/'weekly'/'monthly'/'hourly' for time-based; 'static' for a fixed set of values; 'dynamic' for values added at runtime; 'multi' for date \u00d7 static. Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily'/'weekly'/'monthly'/'hourly' for time-based; 'static' for a fixed set of values; 'dynamic' for values added at runtime; 'multi' for date × static. Leave empty for unpartitioned.",
       "enum": [
         "daily",
         "weekly",

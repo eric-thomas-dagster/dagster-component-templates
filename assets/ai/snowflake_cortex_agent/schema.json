@@ -4,14 +4,10 @@
   "category": "ai",
   "icon": "si:snowflake",
   "x-dagster-io": {
-    "inputs": {
-      "type": "none"
-    },
     "outputs": {
-      "type": "dict",
+      "type": "any",
       "description": "{final_answer, iterations, tool_calls_made, tool_call_details, transcript, stopped_reason, model, mcp_servers}"
-    },
-    "supports_partitions": true
+    }
   },
   "attributes": {
     "asset_name": {

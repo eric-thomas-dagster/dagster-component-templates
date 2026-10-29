@@ -69,7 +69,14 @@ def find_component_dirs() -> list[Path]:
     dirs = []
     for p in REPO_ROOT.rglob("component.py"):
         rel = p.relative_to(REPO_ROOT)
-        if rel.parts[0] in EXCLUDE_TOP:
+        # Any path segment, not just the first -- a stray .venv nested inside
+        # a quickstart (e.g. quickstarts/synthetic_commerce/.venv/...) is just
+        # as real as one at the repo root, and rel.parts[0]-only checking
+        # misses it (confirmed live: it walked an installed package copy
+        # under quickstarts/synthetic_commerce/.venv and nearly doubled the
+        # manifest with vendored duplicates -- same bug check_component_registry.py
+        # already fixed for the same reason, see its matching comment).
+        if set(rel.parts) & EXCLUDE_TOP:
             continue
         if "tests" in rel.parts or "__pycache__" in rel.parts:
             continue
@@ -167,7 +174,7 @@ def sync(check_only: bool) -> int:
 
     manifest["last_updated"] = date.today().isoformat()
     with open(MANIFEST_PATH, "w") as f:
-        json.dump(manifest, f, indent=2)
+        json.dump(manifest, f, indent=2, ensure_ascii=False)
         f.write("\n")
 
     print(f"Synced manifest.json: {len(merged_components)} components.")

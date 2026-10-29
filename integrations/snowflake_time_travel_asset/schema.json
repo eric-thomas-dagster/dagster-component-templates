@@ -5,49 +5,58 @@
   "icon": "si:snowflake",
   "x-dagster-io": {
     "outputs": {
-      "type": "integration",
+      "type": "AssetSpec",
       "description": "One Dagster asset per selected item discovered in the vendor. See README for what each materialization produces."
     }
   },
   "attributes": {
-    "asset_name": {"label": "Asset Name", 
+    "asset_name": {
+      "label": "Asset Name",
       "type": "string",
       "required": true,
       "description": "Output Dagster asset name"
     },
-    "account": {"label": "Account", 
+    "account": {
+      "label": "Account",
       "type": "string",
       "required": true,
       "description": "Snowflake account, e.g. xy12345-abc."
     },
-    "user": {"label": "User", 
+    "user": {
+      "label": "User",
       "type": "string",
       "required": true,
       "description": "Snowflake user (NAME for keypair, LOGIN_NAME for password/SSO/PAT)."
     },
-    "warehouse": {"label": "Warehouse", 
+    "warehouse": {
+      "label": "Warehouse",
       "type": "string",
       "required": false
     },
-    "database": {"label": "Database", 
+    "database": {
+      "label": "Database",
       "type": "string",
       "required": true,
       "description": "Database containing the source table."
     },
-    "schema_name": {"label": "Schema Name", 
+    "schema_name": {
+      "label": "Schema Name",
       "type": "string",
       "required": true,
       "description": "Schema containing the source table."
     },
-    "role": {"label": "Role", 
+    "role": {
+      "label": "Role",
       "type": "string",
       "required": false
     },
-    "password": {"label": "Password", 
+    "password": {
+      "label": "Password",
       "type": "string",
       "required": false
     },
-    "authenticator": {"label": "Authenticator", 
+    "authenticator": {
+      "label": "Authenticator",
       "type": "string",
       "required": false,
       "description": "Snowflake authenticator: 'SNOWFLAKE_JWT', 'externalbrowser', 'PROGRAMMATIC_ACCESS_TOKEN', 'oauth'.",
@@ -59,95 +68,114 @@
       ],
       "ui:widget": "select"
     },
-    "private_key_file": {"label": "Private Key File", 
+    "private_key_file": {
+      "label": "Private Key File",
       "type": "string",
       "required": false
     },
-    "private_key_file_pwd": {"label": "Private Key File Pwd", 
+    "private_key_file_pwd": {
+      "label": "Private Key File Pwd",
       "type": "string",
       "required": false
     },
-    "token": {"label": "Token", 
+    "token": {
+      "label": "Token",
       "type": "string",
       "required": false
     },
-    "source_table": {"label": "Source Table", 
+    "source_table": {
+      "label": "Source Table",
       "type": "string",
       "required": true,
       "description": "Table to time-travel against (unqualified; resolved against database.schema_name)."
     },
-    "columns": {"label": "Columns", 
+    "columns": {
+      "label": "Columns",
       "type": "array",
       "required": false,
       "description": "Columns to SELECT (defaults to *). E.g. ['ID', 'NAME', 'AMOUNT'].",
       "x-dagster-widget": "columns"
     },
-    "where_clause": {"label": "Where Clause", 
+    "where_clause": {
+      "label": "Where Clause",
       "type": "string",
       "required": false,
       "description": "Optional WHERE predicate (without the WHERE keyword). E.g. 'AMOUNT > 100'."
     },
-    "row_limit": {"label": "Row Limit", 
+    "row_limit": {
+      "label": "Row Limit",
       "type": "integer",
       "required": false,
       "description": "Optional LIMIT N on the result."
     },
-    "time_travel_offset_seconds": {"label": "Time Travel Offset Seconds", 
+    "time_travel_offset_seconds": {
+      "label": "Time Travel Offset Seconds",
       "type": "integer",
       "required": false,
       "description": "Seconds back from now (NEGATIVE int, e.g. -3600 = 1 hour ago). Maps to `AT(OFFSET => <n>)`."
     },
-    "time_travel_timestamp": {"label": "Time Travel Timestamp", 
+    "time_travel_timestamp": {
+      "label": "Time Travel Timestamp",
       "type": "string",
       "required": false,
       "description": "Specific timestamp to time-travel to, e.g. '2025-05-19 10:00:00'. Maps to `AT(TIMESTAMP => '...'::TIMESTAMP)`."
     },
-    "time_travel_statement_id": {"label": "Time Travel Statement ID", 
+    "time_travel_statement_id": {
+      "label": "Time Travel Statement ID",
       "type": "string",
       "required": false,
       "description": "Query ID to time-travel BEFORE. Maps to `BEFORE(STATEMENT => '<query_id>')`."
     },
-    "group_name": {"label": "Group Name", 
+    "group_name": {
+      "label": "Group Name",
       "description": "Dagster asset group name.",
       "type": "string",
       "required": false
     },
-    "description": {"label": "Description", 
+    "description": {
+      "label": "Description",
       "description": "Asset description.",
       "type": "string",
       "required": false
     },
-    "asset_tags": {"label": "Asset Tags", 
+    "asset_tags": {
+      "label": "Asset Tags",
       "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "required": false
     },
-    "kinds": {"label": "Kinds", 
+    "kinds": {
+      "label": "Kinds",
       "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "required": false
     },
-    "owners": {"label": "Owners", 
+    "owners": {
+      "label": "Owners",
       "description": "Asset owners.",
       "type": "array",
       "required": false
     },
-    "deps": {"label": "Deps", 
+    "deps": {
+      "label": "Deps",
       "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "required": false
     },
-    "retry_policy_max_retries": {"label": "Retry Policy Max Retries", 
+    "retry_policy_max_retries": {
+      "label": "Retry Policy Max Retries",
       "type": "integer",
       "required": false,
       "description": "Max retries on query failure."
     },
-    "retry_policy_delay_seconds": {"label": "Retry Policy Delay Seconds", 
+    "retry_policy_delay_seconds": {
+      "label": "Retry Policy Delay Seconds",
       "description": "Seconds between retries.",
       "type": "integer",
       "required": false
     },
-    "retry_policy_backoff": {"label": "Retry Policy Backoff", 
+    "retry_policy_backoff": {
+      "label": "Retry Policy Backoff",
       "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "required": false,

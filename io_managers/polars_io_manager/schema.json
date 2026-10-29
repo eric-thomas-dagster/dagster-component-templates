@@ -3,12 +3,7 @@
   "description": "Wrap the official `dagster-polars` PolarsParquetIOManager so polars.DataFrame assets persist as Parquet.",
   "category": "io_manager",
   "icon": "si:polars",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "IOManager",
-      "description": "Wrap the official `dagster-polars` PolarsParquetIOManager so polars.DataFrame assets persist as Parquet."
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "description": "Dagster resource key. Use 'io_manager' to make this the default.",

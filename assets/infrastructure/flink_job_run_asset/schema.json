@@ -7,8 +7,10 @@
   "version": "1.0.0",
   "author": "Dagster Community",
   "x-dagster-io": {
-    "inputs": {"type": "none", "required": false, "description": "Any deps are lineage-only"},
-    "outputs": {"type": "Any", "description": "MaterializeResult with the job's final state in metadata"}
+    "outputs": {
+      "type": "any",
+      "description": "MaterializeResult with the job's final state in metadata"
+    }
   },
   "attributes": {
     "asset_name": {
@@ -259,5 +261,10 @@
       "ui:widget": "select"
     }
   },
-  "tags": ["flink", "streaming", "infrastructure", "self-hosted"]
+  "tags": [
+    "flink",
+    "streaming",
+    "infrastructure",
+    "self-hosted"
+  ]
 }

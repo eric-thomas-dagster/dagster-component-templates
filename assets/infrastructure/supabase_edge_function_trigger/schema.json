@@ -5,7 +5,7 @@
   "icon": "si:supabase",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "any",
       "description": "Edge function response body (JSON if parseable, else text)"
     }
   },

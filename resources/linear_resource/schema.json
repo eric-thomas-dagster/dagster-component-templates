@@ -3,9 +3,7 @@
   "description": "Linear GraphQL API client wrapper. Personal API key or OAuth2 access token, sent raw (no Bearer prefix) in the Authorization header.",
   "category": "resource",
   "icon": "si:linear",
-  "x-dagster-io": {
-    "supports_partitions": false
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "type": "string",

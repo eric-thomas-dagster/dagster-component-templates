@@ -5,7 +5,7 @@
   "icon": "Cloud",
   "x-dagster-io": {
     "outputs": {
-      "type": "integration",
+      "type": "AssetSpec",
       "description": "Import each Fivetran connector as a Dagster external asset via dagster-fivetran."
     }
   },

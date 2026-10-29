@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row pushes properties onto one Heap user (matched via identity_column)."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (rows_synced / rows_errored). No downstream data -- write side effect lands in Heap."
     }
   },

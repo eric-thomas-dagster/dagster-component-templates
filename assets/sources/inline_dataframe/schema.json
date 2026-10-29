@@ -1,13 +1,12 @@
 {
   "component_type": "dagster_component_templates.InlineDataframeComponent",
-  "description": "Materialize a small literal DataFrame from inline YAML rows + optional per-column dtypes. For reference tables, fixtures, or Alteryx Text Input ports \u2014 where bundling a CSV is overkill.",
+  "description": "Materialize a small literal DataFrame from inline YAML rows + optional per-column dtypes. For reference tables, fixtures, or Alteryx Text Input ports — where bundling a CSV is overkill.",
   "category": "source",
   "icon": "Table",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe"
-    },
-    "supports_partitions": false
+    }
   },
   "attributes": {
     "asset_name": {
@@ -38,42 +37,50 @@
       "description": "Per-column dtype overrides (e.g. {quantity: Int64, unit_price: float64}). Numeric dtypes route through pd.to_numeric.",
       "required": false
     },
-    "group_name": {"label": "Group Name", 
+    "group_name": {
+      "label": "Group Name",
       "description": "Dagster asset group name.",
       "type": "string",
       "required": false
     },
-    "description": {"label": "Description", 
+    "description": {
+      "label": "Description",
       "description": "Asset description.",
       "type": "string",
       "required": false
     },
-    "owners": {"label": "Owners", 
+    "owners": {
+      "label": "Owners",
       "description": "Asset owners.",
       "type": "array",
       "required": false
     },
-    "asset_tags": {"label": "Asset Tags", 
+    "asset_tags": {
+      "label": "Asset Tags",
       "description": "Extra asset tags.",
       "type": "object",
       "required": false
     },
-    "kinds": {"label": "Kinds", 
+    "kinds": {
+      "label": "Kinds",
       "type": "array",
       "description": "Defaults to ['inline', 'reference'].",
       "required": false
     },
-    "deps": {"label": "Deps", 
+    "deps": {
+      "label": "Deps",
       "description": "Lineage-only upstream asset keys.",
       "type": "array",
       "required": false
     },
-    "freshness_max_lag_minutes": {"label": "Freshness Max Lag Minutes", 
+    "freshness_max_lag_minutes": {
+      "label": "Freshness Max Lag Minutes",
       "description": "Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
       "type": "integer",
       "required": false
     },
-    "freshness_cron": {"label": "Freshness Cron", 
+    "freshness_cron": {
+      "label": "Freshness Cron",
       "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
       "type": "string",
       "required": false,

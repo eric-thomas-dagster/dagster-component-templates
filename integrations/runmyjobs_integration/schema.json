@@ -5,7 +5,7 @@
   "icon": "Schedule",
   "x-dagster-io": {
     "outputs": {
-      "type": "integration",
+      "type": "AssetSpec",
       "description": "One daily-partitioned Dagster asset per RunMyJobs JobDefinition + optional external source-table assets + 5 ops/jobs + 2 sensors + 1 schedule."
     }
   },

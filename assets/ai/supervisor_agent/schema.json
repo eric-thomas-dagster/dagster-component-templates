@@ -4,83 +4,93 @@
   "category": "ai",
   "icon": "Sparkles",
   "x-dagster-io": {
-    "inputs": {
-      "type": "none",
-      "description": "Task is provided in YAML config."
-    },
     "outputs": {
-      "type": "multi_asset",
+      "type": "any",
       "description": "Emits (2 + N_tools) assets: plan, one per tool, and synthesis."
     }
   },
   "attributes": {
-    "plan_asset_name": {"label": "Plan Asset Name", 
+    "plan_asset_name": {
+      "label": "Plan Asset Name",
       "type": "string",
       "required": true,
       "description": "Name of the planner's asset."
     },
-    "synthesis_asset_name": {"label": "Synthesis Asset Name", 
+    "synthesis_asset_name": {
+      "label": "Synthesis Asset Name",
       "type": "string",
       "required": true,
       "description": "Name of the final synthesis asset."
     },
-    "task": {"label": "Task", 
+    "task": {
+      "label": "Task",
       "type": "string",
       "required": true,
       "description": "The task / question the supervisor plans against."
     },
-    "tools": {"label": "Tools", 
+    "tools": {
+      "label": "Tools",
       "type": "array",
       "required": true,
       "description": "Bounded list of {name, description, system_message}."
     },
-    "model": {"label": "Model", 
+    "model": {
+      "label": "Model",
       "description": "Optional per-tool model override. When None (default), the component-level `model` is used for this tool. Set this to use a search-capable model (e.g., 'perplexity/sonar-pro' via Vercel AI Gateway) for tools that need real web / retrieval, while keeping cheap models for arithmetic-style tools.",
       "type": "string",
       "required": false,
       "default": null
     },
-    "api_key_env_var": {"label": "API Key Env Var", 
+    "api_key_env_var": {
+      "label": "API Key Env Var",
       "description": "Per-tool API key env var override (defaults to component-level).",
       "type": "string",
       "required": false,
       "default": null
     },
-    "api_base_env_var": {"label": "API Base Env Var", 
+    "api_base_env_var": {
+      "label": "API Base Env Var",
       "description": "Per-tool base URL env var override — e.g., set to `VERCEL_AI_GATEWAY_URL` for a search-capable route. Defaults to component-level.",
       "type": "string",
       "required": false
     },
-    "temperature": {"label": "Temperature", 
+    "temperature": {
+      "label": "Temperature",
       "type": "number",
       "required": false,
       "default": 0.2
     },
-    "planner_max_tokens": {"label": "Planner Max Tokens", 
+    "planner_max_tokens": {
+      "label": "Planner Max Tokens",
       "type": "integer",
       "required": false,
       "default": 400
     },
-    "tool_max_tokens": {"label": "Tool Max Tokens", 
+    "tool_max_tokens": {
+      "label": "Tool Max Tokens",
       "type": "integer",
       "required": false,
       "default": 400
     },
-    "synthesis_max_tokens": {"label": "Synthesis Max Tokens", 
+    "synthesis_max_tokens": {
+      "label": "Synthesis Max Tokens",
       "type": "integer",
       "required": false,
       "default": 600
     },
-    "synthesis_system_message": {"label": "Synthesis System Message", 
+    "synthesis_system_message": {
+      "label": "Synthesis System Message",
       "type": "string",
       "required": false
     },
-    "group_name": {"label": "Group Name", 
+    "group_name": {
+      "label": "Group Name",
       "description": "Dagster asset group name.",
       "type": "string",
       "required": false
     },
-    "kinds": {"label": "Kinds", 
+    "kinds": {
+      "label": "Kinds",
       "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "required": false

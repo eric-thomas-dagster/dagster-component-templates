@@ -5,7 +5,7 @@
   "icon": "Database",
   "x-dagster-io": {
     "outputs": {
-      "type": "integration",
+      "type": "AssetSpec",
       "description": "One Dagster asset per selected item discovered in the vendor. See README for what each materialization produces."
     }
   },
@@ -64,13 +64,13 @@
     "include_patterns": {
       "type": "array",
       "label": "Include Patterns",
-      "description": "fnmatch-style globs \u2014 keep matching object names.",
+      "description": "fnmatch-style globs — keep matching object names.",
       "required": false
     },
     "exclude_patterns": {
       "type": "array",
       "label": "Exclude Patterns",
-      "description": "fnmatch-style globs \u2014 drop matching object names.",
+      "description": "fnmatch-style globs — drop matching object names.",
       "required": false
     },
     "import_tables": {

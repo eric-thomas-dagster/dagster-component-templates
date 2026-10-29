@@ -5,7 +5,7 @@
   "icon": "CheckCircle",
   "x-dagster-io": {
     "outputs": {
-      "type": "check",
+      "type": "AssetCheckResult",
       "description": "Validate a DataFrame asset's column constraints via dagster-pandas."
     }
   },
@@ -44,7 +44,15 @@
       "description": "Set this to match the checked asset's own partitioning (e.g. 'daily'), or the check can't resolve which partition's data to load. 'daily'|'weekly'|'monthly'|'hourly'|'static'|'dynamic'|'multi', or None for an unpartitioned target.",
       "required": false,
       "default": null,
-      "enum": ["daily", "hourly", "weekly", "monthly", "static", "multi", "dynamic"],
+      "enum": [
+        "daily",
+        "hourly",
+        "weekly",
+        "monthly",
+        "static",
+        "multi",
+        "dynamic"
+      ],
       "ui:widget": "select"
     },
     "partition_start": {

@@ -3,12 +3,7 @@
   "description": "Store DataFrames as JSON Lines (.jsonl) files on the local filesystem.",
   "category": "io_manager",
   "icon": "Save",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "IOManager",
-      "description": "Resource registered under resource_key"
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",

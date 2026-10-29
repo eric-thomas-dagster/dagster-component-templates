@@ -1,17 +1,17 @@
 {
   "component_type": "dagster_component_templates.DataframeToDeltaTableComponent",
-  "description": "Write a pandas DataFrame to an EXISTING Delta Lake table (append / overwrite / merge). Uses delta-rs \u2014 no Spark / JVM. For cross-engine Delta scenarios on S3 / ADLS / GCS / Unity Catalog.",
+  "description": "Write a pandas DataFrame to an EXISTING Delta Lake table (append / overwrite / merge). Uses delta-rs — no Spark / JVM. For cross-engine Delta scenarios on S3 / ADLS / GCS / Unity Catalog.",
   "category": "sink",
   "icon": "si:databricks",
   "x-dagster-io": {
     "inputs": {
-      "upstream": {
-        "type": "pandas.DataFrame",
-        "required": true
-      }
+      "type": "dataframe",
+      "required": true,
+      "description": "DataFrame to write"
     },
     "outputs": {
-      "type": "Output[None]"
+      "type": "MaterializeResult",
+      "description": "Write confirmation with metadata"
     }
   },
   "attributes": {
@@ -262,5 +262,5 @@
     "unity-catalog",
     "external-table"
   ],
-  "name": "Dataframe \u2192 Delta Table"
+  "name": "Dataframe → Delta Table"
 }

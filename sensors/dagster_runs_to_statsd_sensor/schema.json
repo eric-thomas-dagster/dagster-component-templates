@@ -3,9 +3,7 @@
   "description": "Push Dagster run lifecycle events (SUCCESS / FAILURE) as StatsD/DogStatsD UDP metrics. No external Python deps. Targets the Datadog Agent, local statsd, or any DogStatsD-compatible receiver.",
   "category": "sensor",
   "icon": "Activity",
-  "x-dagster-io": {
-    "supports_partitions": false
-  },
+  "x-dagster-io": {},
   "attributes": {
     "sensor_name": {
       "description": "Dagster sensor name.",

@@ -5,7 +5,7 @@
   "icon": "si:googlecloud",
   "x-dagster-io": {
     "outputs": {
-      "type": "DataFrame",
+      "type": "dataframe",
       "description": "Upstream DataFrame with vision_* columns added per requested feature."
     }
   },

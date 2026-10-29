@@ -5,57 +5,224 @@
   "category": "integration",
   "icon": "si:microsoftazure",
   "x-dagster-io": {
-    "inputs":  {"type": "none", "description": "Discovery hits ADF Management API; no upstream Dagster inputs."},
-    "outputs": {"type": "integration", "description": "One @multi_asset per ADF pipeline, external assets per trigger / linked_service / dataset / data_flow / integration_runtime, plus optional polling sensor for pipeline-run observation."}
+    "outputs": {
+      "type": "AssetSpec",
+      "description": "One @multi_asset per ADF pipeline, external assets per trigger / linked_service / dataset / data_flow / integration_runtime, plus optional polling sensor for pipeline-run observation."
+    }
   },
   "attributes": {
-    "workspace":                     {"type": "object",  "required": true, "label": "Workspace",
-                                      "description": "Azure Data Factory connection as an AzureDataFactoryResource: `{subscription_id, resource_group_name, factory_name, tenant_id_env_var?, client_id_env_var?, client_secret_env_var?}`. Falls back to DefaultAzureCredential when SP env vars aren't set. Secrets typically arrive via `{{ env.XXX }}` Jinja templating."},
-    "translation":                   {"type": "string",  "label": "Translation",
-                                      "description": "Python callable path resolved via Dagster's TranslationFn — customizes per-asset AssetSpec (key rename, extra tags/metadata, group override). Signature: `def fn(props: AzureDataFactoryObjectProps) -> AssetSpec`."},
-
-    "import_pipelines":              {"type": "boolean", "label": "Import Pipelines", "default": true, "description": "Import ADF pipelines as materializable multi_assets (default true)."},
-    "import_triggers":               {"type": "boolean", "label": "Import Triggers", "default": false, "description": "Import ADF triggers as observable external assets."},
-    "import_linked_services":        {"type": "boolean", "label": "Import Linked Services (untested)", "default": false, "description": "**Untested.** Import ADF linked services (data source / sink connections) as external Dagster assets. Read-only surface — no runtime action. Validate against your factory before use."},
-    "import_datasets":               {"type": "boolean", "label": "Import Datasets (untested)", "default": false, "description": "**Untested.** Import ADF datasets (schemas over linked services) as external Dagster assets. Read-only surface. Validate before use."},
-    "import_data_flows":             {"type": "boolean", "label": "Import Data Flows (untested)", "default": false, "description": "**Untested.** Import ADF Mapping Data Flows (visual transformations) as external Dagster assets. Read-only surface. Validate before use."},
-    "import_integration_runtimes":   {"type": "boolean", "label": "Import Integration Runtimes (untested)", "default": false, "description": "**Untested.** Import ADF Integration Runtimes (SSIS / Azure IR / Self-hosted IR) as external Dagster assets. Read-only surface. Validate before use."},
-
-    "filter_by_name_pattern":        {"type": "string",  "label": "Filter By Name Pattern", "description": "Regex — only entities whose names match are imported. Applied to every kind."},
-    "exclude_name_pattern":          {"type": "string",  "label": "Exclude Name Pattern", "description": "Regex — entities whose names match are excluded. Applied after `filter_by_name_pattern`."},
-    "filter_by_tags":                {"type": "string",  "label": "Filter By Tags", "description": "Comma-separated tag keys that entities must carry."},
-
-    "polling_sensor":                {"type": "boolean", "label": "Polling Sensor", "default": true, "description": "Emit a polling sensor that observes ADF pipeline-run status and emits AssetObservation events."},
-    "poll_interval_seconds":         {"description": "Sensor polling interval (seconds).", "type": "integer", "label": "Poll Interval Seconds", "default": 60},
-
-    "group_name":                    {"description": "Asset group.", "type": "string",  "label": "Group Name", "default": "azure_data_factory"},
-    "description":                   {"description": "Asset description.", "type": "string",  "label": "Description"},
-    "owners":                        {"description": "Asset owners.", "type": "array",   "label": "Owners", "items": {"type": "string"}},
-    "asset_tags":                    {"description": "Additional key-value tags applied to the asset in the Dagster catalog.", "type": "object",  "label": "Asset Tags"},
-    "extra_kinds":                   {"type": "array",   "label": "Extra Kinds", "items": {"type": "string"}, "description": "Additional `dagster/kind/*` tags applied to every asset."},
-    "asset_key_prefix":              {"type": "array",   "label": "Asset Key Prefix", "items": {"type": "string"}, "description": "Optional key prefix — every asset key gets `[<prefix>..., adf_<kind>_<name>]`."},
-
-    "assets_by_pipeline_name":       {"type": "object",  "label": "Assets By Pipeline Name", "description": "Legacy hook: override or expand AssetSpecs for specific ADF pipelines. Keys are ADF pipeline names; values are single spec-override dicts or lists. For finer-grained per-asset customization, prefer the `translation:` callable."},
-
-    "pipeline_parameters":           {"type": "object",  "label": "Pipeline Parameters", "description": "Parameters dict passed to every ADF pipeline run (key → value)."},
-    "partition_parameter_name":      {"type": "string",  "label": "Partition Parameter Name", "description": "When the asset is partitioned, auto-pass the partition_key as this ADF pipeline parameter."},
-    "max_wait_seconds":              {"type": "integer", "label": "Max Wait Seconds", "default": 3600},
-    "run_poll_interval_seconds":     {"type": "integer", "label": "Run Poll Interval Seconds", "default": 30},
-    "wait_for_completion":           {"type": "boolean", "label": "Wait For Completion", "default": true},
-    "capture_activity_metadata":     {"type": "boolean", "label": "Capture Activity Metadata", "default": true},
-
-    "partition_type":                {"description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.", "type": "string",  "label": "Partition Type", "enum": ["daily", "weekly", "monthly", "hourly", "static"]},
-    "partition_start":               {"description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.", "type": "string",  "label": "Partition Start"},
-    "partition_values":              {"description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.", "type": "array",   "label": "Partition Values", "items": {"type": "string"}},
-
-    "freshness_max_lag_minutes":     {"description": "Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.", "type": "integer", "label": "Freshness Max Lag Minutes"},
-    "freshness_cron":                {"description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).", "type": "string",  "label": "Freshness Cron"},
-    "upstream_asset_keys":           {"type": "array",   "label": "Upstream Asset Keys", "items": {"type": "string"}},
-    "retry_policy_max_retries":      {"description": "Max retries on asset failure. Defines a RetryPolicy.", "type": "integer", "label": "Retry Policy Max Retries"},
-    "retry_policy_delay_seconds":    {"description": "Seconds between retries.", "type": "integer", "label": "Retry Policy Delay Seconds"},
-    "retry_policy_backoff":          {"description": "Backoff strategy: 'linear' or 'exponential'.", "type": "string",  "label": "Retry Policy Backoff", "default": "exponential"},
-
-    "defs_state":                    {"type": "object",  "label": "Defs State", "description": "State backend for cached workspace discovery. Local filesystem by default; override per-deploy for Dagster Cloud."}
+    "workspace": {
+      "type": "object",
+      "required": true,
+      "label": "Workspace",
+      "description": "Azure Data Factory connection as an AzureDataFactoryResource: `{subscription_id, resource_group_name, factory_name, tenant_id_env_var?, client_id_env_var?, client_secret_env_var?}`. Falls back to DefaultAzureCredential when SP env vars aren't set. Secrets typically arrive via `{{ env.XXX }}` Jinja templating."
+    },
+    "translation": {
+      "type": "string",
+      "label": "Translation",
+      "description": "Python callable path resolved via Dagster's TranslationFn — customizes per-asset AssetSpec (key rename, extra tags/metadata, group override). Signature: `def fn(props: AzureDataFactoryObjectProps) -> AssetSpec`."
+    },
+    "import_pipelines": {
+      "type": "boolean",
+      "label": "Import Pipelines",
+      "default": true,
+      "description": "Import ADF pipelines as materializable multi_assets (default true)."
+    },
+    "import_triggers": {
+      "type": "boolean",
+      "label": "Import Triggers",
+      "default": false,
+      "description": "Import ADF triggers as observable external assets."
+    },
+    "import_linked_services": {
+      "type": "boolean",
+      "label": "Import Linked Services (untested)",
+      "default": false,
+      "description": "**Untested.** Import ADF linked services (data source / sink connections) as external Dagster assets. Read-only surface — no runtime action. Validate against your factory before use."
+    },
+    "import_datasets": {
+      "type": "boolean",
+      "label": "Import Datasets (untested)",
+      "default": false,
+      "description": "**Untested.** Import ADF datasets (schemas over linked services) as external Dagster assets. Read-only surface. Validate before use."
+    },
+    "import_data_flows": {
+      "type": "boolean",
+      "label": "Import Data Flows (untested)",
+      "default": false,
+      "description": "**Untested.** Import ADF Mapping Data Flows (visual transformations) as external Dagster assets. Read-only surface. Validate before use."
+    },
+    "import_integration_runtimes": {
+      "type": "boolean",
+      "label": "Import Integration Runtimes (untested)",
+      "default": false,
+      "description": "**Untested.** Import ADF Integration Runtimes (SSIS / Azure IR / Self-hosted IR) as external Dagster assets. Read-only surface. Validate before use."
+    },
+    "filter_by_name_pattern": {
+      "type": "string",
+      "label": "Filter By Name Pattern",
+      "description": "Regex — only entities whose names match are imported. Applied to every kind."
+    },
+    "exclude_name_pattern": {
+      "type": "string",
+      "label": "Exclude Name Pattern",
+      "description": "Regex — entities whose names match are excluded. Applied after `filter_by_name_pattern`."
+    },
+    "filter_by_tags": {
+      "type": "string",
+      "label": "Filter By Tags",
+      "description": "Comma-separated tag keys that entities must carry."
+    },
+    "polling_sensor": {
+      "type": "boolean",
+      "label": "Polling Sensor",
+      "default": true,
+      "description": "Emit a polling sensor that observes ADF pipeline-run status and emits AssetObservation events."
+    },
+    "poll_interval_seconds": {
+      "description": "Sensor polling interval (seconds).",
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "default": 60
+    },
+    "group_name": {
+      "description": "Asset group.",
+      "type": "string",
+      "label": "Group Name",
+      "default": "azure_data_factory"
+    },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description"
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "label": "Owners",
+      "items": {
+        "type": "string"
+      }
+    },
+    "asset_tags": {
+      "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
+      "type": "object",
+      "label": "Asset Tags"
+    },
+    "extra_kinds": {
+      "type": "array",
+      "label": "Extra Kinds",
+      "items": {
+        "type": "string"
+      },
+      "description": "Additional `dagster/kind/*` tags applied to every asset."
+    },
+    "asset_key_prefix": {
+      "type": "array",
+      "label": "Asset Key Prefix",
+      "items": {
+        "type": "string"
+      },
+      "description": "Optional key prefix — every asset key gets `[<prefix>..., adf_<kind>_<name>]`."
+    },
+    "assets_by_pipeline_name": {
+      "type": "object",
+      "label": "Assets By Pipeline Name",
+      "description": "Legacy hook: override or expand AssetSpecs for specific ADF pipelines. Keys are ADF pipeline names; values are single spec-override dicts or lists. For finer-grained per-asset customization, prefer the `translation:` callable."
+    },
+    "pipeline_parameters": {
+      "type": "object",
+      "label": "Pipeline Parameters",
+      "description": "Parameters dict passed to every ADF pipeline run (key → value)."
+    },
+    "partition_parameter_name": {
+      "type": "string",
+      "label": "Partition Parameter Name",
+      "description": "When the asset is partitioned, auto-pass the partition_key as this ADF pipeline parameter."
+    },
+    "max_wait_seconds": {
+      "type": "integer",
+      "label": "Max Wait Seconds",
+      "default": 3600
+    },
+    "run_poll_interval_seconds": {
+      "type": "integer",
+      "label": "Run Poll Interval Seconds",
+      "default": 30
+    },
+    "wait_for_completion": {
+      "type": "boolean",
+      "label": "Wait For Completion",
+      "default": true
+    },
+    "capture_activity_metadata": {
+      "type": "boolean",
+      "label": "Capture Activity Metadata",
+      "default": true
+    },
+    "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
+      "type": "string",
+      "label": "Partition Type",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static"
+      ]
+    },
+    "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+      "type": "string",
+      "label": "Partition Start"
+    },
+    "partition_values": {
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
+      "type": "array",
+      "label": "Partition Values",
+      "items": {
+        "type": "string"
+      }
+    },
+    "freshness_max_lag_minutes": {
+      "description": "Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes"
+    },
+    "freshness_cron": {
+      "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
+      "type": "string",
+      "label": "Freshness Cron"
+    },
+    "upstream_asset_keys": {
+      "type": "array",
+      "label": "Upstream Asset Keys",
+      "items": {
+        "type": "string"
+      }
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy.",
+      "type": "integer",
+      "label": "Retry Policy Max Retries"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries.",
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds"
+    },
+    "retry_policy_backoff": {
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "default": "exponential"
+    },
+    "defs_state": {
+      "type": "object",
+      "label": "Defs State",
+      "description": "State backend for cached workspace discovery. Local filesystem by default; override per-deploy for Dagster Cloud."
+    }
   },
   "tags": [
     "integration",

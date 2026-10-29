@@ -10,7 +10,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row upserts one Confluence page, matched on (space_id, title)."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata. No downstream data -- write side effect lands in Confluence."
     }
   },
@@ -195,6 +195,5 @@
     "reverse-etl",
     "upsert"
   ],
-  "name": "Confluence Page Upsert",
-  "vertical": "productivity"
+  "name": "Confluence Page Upsert"
 }

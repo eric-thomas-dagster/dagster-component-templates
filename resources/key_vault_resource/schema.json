@@ -3,9 +3,7 @@
   "description": "Azure Key Vault client for runtime secret retrieval. Replaces per-component *_env_var fields with centralized secret management following Azure RBAC.",
   "category": "resource",
   "icon": "Key",
-  "x-dagster-io": {
-    "supports_partitions": false
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "description": "Dagster resource key",

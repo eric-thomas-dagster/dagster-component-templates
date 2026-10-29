@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row is mapped via fields_map into an Input Table row object."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (workbook_id / sequence_id / write_mode / rows_submitted / rows_skipped_empty / api_requests / trace_ids)."
     }
   },
@@ -75,7 +75,10 @@
       "label": "Write Mode",
       "required": false,
       "default": "insert",
-      "enum": ["insert", "update"],
+      "enum": [
+        "insert",
+        "update"
+      ],
       "ui:widget": "select",
       "description": "Documentation/metadata only -- describes what the bound Action Sequence does. Does not change the request shape."
     },
@@ -101,7 +104,12 @@
       "ui:widget": "checkbox",
       "description": "Fail fast if rows_parameter_name/static_parameters aren't declared on the webhook's schema."
     },
-    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name", "required": false },
+    "group_name": {
+      "description": "Dagster asset group name.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
@@ -164,10 +172,30 @@
       "required": false,
       "x-dagster-widget": "column"
     },
-    "description": {"description": "Asset description.", "type": "string", "label": "Description", "required": false },
-    "owners": {"description": "Asset owners.", "type": "array", "label": "Owners", "required": false },
-    "tags": {"description": "Catalog tags.", "type": "object", "label": "Tags", "required": false },
-    "kinds": {"description": "Asset kinds (auto-includes 'sigma').", "type": "array", "label": "Kinds", "required": false },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "label": "Owners",
+      "required": false
+    },
+    "tags": {
+      "description": "Catalog tags.",
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "kinds": {
+      "description": "Asset kinds (auto-includes 'sigma').",
+      "type": "array",
+      "label": "Kinds",
+      "required": false
+    },
     "partition_cron_schedule": {
       "type": "string",
       "label": "Partition Cron Schedule",

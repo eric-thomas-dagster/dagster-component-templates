@@ -1,11 +1,11 @@
 {
   "component_type": "dagster_component_templates.OpenRouterLLMComponent",
-  "description": "Per-row LLM inference via OpenRouter \u2014 one API key gives access to 100+ models from Anthropic, OpenAI, Google, Meta/Llama, Mistral, DeepSeek, xAI, Cohere, with automatic fallback, caching, and unified billing. Drop-in peer of openai_llm / anthropic_llm / gemini_llm / groq_llm.",
+  "description": "Per-row LLM inference via OpenRouter — one API key gives access to 100+ models from Anthropic, OpenAI, Google, Meta/Llama, Mistral, DeepSeek, xAI, Cohere, with automatic fallback, caching, and unified billing. Drop-in peer of openai_llm / anthropic_llm / gemini_llm / groq_llm.",
   "category": "ai",
   "icon": "si:openrouter",
   "x-dagster-io": {
     "outputs": {
-      "type": "DataFrame",
+      "type": "dataframe",
       "description": "Upstream DataFrame with the LLM response column added (and optional _error column)."
     }
   },
@@ -62,14 +62,14 @@
       "label": "Referer",
       "required": false,
       "default": null,
-      "description": "HTTP-Referer header \u2014 your app's URL"
+      "description": "HTTP-Referer header — your app's URL"
     },
     "x_title": {
       "type": "string",
       "label": "X-Title",
       "required": false,
       "default": null,
-      "description": "X-Title header \u2014 your app's name"
+      "description": "X-Title header — your app's name"
     },
     "system_prompt": {
       "type": "string",

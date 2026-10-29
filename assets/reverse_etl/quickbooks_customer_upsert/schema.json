@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row -> one QuickBooks Customer record (upserted via lookup_field, with dotted fields_map keys building nested QBO objects like PrimaryEmailAddr.Address)."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / api_requests). No downstream data -- the write side effect lands in QuickBooks."
     }
   },
@@ -60,7 +60,13 @@
       "default": 5000,
       "description": "Max upstream rows per run (safety cap). No bulk endpoint -- each row costs 1 query (SyncToken discovery) + 1 write."
     },
-    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name", "required": false, "default": "quickbooks" },
+    "group_name": {
+      "description": "Dagster asset group name.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "quickbooks"
+    },
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
@@ -123,10 +129,39 @@
       "required": false,
       "x-dagster-widget": "column"
     },
-    "description": {"description": "Asset description.", "type": "string", "label": "Description", "required": false },
-    "owners": {"description": "Asset owners.", "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
-    "tags": {"description": "Catalog tags.", "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value" },
-    "kinds": {"description": "Asset kinds (auto-includes 'quickbooks').", "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "description": "Catalog tags.",
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds (auto-includes 'quickbooks').",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    },
     "partition_cron_schedule": {
       "type": "string",
       "label": "Partition Cron Schedule",

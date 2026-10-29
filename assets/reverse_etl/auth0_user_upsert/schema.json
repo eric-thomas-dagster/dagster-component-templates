@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row maps to one Auth0 user, matched by email."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_deactivated / rows_skipped_* / rows_errored / operation)."
     }
   },
@@ -57,7 +57,10 @@
       "label": "Operation",
       "required": false,
       "default": "sync",
-      "enum": ["sync", "deactivate"],
+      "enum": [
+        "sync",
+        "deactivate"
+      ],
       "ui:widget": "select",
       "description": "'sync' (default, safe) creates/updates only. 'deactivate' (explicit) blocks matched users -- never creates, never deletes. No other value accepted."
     },
@@ -68,7 +71,13 @@
       "default": 5000,
       "description": "Max upstream rows per run (safety cap)."
     },
-    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name", "required": false, "default": "auth0" },
+    "group_name": {
+      "description": "Dagster asset group name.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "auth0"
+    },
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
@@ -131,10 +140,39 @@
       "required": false,
       "x-dagster-widget": "column"
     },
-    "description": {"description": "Asset description.", "type": "string", "label": "Description", "required": false },
-    "owners": {"description": "Asset owners.", "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
-    "tags": {"description": "Catalog tags.", "type": "object", "label": "Tags", "required": false, "ui:widget": "key-value" },
-    "kinds": {"description": "Asset kinds (auto-includes 'auth0').", "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "description": "Catalog tags.",
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds (auto-includes 'auth0').",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    },
     "partition_cron_schedule": {
       "type": "string",
       "label": "Partition Cron Schedule",

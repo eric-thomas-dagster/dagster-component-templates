@@ -4,19 +4,17 @@
   "category": "infrastructure",
   "icon": "Download",
   "x-dagster-io": {
-    "inputs": {
-      "type": "none",
-      "description": "Reads the component registry manifest at refresh-state time."
-    },
     "outputs": {
-      "type": "asset",
+      "type": "MaterializeResult",
       "description": "A single reporting asset summarizing what was installed / skipped."
     }
   },
   "attributes": {
     "components": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Components",
       "description": "Community component IDs to install. Use `id@ref` (e.g. `postgres_resource@v1.2.0` or `postgres_resource@a1b2c3d`) to pin to a tag, commit SHA, or branch. Plain `id` resolves to the main branch. See https://dagster-component-ui.vercel.app/.",
       "required": true,

@@ -4,12 +4,7 @@
   "category": "resource",
   "vertical": "crm-sales",
   "icon": "Building2",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "resource",
-      "description": "DynamicsCrmResource with get/post/patch HTTP methods plus upsert_by_key(). Consumed by dynamics_crm_record_upsert (sink) and by custom Dagster asset code that needs Dataverse Web API reads/writes."
-    }
-  },
+  "x-dagster-io": {},
   "x-dagster-provides": [
     "dynamics_crm_resource"
   ],

@@ -7,8 +7,10 @@
   "version": "1.0.0",
   "author": "Dagster Community",
   "x-dagster-io": {
-    "inputs": {"type": "none", "required": false, "description": "Any deps are lineage-only"},
-    "outputs": {"type": "DataFrame", "description": "pandas DataFrame, one row per subscription (or one topic-level row if there are no subscriptions)"}
+    "outputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame, one row per subscription (or one topic-level row if there are no subscriptions)"
+    }
   },
   "attributes": {
     "asset_name": {
@@ -226,5 +228,11 @@
       "ui:widget": "select"
     }
   },
-  "tags": ["pulsar", "messaging", "monitoring", "observability", "source"]
+  "tags": [
+    "pulsar",
+    "messaging",
+    "monitoring",
+    "observability",
+    "source"
+  ]
 }

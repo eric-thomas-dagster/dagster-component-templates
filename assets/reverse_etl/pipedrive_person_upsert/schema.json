@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row -> one Pipedrive person (upserted via key_field)."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (rows_upserted / rows_errored). No downstream data -- write side effect lands in Pipedrive."
     }
   },

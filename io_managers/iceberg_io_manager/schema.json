@@ -3,12 +3,7 @@
   "description": "Wrap the official `dagster-iceberg` PyArrowIcebergIOManager so assets persist as Iceberg tables.",
   "category": "io_manager",
   "icon": "si:apacheiceberg",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "IOManager",
-      "description": "Wrap the official `dagster-iceberg` PyArrowIcebergIOManager so assets persist as Iceberg tables."
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "description": "Dagster resource key. Use 'io_manager' to make this the default.",

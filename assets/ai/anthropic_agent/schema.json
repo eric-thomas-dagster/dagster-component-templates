@@ -4,14 +4,10 @@
   "category": "ai",
   "icon": "si:anthropic",
   "x-dagster-io": {
-    "inputs": {
-      "type": "none"
-    },
     "outputs": {
-      "type": "dict",
+      "type": "any",
       "description": "Agent run dict: {final_answer, iterations, tool_calls_made, tool_call_details, transcript, stopped_reason, model, mcp_servers}"
-    },
-    "supports_partitions": false
+    }
   },
   "attributes": {
     "asset_name": {
@@ -99,27 +95,32 @@
         }
       }
     },
-    "group_name": {"label": "Group Name", 
+    "group_name": {
+      "label": "Group Name",
       "description": "Dagster asset group name.",
       "type": "string",
       "required": false
     },
-    "description": {"label": "Description", 
+    "description": {
+      "label": "Description",
       "description": "Asset description.",
       "type": "string",
       "required": false
     },
-    "owners": {"label": "Owners", 
+    "owners": {
+      "label": "Owners",
       "description": "Asset owners.",
       "type": "array",
       "required": false
     },
-    "asset_tags": {"label": "Asset Tags", 
+    "asset_tags": {
+      "label": "Asset Tags",
       "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "required": false
     },
-    "deps": {"label": "Deps", 
+    "deps": {
+      "label": "Deps",
       "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "required": false

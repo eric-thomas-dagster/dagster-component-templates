@@ -5,7 +5,7 @@
   "icon": "Lock",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "any",
       "description": "One @dg.asset. On skip: metadata.partition_lock_skipped=true. Acquired/released observations bracket compute."
     }
   },

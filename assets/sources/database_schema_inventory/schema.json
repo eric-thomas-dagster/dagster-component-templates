@@ -5,7 +5,7 @@
   "icon": "ListTree",
   "x-dagster-io": {
     "inputs": {
-      "type": "external",
+      "type": "asset_reference",
       "description": "Reads database metadata via INFORMATION_SCHEMA / ALL_* / SYSCAT views"
     },
     "outputs": {
@@ -32,29 +32,83 @@
       "type": "string",
       "label": "Source Database Type",
       "required": true,
-      "enum": ["postgres", "mysql", "mssql", "oracle", "db2", "snowflake", "redshift"],
+      "enum": [
+        "postgres",
+        "mysql",
+        "mssql",
+        "oracle",
+        "db2",
+        "snowflake",
+        "redshift"
+      ],
       "ui:widget": "select"
     },
     "schemas": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Schemas",
       "description": "Restrict inventory to these schemas (default: all non-system)",
       "required": false
     },
     "object_types": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Object Types",
       "description": "Restrict to these object types (default: every type the dialect supports)",
       "required": false
     },
-    "group_name": {"description": "Dagster asset group name", "type": "string", "label": "Group Name", "required": false},
-    "description": {"description": "Asset description", "type": "string", "label": "Description", "required": false},
-    "owners": {"description": "Asset owners", "type": "array", "items": {"type": "string"}, "label": "Owners", "required": false, "ui:widget": "list"},
-    "asset_tags": {"description": "Additional asset tags", "type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value"},
-    "kinds": {"description": "Asset kinds (default: [database_type, 'inventory'])", "type": "array", "items": {"type": "string"}, "label": "Kinds", "required": false, "ui:widget": "list"},
-    "deps": {"description": "Lineage-only upstream asset keys", "type": "array", "items": {"type": "string"}, "label": "Deps", "required": false},
+    "group_name": {
+      "description": "Dagster asset group name",
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "description": {
+      "description": "Asset description",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Additional asset tags",
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds (default: [database_type, 'inventory'])",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false
+    },
     "connection": {
       "type": "string",
       "label": "Connection",
@@ -62,6 +116,13 @@
       "required": false
     }
   },
-  "tags": ["source", "metadata", "inventory", "migration", "warehouse", "schema"],
+  "tags": [
+    "source",
+    "metadata",
+    "inventory",
+    "migration",
+    "warehouse",
+    "schema"
+  ],
   "name": "Database Schema Inventory"
 }

@@ -5,7 +5,7 @@
   "icon": "si:googlebigquery",
   "x-dagster-io": {
     "outputs": {
-      "type": "DataFrame",
+      "type": "dataframe",
       "description": "ML.EVALUATE metrics for the trained model."
     }
   },

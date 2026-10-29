@@ -10,10 +10,9 @@
       "description": "DataFrame to write to Firestore"
     },
     "outputs": {
-      "type": "materialize_result",
+      "type": "MaterializeResult",
       "description": "Materialization result with row count metadata"
-    },
-    "supports_partitions": false
+    }
   },
   "attributes": {
     "asset_name": {

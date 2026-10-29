@@ -10,7 +10,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row → one WooCommerce product (upserted by matching on sku)."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored). No downstream data — write side effect lands in WooCommerce."
     }
   },

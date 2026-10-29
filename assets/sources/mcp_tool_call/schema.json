@@ -1,17 +1,13 @@
 {
   "component_type": "dagster_component_templates.MCPToolCallComponent",
-  "description": "Deterministic single-shot call to one MCP tool \u2014 no LLM in the loop. Args templating supports {partition_key}, {partition_keys.<dim>}, {run_id}.",
+  "description": "Deterministic single-shot call to one MCP tool — no LLM in the loop. Args templating supports {partition_key}, {partition_keys.<dim>}, {run_id}.",
   "category": "source",
   "icon": "Network",
   "x-dagster-io": {
-    "inputs": {
-      "type": "none"
-    },
     "outputs": {
       "type": "any",
       "description": "Parsed tool response (dict/list if JSON, else string)."
-    },
-    "supports_partitions": true
+    }
   },
   "attributes": {
     "backfill_policy": {

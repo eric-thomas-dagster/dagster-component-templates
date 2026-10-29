@@ -1,11 +1,11 @@
 {
   "component_type": "dagster_component_templates.GeminiImageGenerationComponent",
-  "description": "Native (no-LiteLLM) image generation / edit per DataFrame row using Google's Gemini 2.5 Flash Image \u2014 the model the community nicknames 'Nano Banana'. Default model: gemini-2.5-flash-image-preview. Supports text-to-image and image-to-image editing. For multi-vendor workflows, use litellm_image_generation instead.",
+  "description": "Native (no-LiteLLM) image generation / edit per DataFrame row using Google's Gemini 2.5 Flash Image — the model the community nicknames 'Nano Banana'. Default model: gemini-2.5-flash-image-preview. Supports text-to-image and image-to-image editing. For multi-vendor workflows, use litellm_image_generation instead.",
   "category": "ai",
   "icon": "si:google",
   "x-dagster-io": {
     "outputs": {
-      "type": "DataFrame",
+      "type": "dataframe",
       "description": "Upstream DataFrame with an added `generated_image_path` column (one PNG per row written to output_dir)."
     }
   },
@@ -20,7 +20,7 @@
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true,
-      "description": "Upstream DataFrame asset key \u2014 one row produces one image"
+      "description": "Upstream DataFrame asset key — one row produces one image"
     },
     "api_key_env_var": {
       "type": "string",
@@ -87,7 +87,7 @@
       "label": "Temperature",
       "required": false,
       "default": 1.0,
-      "description": "Generation temperature (0.0\u20132.0)"
+      "description": "Generation temperature (0.0–2.0)"
     },
     "rate_limit_delay": {
       "type": "number",

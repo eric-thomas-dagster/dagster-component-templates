@@ -3,12 +3,7 @@
   "description": "'Ask the pipeline': read-only tools over the Dagster instance (recent failures, run summary, redacted run logs, asset status, lineage, stale assets, receipt stats) for agents. Registers a resource and ships a stdio MCP server (python component.py) for agentic_pipeline's tool_use_loop / mcp_call.",
   "category": "ai",
   "icon": "Search",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "resource",
-      "description": "A toolset resource: .call(tool, args) -> JSON-able dict; .tool_names()."
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "type": "string",

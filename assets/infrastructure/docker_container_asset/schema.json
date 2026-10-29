@@ -5,7 +5,7 @@
   "icon": "si:docker",
   "x-dagster-io": {
     "outputs": {
-      "type": "infrastructure",
+      "type": "MaterializeResult",
       "description": "Run a Docker container as a Dagster asset via dagster-docker."
     }
   },

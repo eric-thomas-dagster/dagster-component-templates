@@ -4,81 +4,91 @@
   "category": "ai",
   "icon": "Sparkles",
   "x-dagster-io": {
-    "inputs": {
-      "type": "none"
-    },
     "outputs": {
       "type": "dataframe",
       "description": "DataFrame with text_column + embedding_column"
     }
   },
   "attributes": {
-    "asset_name": {"label": "Asset Name", 
+    "asset_name": {
+      "label": "Asset Name",
       "description": "Output asset name.",
       "type": "string",
       "required": true
     },
-    "texts": {"label": "Texts", 
+    "texts": {
+      "label": "Texts",
       "type": "array",
       "required": true,
       "description": "List of literal strings to embed."
     },
-    "api_key_env_var": {"label": "API Key Env Var", 
+    "api_key_env_var": {
+      "label": "API Key Env Var",
       "description": "Env var containing the API key.",
       "type": "string",
       "required": false,
       "default": "OPENAI_API_KEY"
     },
-    "api_base_env_var": {"label": "API Base Env Var", 
+    "api_base_env_var": {
+      "label": "API Base Env Var",
       "type": "string",
       "required": false,
       "description": "Custom base URL env var — e.g. for Vercel AI Gateway."
     },
-    "dimensions": {"label": "Dimensions", 
+    "dimensions": {
+      "label": "Dimensions",
       "type": "integer",
       "required": false,
       "description": "Only for text-embedding-3-* models."
     },
-    "text_column": {"label": "Text Column", 
+    "text_column": {
+      "label": "Text Column",
       "description": "Column name for the source text.",
       "type": "string",
       "required": false,
       "default": "text",
       "x-dagster-widget": "column"
     },
-    "embedding_column": {"label": "Embedding Column", 
+    "embedding_column": {
+      "label": "Embedding Column",
       "description": "Column name for the embedding vector.",
       "type": "string",
       "required": false,
       "default": "embedding",
       "x-dagster-widget": "column"
     },
-    "group_name": {"label": "Group Name", 
+    "group_name": {
+      "label": "Group Name",
       "description": "Asset group name.",
       "type": "string",
       "required": false
     },
-    "description": {"label": "Description", 
+    "description": {
+      "label": "Description",
       "description": "Asset description.",
       "type": "string",
       "required": false
     },
-    "owners": {"label": "Owners", 
+    "owners": {
+      "label": "Owners",
       "description": "Asset owners.",
       "type": "array",
       "required": false
     },
-    "tags": {"label": "Tags", 
+    "tags": {
+      "label": "Tags",
       "description": "Catalog tags.",
       "type": "object",
       "required": false
     },
-    "kinds": {"label": "Kinds", 
+    "kinds": {
+      "label": "Kinds",
       "description": "Asset kinds (auto-includes 'ai', 'embedding').",
       "type": "array",
       "required": false
     },
-    "deps": {"label": "Deps", 
+    "deps": {
+      "label": "Deps",
       "description": "Upstream Dagster asset keys.",
       "type": "array",
       "required": false

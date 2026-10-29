@@ -3,23 +3,120 @@
   "description": "Read documents from a Firestore collection (or collection group) into a pandas DataFrame. Supports where filters, ordering, limit. The doc id lands in a `_id` column.",
   "category": "source",
   "icon": "si:firebase",
-  "x-dagster-io": {"outputs": {"type": "DataFrame", "description": "One row per Firestore document; doc id in `_id` column."}},
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "One row per Firestore document; doc id in `_id` column."
+    }
+  },
   "attributes": {
-    "asset_name": {"description": "Output asset name.", "type": "string", "label": "Asset Name", "required": true},
-    "credentials": {"type": "object", "label": "Credentials (dict)", "required": false, "default": null},
-    "credentials_path": {"description": "Falls back to GOOGLE_APPLICATION_CREDENTIALS.", "type": "string", "label": "Credentials Path", "required": false, "default": null},
-    "project_id": {"type": "string", "label": "Project ID", "required": false, "default": null},
-    "database": {"description": "Firestore database id ('(default)' or named).", "type": "string", "label": "Database", "required": false, "default": "(default)"},
-    "collection": {"description": "Collection path (e.g. 'orders' or 'tenants/acme/orders'). On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.", "type": "string", "label": "Collection", "required": true},
-    "collection_group": {"description": "If True, treat `collection` as a collection-group query (matches every collection of that name across the database).", "type": "boolean", "label": "Collection Group", "required": false, "default": false},
-    "where": {"type": "array", "label": "Where", "required": false, "default": null, "description": "List of {field, op, value} filters. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted."},
-    "order_by": {"description": "List of `field` (asc) or `-field` (desc) entries.", "type": "array", "label": "Order By", "required": false, "items": {"type": "string"}},
-    "limit": {"description": "Optional max documents to return.", "type": "integer", "label": "Limit", "required": false, "default": null},
-    "description": {"description": "Asset description.", "type": "string", "label": "Description", "required": false, "default": null, "ui:widget": "textarea"},
-    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name", "required": false, "default": null},
-    "deps": {"description": "Lineage-only upstream asset keys (no data passed at runtime).", "type": "array", "label": "Deps", "required": false, "items": {"type": "string"}},
-    "tags": {"description": "Catalog tags.", "type": "object", "label": "Tags", "required": false},
-    "owners": {"description": "Asset owners.", "type": "array", "label": "Owners", "required": false, "items": {"type": "string"}},
+    "asset_name": {
+      "description": "Output asset name.",
+      "type": "string",
+      "label": "Asset Name",
+      "required": true
+    },
+    "credentials": {
+      "type": "object",
+      "label": "Credentials (dict)",
+      "required": false,
+      "default": null
+    },
+    "credentials_path": {
+      "description": "Falls back to GOOGLE_APPLICATION_CREDENTIALS.",
+      "type": "string",
+      "label": "Credentials Path",
+      "required": false,
+      "default": null
+    },
+    "project_id": {
+      "type": "string",
+      "label": "Project ID",
+      "required": false,
+      "default": null
+    },
+    "database": {
+      "description": "Firestore database id ('(default)' or named).",
+      "type": "string",
+      "label": "Database",
+      "required": false,
+      "default": "(default)"
+    },
+    "collection": {
+      "description": "Collection path (e.g. 'orders' or 'tenants/acme/orders'). On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted.",
+      "type": "string",
+      "label": "Collection",
+      "required": true
+    },
+    "collection_group": {
+      "description": "If True, treat `collection` as a collection-group query (matches every collection of that name across the database).",
+      "type": "boolean",
+      "label": "Collection Group",
+      "required": false,
+      "default": false
+    },
+    "where": {
+      "type": "array",
+      "label": "Where",
+      "required": false,
+      "default": null,
+      "description": "List of {field, op, value} filters. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted."
+    },
+    "order_by": {
+      "description": "List of `field` (asc) or `-field` (desc) entries.",
+      "type": "array",
+      "label": "Order By",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "limit": {
+      "description": "Optional max documents to return.",
+      "type": "integer",
+      "label": "Limit",
+      "required": false,
+      "default": null
+    },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description",
+      "required": false,
+      "default": null,
+      "ui:widget": "textarea"
+    },
+    "group_name": {
+      "description": "Dagster asset group name.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": null
+    },
+    "deps": {
+      "description": "Lineage-only upstream asset keys (no data passed at runtime).",
+      "type": "array",
+      "label": "Deps",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "description": "Catalog tags.",
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "items": {
+        "type": "string"
+      }
+    },
     "retry_policy_max_retries": {
       "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
       "label": "Retry Policy Max Retries",
@@ -98,6 +195,12 @@
       "type": "string"
     }
   },
-  "tags": ["source", "google", "firestore", "nosql", "document-db"],
+  "tags": [
+    "source",
+    "google",
+    "firestore",
+    "nosql",
+    "document-db"
+  ],
   "name": "Firestore Reader"
 }

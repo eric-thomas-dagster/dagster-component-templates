@@ -3,12 +3,7 @@
   "description": "Run an asset selection at a fixed interval (every N minutes / hours / days / weeks / months). Supports time-based partitioned assets via build_schedule_from_partitioned_job — set partition_type + partition_start and the interval must match the partition cadence (every: 1h ↔ hourly, every: 1d ↔ daily, etc.). Mirrors cron_schedule's partition surface.",
   "category": "infrastructure",
   "icon": "Clock",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "Schedule",
-      "description": "ScheduleDefinition + asset job"
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "schedule_name": {
       "type": "string",

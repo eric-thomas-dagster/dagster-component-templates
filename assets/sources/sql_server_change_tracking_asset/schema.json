@@ -7,8 +7,10 @@
   "version": "1.0.0",
   "author": "Dagster Community",
   "x-dagster-io": {
-    "inputs": {"type": "none", "required": false, "description": "Any deps are lineage-only"},
-    "outputs": {"type": "DataFrame", "description": "pandas DataFrame of changed rows, with a sys_change_operation column (I/U/D)"}
+    "outputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame of changed rows, with a sys_change_operation column (I/U/D)"
+    }
   },
   "attributes": {
     "asset_name": {
@@ -38,14 +40,18 @@
     "primary_key_columns": {
       "description": "The table's primary key column(s), in order. Required -- CHANGETABLE only carries these plus change metadata; other columns are joined back from the base table.",
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Primary Key Columns",
       "required": true
     },
     "columns": {
       "description": "Every column to read, including primary_key_columns. Required -- CHANGETABLE can't be queried with SELECT *.",
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Columns",
       "required": true
     },
@@ -138,5 +144,11 @@
       "ui:widget": "select"
     }
   },
-  "tags": ["mssql", "sql-server", "cdc", "change-tracking", "source"]
+  "tags": [
+    "mssql",
+    "sql-server",
+    "cdc",
+    "change-tracking",
+    "source"
+  ]
 }

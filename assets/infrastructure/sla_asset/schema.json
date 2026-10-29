@@ -5,7 +5,7 @@
   "icon": "Clock",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "any",
       "description": "One @dg.asset. On breach: emits AssetObservation with breach metadata + fail/warn per policy. Composes with any downstream sensor for alerting."
     }
   },

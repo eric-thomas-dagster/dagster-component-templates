@@ -3,9 +3,7 @@
   "description": "Dynatrace API client wrapper (Environment API v2 + Metrics API v2). Works with SaaS and Managed environments.",
   "category": "resource",
   "icon": "si:dynatrace",
-  "x-dagster-io": {
-    "supports_partitions": false
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "description": "Dagster resource key",

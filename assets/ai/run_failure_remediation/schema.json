@@ -3,16 +3,7 @@
   "description": "Self-healing runs with a safety gate: a run-failure sensor (or, for runs recorded without a failure event, a run-record sensor) gathers redacted evidence and requests a triage run on a dynamic partition; an approval sensor turns the triage pipeline's proposal into a pending approval (agentic_pipeline/agent_review_queue compatible) and, only with a token bound to that exact proposal, executes allow-listed actions (retry_run, rerun_partition, materialize_assets, open_ticket, notify) and records whether they fixed the failure.",
   "category": "ai",
   "icon": "ShieldCheck",
-  "x-dagster-io": {
-    "inputs": {
-      "type": "none",
-      "description": "Failed runs (run-failure sensor) and triage proposals (JSON files in proposals_dir)."
-    },
-    "outputs": {
-      "type": "none",
-      "description": "Sensors + jobs: evidence JSON, triage run requests, approval records, remediation run requests, results JSON with fixed/not_fixed outcomes."
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "name_prefix": {
       "type": "string",

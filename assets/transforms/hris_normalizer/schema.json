@@ -5,7 +5,7 @@
   "icon": "lu:users",
   "x-dagster-io": {
     "outputs": {
-      "type": "DataFrame",
+      "type": "dataframe",
       "description": "Canonical employee table; raw vendor columns optionally preserved with vendor_ prefix."
     }
   },

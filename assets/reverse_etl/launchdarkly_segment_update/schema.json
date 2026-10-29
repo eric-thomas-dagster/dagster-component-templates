@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row adds or removes one context key from a LaunchDarkly segment."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (rows_added / rows_removed / rows_errored). No downstream data -- write side effect lands in LaunchDarkly."
     }
   },

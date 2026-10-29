@@ -3,12 +3,7 @@
   "description": "Wrap dagster-snowflake-polars so polars.DataFrame assets persist to Snowflake.",
   "category": "io_manager",
   "icon": "si:snowflake",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "io_manager",
-      "description": "Wrap dagster-snowflake-polars so polars.DataFrame assets persist to Snowflake."
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "description": "Dagster resource key.",

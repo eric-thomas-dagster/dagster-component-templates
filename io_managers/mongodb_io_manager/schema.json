@@ -3,12 +3,7 @@
   "description": "Persist DataFrames to MongoDB collections (one per asset, document-store).",
   "category": "io_manager",
   "icon": "si:mongodb",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "IOManager",
-      "description": "Resource"
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "description": "Dagster resource key. Use 'io_manager' to make this the default.",

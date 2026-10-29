@@ -10,7 +10,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row → one Dataverse record (upserted via alternate_key_field)."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_unknown_action / rows_errored). No downstream data -- the write side effect lands in Dataverse."
     }
   },

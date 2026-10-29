@@ -5,7 +5,7 @@
   "icon": "Database",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "any",
       "description": "One @dg.asset. On cache hit: returns cached DataFrame without calling compute. On miss: runs compute, saves parquet. Metadata: cache_status, cache_key, cache_path, cache_rows."
     }
   },

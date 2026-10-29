@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row -> one Default API trigger fire."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (rows_fired / rows_errored / rows_skipped_no_email). No downstream data -- the write side effect lands in Default (workflow execution)."
     }
   },

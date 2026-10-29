@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row -> one usage event, batched up to 100 per /ingest request."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (events_sent / batches_sent / rows_skipped_no_customer_id). No downstream data -- the usage event lands in Metronome and affects the customer's invoice."
     }
   },
@@ -109,7 +109,12 @@
       "required": false,
       "default": 2.0
     },
-    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name", "required": false },
+    "group_name": {
+      "description": "Dagster asset group name.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
@@ -172,10 +177,30 @@
       "required": false,
       "x-dagster-widget": "column"
     },
-    "description": {"description": "Asset description.", "type": "string", "label": "Description", "required": false },
-    "owners": {"description": "Asset owners.", "type": "array", "label": "Owners", "required": false },
-    "tags": {"description": "Catalog tags.", "type": "object", "label": "Tags", "required": false },
-    "kinds": {"description": "Asset kinds (auto-includes 'metronome').", "type": "array", "label": "Kinds", "required": false },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "label": "Owners",
+      "required": false
+    },
+    "tags": {
+      "description": "Catalog tags.",
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "kinds": {
+      "description": "Asset kinds (auto-includes 'metronome').",
+      "type": "array",
+      "label": "Kinds",
+      "required": false
+    },
     "partition_cron_schedule": {
       "type": "string",
       "label": "Partition Cron Schedule",

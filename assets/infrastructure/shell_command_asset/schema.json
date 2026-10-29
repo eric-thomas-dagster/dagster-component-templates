@@ -5,7 +5,7 @@
   "icon": "Terminal",
   "x-dagster-io": {
     "outputs": {
-      "type": "infrastructure",
+      "type": "MaterializeResult",
       "description": "Run a shell command as a Dagster asset via dagster-shell."
     }
   },

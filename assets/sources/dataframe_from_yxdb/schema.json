@@ -1,14 +1,13 @@
 {
   "component_type": "dagster_component_templates.DataframeFromYxdbComponent",
-  "description": "Read an Alteryx .yxdb file as a pandas DataFrame asset. Wraps the import-yxdb package (preferred \u2014 whole-file \u2192 DataFrame) with a fallback to the lower-level yxdb iterator.",
+  "description": "Read an Alteryx .yxdb file as a pandas DataFrame asset. Wraps the import-yxdb package (preferred — whole-file → DataFrame) with a fallback to the lower-level yxdb iterator.",
   "category": "source",
   "icon": "Database",
   "x-dagster-io": {
     "outputs": {
       "type": "dataframe",
       "description": "Pandas DataFrame from the .yxdb file"
-    },
-    "supports_partitions": false
+    }
   },
   "attributes": {
     "asset_name": {
@@ -153,7 +152,7 @@
     "if_missing": {
       "type": "string",
       "label": "If Missing",
-      "description": "Behavior when the file_path doesn't exist: 'raise' (default \u2014 fail loudly), 'empty' (return an empty DataFrame and log a warning so downstream assets continue with empty inputs). Useful for importer-generated demos where the original Alteryx workflow referenced a Windows-only path that the customer hasn't restored yet.",
+      "description": "Behavior when the file_path doesn't exist: 'raise' (default — fail loudly), 'empty' (return an empty DataFrame and log a warning so downstream assets continue with empty inputs). Useful for importer-generated demos where the original Alteryx workflow referenced a Windows-only path that the customer hasn't restored yet.",
       "required": false
     },
     "partition_cron_schedule": {

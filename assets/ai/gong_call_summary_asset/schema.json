@@ -5,7 +5,7 @@
   "icon": "si:gong",
   "x-dagster-io": {
     "outputs": {
-      "type": "DataFrame",
+      "type": "dataframe",
       "description": "Upstream DataFrame enriched with summary and action_items columns"
     }
   },

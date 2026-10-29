@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row -> one Copper People/Leads/Companies record (upserted via dedupe_field)."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / rows_skipped_no_key). No downstream data -- the write side effect lands in Copper."
     }
   },
@@ -43,7 +43,11 @@
       "type": "string",
       "label": "Object Type",
       "required": true,
-      "enum": ["people", "leads", "companies"],
+      "enum": [
+        "people",
+        "leads",
+        "companies"
+      ],
       "description": "Target Copper object type."
     },
     "dedupe_field": {
@@ -144,7 +148,9 @@
     "owners": {
       "description": "Asset owners.",
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Owners",
       "required": false,
       "ui:widget": "list"
@@ -159,7 +165,9 @@
     "kinds": {
       "description": "Asset kinds (auto-includes 'copper').",
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"

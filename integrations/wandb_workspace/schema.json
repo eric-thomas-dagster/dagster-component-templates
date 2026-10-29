@@ -1,11 +1,11 @@
 {
   "component_type": "dagster_community_components.WandbWorkspaceComponent",
-  "description": "Auto-emit one Dagster asset per Weights & Biases project for a given entity. StateBackedComponent \u2014 discovery cached to disk. Materializing an asset fetches recent runs via the GraphQL API and emits a DataFrame with run state, summary metrics, and config.",
+  "description": "Auto-emit one Dagster asset per Weights & Biases project for a given entity. StateBackedComponent — discovery cached to disk. Materializing an asset fetches recent runs via the GraphQL API and emits a DataFrame with run state, summary metrics, and config.",
   "category": "integration",
   "icon": "AccountTree",
   "x-dagster-io": {
     "outputs": {
-      "type": "integration",
+      "type": "AssetSpec",
       "description": "One Dagster asset per selected item discovered in the vendor. See README for what each materialization produces."
     }
   },

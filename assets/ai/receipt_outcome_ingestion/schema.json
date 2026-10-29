@@ -3,12 +3,7 @@
   "description": "Turns real feedback (warehouse table, csv/json/jsonl/parquet files, or an HTTP JSON API such as Zendesk CSAT) into context-receipt outcomes so the learning loop (item_feedback, rerank priors, recipe_outcomes) learns without custom code. Idempotent via deterministic outcome_refs, incremental via a cursor in the asset's own materialization metadata; unknown receipts and bad rows are counted and sampled, never crash.",
   "category": "ai",
   "icon": "MessageSquareHeart",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "none",
-      "description": "No data output. Materialization metadata: rows_read, outcomes_recorded, superseded_in_run, unknown_receipts, bad_rows (+ examples), skipped_rows, cursor, lag_seconds."
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "asset_name": {
       "type": "string",

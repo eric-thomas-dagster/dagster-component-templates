@@ -5,7 +5,7 @@
   "icon": "si:airbyte",
   "x-dagster-io": {
     "outputs": {
-      "type": "integration",
+      "type": "AssetSpec",
       "description": "Import each Airbyte connection as a Dagster external asset via dagster-airbyte."
     }
   },

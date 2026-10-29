@@ -5,47 +5,56 @@
   "icon": "si:snowflake",
   "x-dagster-io": {
     "outputs": {
-      "type": "integration",
+      "type": "AssetSpec",
       "description": "One Dagster asset per selected item discovered in the vendor. See README for what each materialization produces."
     }
   },
   "attributes": {
-    "asset_name": {"label": "Asset Name", 
+    "asset_name": {
+      "label": "Asset Name",
       "description": "Output Dagster asset name",
       "type": "string",
       "required": true
     },
-    "account": {"label": "Account", 
+    "account": {
+      "label": "Account",
       "description": "Snowflake account, e.g. xy12345-abc.",
       "type": "string",
       "required": true
     },
-    "user": {"label": "User", 
+    "user": {
+      "label": "User",
       "description": "Snowflake user (NAME for keypair, LOGIN_NAME for password/SSO/PAT).",
       "type": "string",
       "required": true
     },
-    "database": {"label": "Database", 
+    "database": {
+      "label": "Database",
       "description": "Database containing the entity (or where it will be created).",
       "type": "string",
       "required": true
     },
-    "schema_name": {"label": "Schema Name", 
+    "schema_name": {
+      "label": "Schema Name",
       "description": "Schema for the entity.",
       "type": "string",
       "required": true
     },
-    "warehouse": {"label": "Warehouse", 
+    "warehouse": {
+      "label": "Warehouse",
       "type": "string"
     },
-    "role": {"label": "Role", 
+    "role": {
+      "label": "Role",
       "type": "string"
     },
-    "password": {"label": "Password", 
+    "password": {
+      "label": "Password",
       "description": "Snowflake password. Leave unset for SSO/keypair/PAT.",
       "type": "string"
     },
-    "authenticator": {"label": "Authenticator", 
+    "authenticator": {
+      "label": "Authenticator",
       "type": "string",
       "description": "SNOWFLAKE_JWT | externalbrowser | PROGRAMMATIC_ACCESS_TOKEN | oauth",
       "enum": [
@@ -56,45 +65,54 @@
       ],
       "ui:widget": "select"
     },
-    "private_key_file": {"label": "Private Key File", 
+    "private_key_file": {
+      "label": "Private Key File",
       "description": "PEM private key file path (for SNOWFLAKE_JWT).",
       "type": "string"
     },
-    "private_key_file_pwd": {"label": "Private Key File Pwd", 
+    "private_key_file_pwd": {
+      "label": "Private Key File Pwd",
       "description": "Passphrase for encrypted private_key_file.",
       "type": "string"
     },
-    "token": {"label": "Token", 
+    "token": {
+      "label": "Token",
       "description": "OAuth/PAT token (for PROGRAMMATIC_ACCESS_TOKEN or oauth).",
       "type": "string"
     },
-    "group_name": {"label": "Group Name", 
+    "group_name": {
+      "label": "Group Name",
       "description": "Dagster asset group name.",
       "type": "string"
     },
-    "description": {"label": "Description", 
+    "description": {
+      "label": "Description",
       "description": "Asset description.",
       "type": "string"
     },
-    "asset_tags": {"label": "Asset Tags", 
+    "asset_tags": {
+      "label": "Asset Tags",
       "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object"
     },
-    "kinds": {"label": "Kinds", 
+    "kinds": {
+      "label": "Kinds",
       "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "owners": {"label": "Owners", 
+    "owners": {
+      "label": "Owners",
       "description": "Asset owners.",
       "type": "array",
       "items": {
         "type": "string"
       }
     },
-    "deps": {"label": "Deps", 
+    "deps": {
+      "label": "Deps",
       "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "items": {

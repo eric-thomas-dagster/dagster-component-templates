@@ -3,9 +3,7 @@
   "description": "Workday REST API client wrapper (OAuth Client Grant flow).",
   "category": "resource",
   "icon": "Briefcase",
-  "x-dagster-io": {
-    "supports_partitions": false
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "type": "string",

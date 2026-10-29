@@ -1,16 +1,16 @@
 {
   "component_type": "dagster_component_templates.ShopifyProductUpsertComponent",
-  "description": "Reverse-ETL sink: mirror an upstream DataFrame into Shopify Products via the Admin REST API. Search-then-write per row (Shopify has no native upsert) \u2014 GET /products.json?handle=X \u2192 PUT the match or POST a new product. Fields prefixed `variant_` set variants[0].<field> instead of the top-level product body.",
+  "description": "Reverse-ETL sink: mirror an upstream DataFrame into Shopify Products via the Admin REST API. Search-then-write per row (Shopify has no native upsert) — GET /products.json?handle=X → PUT the match or POST a new product. Fields prefixed `variant_` set variants[0].<field> instead of the top-level product body.",
   "category": "reverse_etl",
   "icon": "si:shopify",
   "x-dagster-io": {
     "inputs": {
       "type": "dataframe",
-      "description": "pandas DataFrame from an upstream asset. Each row \u2192 one Shopify product (upserted by matching on handle)."
+      "description": "pandas DataFrame from an upstream asset. Each row → one Shopify product (upserted by matching on handle)."
     },
     "outputs": {
-      "type": "sink",
-      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored). No downstream data \u2014 write side effect lands in Shopify."
+      "type": "MaterializeResult",
+      "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored). No downstream data — write side effect lands in Shopify."
     }
   },
   "attributes": {
@@ -43,7 +43,7 @@
       "type": "object",
       "label": "Fields Map",
       "required": true,
-      "description": "Upstream column \u2192 Shopify field name. MUST include a mapping to `handle`. Fields prefixed `variant_` set the first variant's property.",
+      "description": "Upstream column → Shopify field name. MUST include a mapping to `handle`. Fields prefixed `variant_` set the first variant's property.",
       "ui:widget": "key-value"
     },
     "batch_size": {

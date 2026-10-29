@@ -5,7 +5,7 @@
   "icon": "Bell",
   "x-dagster-io": {
     "outputs": {
-      "type": "Sensor",
+      "type": "RunRequest",
       "description": "One Dagster sensor per non-schedule trigger, all calling the same action bundle when they fire."
     }
   },

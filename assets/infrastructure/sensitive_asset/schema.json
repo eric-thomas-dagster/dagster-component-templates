@@ -5,7 +5,7 @@
   "icon": "Shield",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "any",
       "description": "One @dg.asset. Materialization metadata is redacted; AssetObservation carries the redaction count."
     }
   },

@@ -5,14 +5,11 @@
   "icon": "FileText",
   "x-dagster-io": {
     "inputs": {
-      "upstream": {
-        "type": "pandas.DataFrame",
-        "required": true
-      },
-      "required": false
+      "type": "dataframe",
+      "required": true
     },
     "outputs": {
-      "type": "Output[DataFrame]"
+      "type": "dataframe"
     }
   },
   "attributes": {

@@ -4,10 +4,7 @@
   "category": "core",
   "icon": "Link",
   "description": "Declare a list of assets from YAML with a no-op materialization body -- lineage, checks, freshness, and automation without real compute",
-  "x-dagster-io": {
-    "inputs": {"type": "none", "required": false, "description": "No data is read -- any deps are lineage-only"},
-    "outputs": {"type": "none", "description": "No data is written -- materializing logs a line and returns MaterializeResult"}
-  },
+  "x-dagster-io": {},
   "version": "1.0.0",
   "author": "Dagster Community",
   "attributes": {

@@ -1,127 +1,147 @@
 {
   "component_type": "dagster_community_components.CatalogAgentComponent",
-  "description": "Iterative + catalog. Planner runs per step, sees REAL columns/preview from prior step's materialization, picks next component from the live registry. Handles customer-built data with unknown schemas \u2014 schema is discovered at runtime from the actual output.",
+  "description": "Iterative + catalog. Planner runs per step, sees REAL columns/preview from prior step's materialization, picks next component from the live registry. Handles customer-built data with unknown schemas — schema is discovered at runtime from the actual output.",
   "category": "ai",
   "icon": "Sparkles",
   "x-dagster-io": {
-    "inputs": {
-      "type": "none"
-    },
     "outputs": {
-      "type": "multi_asset",
+      "type": "any",
       "description": "Emits N step assets + 1 synthesis."
     }
   },
   "attributes": {
-    "step_asset_prefix": {"label": "Step Asset Prefix", 
+    "step_asset_prefix": {
+      "label": "Step Asset Prefix",
       "description": "Prefix for the N step assets. Assets are named <prefix>_1, <prefix>_2, ...",
       "type": "string",
       "required": false,
       "default": "catalog_step"
     },
-    "synthesis_asset_name": {"label": "Synthesis Asset Name", 
+    "synthesis_asset_name": {
+      "label": "Synthesis Asset Name",
       "description": "Final synthesis asset name.",
       "type": "string",
       "required": true
     },
-    "task": {"label": "Task", 
+    "task": {
+      "label": "Task",
       "description": "The task the agent iterates against.",
       "type": "string",
       "required": true
     },
-    "manifest_url": {"label": "Manifest URL", 
+    "manifest_url": {
+      "label": "Manifest URL",
       "description": "URL of manifest.json to fetch at runtime.",
       "type": "string",
       "required": false
     },
-    "manifest_path": {"label": "Manifest Path", 
+    "manifest_path": {
+      "label": "Manifest Path",
       "description": "Local filesystem path to manifest.json (takes precedence over manifest_url).",
       "type": "string",
       "required": false
     },
-    "include_categories": {"label": "Include Categories", 
+    "include_categories": {
+      "label": "Include Categories",
       "type": "array",
       "required": false
     },
-    "include_tags": {"label": "Include Tags", 
+    "include_tags": {
+      "label": "Include Tags",
       "type": "array",
       "required": false
     },
-    "include_ids": {"label": "Include Ids", 
+    "include_ids": {
+      "label": "Include Ids",
       "type": "array",
       "required": false
     },
-    "max_catalog_entries": {"label": "Max Catalog Entries", 
+    "max_catalog_entries": {
+      "label": "Max Catalog Entries",
       "type": "integer",
       "required": false,
       "default": 40
     },
-    "max_iterations": {"label": "Max Iterations", 
+    "max_iterations": {
+      "label": "Max Iterations",
       "type": "integer",
       "required": false,
       "default": 5,
       "minimum": 1,
       "maximum": 15
     },
-    "model": {"label": "Model", 
+    "model": {
+      "label": "Model",
       "type": "string",
       "required": false,
       "default": "gpt-4o-mini"
     },
-    "api_key_env_var": {"label": "API Key Env Var", 
+    "api_key_env_var": {
+      "label": "API Key Env Var",
       "type": "string",
       "required": false,
       "default": "OPENAI_API_KEY"
     },
-    "api_base_env_var": {"label": "API Base Env Var", 
+    "api_base_env_var": {
+      "label": "API Base Env Var",
       "type": "string",
       "required": false
     },
-    "temperature": {"label": "Temperature", 
+    "temperature": {
+      "label": "Temperature",
       "type": "number",
       "required": false,
       "default": 0.1
     },
-    "planner_max_tokens": {"label": "Planner Max Tokens", 
+    "planner_max_tokens": {
+      "label": "Planner Max Tokens",
       "type": "integer",
       "required": false,
       "default": 600
     },
-    "synthesis_max_tokens": {"label": "Synthesis Max Tokens", 
+    "synthesis_max_tokens": {
+      "label": "Synthesis Max Tokens",
       "type": "integer",
       "required": false,
       "default": 800
     },
-    "fail_on_execution_error": {"label": "Fail On Execution Error", 
+    "fail_on_execution_error": {
+      "label": "Fail On Execution Error",
       "type": "boolean",
       "required": false,
       "default": false
     },
-    "synthesis_system_message": {"label": "Synthesis System Message", 
+    "synthesis_system_message": {
+      "label": "Synthesis System Message",
       "type": "string",
       "required": false
     },
-    "group_name": {"label": "Group Name", 
+    "group_name": {
+      "label": "Group Name",
       "description": "Dagster asset group name.",
       "type": "string",
       "required": false
     },
-    "owners": {"label": "Owners", 
+    "owners": {
+      "label": "Owners",
       "description": "Asset owners.",
       "type": "array",
       "required": false
     },
-    "tags": {"label": "Tags", 
+    "tags": {
+      "label": "Tags",
       "description": "Catalog tags.",
       "type": "object",
       "required": false
     },
-    "kinds": {"label": "Kinds", 
+    "kinds": {
+      "label": "Kinds",
       "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "required": false
     },
-    "partition_type": {"label": "Partition Type", 
+    "partition_type": {
+      "label": "Partition Type",
       "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
       "type": "string",
       "required": false,
@@ -136,43 +156,51 @@
       ],
       "ui:widget": "select"
     },
-    "partition_start": {"label": "Partition Start", 
+    "partition_start": {
+      "label": "Partition Start",
       "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
       "type": "string",
       "required": false
     },
-    "partition_values": {"label": "Partition Values", 
+    "partition_values": {
+      "label": "Partition Values",
       "description": "Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
       "type": "string",
       "required": false
     },
-    "dynamic_partition_name": {"label": "Dynamic Partition Name", 
+    "dynamic_partition_name": {
+      "label": "Dynamic Partition Name",
       "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
       "type": "string",
       "required": false
     },
-    "freshness_max_lag_minutes": {"label": "Freshness Max Lag Minutes", 
+    "freshness_max_lag_minutes": {
+      "label": "Freshness Max Lag Minutes",
       "description": "Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
       "type": "integer",
       "required": false
     },
-    "freshness_cron": {"label": "Freshness Cron", 
+    "freshness_cron": {
+      "label": "Freshness Cron",
       "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
       "type": "string",
       "required": false,
       "x-dagster-widget": "cron"
     },
-    "retry_policy_max_retries": {"label": "Retry Policy Max Retries", 
+    "retry_policy_max_retries": {
+      "label": "Retry Policy Max Retries",
       "description": "Max retries on asset failure. Defines a RetryPolicy.",
       "type": "integer",
       "required": false
     },
-    "retry_policy_delay_seconds": {"label": "Retry Policy Delay Seconds", 
+    "retry_policy_delay_seconds": {
+      "label": "Retry Policy Delay Seconds",
       "description": "Seconds between retries.",
       "type": "integer",
       "required": false
     },
-    "retry_policy_backoff": {"label": "Retry Policy Backoff", 
+    "retry_policy_backoff": {
+      "label": "Retry Policy Backoff",
       "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "required": false,

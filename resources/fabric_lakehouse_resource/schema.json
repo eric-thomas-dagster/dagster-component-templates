@@ -3,9 +3,7 @@
   "description": "OneLake URL helper + storage credentials for Fabric Lakehouse access. Use from custom ops via resource.table_path('orders') / resource.storage_options() to read/write Delta tables without re-deriving the abfss URL pattern.",
   "category": "resource",
   "icon": "si:microsoftazure",
-  "x-dagster-io": {
-    "supports_partitions": false
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "description": "Dagster resource key",

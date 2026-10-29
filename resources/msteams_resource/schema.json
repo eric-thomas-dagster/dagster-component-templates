@@ -3,12 +3,7 @@
   "description": "Microsoft Teams notification resource via dagster-msteams.",
   "category": "resource",
   "icon": "MessageSquare",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "resource",
-      "description": "Microsoft Teams notification resource via dagster-msteams."
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "webhook_url_env_var": {
       "description": "Env var with the incoming-webhook URL.",

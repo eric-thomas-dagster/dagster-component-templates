@@ -5,7 +5,7 @@
   "icon": "ArrowRight",
   "x-dagster-io": {
     "outputs": {
-      "type": "integration",
+      "type": "AssetSpec",
       "description": "Convert an Airflow DAG to Dagster definitions via dagster-airflow."
     }
   },

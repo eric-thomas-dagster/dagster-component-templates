@@ -3,9 +3,7 @@
   "description": "Wrike REST API v4 client wrapper. Permanent access token sent as a standard Bearer token in the Authorization header.",
   "category": "resource",
   "icon": "si:wrike",
-  "x-dagster-io": {
-    "supports_partitions": false
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "type": "string",

@@ -5,7 +5,7 @@
   "icon": "si:huggingface",
   "x-dagster-io": {
     "outputs": {
-      "type": "ObserveResult",
+      "type": "AssetObservation",
       "description": "Model metadata snapshot"
     }
   },
@@ -44,11 +44,49 @@
       "required": false,
       "default": "huggingface"
     },
-    "description": {"description": "Asset description shown in the Dagster catalog.", "type": "string", "label": "Description", "required": false },
-    "owners": {"description": "Asset owners.", "type": "array", "items": { "type": "string" }, "label": "Owners", "required": false, "ui:widget": "list" },
-    "asset_tags": {"description": "Key-value catalog tags.", "type": "object", "label": "Asset Tags", "required": false, "ui:widget": "key-value" },
-    "kinds": {"description": "Asset kinds (auto-includes 'huggingface').", "type": "array", "items": { "type": "string" }, "label": "Kinds", "required": false, "ui:widget": "list" },
-    "deps": {"description": "Upstream asset keys this asset depends on.", "type": "array", "items": { "type": "string" }, "label": "Deps", "required": false, "ui:widget": "list" }
+    "description": {
+      "description": "Asset description shown in the Dagster catalog.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_tags": {
+      "description": "Key-value catalog tags.",
+      "type": "object",
+      "label": "Asset Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds (auto-includes 'huggingface').",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "deps": {
+      "description": "Upstream asset keys this asset depends on.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Deps",
+      "required": false,
+      "ui:widget": "list"
+    }
   },
   "tags": [
     "ai",

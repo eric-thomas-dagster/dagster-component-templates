@@ -3,12 +3,7 @@
   "description": "Store DataFrames as CSV files on Amazon S3 (or any S3-compatible endpoint).",
   "category": "io_manager",
   "icon": "si:amazons3",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "IOManager",
-      "description": "Resource"
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "description": "Dagster resource key. Use 'io_manager' to make this the default.",

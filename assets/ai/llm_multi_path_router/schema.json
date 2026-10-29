@@ -5,7 +5,7 @@
   "icon": "GitBranch",
   "x-dagster-io": {
     "outputs": {
-      "type": "multi_asset",
+      "type": "any",
       "description": "One asset per declared `outputs:` entry, each carrying the trajectory + summary + n_iterations in metadata."
     }
   },
@@ -33,14 +33,18 @@
       "label": "Tools",
       "required": true,
       "description": "Bounded list of tools the planner can pick from at each step. Each entry has {name, description, system_message}.",
-      "items": {"type": "object"}
+      "items": {
+        "type": "object"
+      }
     },
     "outputs": {
       "type": "array",
       "label": "Outputs",
       "required": true,
       "description": "Downstream branches. Each entry becomes its own Dagster asset. Emitted per-partition only when the classifier picks it. Each: {name, description, kinds}.",
-      "items": {"type": "object"}
+      "items": {
+        "type": "object"
+      }
     },
     "max_iterations": {
       "type": "integer",
@@ -77,9 +81,27 @@
       "description": "Lower is better for tool-picking discipline.",
       "default": 0.0
     },
-    "planner_max_tokens": {"type": "integer", "label": "Planner Max Tokens", "required": false, "description": "Max tokens for each planner turn.", "default": 400},
-    "tool_max_tokens": {"type": "integer", "label": "Tool Max Tokens", "required": false, "description": "Max tokens for each tool LLM response.", "default": 500},
-    "classifier_max_tokens": {"type": "integer", "label": "Classifier Max Tokens", "required": false, "description": "Max tokens for the final classifier response.", "default": 400},
+    "planner_max_tokens": {
+      "type": "integer",
+      "label": "Planner Max Tokens",
+      "required": false,
+      "description": "Max tokens for each planner turn.",
+      "default": 400
+    },
+    "tool_max_tokens": {
+      "type": "integer",
+      "label": "Tool Max Tokens",
+      "required": false,
+      "description": "Max tokens for each tool LLM response.",
+      "default": 500
+    },
+    "classifier_max_tokens": {
+      "type": "integer",
+      "label": "Classifier Max Tokens",
+      "required": false,
+      "description": "Max tokens for the final classifier response.",
+      "default": 400
+    },
     "classifier_system_message": {
       "type": "string",
       "label": "Classifier System Message",
@@ -87,13 +109,61 @@
       "description": "Optional override for the classifier's system prompt.",
       "default": null
     },
-    "group_name": {"type": "string", "label": "Group Name", "required": false, "description": "Asset group.", "default": null},
-    "owners": {"type": "array", "label": "Owners", "required": false, "description": "Asset owners.", "default": null, "items": {"type": "string"}},
-    "tags": {"type": "object", "label": "Tags", "required": false, "description": "Additional key-value tags.", "default": null, "additionalProperties": {"type": "string"}},
-    "partition_type": {"type": "string", "label": "Partition Type", "required": false, "description": "'daily'|'weekly'|'monthly'|'hourly'|'static'|'dynamic'|None", "default": null},
-    "partition_start": {"type": "string", "label": "Partition Start", "required": false, "description": "ISO date for time-based partitions.", "default": null},
-    "partition_values": {"type": "string", "label": "Partition Values", "required": false, "description": "Comma-separated static values.", "default": null},
-    "dynamic_partition_name": {"type": "string", "label": "Dynamic Partition Name", "required": false, "description": "Name for DynamicPartitionsDefinition.", "default": null},
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "description": "Asset group.",
+      "default": null
+    },
+    "owners": {
+      "type": "array",
+      "label": "Owners",
+      "required": false,
+      "description": "Asset owners.",
+      "default": null,
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "description": "Additional key-value tags.",
+      "default": null,
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "description": "'daily'|'weekly'|'monthly'|'hourly'|'static'|'dynamic'|None",
+      "default": null
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "required": false,
+      "description": "ISO date for time-based partitions.",
+      "default": null
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "description": "Comma-separated static values.",
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "description": "Name for DynamicPartitionsDefinition.",
+      "default": null
+    },
     "partition_static_column": {
       "type": "string",
       "label": "Partition Static Column",

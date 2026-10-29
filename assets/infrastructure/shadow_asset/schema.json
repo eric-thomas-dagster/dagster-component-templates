@@ -5,7 +5,7 @@
   "icon": "GitBranch",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "any",
       "description": "One @dg.asset. Materialization = primary result; AssetObservation captures shadow verdict + diff metadata."
     }
   },

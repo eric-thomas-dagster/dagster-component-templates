@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row updates one existing Greenhouse candidate (matched via candidate_id_column)."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (rows_updated / rows_errored). No downstream data -- write side effect lands in Greenhouse."
     }
   },

@@ -5,7 +5,7 @@
   "icon": "RefreshCw",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "any",
       "description": "One asset whose materialization is the retry-wrapped compute. Metadata includes attempts + classification + http_status."
     }
   },

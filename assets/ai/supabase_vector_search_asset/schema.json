@@ -5,11 +5,11 @@
   "icon": "si:supabase",
   "x-dagster-io": {
     "inputs": {
-      "type": "asset",
+      "type": "dataframe",
       "description": "Upstream DataFrame with a query-vector column (optional)"
     },
     "outputs": {
-      "type": "asset",
+      "type": "dataframe",
       "description": "Matched rows with rank + query context"
     }
   },

@@ -3,9 +3,7 @@
   "description": "Basecamp 3/4 REST API client wrapper. Every request is scoped under a per-account URL (https://3.basecampapi.com/<account_id>/...); auth is an OAuth2 Bearer access token obtained via a 3-legged authorization-code grant.",
   "category": "resource",
   "icon": "si:basecamp",
-  "x-dagster-io": {
-    "supports_partitions": false
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "type": "string",

@@ -4,34 +4,120 @@
   "category": "ai",
   "icon": "Assessment",
   "x-dagster-io": {
-    "inputs": {"type": "dict", "required": true, "description": "Per-provider metrics payloads from upstream `candidates` (and optional `evaluator`) assets — cost_usd + latency_ms + tokens_* per candidate."},
-    "outputs": {"type": "dict", "description": "One asset with per-provider metrics + winner-by-cost + winner-by-quality + winner-by-value + projected daily savings + recommendation string."}
+    "inputs": {
+      "type": "any",
+      "description": "Upstream usage/cost records"
+    },
+    "outputs": {
+      "type": "any",
+      "description": "Cost report dict"
+    }
   },
   "attributes": {
-    "asset_name":         {"description": "Report asset name.", "type": "string", "required": true, "label": "Asset Name"},
-    "candidates":         {"type": "array",  "required": true, "label": "Candidates", "items": {"type": "string"},
-                           "description": "Upstream A/B candidate asset keys. Each provides cost_usd + latency_ms + tokens_* in its payload."},
-    "evaluator":          {"type": "string", "label": "Evaluator Asset",
-                           "description": "Optional upstream evaluator asset key. Provides quality scores per provider."},
-    "baseline_alias":     {"type": "string", "label": "Baseline Alias",
-                           "description": "Reference provider alias. Deltas (cost, quality) are computed relative to this."},
-    "projected_daily_volume": {"type": "integer", "label": "Projected Daily Volume",
-                           "description": "Optional projected daily call volume. Enables `projected_daily_savings_usd` per alternative."},
-    "quality_weight":     {"type": "number", "label": "Quality Weight", "default": 0.7,
-                           "description": "0-1. Weight applied to quality in the value_score composite (cost gets 1 - weight). Higher = quality matters more."},
-    "group_name":         {"type": "string", "label": "Group Name", "description": "Asset group. Default 'ab_test'."},
-    "kinds":              {"description": "Asset kinds. Default: ['report', 'ab-test'].", "type": "array",  "label": "Kinds", "items": {"type": "string"}},
-    "owners":             {"description": "Asset owners.", "type": "array",  "label": "Owners", "items": {"type": "string"}},
-    "tags":               {"description": "Extra tags.", "type": "object", "label": "Tags"},
-    "description":        {"description": "Asset description.", "type": "string", "label": "Description"},
-
-    "partition_type":     {"type": "string", "label": "Partition Type",
-                           "enum": ["daily", "weekly", "monthly", "hourly", "static", "dynamic", "multi"],
-                           "description": "Must match upstream candidate + evaluator partitions_def."},
-    "partition_start":    {"description": "ISO date for time-based partition types.", "type": "string", "label": "Partition Start"},
-    "partition_values":   {"description": "Comma-separated string OR list.", "type": "any",    "label": "Partition Values"},
-    "dynamic_partition_name": {"description": "Name for DynamicPartitionsDefinition.", "type": "string", "label": "Dynamic Partition Name"},
-    "partition_dimensions": {"description": "Multi-axis partition spec.", "type": "array", "label": "Partition Dimensions", "items": {"type": "object"}},
+    "asset_name": {
+      "description": "Report asset name.",
+      "type": "string",
+      "required": true,
+      "label": "Asset Name"
+    },
+    "candidates": {
+      "type": "array",
+      "required": true,
+      "label": "Candidates",
+      "items": {
+        "type": "string"
+      },
+      "description": "Upstream A/B candidate asset keys. Each provides cost_usd + latency_ms + tokens_* in its payload."
+    },
+    "evaluator": {
+      "type": "string",
+      "label": "Evaluator Asset",
+      "description": "Optional upstream evaluator asset key. Provides quality scores per provider."
+    },
+    "baseline_alias": {
+      "type": "string",
+      "label": "Baseline Alias",
+      "description": "Reference provider alias. Deltas (cost, quality) are computed relative to this."
+    },
+    "projected_daily_volume": {
+      "type": "integer",
+      "label": "Projected Daily Volume",
+      "description": "Optional projected daily call volume. Enables `projected_daily_savings_usd` per alternative."
+    },
+    "quality_weight": {
+      "type": "number",
+      "label": "Quality Weight",
+      "default": 0.7,
+      "description": "0-1. Weight applied to quality in the value_score composite (cost gets 1 - weight). Higher = quality matters more."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group. Default 'ab_test'."
+    },
+    "kinds": {
+      "description": "Asset kinds. Default: ['report', 'ab-test'].",
+      "type": "array",
+      "label": "Kinds",
+      "items": {
+        "type": "string"
+      }
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "label": "Owners",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "description": "Extra tags.",
+      "type": "object",
+      "label": "Tags"
+    },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "dynamic",
+        "multi"
+      ],
+      "description": "Must match upstream candidate + evaluator partitions_def."
+    },
+    "partition_start": {
+      "description": "ISO date for time-based partition types.",
+      "type": "string",
+      "label": "Partition Start"
+    },
+    "partition_values": {
+      "description": "Comma-separated string OR list.",
+      "type": "any",
+      "label": "Partition Values"
+    },
+    "dynamic_partition_name": {
+      "description": "Name for DynamicPartitionsDefinition.",
+      "type": "string",
+      "label": "Dynamic Partition Name"
+    },
+    "partition_dimensions": {
+      "description": "Multi-axis partition spec.",
+      "type": "array",
+      "label": "Partition Dimensions",
+      "items": {
+        "type": "object"
+      }
+    },
     "partition_cron_schedule": {
       "type": "string",
       "label": "Partition Cron Schedule",
@@ -45,6 +131,12 @@
       "required": false
     }
   },
-  "tags": ["ai", "llm", "report", "ab-test", "cost-analysis"],
+  "tags": [
+    "ai",
+    "llm",
+    "report",
+    "ab-test",
+    "cost-analysis"
+  ],
   "name": "Inference Cost Report"
 }

@@ -5,7 +5,7 @@
   "icon": "RefreshCw",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "MaterializeResult",
       "description": "Materializable asset for a Qlik Cloud app reload"
     }
   },
@@ -76,7 +76,9 @@
     },
     "deps": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Deps",
       "description": "Upstream Dagster asset keys (e.g. the warehouse fact table this app reads).",
       "required": false,
@@ -85,7 +87,9 @@
     },
     "owners": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Owners",
       "description": "Asset owners.",
       "required": false,
@@ -122,6 +126,11 @@
       "default": 300
     }
   },
-  "tags": ["integration", "qlik", "bi", "reload"],
+  "tags": [
+    "integration",
+    "qlik",
+    "bi",
+    "reload"
+  ],
   "name": "QlikCloudAppReload"
 }

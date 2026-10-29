@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row -> one Zoho CRM record (upserted via duplicate_check_fields)."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / rows_skipped_no_key). No downstream data -- the write side effect lands in Zoho CRM."
     }
   },

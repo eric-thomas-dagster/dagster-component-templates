@@ -5,7 +5,7 @@
   "icon": "Sensors",
   "x-dagster-io": {
     "outputs": {
-      "type": "AssetCheckEvaluation | SensorTickFailure",
+      "type": "AssetCheckResult",
       "description": "alert_mode='check': one passed/failed check per tick against the declared rollup asset -- wire a Dagster+ 'Asset' alert policy to it. alert_mode='fail_tick': the sensor's own tick fails when stale -- wire a Dagster+ 'Automation' alert policy to this sensor by name."
     }
   },
@@ -34,7 +34,10 @@
       "description": "'check' (default): declare rollup_asset_key as a visible asset and report pass/fail as an AssetCheckEvaluation -- the sensor tick always succeeds. Alert via Dagster+'s Asset alert type, scoped to rollup_asset_key (no per-check-name targeting exists, but this asset only ever carries one check). 'fail_tick': no asset is created -- the sensor raises when the selection is stale, failing its own tick. Alert via Dagster+'s Automation alert type, which CAN target this exact sensor by name. Tradeoff: in fail_tick mode, a real bug in this sensor and 'the selection is just stale' both look identical as a failed tick.",
       "required": false,
       "default": "check",
-      "enum": ["check", "fail_tick"],
+      "enum": [
+        "check",
+        "fail_tick"
+      ],
       "ui:widget": "select"
     },
     "rollup_asset_key": {
@@ -76,7 +79,10 @@
       "description": "'running' or 'stopped' -- initial status of the sensor.",
       "required": false,
       "default": "stopped",
-      "enum": ["running", "stopped"],
+      "enum": [
+        "running",
+        "stopped"
+      ],
       "ui:widget": "select"
     },
     "group_name": {

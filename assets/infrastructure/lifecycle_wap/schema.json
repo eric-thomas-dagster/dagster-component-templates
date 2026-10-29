@@ -5,7 +5,7 @@
   "icon": "GitBranch",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "any",
       "description": "One @dg.asset whose materialization is compute → staging → audit → publish. Includes AssetCheckResult per audit. Metadata: wap_write_kind, wap_all_passed, wap_publish_outcome, wap_check_summary."
     }
   },

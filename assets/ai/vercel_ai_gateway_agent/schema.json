@@ -4,87 +4,100 @@
   "category": "ai",
   "icon": "si:vercel",
   "x-dagster-io": {
-    "inputs": {
-      "type": "none"
-    },
     "outputs": {
-      "type": "dict"
+      "type": "any"
     }
   },
   "attributes": {
-    "asset_name": {"label": "Asset Name", 
+    "asset_name": {
+      "label": "Asset Name",
       "description": "Output Dagster asset name.",
       "type": "string",
       "required": true
     },
-    "prompt": {"label": "Prompt", 
+    "prompt": {
+      "label": "Prompt",
       "type": "string",
       "required": true
     },
-    "system_prompt": {"label": "System Prompt", 
+    "system_prompt": {
+      "label": "System Prompt",
       "type": "string",
       "required": false
     },
-    "fallback_models": {"label": "Fallback Models", 
+    "fallback_models": {
+      "label": "Fallback Models",
       "type": "array",
       "required": false,
       "description": "Fallback chain on invocation error."
     },
-    "api_key_env_var": {"label": "API Key Env Var", 
+    "api_key_env_var": {
+      "label": "API Key Env Var",
       "type": "string",
       "required": false,
       "default": "VERCEL_API_TOKEN"
     },
-    "api_base_url": {"label": "API Base URL", 
+    "api_base_url": {
+      "label": "API Base URL",
       "type": "string",
       "required": false,
       "default": "https://ai-gateway.vercel.sh/v1"
     },
-    "temperature": {"label": "Temperature", 
+    "temperature": {
+      "label": "Temperature",
       "type": "number",
       "required": false,
       "default": 0.0
     },
-    "max_tokens": {"label": "Max Tokens", 
+    "max_tokens": {
+      "label": "Max Tokens",
       "type": "integer",
       "required": false,
       "default": 2048
     },
-    "max_iterations": {"label": "Max Iterations", 
+    "max_iterations": {
+      "label": "Max Iterations",
       "type": "integer",
       "required": false,
       "default": 10
     },
-    "mcp_servers": {"label": "Mcp Servers", 
+    "mcp_servers": {
+      "label": "Mcp Servers",
       "type": "array",
       "required": false
     },
-    "group_name": {"label": "Group Name", 
+    "group_name": {
+      "label": "Group Name",
       "description": "Dagster asset group name.",
       "type": "string",
       "required": false
     },
-    "description": {"label": "Description", 
+    "description": {
+      "label": "Description",
       "description": "Asset description.",
       "type": "string",
       "required": false
     },
-    "owners": {"label": "Owners", 
+    "owners": {
+      "label": "Owners",
       "description": "Asset owners.",
       "type": "array",
       "required": false
     },
-    "asset_tags": {"label": "Asset Tags", 
+    "asset_tags": {
+      "label": "Asset Tags",
       "description": "Additional key-value tags applied to the asset in the Dagster catalog.",
       "type": "object",
       "required": false
     },
-    "kinds": {"label": "Kinds", 
+    "kinds": {
+      "label": "Kinds",
       "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "required": false
     },
-    "deps": {"label": "Deps", 
+    "deps": {
+      "label": "Deps",
       "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "required": false

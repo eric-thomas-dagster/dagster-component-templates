@@ -5,7 +5,7 @@
   "icon": "CheckCircle",
   "x-dagster-io": {
     "outputs": {
-      "type": "check",
+      "type": "AssetCheckResult",
       "description": "Validate a DataFrame asset against a Pandera schema as a Dagster asset check."
     }
   },

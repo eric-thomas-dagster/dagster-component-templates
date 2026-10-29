@@ -1,17 +1,17 @@
 {
   "component_type": "dagster_component_templates.DataframeToODataComponent",
-  "description": "Sink \u2014 write a pandas DataFrame to an OData v2/v4 entity set via POST / PATCH / DELETE.",
+  "description": "Sink — write a pandas DataFrame to an OData v2/v4 entity set via POST / PATCH / DELETE.",
   "category": "sink",
   "icon": "si:odata",
   "x-dagster-io": {
     "inputs": {
-      "upstream": {
-        "type": "pandas.DataFrame",
-        "required": true
-      }
+      "type": "dataframe",
+      "required": true,
+      "description": "DataFrame to write"
     },
     "outputs": {
-      "type": "Output[None]"
+      "type": "MaterializeResult",
+      "description": "Write confirmation with metadata"
     }
   },
   "attributes": {
@@ -131,7 +131,7 @@
       "x-dagster-widget": "columns"
     },
     "batch_mode": {
-      "description": "Use OData $batch protocol \u2014 bundles many writes into one HTTP request. Supported by S/4HANA and SuccessFactors. NOT supported by all OData servers; leave off unless you're sure.",
+      "description": "Use OData $batch protocol — bundles many writes into one HTTP request. Supported by S/4HANA and SuccessFactors. NOT supported by all OData servers; leave off unless you're sure.",
       "type": "boolean",
       "label": "Batch Mode ($batch)",
       "required": false,
@@ -352,5 +352,5 @@
     "dynamics365",
     "msgraph"
   ],
-  "name": "Dataframe \u2192 OData"
+  "name": "Dataframe → OData"
 }

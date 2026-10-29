@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row -> one Smartsheet row (upserted via client-side match on key_column)."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata. No downstream data -- write side effect lands in Smartsheet."
     }
   },

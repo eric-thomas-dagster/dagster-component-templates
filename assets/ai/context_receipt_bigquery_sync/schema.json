@@ -3,16 +3,7 @@
   "description": "Ships context receipts (retrievals, items, exclusions, and outcome/evidence/output events) from the local SQLite ContextReceiptStore into BigQuery tables. Incremental with cursors stored in BigQuery, idempotent on replay, so receipts can be joined with warehouse data and item feedback computed in SQL.",
   "category": "ai",
   "icon": "CloudUpload",
-  "x-dagster-io": {
-    "inputs": {
-      "type": "none",
-      "description": "Reads from the receipt store and BigQuery resources (no upstream asset data)."
-    },
-    "outputs": {
-      "type": "none",
-      "description": "Writes context_receipts, context_receipt_items, context_receipt_excluded, context_receipt_events and context_sync_state in the dataset; metadata reports rows shipped, cursors before/after, lag."
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "asset_name": {
       "type": "string",
@@ -93,7 +84,7 @@
         "type": "string"
       },
       "label": "Owners",
-      "description": "Asset owners \u2014 team names (team:analytics) or email addresses.",
+      "description": "Asset owners — team names (team:analytics) or email addresses.",
       "required": false,
       "ui:widget": "list"
     },

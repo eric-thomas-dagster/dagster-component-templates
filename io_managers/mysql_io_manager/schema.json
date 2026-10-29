@@ -3,12 +3,7 @@
   "description": "Persist DataFrames to a MySQL/MariaDB schema, one table per asset.",
   "category": "io_manager",
   "icon": "si:mysql",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "IOManager",
-      "description": "Resource"
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "description": "Dagster resource key. Use 'io_manager' to make this the default.",

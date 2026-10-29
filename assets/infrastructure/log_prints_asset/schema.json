@@ -5,7 +5,7 @@
   "icon": "Type",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "any",
       "description": "One @dg.asset. Every print() call in compute becomes an info log event. Original stdout restored after compute."
     }
   },

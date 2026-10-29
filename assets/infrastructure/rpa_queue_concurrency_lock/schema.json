@@ -5,7 +5,7 @@
   "icon": "Lock",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "any",
       "description": "One @dg.asset. Emits acquire/release AssetObservations to a synthetic __pool_<pool_key> asset key. On skip: metadata.pool_at_capacity=true."
     }
   },

@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row -> one Jira Service Management customer request (upserted via key_field, matched by JQL)."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / rows_skipped_no_key). No downstream data -- write side effect lands in Jira Service Management."
     }
   },

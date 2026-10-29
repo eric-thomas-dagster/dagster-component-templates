@@ -5,7 +5,7 @@
   "icon": "ChartBar",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "any",
       "description": "One @dg.asset. On every materialization: computes DataFrame profile, emits AssetObservation with full profile JSON + typed metadata on the materialization."
     }
   },

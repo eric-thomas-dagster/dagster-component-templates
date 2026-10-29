@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row -> one new Asana task."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (rows_created / rows_errored). No downstream data -- write side effect lands in Asana."
     }
   },

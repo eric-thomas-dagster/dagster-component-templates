@@ -9,7 +9,7 @@
       "description": "Either an upstream Dagster asset (via `upstream_asset_key`) OR an inline source config (via `source:` — SQL against a resource, a CSV file path, or literal rows). Each row → one Freshservice ticket (upserted by matching on `key_field` via the Filter Tickets API)."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (rows_created / rows_updated / rows_errored / rows_skipped_no_key). No downstream data — the write side effect lands in Freshservice."
     }
   },

@@ -5,7 +5,7 @@
   "icon": "DollarSign",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "any",
       "description": "One @dg.asset. Emits AssetObservation(budget_cost_asset=<key>) with cost_estimate/elapsed/cumulative metadata per run."
     }
   },

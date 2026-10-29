@@ -3,9 +3,7 @@
   "description": "Op-job that triggers a Microsoft Fabric Data Pipeline / Notebook / Dataflow Gen2 run via the Fabric REST API. For workspace-wide imports use fabric_workspace; use this when you want one specific item run as a Dagster job (with optional schedule).",
   "category": "jobs",
   "icon": "Play",
-  "x-dagster-io": {
-    "supports_partitions": false
-  },
+  "x-dagster-io": {},
   "attributes": {
     "job_name": {
       "description": "Dagster job name",

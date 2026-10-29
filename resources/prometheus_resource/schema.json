@@ -3,12 +3,7 @@
   "description": "Push metrics to a Prometheus pushgateway via dagster-prometheus.",
   "category": "resource",
   "icon": "si:prometheus",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "resource",
-      "description": "Push metrics to a Prometheus pushgateway via dagster-prometheus."
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "gateway": {
       "description": "Prometheus pushgateway URL (e.g. 'http://prometheus-pushgateway:9091').",

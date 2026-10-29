@@ -3,12 +3,7 @@
   "description": "Stream Dagster logs to Papertrail via dagster-papertrail.",
   "category": "resource",
   "icon": "FileText",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "resource",
-      "description": "Stream Dagster logs to Papertrail via dagster-papertrail."
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "papertrail_hostname": {
       "description": "Papertrail hostname (e.g. 'logs1.papertrailapp.com').",

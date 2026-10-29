@@ -1,10 +1,13 @@
 {
   "component_type": "dagster_component_templates.NewRelicNrqlQueryComponent",
-  "description": "Run an NRQL query via NerdGraph \u2192 DataFrame. Use for ops dashboards, anomaly detection, capacity planning, alerting trends.",
+  "description": "Run an NRQL query via NerdGraph → DataFrame. Use for ops dashboards, anomaly detection, capacity planning, alerting trends.",
   "category": "source",
   "icon": "Search",
   "x-dagster-io": {
-    "supports_partitions": false
+    "outputs": {
+      "type": "dataframe",
+      "description": "Output DataFrame"
+    }
   },
   "attributes": {
     "asset_name": {
@@ -135,7 +138,7 @@
     },
     "partition_type": {
       "default": null,
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "enum": [
         "daily",
         "weekly",

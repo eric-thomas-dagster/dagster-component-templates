@@ -5,7 +5,7 @@
   "icon": "Anchor",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "any",
       "description": "One @dg.asset. Success/failure callbacks fire AFTER compute completes. Metadata: n_success_hooks, n_failure_hooks."
     }
   },

@@ -5,7 +5,7 @@
   "icon": "Timer",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "any",
       "description": "One @dg.asset. On throttle: metadata.throttle_skipped=true, throttle_wait_seconds, throttle_min_gap_seconds."
     }
   },

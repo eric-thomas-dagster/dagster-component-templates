@@ -9,10 +9,9 @@
       "description": "Upstream payload — typically an *_agent dict."
     },
     "outputs": {
-      "type": "dict",
+      "type": "any",
       "description": "Upstream payload + 'evaluations' field containing per-metric score (0.0-1.0) and reason."
-    },
-    "supports_partitions": false
+    }
   },
   "attributes": {
     "include_reasoning": {
@@ -90,7 +89,8 @@
       "description": "Dot-path to retrieved context (for groundedness / context_relevance).",
       "required": false
     },
-    "group_name": {"label": "Group Name", 
+    "group_name": {
+      "label": "Group Name",
       "description": "Dagster asset group name.",
       "type": "string",
       "required": false
@@ -165,27 +165,32 @@
       "default": null,
       "x-dagster-widget": "column"
     },
-    "description": {"label": "Description", 
+    "description": {
+      "label": "Description",
       "description": "Asset description.",
       "type": "string",
       "required": false
     },
-    "owners": {"label": "Owners", 
+    "owners": {
+      "label": "Owners",
       "description": "Asset owners.",
       "type": "array",
       "required": false
     },
-    "asset_tags": {"label": "Asset Tags", 
+    "asset_tags": {
+      "label": "Asset Tags",
       "description": "Extra asset tags.",
       "type": "object",
       "required": false
     },
-    "kinds": {"label": "Kinds", 
+    "kinds": {
+      "label": "Kinds",
       "description": "Asset kinds. Defaults to ['llm', 'evaluation'].",
       "type": "array",
       "required": false
     },
-    "deps": {"label": "Deps", 
+    "deps": {
+      "label": "Deps",
       "description": "Lineage-only upstream asset keys.",
       "type": "array",
       "required": false

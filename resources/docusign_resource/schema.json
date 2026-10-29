@@ -3,12 +3,7 @@
   "description": "Register a DocuSignResource (JWT Grant OAuth2 eSignature REST API client) for use by other components",
   "category": "resource",
   "icon": "si:docusign",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "resource",
-      "description": "DocuSign eSignature REST API resource (JWT Grant OAuth2)."
-    }
-  },
+  "x-dagster-io": {},
   "x-dagster-provides": [
     "docusign_resource"
   ],

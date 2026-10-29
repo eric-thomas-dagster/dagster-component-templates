@@ -3,12 +3,7 @@
   "description": "Register a PandaDocResource (static API Key REST API client) for use by other components",
   "category": "resource",
   "icon": "si:pandadoc",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "resource",
-      "description": "PandaDoc REST API resource (static API Key auth)."
-    }
-  },
+  "x-dagster-io": {},
   "x-dagster-provides": [
     "pandadoc_resource"
   ],

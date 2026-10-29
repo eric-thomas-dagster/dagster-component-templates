@@ -4,12 +4,7 @@
   "category": "resource",
   "icon": "Plug",
   "vertical": "crm-sales",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "resource",
-      "description": "InsightlyResource with .get/.post/.put/.search/.upsert methods. Consumed by insightly_record_upsert (sink) and by custom Dagster asset code that needs Insightly CRUD."
-    }
-  },
+  "x-dagster-io": {},
   "x-dagster-provides": [
     "insightly_resource"
   ],

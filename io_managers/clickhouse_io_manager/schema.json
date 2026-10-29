@@ -3,12 +3,7 @@
   "description": "Wrap dagster-clickhouse-pandas's ClickhousePandasIOManager so DataFrame assets persist to ClickHouse.",
   "category": "io_manager",
   "icon": "si:clickhouse",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "io_manager",
-      "description": "Wrap dagster-clickhouse-pandas's ClickhousePandasIOManager so DataFrame assets persist to ClickHouse."
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "description": "Dagster resource key.",

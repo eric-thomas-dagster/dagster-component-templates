@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row contributes a hashed email identifier to the target DMP Segment."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (segment_id / operation / rows_submitted / rows_skipped_no_identifier / api_requests)."
     }
   },
@@ -56,7 +56,10 @@
       "label": "Operation",
       "required": false,
       "default": "add",
-      "enum": ["add", "remove"],
+      "enum": [
+        "add",
+        "remove"
+      ],
       "ui:widget": "select",
       "description": "'add' maps to LinkedIn action=ADD; 'remove' maps to action=REMOVE."
     },
@@ -74,7 +77,12 @@
       "default": 50000,
       "description": "Max upstream rows per run (safety cap)."
     },
-    "group_name": {"description": "Dagster asset group name.", "type": "string", "label": "Group Name", "required": false },
+    "group_name": {
+      "description": "Dagster asset group name.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
     "partition_type": {
       "type": "string",
       "label": "Partition Type",
@@ -137,10 +145,30 @@
       "required": false,
       "x-dagster-widget": "column"
     },
-    "description": {"description": "Asset description.", "type": "string", "label": "Description", "required": false },
-    "owners": {"description": "Asset owners.", "type": "array", "label": "Owners", "required": false },
-    "tags": {"description": "Catalog tags.", "type": "object", "label": "Tags", "required": false },
-    "kinds": {"description": "Asset kinds (auto-includes 'linkedin_ads').", "type": "array", "label": "Kinds", "required": false },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "label": "Owners",
+      "required": false
+    },
+    "tags": {
+      "description": "Catalog tags.",
+      "type": "object",
+      "label": "Tags",
+      "required": false
+    },
+    "kinds": {
+      "description": "Asset kinds (auto-includes 'linkedin_ads').",
+      "type": "array",
+      "label": "Kinds",
+      "required": false
+    },
     "partition_cron_schedule": {
       "type": "string",
       "label": "Partition Cron Schedule",

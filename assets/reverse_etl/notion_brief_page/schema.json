@@ -5,11 +5,11 @@
   "icon": "si:notion",
   "x-dagster-io": {
     "inputs": {
-      "type": "dict",
+      "type": "any",
       "description": "Upstream asset value: a dict containing a structured-fields sub-dict under `extracted_field` (e.g. agentic_pipeline's `extract` op output: {text, extracted, model, ...})."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata. No downstream data -- the write side effect lands in Notion as a brand-new page."
     }
   },

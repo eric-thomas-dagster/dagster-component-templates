@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row -> one Zocdoc timeslot, grouped by mapped (provider_id, date)."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata (rows_processed / groups_processed / rows_upserted / rows_skipped_no_key / rows_errored / groups_oversized). No downstream data -- the write side effect lands in Zocdoc's provider calendar."
     }
   },
@@ -131,7 +131,9 @@
     "owners": {
       "description": "Asset owners.",
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Owners",
       "required": false,
       "ui:widget": "list"
@@ -146,7 +148,9 @@
     "kinds": {
       "description": "Asset kinds (auto-includes 'zocdoc').",
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"

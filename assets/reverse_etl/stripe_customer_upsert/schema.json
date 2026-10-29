@@ -9,7 +9,7 @@
       "description": "pandas DataFrame from an upstream asset. Each row -> one Stripe customer (upserted via key_column, matched by email or metadata)."
     },
     "outputs": {
-      "type": "sink",
+      "type": "MaterializeResult",
       "description": "Dagster asset materialization with metadata. No downstream data -- write side effect lands in Stripe."
     }
   },

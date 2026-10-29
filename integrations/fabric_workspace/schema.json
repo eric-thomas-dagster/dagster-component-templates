@@ -4,7 +4,10 @@
   "category": "integration",
   "icon": "si:microsoftazure",
   "x-dagster-io": {
-    "supports_partitions": false
+    "outputs": {
+      "type": "AssetSpec",
+      "description": "One Dagster asset per discovered Fabric item."
+    }
   },
   "attributes": {
     "import_lakehouses": {

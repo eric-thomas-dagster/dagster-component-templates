@@ -5,7 +5,7 @@
   "icon": "Database",
   "x-dagster-io": {
     "outputs": {
-      "type": "dict",
+      "type": "any",
       "description": "Dict with snapshot_path, snapshot_id, chunk_count, dimension, corpus_hash, dynamic_partition_name"
     }
   },

@@ -4,7 +4,15 @@
   "category": "sink",
   "icon": "Table",
   "x-dagster-io": {
-    "supports_partitions": false
+    "inputs": {
+      "type": "dataframe",
+      "required": true,
+      "description": "DataFrame to write"
+    },
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "Write confirmation with metadata"
+    }
   },
   "attributes": {
     "asset_name": {
@@ -172,7 +180,7 @@
     },
     "partition_type": {
       "default": null,
-      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date \u00d7 static (e.g. day \u00d7 customer). Leave empty for unpartitioned.",
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
       "enum": [
         "daily",
         "weekly",

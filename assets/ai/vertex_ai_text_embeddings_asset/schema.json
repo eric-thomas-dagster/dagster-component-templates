@@ -5,7 +5,7 @@
   "icon": "si:googlecloud",
   "x-dagster-io": {
     "outputs": {
-      "type": "DataFrame",
+      "type": "dataframe",
       "description": "Upstream DataFrame with an added embedding column (list of floats per row)."
     }
   },

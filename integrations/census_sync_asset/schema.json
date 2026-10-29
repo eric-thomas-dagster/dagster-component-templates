@@ -5,7 +5,7 @@
   "icon": "ArrowRight",
   "x-dagster-io": {
     "outputs": {
-      "type": "integration",
+      "type": "AssetSpec",
       "description": "Run a Census reverse-ETL sync on materialization via dagster-census."
     }
   },

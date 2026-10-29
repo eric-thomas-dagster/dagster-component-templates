@@ -5,7 +5,7 @@
   "icon": "BookOpen",
   "x-dagster-io": {
     "outputs": {
-      "type": "integration",
+      "type": "AssetSpec",
       "description": "Run a Hex project on materialization via dagster-hex."
     }
   },

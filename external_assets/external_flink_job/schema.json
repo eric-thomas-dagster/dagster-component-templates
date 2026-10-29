@@ -7,7 +7,10 @@
   "version": "1.0.0",
   "author": "Dagster Community",
   "x-dagster-io": {
-    "supports_partitions": true
+    "outputs": {
+      "type": "AssetSpec",
+      "description": "Declares an externally-managed asset -- no Dagster materialization happens here."
+    }
   },
   "attributes": {
     "jobmanager_url": {
@@ -138,5 +141,10 @@
       "required": false
     }
   },
-  "tags": ["external", "flink", "streaming", "self-hosted"]
+  "tags": [
+    "external",
+    "flink",
+    "streaming",
+    "self-hosted"
+  ]
 }

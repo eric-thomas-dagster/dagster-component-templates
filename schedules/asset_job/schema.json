@@ -3,12 +3,7 @@
   "description": "Define a named Dagster job from a set of asset keys (without scheduling it).",
   "category": "infrastructure",
   "icon": "Clock",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "Schedule",
-      "description": "ScheduleDefinition + asset job"
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "job_name": {
       "description": "Unique job name shown in the Jobs tab.",

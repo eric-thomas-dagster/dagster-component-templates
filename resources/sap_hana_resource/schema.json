@@ -1,11 +1,9 @@
 {
   "component_type": "dagster_component_templates.SapHanaResourceComponent",
-  "description": "SAP HANA database resource \u2014 provides a SQLAlchemy URL helper. Works with HANA Cloud, on-prem, and Azure HANA (preview). Use with existing dataframe_to_table / dataframe_from_sql.",
+  "description": "SAP HANA database resource — provides a SQLAlchemy URL helper. Works with HANA Cloud, on-prem, and Azure HANA (preview). Use with existing dataframe_to_table / dataframe_from_sql.",
   "category": "resource",
   "icon": "si:sap",
-  "x-dagster-io": {
-    "supports_partitions": false
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "description": "Dagster resource key",

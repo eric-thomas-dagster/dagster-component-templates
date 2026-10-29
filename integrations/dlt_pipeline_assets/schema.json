@@ -5,7 +5,7 @@
   "icon": "ArrowRight",
   "x-dagster-io": {
     "outputs": {
-      "type": "integration",
+      "type": "AssetSpec",
       "description": "Run a dlt (data-load-tool) pipeline as Dagster assets via dagster-dlt."
     }
   },

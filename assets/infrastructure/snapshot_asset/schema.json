@@ -5,7 +5,7 @@
   "icon": "Camera",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "any",
       "description": "One @dg.asset. Emits AssetObservation with snapshot metadata per successful write."
     }
   },

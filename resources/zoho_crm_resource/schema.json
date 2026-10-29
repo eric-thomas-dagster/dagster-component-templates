@@ -3,12 +3,7 @@
   "description": "Self-contained Zoho CRM REST API workhorse. Real OAuth2 refresh-token grant (POST {accounts_host}/oauth/v2/token) -- Zoho refresh tokens never rotate and never expire on their own. Retry on 401 (token refresh) / 429 / 5xx. .get()/.post()/.patch() convenience methods plus .upsert() wrapping Zoho's native Upsert Records API (POST /{module}/upsert, duplicate_check_fields, 100 records/request).",
   "category": "resource",
   "icon": "si:zoho",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "resource",
-      "description": "ZohoCrmResource with .get()/.post()/.patch()/.upsert() methods. Consumed by zoho_crm_record_upsert (sink) and by custom Dagster asset code that needs arbitrary Zoho CRM REST calls."
-    }
-  },
+  "x-dagster-io": {},
   "x-dagster-provides": [
     "zoho_crm_resource"
   ],
@@ -50,7 +45,15 @@
       "required": false,
       "default": "com",
       "description": "Zoho accounts data-center region: 'com' (US), 'eu', 'in', 'com.au', 'jp', 'com.cn', or 'ca' (mapped to accounts.zohocloud.ca).",
-      "enum": ["com", "eu", "in", "com.au", "jp", "com.cn", "ca"]
+      "enum": [
+        "com",
+        "eu",
+        "in",
+        "com.au",
+        "jp",
+        "com.cn",
+        "ca"
+      ]
     },
     "api_domain": {
       "type": "string",

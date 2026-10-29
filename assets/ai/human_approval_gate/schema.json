@@ -5,7 +5,7 @@
   "icon": "UserCircle",
   "x-dagster-io": {
     "outputs": {
-      "type": "passthrough",
+      "type": "any",
       "description": "Upstream payload, unchanged. Approver / reason / timestamp land in materialization metadata."
     }
   },
@@ -195,7 +195,10 @@
       "description": "Backfill execution strategy for a partitioned asset. 'single_run' sends ONE approval request covering the whole backfill range (the range's partition keys are joined into a single request/sidecar-state key, so one approve/reject decision applies to the entire range as a unit) rather than one request per partition. 'multi_run' launches one run -- and one separate approval request -- per partition. Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is not set.",
       "required": false,
       "default": null,
-      "enum": ["single_run", "multi_run"],
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
       "ui:widget": "select"
     },
     "backfill_policy_max_partitions_per_run": {

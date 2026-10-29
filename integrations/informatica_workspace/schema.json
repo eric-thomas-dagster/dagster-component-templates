@@ -5,7 +5,7 @@
   "icon": "Database",
   "x-dagster-io": {
     "outputs": {
-      "type": "integration",
+      "type": "AssetSpec",
       "description": "One Dagster asset per Informatica IDMC task (MTT / DPS / DRS / DMASK / MI_TASK) discovered via `/public/core/v3/objects`. With `action: noop` (default) each asset is declare-only. With `action: execute` each materialization POSTs `/api/v2/job` (with `task_overrides` applied to `mtTaskParameters` / `runtimeConfig.parameters` / `inputFiles`) and polls `activityLog` to completion. No inputs — IDMC runs its own pipelines."
     }
   },
@@ -34,29 +34,34 @@
       ],
       "ui:widget": "select"
     },
-    "wait_for_completion": {"label": "Wait For Completion", 
+    "wait_for_completion": {
+      "label": "Wait For Completion",
       "type": "boolean",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
     },
-    "poll_interval_seconds": {"label": "Poll Interval Seconds", 
+    "poll_interval_seconds": {
+      "label": "Poll Interval Seconds",
       "type": "integer",
       "required": false,
       "default": 30
     },
-    "timeout_seconds": {"label": "Timeout Seconds", 
+    "timeout_seconds": {
+      "label": "Timeout Seconds",
       "type": "integer",
       "required": false,
       "default": 3600
     },
-    "polling_sensor": {"label": "Polling Sensor", 
+    "polling_sensor": {
+      "label": "Polling Sensor",
       "type": "boolean",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
     },
-    "observation_interval_seconds": {"label": "Observation Interval Seconds", 
+    "observation_interval_seconds": {
+      "label": "Observation Interval Seconds",
       "type": "integer",
       "required": false,
       "default": 300
@@ -67,7 +72,8 @@
       "required": false,
       "default": null
     },
-    "asset_key_prefix": {"label": "Asset Key Prefix", 
+    "asset_key_prefix": {
+      "label": "Asset Key Prefix",
       "type": "array",
       "items": {
         "type": "string"
@@ -75,13 +81,15 @@
       "required": false,
       "ui:widget": "list"
     },
-    "group_name": {"label": "Group Name", 
+    "group_name": {
+      "label": "Group Name",
       "description": "Dagster asset group name.",
       "type": "string",
       "required": false,
       "default": "informatica_idmc"
     },
-    "kinds": {"label": "Kinds", 
+    "kinds": {
+      "label": "Kinds",
       "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "items": {
@@ -94,13 +102,15 @@
       ],
       "ui:widget": "list"
     },
-    "tags": {"label": "Tags", 
+    "tags": {
+      "label": "Tags",
       "description": "Catalog tags.",
       "type": "object",
       "required": false,
       "ui:widget": "key-value"
     },
-    "owners": {"label": "Owners", 
+    "owners": {
+      "label": "Owners",
       "description": "Asset owners.",
       "type": "array",
       "items": {

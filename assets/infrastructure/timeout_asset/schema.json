@@ -5,7 +5,7 @@
   "icon": "TimerOff",
   "x-dagster-io": {
     "outputs": {
-      "type": "asset",
+      "type": "any",
       "description": "One @dg.asset. Compute is executed with a hard wall-clock deadline. On timeout: cancelled + dg.Failure. Metadata: timeout_seconds, timeout_hit."
     }
   },

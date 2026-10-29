@@ -5,7 +5,7 @@
   "icon": "si:huggingface",
   "x-dagster-io": {
     "outputs": {
-      "type": "ObserveResult",
+      "type": "AssetObservation",
       "description": "Dataset metadata snapshot"
     }
   },
@@ -53,7 +53,9 @@
     "owners": {
       "description": "Asset owners.",
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Owners",
       "required": false,
       "ui:widget": "list"
@@ -68,7 +70,9 @@
     "kinds": {
       "description": "Asset kinds (auto-includes 'huggingface').",
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Kinds",
       "required": false,
       "ui:widget": "list"
@@ -76,7 +80,9 @@
     "deps": {
       "description": "Upstream asset keys this asset depends on.",
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "label": "Deps",
       "required": false,
       "ui:widget": "list"

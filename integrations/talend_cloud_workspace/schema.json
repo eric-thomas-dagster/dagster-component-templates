@@ -5,7 +5,7 @@
   "icon": "si:talend",
   "x-dagster-io": {
     "outputs": {
-      "type": "integration",
+      "type": "AssetSpec",
       "description": "One Dagster asset per selected item discovered in the vendor. See README for what each materialization produces."
     }
   },
@@ -34,42 +34,54 @@
       ],
       "ui:widget": "select"
     },
-    "wait_for_completion": {"label": "Wait For Completion", 
+    "wait_for_completion": {
+      "label": "Wait For Completion",
       "type": "boolean",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
     },
-    "poll_interval_seconds": {"label": "Poll Interval Seconds", 
+    "poll_interval_seconds": {
+      "label": "Poll Interval Seconds",
       "type": "integer",
       "required": false,
       "default": 30
     },
-    "timeout_seconds": {"label": "Timeout Seconds",
+    "timeout_seconds": {
+      "label": "Timeout Seconds",
       "type": "integer",
       "required": false,
       "default": 3600
     },
-    "execution_parameters": {"label": "Execution Parameters",
+    "execution_parameters": {
+      "label": "Execution Parameters",
       "description": "Optional runtime/context parameters sent on every Task execution (POST body `parameters` field). Per-artifact overrides via `translation:`.",
       "type": "object",
       "required": false,
       "ui:widget": "key-value"
     },
-    "log_level": {"label": "Log Level",
+    "log_level": {
+      "label": "Log Level",
       "description": "Optional Talend execution log level override.",
       "type": "string",
       "required": false,
-      "enum": ["OFF", "ERROR", "WARN", "INFO"],
+      "enum": [
+        "OFF",
+        "ERROR",
+        "WARN",
+        "INFO"
+      ],
       "ui:widget": "select"
     },
-    "polling_sensor": {"label": "Polling Sensor",
+    "polling_sensor": {
+      "label": "Polling Sensor",
       "type": "boolean",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
     },
-    "observation_interval_seconds": {"label": "Observation Interval Seconds", 
+    "observation_interval_seconds": {
+      "label": "Observation Interval Seconds",
       "type": "integer",
       "required": false,
       "default": 300
@@ -80,21 +92,24 @@
       "required": false,
       "default": null
     },
-    "emit_quality_checks": {"label": "Emit Quality Checks",
+    "emit_quality_checks": {
+      "label": "Emit Quality Checks",
       "description": "Emit a talend_execution_quality asset check per artifact from each execution's own processed/rejected row counts.",
       "type": "boolean",
       "required": false,
       "default": true,
       "ui:widget": "checkbox"
     },
-    "fail_on_rejected_rows": {"label": "Fail On Rejected Rows",
+    "fail_on_rejected_rows": {
+      "label": "Fail On Rejected Rows",
       "description": "Raise a hard Dagster Failure (instead of only failing the quality check) when a Talend execution completes with rejected rows over its own configured threshold.",
       "type": "boolean",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"
     },
-    "asset_key_prefix": {"label": "Asset Key Prefix", 
+    "asset_key_prefix": {
+      "label": "Asset Key Prefix",
       "type": "array",
       "items": {
         "type": "string"
@@ -102,13 +117,15 @@
       "required": false,
       "ui:widget": "list"
     },
-    "group_name": {"label": "Group Name", 
+    "group_name": {
+      "label": "Group Name",
       "description": "Dagster asset group name.",
       "type": "string",
       "required": false,
       "default": "talend_cloud"
     },
-    "kinds": {"label": "Kinds", 
+    "kinds": {
+      "label": "Kinds",
       "description": "Asset kinds for the Dagster catalog.",
       "type": "array",
       "items": {
@@ -120,13 +137,15 @@
       ],
       "ui:widget": "list"
     },
-    "tags": {"label": "Tags", 
+    "tags": {
+      "label": "Tags",
       "description": "Catalog tags.",
       "type": "object",
       "required": false,
       "ui:widget": "key-value"
     },
-    "owners": {"label": "Owners", 
+    "owners": {
+      "label": "Owners",
       "description": "Asset owners.",
       "type": "array",
       "items": {

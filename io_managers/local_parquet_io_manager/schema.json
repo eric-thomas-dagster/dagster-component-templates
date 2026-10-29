@@ -3,12 +3,7 @@
   "description": "Store DataFrames as Parquet files on the local filesystem (dev / no-warehouse).",
   "category": "io_manager",
   "icon": "Save",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "IOManager",
-      "description": "Resource registered under resource_key"
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "description": "Dagster resource key for this IO manager. Use 'io_manager' to make it the default.",
@@ -37,7 +32,10 @@
       "label": "Backend",
       "default": "pandas",
       "required": false,
-      "enum": ["pandas", "polars"]
+      "enum": [
+        "pandas",
+        "polars"
+      ]
     }
   },
   "tags": [

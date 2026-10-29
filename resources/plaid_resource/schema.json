@@ -3,9 +3,7 @@
   "description": "Plaid REST API client for fintech data: accounts, transactions, identity, balance.",
   "category": "resource",
   "icon": "CreditCard",
-  "x-dagster-io": {
-    "supports_partitions": false
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "type": "string",

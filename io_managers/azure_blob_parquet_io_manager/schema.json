@@ -3,12 +3,7 @@
   "description": "Store DataFrames as Parquet on Azure Blob Storage.",
   "category": "io_manager",
   "icon": "si:microsoftazure",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "IOManager",
-      "description": "Resource"
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "description": "Dagster resource key. Use 'io_manager' to make this the default.",

@@ -3,12 +3,7 @@
   "description": "Persist DataFrames to a Microsoft SQL Server schema, one table per asset.",
   "category": "io_manager",
   "icon": "Save",
-  "x-dagster-io": {
-    "outputs": {
-      "type": "IOManager",
-      "description": "Resource"
-    }
-  },
+  "x-dagster-io": {},
   "attributes": {
     "resource_key": {
       "description": "Dagster resource key. Use 'io_manager' to make this the default.",

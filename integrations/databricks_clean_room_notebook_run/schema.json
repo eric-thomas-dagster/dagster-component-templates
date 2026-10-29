@@ -1,14 +1,16 @@
 {
   "component_type": "dagster_component_templates.DatabricksCleanRoomNotebookRunComponent",
   "name": "Databricks Clean Room Notebook Run",
-  "category": "integrations",
+  "category": "integration",
   "icon": "si:databricks",
   "description": "Run a Databricks Clean Room notebook as a Dagster asset, via the Jobs API's clean_rooms_notebook_task (Clean Rooms itself has no submit-a-run REST endpoint).",
   "version": "1.0.0",
   "author": "Dagster Community",
   "x-dagster-io": {
-    "inputs": {"type": "none", "required": false, "description": "Any deps are lineage-only"},
-    "outputs": {"type": "Any", "description": "MaterializeResult with the run's final state in metadata"}
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "MaterializeResult with the run's final state in metadata"
+    }
   },
   "attributes": {
     "asset_name": {
@@ -222,5 +224,11 @@
       "ui:widget": "select"
     }
   },
-  "tags": ["databricks", "clean_rooms", "privacy", "collaboration", "jobs"]
+  "tags": [
+    "databricks",
+    "clean_rooms",
+    "privacy",
+    "collaboration",
+    "jobs"
+  ]
 }

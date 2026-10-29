@@ -1,11 +1,11 @@
 {
   "component_type": "dagster_component_templates.GeminiLLMComponent",
-  "description": "Native (no-LiteLLM) per-row text generation with Google Gemini text models. Drop-in peer of openai_llm / anthropic_llm \u2014 same field shape so providers swap by changing `type:` and the api_key env var. For multi-vendor workflows use litellm_inference_asset.",
+  "description": "Native (no-LiteLLM) per-row text generation with Google Gemini text models. Drop-in peer of openai_llm / anthropic_llm — same field shape so providers swap by changing `type:` and the api_key env var. For multi-vendor workflows use litellm_inference_asset.",
   "category": "ai",
   "icon": "si:google",
   "x-dagster-io": {
     "outputs": {
-      "type": "DataFrame",
+      "type": "dataframe",
       "description": "Upstream DataFrame with an added text-response column (and an _error column on failed rows)."
     }
   },
@@ -20,7 +20,7 @@
       "type": "string",
       "label": "Upstream Asset Key",
       "required": true,
-      "description": "Upstream DataFrame asset \u2014 one row per Gemini call"
+      "description": "Upstream DataFrame asset — one row per Gemini call"
     },
     "api_key_env_var": {
       "type": "string",
@@ -80,7 +80,7 @@
       "label": "Temperature",
       "required": false,
       "default": 0.0,
-      "description": "Temperature (0.0\u20132.0). 0 = deterministic."
+      "description": "Temperature (0.0–2.0). 0 = deterministic."
     },
     "top_p": {
       "description": "Optional nucleus sampling parameter.",

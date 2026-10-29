@@ -1,17 +1,12 @@
 {
   "component_type": "dagster_component_templates.DataframeToAvroComponent",
-  "description": "Write a pandas DataFrame as Avro to a local path or fsspec URI. Schema is inferred from pandas dtypes by default; explicit schema can be supplied via avro_schema. Companion to dataframe_to_parquet \u2014 useful when downstream consumers expect Avro (Event Hubs Capture default, Kafka Schema Registry ecosystems, etc.).",
+  "description": "Write a pandas DataFrame as Avro to a local path or fsspec URI. Schema is inferred from pandas dtypes by default; explicit schema can be supplied via avro_schema. Companion to dataframe_to_parquet — useful when downstream consumers expect Avro (Event Hubs Capture default, Kafka Schema Registry ecosystems, etc.).",
   "category": "sink",
   "icon": "Download",
   "x-dagster-io": {
-    "inputs": {
-      "type": "dataframe",
-      "required": true,
-      "description": "Upstream DataFrame"
-    },
     "outputs": {
-      "type": "None",
-      "description": "Side-effecting sink"
+      "type": "MaterializeResult",
+      "description": "Write confirmation with metadata"
     }
   },
   "attributes": {

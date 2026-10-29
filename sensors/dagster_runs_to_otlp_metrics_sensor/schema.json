@@ -3,9 +3,7 @@
   "description": "Push Dagster run lifecycle events as OTLP/HTTP metrics (Sum + Gauge). Distinct from dagster_runs_to_otlp_sensor which emits OTel logs.",
   "category": "sensor",
   "icon": "si:opentelemetry",
-  "x-dagster-io": {
-    "supports_partitions": false
-  },
+  "x-dagster-io": {},
   "attributes": {
     "sensor_name": {
       "description": "Dagster sensor name.",
@@ -16,7 +14,7 @@
     "otlp_endpoint_env_var": {
       "type": "string",
       "label": "OTLP Endpoint Env Var",
-      "description": "Env var with OTLP/HTTP base URL \u2014 /v1/metrics is appended.",
+      "description": "Env var with OTLP/HTTP base URL — /v1/metrics is appended.",
       "required": true
     },
     "otlp_headers_env_var": {

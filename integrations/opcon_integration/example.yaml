@@ -1,0 +1,50 @@
+type: dagster_community_components.OpConIntegrationComponent
+
+attributes:
+  # demo_mode simulates the OpCon REST API on stdout — flip to false to hit
+  # a real OpCon server (requires OPCON_USER / OPCON_PASSWORD env vars).
+  demo_mode: true
+  endpoint: "https://opcon.internal"
+
+  group_name: opcon_integration
+
+  # Auth (production mode only) — exchanged for a short-lived token via
+  # POST /tokens, then sent as `Authorization: Token <token>`.
+  opcon_user_env: OPCON_USER
+  opcon_password_env: OPCON_PASSWORD
+
+  # Dagster-side retry policy applied to every job asset
+  max_retries: 2
+  retry_delay_seconds: 60
+
+  # Upstream deps that must complete before OpCon jobs run
+  upstream_deps: []
+
+  # OpCon Daily Jobs — each becomes a daily-partitioned Dagster asset
+  jobs:
+    - job_name: EOD_LEDGER_CLOSE
+      asset_name: opcon_eod_ledger_close
+      description: >-
+        End-of-day ledger close. OpCon orchestrates the underlying
+        mainframe / AS400 / Windows steps across the schedule. Dagster
+        force-starts via REST with the scheduled date from the partition
+        key, polls through Waiting -> Executing -> Successful.
+      schedule_name: DAILY_FINANCE
+      machine: AS400-PROD-01
+      force_restart: true
+
+    - job_name: REGULATORY_EXTRACT
+      asset_name: opcon_regulatory_extract
+      description: >-
+        Regulatory reporting extract. Must complete before compliance
+        dashboards refresh.
+      schedule_name: DAILY_FINANCE
+      machine: AS400-PROD-01
+      force_restart: true
+
+  # Optional: OpCon-managed tables that Dagster observes (adds to lineage)
+  source_tables: []
+  # source_tables:
+  #   - table_name: "FINANCE.GL_LEDGER"
+  #     asset_name: opcon_gl_ledger_table
+  #     produced_by: opcon_eod_ledger_close

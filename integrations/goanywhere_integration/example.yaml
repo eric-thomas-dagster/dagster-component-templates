@@ -1,0 +1,52 @@
+type: dagster_community_components.GoAnywhereIntegrationComponent
+
+attributes:
+  # demo_mode simulates the GACMD REST API on stdout — flip to false to hit
+  # a real GoAnywhere MFT server (requires GOANYWHERE_USER / GOANYWHERE_PASSWORD
+  # env vars; GoAnywhere's admin console/API need a trial or paid license key
+  # to do anything, even in the official Docker images).
+  demo_mode: true
+  endpoint: "https://goanywhere.internal/goanywhere/rest"
+
+  group_name: goanywhere_integration
+
+  # Auth (production mode only)
+  goanywhere_user_env: GOANYWHERE_USER
+  goanywhere_password_env: GOANYWHERE_PASSWORD
+
+  # Dagster-side retry policy applied to every project asset
+  max_retries: 2
+  retry_delay_seconds: 60
+
+  # Upstream deps that must complete before GoAnywhere projects run
+  upstream_deps: []
+
+  # GoAnywhere Projects — each becomes a daily-partitioned Dagster asset
+  projects:
+    - project_name: PARTNER_EDI_INBOUND
+      asset_name: goanywhere_partner_edi_inbound
+      description: >-
+        Nightly partner EDI pickup + decrypt + validate. Dagster runs the
+        project via GACMD REST with the scheduled date passed as a project
+        variable, then polls through Queued -> Active -> Successful.
+      job_queue: SFTP_INBOUND
+      mode: NORMAL
+      priority: 5
+      variables:
+        SOURCE_PATH: "/inbound/partners"
+
+    - project_name: REGULATORY_UPLOAD
+      asset_name: goanywhere_regulatory_upload
+      description: >-
+        Encrypted regulatory file upload to the external SFTP endpoint.
+        Must run after the partner EDI pickup completes.
+      job_queue: SFTP_OUTBOUND
+      mode: NORMAL
+      priority: 8
+
+  # Optional: files/folders landed by GoAnywhere that Dagster observes
+  source_files: []
+  # source_files:
+  #   - path: "/inbound/partners/processed"
+  #     asset_name: goanywhere_partner_edi_landed
+  #     produced_by: goanywhere_partner_edi_inbound

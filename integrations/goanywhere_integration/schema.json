@@ -1,0 +1,121 @@
+{
+  "component_type": "dagster_community_components.GoAnywhereIntegrationComponent",
+  "description": "Fortra GoAnywhere MFT GACMD REST API integration. Each declared GoAnywhere Project becomes a daily-partitioned Dagster asset with a retry policy. Ships with a rerun op, a dashboard-summary op, a reconciliation op/job, an external-execution monitor sensor, an inbound-trigger sensor, and an hourly reconciliation schedule. demo_mode=true simulates the full GACMD REST API lifecycle on stdout so the whole component runs end-to-end with zero external dependencies (GoAnywhere's official Docker images need a trial or paid license key to do anything).",
+  "category": "integration",
+  "icon": "Send",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetSpec",
+      "description": "One daily-partitioned Dagster asset per GoAnywhere Project + optional source-file assets + 3 ops/jobs + 2 sensors + 1 schedule."
+    }
+  },
+  "attributes": {
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "required": false,
+      "default": true,
+      "description": "Simulate the GACMD REST API on stdout (no external calls).",
+      "ui:widget": "checkbox"
+    },
+    "endpoint": {
+      "type": "string",
+      "label": "Endpoint",
+      "required": false,
+      "default": "https://goanywhere.internal/goanywhere/rest",
+      "description": "GoAnywhere MFT REST API base URL (used when demo_mode=false)."
+    },
+    "projects": {
+      "type": "array",
+      "label": "Projects",
+      "required": false,
+      "description": "GoAnywhere Projects to wrap as daily-partitioned Dagster assets. Each item: {project_name, asset_name, description?, domain?, job_name?, job_queue?, mode?, priority?, variables?}."
+    },
+    "source_files": {
+      "type": "array",
+      "label": "Source Files",
+      "required": false,
+      "description": "Files/folders landed by GoAnywhere that Dagster observes (adds to lineage). Each item: {path, asset_name, description?, group_name?, produced_by?}."
+    },
+    "upstream_deps": {
+      "type": "array",
+      "label": "Upstream Deps",
+      "required": false,
+      "description": "Upstream asset keys (slash-separated for nested keys) that must complete before projects run."
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "required": false,
+      "default": "goanywhere_integration",
+      "description": "Dagster asset group for the project assets."
+    },
+    "goanywhere_user_env": {
+      "type": "string",
+      "label": "GoAnywhere User Env Var",
+      "required": false,
+      "default": "GOANYWHERE_USER",
+      "description": "Env var holding the GoAnywhere REST username (or an admin API key)."
+    },
+    "goanywhere_password_env": {
+      "type": "string",
+      "label": "GoAnywhere Password Env Var",
+      "required": false,
+      "default": "GOANYWHERE_PASSWORD",
+      "description": "Env var holding the GoAnywhere REST password (or the admin API key value)."
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 10,
+      "description": "Seconds between GoAnywhere job status polls."
+    },
+    "poll_timeout_seconds": {
+      "type": "integer",
+      "label": "Poll Timeout Seconds",
+      "required": false,
+      "default": 3600,
+      "description": "Total seconds to wait for terminal state before failing."
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "required": false,
+      "default": 2,
+      "description": "Dagster-side asset retries on failure."
+    },
+    "retry_delay_seconds": {
+      "type": "integer",
+      "label": "Retry Delay Seconds",
+      "required": false,
+      "default": 60,
+      "description": "Delay between Dagster asset retries."
+    },
+    "partition_start_date": {
+      "type": "string",
+      "label": "Partition Start Date",
+      "required": false,
+      "default": "2024-01-01",
+      "description": "Start date for the daily partitioned assets."
+    },
+    "reconciliation_cron": {
+      "type": "string",
+      "label": "Reconciliation Cron",
+      "required": false,
+      "default": "0 * * * *",
+      "description": "Cron for the GoAnywhere vs Dagster state reconciliation job."
+    }
+  },
+  "tags": [
+    "integration",
+    "goanywhere",
+    "fortra",
+    "mft",
+    "managed-file-transfer",
+    "scheduler",
+    "orchestration",
+    "workload-automation"
+  ],
+  "name": "GoAnywhereIntegration"
+}

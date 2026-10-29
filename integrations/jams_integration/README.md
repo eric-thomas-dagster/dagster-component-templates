@@ -132,6 +132,8 @@ Sister components with the exact same asset / op / sensor / schedule surface:
 
 - [`controlm_integration`](../controlm_integration/README.md) — BMC Control-M
 - [`runmyjobs_integration`](../runmyjobs_integration/README.md) — Redwood RunMyJobs / SAP Redwood
+- [`goanywhere_integration`](../goanywhere_integration/README.md) — Fortra GoAnywhere MFT
+- [`opcon_integration`](../opcon_integration/README.md) — SMA/Continuous OpCon
 
 A shop running two or three schedulers can present a single Dagster pane of glass over all of them.
 

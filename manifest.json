@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-10-28",
+  "last_updated": "2026-10-29",
   "components": [
     {
       "id": "ab_controls",
@@ -29538,6 +29538,72 @@
       }
     },
     {
+      "id": "goanywhere_integration",
+      "name": "GoAnywhereIntegration",
+      "component_type": "dagster_community_components.GoAnywhereIntegrationComponent",
+      "path": "integrations/goanywhere_integration",
+      "category": "integration",
+      "icon": "Send",
+      "description": "Fortra GoAnywhere MFT GACMD REST API integration. Each declared GoAnywhere Project becomes a daily-partitioned Dagster asset with a retry policy. Ships with a rerun op, a dashboard-summary op, a reconciliation op/job, an external-execution monitor sensor, an inbound-trigger sensor, and an hourly reconciliation schedule. demo_mode=true simulates the full GACMD REST API lifecycle on stdout so the whole component runs end-to-end with zero external dependencies (GoAnywhere's official Docker images need a trial or paid license key to do anything).",
+      "tags": [
+        "integration",
+        "goanywhere",
+        "fortra",
+        "mft",
+        "managed-file-transfer",
+        "scheduler",
+        "orchestration",
+        "workload-automation"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/goanywhere_integration/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/goanywhere_integration/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/goanywhere_integration/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/goanywhere_integration/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/goanywhere_integration/schema.json",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/goanywhere_integration.md",
+        "last_validated": "2026-10-29"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_daily_partitioned_asset_per_goanywhere_project",
+          "optional_source_file_assets",
+          "3_op_jobs_rerun_dashboard_reconcile",
+          "external_execution_monitor_sensor",
+          "inbound_trigger_sensor",
+          "hourly_reconciliation_schedule"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "jams_integration",
+          "controlm_integration",
+          "opcon_integration"
+        ],
+        "anti_uses": "Hybrid deployment shape. MFT/file-transfer-centric shops (SFTP/AS2/PGP, partner EDI)."
+      },
+      "produces": [
+        "multi_asset"
+      ],
+      "keywords": [
+        "goanywhere integration",
+        "hybrid deployment",
+        "managed file transfer",
+        "mft",
+        "fortra"
+      ]
+    },
+    {
       "id": "gong_call_summary_asset",
       "name": "Gong Call Summary Asset",
       "category": "ai",
@@ -45344,6 +45410,72 @@
         "messaging",
         "connection",
         "connect"
+      ]
+    },
+    {
+      "id": "opcon_integration",
+      "name": "OpConIntegration",
+      "component_type": "dagster_community_components.OpConIntegrationComponent",
+      "path": "integrations/opcon_integration",
+      "category": "integration",
+      "icon": "Schedule",
+      "description": "SMA Technologies / Continuous OpCon workload-automation REST API integration. Each declared OpCon Daily Job becomes a daily-partitioned Dagster asset with a retry policy. Ships with 5 ops + jobs (force-restart, hold, release, cancel, reconcile), an external-execution monitor sensor, an inbound-trigger sensor, and an hourly reconciliation schedule. demo_mode=true simulates the full REST API lifecycle (token exchange + scheduleactions + dailyjobs status polling) on stdout so the whole component runs end-to-end with zero external dependencies (OpCon is on-prem software with no public Docker image).",
+      "tags": [
+        "integration",
+        "opcon",
+        "sma-technologies",
+        "continuous",
+        "scheduler",
+        "orchestration",
+        "batch",
+        "workload-automation"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/opcon_integration/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/opcon_integration/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/opcon_integration/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/opcon_integration/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/opcon_integration/schema.json",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/opcon_integration.md",
+        "last_validated": "2026-10-29"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_daily_partitioned_asset_per_opcon_daily_job",
+          "optional_source_table_assets",
+          "5_op_jobs_force_restart_hold_release_cancel_reconcile",
+          "external_execution_monitor_sensor",
+          "inbound_trigger_sensor",
+          "hourly_reconciliation_schedule"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "jams_integration",
+          "controlm_integration",
+          "goanywhere_integration"
+        ],
+        "anti_uses": "Hybrid deployment shape. Mainframe/AS400/Windows-centric legacy scheduling shops."
+      },
+      "produces": [
+        "multi_asset"
+      ],
+      "keywords": [
+        "opcon integration",
+        "hybrid deployment",
+        "workload automation",
+        "sma technologies",
+        "continuous"
       ]
     },
     {
@@ -70734,5 +70866,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1358
+  "total": 1360
 }

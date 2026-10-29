@@ -43,8 +43,17 @@ attributes:
   polling_sensor: true
   check_interval_seconds: 60
 
+  # Also emit a real AssetMaterialization (with a data_version) once a
+  # channel has received new messages AND drained its queue since its last
+  # materialization -- use this when a downstream asset/job needs to WAIT
+  # for a channel to finish processing a batch (AutomationCondition.eager()
+  # and similar gating only react reliably to AssetMaterialization, not
+  # AssetObservation). Requires polling_sensor: true.
+  materialize_on_completion: true
+
   # Opt-in per-channel checks.
   require_running: true          # fails if dashboard state isn't STARTED
+  require_drained: true          # fails if the channel currently has anything queued
   error_rate_threshold: 0.05     # fails if lifetime error/received exceeds 5%
 
   group_name: hl7

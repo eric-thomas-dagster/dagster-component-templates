@@ -40980,7 +40980,7 @@
       "id": "mirth_connect_workspace",
       "name": "Mirth Connect Workspace",
       "category": "integration",
-      "description": "NextGen Connect / Mirth Connect HL7 channels as Dagster assets. One asset per declared channel; action=deploy deploys+starts the channel on materialize, confirmed by polling /channels/statuses (deploy/start return 204 unconditionally). Optional shared polling sensor turns cumulative message counters into per-tick deltas; optional channel_running and channel_error_rate asset_checks. demo_mode runs the whole shape with synthetic data and zero real Mirth server.",
+      "description": "NextGen Connect / Mirth Connect HL7 channels as Dagster assets. One asset per declared channel; action=deploy deploys+starts the channel on materialize, confirmed by polling /channels/statuses (deploy/start return 204 unconditionally). Optional shared polling sensor turns cumulative message counters into per-tick deltas (AssetObservation); materialize_on_completion additionally emits a real AssetMaterialization once a channel drains, for downstream eager()-style gating. Optional channel_running, channel_drained, and channel_error_rate asset_checks. demo_mode runs the whole shape with synthetic data and zero real Mirth server.",
       "path": "integrations/mirth_connect_workspace",
       "tags": [
         "mirth",
@@ -41011,7 +41011,8 @@
       "agent_hints": {
         "outputs": [
           "one_asset_per_declared_hl7_channel",
-          "shared_observation_sensor_opt_in"
+          "shared_observation_sensor_opt_in",
+          "materialization_on_drain_completion_opt_in"
         ],
         "requires_pip": [
           "requests"

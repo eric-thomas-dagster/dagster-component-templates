@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.MirthConnectWorkspaceComponent",
-  "description": "NextGen Connect / Mirth Connect HL7 channels as Dagster assets. One asset per declared channel; action=deploy deploys+starts the channel on materialize, confirmed by polling /channels/statuses (deploy/start return 204 unconditionally). Optional shared polling sensor turns cumulative message counters into per-tick deltas; optional channel_running and channel_error_rate asset_checks. demo_mode runs the whole shape with synthetic data and zero real Mirth server.",
+  "description": "NextGen Connect / Mirth Connect HL7 channels as Dagster assets. One asset per declared channel; action=deploy deploys+starts the channel on materialize, confirmed by polling /channels/statuses (deploy/start return 204 unconditionally). Optional shared polling sensor turns cumulative message counters into per-tick deltas (AssetObservation); materialize_on_completion additionally emits a real AssetMaterialization once a channel drains, for downstream eager()-style gating. Optional channel_running, channel_drained, and channel_error_rate asset_checks. demo_mode runs the whole shape with synthetic data and zero real Mirth server.",
   "category": "integration",
   "icon": "favicon:nextgen.com",
   "x-dagster-io": {
@@ -101,10 +101,26 @@
       "required": false,
       "default": 60
     },
+    "materialize_on_completion": {
+      "type": "boolean",
+      "label": "Materialize On Completion",
+      "description": "Requires polling_sensor=true. Also emits a real AssetMaterialization (tagged with a dagster/data_version) the first tick a channel has received new messages since its last materialization AND currently has nothing queued (drained). Deduplicated against the last materialized data_version. AutomationCondition.eager()-style gating only reacts reliably to AssetMaterialization, not AssetObservation.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
     "require_running": {
       "type": "boolean",
       "label": "Require Running",
       "description": "If true, attach a channel_running asset_check per channel that fails when the channel's dashboard state isn't STARTED.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "require_drained": {
+      "type": "boolean",
+      "label": "Require Drained",
+      "description": "If true, attach a channel_drained asset_check per channel that passes only when the channel currently has nothing queued (queued == 0) -- a readiness gate a downstream job/sweep can require before starting.",
       "required": false,
       "default": false,
       "ui:widget": "checkbox"

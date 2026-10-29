@@ -9,7 +9,13 @@ unconditionally -- success AND failure -- so a 204 alone never proves
 anything happened; this is a documented, widely-reported gotcha, not an
 assumption). An optional shared polling sensor turns each channel's
 cumulative message counters into per-tick deltas and emits AssetObservation
-only when something actually moved.
+only when something actually moved; `materialize_on_completion` additionally
+emits a real AssetMaterialization (with a data_version) once a channel has
+drained its queue since its last materialization -- downstream
+`AutomationCondition.eager()` (and similar "did my parent update" gating)
+was found, by testing against a real deployment, to only react reliably to
+AssetMaterialization, not AssetObservation, even with a data_version tag
+set.
 
 Verified against NextGen's own REST API docs (docs.nextgen.com, "Mirth
 Connect REST API") plus the community's own documented operational gotchas
@@ -279,9 +285,36 @@ class MirthConnectWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
     sensor_name: str = Field(default="mirth_connect_workspace_observer", description="Sensor name. Only used when polling_sensor=True.")
     check_interval_seconds: int = Field(default=60, description="Seconds between sensor polls. Only used when polling_sensor=True.")
 
+    materialize_on_completion: bool = Field(
+        default=False,
+        description=(
+            "Requires polling_sensor=true. In addition to the delta-only AssetObservation "
+            "above, the sensor also emits a real AssetMaterialization (tagged with a "
+            "dagster/data_version derived from the channel's processed counters) the first "
+            "tick a channel has both received new messages since its last materialization AND "
+            "currently has nothing queued (queued == 0, i.e. it has drained). Deduplicated "
+            "against the last-materialized data_version, so an unchanged drained state is never "
+            "re-materialized. This is a distinct signal from the per-tick delta observation: "
+            "tested against a real deployment, AutomationCondition.eager() (and similar 'parent "
+            "updated' gating) only reacts reliably to AssetMaterialization, not "
+            "AssetObservation -- use this when a downstream job/asset needs to wait for a Mirth "
+            "channel to actually finish processing a batch, not just see throughput move."
+        ),
+    )
+
     require_running: bool = Field(
         default=False,
         description="If true, attach a `channel_running` asset_check per channel that fails when the channel's dashboard state isn't STARTED.",
+    )
+    require_drained: bool = Field(
+        default=False,
+        description=(
+            "If true, attach a `channel_drained` asset_check per channel that passes only when "
+            "the channel currently has nothing queued (queued == 0) -- a point-in-time readiness "
+            "gate a downstream job/sweep can require before starting (e.g. don't start a "
+            "warehouse sweep until Mirth has drained its queue), distinct from channel_running "
+            "(process state) and channel_error_rate (lifetime error ratio)."
+        ),
     )
     error_rate_threshold: Optional[float] = Field(
         default=None,
@@ -367,6 +400,9 @@ class MirthConnectWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
 
         _self = self
 
+        if self.materialize_on_completion and not self.polling_sensor:
+            raise ValueError("materialize_on_completion requires polling_sensor=true -- there is no sensor to attach it to otherwise.")
+
         def _transport() -> MirthConnectTransport:
             base_url = os.environ.get(_self.base_url_env_var, "")
             username = os.environ.get(_self.username_env_var, "")
@@ -422,12 +458,16 @@ class MirthConnectWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
             )
             def _workspace_observer(context: dg.SensorEvaluationContext):
                 import json as _json
+                from dagster._core.definitions.data_version import DATA_VERSION_TAG
 
-                last_snapshot: Dict[str, Dict[str, int]] = _json.loads(context.cursor) if context.cursor else {}
+                cursor_state: Dict[str, Any] = _json.loads(context.cursor) if context.cursor else {}
+                last_snapshot: Dict[str, Dict[str, int]] = cursor_state.get("snapshots", {})
+                last_materialized: Dict[str, str] = cursor_state.get("materialized", {})
                 new_snapshot: Dict[str, Dict[str, int]] = dict(last_snapshot)
+                new_materialized: Dict[str, str] = dict(last_materialized)
                 events = []
 
-                demo_tick = int(last_snapshot.get("__tick", 0)) + 1 if _self.demo_mode else None
+                demo_tick = int(cursor_state.get("tick", 0)) + 1 if _self.demo_mode else None
 
                 for channel in channels_by_id.values():
                     try:
@@ -439,6 +479,28 @@ class MirthConnectWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
                     current = {k: int(stats.get(k) or 0) for k in _STATS_KEYS}
                     previous = last_snapshot.get(channel.channel_id)
                     new_snapshot[channel.channel_id] = current
+
+                    # Completion materialization: tracked against the last MATERIALIZED
+                    # state, not the last tick's -- a batch that arrives on one tick and
+                    # drains a few ticks later (once queued finally hits 0) must still be
+                    # detected even though nothing moved between those later ticks. Using
+                    # the per-tick snapshot for this comparison instead would miss it
+                    # entirely, since by the time it drains the delta-vs-last-tick is zero.
+                    if _self.materialize_on_completion:
+                        data_version = "-".join(str(current[k]) for k in ("received", "sent", "error", "filtered"))
+                        if current["received"] > 0 and current["queued"] == 0 and data_version != last_materialized.get(channel.channel_id):
+                            new_materialized[channel.channel_id] = data_version
+                            events.append(
+                                dg.AssetMaterialization(
+                                    asset_key=dg.AssetKey.from_user_string(channel.asset_key),
+                                    metadata={
+                                        "mirth/channel_id": channel.channel_id,
+                                        **{f"mirth/{k}_total": current[k] for k in _STATS_KEYS},
+                                    },
+                                    tags={DATA_VERSION_TAG: data_version},
+                                )
+                            )
+                            continue  # one event per channel per tick -- skip the observation below
 
                     if previous is None:
                         continue  # first sighting -- record baseline, nothing to diff against yet
@@ -458,9 +520,10 @@ class MirthConnectWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
                         )
                     )
 
+                new_cursor_state: Dict[str, Any] = {"snapshots": new_snapshot, "materialized": new_materialized}
                 if _self.demo_mode:
-                    new_snapshot["__tick"] = demo_tick  # type: ignore[assignment]
-                new_cursor = _json.dumps(new_snapshot)
+                    new_cursor_state["tick"] = demo_tick
+                new_cursor = _json.dumps(new_cursor_state)
 
                 if events:
                     return dg.SensorResult(asset_events=events, cursor=new_cursor)
@@ -487,6 +550,26 @@ class MirthConnectWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
                     return _check
 
                 checks_list.append(_make_running_check())
+
+        if self.require_drained:
+            for channel in self.channels:
+
+                def _make_drained_check(_ch=channel):
+                    @dg.asset_check(asset=dg.AssetKey.from_user_string(_ch.asset_key), name="channel_drained")
+                    def _check(context):
+                        if _self.demo_mode:
+                            return dg.AssetCheckResult(passed=True, description="[MIRTH DEMO] queued=0", metadata={"mirth/queued": 0})
+                        stats = _transport().get_statistics(_ch.channel_id)
+                        queued = int(stats.get("queued") or 0)
+                        return dg.AssetCheckResult(
+                            passed=queued == 0,
+                            description=f"queued={queued}",
+                            metadata={"mirth/queued": queued},
+                        )
+
+                    return _check
+
+                checks_list.append(_make_drained_check())
 
         if self.error_rate_threshold is not None:
             threshold = self.error_rate_threshold

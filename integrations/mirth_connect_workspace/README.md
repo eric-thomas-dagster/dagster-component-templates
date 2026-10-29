@@ -81,14 +81,28 @@ check_interval_seconds: 60
 
 The first tick a channel is seen only records a baseline (nothing to diff against yet); it never emits a spurious bootstrap event.
 
+## Waiting on a channel — materialize_on_completion
+
+`AssetObservation` is the right event for ongoing throughput visibility, but it is **not** a reliable signal for a downstream asset/job that needs to *wait* for a channel to actually finish processing a batch: tested against a real Dagster deployment, `AutomationCondition.eager()` (and similar "did my parent update" gating) only reacted to a real `AssetMaterialization`, not an `AssetObservation` — even one carrying a `dagster/data_version` tag.
+
+```yaml
+polling_sensor: true
+materialize_on_completion: true   # requires polling_sensor: true
+```
+
+With this set, the shared sensor emits a real `AssetMaterialization` (tagged `dagster/data_version`) the first tick a channel has **both** received new messages **and** currently has nothing queued (`queued == 0`, i.e. it has drained) — deduplicated against the data_version at the time of the *last materialization*, not the last tick. That distinction matters: a batch that arrives on one tick and only finishes draining a few ticks later (once `queued` finally hits `0`) would be invisible to a last-tick-only comparison, since nothing moves on the tick it actually drains. Comparing against the last materialized state catches it regardless of how many ticks the drain takes.
+
+While a channel still has messages queued, counter movement still emits the plain `AssetObservation` as before — `materialize_on_completion` adds a second, distinct signal on top, it doesn't replace the throughput one.
+
 ## Checks
 
 ```yaml
 require_running: true          # channel_running check: fails if dashboard state isn't STARTED
+require_drained: true          # channel_drained check: fails if the channel currently has anything queued
 error_rate_threshold: 0.05     # channel_error_rate check: fails if lifetime error/received exceeds 5%
 ```
 
-`channel_error_rate` is a **lifetime cumulative** ratio (`error / max(received, 1)`), not a windowed rate — Mirth's statistics endpoint has no time-bounded count, so that limitation is surfaced in the metadata rather than hidden behind a rate-looking number.
+`channel_drained` is a point-in-time readiness gate — pair it with a downstream job/sweep that shouldn't start while Mirth still has messages queued. `channel_error_rate` is a **lifetime cumulative** ratio (`error / max(received, 1)`), not a windowed rate — Mirth's statistics endpoint has no time-bounded count, so that limitation is surfaced in the metadata rather than hidden behind a rate-looking number.
 
 ## Demo mode — no Mirth server required
 
@@ -155,7 +169,9 @@ error_rate_threshold: 0.05
 | `action` | `str` | `"noop"` | noop (default) = external asset, declare-only, materialize does nothing. deploy = materialize deploys + starts the channel, confirmed by polling /channels/statuses (deploy/start both return 204 unconditionally per Mirth'… _(full docs in schema.json + component README)_ |
 | `polling_sensor` | `bool` | `false` | If true, adds ONE sensor (not one per channel) that polls each channel's cumulative message counters (received/filtered/queued/sent/error) and emits AssetObservation only for channels whose counters moved since the last… _(full docs in schema.json + component README)_ |
 | `check_interval_seconds` | `int` | `60` | Seconds between sensor polls. Only used when polling_sensor=True. |
+| `materialize_on_completion` | `bool` | `false` | Requires polling_sensor=true. In addition to the delta-only AssetObservation above, the sensor also emits a real AssetMaterialization (tagged with a dagster/data_version derived from the channel's processed counters) the… _(full docs in schema.json + component README)_ |
 | `require_running` | `bool` | `false` | If true, attach a `channel_running` asset_check per channel that fails when the channel's dashboard state isn't STARTED. |
+| `require_drained` | `bool` | `false` | If true, attach a `channel_drained` asset_check per channel that passes only when the channel currently has nothing queued (queued == 0) -- a point-in-time readiness gate a downstream job/sweep can require before startin… _(full docs in schema.json + component README)_ |
 | `error_rate_threshold` | `float` | — | If set, attach a `channel_error_rate` asset_check per channel that fails when error / max(received, 1) exceeds this fraction. Computed from the channel's CUMULATIVE lifetime counters -- Mirth's statistics endpoint has no… _(full docs in schema.json + component README)_ |
 | `demo_mode` | `bool` | `false` | Skip the real Mirth server entirely. Deploy/start/stop, channel statuses, and statistics all return synthetic, deterministic values instead of calling the REST API. Use to smoke-test the whole shape (assets_by_channel, t… _(full docs in schema.json + component README)_ |
 

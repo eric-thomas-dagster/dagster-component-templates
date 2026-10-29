@@ -257,6 +257,80 @@ def test_demo_mode_needs_no_real_server(monkeypatch):
         assert check(dg.build_asset_check_context()).passed is True
 
 
+def test_materialize_on_completion_requires_polling_sensor(fake_server, monkeypatch):
+    comp = _component(fake_server, monkeypatch, polling_sensor=False, materialize_on_completion=True)
+    with pytest.raises(ValueError, match="materialize_on_completion requires polling_sensor"):
+        comp.build_defs(None)
+
+
+def test_materialize_on_completion_emits_materialization_with_data_version_when_drained(fake_server, monkeypatch):
+    from dagster._core.definitions.data_version import DATA_VERSION_TAG
+
+    comp = _component(fake_server, monkeypatch, polling_sensor=True, materialize_on_completion=True)
+    defs = comp.build_defs(None)
+    sensor_def = next(iter(defs.sensors))
+
+    # Tick 1: both channels already drained (fixture: queued=0 for both) with
+    # some received traffic -- materializes immediately, no baseline needed
+    # (unlike the plain delta observation).
+    result1 = sensor_def(dg.build_sensor_context())
+    mats1 = [e for e in result1.asset_events if isinstance(e, dg.AssetMaterialization)]
+    assert {e.asset_key for e in mats1} == {dg.AssetKey(["hl7", "adt_feed"]), dg.AssetKey(["hl7", "lab_results_feed"])}
+    assert all(e.tags.get(DATA_VERSION_TAG) for e in mats1)
+
+    # Tick 2: nothing changed -- deduplicated against the last materialized
+    # data_version, and the plain observation delta is also zero. No events.
+    result2 = sensor_def(dg.build_sensor_context(cursor=result1.cursor))
+    assert result2.asset_events == []
+
+    # Tick 3: ch-1 receives a new batch but is still processing it (queued > 0)
+    # -- not drained yet, so this is a plain AssetObservation, not a
+    # materialization, even though counts moved.
+    _FakeMirthServer.statistics["ch-1"].update(received=15, queued=5)
+    result3 = sensor_def(dg.build_sensor_context(cursor=result2.cursor))
+    assert len(result3.asset_events) == 1
+    assert isinstance(result3.asset_events[0], dg.AssetObservation)
+    assert result3.asset_events[0].asset_key == dg.AssetKey(["hl7", "adt_feed"])
+
+    # Tick 4: ch-1 finishes processing that batch (queued back to 0, sent
+    # caught up) -- this is the real regression case: nothing moved between
+    # tick 3 and tick 4 (sent/received unchanged), so a last-tick-only delta
+    # comparison would miss this drain entirely. Comparing against the last
+    # MATERIALIZED state catches it.
+    _FakeMirthServer.statistics["ch-1"].update(sent=15, queued=0)
+    result4 = sensor_def(dg.build_sensor_context(cursor=result3.cursor))
+    mats4 = [e for e in result4.asset_events if isinstance(e, dg.AssetMaterialization)]
+    assert len(mats4) == 1
+    assert mats4[0].asset_key == dg.AssetKey(["hl7", "adt_feed"])
+    ch1_mat1 = next(e for e in mats1 if e.asset_key == dg.AssetKey(["hl7", "adt_feed"]))
+    assert mats4[0].tags.get(DATA_VERSION_TAG) != ch1_mat1.tags.get(DATA_VERSION_TAG)  # reflects the new, higher counts
+    # ch-2 untouched this whole time -- never re-materializes or re-observes.
+    assert all(e.asset_key != dg.AssetKey(["hl7", "lab_results_feed"]) for e in result2.asset_events + result3.asset_events + result4.asset_events)
+
+
+def test_demo_mode_materialize_on_completion_needs_no_real_server():
+    comp = MirthConnectWorkspaceComponent(
+        channels=[MirthChannelSpec(channel_id="demo-1", asset_key="hl7/demo_feed")],
+        demo_mode=True,
+        polling_sensor=True,
+        materialize_on_completion=True,
+    )
+    defs = comp.build_defs(None)
+    sensor_def = next(iter(defs.sensors))
+    result = sensor_def(dg.build_sensor_context())
+    assert any(isinstance(e, dg.AssetMaterialization) for e in result.asset_events)
+
+
+def test_channel_drained_check_passes_only_when_queue_is_empty(fake_server, monkeypatch):
+    comp = _component(fake_server, monkeypatch, require_drained=True)
+    defs = comp.build_defs(None)
+    check = next(c for c in defs.asset_checks if c.check_key.asset_key == dg.AssetKey(["hl7", "adt_feed"]))
+    assert check(dg.build_asset_check_context()).passed is True  # fixture: ch-1 queued=0
+
+    _FakeMirthServer.statistics["ch-1"]["queued"] = 3
+    assert check(dg.build_asset_check_context()).passed is False
+
+
 def test_transport_seam_is_a_swappable_class(fake_server):
     transport = MirthConnectTransport(fake_server, _USERNAME, _PASSWORD, verify_ssl=True)
     channels = transport.list_channels()

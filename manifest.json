@@ -25342,7 +25342,7 @@
       "id": "external_sftp_path",
       "name": "External SFTP Path",
       "category": "external",
-      "description": "Declare an SFTP directory as an observable external asset.",
+      "description": "Declare an SFTP directory (or several, via paths:) as an observable external asset. The optional observation sensor only re-materializes a path when its data_version actually changes (cursor-based, not every poll), and an optional arrival check verifies a path is reachable and non-empty using the same client interface.",
       "version": "1.1.0",
       "author": "Dagster Community",
       "path": "external_assets/external_sftp_path",
@@ -40977,6 +40977,68 @@
       ]
     },
     {
+      "id": "mirth_connect_workspace",
+      "name": "Mirth Connect Workspace",
+      "category": "integration",
+      "description": "NextGen Connect / Mirth Connect HL7 channels as Dagster assets. One asset per declared channel; action=deploy deploys+starts the channel on materialize, confirmed by polling /channels/statuses (deploy/start return 204 unconditionally). Optional shared polling sensor turns cumulative message counters into per-tick deltas; optional channel_running and channel_error_rate asset_checks. demo_mode runs the whole shape with synthetic data and zero real Mirth server.",
+      "path": "integrations/mirth_connect_workspace",
+      "tags": [
+        "mirth",
+        "hl7",
+        "healthcare",
+        "interface-engine",
+        "workspace"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/mirth_connect_workspace/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/mirth_connect_workspace/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/mirth_connect_workspace/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/mirth_connect_workspace/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/mirth_connect_workspace/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "component_type": "dagster_community_components.MirthConnectWorkspaceComponent",
+      "icon": "favicon:nextgen.com",
+      "validation": {
+        "level": "component_only",
+        "last_validated": "2026-10-29"
+      },
+      "agent_hints": {
+        "outputs": [
+          "one_asset_per_declared_hl7_channel",
+          "shared_observation_sensor_opt_in"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "hl7_v2_parser",
+          "fhir_resource_normalizer"
+        ]
+      },
+      "produces": [
+        "asset",
+        "sensor",
+        "asset_check"
+      ],
+      "stateful": false,
+      "keywords": [
+        "mirth connect",
+        "nextgen connect",
+        "hl7",
+        "hl7v2",
+        "interface engine",
+        "healthcare",
+        "ehr",
+        "workspace"
+      ]
+    },
+    {
       "id": "mistral_llm",
       "name": "Mistral LLM",
       "category": "ai",
@@ -51413,6 +51475,65 @@
       ]
     },
     {
+      "id": "qlik_cloud_workspace",
+      "name": "QlikCloudWorkspace",
+      "component_type": "dagster_community_components.QlikCloudWorkspaceComponent",
+      "path": "integrations/qlik_cloud_workspace",
+      "category": "integration",
+      "icon": "favicon:qlik.com",
+      "description": "N Qlik Cloud apps as Dagster assets from one component instance, with one shared observation sensor -- closes the scaling gap in the sibling single-app qlik_cloud_app_reload component (30 dashboards previously meant 30 component instances). Real Qlik Cloud REST API (verified against qlik.dev/apis/rest/reloads/), with a QlikCloudTransport seam (trigger_reload/get_reload/list_reloads) that tests swap for a fake instead of patching requests calls.",
+      "tags": [
+        "integration",
+        "qlik",
+        "bi",
+        "reload",
+        "workspace"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_workspace/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_workspace/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_workspace/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_workspace/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_workspace/schema.json",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "component_only",
+        "last_validated": "2026-10-29"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_asset_per_declared_qlik_cloud_app",
+          "shared_observation_sensor_opt_in"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "qlik_cloud_app_reload"
+        ]
+      },
+      "produces": [
+        "asset",
+        "sensor"
+      ],
+      "stateful": false,
+      "keywords": [
+        "qlik cloud",
+        "qlik sense",
+        "bi",
+        "reload",
+        "dashboard refresh",
+        "workspace",
+        "multi app"
+      ]
+    },
+    {
       "id": "qlik_compose_resource",
       "name": "qlik_compose_resource",
       "component_type": "dagster_community_components.QlikComposeResourceComponent",
@@ -61467,7 +61588,7 @@
       "id": "ssis_workspace",
       "name": "SSIS Workspace",
       "category": "integration",
-      "description": "SSIS packages as Dagster assets. Discovers SSISDB.catalog.packages + optionally executes via create_execution/start_execution + polls to completion. Fivetran-shape workspace: block for connection + selector for filtering + polling_sensor + freshness_lag_threshold_seconds.",
+      "description": "SSIS packages as Dagster assets. Discovers SSISDB.catalog.packages + optionally executes via create_execution/start_execution + polls to completion, subsettable (selecting one package runs only that package). Fivetran-shape workspace: block for connection + selector for filtering + assets_by_package for per-package overrides/deps + polling_sensor + freshness_lag_threshold_seconds. demo_mode runs the whole shape with a synthetic catalog and zero SQL Server dependency.",
       "version": "1.1.0",
       "author": "Dagster Community",
       "path": "integrations/ssis_workspace",
@@ -70862,68 +70983,9 @@
         "zuora",
         "zuora resource"
       ]
-    },
-    {
-      "id": "qlik_cloud_workspace",
-      "name": "QlikCloudWorkspace",
-      "component_type": "dagster_community_components.QlikCloudWorkspaceComponent",
-      "path": "integrations/qlik_cloud_workspace",
-      "category": "integration",
-      "icon": "favicon:qlik.com",
-      "description": "N Qlik Cloud apps as Dagster assets from one component instance, with one shared observation sensor -- closes the scaling gap in the sibling single-app qlik_cloud_app_reload component (30 dashboards previously meant 30 component instances). Real Qlik Cloud REST API (verified against qlik.dev/apis/rest/reloads/), with a QlikCloudTransport seam (trigger_reload/get_reload/list_reloads) that tests swap for a fake instead of patching requests calls.",
-      "tags": [
-        "integration",
-        "qlik",
-        "bi",
-        "reload",
-        "workspace"
-      ],
-      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_workspace/component.py",
-      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_workspace/example.yaml",
-      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_workspace/README.md",
-      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_workspace/requirements.txt",
-      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_workspace/schema.json",
-      "dependencies": {
-        "pip": [
-          "dagster",
-          "requests"
-        ]
-      },
-      "validation": {
-        "level": "component_only",
-        "last_validated": "2026-10-29"
-      },
-      "version": "1.0.0",
-      "author": "Dagster Community",
-      "agent_hints": {
-        "outputs": [
-          "one_asset_per_declared_qlik_cloud_app",
-          "shared_observation_sensor_opt_in"
-        ],
-        "requires_pip": [
-          "requests"
-        ],
-        "chains_with": [
-          "qlik_cloud_app_reload"
-        ]
-      },
-      "produces": [
-        "asset",
-        "sensor"
-      ],
-      "stateful": false,
-      "keywords": [
-        "qlik cloud",
-        "qlik sense",
-        "bi",
-        "reload",
-        "dashboard refresh",
-        "workspace",
-        "multi app"
-      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1360
+  "total": 1362
 }

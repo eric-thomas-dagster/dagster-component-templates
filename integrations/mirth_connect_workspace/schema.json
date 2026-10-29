@@ -1,0 +1,160 @@
+{
+  "component_type": "dagster_community_components.MirthConnectWorkspaceComponent",
+  "description": "NextGen Connect / Mirth Connect HL7 channels as Dagster assets. One asset per declared channel; action=deploy deploys+starts the channel on materialize, confirmed by polling /channels/statuses (deploy/start return 204 unconditionally). Optional shared polling sensor turns cumulative message counters into per-tick deltas; optional channel_running and channel_error_rate asset_checks. demo_mode runs the whole shape with synthetic data and zero real Mirth server.",
+  "category": "integration",
+  "icon": "favicon:nextgen.com",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetSpec",
+      "description": "One Dagster asset per declared Mirth Connect HL7 channel. With action=noop (default) each asset is declare-only (external asset). With action=deploy each materialization deploys + starts the channel via the Administrator REST API and polls /channels/statuses to confirm it actually reached STARTED. Optional polling_sensor emits AssetObservation per channel when its message counters move; optional require_running / error_rate_threshold checks per channel."
+    }
+  },
+  "attributes": {
+    "base_url_env_var": {
+      "type": "string",
+      "label": "Base URL Env Var",
+      "description": "Env var holding the Administrator REST API base URL, e.g. https://mirth-host:8443/api. The /api suffix is required.",
+      "required": false,
+      "default": "MIRTH_BASE_URL"
+    },
+    "username_env_var": {
+      "type": "string",
+      "label": "Username Env Var",
+      "description": "Env var with the Mirth username (Basic auth).",
+      "required": false,
+      "default": "MIRTH_USERNAME"
+    },
+    "password_env_var": {
+      "type": "string",
+      "label": "Password Env Var",
+      "description": "Env var with the Mirth password (Basic auth).",
+      "required": false,
+      "default": "MIRTH_PASSWORD"
+    },
+    "verify_ssl": {
+      "type": "boolean",
+      "label": "Verify SSL",
+      "description": "Mirth ships with a self-signed TLS certificate by default -- set false for lab/demo installs still using the stock cert.",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "channels": {
+      "type": "array",
+      "label": "Channels",
+      "description": "HL7 channels to wrap as Dagster assets, one entry per channel (channel_id, asset_key, description, group_name, deps, owners, tags).",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "assets_by_channel": {
+      "type": "object",
+      "label": "Assets By Channel",
+      "description": "Override the asset spec for specific channels, keyed by channel_id. Mirrors the official dagster-databricks DatabricksWorkspaceComponent.assets_by_task_key shape.",
+      "required": false,
+      "default": null
+    },
+    "action": {
+      "type": "string",
+      "label": "Action",
+      "description": "noop = external asset (declare-only); deploy = deploy + start the channel, confirmed by polling /channels/statuses (the channel must already be enabled in Mirth Administrator).",
+      "required": false,
+      "default": "noop",
+      "enum": [
+        "noop",
+        "deploy"
+      ],
+      "ui:widget": "select"
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval (seconds)",
+      "description": "Only used when action=deploy.",
+      "required": false,
+      "default": 5
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout (seconds)",
+      "description": "Max seconds to wait for a channel to reach STARTED before failing the run. Only used when action=deploy.",
+      "required": false,
+      "default": 120
+    },
+    "polling_sensor": {
+      "type": "boolean",
+      "label": "Polling Sensor",
+      "description": "If true, adds ONE sensor (not one per channel) that emits AssetObservation per channel when its cumulative message counters moved since the last tick.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Only used when polling_sensor=True.",
+      "required": false,
+      "default": "mirth_connect_workspace_observer"
+    },
+    "check_interval_seconds": {
+      "type": "integer",
+      "label": "Check Interval (seconds)",
+      "description": "Seconds between sensor polls. Only used when polling_sensor=True.",
+      "required": false,
+      "default": 60
+    },
+    "require_running": {
+      "type": "boolean",
+      "label": "Require Running",
+      "description": "If true, attach a channel_running asset_check per channel that fails when the channel's dashboard state isn't STARTED.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "error_rate_threshold": {
+      "type": "number",
+      "label": "Error Rate Threshold",
+      "description": "If set, attach a channel_error_rate asset_check per channel that fails when error / max(received, 1) exceeds this fraction (lifetime cumulative, not windowed).",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group for channels without their own group_name.",
+      "required": false,
+      "default": null
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Catalog tags applied to every channel asset (merged with each channel's own tags).",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Default asset owners for channels without their own.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "description": "Skip the real Mirth server entirely. Deploy/start/stop, statuses, and statistics all return synthetic values instead of calling the REST API.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    }
+  },
+  "tags": [
+    "mirth",
+    "hl7",
+    "healthcare",
+    "interface-engine",
+    "workspace"
+  ],
+  "name": "Mirth Connect Workspace"
+}

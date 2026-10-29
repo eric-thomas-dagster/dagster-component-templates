@@ -1,0 +1,52 @@
+# MirthConnectWorkspaceComponent — HL7 channels as Dagster assets.
+# Backing API: NextGen Connect / Mirth Connect's Administrator REST API (/api).
+
+type: dagster_community_components.MirthConnectWorkspaceComponent
+attributes:
+  base_url_env_var: MIRTH_BASE_URL       # e.g. https://mirth-host:8443/api -- the /api suffix is required
+  username_env_var: MIRTH_USERNAME
+  password_env_var: MIRTH_PASSWORD
+  verify_ssl: false                       # true once you've replaced Mirth's stock self-signed cert
+
+  # Set true to smoke-test this whole component (deploy/start, statuses,
+  # statistics, the sensor, the checks) with synthetic data and zero real
+  # Mirth server. `channels:` is still declared explicitly either way.
+  demo_mode: false
+
+  channels:
+    - channel_id: b5bda28f-7c29-4773-8bea-2eb5f17aa710
+      asset_key: hl7/adt_feed
+      description: Admit-Discharge-Transfer feed from the EHR
+    - channel_id: 1a2b3c4d-5e6f-7890-abcd-ef1234567890
+      asset_key: hl7/lab_results_feed
+      deps: [hl7/adt_feed]
+
+  # Per-channel overrides, keyed by channel_id. Mirrors dagster-databricks's
+  # assets_by_task_key shape (same convention assets_by_app/assets_by_package
+  # use elsewhere in this registry).
+  # assets_by_channel:
+  #   b5bda28f-7c29-4773-8bea-2eb5f17aa710:
+  #     group_name: hl7_prod
+  #     tags: {tier: critical}
+
+  # What happens on materialize:
+  #   noop   — external asset (declare-only, no deploy/start triggered)
+  #   deploy — deploy + start the channel, confirmed via polling /channels/statuses
+  #            (the channel must already be `enabled` in Mirth Administrator)
+  action: noop
+  poll_interval_seconds: 5
+  timeout_seconds: 120
+
+  # Opt-in polling sensor — emits AssetObservation per channel only when its
+  # cumulative message counters (received/filtered/queued/sent/error) moved
+  # since the last tick.
+  polling_sensor: true
+  check_interval_seconds: 60
+
+  # Opt-in per-channel checks.
+  require_running: true          # fails if dashboard state isn't STARTED
+  error_rate_threshold: 0.05     # fails if lifetime error/received exceeds 5%
+
+  group_name: hl7
+  # tags: {domain: clinical}
+  # owners: [interop-team@hospital.org]

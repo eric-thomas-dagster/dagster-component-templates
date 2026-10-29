@@ -24,6 +24,7 @@ Bulk-ingest a Pandas DataFrame into StarRocks via Stream Load (HTTP PUT). Mirror
 | `host_env_var` | `str` | `"STARROCKS_FE_HOST"` | Env var with StarRocks FE host. |
 | `username_env_var` | `str` | `"STARROCKS_USER"` | Env var with StarRocks username. |
 | `password_env_var` | `str` | `"STARROCKS_PASSWORD"` | Env var with StarRocks password. |
+| `resource_key` | `str` | — | Optional key of a registered StarRocksResourceComponent (resources/starrocks_resource). When set, connection credentials are read from that resource at run time instead of the inline host_env_var/username_env_var/passwor… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -32,7 +33,7 @@ Bulk-ingest a Pandas DataFrame into StarRocks via Stream Load (HTTP PUT). Mirror
 | `group_name` | `str` | `"starrocks"` | Dagster asset group name. |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Catalog tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'starrocks'). |
 
 ### Partitions

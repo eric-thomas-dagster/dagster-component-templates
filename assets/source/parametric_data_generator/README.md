@@ -129,7 +129,7 @@ discount:   { type: formula, formula: "max(0, total - 50.0)" }
 |---|---|---|---|
 | `description` | `str` | — | — |
 | `group_name` | `str` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `owners` | `List[str]` | — | — |
 | `kinds` | `List[str]` | — | — |
 
@@ -146,7 +146,7 @@ discount:   { type: formula, formula: "max(0, total - 50.0)" }
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
 
 ### Retry policy
 
@@ -161,7 +161,7 @@ discount:   { type: formula, formula: "max(0, total - 50.0)" }
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `row_count` | `int` | `100` | Number of rows to generate. |
-| `random_state` | `int` | — | Seed for reproducibility. None = nondeterministic. |
+| `random_state` | `int` | — | Seed for reproducibility. None = nondeterministic. On a partitioned run the seed also mixes in the partition key(s), so each partition gets its own reproducible data. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)

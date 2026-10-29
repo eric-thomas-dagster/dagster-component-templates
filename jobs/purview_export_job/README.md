@@ -61,7 +61,7 @@ DAGSTER_DEPLOYMENT=prod              # default "local"
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `Dict[str, str]` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
 ### Sensor configuration
 

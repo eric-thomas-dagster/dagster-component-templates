@@ -26,7 +26,7 @@ Run a golden-set retrieval eval against a specific `vector_index_snapshot` parti
 | `group_name` | `str` | — | Asset group |
 | `description` | `str` | — | Asset description |
 | `owners` | `List[str]` | — | Asset owners |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags |
 | `kinds` | `List[str]` | — | Asset kinds (defaults to ['rag', 'eval']) |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage (output col → list of upstream cols). |
 

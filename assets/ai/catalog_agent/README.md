@@ -50,7 +50,7 @@ Downstream steps that read from prior outputs get REAL data flowing through, not
 | `group_name` | `str` | — | — |
 | `kinds` | `List[str]` | — | — |
 | `owners` | `List[str]` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 
 ### Freshness
 
@@ -65,7 +65,7 @@ Downstream steps that read from prior outputs get REAL data flowing through, not
 |---|---|---|---|
 | `partition_type` | `str` | — | — |
 | `partition_start` | `str` | — | — |
-| `partition_values` | `str` | — | — |
+| `partition_values` | `Union[str, List[str]]` | — | — |
 
 ### Retry policy
 

@@ -34,7 +34,7 @@ Pairs with `qlik_compose_resource` for auth.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 
 ### Sensor configuration
 

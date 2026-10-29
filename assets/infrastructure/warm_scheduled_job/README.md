@@ -160,7 +160,7 @@ Optional config as decorator kwargs: `@warmjob(tags={"team": "finance"})`, plus 
 | `asset_name` | `str` | — | Single-job mode only: output asset name (also used by the paired health sensor's asset_selection). Required when `jobs` is not set. |
 | `group_name` | `str` | — | Component-level default group_name; a `jobs` entry may override with its own `group_name`. |
 | `description` | `str` | — | Single-job mode only (per-job override available in `jobs` entries). |
-| `asset_tags` | `Dict[str, str]` | — | Component-level default asset_tags; a `jobs` entry may override with its own `asset_tags`. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Component-level default asset_tags; a `jobs` entry may override with its own `asset_tags`. |
 | `kinds` | `List[str]` | — | Component-level default kinds; a `jobs` entry may override with its own `kinds`. |
 | `owners` | `List[str]` | — | Component-level default owners; a `jobs` entry may override with its own `owners`. |
 | `deps` | `List[str]` | — | Component-level default deps; a `jobs` entry may override with its own `deps`. |

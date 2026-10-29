@@ -33,7 +33,7 @@ Deploy a Bicep template as a Dagster asset (compiles via `az bicep build` then d
 | `group_name` | `str` | `"infrastructure"` | — |
 | `deps` | `list[str]` | — | — |
 | `owners` | `list[str]` | — | — |
-| `asset_tags` | `dict` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `list[str]` | — | — |
 
 ### Retry policy

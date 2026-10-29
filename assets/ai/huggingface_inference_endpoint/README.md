@@ -78,7 +78,7 @@ attributes:
 | `group_name` | `str` | `"huggingface"` | Dagster asset group name. |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `asset_tags` | `Dict[str, str]` | — | Key-value catalog tags. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Key-value catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'huggingface'). |
 | `deps` | `List[str]` | — | Upstream asset keys this asset depends on. |
 

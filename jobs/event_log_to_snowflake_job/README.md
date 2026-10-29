@@ -73,7 +73,7 @@ component or fall back to the sink-asset alternative.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `Dict[str, str]` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
 ### Sensor configuration
 

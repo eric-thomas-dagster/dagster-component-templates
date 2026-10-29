@@ -77,7 +77,7 @@ The Dagster asset materializes with the returned list — downstream Dagster ass
 | `group_name` | `str` | `"temporal"` | Dagster asset group name. |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Catalog tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'temporal', 'query'). |
 | `deps` | `List[str]` | — | Upstream Dagster asset keys. |
 

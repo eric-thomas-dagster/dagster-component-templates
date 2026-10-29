@@ -62,7 +62,7 @@ DAGSTER_UI_URL=https://dagster.acme.com
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `Dict[str, str]` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
 ### Sensor configuration
 

@@ -61,7 +61,7 @@ attributes:
 |---|---|---|---|
 | `description` | `str` | — | — |
 | `group_name` | `str` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `owners` | `List[str]` | — | — |
 
 ### Freshness
@@ -77,7 +77,7 @@ attributes:
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
 
 ### Retry policy
 
@@ -93,7 +93,7 @@ attributes:
 |---|---|---|---|
 | `use_ssl` | `bool` | `true` | Use IMAPS (TLS). |
 | `mailbox` | `str` | `"INBOX"` | IMAP folder to read from. Common: INBOX, '[Gmail]/All Mail', Archive. |
-| `search_criteria` | `str` | `"UNSEEN"` | IMAP search expression. Examples: 'UNSEEN', 'ALL', '(FROM "alerts@")', 'SINCE 01-Jan-2025', 'SUBJECT "invoice"'. |
+| `search_criteria` | `str` | `"UNSEEN"` | IMAP search expression. Examples: 'UNSEEN', 'ALL', '(FROM "alerts@")', 'SINCE 01-Jan-2025', 'SUBJECT "invoice"'. IMAP dates are dd-Mon-yyyy, so a partitioned run also fills {partition_imap_since} (the window's first day)… _(full docs in schema.json + component README)_ |
 | `mark_read` | `bool` | `false` | After fetching, set the \Seen flag on each message so the next UNSEEN run skips them. Set False to leave unread (useful for testing). |
 | `include_body_html` | `bool` | `false` | Emit the raw HTML body too (in addition to text). Off by default — adds bulk. |
 | `fallback_html_to_text` | `bool` | `true` | If a message has only HTML body, derive a text body by stripping tags. |

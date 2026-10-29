@@ -42,7 +42,7 @@ Planner LLM decides **N sub-topics at runtime**. A row-wise researcher writes on
 | `group_name` | `str` | — | — |
 | `kinds` | `List[str]` | — | — |
 | `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Asset tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Asset tags. |
 
 ### Freshness
 
@@ -57,7 +57,7 @@ Planner LLM decides **N sub-topics at runtime**. A row-wise researcher writes on
 |---|---|---|---|
 | `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' |
 | `partition_start` | `str` | — | ISO date for time-based partitions. |
-| `partition_values` | `str` | — | Comma-separated values for static partitions. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitions. |
 
 ### Retry policy
 

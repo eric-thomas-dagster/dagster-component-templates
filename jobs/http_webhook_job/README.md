@@ -26,7 +26,7 @@ POST/GET to an HTTP endpoint as a job — heartbeats, status pings, fire-and-for
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
 ### Sensor configuration
 

@@ -34,7 +34,7 @@ Browse all at <https://cloud.google.com/monitoring/api/metrics_gcp>.
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
-| `filter` | `str` | Cloud Monitoring filter. Must include a `metric.type=...` clause. Example: 'metric.type="compute.googleapis.com/instance/cpu/utilization"'. |
+| `filter` | `str` | Cloud Monitoring filter. Must include a `metric.type=...` clause. Example: 'metric.type="compute.googleapis.com/instance/cpu/utilization"'. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {p… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -43,7 +43,7 @@ Browse all at <https://cloud.google.com/monitoring/api/metrics_gcp>.
 | `description` | `str` | — | — |
 | `group_name` | `str` | — | — |
 | `deps` | `List[str]` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `owners` | `List[str]` | — | — |
 
 ### Freshness
@@ -59,7 +59,7 @@ Browse all at <https://cloud.google.com/monitoring/api/metrics_gcp>.
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
 
 ### Retry policy
 

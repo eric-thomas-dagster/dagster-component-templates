@@ -18,7 +18,7 @@ Creates a job over the configured asset selection so it shows up as a discrete u
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `description` | `str` | — | Description shown in the UI. |
-| `tags` | `Dict[str, str]` | — | Tags applied to runs of this job. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Tags applied to runs of this job. |
 
 [//]: # (FIELDS:END)
 

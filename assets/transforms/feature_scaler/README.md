@@ -43,8 +43,9 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | — | Dagster asset group name |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the upstream DataFrame is filtered once per partition key in the range and the matching rows are combine… _(full docs in schema.json + component README)_ |
 | `owners` | `List[str]` | — | Asset owners — team names or email addresses. |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags applied to the asset. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags applied to the asset. |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Auto-inferred from asset name if empty. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage mapping. Auto-inferred when empty. |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
@@ -64,7 +65,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_start` | `str` | — | Partition start date in ISO format |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter to the current date partition key. |
-| `partition_values` | `str` | — | Comma-separated values for static or multi partitioning. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning. |
 | `partition_static_column` | `Union[str, int]` | — | Column used to filter to the current static partition dimension. |
 
@@ -87,6 +88,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | `feature_range_min` | `float` | `0.0` | Lower bound for 'minmax' (default 0.0). Ignored for other strategies. |
 | `feature_range_max` | `float` | `1.0` | Upper bound for 'minmax' (default 1.0). Ignored for other strategies. |
 | `suffix` | `str` | — | If set, scaled values go into new columns named '<col><suffix>' (e.g. '_scaled'). Otherwise originals are overwritten. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
 

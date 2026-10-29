@@ -71,7 +71,7 @@ Numeric dtypes (`Int64`, `Int32`, `float64`, etc.) route through `pd.to_numeric(
 | `group_name` | `str` | — | Dagster asset group name. |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `asset_tags` | `Dict[str, str]` | — | Extra asset tags. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags. |
 | `kinds` | `List[str]` | — | Asset kinds. Defaults to ['inline', 'reference']. |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys. |
 

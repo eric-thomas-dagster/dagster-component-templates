@@ -101,7 +101,7 @@ per-deploy for Dagster Cloud).
 | `group_name` | `str` | `"azure_data_factory"` | Asset group. |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
-| `asset_tags` | `Dict[str, str]` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 
 ### Freshness
 

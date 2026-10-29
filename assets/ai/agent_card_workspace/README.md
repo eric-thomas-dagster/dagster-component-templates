@@ -16,7 +16,7 @@ This component only brings in an external registry. It does not also scan for si
 |---|---|---|---|
 | `group_name` | `str` | — | Dagster asset group name applied to every emitted asset. |
 | `owners` | `List[str]` | — | Asset owners applied to every emitted asset. |
-| `tags` | `Dict[str, str]` | — | Extra asset tags applied to every emitted asset. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags applied to every emitted asset. |
 
 ### Other
 

@@ -23,7 +23,7 @@ Declare-only `AssetSpec` for an [Apache Doris](https://doris.apache.org/) table 
 | `group_name` | `str` | `"doris"` | Dagster asset group name. |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Catalog tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'doris'). |
 | `deps` | `List[str]` | — | Upstream Dagster asset keys. |
 

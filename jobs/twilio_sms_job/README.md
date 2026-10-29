@@ -22,7 +22,7 @@ Send an SMS via Twilio as a job — useful for on-call paging without a full Pag
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
 ### Sensor configuration
 

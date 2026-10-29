@@ -48,7 +48,7 @@
 | `group_name` | `str` | — | Asset group. |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Extra asset tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags. |
 | `kinds` | `List[str]` | — | Asset kinds. Defaults to ['fanout', 'transform']. |
 | `deps` | `List[str]` | — | Optional list of upstream Dagster asset keys as lineage-only dependencies — declares graph edges without loading data through the IO manager. Use for assets whose materialization doesn't write a value to the IO manager (… _(full docs in schema.json + component README)_ |
 

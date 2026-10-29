@@ -31,7 +31,7 @@ Generate one in your Dagster+ deployment's Settings → Tokens.
 | `group_name` | `str` | `"dagster_plus"` | — |
 | `deps` | `list[str]` | — | — |
 | `owners` | `list[str]` | — | — |
-| `asset_tags` | `dict` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `list[str]` | — | — |
 
 ### Freshness
@@ -47,7 +47,7 @@ Generate one in your Dagster+ deployment's Settings → Tokens.
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
 
 ### Retry policy
 

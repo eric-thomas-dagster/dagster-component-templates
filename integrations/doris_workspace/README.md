@@ -29,7 +29,7 @@ Each asset is an `@observable_source_asset` that polls `information_schema.table
 |---|---|---|---|
 | `group_name` | `str` | `"doris"` | Dagster group name for all discovered assets. |
 | `owners` | `List[str]` | — | Owners applied to every discovered asset. |
-| `tags` | `Dict[str, str]` | — | Tags applied to every discovered asset. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Tags applied to every discovered asset. |
 | `kinds` | `List[str]` | — | Additional kinds (always includes 'doris'). |
 
 ### Other

@@ -36,7 +36,7 @@ Pipe the asset to `dataframe_to_csv` for a migration completion report artifact.
 | `group_name` | `str` | — | Dagster asset group name |
 | `description` | `str` | — | Asset description |
 | `owners` | `List[str]` | — | Asset owners |
-| `asset_tags` | `Dict[str, str]` | — | Additional tags |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional tags |
 | `kinds` | `List[str]` | — | Asset kinds (default: ['views', source_type, target_type]) |
 | `deps` | `List[str]` | — | Upstream asset keys (typically table replications) |
 

@@ -155,7 +155,7 @@ queries work end-to-end.
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | Default: ['python', 'budget', 'cost']. |
 
 ### Partitions

@@ -21,7 +21,7 @@ Apply an agent-produced plan of data-quality remediations to an upstream DataFra
 | `group_name` | `str` | — | Asset group name. |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Catalog tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'ai', 'dq'). |
 
 ### Freshness
@@ -37,7 +37,7 @@ Apply an agent-produced plan of data-quality remediations to an upstream DataFra
 |---|---|---|---|
 | `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' |
 | `partition_start` | `str` | — | ISO date for time-based partitions. |
-| `partition_values` | `str` | — | Comma-separated values for static partitions. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitions. |
 
 ### Retry policy
 

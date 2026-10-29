@@ -26,7 +26,7 @@ Run a shell command as a Dagster job (no asset materialized) — for cleanup, ma
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
 ### Sensor configuration
 

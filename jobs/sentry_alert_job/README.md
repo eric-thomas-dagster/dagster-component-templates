@@ -17,7 +17,7 @@ Fire a Sentry event on a schedule (or trigger manually) — no asset materialize
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `Dict[str, str]` | — | Dagster job tags (not Sentry tags — see sentry_tags for that). |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags (not Sentry tags — see sentry_tags for that). |
 
 ### Sensor configuration
 

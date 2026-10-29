@@ -1302,12 +1302,14 @@ This is the "compose it all yourself in one YAML" alternative — the AI-side ma
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `policy` | `Dict[str, Any]` | — | Guardrails on what this pipeline will do on the agent's behalf; omitted = no restrictions. Sections (all optional): `on_violation: fail\|warn` (default fail); `env.allow: [NAME, 'PREFIX_*']` (env vars the pipeline may re… _(full docs in schema.json + component README)_ |
-| `receipts` | `Dict[str, Any]` | — | One generation receipt per run in a ContextReceiptStore resource (`resource_key`, `caller_id`, `policy_version`, `fail_on_error`, `outcome_signals`); see "A/B a prompt or model". |
-| `experiments` | `List[Dict[str, Any]]` | — | One A/B experiment: `{name, steps, variants, fraction, seed, unit, min_outcomes, margin, window_days, promote_when, ...}`; adds the WARN check `experiment_verdict` with `receipts`. |
+| `receipts` | `Dict[str, Any]` | — | Optional closed-loop generation receipts. `{resource_key (required: a registered ContextReceiptStoreComponent resource), caller_id, policy_version, fail_on_error (default false), outcome_signals}`. Records ONE receipt pe… _(full docs in schema.json + component README)_ |
+| `experiments` | `List[Dict[str, Any]]` | — | Optional A/B experiment (one at a time): `[{name, steps: [step ids], variants: {<label>: {<step id>: {model \| prompt_template \| system_prompt (or system) \| temperature \| persona \| version \| max_tokens \| api_key_en… _(full docs in schema.json + component README)_ |
 | `personas` | `Dict[str, Dict[str, Any]]` | — | Named reusable LLM sub-configs. Each persona bundles `{model, api_key_env_var, api_base_env_var, system_prompt, temperature, max_tokens, reasoning_effort, thinking_budget}`. Reference from any step / sub-config via `pers… _(full docs in schema.json + component README)_ |
 | `agents` | `Dict[str, Dict[str, Any]]` | — | Named pre-built agents. Each entry declares `kind:` plus kind-specific connection config. Reference from a step via `op: agent_call, agent: <name>`. Supported kinds: `openai_assistant` (assistant_id + api_key_env_var — c… _(full docs in schema.json + component README)_ |
 | `per_step_ops` | `bool` | `false` | When True, emit as a `@dg.graph_multi_asset` with one @op per step (visible in the Runs page + finer-grained retry). State dict flows through the IO manager between ops. Default False keeps the single-op @multi_asset sha… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only. Must be unset or 1: a run with several partitions has no single partition_key. |
+| `park_warn_after_hours` | `float` | `0.0` | The `pending_approvals` WARN asset check (generated when an approve step has `mode: park`) fails once a parked run has waited this many hours. 0 (default) = any parked run warns. |
+| `park_sensor_interval_seconds` | `int` | `30` | How often the generated `<asset>_approval_resume_sensor` looks for approvals of parked pipelines (only generated when an approve step has `mode: park`). |
 
 [//]: # (FIELDS:END)

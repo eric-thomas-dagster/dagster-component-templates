@@ -44,7 +44,7 @@ Default embedder is ChromaDB's built-in ONNX MiniLM (no API key needed). Swap to
 | `group_name` | `str` | — | Asset group |
 | `description` | `str` | — | Asset description |
 | `owners` | `List[str]` | — | Asset owners |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags |
 | `kinds` | `List[str]` | — | Asset kinds (defaults to ['rag', 'chromadb']) |
 
 ### Freshness

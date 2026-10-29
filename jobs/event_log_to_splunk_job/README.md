@@ -59,7 +59,7 @@ SPLUNK_HEC_TOKEN=<hec-token>    # from Splunk: Settings → Data Inputs → HTTP
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `Dict[str, str]` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
 ### Sensor configuration
 

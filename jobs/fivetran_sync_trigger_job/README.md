@@ -20,7 +20,7 @@ Trigger a Fivetran connector sync via REST API.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
 ### Sensor configuration
 

@@ -21,7 +21,7 @@ Send a message to a Microsoft Teams channel via incoming webhook.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
 ### Sensor configuration
 

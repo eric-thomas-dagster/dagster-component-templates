@@ -66,7 +66,7 @@ For **continuous CDC tasks that never complete**, leave `wait_for_completion: fa
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict` | — | Dagster job tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags. |
 
 ### Sensor configuration
 

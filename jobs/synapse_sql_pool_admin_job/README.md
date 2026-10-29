@@ -36,7 +36,7 @@ Schedules drive them; assets sit on the data plane.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 
 ### Source / target
 

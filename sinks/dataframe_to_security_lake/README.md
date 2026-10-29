@@ -20,6 +20,12 @@ Write an OCSF DataFrame to AWS Security Lake — Parquet with snappy compression
 | `bucket` | `str` | Security Lake S3 bucket (e.g. 'aws-security-data-lake-us-east-1-<id>') |
 | `source_location` | `str` | Custom-source location/name (e.g. 'ext-dagster-plus-audit'). Becomes the top-level S3 prefix. |
 
+### Connection
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `resource_key` | `str` | — | Optional key of a registered S3ResourceComponent (resources/aws_s3_resource). When set, connection credentials are read from that resource at run time instead of the inline aws_profile/region_name session (S3 uploads onl… _(full docs in schema.json + component README)_ |
+
 ### Catalog metadata
 
 | Field | Type | Default | Description |
@@ -27,7 +33,7 @@ Write an OCSF DataFrame to AWS Security Lake — Parquet with snappy compression
 | `description` | `str` | — | — |
 | `group_name` | `str` | `"security_lake"` | — |
 | `owners` | `list[str]` | — | — |
-| `asset_tags` | `dict` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `list[str]` | — | — |
 
 ### Freshness
@@ -43,7 +49,7 @@ Write an OCSF DataFrame to AWS Security Lake — Parquet with snappy compression
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
 
 ### Retry policy
 

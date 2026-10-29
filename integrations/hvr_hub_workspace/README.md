@@ -96,7 +96,7 @@ See `example.yaml`.
 |---|---|---|---|
 | `group_name` | `str` | `"hvr"` | Dagster asset group for all emitted assets. |
 | `kinds` | `List[str]` | — | Asset kinds. Default: ['hvr', 'cdc']. |
-| `tags` | `Dict[str, str]` | — | Extra tags applied to every emitted asset. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Extra tags applied to every emitted asset. |
 | `owners` | `List[str]` | — | Asset owners applied to every emitted asset. |
 
 ### Freshness

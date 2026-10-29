@@ -53,7 +53,7 @@ Not exhaustive — add whatever your fleet actually needs. The point is picking 
 |---|---|---|---|
 | `group_name` | `str` | — | Dagster asset group name. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Extra asset tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Extra asset tags. |
 
 ### Other
 

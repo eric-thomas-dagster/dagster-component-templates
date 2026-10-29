@@ -58,7 +58,7 @@ attributes:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `Dict[str, str]` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 | `key_prefix` | `str` | `"dagster-events/"` | Object key prefix; date/hour partition appended. |
 
 ### Sensor configuration

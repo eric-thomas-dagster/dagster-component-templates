@@ -23,7 +23,7 @@ Use this for **Case A** — Argo owns the schedule, Dagster catalogs + observes.
 | `group_name` | `str` | `"argo"` | Dagster asset group name. |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Catalog tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'argo', 'workflow'). |
 | `deps` | `List[str]` | — | Upstream Dagster asset keys. |
 

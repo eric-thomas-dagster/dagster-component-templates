@@ -66,7 +66,7 @@ See `example.yaml`.
 |---|---|---|---|
 | `group_name` | `str` | `"governance"` | Asset group. Default: 'governance'. |
 | `kinds` | `List[str]` | — | Asset kinds. Default: ['audit', 'approval', 'governance']. |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `owners` | `List[str]` | — | — |
 | `description` | `str` | — | — |
 

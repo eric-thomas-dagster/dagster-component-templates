@@ -20,7 +20,7 @@ Pair with the registry's `lineage_graph_extractor` upstream — it produces the 
 | `group_name` | `str` | `"lineage"` | — |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
-| `asset_tags` | `Dict[str, str]` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
 
 ### Other

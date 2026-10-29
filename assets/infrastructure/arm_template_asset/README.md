@@ -32,7 +32,7 @@ Deploy an Azure Resource Manager (ARM) template as a Dagster asset.
 | `group_name` | `str` | `"infrastructure"` | — |
 | `deps` | `list[str]` | — | — |
 | `owners` | `list[str]` | — | — |
-| `asset_tags` | `dict` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `list[str]` | — | — |
 
 ### Retry policy

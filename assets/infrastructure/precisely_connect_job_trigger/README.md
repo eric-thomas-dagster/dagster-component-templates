@@ -49,7 +49,7 @@ observation mode to record terminal status on the same asset.
 | `group_name` | `str` | `"precisely"` | Dagster asset group name. |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `asset_tags` | `Dict[str, str]` | — | Catalog tags. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'precisely', 'etl'). |
 | `deps` | `List[str]` | — | Upstream Dagster asset keys. |
 

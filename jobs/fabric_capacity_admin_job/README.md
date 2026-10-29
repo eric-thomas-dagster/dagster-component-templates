@@ -48,7 +48,7 @@ Typical schedule pair:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 
 ### Source / target
 

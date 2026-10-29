@@ -50,7 +50,7 @@ Fabric item run as a Dagster job, with optional schedule.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 
 ### Other
 

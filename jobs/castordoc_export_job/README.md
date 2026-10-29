@@ -82,7 +82,7 @@ CASTORDOC_API_TOKEN=...   # sent as `Authorization: Token <token>` (not Bearer)
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `Dict[str, str]` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
 ### Sensor configuration
 

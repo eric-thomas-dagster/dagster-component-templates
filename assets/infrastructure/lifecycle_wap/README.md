@@ -258,7 +258,7 @@ Plus one `AssetCheckResult` per audit check with pass/fail + description + metad
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | Asset kinds. Default: ['python', 'wap', 'lifecycle']. |
 
 ### Other

@@ -38,7 +38,7 @@ Pairs with `jde_orchestrator_resource`.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 
 ### Sensor configuration
 

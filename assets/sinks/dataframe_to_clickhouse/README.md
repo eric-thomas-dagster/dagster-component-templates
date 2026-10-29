@@ -25,6 +25,7 @@ Insert a Pandas DataFrame into a ClickHouse table via clickhouse-connect's clien
 | `port` | `int` | `8123` | ClickHouse HTTP port (8123 plain / 8443 TLS). |
 | `username_env_var` | `str` | `"CLICKHOUSE_USER"` | Env var with username. |
 | `password_env_var` | `str` | `"CLICKHOUSE_PASSWORD"` | Env var with password. |
+| `resource_key` | `str` | — | Optional key of a registered ClickHouseResourceComponent (resources/clickhouse_resource). When set, connection credentials are read from that resource at run time instead of the inline host_env_var/port/username_env_var/… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -33,7 +34,7 @@ Insert a Pandas DataFrame into a ClickHouse table via clickhouse-connect's clien
 | `group_name` | `str` | `"clickhouse"` | Dagster asset group name. |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Catalog tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'clickhouse'). |
 
 ### Partitions

@@ -47,7 +47,7 @@ For Oracle the inventory also captures `package` objects.
 | `group_name` | `str` | — | Dagster asset group name |
 | `description` | `str` | — | Asset description |
 | `owners` | `List[str]` | — | Asset owners |
-| `asset_tags` | `Dict[str, str]` | — | Additional asset tags |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional asset tags |
 | `kinds` | `List[str]` | — | Asset kinds (default: [database_type, 'inventory']) |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys |
 

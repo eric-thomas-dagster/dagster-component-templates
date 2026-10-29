@@ -42,7 +42,7 @@ For Anthropic (`llm_provider: anthropic`): `pip install anthropic`.
 | `description` | `str` | — | Asset description |
 | `group_name` | `str` | `"vanta"` | Asset group |
 | `owners` | `List[str]` | — | Asset owners |
-| `asset_tags` | `Dict[str, str]` | — | Catalog tags |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags |
 | `kinds` | `List[str]` | — | Asset kinds. Default: ['ai', 'vanta'] |
 | `deps` | `List[str]` | — | Lineage-only upstream keys |
 

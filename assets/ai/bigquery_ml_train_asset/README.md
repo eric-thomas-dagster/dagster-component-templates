@@ -39,7 +39,7 @@ Required SA roles: `roles/bigquery.dataEditor` (destination dataset) + `roles/bi
 | `asset_name` | `str` | Output asset name. |
 | `destination_model_id` | `str` | Fully-qualified BQML model id, e.g. `my-project.ml.my_arima_model`. |
 | `model_options` | `Dict[str, Any]` | OPTIONS clause as a dict. MUST include `MODEL_TYPE`. Example: {model_type: 'LINEAR_REG', input_label_cols: ['fare_amount'], data_split_method: 'AUTO_SPLIT'}. |
-| `select_query` | `str` | SELECT statement that supplies training data. Supports {placeholder} substitution. |
+| `select_query` | `str` | SELECT statement that supplies training data. Supports {placeholder} substitution. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-part… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -48,7 +48,7 @@ Required SA roles: `roles/bigquery.dataEditor` (destination dataset) + `roles/bi
 | `deps` | `List[str]` | — | — |
 | `description` | `str` | — | — |
 | `group_name` | `str` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `owners` | `List[str]` | — | — |
 
 ### Freshness
@@ -64,7 +64,7 @@ Required SA roles: `roles/bigquery.dataEditor` (destination dataset) + `roles/bi
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
 
 ### Retry policy
 

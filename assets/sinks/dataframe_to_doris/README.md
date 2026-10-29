@@ -26,6 +26,7 @@ For tens of rows, `dataframe_to_table` against `doris_resource.connection_string
 | `host_env_var` | `str` | `"DORIS_FE_HOST"` | Env var with Doris FE host. |
 | `username_env_var` | `str` | `"DORIS_USER"` | Env var with Doris username. |
 | `password_env_var` | `str` | `"DORIS_PASSWORD"` | Env var with Doris password. |
+| `resource_key` | `str` | — | Optional key of a registered DorisResourceComponent (resources/doris_resource). When set, connection credentials are read from that resource at run time instead of the inline host_env_var/username_env_var/password_env_va… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -34,7 +35,7 @@ For tens of rows, `dataframe_to_table` against `doris_resource.connection_string
 | `group_name` | `str` | `"doris"` | Dagster asset group name. |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `tags` | `Dict[str, str]` | — | Catalog tags. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'doris'). |
 
 ### Partitions

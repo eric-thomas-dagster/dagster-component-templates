@@ -24,7 +24,7 @@ VM snapshots are the canonical way to back up vmsingle / vmstorage before a dest
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 | `group_name` | `str` | `"victoriametrics"` | Asset/op group name (op naming only — this is a job). |
 
 ### Sensor configuration

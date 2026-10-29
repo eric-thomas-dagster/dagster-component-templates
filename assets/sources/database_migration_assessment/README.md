@@ -52,7 +52,7 @@ The metadata exposes `estimated_manual_effort` as a rough person-hours number fo
 | `group_name` | `str` | — | Dagster asset group name |
 | `description` | `str` | — | Asset description |
 | `owners` | `List[str]` | — | Asset owners |
-| `asset_tags` | `Dict[str, str]` | — | Additional tags |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional tags |
 | `kinds` | `List[str]` | — | Asset kinds (default: [source_type, 'assessment']) |
 | `deps` | `List[str]` | — | Upstream asset keys |
 

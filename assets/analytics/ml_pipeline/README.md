@@ -352,7 +352,7 @@ Full end-to-end demo + comparison against 7 alternative shapes (raw `@dg.asset`,
 |---|---|---|---|
 | `group_name` | `str` | `"ml"` | Group name for emitted assets. |
 | `kinds` | `List[str]` | — | Kinds for the emitted assets (default: ['python', 'ml']). |
-| `tags` | `Dict[str, str]` | — | Tags on the emitted assets. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Tags on the emitted assets. |
 | `owners` | `List[str]` | — | Owners on the emitted assets. |
 | `description` | `str` | — | Description on the emitted assets. |
 

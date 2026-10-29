@@ -44,8 +44,9 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | — | Dagster asset group name |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the upstream DataFrame is filtered once per partition key in the range and the matching rows are combine… _(full docs in schema.json + component README)_ |
 | `owners` | `List[str]` | — | Asset owners. |
-| `asset_tags` | `Dict[str, str]` | — | Additional asset tags. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional asset tags. |
 | `kinds` | `List[str]` | — | Asset kinds for the catalog. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage. |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
@@ -65,7 +66,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | `partition_type` | `str` | — | Partition type |
 | `partition_start` | `str` | — | Partition start date in ISO format |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter to current date partition. |
-| `partition_values` | `str` | — | Comma-separated values for static/multi partitioning. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static/multi partitioning. |
 | `partition_static_dim` | `str` | — | Static dimension name for multi-partitioning. |
 | `partition_static_column` | `Union[str, int]` | — | Column used to filter to the static partition value. |
 
@@ -89,6 +90,7 @@ any resource exposing `.get_engine()` (SQLAlchemy), `.get_connection()`
 | `keep_original` | `bool` | `false` | If True, retain the original categorical columns alongside the encoded ones. Implies a suffix. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output DataFrame in metadata (for builder UIs). |
 | `preview_rows` | `int` | `25` | Rows in the preview when include_preview_metadata=True. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 
 [//]: # (FIELDS:END)
 

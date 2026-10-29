@@ -29,7 +29,7 @@ Trigger an Airflow DAG run via the Airflow REST API as a Dagster job.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
 ### Sensor configuration
 

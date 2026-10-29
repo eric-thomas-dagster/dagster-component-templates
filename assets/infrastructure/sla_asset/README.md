@@ -252,7 +252,7 @@ threshold, so breach detection + observation history are all per-partition-aware
 | `group_name` | `str` | — | — |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | Asset kinds. Default: ['python', 'sla', 'observability']. |
 
 ### Partitions

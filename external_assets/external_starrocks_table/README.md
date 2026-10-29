@@ -23,7 +23,7 @@ Declare-only AssetSpec for a StarRocks table that StarRocks itself owns the life
 | `group_name` | `str` | `"starrocks"` | Dagster asset group name. |
 | `description` | `str` | — | — |
 | `owners` | `List[str]` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
 

@@ -65,7 +65,7 @@ Use `cloud_run_job_trigger_asset` for Cloud Run **jobs** (long-running batch), n
 | `description` | `str` | — | — |
 | `group_name` | `str` | — | — |
 | `deps` | `List[str]` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `owners` | `List[str]` | — | — |
 
 ### Other

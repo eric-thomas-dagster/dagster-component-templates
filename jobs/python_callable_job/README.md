@@ -20,7 +20,7 @@ Run an arbitrary Python callable as a Dagster job — Airflow PythonOperator equ
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
 ### Sensor configuration
 

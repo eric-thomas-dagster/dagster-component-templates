@@ -42,7 +42,7 @@ Common cases:
 | `group_name` | `str` | — | Dagster asset group name |
 | `description` | `str` | — | Asset description |
 | `owners` | `List[str]` | — | Asset owners |
-| `asset_tags` | `Dict[str, str]` | — | Additional asset tags |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional asset tags |
 | `kinds` | `List[str]` | — | Asset kinds (default: ['sling', source_type, target_type]) |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys |
 

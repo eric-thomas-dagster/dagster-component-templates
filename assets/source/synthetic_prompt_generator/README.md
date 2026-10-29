@@ -196,7 +196,7 @@ Now iterating on prompts is a one-file YAML edit (add/rename keys under `prompts
 | `description` | `str` | — | — |
 | `group_name` | `str` | `"prompts"` | — |
 | `kinds` | `List[str]` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `owners` | `List[str]` | — | — |
 | `deps` | `List[str]` | — | — |
 
@@ -226,6 +226,7 @@ Now iterating on prompts is a one-file YAML edit (add/rename keys under `prompts
 | `system_prompt` | `str` | — | Mode E: override the default paraphraser system prompt. |
 | `temperature` | `float` | `0.7` | — |
 | `max_tokens` | `int` | `300` | — |
+| `include_reasoning` | `bool` | `false` | Reasoning models (Qwen3, DeepSeek-R1, ...) inline <think>...</think>. The thinking is always stripped from the generated prompt (mode: llm); when true it is also attached as a 'reasoning' metadata entry on the materializ… _(full docs in schema.json + component README)_ |
 | `include_wrong_variants` | `bool` | `false` | Mode E: pepper adversarial / under-specified variants (every 3rd) into the output — useful for downstream robustness / eval flows. |
 
 [//]: # (FIELDS:END)

@@ -95,7 +95,7 @@ Also: the **Drive API has to be enabled** on the SA's GCP project. If it's not, 
 | `download` | `bool` | `false` | If True, also download file contents. |
 | `download_dir` | `str` | `"/tmp/google_drive_ingestion"` | Where to write downloaded files. Created on first use. |
 | `download_max_bytes` | `int` | `10 * 1024 * 1024` | Skip files larger than this. Default 10 MB. |
-| `inline_text_content` | `bool` | `false` | When `download=True`, also write extracted text into a `content` column: text/json/csv are UTF-8 decoded directly; PDF/.docx/.xlsx are text-extracted via pdfplumber/python-docx/openpyxl (optional deps — falls back to `content=None` with a logged warning if missing or the file fails to parse). Every downloaded file always gets a `path` column too. |
+| `inline_text_content` | `bool` | `false` | When `download=True`, also write extracted text into a `content` column on the DataFrame: plain-text-ish files (text/*, json, csv) are UTF-8 decoded; PDF, .docx and .xlsx files have their text extracted via pdfplumber /… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | — |
 | `include_preview_metadata` | `bool` | `true` | Include a markdown preview of the fetched rows in the materialization metadata. |
 | `preview_rows` | `int` | `10` | Max rows to include in the preview when include_preview_metadata is True. |

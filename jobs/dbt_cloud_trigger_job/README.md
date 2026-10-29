@@ -76,7 +76,7 @@ The chain: Snowpipe load → sensor tick → sensor emits `RunRequest(job_name="
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `Dict[str, str]` | — | Dagster job tags — applied to every run of this job. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags — applied to every run of this job. |
 
 ### Sensor configuration
 

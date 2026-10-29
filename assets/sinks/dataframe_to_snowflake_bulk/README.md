@@ -42,6 +42,7 @@ Memory-efficient bulk load of a pandas DataFrame into a Snowflake table via chun
 | `account_env_var` | `str` | `"SNOWFLAKE_ACCOUNT"` | Env var containing Snowflake account identifier |
 | `user_env_var` | `str` | `"SNOWFLAKE_USER"` | Env var containing Snowflake user |
 | `password_env_var` | `str` | `"SNOWFLAKE_PASSWORD"` | Env var containing Snowflake password |
+| `resource_key` | `str` | — | Optional key of a registered SnowflakeResourceComponent (resources/snowflake_resource). When set, connection credentials are read from that resource at run time instead of the inline account_env_var/user_env_var/password… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -49,7 +50,7 @@ Memory-efficient bulk load of a pandas DataFrame into a Snowflake table via chun
 |---|---|---|---|
 | `group_name` | `str` | — | Dagster asset group name |
 | `owners` | `List[str]` | — | Asset owners |
-| `asset_tags` | `Dict[str, str]` | — | Additional asset tags |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional asset tags |
 | `kinds` | `List[str]` | — | Asset kinds (default: ['snowflake', 'python']) |
 | `description` | `str` | — | Asset description |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys |

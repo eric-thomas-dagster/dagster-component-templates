@@ -34,7 +34,7 @@ that partition key set.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `Dict[str, str]` | — | Tags applied to both the launcher run and (via inherited context) the materialization run. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Tags applied to both the launcher run and (via inherited context) the materialization run. |
 
 [//]: # (FIELDS:END)
 

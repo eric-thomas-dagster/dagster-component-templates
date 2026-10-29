@@ -25,7 +25,7 @@ Flush keys from a Redis (or compatible) cache as a job — pattern-based or full
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
 ### Sensor configuration
 

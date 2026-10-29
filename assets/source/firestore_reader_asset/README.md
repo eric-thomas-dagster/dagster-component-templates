@@ -28,7 +28,7 @@ attributes:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Output asset name. |
-| `collection` | `str` | Collection path (e.g. 'orders' or 'tenants/acme/orders'). |
+| `collection` | `str` | Collection path (e.g. 'orders' or 'tenants/acme/orders'). On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted. |
 
 ### Connection
 
@@ -49,7 +49,7 @@ attributes:
 | `description` | `str` | — | — |
 | `group_name` | `str` | — | — |
 | `deps` | `List[str]` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `owners` | `List[str]` | — | — |
 
 ### Freshness
@@ -65,7 +65,7 @@ attributes:
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
 
 ### Retry policy
 
@@ -79,7 +79,7 @@ attributes:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `where` | `List[Dict[str, Any]]` | — | Optional list of {field, op, value} filter dicts. op is one of: ==, !=, <, <=, >, >=, in, not-in, array-contains, array-contains-any. |
+| `where` | `List[Dict[str, Any]]` | — | Optional list of {field, op, value} filter dicts. op is one of: ==, !=, <, <=, >, >=, in, not-in, array-contains, array-contains-any. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partiti… _(full docs in schema.json + component README)_ |
 | `order_by` | `List[str]` | — | List of `field` (asc) or `-field` (desc) entries. |
 
 ### Other

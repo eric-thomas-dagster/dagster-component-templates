@@ -84,7 +84,7 @@ Also requires `ffmpeg` in PATH, `pip install pyannote.audio` (pulls in `torch`/`
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
 | `group_name` | `str` | — | Dagster asset group name |
 | `deps` | `List[str]` | — | Lineage-only upstream asset keys (no data passed at runtime). |
-| `tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags to apply to the asset. |
 | `owners` | `List[str]` | — | Asset owners — list of team names or email addresses. |
 
 ### Freshness
@@ -100,7 +100,10 @@ Also requires `ffmpeg` in PATH, `pip install pyannote.audio` (pulls in `torch`/`
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream rows to the current date partition (time partitions). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream rows to the current static/dynamic partition key (e.g. 'customer_id'). |
+| `partition_static_dim` | `str` | — | Name of the static axis in a multi-partition, e.g. 'customer' or 'region'. |
 
 ### Retry policy
 

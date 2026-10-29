@@ -39,7 +39,7 @@ Pairs with `vanta_resource` for OAuth2 client-credentials auth (cached tokens).
 | `description` | `str` | — | Asset description |
 | `group_name` | `str` | `"vanta"` | Asset group for organization |
 | `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:security', 'compliance@company.com'] |
-| `asset_tags` | `Dict[str, str]` | — | Additional key-value tags to apply to the asset. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags to apply to the asset. |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Default: ['vanta', 'rest']. |
 | `deps` | `List[str]` | — | Upstream asset keys this asset depends on. |
 

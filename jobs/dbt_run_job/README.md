@@ -20,7 +20,7 @@ Run a `dbt` command (run, build, test, snapshot) as a Dagster job — no asset m
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
 ### Sensor configuration
 

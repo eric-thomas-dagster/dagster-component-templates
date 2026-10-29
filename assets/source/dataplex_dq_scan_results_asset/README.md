@@ -47,7 +47,7 @@ Or invoke the [Data Scans REST API](https://cloud.google.com/dataplex/docs/refer
 | `description` | `str` | — | — |
 | `group_name` | `str` | — | — |
 | `deps` | `List[str]` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `owners` | `List[str]` | — | — |
 
 ### Freshness
@@ -63,7 +63,7 @@ Or invoke the [Data Scans REST API](https://cloud.google.com/dataplex/docs/refer
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
 
 ### Retry policy
 
@@ -86,7 +86,7 @@ Or invoke the [Data Scans REST API](https://cloud.google.com/dataplex/docs/refer
 | `credentials` | `Dict[str, Any]` | — | — |
 | `credentials_path` | `str` | — | — |
 | `project_id` | `str` | — | — |
-| `since_iso` | `str` | — | History-mode only: ISO-8601 timestamp lower bound (e.g. '2026-01-01T00:00:00Z'). |
+| `since_iso` | `str` | — | History-mode only: ISO-8601 timestamp lower bound (e.g. '2026-01-01T00:00:00Z'). On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partit… _(full docs in schema.json + component README)_ |
 | `max_jobs` | `int` | `50` | Cap on jobs returned in history mode. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 

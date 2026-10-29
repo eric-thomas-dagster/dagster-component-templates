@@ -47,7 +47,7 @@ attributes:
 | `description` | `str` | — | — |
 | `group_name` | `str` | — | — |
 | `deps` | `List[str]` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `owners` | `List[str]` | — | — |
 
 ### Freshness
@@ -63,7 +63,7 @@ attributes:
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
 
 ### Retry policy
 
@@ -80,9 +80,9 @@ attributes:
 | `credentials` | `Dict[str, Any]` | — | — |
 | `credentials_path` | `str` | — | — |
 | `project_id` | `str` | — | — |
-| `row_key_prefix` | `str` | — | Row-key prefix scan. Mutually exclusive with start_key/end_key. |
-| `start_key` | `str` | — | Start of row-key range (inclusive). |
-| `end_key` | `str` | — | End of row-key range (exclusive). |
+| `row_key_prefix` | `str` | — | Row-key prefix scan. Mutually exclusive with start_key/end_key. On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted. |
+| `start_key` | `str` | — | Start of row-key range (inclusive). On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted. |
+| `end_key` | `str` | — | End of row-key range (exclusive). On a partitioned run {partition_key}, {partition_date}, {partition_start} and {partition_end} (and {partition_<dimension>} for multi-partitions) are substituted. |
 | `column_families` | `List[str]` | — | Optional list of column families to read. Default: all. |
 | `decode_values_as` | `str` | `"utf-8"` | How to decode cell values. 'utf-8' (default), 'bytes' (keep raw), or 'json' (parse JSON cells). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |

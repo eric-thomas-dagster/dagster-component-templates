@@ -27,7 +27,7 @@ Deploy a GCP Deployment Manager configuration (.yaml or jinja) as a Dagster asse
 | `group_name` | `str` | `"infrastructure"` | — |
 | `deps` | `list[str]` | — | — |
 | `owners` | `list[str]` | — | — |
-| `asset_tags` | `dict` | — | — |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `kinds` | `list[str]` | — | — |
 
 ### Retry policy

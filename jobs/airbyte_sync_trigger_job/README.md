@@ -29,7 +29,7 @@ Trigger an Airbyte connection sync via REST API — fire-and-forget or wait for 
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
 ### Sensor configuration
 

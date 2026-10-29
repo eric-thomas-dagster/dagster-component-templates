@@ -65,7 +65,7 @@ row_index: 0   # pick a different row if the upstream has several candidate draf
 | `asset_name` | `str` | Output asset name (draft-creation result). |
 | `access_token` | `str` | Google OAuth2 access token scoped for gmail.compose (or gmail.modify). Use ${GMAIL_ACCESS_TOKEN} for env vars. |
 | `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset whose materialized value supplies the template fields -- a dict-shaped record, or a pandas DataFrame (one row is selected via row_index). |
-| `to_email` | `str` | Address the draft is addressed to. This is almost always the pipeline-running user's own address (a reviewable draft lands in their own mailbox), not a third party -- the Gmail API can only draft/send as the authenticated account. Supports `{field}` placeholders. |
+| `to_email` | `str` | Address the draft is addressed to. This is almost always the pipeline-running user's own address (a reviewable draft lands in their own mailbox), not a third party -- the Gmail API can only draft/send as the authenticate… _(full docs in schema.json + component README)_ |
 | `subject_template` | `str` | Draft subject line, with `{column}` placeholders templated against the upstream row/record. |
 | `body_template` | `str` | Draft body (plain text), with `{column}` placeholders templated against the upstream row/record. |
 

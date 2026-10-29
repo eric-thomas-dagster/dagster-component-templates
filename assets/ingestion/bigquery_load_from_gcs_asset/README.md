@@ -44,7 +44,7 @@ For DataFrame-mediated alternatives (slower but vendor-agnostic), see `gcs_to_da
 | `deps` | `List[str]` | — | — |
 | `description` | `str` | — | — |
 | `group_name` | `str` | — | — |
-| `tags` | `Dict[str, str]` | — | — |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | — |
 | `owners` | `List[str]` | — | — |
 
 ### Freshness
@@ -53,13 +53,6 @@ For DataFrame-mediated alternatives (slower but vendor-agnostic), see `gcs_to_da
 |---|---|---|---|
 | `freshness_max_lag_minutes` | `int` | — | Maximum acceptable lag in minutes before the asset is considered stale. |
 | `freshness_cron` | `str` | — | Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'. |
-
-### Partitions
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `table_partition_field` | `str` | — | BigQuery table partitioning: the date/timestamp column to partition the destination table by. Unrelated to Dagster partitions. |
-| `table_partition_type` | `Literal['DAY', 'HOUR', 'MONTH', 'YEAR']` | — | BigQuery table partitioning: the granularity for table_partition_field. |
 
 ### Retry policy
 
@@ -76,6 +69,8 @@ For DataFrame-mediated alternatives (slower but vendor-agnostic), see `gcs_to_da
 | `format` | `Literal['parquet', 'csv', 'json', 'newline_delimited_json',…` | `"parquet"` | — |
 | `write_disposition` | `Literal['WRITE_TRUNCATE', 'WRITE_APPEND', 'WRITE_EMPTY']` | `"WRITE_TRUNCATE"` | WRITE_TRUNCATE replaces table contents; WRITE_APPEND adds rows; WRITE_EMPTY fails if table has rows. |
 | `table_schema` | `List[Dict[str, Any]]` | — | Explicit schema as a list of {name, type, mode?} dicts. Only used when autodetect=false. (Field is named `table_schema` rather than `schema` to avoid a Pydantic name collision.) |
+| `table_partition_field` | `str` | — | BigQuery table partitioning: the date/timestamp column to partition the destination TABLE by. Unrelated to Dagster partitions. |
+| `table_partition_type` | `Literal['DAY', 'HOUR', 'MONTH', 'YEAR']` | — | BigQuery table partitioning: the granularity (DAY, HOUR, MONTH, YEAR) for table_partition_field. |
 
 ### Other
 

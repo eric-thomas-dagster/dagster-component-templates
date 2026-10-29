@@ -23,7 +23,7 @@ Delete Azure ADLS Gen2 / Blob objects older than N days under a prefix.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `dict` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
 ### Sensor configuration
 

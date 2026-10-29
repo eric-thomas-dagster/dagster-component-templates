@@ -31,7 +31,7 @@ Pull Okta System Log events (every authentication, MFA challenge, admin action) 
 | `group_name` | `str` | `"security_audit"` | Dagster asset group |
 | `deps` | `list[str]` | — | Upstream asset deps |
 | `owners` | `list[str]` | — | Asset owners |
-| `asset_tags` | `dict` | — | Catalog tags |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags |
 | `kinds` | `list[str]` | — | Asset kinds |
 
 ### Freshness
@@ -47,7 +47,7 @@ Pull Okta System Log events (every authentication, MFA challenge, admin action) 
 |---|---|---|---|
 | `partition_type` | `str` | — | Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned. |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_values` | `str` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static partitioning, e.g. 'us,eu,asia'. |
 
 ### Retry policy
 

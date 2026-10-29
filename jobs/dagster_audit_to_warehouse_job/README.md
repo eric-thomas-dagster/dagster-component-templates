@@ -83,7 +83,7 @@ SNOWFLAKE_PASSWORD=...                 # or your chosen warehouse's creds
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `tags` | `Dict[str, str]` | — | Dagster job tags |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Dagster job tags |
 
 ### Sensor configuration
 

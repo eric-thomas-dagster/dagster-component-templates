@@ -34,7 +34,7 @@ Single-entity counterpart to the auto-discovered dynamic-table assets in `snowfl
 | `group_name` | `str` | `"snowflake"` | Dagster asset group name. |
 | `description` | `str` | — | Asset description. |
 | `owners` | `List[str]` | — | Asset owners. |
-| `asset_tags` | `Dict[str, str]` | — | Catalog tags. |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Catalog tags. |
 | `kinds` | `List[str]` | — | Asset kinds (auto-includes 'snowflake'). |
 | `deps` | `List[str]` | — | Upstream Dagster asset keys. |
 

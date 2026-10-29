@@ -72,7 +72,7 @@ The pre-flight log surfaces a `⚠` for each non-enforced constraint at the star
 | `group_name` | `str` | — | Dagster asset group name |
 | `description` | `str` | — | Asset description |
 | `owners` | `List[str]` | — | Asset owners |
-| `asset_tags` | `Dict[str, str]` | — | Additional tags |
+| `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional tags |
 | `kinds` | `List[str]` | — | Asset kinds (default: ['ddl', source_type, target_type]) |
 | `deps` | `List[str]` | — | Upstream asset keys |
 

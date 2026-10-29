@@ -72,8 +72,8 @@ jobs:
         run: |
           for pkg in dagster-gcp snowflake-connector-python databricks-sql-connector psycopg2-binary pymysql \
                      dagster-snowflake "deltalake>=0.15.0" "pyiceberg[sql-sqlite]>=0.6.0" databricks-sdk \
-                     "google-cloud-speech>=2.20.0" dagster-iceberg pdfplumber dagster-msteams slack_sdk \
-                     beautifulsoup4 langchain-core transformers sentence-transformers; do
+                     "google-cloud-speech>=2.20.0" dagster-iceberg pdfplumber "python-docx>=0.8.11" "openpyxl>=3.0.0" \
+                     dagster-msteams slack_sdk beautifulsoup4 langchain-core transformers sentence-transformers; do
             pip install $pkg || echo "::warning::could not install $pkg; its contract tests will skip"
           done
       - name: Discover this shard's tests/ directories

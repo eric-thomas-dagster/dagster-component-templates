@@ -153,6 +153,7 @@ def _create_gmail_draft(access_token: str, encoded_raw: str) -> Dict[str, Any]:
 
 
 # BEGIN upstream-asset-key normalization (inlined per component; keep copies identical — see tests/test_upstream_keys.py)
+from typing import List, Optional, Union  # noqa: E402,F401
 from pydantic import model_validator  # noqa: E402,F401
 
 
@@ -204,6 +205,10 @@ def coerce_upstream_input(data, *, component: str, mode: str, optional: bool = T
 
 
 # BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
 def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
     """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
     if not isinstance(data, dict):

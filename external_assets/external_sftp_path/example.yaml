@@ -1,4 +1,4 @@
-type: dagster_component_templates.ExternalSftpPathAsset
+type: dagster_community_components.ExternalSftpPathAsset
 attributes:
   asset_key: sftp/partner/orders
   host: sftp.partner.com

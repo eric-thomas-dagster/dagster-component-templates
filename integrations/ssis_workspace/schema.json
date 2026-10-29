@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.SsisWorkspaceComponent",
-  "description": "SSIS packages as Dagster assets. Discovers SSISDB.catalog.packages + optionally executes via create_execution/start_execution + polls to completion. Fivetran-shape workspace: block for connection + selector for filtering + polling_sensor + freshness_lag_threshold_seconds.",
+  "description": "SSIS packages as Dagster assets. Discovers SSISDB.catalog.packages + optionally executes via create_execution/start_execution + polls to completion, subsettable (selecting one package runs only that package). Fivetran-shape workspace: block for connection + selector for filtering + assets_by_package for per-package overrides/deps + polling_sensor + freshness_lag_threshold_seconds. demo_mode runs the whole shape with a synthetic catalog and zero SQL Server dependency.",
   "category": "integration",
   "icon": "Server",
   "x-dagster-io": {
@@ -16,16 +16,31 @@
       "description": "Connection to SQL Server hosting SSISDB (SQLAlchemy URL or flat fields).",
       "required": true
     },
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "description": "Skip the real SQL Server connection entirely. Discovery returns a synthetic 2-package catalog; execute/poll, the observation sensor, and freshness checks all log a simulated SSIS lifecycle instead of running real T-SQL.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
     "package_selector": {
       "type": "object",
       "label": "Package Selector",
       "description": "Filter which SSISDB packages become Dagster assets. Omit for all packages.",
       "required": false
     },
+    "assets_by_package": {
+      "type": "object",
+      "label": "Assets By Package",
+      "description": "Override the asset spec for specific packages, keyed by qualified name '<folder>/<project>/<package>'. Mirrors the official dagster-databricks DatabricksWorkspaceComponent.assets_by_task_key shape. Use deps: to declare real run-order between packages -- with action=execute, a selected dependency runs before the package that depends on it.",
+      "required": false,
+      "default": null
+    },
     "action": {
       "type": "string",
       "label": "Action",
-      "description": "noop = external asset (declare-only); execute = create_execution + start_execution + poll.",
+      "description": "noop = external asset (declare-only); execute = create_execution + start_execution + poll. execute is subsettable (can_subset=true) -- selecting one package only runs that package (plus any assets_by_package dependency ahead of it), not every discovered package.",
       "required": false,
       "default": "noop",
       "enum": [

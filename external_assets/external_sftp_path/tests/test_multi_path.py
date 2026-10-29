@@ -120,3 +120,74 @@ def test_single_path_resource_backed_sensor_does_not_crash_on_invocation():
     context = dg.build_sensor_context(resources={"sftp_client": client})
     result = sensor_def(context)
     assert len(result.asset_events) == 1
+
+
+def test_sensor_skips_unchanged_paths_on_next_tick():
+    """Real gap found via review feedback: the sensor used to re-materialize
+    every path on every poll regardless of whether anything changed, so a
+    downstream AutomationCondition.eager() (which reacts to "parent updated,"
+    not to the data_version value) re-fired on every single poll. Fixed via a
+    cursor of {asset_key: last_data_version} -- a path whose data_version is
+    unchanged since the last tick is no longer re-emitted."""
+    client = _FakeSftpClient({
+        "sftp.example.com:/orders": "1",
+        "sftp.example.com:/invoices": "2",
+    })
+    comp = ExternalSftpPathAsset(
+        host="sftp.example.com",
+        paths=[
+            {"key": "files/orders", "remote_path": "/orders"},
+            {"key": "files/invoices", "remote_path": "/invoices"},
+        ],
+        create_observation_sensor=True,
+        sensor_name="sftp_multi_sensor",
+        resource_key="sftp_client",
+    )
+    defs = comp.build_defs(None)
+    sensor_def = defs.get_sensor_def("sftp_multi_sensor")
+
+    first = sensor_def(dg.build_sensor_context(resources={"sftp_client": client}))
+    assert len(first.asset_events) == 2  # first tick: nothing known yet, both emit
+
+    # Second tick, nothing changed on the source -- same data_versions.
+    second = sensor_def(dg.build_sensor_context(resources={"sftp_client": client}, cursor=first.cursor))
+    assert second.asset_events == []
+    assert second.cursor == first.cursor
+
+    # Third tick, only /orders changed -- only that path should re-emit.
+    client.data_versions["sftp.example.com:/orders"] = "3"
+    third = sensor_def(dg.build_sensor_context(resources={"sftp_client": client}, cursor=second.cursor))
+    assert len(third.asset_events) == 1
+    assert third.asset_events[0].asset_key == dg.AssetKey(["files", "orders"])
+
+
+class _FakeSftpClientWithFileCount:
+    def __init__(self, file_count):
+        self.file_count = file_count
+
+    def observe(self, source):
+        return {"data_version": "1", "file_count": self.file_count}
+
+
+def test_check_arrival_builds_one_asset_check_per_path_using_the_same_client():
+    comp = ExternalSftpPathAsset(
+        host="sftp.example.com",
+        paths=[{"key": "files/orders", "remote_path": "/orders"}],
+        resource_key="sftp_client",
+        check_arrival=True,
+    )
+    defs = comp.build_defs(None)
+    check_defs = list(defs.asset_checks)
+    assert len(check_defs) == 1
+    assert check_defs[0].check_key.name == "arrival"
+
+    client = _FakeSftpClientWithFileCount(file_count=3)
+    context = dg.build_asset_check_context(resources={"sftp_client": client})
+    result = check_defs[0](context)
+    assert result.passed is True
+    assert result.metadata["file_count"].value == 3
+
+    client.file_count = 0
+    context2 = dg.build_asset_check_context(resources={"sftp_client": client})
+    result2 = check_defs[0](context2)
+    assert result2.passed is False

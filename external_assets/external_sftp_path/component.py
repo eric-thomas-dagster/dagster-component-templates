@@ -162,6 +162,62 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+def _observe_single_path(
+    context, resource_key: Optional[str], host: str, port: int,
+    username_env_var: str, password_env_var: Optional[str], private_key_env_var: Optional[str],
+    remote_path: str,
+) -> dict:
+    """One path, one connection -- the shared client interface the observation
+    sensor and the `arrival` asset_check both call. `observe(source) -> dict`
+    is the documented contract for a `resource_key` resource (source is
+    `'host:remote_path'`); it must return at least `{'data_version': str}`,
+    plus any extra metadata keys the resource wants surfaced. Falls back to a
+    direct paramiko `listdir_attr` when no resource_key is configured."""
+    import os
+    from datetime import datetime, timezone
+
+    if resource_key:
+        client = getattr(context.resources, resource_key, None)
+        if client is None:
+            raise RuntimeError(f"resource {resource_key!r} not found on context")
+        source = f"{host}:{remote_path}"
+        return dict(client.observe(source))
+
+    import paramiko
+
+    username = os.environ.get(username_env_var, "")
+    password = os.environ.get(password_env_var) if password_env_var else None
+    key_path = os.environ.get(private_key_env_var) if private_key_env_var else None
+
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    kwargs: Dict[str, Any] = {"username": username, "port": port, "timeout": 15}
+    if password:
+        kwargs["password"] = password
+    if key_path:
+        kwargs["key_filename"] = key_path
+    ssh.connect(host, **kwargs)
+    try:
+        sftp = ssh.open_sftp()
+        try:
+            attrs = sftp.listdir_attr(remote_path)
+        finally:
+            sftp.close()
+    finally:
+        ssh.close()
+
+    file_count = sum(1 for a in attrs if not (a.st_mode & 0o040000))
+    total_size = sum(a.st_size or 0 for a in attrs if not (a.st_mode & 0o040000))
+    latest = max((a.st_mtime or 0 for a in attrs), default=0)
+    latest_iso = datetime.fromtimestamp(latest, tz=timezone.utc).isoformat() if latest else ""
+    return {
+        "data_version": f"{file_count}-{latest_iso}",
+        "file_count": file_count,
+        "total_size_bytes": total_size,
+        "latest_mtime_iso": latest_iso,
+    }
+
+
 class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
     """Declare an SFTP directory as an observable external asset."""
     host: str = Field(description="SFTP host")
@@ -243,6 +299,16 @@ class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
             "downstream AutomationCondition.eager() fires on parent updates). When False, emits "
             "AssetObservation instead (no Dagster+ credit charge, but eager()-style conditions won't "
             "fire). Only used when create_observation_sensor=True."
+        ),
+    )
+    check_arrival: bool = Field(
+        default=False,
+        description=(
+            "Also attach an `arrival` asset_check per path, verifying the directory is reachable "
+            "and non-empty, via the same client interface as the observation sensor (the "
+            "`resource_key` resource's `.observe(source) -> {data_version, file_count, ...}` when "
+            "set, else paramiko directly). Independent of create_observation_sensor -- a check can "
+            "run (e.g. before a downstream job) without the polling sensor being enabled."
         ),
     )
 
@@ -331,6 +397,49 @@ class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
             })
         return entries
 
+    def _build_arrival_checks(self, entries: List[Dict[str, Any]]) -> List[Any]:
+        """One `arrival` asset_check per path: reachable + non-empty, via the same
+        client interface (`resource_key`'s `.observe()`, or paramiko) the
+        observation sensor uses. Independent of create_observation_sensor."""
+        _self = self
+        resource_key = self.resource_key
+        required_resource_keys = {resource_key} if resource_key else set()
+
+        def _make_check(entry: Dict[str, Any]):
+            key = dg.AssetKey.from_user_string(entry["key"])
+            remote_path = entry["remote_path"]
+
+            @dg.asset_check(
+                asset=key,
+                name="arrival",
+                description=f"SFTP {_self.host}{remote_path} is reachable and non-empty.",
+                required_resource_keys=required_resource_keys,
+            )
+            def _check(context) -> dg.AssetCheckResult:
+                try:
+                    observed = _observe_single_path(
+                        context, resource_key, _self.host, _self.port,
+                        _self.username_env_var, _self.password_env_var, _self.private_key_env_var,
+                        remote_path,
+                    )
+                except Exception as ex:
+                    return dg.AssetCheckResult(passed=False, description=f"Could not observe {remote_path!r}: {ex}")
+                file_count = observed.get("file_count")
+                if file_count is None:
+                    # resource_key clients aren't required to report file_count --
+                    # a successful observe() with no exception already proves
+                    # the path is reachable, which is the check's main claim.
+                    return dg.AssetCheckResult(passed=True, description="Path reachable.", metadata=observed)
+                return dg.AssetCheckResult(
+                    passed=file_count > 0,
+                    description=f"{file_count} file(s) found." if file_count else "Directory is empty.",
+                    metadata=observed,
+                )
+
+            return _check
+
+        return [_make_check(e) for e in entries]
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         entries = self._resolve_path_entries()
         partitions_def = _build_partitions_def(
@@ -366,7 +475,8 @@ class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
             ))
 
         if not self.create_observation_sensor:
-            return dg.Definitions(assets=specs)
+            checks = self._build_arrival_checks(entries) if self.check_arrival else []
+            return dg.Definitions(assets=specs, asset_checks=checks)
 
         is_multi = self.paths is not None
         if is_multi and not self.sensor_name:
@@ -387,10 +497,22 @@ class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
             asset_selection=dg.AssetSelection.assets(*[dg.AssetKey.from_user_string(e["key"]) for e in _entries]),
         )
         def _sftp_obs(context: dg.SensorEvaluationContext, **_resources):
+            import json
             import os
             from datetime import datetime, timezone
             from dagster._core.definitions.data_version import DATA_VERSION_TAG
             _event_cls = dg.AssetMaterialization if _self.emit_materialization else dg.AssetObservation
+
+            # Cursor: {asset_key_str: last_seen_data_version}. Without this, every
+            # tick re-emits a materialization for every path even when nothing
+            # changed, so a downstream AutomationCondition.eager() (which reacts to
+            # "parent updated," not to the data_version value itself) re-fires on
+            # every single poll instead of only on real arrivals.
+            try:
+                last_versions: Dict[str, str] = json.loads(context.cursor) if context.cursor else {}
+            except (TypeError, ValueError):
+                last_versions = {}
+            new_versions: Dict[str, str] = dict(last_versions)
             events = []
 
             # ── Resource-backed path (preferred): one client.observe() call per directory ──
@@ -399,6 +521,7 @@ class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
                 if client is None:
                     return dg.SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
                 for e in _entries:
+                    key_str = e["key"]
                     try:
                         source = f"{_self.host}:{e['remote_path']}"
                         observed: dict[str, Any] = dict(client.observe(source))
@@ -406,14 +529,18 @@ class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
                         context.log.error(f"resource '{resource_key}'.observe({e['remote_path']!r}) failed: {ex}")
                         continue
                     data_version = str(observed.pop("data_version", ""))
+                    new_versions[key_str] = data_version
+                    if data_version and data_version == last_versions.get(key_str):
+                        continue  # unchanged since last tick -- don't re-materialize
                     events.append(_event_cls(
-                        asset_key=dg.AssetKey.from_user_string(e["key"]),
+                        asset_key=dg.AssetKey.from_user_string(key_str),
                         metadata=observed,
                         tags={DATA_VERSION_TAG: data_version} if data_version else None,
                     ))
+                cursor = json.dumps(new_versions)
                 if not events:
-                    return dg.SensorResult(skip_reason="no paths observed this tick")
-                return dg.SensorResult(asset_events=events)
+                    return dg.SensorResult(cursor=cursor, skip_reason="no path changed since last tick")
+                return dg.SensorResult(asset_events=events, cursor=cursor)
 
             try:
                 import paramiko
@@ -440,6 +567,7 @@ class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
                 sftp = ssh.open_sftp()
                 try:
                     for e in _entries:
+                        key_str = e["key"]
                         remote_path = e["remote_path"]
                         try:
                             attrs = sftp.listdir_attr(remote_path)
@@ -451,6 +579,9 @@ class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
                         latest = max((a.st_mtime or 0 for a in attrs), default=0)
                         latest_iso = datetime.fromtimestamp(latest, tz=timezone.utc).isoformat() if latest else ""
                         data_version = f"{file_count}-{latest_iso}"
+                        new_versions[key_str] = data_version
+                        if data_version == last_versions.get(key_str):
+                            continue  # unchanged since last tick -- don't re-materialize
                         obs_metadata: dict[str, Any] = {
                             "file_count": file_count,
                             "total_size_bytes": total_size,
@@ -459,7 +590,7 @@ class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
                             "remote_path": remote_path,
                         }
                         events.append(_event_cls(
-                            asset_key=dg.AssetKey.from_user_string(e["key"]),
+                            asset_key=dg.AssetKey.from_user_string(key_str),
                             metadata=obs_metadata,
                             tags={DATA_VERSION_TAG: data_version},
                         ))
@@ -468,8 +599,10 @@ class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
             finally:
                 ssh.close()
 
+            cursor = json.dumps(new_versions)
             if not events:
-                return dg.SensorResult(skip_reason="no paths observed this tick")
-            return dg.SensorResult(asset_events=events)
+                return dg.SensorResult(cursor=cursor, skip_reason="no path changed since last tick")
+            return dg.SensorResult(asset_events=events, cursor=cursor)
 
-        return dg.Definitions(assets=specs, sensors=[_sftp_obs])
+        checks = _self._build_arrival_checks(_entries) if _self.check_arrival else []
+        return dg.Definitions(assets=specs, sensors=[_sftp_obs], asset_checks=checks)

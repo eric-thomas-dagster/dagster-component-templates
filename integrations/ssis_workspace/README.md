@@ -14,14 +14,28 @@ The missing "orchestrate SSIS from Dagster" primitive for every SQL-Server enter
 
 - **`@public`** class + `StateBackedComponent` caching (discovery cached to disk via `write_state_to_path`; refresh with `dg utils refresh-defs-state`).
 - **`translation:` callable** for per-asset customization (rename, tag by folder, add owners, per-project group_name).
+- **`assets_by_package:`** — per-package overrides keyed by qualified name (`<folder>/<project>/<package>`), including real run-order `deps:` between packages. Mirrors the official `dagster-databricks` `DatabricksWorkspaceComponent.assets_by_task_key` shape (same convention `snowflake_workspace.assets_by_name` already uses in this registry).
 - **`package_selector:`** — filter by folder / project / include / exclude fnmatch patterns.
 - **`package_overrides:`** — runtime parameters + environment references applied at execute time.
+- **`action: execute` is subsettable** (`can_subset=true`) — materializing one package runs only that package (plus any `assets_by_package` dependency ahead of it, in dependency order), not every discovered package.
 - **`polling_sensor:`** — poll `SSISDB.catalog.executions` for completions and emit `AssetObservation`.
 - **`freshness_lag_threshold_seconds:`** — attach an asset check per package that fails when the last successful execution is older than N seconds.
+- **`demo_mode:`** — skip the real SQL Server connection entirely; discovery, execute, the sensor, and freshness checks all run a synthetic/simulated path instead. Use to smoke-test the whole shape (including `can_subset` ordering and `assets_by_package`) with no SSISDB available.
+
+## Demo mode — no SSISDB required
+
+`demo_mode: true` replaces every real SQL query with a synthetic/simulated equivalent:
+
+- Discovery returns a fixed 2-package catalog (`Demo/DemoETL/ExtractCustomers`, `Demo/DemoETL/LoadOrders`) instead of querying `SSISDB.catalog.packages`.
+- `action: execute` logs a simulated create_execution/start_execution lifecycle and always succeeds (deterministic, seeded on the package's own qualified name).
+- The observation sensor emits one simulated `AssetObservation` per tick, cycling through packages, instead of querying `SSISDB.catalog.executions`.
+- Freshness checks always pass with a simulated zero-lag result.
+
+Use it to exercise the whole component shape — `can_subset` ordering, `assets_by_package` overrides, the sensor, the checks — with no real SQL Server available. `_build_engine()` itself raises loudly if ever reached while `demo_mode: true`, as a backstop against a future code path silently falling through to a real connection attempt.
 
 ## Backing SQL
 
-All queries hit SSISDB system views + stored procs:
+All queries hit SSISDB system views + stored procs (bypassed entirely by `demo_mode: true`):
 
 | Query | Purpose |
 |---|---|
@@ -87,7 +101,21 @@ The **`{partition_key}`** token in a string value substitutes at run time (via `
 ## Actions
 
 - **`action: noop` (default)** — external asset shape. Every SSIS package becomes a Dagster asset, but materialize does nothing. Use this when Dagster observes SSIS (via `polling_sensor: true` + `freshness_lag_threshold_seconds:`) without triggering it.
-- **`action: execute`** — materialize actually runs the package via `SSISDB.catalog.create_execution + set_execution_parameter_value + start_execution`. With `wait_for_completion: true`, the op blocks until the execution reaches a terminal SSIS status (Succeeded / Failed / Canceled / Ended unexpectedly / Completed). On failure, the op raises `dg.Failure` with the top 5 error messages from `SSISDB.catalog.operation_messages`.
+- **`action: execute`** — materialize actually runs the package via `SSISDB.catalog.create_execution + set_execution_parameter_value + start_execution`. With `wait_for_completion: true`, the op blocks until the execution reaches a terminal SSIS status (Succeeded / Failed / Canceled / Ended unexpectedly / Completed). On failure, the op raises `dg.Failure` with the top 5 error messages from `SSISDB.catalog.operation_messages`. **Subsettable** (`can_subset=true`): materializing one package in the UI (or via `dg launch --select`) executes only that package — if an `assets_by_package` dependency of it is also selected, that dependency runs first; packages outside the current selection never run.
+
+## assets_by_package — per-package overrides and dependencies
+
+SSISDB has no native concept of inter-package dependency, so `deps:` here is the only way to declare one:
+
+```yaml
+assets_by_package:
+  Sales/SalesETL/LoadOrders:
+    deps: [ssis/sql-01/Sales/SalesETL/ExtractCustomers]
+    group_name: sales_nightly
+    tags: {tier: critical}
+```
+
+Keyed by the package's qualified name (`<folder>/<project>/<package>`, matching the asset key's own folder/project/package suffix). `key` / `group_name` / `description` / `kinds` / `owners` replace; `deps` / `metadata` / `tags` merge onto whatever the base translator (or `translation:`) already set. Mirrors the official `dagster-databricks` `DatabricksWorkspaceComponent.assets_by_task_key` shape.
 
 ## SSIS status codes
 
@@ -114,59 +142,63 @@ Values in `SSISDB.catalog.executions.status`:
 - **`dbt_cloud_trigger_job`** — the "then trigger dbt Cloud" step after SSIS lands its data.
 - **`talend_cloud_workspace`, `informatica_workspace`** — companion components for the other big legacy-ETL vendors.
 
-[//]: # (FIELDS:START - hand-maintained; tools/regen_readme_fields.py picks up SsisWorkspaceConfig's fields instead of SsisWorkspaceComponent's for this file -- a real, separate, pre-existing bug in that tool for any component.py where a `dg.Model` config/props class is defined before the main Component class in source order. Not fixed here -- out of scope for this change, flagged for its own follow-up.)
+[//]: # (FIELDS:START - auto-generated by tools/regen_readme_fields.py)
 
 ## Fields
 
-### Connection
+### Required
 
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `workspace` | `SsisWorkspaceConfig` | — | Connection to the SQL Server hosting SSISDB. Supply EITHER `connection_string_env_var` (opaque SQLAlchemy URL) OR the flat fields (`server`/`database`/`user`/`password`/`driver`/`trust_server_certificate`) — not both. |
-
-### Catalog metadata
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `package_selector` | `SsisPackageSelector` | — | Filter which packages become assets. Default = every package in SSISDB. |
-| `package_overrides` | `List[SsisPackageOverride]` | — | Runtime parameters + environment references applied at execute time, keyed by package. |
-| `translation` | `Callable` | — | Per-asset translation callable. Receives a `SsisPackageProps` and the base `AssetSpec`, returns an overridden `AssetSpec`. |
-| `asset_key_prefix` | `List[str]` | — | Prefix for every emitted asset key. Default: `['ssis', <ssis_server_hostname>]`. |
-| `group_name` | `str` | `"ssis"` | Dagster asset group. |
-| `kinds` | `List[str]` | — | Asset kinds badge (Dagster catalog UI). Default: `['ssis', 'mssql']`. |
-| `tags` | `Union[Dict[str, Any], List[str]]` | — | Additional asset tags. |
-| `owners` | `List[str]` | — | Asset owners (team names / email addresses). |
+| Field | Type | Description |
+|---|---|---|
+| `workspace` | `SsisWorkspaceConfig` | Connection to the SQL Server hosting SSISDB. |
 
 ### Execution
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `action` | `str` | `"noop"` | What `materialize()` does. `noop` = external asset (declare-only; still a real executable no-op so checks can run through a job — see Partitioned/checks note below). `execute` = calls `create_execution` + `start_execution` and polls to completion. |
-| `wait_for_completion` | `bool` | `true` | Only used when `action: execute`. If true, poll executions until a terminal status. |
+| `wait_for_completion` | `bool` | `true` | Only used when `action: execute`. If true, poll executions until a terminal status; if false, return once SSIS accepts the trigger. |
 | `poll_interval_seconds` | `int` | `30` | Seconds between polls of `SSISDB.catalog.executions.status`. |
 | `timeout_seconds` | `int` | `3600` | Overall timeout for a synchronous execution. Set 0 for no timeout. |
 
-### Sensor configuration
+### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `polling_sensor` | `bool` | `false` | If true, emit a sensor that polls `SSISDB.catalog.executions` for completions since the cursor and emits `AssetObservation` against each package's real, `get_asset_spec`-resolved key. |
-| `observation_interval_seconds` | `int` | `300` | Sensor tick interval. Only used when `polling_sensor: true`. |
-| `freshness_lag_threshold_seconds` | `int` | — | If set, attach an asset check to every package that fails when the last successful execution is older than this threshold. Works under both `action: noop` and `action: execute` (noop packages are still real no-op executables, so a check-only `dg launch` selection has something to attach to). |
+| `group_name` | `str` | `"ssis"` | Dagster asset group. |
+| `kinds` | `List[str]` | — | Asset kinds badge (Dagster catalog UI). Default: `['ssis', 'mssql']`. |
+| `tags` | `Union[Dict[str, Any], List[str]]` | — | Additional asset tags. |
+| `owners` | `List[str]` | — | Asset owners (team names / email addresses). |
+
+### Freshness
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `freshness_lag_threshold_seconds` | `int` | — | If set, attach an asset check to every package that fails when the last successful execution is older than this many seconds. |
 
 ### Partitions
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_type` | `str` | — | Applies the SAME `partitions_def` to every imported package: `'daily'\|'weekly'\|'monthly'\|'hourly'\|'static'\|'dynamic'`, or unset for unpartitioned (default). The observation sensor can only derive a partition key for time-based types (from each execution's `end_time`) — static/dynamic types attach the `partitions_def` to the asset (for lineage/backfill UI) but the sensor cannot auto-tag observations against them. |
-| `partition_start` | `str` | — | ISO start date for time-based partition types (e.g. `'2024-01-01'`). |
-| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for `partition_type='static'`. |
-| `dynamic_partition_name` | `str` | — | Name for `DynamicPartitionsDefinition` (when `partition_type='dynamic'`). |
+| `partition_type` | `str` | — | Applies the SAME partitions_def to every imported package: 'daily'\|'weekly'\|'monthly'\|'hourly'\|'static'\|'dynamic', or None for unpartitioned (default). Real per-package execution history (`SSISDB.catalog.executions`… _(full docs in schema.json + component README)_ |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_start` | `str` | — | ISO start date for time-based partition types (e.g. '2024-01-01'). |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for partition_type='static'. |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `defs_state` | `ResolvedDefsStateConfig` | local filesystem | `StateBackedComponent` state config, keyed on a hash of `server`+`database` so multiple SSIS servers don't collide. |
+| `demo_mode` | `bool` | `false` | Skip the real SQL Server connection entirely. Discovery returns a small synthetic package catalog (2 packages across 1 folder/project); execute/poll, the observation sensor, and freshness checks all log a simulated SSIS… _(full docs in schema.json + component README)_ |
+| `package_selector` | `SsisPackageSelector` | — | Filter which packages become assets. Default = every package in SSISDB. |
+| `package_overrides` | `List[SsisPackageOverride]` | — | Runtime parameters + environment references applied at execute time via `SSISDB.catalog.set_execution_parameter_value` (and, when set, `create_environment_reference`). Only used when `action: execute`. Multiple overrides… _(full docs in schema.json + component README)_ |
+| `assets_by_package` | `Dict[str, Dict[str, Any]]` | — | Override the asset spec for specific packages, keyed by qualified name '<folder>/<project>/<package>'. Mirrors the official dagster-databricks `DatabricksWorkspaceComponent.assets_by_task_key` shape (same convention `sno… _(full docs in schema.json + component README)_ |
+| `translation` | `TranslationFn[SsisPackageProps]` | — | Optional per-asset translation callable. Receives a SsisPackageProps and returns a dict of AssetSpec kwargs (key / group_name / tags / owners / kinds / metadata / description). Use for per-folder / per-project customizat… _(full docs in schema.json + component README)_ |
+| `action` | `str` | `"noop"` | What materialize() does. `noop` = external asset (declare-only). `execute` = call `SSISDB.catalog.create_execution` + `start_execution`. |
+| `polling_sensor` | `bool` | `false` | If true, emit a sensor that polls SSISDB.catalog.executions for completions since watermark and emits AssetObservation per package. |
+| `observation_interval_seconds` | `int` | `300` | Sensor tick interval. Only used when `polling_sensor: true`. |
+| `asset_key_prefix` | `List[str]` | — | Prefix for every emitted asset key. Default: `['ssis', <ssis_server_hostname>]`. |
+| `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | StateBackedComponent state config. Default: local filesystem cache keyed on server+database hash so multiple SSIS servers don't collide. |
+| `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 
 [//]: # (FIELDS:END)

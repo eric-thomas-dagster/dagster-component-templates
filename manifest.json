@@ -70862,6 +70862,65 @@
         "zuora",
         "zuora resource"
       ]
+    },
+    {
+      "id": "qlik_cloud_workspace",
+      "name": "QlikCloudWorkspace",
+      "component_type": "dagster_community_components.QlikCloudWorkspaceComponent",
+      "path": "integrations/qlik_cloud_workspace",
+      "category": "integration",
+      "icon": "favicon:qlik.com",
+      "description": "N Qlik Cloud apps as Dagster assets from one component instance, with one shared observation sensor -- closes the scaling gap in the sibling single-app qlik_cloud_app_reload component (30 dashboards previously meant 30 component instances). Real Qlik Cloud REST API (verified against qlik.dev/apis/rest/reloads/), with a QlikCloudTransport seam (trigger_reload/get_reload/list_reloads) that tests swap for a fake instead of patching requests calls.",
+      "tags": [
+        "integration",
+        "qlik",
+        "bi",
+        "reload",
+        "workspace"
+      ],
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_workspace/component.py",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_workspace/example.yaml",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_workspace/README.md",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_workspace/requirements.txt",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/qlik_cloud_workspace/schema.json",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "component_only",
+        "last_validated": "2026-10-29"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "agent_hints": {
+        "outputs": [
+          "one_asset_per_declared_qlik_cloud_app",
+          "shared_observation_sensor_opt_in"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "qlik_cloud_app_reload"
+        ]
+      },
+      "produces": [
+        "asset",
+        "sensor"
+      ],
+      "stateful": false,
+      "keywords": [
+        "qlik cloud",
+        "qlik sense",
+        "bi",
+        "reload",
+        "dashboard refresh",
+        "workspace",
+        "multi app"
+      ]
     }
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",

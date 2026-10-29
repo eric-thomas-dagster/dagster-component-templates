@@ -1,0 +1,34 @@
+type: dagster_community_components.QlikCloudWorkspaceComponent
+
+attributes:
+  tenant_url_env_var: QLIK_CLOUD_TENANT_URL
+  api_key_env_var: QLIK_CLOUD_API_KEY
+
+  poll_interval_seconds: 15
+  timeout_seconds: 1800
+
+  # ONE shared sensor across every app below, not one per app.
+  polling_sensor: true
+  sensor_name: qlik_cloud_workspace_observer
+  check_interval_seconds: 300
+
+  apps:
+    - app_id: "60f1b3e2a1b2c3d4e5f6a7b8"
+      asset_key: bi/finance_consolidated_app
+      description: "Finance consolidated P&L dashboard."
+      deps: ["warehouse/finance_fact"]
+
+    - app_id: "71a2c4f3b2c3d4e5f6a7b8c9"
+      asset_key: bi/sales_dashboard_app
+      description: "Sales pipeline dashboard."
+      deps: ["warehouse/sales_fact"]
+      partial: true
+
+  # Optional — per-app overrides keyed by app_id, same shape as
+  # snowflake_workspace's assets_by_name / dagster-databricks's
+  # assets_by_task_key.
+  # assets_by_app:
+  #   "60f1b3e2a1b2c3d4e5f6a7b8":
+  #     group_name: finance_bi
+  #     tags:
+  #       team: finance

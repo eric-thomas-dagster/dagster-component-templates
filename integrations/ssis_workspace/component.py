@@ -137,6 +137,42 @@ SSIS_STATUS: Dict[int, str] = {
 SSIS_TERMINAL: set = {3, 4, 6, 7, 9}  # any of these = stop polling
 
 
+def _topological_order(specs: List[AssetSpec], selected_keys) -> List[AssetSpec]:
+    """Order `specs` (already filtered to the selected subset) so that a
+    package depending on another SELECTED package (via `assets_by_package`'s
+    `deps:`) always runs after it. Deps pointing outside the selected subset
+    (including outside SSIS entirely) are ignored here -- Dagster's own
+    execution ordering already guarantees those completed before this step
+    runs at all; this function only orders execution WITHIN one multi_asset
+    invocation, where Dagster has no visibility into the loop."""
+    by_key = {s.key: s for s in specs}
+    order: List[AssetSpec] = []
+    visited: set = set()
+    in_progress: set = set()
+
+    def visit(spec: AssetSpec) -> None:
+        if spec.key in visited:
+            return
+        if spec.key in in_progress:
+            raise ValueError(
+                f"circular dependency detected among selected SSIS packages involving {spec.key.to_user_string()!r} "
+                "-- check assets_by_package deps: for a cycle."
+            )
+        in_progress.add(spec.key)
+        for dep in (spec.deps or []):
+            dep_key = getattr(dep, "asset_key", dep)
+            dep_spec = by_key.get(dep_key)
+            if dep_spec is not None:
+                visit(dep_spec)
+        in_progress.discard(spec.key)
+        visited.add(spec.key)
+        order.append(spec)
+
+    for s in specs:
+        visit(s)
+    return order
+
+
 # ── Props (@record) for translator callable ─────────────────────────
 @record
 class SsisPackageProps:
@@ -291,7 +327,7 @@ class SsisComponentTranslator:
             "ssis",
             (props.server_host or "hub").split(".")[0].split("\\")[0].lower(),
         ]
-        return AssetSpec(
+        kwargs: Dict[str, Any] = dict(
             key=AssetKey([*prefix, props.folder_name, props.project_name, props.package_name]),
             description=(
                 props.description
@@ -304,6 +340,7 @@ class SsisComponentTranslator:
             kinds=set(self._component.kinds or ["ssis", "mssql", "etl"]),
             tags=dict(self._component.tags or {}),
             owners=list(self._component.owners or []),
+            deps=[],
             metadata={
                 "ssis/folder": props.folder_name,
                 "ssis/project": props.project_name,
@@ -312,6 +349,8 @@ class SsisComponentTranslator:
             },
             partitions_def=self._component._partitions_def,
         )
+        kwargs = self._component._apply_asset_overrides(props.qualified_name, kwargs)
+        return AssetSpec(**kwargs)
 
 
 # ── Component ───────────────────────────────────────────────────────
@@ -396,6 +435,16 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
     workspace: SsisWorkspaceConfig = Field(
         description="Connection to the SQL Server hosting SSISDB."
     )
+    demo_mode: bool = Field(
+        default=False,
+        description=(
+            "Skip the real SQL Server connection entirely. Discovery returns a small synthetic "
+            "package catalog (2 packages across 1 folder/project); execute/poll, the observation "
+            "sensor, and freshness checks all log a simulated SSIS lifecycle instead of running "
+            "real T-SQL against SSISDB. Use to smoke-test the whole component shape -- can_subset, "
+            "assets_by_package overrides, the sensor, checks -- with no real server available."
+        ),
+    )
     package_selector: Optional[SsisPackageSelector] = Field(
         default=None,
         description="Filter which packages become assets. Default = every "
@@ -410,6 +459,31 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             "`action: execute`. Multiple overrides match in order — every "
             "matching entry's parameters merge (later entries win on conflict). "
             "See `SsisPackageOverride` for shape."
+        ),
+    )
+    assets_by_package: Optional[Dict[str, Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Override the asset spec for specific packages, keyed by qualified name "
+            "'<folder>/<project>/<package>'. Mirrors the official dagster-databricks "
+            "`DatabricksWorkspaceComponent.assets_by_task_key` shape (same convention "
+            "`snowflake_workspace.assets_by_name` uses in this registry).\n\n"
+            "Per-package keys (all optional):\n"
+            "  key:          renames the Dagster asset key (slash-separated -> AssetKey)\n"
+            "  group_name:   overrides the group\n"
+            "  description:  overrides the description\n"
+            "  deps:         list of upstream asset keys (slash-separated), including other SSIS "
+            "                package asset keys -- merged with whatever this component infers. "
+            "                When `action: execute`, a dependency that is ALSO a selected SSIS "
+            "                package asset runs before the package that depends on it.\n"
+            "  metadata:     dict merged into the auto-emitted metadata\n"
+            "  tags:         dict merged into asset tags\n"
+            "  kinds:        list of kind strings (overrides inference)\n"
+            "  owners:       list of owners\n\n"
+            "Example — declare a real run-order dependency between two packages:\n"
+            "  assets_by_package:\n"
+            "    Sales/SalesETL/LoadOrders:\n"
+            "      deps: [ssis/sql-01/Sales/SalesETL/ExtractCustomers]\n"
         ),
     )
     translation: Annotated[
@@ -542,6 +616,53 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
     cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
 )
 
+    def _apply_asset_overrides(self, qualified_name: str, base_kwargs: dict) -> dict:
+        """Merge per-package overrides from `assets_by_package` into AssetSpec kwargs.
+
+        Mirrors the official DatabricksWorkspaceComponent.assets_by_task_key
+        pattern (same convention snowflake_workspace.assets_by_name already
+        uses in this registry). Keyed by the package's qualified name
+        ('<folder>/<project>/<package>'). Each override is itself a dict;
+        supported keys: key, group_name, description, deps, metadata, tags,
+        kinds, owners.
+
+        - `key` replaces the inferred AssetKey with an explicit one.
+        - `deps` is merged with any deps already set (none, by default --
+          SSISDB.catalog has no native concept of inter-package dependency,
+          so this is the only way to declare real run-order between packages).
+        - `metadata` and `tags` are dict-merged (override wins on conflicts).
+        - `group_name` / `description` / `kinds` / `owners` straight-replace.
+        """
+        if not self.assets_by_package:
+            return base_kwargs
+        override = self.assets_by_package.get(qualified_name)
+        if not override:
+            return base_kwargs
+        result = dict(base_kwargs)
+        if "key" in override:
+            result["key"] = AssetKey.from_user_string(str(override["key"]))
+        if "group_name" in override:
+            result["group_name"] = override["group_name"]
+        if "description" in override:
+            result["description"] = override["description"]
+        if "deps" in override:
+            existing = list(result.get("deps") or [])
+            existing.extend(AssetKey.from_user_string(d) for d in override["deps"])
+            result["deps"] = existing
+        if "metadata" in override:
+            existing = dict(result.get("metadata") or {})
+            existing.update(override["metadata"])
+            result["metadata"] = existing
+        if "tags" in override:
+            existing = dict(result.get("tags") or {})
+            existing.update(override["tags"])
+            result["tags"] = existing
+        if "kinds" in override:
+            result["kinds"] = set(override["kinds"])
+        if "owners" in override:
+            result["owners"] = override["owners"]
+        return result
+
     # ── Base translator (cached per instance) ─────────────────────
     @property
     def _base_translator(self) -> SsisComponentTranslator:
@@ -573,7 +694,17 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
     # ── Runtime helpers ────────────────────────────────────────────
     def _build_engine(self):
-        """Return a SQLAlchemy engine against SSISDB."""
+        """Return a SQLAlchemy engine against SSISDB. Every real caller already
+        guards on demo_mode before reaching here (discovery/execute/sensor/checks
+        all branch to a simulated path first) -- this is a defensive backstop,
+        not the primary demo_mode seam, so a future caller that forgets the
+        guard fails loudly instead of trying a real SQL Server connection."""
+        if self.demo_mode:
+            raise RuntimeError(
+                "_build_engine() called while demo_mode=true -- this is a bug in the "
+                "component (a real SQL path was reached that should have branched to "
+                "a simulated one first)."
+            )
         from sqlalchemy import create_engine
         import os
         cfg = self.workspace
@@ -601,9 +732,51 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             f"@{cfg.server}/{cfg.database}?{params}"
         )
 
+    def _demo_packages(self) -> List[Dict[str, Any]]:
+        """Synthetic 2-package catalog for demo_mode -- same shape _discover_packages
+        returns from a real SSISDB query, so build_defs_from_state and everything
+        downstream of it (specs, execute, sensor, checks) is identical code."""
+        return [
+            {
+                "folder_name": "Demo", "project_name": "DemoETL", "project_id": 1,
+                "package_name": "ExtractCustomers", "description": "Demo package: extract customers.",
+            },
+            {
+                "folder_name": "Demo", "project_name": "DemoETL", "project_id": 1,
+                "package_name": "LoadOrders", "description": "Demo package: load orders (depends on ExtractCustomers).",
+            },
+        ]
+
+    def _apply_selector(self, packages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        sel = self.package_selector
+        if not sel:
+            return packages
+
+        def _match(p: Dict[str, Any]) -> bool:
+            if sel.by_folder and p["folder_name"] not in sel.by_folder:
+                return False
+            if sel.by_project and p["project_name"] not in sel.by_project:
+                return False
+            qname_lower = f"{p['folder_name']}/{p['project_name']}/{p['package_name']}".lower()
+            if sel.include and not any(
+                fnmatch.fnmatch(qname_lower, pat.lower()) for pat in sel.include
+            ):
+                return False
+            if sel.exclude and any(
+                fnmatch.fnmatch(qname_lower, pat.lower()) for pat in sel.exclude
+            ):
+                return False
+            return True
+
+        return [p for p in packages if _match(p)]
+
     def _discover_packages(self, engine) -> List[Dict[str, Any]]:
         """Enumerate SSISDB.catalog.packages. Apply the selector.
-        Returns dicts (not props objects) for JSON serialization to state."""
+        Returns dicts (not props objects) for JSON serialization to state.
+        demo_mode skips the real SQL entirely and uses a synthetic catalog."""
+        if self.demo_mode:
+            return self._apply_selector(self._demo_packages())
+
         from sqlalchemy import text as sa_text
         sql = sa_text(
             """
@@ -635,27 +808,7 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                 "description": r.get("description"),
             })
 
-        sel = self.package_selector
-        if not sel:
-            return packages
-
-        def _match(p: Dict[str, Any]) -> bool:
-            if sel.by_folder and p["folder_name"] not in sel.by_folder:
-                return False
-            if sel.by_project and p["project_name"] not in sel.by_project:
-                return False
-            qname_lower = f"{p['folder_name']}/{p['project_name']}/{p['package_name']}".lower()
-            if sel.include and not any(
-                fnmatch.fnmatch(qname_lower, pat.lower()) for pat in sel.include
-            ):
-                return False
-            if sel.exclude and any(
-                fnmatch.fnmatch(qname_lower, pat.lower()) for pat in sel.exclude
-            ):
-                return False
-            return True
-
-        return [p for p in packages if _match(p)]
+        return self._apply_selector(packages)
 
     def _resolve_overrides(self, props: SsisPackageProps, context) -> Dict[str, Any]:
         """Merge all matching package_overrides into one {parameters, scope, environment_reference}.
@@ -694,8 +847,28 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             "environment_reference": env_ref,
         }
 
+    def _execute_demo_package(self, props: SsisPackageProps, context) -> Dict[str, Any]:
+        """Simulate the create_execution/start_execution/poll lifecycle on stdout --
+        no SQL Server connection at all. Deterministic (seeded on the package's own
+        qualified name), always Succeeded, so demo_mode is useful to exercise
+        can_subset ordering and the sensor/checks without a real SSIS instance."""
+        import random
+        rng = random.Random(props.qualified_name)
+        execution_id = rng.randint(100000, 999999)
+        context.log.info(f"[SSIS DEMO] create_execution + start_execution for {props.qualified_name} -> execution_id={execution_id}")
+        context.log.info(f"[SSIS DEMO] {props.qualified_name} -> Succeeded")
+        return {
+            "execution_id": execution_id,
+            "status": 7,
+            "status_text": "Succeeded",
+            "error_message": None,
+        }
+
     def _execute_package(self, engine, props: SsisPackageProps, context) -> Dict[str, Any]:
         """EXEC create_execution + optional set_parameter_value + start_execution + poll."""
+        if self.demo_mode:
+            return self._execute_demo_package(props, context)
+
         from sqlalchemy import text as sa_text
         pkg_dtsx = f"{props.package_name}.dtsx"
 
@@ -896,12 +1069,16 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         return LOCAL_STATE_VERSION
 
     async def write_state_to_path(self, state_path: Path) -> None:
-        """Discover packages via SSISDB query + write JSON snapshot to state_path."""
-        try:
-            engine = self._build_engine()
-            packages = self._discover_packages(engine)
-        except Exception:  # noqa: BLE001
-            packages = []
+        """Discover packages via SSISDB query (or the synthetic demo_mode catalog)
+        + write JSON snapshot to state_path."""
+        if self.demo_mode:
+            packages = self._discover_packages(None)
+        else:
+            try:
+                engine = self._build_engine()
+                packages = self._discover_packages(engine)
+            except Exception:  # noqa: BLE001
+                packages = []
         snapshot = {
             "server_host": self.workspace.server or "",
             "packages": packages,
@@ -964,10 +1141,18 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         elif action == "execute":
             _self = self
 
-            @dg.multi_asset(specs=specs)
+            # can_subset=True: materializing ONE package must execute only that
+            # package (plus any SELECTED assets_by_package dependency ahead of
+            # it), not every discovered package. Before this fix, a bare
+            # @multi_asset(specs=specs) with no can_subset ran the full loop
+            # below regardless of what was actually selected -- selecting one
+            # asset in the UI still triggered every SSIS package.
+            @dg.multi_asset(specs=specs, can_subset=True)
             def _ssis_execute(context: dg.AssetExecutionContext):
-                exec_engine = _self._build_engine()
-                for spec in specs:
+                exec_engine = None if _self.demo_mode else _self._build_engine()
+                selected = context.selected_asset_keys
+                selected_specs = [s for s in specs if s.key in selected]
+                for spec in _topological_order(selected_specs, selected):
                     props = SsisPackageProps(
                         folder_name=spec.metadata["ssis/folder"],
                         project_name=spec.metadata["ssis/project"],
@@ -1023,6 +1208,27 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         def _observation_sensor(context: dg.SensorEvaluationContext):
             from datetime import timezone
             cursor_val = int(context.cursor) if context.cursor and context.cursor.isdigit() else 0
+
+            if _self.demo_mode:
+                import random
+                tick = cursor_val + 1
+                spec = specs[(tick - 1) % len(specs)]
+                exec_id = tick
+                rng = random.Random(f"{spec.key.to_user_string()}:{tick}")
+                status = rng.choice([7, 7, 7, 4])  # mostly Succeeded, sometimes Failed
+                context.log.info(f"[SSIS DEMO] observed execution_id={exec_id} for {spec.key.to_user_string()} -> {SSIS_STATUS.get(status, status)}")
+                return dg.SensorResult(
+                    asset_events=[dg.AssetObservation(
+                        asset_key=spec.key,
+                        metadata={
+                            "ssis/execution_id": exec_id,
+                            "ssis/status": SSIS_STATUS.get(status, str(status)),
+                            "ssis/end_time": "demo",
+                        },
+                    )],
+                    cursor=str(tick),
+                )
+
             engine = _self._build_engine()
             from sqlalchemy import text as sa_text
             with engine.connect() as conn:
@@ -1134,6 +1340,12 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                 ),
             )
             def _check(context):
+                if _self.demo_mode:
+                    return dg.AssetCheckResult(
+                        passed=True,
+                        description=f"[SSIS DEMO] lag=0s (threshold={threshold}s)",
+                        metadata={"ssis/last_success_at": "demo", "ssis/lag_seconds": 0},
+                    )
                 from sqlalchemy import text as sa_text
                 engine = _self._build_engine()
                 with engine.connect() as conn:

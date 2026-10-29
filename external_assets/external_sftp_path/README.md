@@ -65,13 +65,14 @@ This component does not read from or write to Sftp Path. It is a **lineage decla
 | `create_observation_sensor` | `bool` | `false` | Also create the polling sensor that keeps this external asset's health/data-version current (same logic as the standalone sftp_path_observation_sensor component). When False (default), this component only declares the As… _(full docs in schema.json + component README)_ |
 | `check_interval_seconds` | `int` | `300` | Seconds between health checks. Only used when create_observation_sensor=True. |
 | `emit_materialization` | `bool` | `true` | When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, downstream AutomationCondition.eager() fires on parent updates). When False, emits AssetObservation instead (no Dagster+ credit charg… _(full docs in schema.json + component README)_ |
+| `check_arrival` | `bool` | `false` | Also attach an `arrival` asset_check per path, verifying the directory is reachable and non-empty, via the same client interface as the observation sensor (the `resource_key` resource's `.observe(source) -> {data_version… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 
 [//]: # (FIELDS:END)
 
 ## Example YAML
 ```yaml
-type: dagster_component_templates.ExternalSftpPathAsset
+type: dagster_community_components.ExternalSftpPathAsset
 attributes:
   asset_key: my_service/asset
   host: my-service.internal.company.com
@@ -86,7 +87,7 @@ Set `create_observation_sensor: true` to also get the polling sensor that keeps 
 health/data-version current — one component, one YAML, no manual `asset_key` wiring:
 
 ```yaml
-type: dagster_component_templates.ExternalSftpPathAsset
+type: dagster_community_components.ExternalSftpPathAsset
 attributes:
   asset_key: external/sftp_path
   host: my-sftp-path.internal
@@ -97,13 +98,17 @@ attributes:
   password_env_var: SFTP_PASSWORD
 ```
 
+The sensor only re-materializes (or re-observes) a path when its `data_version` has actually changed
+since the last tick — it keeps a cursor of `{asset_key: last_data_version}` internally, so a
+downstream `AutomationCondition.eager()` only fires on a real arrival, not on every single poll.
+
 If the sensor needs to observe an `asset_key` declared by a *different* component (or you want the
 asset and sensor on independent lifecycles), pair this component with the standalone
 `sftp_path_observation_sensor` component instead:
 
 ```yaml
 # 1. Declare the external asset (lineage node)
-type: dagster_component_templates.ExternalSftpPathAsset
+type: dagster_community_components.ExternalSftpPathAsset
 attributes:
   asset_key: external/sftp_path
   host: my-sftp-path.internal
@@ -112,12 +117,30 @@ attributes:
 ---
 
 # 2. Observe it on a schedule
-type: dagster_component_templates.SftpPathObservationSensorComponent
+type: dagster_community_components.SftpPathObservationSensorComponent
 attributes:
   sensor_name: sftp_path_observer
   asset_key: external/sftp_path
   host: my-sftp-path.internal
   remote_path: REMOTE_PATH
+  username_env_var: SFTP_USERNAME
+  password_env_var: SFTP_PASSWORD
+```
+
+## Arrival check
+
+`check_arrival: true` attaches an `arrival` asset_check per path (reachable + non-empty), using the
+same client interface (`resource_key`'s `.observe()`, or paramiko directly) as the observation
+sensor — independent of `create_observation_sensor`, so you can run it as a pre-flight check before
+a downstream job without the polling sensor being enabled at all:
+
+```yaml
+type: dagster_community_components.ExternalSftpPathAsset
+attributes:
+  asset_key: external/sftp_path
+  host: my-sftp-path.internal
+  remote_path: REMOTE_PATH
+  check_arrival: true
   username_env_var: SFTP_USERNAME
   password_env_var: SFTP_PASSWORD
 ```
@@ -128,7 +151,7 @@ Use `paths:` instead of the top-level `asset_key`/`remote_path` fields to declar
 directories from one `ExternalSftpPathAsset` instance, instead of one YAML block per path:
 
 ```yaml
-type: dagster_component_templates.ExternalSftpPathAsset
+type: dagster_community_components.ExternalSftpPathAsset
 attributes:
   host: SFTP_HOST
   group_name: sftp_sources

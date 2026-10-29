@@ -3,6 +3,11 @@
 
 type: dagster_community_components.SsisWorkspaceComponent
 attributes:
+  # Set true to smoke-test this whole component (discovery, execute,
+  # can_subset ordering, the sensor, freshness checks) with a synthetic
+  # 2-package catalog and zero SQL Server connection.
+  demo_mode: false
+
   workspace:
     # Option A — one SQLAlchemy URL held in an env var
     # connection_string_env_var: SSISDB_MSSQL_URL
@@ -36,9 +41,21 @@ attributes:
   #     parameters:
   #       CM.DEST_DB.ConnectionString: "Data Source=snowflake-01;..."
 
+  # Per-package overrides, keyed by qualified name '<folder>/<project>/<package>'.
+  # Mirrors dagster-databricks's assets_by_task_key shape. `deps:` is the only
+  # way to declare a real run order between packages (SSISDB.catalog has no
+  # native concept of inter-package dependency) -- with action=execute, a
+  # selected dependency runs before the package that depends on it.
+  # assets_by_package:
+  #   Sales/SalesETL/LoadOrders:
+  #     deps: [ssis/sql-01/Sales/SalesETL/ExtractCustomers]
+  #     group_name: sales_nightly
+  #     tags: {tier: critical}
+
   # What happens on materialize:
   #   noop     — external asset (declare-only, no execution triggered)
   #   execute  — EXEC SSISDB.catalog.create_execution + start_execution + poll
+  #              (subsettable: selecting one package runs only that package)
   action: noop
 
   # Only used when action=execute

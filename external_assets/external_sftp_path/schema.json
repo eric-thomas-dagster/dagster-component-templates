@@ -1,6 +1,6 @@
 {
-  "component_type": "dagster_component_templates.ExternalSftpPathAsset",
-  "description": "Declare an SFTP directory as an observable external asset.",
+  "component_type": "dagster_community_components.ExternalSftpPathAsset",
+  "description": "Declare an SFTP directory (or several, via paths:) as an observable external asset. The optional observation sensor only re-materializes a path when its data_version actually changes (cursor-based, not every poll), and an optional arrival check verifies a path is reachable and non-empty using the same client interface.",
   "category": "external",
   "icon": "Link",
   "x-dagster-io": {
@@ -32,7 +32,9 @@
     },
     "paths": {
       "type": "array",
-      "items": { "type": "object" },
+      "items": {
+        "type": "object"
+      },
       "label": "Paths",
       "description": "Declare several remote directories as external assets from one component instance, instead of one ExternalSftpPathAsset YAML block (and, with create_observation_sensor=true, one polling sensor and one SSH connection) per path. Each entry: `key` (Dagster asset key, required), `remote_path` (required), plus optional `deps`, `owners`, `metadata`, `group_name`, `description`. All entries share this component's host/port/credentials and (if enabled) ONE sensor that polls every path over a single SSH connection per tick -- set `sensor_name` explicitly when using `paths:` with create_observation_sensor=true. Mutually exclusive with the top-level `asset_key`/`remote_path` fields.",
       "required": false,
@@ -106,7 +108,7 @@
     "resource_key": {
       "type": "string",
       "label": "Resource Key",
-      "description": "Dagster resource key exposing `.observe(source) -> dict`. Only used when create_observation_sensor=True; unset uses paramiko directly.",
+      "description": "Dagster resource key exposing `.observe(source: str) -> dict`, where source is 'host:remote_path'. Must return at least {'data_version': str}; any other keys are surfaced as event metadata (e.g. {'file_count': int}, used by check_arrival when present). Used by both the observation sensor and the arrival check. Unset uses paramiko directly.",
       "required": false,
       "default": null
     },
@@ -116,6 +118,13 @@
       "description": "When True (default), the sensor emits AssetMaterialization. When False, emits AssetObservation instead. Only used when create_observation_sensor=True.",
       "required": false,
       "default": true
+    },
+    "check_arrival": {
+      "type": "boolean",
+      "label": "Check Arrival",
+      "description": "Also attach an `arrival` asset_check per path (reachable + non-empty), using the same client interface as the observation sensor. Independent of create_observation_sensor.",
+      "required": false,
+      "default": false
     },
     "partition_type": {
       "type": "string",

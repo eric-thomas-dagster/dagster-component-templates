@@ -1,0 +1,112 @@
+{
+  "component_type": "dagster_community_components.QlikCloudWorkspaceComponent",
+  "description": "N Qlik Cloud apps as Dagster assets from one component instance, with one shared observation sensor -- closes the scaling gap in the sibling single-app qlik_cloud_app_reload component (30 dashboards previously meant 30 component instances). Real Qlik Cloud REST API (verified against qlik.dev/apis/rest/reloads/), with a QlikCloudTransport seam (trigger_reload/get_reload/list_reloads) that tests swap for a fake instead of patching requests calls.",
+  "category": "integration",
+  "icon": "RefreshCw",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetSpec",
+      "description": "One materializable Dagster asset per declared Qlik Cloud app + one shared observation sensor (opt-in)."
+    }
+  },
+  "attributes": {
+    "tenant_url_env_var": {
+      "type": "string",
+      "label": "Tenant Url Env Var",
+      "description": "Env var holding the tenant base URL, e.g. https://my-tenant.us.qlikcloud.com (Qlik Cloud is tenant-scoped -- there is no shared hostname).",
+      "required": false,
+      "default": "QLIK_CLOUD_TENANT_URL",
+      "ui:widget": "env_var"
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "description": "Env var holding a Qlik Cloud API key (Bearer token -- see qlik.dev's 'generate your first API key').",
+      "required": false,
+      "default": "QLIK_CLOUD_API_KEY",
+      "ui:widget": "env_var"
+    },
+    "apps": {
+      "type": "array",
+      "label": "Apps",
+      "description": "Qlik Cloud apps to wrap as Dagster assets. Each item: {app_id, asset_key, description?, group_name?, deps?, partial?, owners?, tags?}.",
+      "required": false
+    },
+    "assets_by_app": {
+      "type": "object",
+      "label": "Assets By App",
+      "description": "Override the asset spec for specific apps by app_id. Same convention as snowflake_workspace.assets_by_name / dagster-databricks's assets_by_task_key.",
+      "required": false,
+      "default": null
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "description": "Seconds between reload-status polls.",
+      "required": false,
+      "default": 15
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout Seconds",
+      "description": "Max seconds to wait for a reload to reach a terminal status before failing the run.",
+      "required": false,
+      "default": 1800
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group for apps without their own group_name.",
+      "required": false,
+      "default": null
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Catalog tags applied to every app asset (merged with each app's own tags).",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "owners": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "description": "Default asset owners for apps without their own.",
+      "required": false,
+      "default": null,
+      "ui:widget": "list"
+    },
+    "polling_sensor": {
+      "type": "boolean",
+      "label": "Polling Sensor",
+      "description": "If true, adds ONE sensor (not one per app) that polls every declared app for reloads this component did NOT trigger, and emits AssetObservation for each one.",
+      "required": false,
+      "default": false
+    },
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Sensor name. Only used when polling_sensor=True.",
+      "required": false,
+      "default": "qlik_cloud_workspace_observer"
+    },
+    "check_interval_seconds": {
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between sensor polls. Only used when polling_sensor=True.",
+      "required": false,
+      "default": 300
+    }
+  },
+  "tags": [
+    "integration",
+    "qlik",
+    "bi",
+    "reload",
+    "workspace"
+  ],
+  "name": "QlikCloudWorkspace"
+}

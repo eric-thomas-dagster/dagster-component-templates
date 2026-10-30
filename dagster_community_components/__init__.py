@@ -1304,6 +1304,7 @@ _CLASS_PATHS: dict[str, str] = {
     "StepwiseComponent": "assets/analytics/stepwise/component.py",
     "StitchSyncTriggerJobComponent": "jobs/stitch_sync_trigger_job/component.py",
     "StonebranchUACIntegrationComponent": "integrations/stonebranch_uac_integration/component.py",
+    "StreamSetsWorkspaceComponent": "integrations/streamsets_workspace/component.py",
     "StreamingConsumerComponent": "assets/ingestion/streaming_consumer/component.py",
     "StreamingRunHealthSensorComponent": "sensors/streaming_run_health_sensor/component.py",
     "StripeCustomerUpsertComponent": "assets/reverse_etl/stripe_customer_upsert/component.py",

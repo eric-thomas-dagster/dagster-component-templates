@@ -1,0 +1,134 @@
+{
+  "component_type": "dagster_community_components.StreamSetsWorkspaceComponent",
+  "description": "StreamSets Control Hub Jobs as Dagster assets. One asset per declared job; action=start starts the job on materialize and polls currentStatus until ACTIVE (StreamSets jobs are typically continuous streaming pipelines, so this means 'ensure running', not 'run to completion'). Optional shared polling sensor emits AssetObservation when a job's status changes. Optional job_active asset_check. demo_mode runs the whole shape with synthetic data and zero real Control Hub instance.",
+  "category": "integration",
+  "icon": "Workflow",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetSpec",
+      "description": "One Dagster asset per declared StreamSets Control Hub job. With action=noop (default) each asset is declare-only (external asset). With action=start each materialization starts the job via the Job Runner REST API and polls currentStatus to confirm it reached ACTIVE. Optional polling_sensor emits AssetObservation per job when its status changes; optional require_active check per job."
+    }
+  },
+  "attributes": {
+    "control_hub_url_env_var": {
+      "type": "string",
+      "label": "Control Hub URL Env Var",
+      "description": "Env var holding the Control Hub base URL, e.g. https://cloud.streamsets.com (SaaS) or your on-prem Control Hub URL.",
+      "required": false,
+      "default": "STREAMSETS_CONTROL_HUB_URL"
+    },
+    "component_id_env_var": {
+      "type": "string",
+      "label": "Component ID Env Var",
+      "description": "Env var with the API credential's Component ID (Control Hub > Manage > API Credentials).",
+      "required": false,
+      "default": "STREAMSETS_COMPONENT_ID"
+    },
+    "auth_token_env_var": {
+      "type": "string",
+      "label": "Auth Token Env Var",
+      "description": "Env var with the API credential's Auth Token. Shown once at credential creation -- regenerate the credential if lost.",
+      "required": false,
+      "default": "STREAMSETS_AUTH_TOKEN"
+    },
+    "jobs": {
+      "type": "array",
+      "label": "Jobs",
+      "description": "Control Hub Jobs to wrap as Dagster assets, one entry per job (job_id, asset_key, description, group_name, deps, owners, tags). Declared explicitly -- there's no independently-confirmed 'list all jobs' endpoint to discover them from.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "assets_by_job": {
+      "type": "object",
+      "label": "Assets By Job",
+      "description": "Override the asset spec for specific jobs, keyed by job_id. Mirrors the official dagster-databricks DatabricksWorkspaceComponent.assets_by_task_key shape.",
+      "required": false,
+      "default": null
+    },
+    "action": {
+      "type": "string",
+      "label": "Action",
+      "description": "noop = external asset (declare-only); start = start the job and poll currentStatus until ACTIVE (raises if it instead lands on INACTIVE -- start failed). Means 'ensure running', not 'run to completion', since StreamSets jobs are typically continuous streaming pipelines.",
+      "required": false,
+      "default": "noop",
+      "enum": ["noop", "start"],
+      "ui:widget": "select"
+    },
+    "poll_interval_seconds": {
+      "type": "integer",
+      "label": "Poll Interval (seconds)",
+      "description": "Only used when action=start.",
+      "required": false,
+      "default": 5
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "label": "Timeout (seconds)",
+      "description": "Max seconds to wait for a job to reach ACTIVE before failing the run. Only used when action=start.",
+      "required": false,
+      "default": 120
+    },
+    "polling_sensor": {
+      "type": "boolean",
+      "label": "Polling Sensor",
+      "description": "If true, adds ONE sensor (not one per job) that emits AssetObservation per job when its status changed since the last tick. Status-only -- no confirmed metrics/throughput endpoint exists to poll.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Only used when polling_sensor=True.",
+      "required": false,
+      "default": "streamsets_workspace_observer"
+    },
+    "check_interval_seconds": {
+      "type": "integer",
+      "label": "Check Interval (seconds)",
+      "description": "Seconds between sensor polls. Only used when polling_sensor=True.",
+      "required": false,
+      "default": 60
+    },
+    "require_active": {
+      "type": "boolean",
+      "label": "Require Active",
+      "description": "If true, attach a job_active asset_check per job that fails when the job's current status isn't ACTIVE.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group for jobs without their own group_name.",
+      "required": false,
+      "default": null
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Catalog tags applied to every job asset (merged with each job's own tags).",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "description": "Default asset owners for jobs without their own.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "description": "Skip the real Control Hub connection entirely. Start/stop and currentStatus all return synthetic values instead of calling the REST API.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    }
+  },
+  "tags": ["streamsets", "data-collector", "control-hub", "etl", "cdc", "workspace", "streaming"],
+  "name": "StreamSets Workspace"
+}

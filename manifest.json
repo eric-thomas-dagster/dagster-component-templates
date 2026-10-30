@@ -62194,6 +62194,71 @@
       }
     },
     {
+      "id": "streamsets_workspace",
+      "name": "StreamSets Workspace",
+      "category": "integration",
+      "description": "StreamSets Control Hub Jobs as Dagster assets. One asset per declared job; action=start starts the job on materialize and polls currentStatus until ACTIVE (StreamSets jobs are typically continuous streaming pipelines, so this means 'ensure running', not 'run to completion'). Optional shared polling sensor emits AssetObservation when a job's status changes. Optional job_active asset_check. demo_mode runs the whole shape with synthetic data and zero real Control Hub instance.",
+      "path": "integrations/streamsets_workspace",
+      "tags": [
+        "streamsets",
+        "data-collector",
+        "control-hub",
+        "etl",
+        "cdc",
+        "workspace",
+        "streaming"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/streamsets_workspace/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/streamsets_workspace/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/streamsets_workspace/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/streamsets_workspace/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/streamsets_workspace/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "requests"
+        ]
+      },
+      "component_type": "dagster_community_components.StreamSetsWorkspaceComponent",
+      "icon": "Workflow",
+      "validation": {
+        "level": "component_only",
+        "last_validated": "2026-10-30"
+      },
+      "agent_hints": {
+        "outputs": [
+          "one_asset_per_declared_job",
+          "shared_status_observation_sensor_opt_in"
+        ],
+        "requires_pip": [
+          "requests"
+        ],
+        "chains_with": [
+          "mirth_connect_workspace",
+          "snowflake_workspace",
+          "sql_transform"
+        ]
+      },
+      "produces": [
+        "asset",
+        "sensor"
+      ],
+      "stateful": false,
+      "keywords": [
+        "streamsets",
+        "control hub",
+        "data collector",
+        "transformer",
+        "cdc",
+        "streaming pipeline",
+        "job runner",
+        "etl",
+        "workspace"
+      ]
+    },
+    {
       "id": "stripe_customer_upsert",
       "name": "Stripe Customer Upsert",
       "category": "reverse_etl",
@@ -71053,5 +71118,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1363
+  "total": 1364
 }

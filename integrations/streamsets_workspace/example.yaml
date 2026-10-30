@@ -1,0 +1,56 @@
+# StreamSetsWorkspaceComponent -- StreamSets Control Hub Jobs as Dagster assets.
+#
+# StreamSets jobs are typically continuously-running streaming pipelines,
+# not batch jobs that run to completion -- action: start means "ensure this
+# job is running" (reconcile-to-ACTIVE), not "run it and wait for it to
+# finish". See the component docstring for exactly what's independently
+# verified vs. well-corroborated-but-unconfirmed about the underlying
+# Control Hub REST API.
+
+type: dagster_community_components.StreamSetsWorkspaceComponent
+attributes:
+  # Set true to smoke-test this whole component (the assets, assets_by_job
+  # overrides, the sensor, the check) with synthetic status responses and
+  # zero Control Hub dependency.
+  demo_mode: false
+
+  control_hub_url_env_var: STREAMSETS_CONTROL_HUB_URL   # e.g. https://cloud.streamsets.com
+  component_id_env_var: STREAMSETS_COMPONENT_ID         # Control Hub > Manage > API Credentials
+  auth_token_env_var: STREAMSETS_AUTH_TOKEN             # shown once at credential creation
+
+  # Jobs are declared explicitly -- there's no independently-confirmed
+  # "list all jobs" endpoint to discover them from (see component docstring).
+  jobs:
+    - job_id: "8f6e1f2a-1234-5678-9abc-def012345678:acme-org"
+      asset_key: streamsets/orders_cdc_pipeline
+      description: "CDC pipeline: Postgres orders table -> Snowflake raw.orders"
+    - job_id: "1a2b3c4d-1234-5678-9abc-def012345678:acme-org"
+      asset_key: streamsets/clickstream_pipeline
+      deps: [streamsets/orders_cdc_pipeline]
+
+  # Per-job overrides, keyed by job_id. Mirrors mirth_connect_workspace's
+  # assets_by_channel / qlik_cloud_workspace's assets_by_app shape.
+  assets_by_job:
+    "8f6e1f2a-1234-5678-9abc-def012345678:acme-org":
+      key: cdc/orders
+      group_name: cdc
+
+  # noop  = external asset (declare-only, materialize does nothing)
+  # start = materialize starts the job, polls currentStatus until ACTIVE
+  #         (raises if it instead lands on INACTIVE -- start failed)
+  action: start
+  poll_interval_seconds: 5
+  timeout_seconds: 120
+
+  # Opt-in polling sensor -- emits AssetObservation only when a job's
+  # status actually changes since the last tick (e.g. externally stopped).
+  # Status-only: no confirmed metrics/throughput endpoint to poll.
+  polling_sensor: true
+  check_interval_seconds: 60
+
+  # Opt-in per-job asset_check that fails when a job isn't ACTIVE.
+  require_active: true
+
+  group_name: streamsets
+  # tags: {tier: production, domain: cdc}
+  # owners: [data-platform@acme.com]

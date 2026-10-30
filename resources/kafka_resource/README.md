@@ -56,3 +56,18 @@ For SASL-authenticated clusters set the environment variables named in `sasl_use
 export KAFKA_USER=<username>
 export KAFKA_PASS=<password>
 ```
+
+## Observing a topic (`external_kafka_asset`'s `resource_key` seam)
+
+`KafkaResource` implements `.observe(topic) -> {data_version, **metadata}`, the documented client interface `external_kafka_asset` polls for its observation sensor. Point `resource_key:` at this resource instead of letting that component connect natively:
+
+```yaml
+type: dagster_community_components.ExternalKafkaAsset
+attributes:
+  asset_key: external/orders_topic
+  topic: orders
+  resource_key: kafka_resource
+  create_observation_sensor: true
+```
+
+`observe()` returns the same signal `external_kafka_asset`'s own native kafka-python fallback computes: per-partition end offsets, JSON-encoded as `data_version` (`{"0": 150, "1": 51}`) rather than a single summed total — a producer rebalance that moves volume between partitions without changing the total would otherwise look like "no change."

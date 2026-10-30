@@ -31,6 +31,33 @@ class KafkaResource(dg.ConfigurableResource):
         from kafka import KafkaConsumer
         return KafkaConsumer(*topics, **{**self._common_config(), **kwargs})
 
+    def observe(self, topic: str) -> dict:
+        """Shared client interface for external_kafka_asset's `resource_key` seam:
+        `.observe(topic) -> {data_version, **metadata}`. Mirrors that component's
+        own native kafka-python fallback exactly, so swapping a resource_key in
+        changes nothing about the signal: per-partition end offsets, JSON-encoded
+        as a repartition-safe data_version (a single summed counter would look
+        unchanged if a producer rebalanced partitions while total volume held
+        steady)."""
+        import json
+
+        from kafka import KafkaConsumer, TopicPartition
+
+        consumer = self.get_consumer()
+        try:
+            partitions = consumer.partitions_for_topic(topic) or set()
+            tps = [TopicPartition(topic, p) for p in partitions]
+            end_offsets = consumer.end_offsets(tps) if tps else {}
+        finally:
+            consumer.close()
+        offsets_by_partition = {str(tp.partition): int(off) for tp, off in end_offsets.items()}
+        return {
+            "data_version": json.dumps(offsets_by_partition, sort_keys=True),
+            "partition_count": len(partitions),
+            "total_end_offset": sum(end_offsets.values()),
+            "topic": topic,
+        }
+
 
 class KafkaResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     """Register a Kafka resource providing producer and consumer factories."""

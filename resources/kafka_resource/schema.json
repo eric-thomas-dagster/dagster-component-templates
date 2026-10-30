@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.KafkaResourceComponent",
-  "description": "Register a Kafka resource providing producer and consumer factories",
+  "description": "Register a Kafka resource providing producer and consumer factories. Also implements .observe(topic) -> {data_version, ...}, the client interface external_kafka_asset's resource_key seam expects for its observation sensor.",
   "category": "resource",
   "icon": "si:apachekafka",
   "x-dagster-io": {},

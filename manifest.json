@@ -35736,7 +35736,7 @@
       "id": "kafka_resource",
       "name": "Apache Kafka Resource",
       "category": "resource",
-      "description": "Register a Kafka resource providing producer and consumer factories",
+      "description": "Register a Kafka resource providing producer and consumer factories. Also implements .observe(topic) -> {data_version, ...}, the client interface external_kafka_asset's resource_key seam expects for its observation sensor.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "resources/kafka_resource",

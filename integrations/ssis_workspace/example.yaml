@@ -68,9 +68,13 @@ attributes:
   polling_sensor: true
   observation_interval_seconds: 300
 
-  # Opt-in per-asset check — fails when the last successful execution
-  # is older than this many seconds. Attach alerts to check state.
+  # Opt-in per-asset checks.
+  # freshness_lag_threshold_seconds — fails when the last successful execution
+  # is older than this many seconds (staleness).
+  # max_execution_minutes — fails when the latest successful execution took
+  # longer than this many minutes to run (runtime SLA, not staleness).
   freshness_lag_threshold_seconds: 3600
+  max_execution_minutes: 30
 
   group_name: ssis_prod
   kinds: [ssis, mssql, etl]

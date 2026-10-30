@@ -19,8 +19,9 @@ The missing "orchestrate SSIS from Dagster" primitive for every SQL-Server enter
 - **`package_overrides:`** — runtime parameters + environment references applied at execute time.
 - **`action: execute` is subsettable** (`can_subset=true`) — materializing one package runs only that package (plus any `assets_by_package` dependency ahead of it, in dependency order), not every discovered package.
 - **`polling_sensor:`** — poll `SSISDB.catalog.executions` for completions and emit `AssetObservation`.
-- **`freshness_lag_threshold_seconds:`** — attach an asset check per package that fails when the last successful execution is older than N seconds.
-- **`demo_mode:`** — skip the real SQL Server connection entirely; discovery, execute, the sensor, and freshness checks all run a synthetic/simulated path instead. Use to smoke-test the whole shape (including `can_subset` ordering and `assets_by_package`) with no SSISDB available.
+- **`freshness_lag_threshold_seconds:`** — attach an asset check per package that fails when the last successful execution is older than N seconds (staleness).
+- **`max_execution_minutes:`** — attach a `ssis_completed_within_window` asset check per package that fails when the latest successful execution took longer than N minutes to run (a runtime/SLA check -- a package can be perfectly fresh and still have blown its runtime budget; neither check catches the other's failure mode).
+- **`demo_mode:`** — skip the real SQL Server connection entirely; discovery, execute, the sensor, and both checks all run a synthetic/simulated path instead. Use to smoke-test the whole shape (including `can_subset` ordering and `assets_by_package`) with no SSISDB available.
 
 ## Demo mode — no SSISDB required
 
@@ -197,6 +198,7 @@ Values in `SSISDB.catalog.executions.status`:
 | `action` | `str` | `"noop"` | What materialize() does. `noop` = external asset (declare-only). `execute` = call `SSISDB.catalog.create_execution` + `start_execution`. |
 | `polling_sensor` | `bool` | `false` | If true, emit a sensor that polls SSISDB.catalog.executions for completions since watermark and emits AssetObservation per package. |
 | `observation_interval_seconds` | `int` | `300` | Sensor tick interval. Only used when `polling_sensor: true`. |
+| `max_execution_minutes` | `int` | — | If set, attach a `ssis_completed_within_window` asset check to every package that fails when the package's LATEST successful execution took longer than this many minutes (DATEDIFF(MINUTE, start_time, end_time) from SSISD… _(full docs in schema.json + component README)_ |
 | `asset_key_prefix` | `List[str]` | — | Prefix for every emitted asset key. Default: `['ssis', <ssis_server_hostname>]`. |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | StateBackedComponent state config. Default: local filesystem cache keyed on server+database hash so multiple SSIS servers don't collide. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |

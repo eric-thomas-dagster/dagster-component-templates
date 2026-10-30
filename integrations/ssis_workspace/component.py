@@ -536,6 +536,17 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         description="If set, attach an asset check to every package that fails "
         "when the last successful execution is older than this many seconds.",
     )
+    max_execution_minutes: Optional[int] = Field(
+        default=None,
+        description=(
+            "If set, attach a `ssis_completed_within_window` asset check to every "
+            "package that fails when the package's LATEST successful execution took "
+            "longer than this many minutes (DATEDIFF(MINUTE, start_time, end_time) "
+            "from SSISDB.catalog.executions) -- a runtime/SLA check, distinct from "
+            "`freshness_lag_threshold_seconds` (which checks staleness, i.e. how "
+            "long ago it last succeeded, not how long that run took)."
+        ),
+    )
     asset_key_prefix: Optional[List[str]] = Field(
         default=None,
         description="Prefix for every emitted asset key. Default: "
@@ -1193,6 +1204,8 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         checks: List[Any] = []
         if self.freshness_lag_threshold_seconds is not None and specs:
             checks.extend(self._build_freshness_checks(specs))
+        if self.max_execution_minutes is not None and specs:
+            checks.extend(self._build_duration_checks(specs))
 
         return Definitions(assets=assets, sensors=sensors, asset_checks=checks)
 
@@ -1387,3 +1400,62 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         for spec in specs:
             checks.append(_make_check(spec))
         return checks
+
+    def _build_duration_checks(self, specs: List[AssetSpec]) -> List[Any]:
+        """Execution-DURATION SLA check -- distinct from _build_freshness_checks'
+        staleness check. A package can be perfectly fresh (ran 5 minutes ago)
+        and still have badly blown its runtime budget; neither check catches
+        the other's failure mode."""
+        _self = self
+        max_minutes = self.max_execution_minutes
+
+        # Factory function for the same closure/IO-manager-input reason
+        # documented on _build_freshness_checks' _make_check above.
+        def _make_check(spec):
+            pkg_meta = spec.metadata
+
+            @dg.asset_check(
+                asset=spec.key,
+                name="ssis_completed_within_window",
+                description=f"Fails when the package's latest successful execution took longer than {max_minutes} minutes.",
+            )
+            def _check(context):
+                if _self.demo_mode:
+                    return dg.AssetCheckResult(
+                        passed=True,
+                        description=f"[SSIS DEMO] minutes_taken=0 (max={max_minutes})",
+                        metadata={"ssis/minutes_taken": 0, "ssis/max_minutes": max_minutes},
+                    )
+                from sqlalchemy import text as sa_text
+                engine = _self._build_engine()
+                with engine.connect() as conn:
+                    row = conn.execute(
+                        sa_text(
+                            """
+                            SELECT TOP 1 start_time, end_time
+                            FROM SSISDB.catalog.executions
+                            WHERE folder_name = :folder
+                              AND project_name = :project
+                              AND package_name = :package
+                              AND status = 7
+                            ORDER BY end_time DESC
+                            """
+                        ),
+                        {
+                            "folder": pkg_meta["ssis/folder"],
+                            "project": pkg_meta["ssis/project"],
+                            "package": pkg_meta["ssis/package"] + ".dtsx",
+                        },
+                    ).mappings().first()
+                if not row or row["start_time"] is None or row["end_time"] is None:
+                    return dg.AssetCheckResult(passed=False, description="No successful executions found.")
+                minutes_taken = (row["end_time"] - row["start_time"]).total_seconds() / 60
+                return dg.AssetCheckResult(
+                    passed=minutes_taken <= max_minutes,
+                    description=f"minutes_taken={minutes_taken:.1f} (max={max_minutes})",
+                    metadata={"ssis/minutes_taken": round(minutes_taken, 1), "ssis/max_minutes": max_minutes},
+                )
+
+            return _check
+
+        return [_make_check(spec) for spec in specs]

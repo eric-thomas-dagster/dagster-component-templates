@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.SsisWorkspaceComponent",
-  "description": "SSIS packages as Dagster assets. Discovers SSISDB.catalog.packages + optionally executes via create_execution/start_execution + polls to completion, subsettable (selecting one package runs only that package). Fivetran-shape workspace: block for connection + selector for filtering + assets_by_package for per-package overrides/deps + polling_sensor + freshness_lag_threshold_seconds. demo_mode runs the whole shape with a synthetic catalog and zero SQL Server dependency.",
+  "description": "SSIS packages as Dagster assets. Discovers SSISDB.catalog.packages + optionally executes via create_execution/start_execution + polls to completion, subsettable (selecting one package runs only that package). Fivetran-shape workspace: block for connection + selector for filtering + assets_by_package for per-package overrides/deps + polling_sensor + freshness_lag_threshold_seconds (staleness) + max_execution_minutes (runtime SLA). demo_mode runs the whole shape with a synthetic catalog and zero SQL Server dependency.",
   "category": "integration",
   "icon": "Server",
   "x-dagster-io": {
@@ -88,6 +88,13 @@
       "type": "integer",
       "label": "Freshness Lag Threshold (seconds)",
       "description": "If set, attach an asset check per package that fails when the last successful execution is older than this threshold.",
+      "required": false,
+      "default": null
+    },
+    "max_execution_minutes": {
+      "type": "integer",
+      "label": "Max Execution Minutes",
+      "description": "If set, attach a ssis_completed_within_window asset check per package that fails when the package's latest successful execution took longer than this many minutes -- a runtime/SLA check, distinct from freshness_lag_threshold_seconds (staleness, not duration).",
       "required": false,
       "default": null
     },

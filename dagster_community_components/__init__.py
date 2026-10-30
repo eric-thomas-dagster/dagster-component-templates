@@ -1289,6 +1289,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SqlGeneratorComponent": "assets/ai/sql_generator/component.py",
     "SqlObservationSensorComponent": "observations/sql_observation_sensor/component.py",
     "SqlServerChangeTrackingAssetComponent": "assets/sources/sql_server_change_tracking_asset/component.py",
+    "SqlServerStoredProcedureWorkspaceComponent": "integrations/sql_server_stored_procedure_workspace/component.py",
     "SqlTransformComponent": "assets/transforms/sql_transform/component.py",
     "SqsObservationSensorComponent": "observations/sqs_observation_sensor/component.py",
     "SquareIngestionComponent": "assets/ingestion/square_ingestion/component.py",

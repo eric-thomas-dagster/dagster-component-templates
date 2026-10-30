@@ -1,0 +1,66 @@
+# SqlServerStoredProcedureWorkspaceComponent — plain T-SQL stored procedures as Dagster assets.
+# The T-SQL equivalent of ssis_workspace, for shops that run ETL directly out
+# of stored procedures (not SSIS packages). Backing SQL: sys.procedures,
+# EXEC, msdb.dbo.sysjobhistory.
+
+type: dagster_community_components.SqlServerStoredProcedureWorkspaceComponent
+attributes:
+  # Set true to smoke-test this whole component (discovery, execute,
+  # can_subset ordering, the sensor) with a synthetic 2-procedure catalog
+  # and zero SQL Server dependency.
+  demo_mode: false
+
+  connection:
+    # Option A — one SQLAlchemy URL held in an env var
+    # connection_string_env_var: SQL_SERVER_URL
+
+    # Option B — flat fields. Values via {{ env.XXX }} Jinja templating.
+    server:   "{{ env.SQL_SERVER }}"          # sql-01.corp OR sql-01\INST1
+    database: Canvas
+    user:     "{{ env.SQL_USER }}"
+    password: "{{ env.SQL_PASSWORD }}"
+    driver:   "ODBC Driver 18 for SQL Server"
+    trust_server_certificate: true            # only for lab servers with self-signed TLS
+
+  # Filter which stored procedures become Dagster assets.
+  # Omit `procedure_selector:` to import every procedure in every schema.
+  procedure_selector:
+    include_schemas: [dbo]
+    include: ["Load*", "Sync*"]
+    exclude: ["*_test*"]
+
+  # Per-procedure overrides, keyed by qualified name '<schema>.<procedure>'.
+  # Mirrors dagster-databricks's assets_by_task_key shape. `deps:` is the
+  # only way to declare a real run order between procedures (SQL Server has
+  # no native concept of inter-procedure dependency) -- with action=execute,
+  # a selected dependency runs before the procedure that depends on it.
+  assets_by_procedure:
+    dbo.LoadSilverClaims:
+      key: silver/claims
+      group_name: silver
+      params:
+        BusinessDate: "{partition_key}"
+      sql_agent_job_name: "Nightly - Load Silver Claims"   # required for polling_sensor coverage
+    dbo.LoadGoldClaims:
+      key: gold/claims
+      deps: [silver/claims]
+
+  # What happens on materialize:
+  #   noop    — external asset (declare-only, no EXEC triggered)
+  #   execute — EXEC [schema].[procedure] with assets_by_procedure.params
+  #             bound as parameters (subsettable: selecting one procedure
+  #             runs only that procedure, in dependency order)
+  action: noop
+
+  # Opt-in polling sensor — emits AssetObservation for SQL-Agent-triggered
+  # runs of each procedure's sql_agent_job_name (set above). Procedures
+  # without a sql_agent_job_name are simply skipped, not an error.
+  polling_sensor: true
+  observation_interval_seconds: 300
+
+  group_name: sql_server_prod
+  # partition_type: daily
+  # partition_start: "2024-01-01"
+  # asset_key_prefix: [sqlserver, sql-01]     # default: [sqlserver, <server-host>]
+  # tags: {tier: production, domain: claims}
+  # owners: [data-platform@acme.com]

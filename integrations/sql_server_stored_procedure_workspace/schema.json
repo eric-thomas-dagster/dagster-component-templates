@@ -1,0 +1,149 @@
+{
+  "component_type": "dagster_community_components.SqlServerStoredProcedureWorkspaceComponent",
+  "description": "Plain T-SQL stored procedures on SQL Server as Dagster assets -- the T-SQL equivalent of ssis_workspace for shops that run ETL directly out of stored procedures, not SSIS. Discovers sys.procedures + optionally executes via EXEC, subsettable (selecting one procedure runs only that procedure). Workspace shape: connection block + procedure_selector for filtering + assets_by_procedure for per-procedure overrides/deps/params + polling_sensor observing SQL-Agent-triggered runs via msdb.dbo.sysjobhistory. demo_mode runs the whole shape with a synthetic catalog and zero SQL Server dependency.",
+  "category": "integration",
+  "icon": "Server",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetSpec",
+      "description": "One Dagster asset per discovered stored procedure. With action=noop (default) each asset is declare-only (external asset). With action=execute each materialization calls EXEC [schema].[procedure] with assets_by_procedure.params bound as parameters. No inputs. Optional polling_sensor emits AssetObservation per completed SQL-Agent-triggered job run."
+    }
+  },
+  "attributes": {
+    "connection": {
+      "type": "object",
+      "label": "Connection",
+      "description": "Connection to the SQL Server instance hosting the stored procedures (SQLAlchemy URL or flat fields).",
+      "required": true
+    },
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "description": "Skip the real SQL Server connection entirely. Discovery returns a synthetic 2-procedure catalog; execute and the polling sensor log a simulated lifecycle instead of running real T-SQL.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "procedure_selector": {
+      "type": "object",
+      "label": "Procedure Selector",
+      "description": "Filter which stored procedures become Dagster assets. Omit for every procedure in every schema.",
+      "required": false
+    },
+    "assets_by_procedure": {
+      "type": "object",
+      "label": "Assets By Procedure",
+      "description": "Override the asset spec for specific procedures, keyed by qualified name '<schema>.<procedure>'. Mirrors the official dagster-databricks DatabricksWorkspaceComponent.assets_by_task_key shape. Use deps: to declare real run-order between procedures; params: for EXEC parameter values ({partition_key}/{run_id} substituted); sql_agent_job_name: for polling_sensor coverage.",
+      "required": false,
+      "default": null
+    },
+    "action": {
+      "type": "string",
+      "label": "Action",
+      "description": "noop = external asset (declare-only); execute = EXEC [schema].[procedure] with assets_by_procedure.params bound as parameters. execute is subsettable (can_subset=true) -- selecting one procedure only runs that procedure (plus any assets_by_procedure dependency ahead of it), not every discovered procedure.",
+      "required": false,
+      "default": "noop",
+      "enum": ["noop", "execute"],
+      "ui:widget": "select"
+    },
+    "polling_sensor": {
+      "type": "boolean",
+      "label": "Polling Sensor",
+      "description": "If true, adds ONE sensor (not one per procedure) that polls msdb.dbo.sysjobhistory for completions of each procedure's sql_agent_job_name and emits AssetObservation for runs Dagster did not itself trigger. Procedures with no sql_agent_job_name set are skipped.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "observation_interval_seconds": {
+      "type": "integer",
+      "label": "Observation Interval (seconds)",
+      "description": "Seconds between sensor polls. Only used when polling_sensor=True.",
+      "required": false,
+      "default": 300
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Dagster asset group.",
+      "required": false,
+      "default": "sql_server"
+    },
+    "kinds": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Kinds",
+      "description": "Asset kinds badge. Default: ['sqlserver', 'tsql'].",
+      "required": false,
+      "default": null,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "type": "object",
+      "label": "Tags",
+      "description": "Additional asset tags.",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "owners": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Owners",
+      "description": "Asset owners (team names / email addresses).",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "asset_key_prefix": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Asset Key Prefix",
+      "description": "Default: ['sqlserver', <server-host>].",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "'daily'|'weekly'|'monthly'|'hourly'|'cron'|'static'|'dynamic', or None for unpartitioned. Applies the SAME partitions_def to every imported procedure.",
+      "required": false,
+      "default": null,
+      "enum": ["daily", "weekly", "monthly", "hourly", "cron", "static", "dynamic"],
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "ISO start date for time-based partition types (e.g. '2024-01-01').",
+      "required": false,
+      "default": null
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence.",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'.",
+      "default": "%Y-%m-%d",
+      "required": false
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for partition_type='static'.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": ["sqlserver", "tsql", "sql-server", "etl", "workspace", "stored-procedure"],
+  "name": "SQL Server Stored Procedure Workspace"
+}

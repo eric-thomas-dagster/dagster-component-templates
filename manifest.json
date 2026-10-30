@@ -61231,6 +61231,71 @@
       ]
     },
     {
+      "id": "sql_server_stored_procedure_workspace",
+      "name": "SQL Server Stored Procedure Workspace",
+      "category": "integration",
+      "description": "Plain T-SQL stored procedures on SQL Server as Dagster assets -- the T-SQL equivalent of ssis_workspace for shops that run ETL directly out of stored procedures, not SSIS. Discovers sys.procedures + optionally executes via EXEC, subsettable (selecting one procedure runs only that procedure). Workspace shape: connection block + procedure_selector for filtering + assets_by_procedure for per-procedure overrides/deps/params + polling_sensor observing SQL-Agent-triggered runs via msdb.dbo.sysjobhistory. demo_mode runs the whole shape with a synthetic catalog and zero SQL Server dependency.",
+      "path": "integrations/sql_server_stored_procedure_workspace",
+      "tags": [
+        "sqlserver",
+        "tsql",
+        "sql-server",
+        "etl",
+        "workspace",
+        "stored-procedure"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sql_server_stored_procedure_workspace/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sql_server_stored_procedure_workspace/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sql_server_stored_procedure_workspace/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sql_server_stored_procedure_workspace/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/integrations/sql_server_stored_procedure_workspace/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "sqlalchemy",
+          "pyodbc"
+        ]
+      },
+      "component_type": "dagster_community_components.SqlServerStoredProcedureWorkspaceComponent",
+      "icon": "Server",
+      "validation": {
+        "level": "component_only",
+        "last_validated": "2026-10-30"
+      },
+      "agent_hints": {
+        "outputs": [
+          "one_asset_per_discovered_stored_procedure",
+          "shared_observation_sensor_opt_in"
+        ],
+        "requires_pip": [
+          "sqlalchemy",
+          "pyodbc"
+        ],
+        "chains_with": [
+          "ssis_workspace",
+          "snowflake_workspace",
+          "sql_transform"
+        ]
+      },
+      "produces": [
+        "asset",
+        "sensor"
+      ],
+      "stateful": true,
+      "keywords": [
+        "sql server",
+        "t-sql",
+        "stored procedure",
+        "mssql",
+        "sql agent",
+        "etl",
+        "workspace",
+        "ssis sibling"
+      ]
+    },
+    {
       "id": "sql_to_database_asset",
       "name": "SQL to Database",
       "category": "ingestion",
@@ -70988,5 +71053,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1362
+  "total": 1363
 }

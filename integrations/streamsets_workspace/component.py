@@ -6,15 +6,12 @@ as a Dagster workspace component. One Dagster asset per configured Job.
 With `action: start`, materializing a job's asset starts it and confirms
 the result by polling job status -- StreamSets jobs are typically
 **continuously-running streaming pipelines, not batch jobs that run to
-completion**, so "materialize" here means "ensure this job is running",
-the same reconcile-to-running semantics `mirth_connect_workspace` uses for
-its own continuously-running HL7 channels (`action: deploy`), not a
-run-to-completion semantics like `ssis_workspace`/`sql_server_stored_procedure_workspace`.
+completion**, so "materialize" here means "ensure this job is running"
+(start it, then poll until it reaches ACTIVE), not "run it and wait for
+it to complete".
 
 What's independently verified vs. well-corroborated (documented honestly,
-not glossed over -- same convention `mirth_connect_workspace` and
-`qlik_cloud_workspace` use for their own imperfectly-documented REST
-surfaces):
+not glossed over):
 
   VERIFIED against IBM's own StreamSets Control Hub docs
   (ibm.com/docs/SSBH9Y, "Enabling Access to the REST APIs"):
@@ -54,9 +51,7 @@ surfaces):
   Control Hub install uses a different path (version-specific APIs do
   shift), patch these three methods, not the asset/sensor logic around
   them. There is no independently-confirmed "list all jobs" endpoint, so
-  (matching `mirth_connect_workspace`'s and `qlik_cloud_workspace`'s own
-  precedent for APIs without a confirmed full-catalog listing call) jobs
-  are declared explicitly via `jobs:`, not discovered.
+  jobs are declared explicitly via `jobs:`, not discovered.
 
 A job's `currentStatus` response is not documented to expose a metrics/
 throughput field at any officially-confirmed path, so the optional polling
@@ -182,9 +177,8 @@ class StreamSetsWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
 
     StreamSets jobs are typically continuously-running streaming pipelines
     (not batch jobs that run to completion), so `action: start` means
-    "ensure this job is running" -- the same reconcile-to-running semantics
-    `mirth_connect_workspace` uses for its own continuously-running HL7
-    channels -- not a run-and-wait-for-completion semantics.
+    "ensure this job is running" (start it, then poll until it reaches
+    ACTIVE) -- not "run it and wait for it to complete".
 
     Example:
         ```yaml
@@ -221,9 +215,8 @@ class StreamSetsWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description=(
             "Override the asset spec for specific jobs by job_id. Mirrors the official "
-            "dagster-databricks `DatabricksWorkspaceComponent.assets_by_task_key` shape (same "
-            "convention `mirth_connect_workspace.assets_by_channel` / `qlik_cloud_workspace.assets_by_app` "
-            "use in this registry).\n\nPer-job keys (all optional): key, group_name, description, "
+            "dagster-databricks `DatabricksWorkspaceComponent.assets_by_task_key` shape.\n\n"
+            "Per-job keys (all optional): key, group_name, description, "
             "deps (merged with the job's own deps), metadata (merged), tags (merged), kinds "
             "(replaces), owners (replaces)."
         ),
@@ -236,8 +229,7 @@ class StreamSetsWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
             "start = materialize starts the job and polls currentStatus until it reaches ACTIVE "
             "(or raises if it instead lands on INACTIVE, meaning the start failed). Since "
             "StreamSets jobs are typically continuous streaming pipelines, this means 'ensure "
-            "running', not 'run to completion' -- the same semantics mirth_connect_workspace's "
-            "action=deploy uses for its own continuously-running channels."
+            "running', not 'run to completion'."
         ),
     )
     poll_interval_seconds: int = Field(default=5, description="Seconds between status polls after start. Only used when action=start.")

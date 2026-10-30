@@ -28,8 +28,7 @@ attributes:
       asset_key: streamsets/clickstream_pipeline
       deps: [streamsets/orders_cdc_pipeline]
 
-  # Per-job overrides, keyed by job_id. Mirrors mirth_connect_workspace's
-  # assets_by_channel / qlik_cloud_workspace's assets_by_app shape.
+  # Per-job overrides, keyed by job_id.
   assets_by_job:
     "8f6e1f2a-1234-5678-9abc-def012345678:acme-org":
       key: cdc/orders

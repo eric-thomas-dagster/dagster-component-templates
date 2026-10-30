@@ -8,7 +8,7 @@ import json
 import logging
 import re
 from pathlib import Path
-from typing import Annotated, Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, Iterator, List, Optional
 from datetime import datetime
 
 import snowflake.connector
@@ -31,7 +31,11 @@ from dagster import (
     AssetMaterialization,
     AssetObservation,
     AssetCheckEvaluation,
+    AssetCheckExecutionContext,
+    AssetCheckResult,
     AssetCheckSeverity,
+    AssetCheckSpec,
+    multi_asset_check,
     DataVersion,
     MaterializeResult,
     ObserveResult,
@@ -64,6 +68,136 @@ from pydantic import ConfigDict, Field
 # SQLAlchemy support all come for free. Legacy flat fields still accepted
 # for backward compat; mutually exclusive with `workspace:`.
 from dagster_snowflake import SnowflakeResource
+
+
+# Entity-type import flags demo_mode does NOT cover -- see the component's
+# demo_mode field and the guard at the top of write_state_to_path.
+_DEMO_MODE_UNSUPPORTED_IMPORT_FLAGS = [
+    "import_tasks", "import_dynamic_tables", "import_streams", "import_snowpipes",
+    "import_stages", "import_materialized_views", "import_external_tables",
+    "import_alerts", "import_openflow_flows", "import_tables", "import_views",
+]
+
+
+def _build_single_partitions_def(spec: Dict[str, Any]):
+    """One axis of a partitions_def from a declarative dict. See
+    _build_partitions_def_from_dict for the full `partitions:` shape."""
+    from dagster import (
+        DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+        MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+        StaticPartitionsDefinition, DynamicPartitionsDefinition,
+        TimeWindowPartitionsDefinition,
+    )
+
+    ptype = spec.get("type")
+    if not ptype:
+        raise ValueError("partitions: entry requires 'type'.")
+    start = spec.get("start")
+    if ptype in ("daily", "weekly", "monthly", "hourly", "cron") and not start:
+        raise ValueError(f"partitions: type={ptype!r} requires 'start' (ISO date, e.g. '2024-01-01').")
+    if ptype == "daily":
+        return DailyPartitionsDefinition(start_date=start)
+    if ptype == "weekly":
+        return WeeklyPartitionsDefinition(start_date=start)
+    if ptype == "monthly":
+        return MonthlyPartitionsDefinition(start_date=start)
+    if ptype == "hourly":
+        return HourlyPartitionsDefinition(start_date=start)
+    if ptype == "cron":
+        cron_schedule = spec.get("cron_schedule")
+        if not cron_schedule:
+            raise ValueError("partitions: type='cron' requires 'cron_schedule', e.g. '0 0 * * 1-5' for weekdays only.")
+        return TimeWindowPartitionsDefinition(start=start, fmt=spec.get("fmt", "%Y-%m-%d"), cron_schedule=cron_schedule)
+    if ptype == "static":
+        values = spec.get("values")
+        if not values:
+            raise ValueError("partitions: type='static' requires 'values' (a list).")
+        return StaticPartitionsDefinition([str(v) for v in values])
+    if ptype == "dynamic":
+        name = spec.get("dynamic_partition_name") or spec.get("name")
+        if not name:
+            raise ValueError("partitions: type='dynamic' requires 'dynamic_partition_name' (or 'name').")
+        return DynamicPartitionsDefinition(name=name)
+    raise ValueError(f"partitions: unknown type {ptype!r}.")
+
+
+def _build_partitions_def_from_dict(spec: Dict[str, Any]):
+    """Build a Dagster PartitionsDefinition from a declarative `partitions:`
+    override under `assets_by_name.<entity>`. Generalizes the single uniform
+    shape other workspace components (e.g. ssis_workspace) apply to every
+    asset into a per-entity choice -- different procedures/tables can have
+    different partition shapes from the same component instance.
+
+    Shapes:
+      {type: daily|weekly|monthly|hourly, start: "2024-01-01"}
+      {type: cron, start: "2024-01-01", cron_schedule: "0 0 * * 1-5", fmt: "%Y-%m-%d"}
+      {type: static, values: [a, b, c]}
+      {type: dynamic, dynamic_partition_name: my_axis}
+      {type: multi, dimensions: [{name: date, type: daily, start: ...}, {name: region, type: static, values: [...]}]}
+    """
+    if spec.get("type") == "multi":
+        from dagster import MultiPartitionsDefinition
+
+        dimensions = spec.get("dimensions")
+        if not dimensions:
+            raise ValueError("partitions: type='multi' requires 'dimensions' (a list of named single-axis specs).")
+        axes = {}
+        for dim in dimensions:
+            name = dim.get("name")
+            if not name:
+                raise ValueError("partitions: each entry under 'dimensions' requires 'name'.")
+            axes[name] = _build_single_partitions_def(dim)
+        return MultiPartitionsDefinition(axes)
+    return _build_single_partitions_def(spec)
+
+
+class _DemoSnowflakeCursor:
+    """Answers the exact SQL the stored-procedures discovery + CALL path
+    sends (SHOW PROCEDURES, CALL <proc>(...)) -- demo_mode's scope, see the
+    field's own description and the guard in write_state_to_path. Any other
+    query (e.g. the perf-trace QUERY_HISTORY_BY_QUERY_ID lookup) returns an
+    empty result rather than raising -- _emit_query_perf already tolerates
+    that and just omits the perf metadata."""
+
+    def __init__(self, procedure_names: List[str], schema: str) -> None:
+        self._procedure_names = procedure_names
+        self._schema = schema
+        self._rows: List[tuple] = []
+        self.description: Optional[List[tuple]] = None
+        self.sfqid: Optional[str] = None
+
+    def execute(self, sql: str, *_args: Any) -> "_DemoSnowflakeCursor":
+        text = " ".join(str(sql).split())
+        upper = text.upper()
+        self.description, self._rows = None, []
+        if upper.startswith("SHOW PROCEDURES"):
+            self.description = [(c,) for c in ("NAME", "SCHEMA_NAME", "ARGUMENTS")]
+            self._rows = [(name, self._schema, f"{name} () RETURN VARCHAR") for name in self._procedure_names]
+        elif upper.startswith("CALL "):
+            proc_name = text[len("CALL "):].split("(", 1)[0].rsplit(".", 1)[-1]
+            self.sfqid = f"demo-{proc_name.lower()}"
+            self._rows = [(f"{proc_name} completed successfully",)]
+        return self
+
+    def fetchone(self) -> Optional[tuple]:
+        return self._rows[0] if self._rows else None
+
+    def __iter__(self) -> Iterator[tuple]:
+        return iter(self._rows)
+
+    def close(self) -> None:
+        return None
+
+
+class _DemoSnowflakeConnection:
+    def __init__(self, procedure_names: List[str], schema: str) -> None:
+        self._procedure_names, self._schema = procedure_names, schema
+
+    def cursor(self) -> _DemoSnowflakeCursor:
+        return _DemoSnowflakeCursor(self._procedure_names, self._schema)
+
+    def close(self) -> None:
+        return None
 
 
 @record
@@ -591,7 +725,8 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         return DefsStateConfig.from_args(self.defs_state, default_key=default_key)
 
     def _create_connection(self) -> SnowflakeConnection:
-        """Return a raw Snowflake connection.
+        """Return a raw Snowflake connection (or, in demo_mode, the synthetic
+        stand-in scoped to stored procedures -- see the demo_mode field).
 
         Delegates to dagster-snowflake's SnowflakeResource.get_connection()
         which is a context manager yielding a raw
@@ -599,6 +734,8 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         `.close()` to also __exit__ the CM so downstream code that manages
         its own try/finally still works cleanly.
         """
+        if self.demo_mode:
+            return _DemoSnowflakeConnection(sorted(self.assets_by_name or {}), self.workspace.schema_ or "PUBLIC")  # type: ignore[return-value]
         cm = self.workspace.get_connection()
         conn = cm.__enter__()
         original_close = conn.close
@@ -667,19 +804,80 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         finally:
             cursor.close()
 
+    def _procedure_asset_key(self, proc_name: str) -> AssetKey:
+        """Resolve a stored procedure's asset key using the exact same
+        default-vs-override logic the main import loop uses, so
+        procedure_row_count_checks can bind to it without re-running discovery."""
+        override = (self.assets_by_name or {}).get(proc_name) or {}
+        if isinstance(override, dict) and "key" in override:
+            return AssetKey.from_user_string(str(override["key"]))
+        return AssetKey(f"proc_{re.sub(r'[^a-zA-Z0-9_]', '_', proc_name.lower())}")
+
+    def _build_procedure_row_count_checks(self) -> List[Any]:
+        """One subsettable multi_asset_check verifying each mapped stored
+        procedure's output table actually received rows -- a CALL that
+        "succeeds" (no SQL error) can still write zero rows on a bad run, and
+        nothing else here would catch that."""
+        if not self.procedure_row_count_checks:
+            return []
+        specs: List[AssetCheckSpec] = []
+        by_check: Dict[Any, Dict[str, Any]] = {}
+        for entry in self.procedure_row_count_checks:
+            asset_key = self._procedure_asset_key(entry["procedure"])
+            spec = AssetCheckSpec(
+                name=entry.get("name", "row_count_nonzero"),
+                asset=asset_key,
+                blocking=entry.get("blocking", False),
+                description=entry.get("description"),
+            )
+            specs.append(spec)
+            by_check[spec.key] = entry
+        if not specs:
+            return []
+        component = self
+
+        @multi_asset_check(specs=specs, can_subset=True, name="snowflake_procedure_row_count_checks")
+        def _checks(context: AssetCheckExecutionContext) -> Iterator[AssetCheckResult]:
+            for key in context.selected_asset_check_keys:
+                entry = by_check[key]
+                table = entry["table"]
+                if component.demo_mode:
+                    rows = (abs(hash(entry["procedure"])) % 500) + 1  # deterministic, always nonzero
+                else:
+                    conn = component._create_connection()
+                    try:
+                        result = component._execute_query(conn, f"SELECT COUNT(*) AS CNT FROM {table}")
+                        rows = int(result[0]["CNT"]) if result else 0
+                    finally:
+                        conn.close()
+                yield AssetCheckResult(
+                    asset_key=key.asset_key,
+                    check_name=key.name,
+                    passed=rows > 0,
+                    metadata={"rows_in_output_table": rows, "table": table},
+                    severity=AssetCheckSeverity.ERROR if entry.get("blocking", False) else AssetCheckSeverity.WARN,
+                )
+
+        return [_checks]
+
     def _apply_asset_overrides(self, entity_name: str, base_kwargs: dict) -> dict:
         """Merge per-entity overrides from `assets_by_name` into @asset kwargs.
 
         Mirrors the official DatabricksWorkspaceComponent.assets_by_task_key
         pattern. Keyed by the Snowflake entity name (task / dynamic table /
         stored procedure / etc.). Each override is itself a dict; supported
-        keys: key, group_name, description, deps, metadata, tags, kinds, owners.
+        keys: key, group_name, description, deps, metadata, tags, kinds, owners,
+        partitions.
 
         - `key` replaces `name=<asset_key>` with `key=AssetKey(...)` (slash-separated
           paths become AssetKey prefixes).
         - `deps` is merged with any deps already set on the base.
         - `metadata` and `tags` are dict-merged (override wins on conflicts).
         - `group_name` / `description` / `kinds` / `owners` straight-replace.
+        - `partitions` builds a per-entity `partitions_def` from a declarative
+          dict (see `_build_partitions_def_from_dict`) -- different entities
+          from the same component instance can have different partition
+          shapes (e.g. one table daily, another monthly, another multi-axis).
         """
         if not self.assets_by_name:
             return base_kwargs
@@ -710,6 +908,8 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             result["kinds"] = set(override["kinds"])
         if "owners" in override:
             result["owners"] = override["owners"]
+        if "partitions" in override:
+            result["partitions_def"] = _build_partitions_def_from_dict(override["partitions"])
         return result
 
     retry_policy_max_retries: Optional[int] = Field(
@@ -744,7 +944,10 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             "  metadata:     dict merged into the auto-emitted metadata\n"
             "  tags:         dict merged into asset tags\n"
             "  kinds:        list of kind strings (overrides inference)\n"
-            "  owners:       list of owners\n\n"
+            "  owners:       list of owners\n"
+            "  partitions:   declarative partitions_def for this entity only -- "
+            "see _build_partitions_def_from_dict; different entities can have "
+            "different shapes from the same component instance\n\n"
             "Example — wire cross-engine lineage from the Snowflake side:\n"
             "  assets_by_name:\n"
             "    CUSTOMER_METRICS:\n"
@@ -753,6 +956,41 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             "      deps: [raw/orders, raw/customers]\n"
             "      metadata:\n"
             "        domain: analytics\n"
+            "      partitions:\n"
+            "        type: daily\n"
+            "        start: '2024-01-01'\n"
+        ),
+    )
+
+    demo_mode: bool = Field(
+        default=False,
+        description=(
+            "Skip the real Snowflake connection for stored procedures: discovery "
+            "returns a synthetic catalog (one entry per assets_by_name key) and CALL "
+            "always 'succeeds', instead of running real SQL. Scoped to "
+            "import_stored_procedures only -- raises a clear error at state-write "
+            "time if any other import_* flag is also enabled (import_tasks defaults "
+            "to true, so set it false explicitly when using demo_mode). Use to "
+            "smoke-test the stored-procedure shape (assets_by_name overrides, "
+            "procedure_row_count_checks) with no real Snowflake account available."
+        ),
+    )
+    procedure_row_count_checks: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Attach a row-count asset_check to specific stored procedures, "
+            "evaluated against each procedure's output table (SELECT COUNT(*)) "
+            "after it runs -- catches a CALL that 'succeeds' but writes zero rows, "
+            "which nothing else here detects. One subsettable multi_asset_check, "
+            "not one job per check.\n\n"
+            "Each entry: {procedure: <name, matching an assets_by_name key>, "
+            "table: <fully-qualified output table>, name: (default "
+            "'row_count_nonzero'), blocking: (default false), description}.\n\n"
+            "Example:\n"
+            "  procedure_row_count_checks:\n"
+            "    - procedure: LOAD_CUSTOMER_METRICS\n"
+            "      table: ANALYTICS.SILVER.CUSTOMER_METRICS\n"
+            "      blocking: true\n"
         ),
     )
 
@@ -835,6 +1073,15 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         and included in state. ``build_defs_from_state`` gates the same way,
         so the state file only carries what the current YAML asked for.
         """
+        if self.demo_mode:
+            unsupported = [f for f in _DEMO_MODE_UNSUPPORTED_IMPORT_FLAGS if getattr(self, f)]
+            if unsupported:
+                raise ValueError(
+                    "demo_mode is currently scoped to import_stored_procedures only -- "
+                    f"disable {', '.join(unsupported)} to use it (note: import_tasks "
+                    "defaults to true), or turn demo_mode off for a real Snowflake "
+                    "connection covering those entity types too."
+                )
         state: Dict[str, Any] = {}
         conn = self._create_connection()
         try:
@@ -3549,6 +3796,7 @@ class SnowflakeWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         return Definitions(
             assets=assets_list,
             sensors=sensors_list if sensors_list else None,
+            asset_checks=self._build_procedure_row_count_checks() or None,
         )
 
 

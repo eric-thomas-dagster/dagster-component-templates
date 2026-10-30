@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-10-29",
+  "last_updated": "2026-10-30",
   "components": [
     {
       "id": "ab_controls",
@@ -60349,7 +60349,7 @@
       "id": "snowflake_workspace",
       "name": "Snowflake Workspace",
       "category": "integration",
-      "description": "Import Snowflake tasks / dynamic tables / stored procedures / streams / views / alerts as Dagster assets. Canonical `workspace:` block IS a dagster_snowflake.SnowflakeResource — same shape as dagster-databricks / dagster-fivetran / dagster-powerbi workspace components. Legacy flat account/user/password fields still accepted (mutually exclusive).",
+      "description": "Import Snowflake tasks / dynamic tables / stored procedures / streams / views / alerts as Dagster assets. Canonical `workspace:` block IS a dagster_snowflake.SnowflakeResource — same shape as dagster-databricks / dagster-fivetran / dagster-powerbi workspace components. Legacy flat account/user/password fields still accepted (mutually exclusive). assets_by_name supports per-entity partitions_def and procedure_row_count_checks verifies a stored procedure's output table received rows; demo_mode (stored procedures only) needs no real Snowflake account.",
       "version": "2.1.1",
       "author": "Dagster Community",
       "path": "integrations/snowflake_workspace",
@@ -61589,7 +61589,7 @@
       "id": "ssis_workspace",
       "name": "SSIS Workspace",
       "category": "integration",
-      "description": "SSIS packages as Dagster assets. Discovers SSISDB.catalog.packages + optionally executes via create_execution/start_execution + polls to completion, subsettable (selecting one package runs only that package). Fivetran-shape workspace: block for connection + selector for filtering + assets_by_package for per-package overrides/deps + polling_sensor + freshness_lag_threshold_seconds. demo_mode runs the whole shape with a synthetic catalog and zero SQL Server dependency.",
+      "description": "SSIS packages as Dagster assets. Discovers SSISDB.catalog.packages + optionally executes via create_execution/start_execution + polls to completion, subsettable (selecting one package runs only that package). Fivetran-shape workspace: block for connection + selector for filtering + assets_by_package for per-package overrides/deps + polling_sensor + freshness_lag_threshold_seconds (staleness) + max_execution_minutes (runtime SLA). demo_mode runs the whole shape with a synthetic catalog and zero SQL Server dependency.",
       "version": "1.1.0",
       "author": "Dagster Community",
       "path": "integrations/ssis_workspace",

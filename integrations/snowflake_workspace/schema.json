@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.SnowflakeWorkspaceComponent",
-  "description": "Import Snowflake tasks / dynamic tables / stored procedures / streams / views / alerts as Dagster assets. Canonical `workspace:` block IS a dagster_snowflake.SnowflakeResource — same shape as dagster-databricks / dagster-fivetran / dagster-powerbi workspace components. Legacy flat account/user/password fields still accepted (mutually exclusive).",
+  "description": "Import Snowflake tasks / dynamic tables / stored procedures / streams / views / alerts as Dagster assets. Canonical `workspace:` block IS a dagster_snowflake.SnowflakeResource — same shape as dagster-databricks / dagster-fivetran / dagster-powerbi workspace components. Legacy flat account/user/password fields still accepted (mutually exclusive). assets_by_name supports per-entity partitions_def and procedure_row_count_checks verifies a stored procedure's output table received rows; demo_mode (stored procedures only) needs no real Snowflake account.",
   "category": "integration",
   "icon": "si:snowflake",
   "x-dagster-io": {
@@ -223,7 +223,22 @@
     "assets_by_name": {
       "type": "object",
       "label": "Assets by Name",
-      "description": "Override the AssetSpec for specific imported entities (Tasks, Dynamic Tables, Stored Procedures, Streams, Snowpipes, Stages, Materialized Views, External Tables, Alerts, OpenFlow Flows) by their Snowflake name. Mirrors the official dagster-databricks DatabricksWorkspaceComponent.assets_by_task_key shape. Per-entity dict supports: key (slash-separated AssetKey), group_name, description, deps (list of upstream asset keys, merged with auto-inferred), metadata (dict-merged), tags (dict-merged), kinds (set), owners (list).",
+      "description": "Override the AssetSpec for specific imported entities (Tasks, Dynamic Tables, Stored Procedures, Streams, Snowpipes, Stages, Materialized Views, External Tables, Alerts, OpenFlow Flows) by their Snowflake name. Mirrors the official dagster-databricks DatabricksWorkspaceComponent.assets_by_task_key shape. Per-entity dict supports: key (slash-separated AssetKey), group_name, description, deps (list of upstream asset keys, merged with auto-inferred), metadata (dict-merged), tags (dict-merged), kinds (set), owners (list), partitions (declarative per-entity partitions_def -- daily/weekly/monthly/hourly/cron/static/dynamic/multi, different entities can have different shapes from the same component instance).",
+      "required": false,
+      "default": null
+    },
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "description": "Skip the real Snowflake connection for stored procedures: discovery returns a synthetic catalog (one entry per assets_by_name key) and CALL always succeeds. Scoped to import_stored_procedures only -- raises a clear error at state-write time if any other import_* flag is also enabled (import_tasks defaults to true).",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "procedure_row_count_checks": {
+      "type": "array",
+      "label": "Procedure Row Count Checks",
+      "description": "Attach a row-count asset_check to specific stored procedures, evaluated against each procedure's output table (SELECT COUNT(*)) after it runs. One subsettable multi_asset_check. Each entry: {procedure, table, name (default row_count_nonzero), blocking (default false), description}.",
       "required": false,
       "default": null
     },

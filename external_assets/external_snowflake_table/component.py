@@ -192,6 +192,13 @@ class ExternalSnowflakeTableAsset(dg.Component, dg.Model, dg.Resolvable):
     table_name: str = Field(description="Snowflake table name")
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
     description: Optional[str] = Field(default=None, description="Human-readable description")
+    deps: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Upstream asset keys this external table depends on (e.g. the exports that feed it). "
+            "Accepts a comma-separated string or a list, same as other components in this registry."
+        ),
+    )
 
     create_observation_sensor: bool = Field(
         default=False,
@@ -327,7 +334,7 @@ class ExternalSnowflakeTableAsset(dg.Component, dg.Model, dg.Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=(), csv=('partition_values',), tags=())
+        return coerce_field_shapes(data, lists=('deps',), csv=('partition_values',), tags=())
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         partitions_def = _build_partitions_def(
@@ -354,6 +361,7 @@ class ExternalSnowflakeTableAsset(dg.Component, dg.Model, dg.Resolvable):
                 "dagster.observability_type": "external",
             },
             partitions_def=partitions_def,
+            deps=[dg.AssetKey.from_user_string(k) for k in (self.deps or [])] or None,
         )
 
         if not self.create_observation_sensor:

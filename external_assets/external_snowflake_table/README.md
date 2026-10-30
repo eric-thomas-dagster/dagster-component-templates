@@ -44,6 +44,7 @@ This component does not read from or write to Snowflake Table. It is a **lineage
 |---|---|---|---|
 | `group_name` | `str` | — | Dagster asset group name |
 | `description` | `str` | — | Human-readable description |
+| `deps` | `List[str]` | — | Upstream asset keys this external table depends on (e.g. the exports that feed it). Accepts a comma-separated string or a list, same as other components in this registry. |
 
 ### Partitions
 

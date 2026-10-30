@@ -47,6 +47,14 @@
       "required": false,
       "default": null
     },
+    "deps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Deps",
+      "description": "Upstream asset keys this external table depends on (e.g. the exports that feed it). Accepts a comma-separated string or a list.",
+      "required": false,
+      "ui:widget": "list"
+    },
     "description": {
       "type": "string",
       "label": "Description",

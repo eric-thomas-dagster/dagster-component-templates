@@ -191,6 +191,14 @@
       "type": "string",
       "x-dagster-widget": "cron"
     },
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "description": "Skip the real BigQuery/GCS calls entirely -- returns synthetic, deterministic export rows instead. No credentials and no google-cloud-bigquery/storage packages required.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
     "partition_type": {
       "default": null,
       "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",

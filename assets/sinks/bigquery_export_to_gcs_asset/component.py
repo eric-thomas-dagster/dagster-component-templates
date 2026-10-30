@@ -160,6 +160,16 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
         description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'.",
     )
 
+    demo_mode: bool = Field(
+        default=False,
+        description=(
+            "Skip the real BigQuery/GCS calls entirely -- returns synthetic, "
+            "deterministic export rows instead. No credentials and no "
+            "google-cloud-bigquery/storage packages required. Use for demos "
+            "and tests with no real GCP project available."
+        ),
+    )
+
     partition_type: Optional[str] = Field(
         default=None,
         description="Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'dynamic' / None for unpartitioned.",
@@ -181,6 +191,20 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
     @classmethod
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('deps', 'owners'), csv=('partition_values',), tags=('tags',))
+
+    def _make_bigquery_client(self, credentials, project_id, location):
+        """Client construction seam. Override (via subclass or instance-level
+        monkeypatch) to swap in a fake for tests/demos instead of patching
+        `google.cloud.bigquery.Client` process-wide."""
+        from google.cloud import bigquery
+
+        return bigquery.Client(credentials=credentials, project=project_id, location=location)
+
+    def _make_storage_client(self, credentials, project_id):
+        """Same seam as `_make_bigquery_client`, for the GCS client."""
+        from google.cloud import storage
+
+        return storage.Client(credentials=credentials, project=project_id)
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         partitions_def = None
@@ -232,17 +256,18 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
         if self.source_table_id and self.source_query:
             raise ValueError("BigQueryExportToGcsAssetComponent: set source_table_id OR source_query, not both.")
 
+        demo_mode = self.demo_mode
         creds_dict = self.credentials
-        if creds_dict is None:
+        if creds_dict is None and not demo_mode:
             cred_path = self.credentials_path or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
             if cred_path:
                 with open(cred_path, "r") as fh:
                     creds_dict = json.load(fh)
-        if creds_dict is None:
+        if creds_dict is None and not demo_mode:
             raise ValueError("Provide credentials, credentials_path, or set GOOGLE_APPLICATION_CREDENTIALS.")
 
         asset_name = self.asset_name
-        project_id = self.project_id or creds_dict.get("project_id")
+        project_id = self.project_id or (creds_dict.get("project_id") if creds_dict else None)
         location = self.location
         source_table_id = self.source_table_id
         source_query = self.source_query
@@ -278,12 +303,6 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
             backfill_policy=backfill_policy,
         )
         def _asset(context: AssetExecutionContext):
-            try:
-                from google.cloud import bigquery, storage
-                from google.oauth2 import service_account
-            except ImportError:
-                raise ImportError("pip install google-cloud-bigquery google-cloud-storage google-auth")
-
             # Partition-aware destination URI:
             #   destination_uri: "gs://bucket/exports/{partition_key}/data_*.parquet"
             # renders to "gs://bucket/exports/2025-01-15/data_*.parquet" on the
@@ -306,12 +325,53 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
             else:
                 resolved_destination = destination_uri
 
+            if demo_mode:
+                context.log.info(f"demo_mode: synthetic export → {resolved_destination}")
+                shard_count = abs(hash(asset_name)) % 4 + 1
+                content_type = {
+                    "parquet": "application/octet-stream",
+                    "avro": "application/octet-stream",
+                    "csv": "text/csv",
+                    "json": "application/json",
+                    "newline_delimited_json": "application/json",
+                }.get(out_format, "application/octet-stream")
+                object_rows = [
+                    {
+                        "uri": resolved_destination.replace("*", f"{i:012d}") if "*" in resolved_destination else resolved_destination,
+                        "size_bytes": 1024 * (128 + i * 53),
+                        "content_type": content_type,
+                        "updated": None,
+                    }
+                    for i in range(shard_count)
+                ]
+                df = pd.DataFrame(object_rows)
+                md = {
+                    "source":              MetadataValue.text(source_table_id or "<query>"),
+                    "destination_uri":     MetadataValue.text(destination_uri),
+                    "format":              MetadataValue.text(out_format),
+                    "compression":         MetadataValue.text(compression or "none"),
+                    "object_count":        MetadataValue.int(len(df)),
+                    "total_size_bytes":    MetadataValue.int(int(df["size_bytes"].sum())),
+                    "bytes_processed":     MetadataValue.int(0),
+                    "bytes_billed":        MetadataValue.int(0),
+                    "slot_millis":         MetadataValue.int(0),
+                    "preview":             MetadataValue.md(df.head(20).to_markdown(index=False)),
+                    "demo_mode":           MetadataValue.bool(True),
+                }
+                return Output(value=df, metadata=md)
+
+            try:
+                from google.cloud import bigquery, storage
+                from google.oauth2 import service_account
+            except ImportError:
+                raise ImportError("pip install google-cloud-bigquery google-cloud-storage google-auth")
+
             sa_creds = service_account.Credentials.from_service_account_info(creds_dict)
-            bq = bigquery.Client(credentials=sa_creds, project=project_id, location=location)
+            bq = self._make_bigquery_client(sa_creds, project_id, location)
 
             # If overwrite=False, fail-fast if any objects exist at the destination prefix.
             if not overwrite:
-                gcs = storage.Client(credentials=sa_creds, project=project_id)
+                gcs = self._make_storage_client(sa_creds, project_id)
                 # Strip protocol + wildcard.
                 if resolved_destination.startswith("gs://"):
                     no_scheme = resolved_destination[len("gs://"):]
@@ -391,7 +451,7 @@ class BigQueryExportToGcsAssetComponent(Component, Model, Resolvable):
             # Inspect resulting GCS objects.
             object_rows = []
             try:
-                gcs = storage.Client(credentials=sa_creds, project=project_id)
+                gcs = self._make_storage_client(sa_creds, project_id)
                 no_scheme = resolved_destination[len("gs://"):]
                 bkt_name, _, prefix = no_scheme.partition("/")
                 prefix_for_list = prefix.split("*")[0] if "*" in prefix else prefix

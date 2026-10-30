@@ -1963,15 +1963,19 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         if asset_name and '.' in asset_name and not table_name:
             table_name = asset_name
         
+        # Per-asset database_resource_key, falling back to the component-level
+        # default (self.database_resource_key) so it doesn't have to be
+        # repeated on every asset block.
+        resolved_database_resource_key = asset_config.get('database_resource_key') or self.database_resource_key
+
         # Set default data_source_type if not provided
         if data_source_type is None:
-            # If no database resource is specified, default to dataframe mode
-            database_resource_key = asset_config.get('database_resource_key')
-            if not database_resource_key and not asset_config.get('database_resource_key_targets'):
+            # If no database resource is specified (per-asset or inherited), default to dataframe mode
+            if not resolved_database_resource_key and not asset_config.get('database_resource_key_targets'):
                 data_source_type = "dataframe"
             else:
                 data_source_type = "database"
-        
+
         # Create a new instance with the asset configuration
         component_data = {
             'data_source_type': data_source_type,
@@ -1986,10 +1990,10 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
             'table_name_targets': asset_config.get('table_name_targets'),
             'database_resource_key_targets': asset_config.get('database_resource_key_targets'),
         }
-        
-        # Only add database_resource_key if it's explicitly provided
-        if asset_config.get('database_resource_key'):
-            component_data['database_resource_key'] = asset_config.get('database_resource_key')
+
+        # Add database_resource_key if explicitly provided per-asset, or inherited from the component-level default
+        if resolved_database_resource_key:
+            component_data['database_resource_key'] = resolved_database_resource_key
         
         # Process nested check configurations
         for check_name, check_config in asset_config.items():

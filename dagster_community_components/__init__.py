@@ -556,6 +556,7 @@ _CLASS_PATHS: dict[str, str] = {
     "FivetranAssetsComponent": "integrations/fivetran_assets/component.py",
     "FivetranSyncSensorComponent": "sensors/fivetran_sync_sensor/component.py",
     "FivetranSyncTriggerJobComponent": "jobs/fivetran_sync_trigger_job/component.py",
+    "FivetranUsageObservationSensorComponent": "observations/fivetran_usage_observation_sensor/component.py",
     "FixMessageParserComponent": "assets/transforms/fix_message_parser/component.py",
     "FlinkJobRunAssetComponent": "assets/infrastructure/flink_job_run_asset/component.py",
     "FormulaComponent": "assets/transforms/formula/component.py",

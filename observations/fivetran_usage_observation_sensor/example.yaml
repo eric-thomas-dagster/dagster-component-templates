@@ -1,0 +1,20 @@
+type: dagster_community_components.FivetranUsageObservationSensorComponent
+attributes:
+  sensor_name: fivetran_usage_observer
+  resource_key: snowflake  # a Dagster resource exposing .get_connection() against the warehouse
+
+  # Fully-qualified table the Fivetran Platform Connector writes INCREMENTAL_MAR into.
+  # Set this up once via Fivetran's own setup: your destination already has a
+  # Platform Connector connection syncing to it.
+  mar_table: "ANALYTICS.FIVETRAN_LOG.INCREMENTAL_MAR"
+
+  lookback_days: 2         # catches a late Fivetran restatement of a prior day
+  free_type_filter: PAID   # Fivetran's own billing-focused convention; set to null for all usage
+  check_interval_seconds: 3600  # the Platform Connector itself typically syncs once a day
+
+  # Only set this if your FivetranAccountComponent's own `translation:` adds a
+  # prefix to asset keys -- leave unset to match the default translator
+  # (AssetKey([schema_name, table_name])) exactly.
+  # asset_key_prefix: [fivetran]
+
+  emit_materialization: false  # a usage number changing shouldn't normally drive downstream automation

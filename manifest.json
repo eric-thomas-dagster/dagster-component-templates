@@ -27416,6 +27416,44 @@
       "icon": "favicon:fivetran.com"
     },
     {
+      "id": "fivetran_usage_observation_sensor",
+      "name": "Fivetran Usage Observation Sensor",
+      "category": "observation",
+      "description": "Query the Fivetran Platform Connector's INCREMENTAL_MAR table and emit an AssetObservation per synced table ONLY when its usage has changed -- the numeric MAR value is meant to be registered as a Dagster+ Insights custom metric.",
+      "path": "observations/fivetran_usage_observation_sensor",
+      "tags": [
+        "observation",
+        "sensor",
+        "fivetran",
+        "insights",
+        "usage",
+        "mar"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/fivetran_usage_observation_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/fivetran_usage_observation_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/fivetran_usage_observation_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/fivetran_usage_observation_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/observations/fivetran_usage_observation_sensor/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "component_type": "dagster_community_components.FivetranUsageObservationSensorComponent",
+      "icon": "favicon:fivetran.com",
+      "validation": {"level": "component_only", "last_validated": "2026-10-30"},
+      "agent_hints": {
+        "outputs": ["sensor", "observation"],
+        "requires_pip": [],
+        "chains_with": ["fivetran_assets", "snowflake_resource", "bigquery_resource"]
+      },
+      "produces": ["sensor"],
+      "stateful": false,
+      "keywords": ["fivetran", "platform connector", "incremental_mar", "mar", "monthly active rows", "usage", "billing", "insights", "custom metric"]
+    },
+    {
       "id": "fix_message_parser",
       "name": "Fix Message Parser",
       "category": "transformation",
@@ -71118,5 +71156,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1364
+  "total": 1365
 }

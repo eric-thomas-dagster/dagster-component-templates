@@ -1,0 +1,88 @@
+{
+  "component_type": "dagster_community_components.FivetranUsageObservationSensorComponent",
+  "description": "Query the Fivetran Platform Connector's INCREMENTAL_MAR table and emit an AssetObservation per synced table ONLY when its usage has changed -- the numeric MAR value is meant to be registered as a Dagster+ Insights custom metric.",
+  "category": "observation",
+  "icon": "Eye",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetObservation",
+      "description": "One AssetObservation (or AssetMaterialization) per (schema_name, table_name) whose summed MAR changed since the last tick, keyed to match dagster_fivetran's default AssetKey([schema_name, table_name])."
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "type": "string",
+      "label": "Sensor Name",
+      "description": "Unique sensor name.",
+      "required": true
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Dagster resource exposing .get_connection() against the warehouse the Fivetran Platform Connector writes to. Not used when demo_mode=True.",
+      "required": true,
+      "ui:widget": "resource-picker"
+    },
+    "mar_table": {
+      "type": "string",
+      "label": "MAR Table",
+      "description": "Fully-qualified INCREMENTAL_MAR table name, e.g. 'MYDB.FIVETRAN_LOG.INCREMENTAL_MAR' (Snowflake) or 'my_project.fivetran_log.incremental_mar' (BigQuery).",
+      "required": false,
+      "default": "incremental_mar"
+    },
+    "lookback_days": {
+      "type": "integer",
+      "label": "Lookback Days",
+      "description": "How many days back to sum incremental_rows each tick, to catch late Fivetran restatements of a prior day.",
+      "required": false,
+      "default": 2
+    },
+    "free_type_filter": {
+      "type": "string",
+      "label": "Free Type Filter",
+      "description": "Filter on INCREMENTAL_MAR's free_type column. 'PAID' (default) matches Fivetran's own billing-focused sample queries. Set to null to include free usage too.",
+      "required": false,
+      "default": "PAID"
+    },
+    "asset_key_prefix": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Asset Key Prefix",
+      "description": "Prefix segments to prepend to the reconstructed asset key. Leave unset to match dagster_fivetran's default translator exactly.",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "check_interval_seconds": {
+      "type": "integer",
+      "label": "Check Interval Seconds",
+      "description": "Seconds between checks. The Platform Connector itself typically syncs once a day, so hourly is already generous.",
+      "required": false,
+      "default": 3600
+    },
+    "emit_materialization": {
+      "type": "boolean",
+      "label": "Emit Materialization",
+      "description": "When False (default), emits AssetObservation (free of Dagster+ credit charges, won't trigger downstream eager() runs). Set True only if usage changes should drive downstream automation.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "description": "Skip the real warehouse query entirely -- returns synthetic, deterministic MAR rows that change on alternating ticks. No resource_key or real warehouse required.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    }
+  },
+  "tags": [
+    "observation",
+    "sensor",
+    "fivetran",
+    "insights",
+    "usage",
+    "mar"
+  ],
+  "name": "Fivetran Usage Observation Sensor"
+}

@@ -11,6 +11,31 @@ For teams who live in Snowflake / BigQuery / Redshift / Postgres / Oracle / Db2 
 | `return_dataframe: false` (default) | `CREATE TABLE <dest> AS <sql>` (replace) or `INSERT INTO <dest> <sql>` (append) | `MaterializeResult` (table is the side-effect) |
 | `return_dataframe: true` | Executes the SQL as a SELECT, returns its result | `pd.DataFrame` (consumable by downstream pandas assets) |
 
+## One instance, many transforms (`transforms:`)
+
+By default one component instance is one transform asset (`asset_name` + `sql` at the top level). `transforms:` instead declares a list, one component instance producing N assets — each entry is a per-transform override on top of the instance's own shared defaults (`connection_url_env_var`, `group_name`, `kinds`, partitioning, etc.):
+
+```yaml
+type: dagster_community_components.SqlTransformComponent
+attributes:
+  connection_url_env_var: SNOWFLAKE_URL   # shared by every transform below
+  group_name: warehouse_transforms        # default for entries that don't override it
+  transforms:
+    - asset_name: orders_dedup
+      destination_table: ANALYTICS.PUBLIC.ORDERS_DEDUP
+      sql: |
+        SELECT * FROM {{ upstream }}
+        QUALIFY ROW_NUMBER() OVER (PARTITION BY order_id ORDER BY updated_at DESC) = 1
+      template_vars:
+        upstream: ANALYTICS.PUBLIC.ORDERS_RAW
+    - asset_name: payments_summary
+      destination_table: ANALYTICS.PUBLIC.PAYMENTS_SUMMARY
+      sql: SELECT customer_id, SUM(amount) AS total FROM payments GROUP BY customer_id
+      group_name: finance_transforms      # overrides the instance-level default for this one
+```
+
+Each entry requires at least `asset_name` and `sql`; any other field this component supports (`destination_table`, `template_vars`, `deps`, `partition_type`, `freshness_max_lag_minutes`, ...) can be set per-entry too. `asset_name`/`sql` at the top level and `transforms:` are mutually exclusive — set one or the other, not both.
+
 ## How it works
 
 Connection is via a single SQLAlchemy URL env var, so any warehouse with a SQLAlchemy dialect works:
@@ -67,17 +92,11 @@ When the asset runs, the following are available in the template (no need to dec
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `asset_name` | `str` | Dagster asset name |
-| `sql` | `str` | The SELECT body. Will be wrapped in `CREATE TABLE <dest> AS <sql>` or `INSERT INTO <dest> <sql>` based on if_exists. This string is resolved by dg's own component-YAML Jinja templating BEFORE this component ever sees it… _(full docs in schema.json + component README)_ |
-
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_name` | `str` | — | Dagster asset name. Required unless `transforms:` is set (mutually exclusive with it). |
 | `kinds` | `List[str]` | — | Asset kinds for the catalog. Auto-inferred from the connection URL scheme if unset (e.g. 'snowflake', 'bigquery', 'redshift'). |
 | `group_name` | `str` | `"warehouse_transforms"` | Dagster asset group name. |
 | `description` | `str` | — | Asset description shown in the catalog. |
@@ -126,8 +145,10 @@ When the asset runs, the following are available in the template (no need to dec
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `transforms` | `List[Dict[str, Any]]` | — | One component instance, N transform assets: a list of per-transform overrides, each applied on top of this instance's own field values (connection_url_env_var, group_name, kinds, etc. are shared defaults unless an entry… _(full docs in schema.json + component README)_ |
 | `connection_url_env_var` | `str` | `"DATABASE_URL"` | Env var holding a SQLAlchemy URL. Examples: SNOWFLAKE_URL, BIGQUERY_URL, REDSHIFT_URL, POSTGRES_URL, or DATABASE_URL (default) pointed at a local file for a zero-setup demo, e.g. 'duckdb:///demo.db'. |
 | `destination_table` | `str` | — | Fully-qualified destination table. Format depends on the warehouse: 'DB.SCHEMA.TABLE' for Snowflake, 'project.dataset.table' (or backticked) for BigQuery, 'schema.table' for Redshift. Required when return_dataframe=false. |
+| `sql` | `str` | — | The SELECT body. Required unless `transforms:` is set. Will be wrapped in `CREATE TABLE <dest> AS <sql>` or `INSERT INTO <dest> <sql>` based on if_exists. This string is resolved by dg's own component-YAML Jinja templati… _(full docs in schema.json + component README)_ |
 | `template_vars` | `Dict[str, str]` | — | Variables to interpolate into the SQL template. Rendered via Jinja2 when installed (so `{% if ... %}` / `{% for ... %}` work), otherwise a simple `{{ name }}` str.replace fallback. |
 | `return_dataframe` | `bool` | `false` | When true, execute the SQL as a SELECT and return its result as a DataFrame asset (no CTAS / INSERT). Useful for inline reads downstream of pandas transforms. When false (default), the SQL is wrapped in CREATE TABLE / IN… _(full docs in schema.json + component README)_ |
 | `upstream_asset_keys` | `Union[str, List[str]]` | — | Upstream Dagster asset keys this transform depends on. Typically external_snowflake_table / external_bigquery_table assets that represent the source warehouse tables. |

@@ -139,7 +139,21 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
     minimal and the substitution behavior obvious.
     """
 
-    asset_name: str = Field(description="Dagster asset name")
+    asset_name: Optional[str] = Field(
+        default=None,
+        description="Dagster asset name. Required unless `transforms:` is set (mutually exclusive with it).",
+    )
+    transforms: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "One component instance, N transform assets: a list of per-transform overrides, "
+            "each applied on top of this instance's own field values (connection_url_env_var, "
+            "group_name, kinds, etc. are shared defaults unless an entry overrides them). Each "
+            "entry requires at least `asset_name` and `sql`; any other field on this component "
+            "(destination_table, template_vars, deps, partition_type, ...) can be set per-entry "
+            "too. Mutually exclusive with the top-level `asset_name`/`sql` (single-transform mode)."
+        ),
+    )
     connection_url_env_var: str = Field(
         default="DATABASE_URL",
         description=(
@@ -157,9 +171,10 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
             "Required when return_dataframe=false."
         ),
     )
-    sql: str = Field(
+    sql: Optional[str] = Field(
+        default=None,
         description=(
-            "The SELECT body. Will be wrapped in `CREATE TABLE <dest> AS <sql>` "
+            "The SELECT body. Required unless `transforms:` is set. Will be wrapped in `CREATE TABLE <dest> AS <sql>` "
             "or `INSERT INTO <dest> <sql>` based on if_exists. This string is "
             "resolved by dg's own component-YAML Jinja templating BEFORE this "
             "component ever sees it, same as every other field. A `{{ partition_key }}` "
@@ -354,6 +369,35 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
         return "Run a SELECT on the warehouse and materialize the result as a table (CTAS pushdown)."
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
+        """Dispatch to single-transform or collection mode -- mutually exclusive,
+        same convention as external_sftp_path's asset_key/remote_path vs paths:."""
+        has_single = bool(self.asset_name or self.sql)
+        has_collection = bool(self.transforms)
+        if has_single and has_collection:
+            raise ValueError("Set either asset_name/sql (single transform) or transforms: (several transforms), not both.")
+        if not has_single and not has_collection:
+            raise ValueError("Set either asset_name/sql (single transform) or transforms: (several transforms).")
+
+        if not has_collection:
+            if not self.asset_name or not self.sql:
+                raise ValueError("Both asset_name and sql are required in single-transform mode.")
+            return self._build_single_defs(context)
+
+        defs_list = []
+        for i, entry in enumerate(self.transforms):
+            if not isinstance(entry, dict):
+                raise ValueError(f"transforms[{i}] must be a mapping, got {type(entry).__name__}")
+            merged = {**self.model_dump(), **entry, "transforms": None}
+            try:
+                instance = type(self)(**merged)
+            except Exception as e:
+                raise ValueError(f"transforms[{i}] ({entry.get('asset_name', '<no asset_name>')!r}): {e}") from e
+            if not instance.asset_name or not instance.sql:
+                raise ValueError(f"transforms[{i}] is missing required field 'asset_name' or 'sql'")
+            defs_list.append(instance._build_single_defs(context))
+        return dg.Definitions.merge(*defs_list)
+
+    def _build_single_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         # freshness_max_lag_minutes / freshness_cron -> FreshnessPolicy (applied to the asset(s) below)
         _column_lineage_md = _column_lineage_metadata(self)
         _freshness_policy_obj = (

@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.SqlTransformComponent",
-  "description": "Run a SELECT and either materialize the result as a table (CTAS / INSERT pushdown) or return a DataFrame inline. Template body is rendered with Jinja2 (supports {% if %} / {% for %} / filters), with Dagster context auto-injected ({{ partition_key }}, {{ partition_key_range_start }}, {{ partition_key_range_end }}, {{ asset_key }}, {{ run_id }}).",
+  "description": "Run a SELECT and either materialize the result as a table (CTAS / INSERT pushdown) or return a DataFrame inline. Template body is rendered with Jinja2 (supports {% if %} / {% for %} / filters), with Dagster context auto-injected ({{ partition_key }}, {{ partition_key_range_start }}, {{ partition_key_range_end }}, {{ asset_key }}, {{ run_id }}). transforms: lets one instance produce N assets instead of one.",
   "category": "transformation",
   "icon": "Database",
   "x-dagster-io": {
@@ -18,8 +18,15 @@
     "asset_name": {
       "type": "string",
       "label": "Asset Name",
-      "description": "Dagster asset name",
-      "required": true
+      "description": "Dagster asset name. Required unless transforms: is set (mutually exclusive with it).",
+      "required": false
+    },
+    "transforms": {
+      "type": "array",
+      "label": "Transforms",
+      "description": "One component instance, N transform assets: a list of per-transform overrides (each requires at least asset_name and sql), applied on top of this instance's own shared field values. Mutually exclusive with the top-level asset_name/sql.",
+      "required": false,
+      "default": null
     },
     "connection_url_env_var": {
       "type": "string",
@@ -46,8 +53,8 @@
     "sql": {
       "type": "string",
       "label": "SQL",
-      "description": "The SELECT body. Wrapped in CREATE TABLE AS (replace) or INSERT INTO (append). Resolved by dg's own component-YAML Jinja templating before this component sees it -- wrap a `{{ partition_key }}` (or partition_keys/partition_key_range_start/etc.) reference in `{% raw %}...{% endraw %}` so dg's pass leaves it untouched for this component's own render at materialization time.",
-      "required": true,
+      "description": "The SELECT body. Required unless transforms: is set. Wrapped in CREATE TABLE AS (replace) or INSERT INTO (append). Resolved by dg's own component-YAML Jinja templating before this component sees it -- wrap a `{{ partition_key }}` (or partition_keys/partition_key_range_start/etc.) reference in `{% raw %}...{% endraw %}` so dg's pass leaves it untouched for this component's own render at materialization time.",
+      "required": false,
       "ui:widget": "code"
     },
     "template_vars": {

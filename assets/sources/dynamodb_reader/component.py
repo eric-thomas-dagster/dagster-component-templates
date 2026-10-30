@@ -10,13 +10,18 @@ import pandas as pd
 from dagster import (
     AssetExecutionContext,
     AssetKey,
+    AssetObservation,
+    AssetSelection,
     Component,
     ComponentLoadContext,
     Definitions,
     MetadataValue,
     Model,
     Resolvable,
+    SensorEvaluationContext,
+    SensorResult,
     asset,
+    sensor,
 )
 from pydantic import Field
 
@@ -33,6 +38,66 @@ def _require_env(name: str) -> str:
         )
     return value
 
+
+def _build_item_count_sensor(
+    asset_key: AssetKey,
+    table_name: str,
+    aws_region: str,
+    aws_access_key_env_var: Optional[str],
+    aws_secret_key_env_var: Optional[str],
+    endpoint_url: Optional[str],
+    observation_interval_seconds: int,
+):
+    """One sensor polling the table's item count via table.scan(Select='COUNT')
+    -- a real scan each tick (count-only, no data transfer, but still
+    consumes read capacity) rather than DynamoDB's free `describe_table`
+    ItemCount, which AWS only refreshes roughly every six hours and would be
+    useless at a normal polling cadence. Emits AssetObservation only when the
+    count changed since the last tick."""
+    sensor_name = f"{asset_key.to_user_string().replace('/', '_')}_dynamodb_item_count_observer"
+
+    @sensor(
+        name=sensor_name,
+        minimum_interval_seconds=observation_interval_seconds,
+        asset_selection=AssetSelection.assets(asset_key),
+    )
+    def _item_count_sensor(context: SensorEvaluationContext):
+        import json as _json
+
+        try:
+            import boto3
+        except ImportError:
+            return SensorResult(skip_reason="boto3 not installed")
+
+        kwargs = {"region_name": aws_region}
+        if aws_access_key_env_var:
+            kwargs["aws_access_key_id"] = _require_env(aws_access_key_env_var)
+            kwargs["aws_secret_access_key"] = _require_env(aws_secret_key_env_var)
+        if endpoint_url:
+            kwargs["endpoint_url"] = endpoint_url
+
+        try:
+            dynamodb = boto3.resource("dynamodb", **kwargs)
+            table = dynamodb.Table(table_name)
+            count = table.scan(Select="COUNT").get("Count", 0)
+        except Exception as e:
+            context.log.error(f"DynamoDB count scan failed for {table_name}: {e}")
+            return SensorResult(skip_reason=f"count scan failed: {e}")
+
+        last_state: dict = _json.loads(context.cursor) if context.cursor else {}
+        previous = last_state.get("count")
+        new_cursor = _json.dumps({"count": count})
+        if previous is None:
+            return SensorResult(cursor=new_cursor, skip_reason="baseline recorded")  # first sighting
+        if count == previous:
+            return SensorResult(cursor=new_cursor, skip_reason="no item-count change since last tick")
+
+        return SensorResult(
+            asset_events=[AssetObservation(asset_key=asset_key, metadata={"dynamodb/item_count": count})],
+            cursor=new_cursor,
+        )
+
+    return _item_count_sensor
 
 
 def _build_partitions_def(
@@ -218,6 +283,27 @@ class DynamodbReaderComponent(Component, Model, Resolvable):
         default=None,
         description="Environment variable containing AWS secret access key",
     )
+    endpoint_url: Optional[str] = Field(
+        default=None,
+        description="Override the DynamoDB endpoint, e.g. 'http://localhost:8000' for DynamoDB Local. Passed through to boto3's endpoint_url -- the clean seam for a local/demo DynamoDB instead of a real AWS account.",
+    )
+    metadata: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Additional static metadata merged into the asset spec (distinct from asset_tags, which sets catalog tags, not metadata).",
+    )
+    polling_sensor: bool = Field(
+        default=False,
+        description=(
+            "If true, adds a sensor polling the table's item count (table.scan(Select='COUNT')) "
+            "and emitting AssetObservation only when the count changed since the last tick -- for "
+            "detecting writes to this table from outside Dagster. A real scan per tick (count-only, "
+            "no data transfer, but still consumes read capacity) -- not free for very large tables."
+        ),
+    )
+    observation_interval_seconds: int = Field(
+        default=300,
+        description="Seconds between sensor polls. Only used when polling_sensor=True.",
+    )
     filter_expression: Optional[str] = Field(
         default=None,
         description="boto3 FilterExpression as string (e.g., 'Attr(\"status\").eq(\"active\")')",
@@ -375,6 +461,7 @@ class DynamodbReaderComponent(Component, Model, Resolvable):
         aws_region = self.aws_region
         aws_access_key_env_var = self.aws_access_key_env_var
         aws_secret_key_env_var = self.aws_secret_key_env_var
+        endpoint_url = self.endpoint_url
         limit = self.limit
         index_name = self.index_name
         deps = self.deps
@@ -458,12 +545,13 @@ class DynamodbReaderComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, 
+        @asset(retry_policy=_retry_policy,
             key=AssetKey.from_user_string(asset_name),
             description=self.description or (f"DynamoDB scan of table {table_name}"),
             partitions_def=partitions_def,
                         owners=owners,
             tags=_all_tags,
+            metadata=self.metadata,
             freshness_policy=_freshness_policy,
 group_name=group_name,
             deps=[AssetKey.from_user_string(d) for d in (deps or [])],
@@ -482,6 +570,8 @@ group_name=group_name,
             if aws_access_key_env_var:
                 kwargs["aws_access_key_id"] = _require_env(aws_access_key_env_var)
                 kwargs["aws_secret_access_key"] = _require_env(aws_secret_key_env_var)
+            if endpoint_url:
+                kwargs["endpoint_url"] = endpoint_url
 
             dynamodb = boto3.resource("dynamodb", **kwargs)
             table = dynamodb.Table(table_name)
@@ -545,8 +635,15 @@ group_name=group_name,
 
         _schema_checks = build_column_schema_change_checks(assets=[dynamodb_reader_asset])
 
+        sensors = []
+        if self.polling_sensor:
+            sensors.append(_build_item_count_sensor(
+                AssetKey.from_user_string(asset_name), table_name, aws_region,
+                aws_access_key_env_var, aws_secret_key_env_var, endpoint_url,
+                self.observation_interval_seconds,
+            ))
 
-        return Definitions(assets=[dynamodb_reader_asset], asset_checks=list(_schema_checks))
+        return Definitions(assets=[dynamodb_reader_asset], asset_checks=list(_schema_checks), sensors=sensors)
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

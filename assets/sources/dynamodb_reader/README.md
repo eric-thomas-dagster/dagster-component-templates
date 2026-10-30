@@ -27,6 +27,7 @@ The `DynamodbReaderComponent` performs a full table scan on an AWS DynamoDB tabl
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `metadata` | `Dict[str, Any]` | — | Additional static metadata merged into the asset spec (distinct from asset_tags, which sets catalog tags, not metadata). |
 | `deps` | `List[str]` | — | Upstream asset keys for lineage |
 | `group_name` | `str` | — | Asset group for organization |
 | `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com'] |
@@ -77,6 +78,9 @@ The `DynamodbReaderComponent` performs a full table scan on an AWS DynamoDB tabl
 | `aws_region` | `str` | `"us-east-1"` | AWS region where the DynamoDB table is located |
 | `aws_access_key_env_var` | `str` | — | Environment variable containing AWS access key ID (uses instance role if None) |
 | `aws_secret_key_env_var` | `str` | — | Environment variable containing AWS secret access key |
+| `endpoint_url` | `str` | — | Override the DynamoDB endpoint, e.g. 'http://localhost:8000' for DynamoDB Local. Passed through to boto3's endpoint_url -- the clean seam for a local/demo DynamoDB instead of a real AWS account. |
+| `polling_sensor` | `bool` | `false` | If true, adds a sensor polling the table's item count (table.scan(Select='COUNT')) and emitting AssetObservation only when the count changed since the last tick -- for detecting writes to this table from outside Dagster… _(full docs in schema.json + component README)_ |
+| `observation_interval_seconds` | `int` | `300` | Seconds between sensor polls. Only used when polling_sensor=True. |
 | `index_name` | `str` | — | Global Secondary Index (GSI) name for query operations |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
@@ -127,6 +131,22 @@ attributes:
   aws_access_key_env_var: AWS_ACCESS_KEY_ID
   aws_secret_key_env_var: AWS_SECRET_ACCESS_KEY
 ```
+
+### Local / demo instance, with change detection
+
+```yaml
+type: dagster_community_components.DynamodbReaderComponent
+attributes:
+  asset_name: dynamo_orders
+  table_name: orders
+  endpoint_url: http://localhost:8000    # DynamoDB Local instead of a real AWS account
+  metadata:
+    owner_team: payments
+  polling_sensor: true                   # AssetObservation when the item count changes
+  observation_interval_seconds: 300
+```
+
+`polling_sensor` queries `table.scan(Select='COUNT')` each tick and emits `AssetObservation` only when the count changed since the last tick. This is a real scan (count-only, no data transfer, but still consumes read capacity) rather than DynamoDB's free `describe_table` `ItemCount` — AWS only refreshes that roughly every six hours, which would make it useless at a normal polling cadence.
 
 ## Output Schema
 

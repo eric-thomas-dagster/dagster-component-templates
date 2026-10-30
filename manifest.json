@@ -22647,7 +22647,7 @@
       "id": "dynamodb_reader",
       "name": "DynamoDB Reader",
       "category": "source",
-      "description": "Component for reading items from an AWS DynamoDB table.",
+      "description": "Component for reading items from an AWS DynamoDB table. endpoint_url for DynamoDB Local, metadata for static asset metadata, optional polling_sensor for item-count change detection.",
       "path": "assets/sources/dynamodb_reader",
       "tags": [
         "source",

@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.DynamodbReaderComponent",
-  "description": "Component for reading items from an AWS DynamoDB table.",
+  "description": "Component for reading items from an AWS DynamoDB table. endpoint_url for DynamoDB Local, metadata for static asset metadata, optional polling_sensor for item-count change detection.",
   "category": "source",
   "icon": "si:amazondynamodb",
   "x-dagster-io": {
@@ -43,6 +43,35 @@
       "required": false,
       "default": null,
       "ui:widget": "env_var"
+    },
+    "endpoint_url": {
+      "type": "string",
+      "label": "Endpoint URL",
+      "description": "Override the DynamoDB endpoint, e.g. 'http://localhost:8000' for DynamoDB Local -- the clean seam for a local/demo instance instead of a real AWS account.",
+      "required": false,
+      "default": null
+    },
+    "metadata": {
+      "type": "object",
+      "label": "Metadata",
+      "description": "Additional static metadata merged into the asset spec (distinct from asset_tags, which sets catalog tags, not metadata).",
+      "required": false,
+      "default": null
+    },
+    "polling_sensor": {
+      "type": "boolean",
+      "label": "Polling Sensor",
+      "description": "If true, adds a sensor polling the table's item count (scan Select='COUNT') and emitting AssetObservation only when the count changed since the last tick. A real scan per tick -- not free for very large tables.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "observation_interval_seconds": {
+      "type": "integer",
+      "label": "Observation Interval (seconds)",
+      "description": "Seconds between sensor polls. Only used when polling_sensor=True.",
+      "required": false,
+      "default": 300
     },
     "filter_expression": {
       "type": "string",

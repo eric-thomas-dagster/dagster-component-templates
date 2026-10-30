@@ -5,3 +5,7 @@ attributes:
   aws_region: us-east-1
   limit: 1000
   group_name: sources
+  # endpoint_url: http://localhost:8000    # DynamoDB Local instead of a real AWS account
+  # metadata: {owner_team: payments}
+  # polling_sensor: true                   # emits AssetObservation when the item count changes
+  # observation_interval_seconds: 300

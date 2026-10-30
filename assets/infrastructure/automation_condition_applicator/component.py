@@ -957,8 +957,24 @@ class AutomationConditionApplicatorComponent(dg.Component, dg.Model, dg.Resolvab
         return self.preserve_existing
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
-        # No-op: the helper in definitions.py reads this component's rules
-        # and applies them to the merged Definitions.
+        # No-op by itself: Dagster's component framework doesn't let one
+        # component post-process another's already-built Definitions, so
+        # this component's rules only take effect via
+        # defs_with_automation_rules(__file__) (or this component's own
+        # .apply(defs)) from definitions.py. A real user hit exactly this
+        # trap -- declared rules, nothing applied, no error anywhere to
+        # explain why -- so warn loudly here rather than stay silent.
+        if self.rules:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                f"AutomationConditionApplicatorComponent has {len(self.rules)} rule(s) configured, "
+                "but this component does nothing by itself -- it has no effect until something "
+                "calls defs_with_automation_rules(__file__) (or this component's own "
+                ".apply(defs)) from definitions.py. Without that wiring, every rule here is "
+                "silently ignored and no automation_condition is ever applied. See this "
+                "component's README for the one-line fix."
+            )
         return dg.Definitions(assets=[])
 
     def apply(self, base_defs: dg.Definitions) -> dg.Definitions:

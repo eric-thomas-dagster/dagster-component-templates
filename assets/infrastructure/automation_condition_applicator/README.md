@@ -598,7 +598,7 @@ Tag your root assets with `metadata: {cron_schedule: "..."}` so the applicator c
 
 ## Wiring (`definitions.py`)
 
-Components in Dagster can't post-process other components' output via `build_defs` alone — you wire the applicator at the project level. Three flavors:
+Components in Dagster can't post-process other components' output via `build_defs` alone — you wire the applicator at the project level. **Without one of the flavors below wired in, this component's `rules:` are silently ignored — nothing errors, no `automation_condition` is ever applied.** If you have `rules:` configured, `build_defs` logs a warning naming this exact trap, since it has no way to tell from inside the component whether the wiring exists elsewhere in your project. Three flavors:
 
 ### One-line (YAML rules, auto-discovered)
 

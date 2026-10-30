@@ -2,7 +2,7 @@
 
 Auto-discover every Prefect deployment in an instance and emit one triggerable Dagster asset per deployment — no hand-written `prefect_flow_run` block per deployment. `StateBackedComponent` — discovery cached to disk, so no Prefect API calls fire at Dagster defs-load time.
 
-**Why this exists**: `prefect_flow_run` requires one YAML block per deployment — a real tax for "just show me everything already deployed in my Prefect instance." This component removes that tax the same way `mlflow_workspace` / `snowflake_workspace` do for their own targets.
+**Why this exists**: `prefect_flow_run` requires one YAML block per deployment — a real tax for "just show me everything already deployed in my Prefect instance." This component removes that tax by discovering deployments automatically instead.
 
 Materializing a discovered deployment's asset triggers that deployment via `run_deployment` and (by default) waits for it to reach a terminal state, with `prefect_flow_run`'s **full** observability applied uniformly across every discovered deployment: `forward_termination`, `stream_logs`, `stream_artifacts` all work exactly the same way here as they do there — no reduced "lean" version. `check_names` and Dagster-side scheduling are the two things that do NOT apply globally — see below for why, and how to opt one deployment into either via `assets_by_name`.
 

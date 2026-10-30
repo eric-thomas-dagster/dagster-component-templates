@@ -15,8 +15,7 @@ this component's OWN extension (real A2A agents all speak one wire protocol
 and don't need a transport choice; this bridges two: MCP and plain HTTP).
 
 Declare-only: this emits a bare `dg.AssetSpec` with no compute function and
-no sensor -- same convention as `external_bigquery_table` and the other
-`external_*` components. It exists so:
+no sensor. It exists so:
   1. The agent shows up as a node in the Dagster asset graph (lineage,
      Asset Catalog), tagged `kind=agent`.
   2. `AgenticPipelineComponent`'s `delegate` op can discover it as a sibling

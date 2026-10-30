@@ -466,8 +466,7 @@ class SsisWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         description=(
             "Override the asset spec for specific packages, keyed by qualified name "
             "'<folder>/<project>/<package>'. Mirrors the official dagster-databricks "
-            "`DatabricksWorkspaceComponent.assets_by_task_key` shape (same convention "
-            "`snowflake_workspace.assets_by_name` uses in this registry).\n\n"
+            "`DatabricksWorkspaceComponent.assets_by_task_key` shape.\n\n"
             "Per-package keys (all optional):\n"
             "  key:          renames the Dagster asset key (slash-separated -> AssetKey)\n"
             "  group_name:   overrides the group\n"

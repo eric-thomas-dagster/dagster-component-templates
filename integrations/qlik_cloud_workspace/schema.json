@@ -35,7 +35,7 @@
     "assets_by_app": {
       "type": "object",
       "label": "Assets By App",
-      "description": "Override the asset spec for specific apps by app_id. Same convention as snowflake_workspace.assets_by_name / dagster-databricks's assets_by_task_key.",
+      "description": "Override the asset spec for specific apps by app_id. Mirrors the official dagster-databricks DatabricksWorkspaceComponent.assets_by_task_key shape.",
       "required": false,
       "default": null
     },

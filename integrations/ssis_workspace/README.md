@@ -14,7 +14,7 @@ The missing "orchestrate SSIS from Dagster" primitive for every SQL-Server enter
 
 - **`@public`** class + `StateBackedComponent` caching (discovery cached to disk via `write_state_to_path`; refresh with `dg utils refresh-defs-state`).
 - **`translation:` callable** for per-asset customization (rename, tag by folder, add owners, per-project group_name).
-- **`assets_by_package:`** — per-package overrides keyed by qualified name (`<folder>/<project>/<package>`), including real run-order `deps:` between packages. Mirrors the official `dagster-databricks` `DatabricksWorkspaceComponent.assets_by_task_key` shape (same convention `snowflake_workspace.assets_by_name` already uses in this registry).
+- **`assets_by_package:`** — per-package overrides keyed by qualified name (`<folder>/<project>/<package>`), including real run-order `deps:` between packages. Mirrors the official `dagster-databricks` `DatabricksWorkspaceComponent.assets_by_task_key` shape.
 - **`package_selector:`** — filter by folder / project / include / exclude fnmatch patterns.
 - **`package_overrides:`** — runtime parameters + environment references applied at execute time.
 - **`action: execute` is subsettable** (`can_subset=true`) — materializing one package runs only that package (plus any `assets_by_package` dependency ahead of it, in dependency order), not every discovered package.
@@ -193,7 +193,7 @@ Values in `SSISDB.catalog.executions.status`:
 | `demo_mode` | `bool` | `false` | Skip the real SQL Server connection entirely. Discovery returns a small synthetic package catalog (2 packages across 1 folder/project); execute/poll, the observation sensor, and freshness checks all log a simulated SSIS… _(full docs in schema.json + component README)_ |
 | `package_selector` | `SsisPackageSelector` | — | Filter which packages become assets. Default = every package in SSISDB. |
 | `package_overrides` | `List[SsisPackageOverride]` | — | Runtime parameters + environment references applied at execute time via `SSISDB.catalog.set_execution_parameter_value` (and, when set, `create_environment_reference`). Only used when `action: execute`. Multiple overrides… _(full docs in schema.json + component README)_ |
-| `assets_by_package` | `Dict[str, Dict[str, Any]]` | — | Override the asset spec for specific packages, keyed by qualified name '<folder>/<project>/<package>'. Mirrors the official dagster-databricks `DatabricksWorkspaceComponent.assets_by_task_key` shape (same convention `sno… _(full docs in schema.json + component README)_ |
+| `assets_by_package` | `Dict[str, Dict[str, Any]]` | — | Override the asset spec for specific packages, keyed by qualified name '<folder>/<project>/<package>'. Mirrors the official dagster-databricks `DatabricksWorkspaceComponent.assets_by_task_key` shape. Per-package keys (al… _(full docs in schema.json + component README)_ |
 | `translation` | `TranslationFn[SsisPackageProps]` | — | Optional per-asset translation callable. Receives a SsisPackageProps and returns a dict of AssetSpec kwargs (key / group_name / tags / owners / kinds / metadata / description). Use for per-folder / per-project customizat… _(full docs in schema.json + component README)_ |
 | `action` | `str` | `"noop"` | What materialize() does. `noop` = external asset (declare-only). `execute` = call `SSISDB.catalog.create_execution` + `start_execution`. |
 | `polling_sensor` | `bool` | `false` | If true, emit a sensor that polls SSISDB.catalog.executions for completions since watermark and emits AssetObservation per package. |

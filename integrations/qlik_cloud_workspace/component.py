@@ -26,8 +26,7 @@ demo/stand-in mode) swap it for a fake implementing the same three methods
 instead of patching `requests` calls scattered through the component.
 
 `assets_by_app` mirrors the official `dagster-databricks`
-`DatabricksWorkspaceComponent.assets_by_task_key` shape (same convention
-`snowflake_workspace.assets_by_name` already uses in this registry) for
+`DatabricksWorkspaceComponent.assets_by_task_key` shape for
 per-app asset-spec overrides (key / group_name / description / deps /
 metadata / tags / kinds / owners), keyed by Qlik Cloud app id.
 """
@@ -182,8 +181,7 @@ class QlikCloudWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description=(
             "Override the asset spec for specific apps by app_id. Mirrors the official "
-            "dagster-databricks `DatabricksWorkspaceComponent.assets_by_task_key` shape (same "
-            "convention `snowflake_workspace.assets_by_name` uses in this registry).\n\n"
+            "dagster-databricks `DatabricksWorkspaceComponent.assets_by_task_key` shape.\n\n"
             "Per-app keys (all optional): key, group_name, description, deps (merged with the "
             "app's own deps), metadata (merged), tags (merged), kinds (replaces), owners (replaces)."
         ),

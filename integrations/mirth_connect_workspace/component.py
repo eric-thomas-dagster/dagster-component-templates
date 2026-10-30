@@ -251,9 +251,8 @@ class MirthConnectWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description=(
             "Override the asset spec for specific channels by channel_id. Mirrors the official "
-            "dagster-databricks `DatabricksWorkspaceComponent.assets_by_task_key` shape (same "
-            "convention `snowflake_workspace.assets_by_name` / `qlik_cloud_workspace.assets_by_app` "
-            "use in this registry).\n\nPer-channel keys (all optional): key, group_name, description, "
+            "dagster-databricks `DatabricksWorkspaceComponent.assets_by_task_key` shape.\n\n"
+            "Per-channel keys (all optional): key, group_name, description, "
             "deps (merged with the channel's own deps), metadata (merged), tags (merged), kinds "
             "(replaces), owners (replaces)."
         ),

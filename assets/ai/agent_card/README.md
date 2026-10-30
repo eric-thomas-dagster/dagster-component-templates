@@ -8,11 +8,11 @@ Declares one hosted agent — reached over MCP or plain HTTP, never an in-proces
 
 Field names track the real [A2A protocol's `AgentCard` schema](https://docs.cloud.google.com/gemini/data-agents/reference/rest/Shared.Types/AgentCard) where there's a direct analog (`name`, `description`, `skills`, `version`, `default_input_modes`/`default_output_modes`), so wiring this to a literal `.well-known/agent.json` later is a rename, not a redesign. `invocation` is this component's own extension — real A2A agents all speak one wire protocol and don't need a transport choice; this bridges two (MCP and plain HTTP).
 
-This component is **declare-only** — a bare `AssetSpec`, no compute function, no sensor (same convention as `external_bigquery_table` and the other `external_*` components). It exists so:
+This component is **declare-only** — a bare `AssetSpec`, no compute function, no sensor. It exists so:
 
 1. The agent shows up as a node in the Dagster asset graph (lineage, Asset Catalog), tagged `kind=agent`.
-2. A `delegate` step in the same project discovers it automatically — same sibling-scan mechanism `EnhancedDataQualityChecks` uses to auto-inherit a checked asset's `partitions_def` — by reading `metadata["agent_card"]` off this spec. No wiring required beyond having both components in the same defs folder.
-3. Many of these specs' `agent_card` metadata can be aggregated into a flat JSON manifest (same shape, array of cards) for cross-project discovery — a `delegate` step's `registry.manifest_url`/`manifest_path` reads that manifest the same way `CatalogAgentComponent` reads the component-schema `manifest.json`.
+2. A `delegate` step in the same project discovers it automatically by scanning sibling assets in the same defs folder and reading `metadata["agent_card"]` off this spec. No wiring required beyond having both components in the same defs folder.
+3. Many of these specs' `agent_card` metadata can be aggregated into a flat JSON manifest (same shape, array of cards) for cross-project discovery — a `delegate` step's `registry.manifest_url`/`manifest_path` reads that manifest.
 
 ## `capabilities` — recommended starter vocabulary
 

@@ -66,7 +66,7 @@ attributes:
 
 ## `warmup_fn` / `tick_fn` — the dotted-path convention
 
-Both are `"module.path:function_name"` strings (colon-separated — same convention as `dynamic_fanout_asset`'s `_resolve`), resolved via `importlib.import_module` at the **start of each materialize** (not at `build_defs`/component-load time — same convention as `dynamic_fanout_asset`, so validating/instantiating this component doesn't require your project's own modules to be importable, e.g. from a CI schema check against `example.yaml`). A typo still fails fast, before any warmup or tick work runs — just at run-start rather than component-load.
+Both are `"module.path:function_name"` strings (colon-separated), resolved via `importlib.import_module` at the **start of each materialize** (not at `build_defs`/component-load time, so validating/instantiating this component doesn't require your project's own modules to be importable, e.g. from a CI schema check against `example.yaml`). A typo still fails fast, before any warmup or tick work runs — just at run-start rather than component-load.
 
 - `warmup_fn(context) -> Any` — optional. Called **once** per bounded run. Its return value (`warm_state`) is passed to every `tick_fn` call in that run.
 - `tick_fn(context, warm_state, scheduled_time) -> Optional[dict]` — required. Called once per precise tick, as a plain synchronous function call. If it returns a dict, those keys are merged into that tick's `AssetMaterialization` metadata.

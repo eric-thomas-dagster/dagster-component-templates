@@ -17,7 +17,7 @@ Same real Qlik Cloud REST API, verified directly against [qlik.dev's Reloads API
 
 ## assets_by_app — per-app overrides
 
-Mirrors the official `dagster-databricks` `DatabricksWorkspaceComponent.assets_by_task_key` shape (same convention `snowflake_workspace.assets_by_name` already uses in this registry), keyed by Qlik Cloud app id:
+Mirrors the official `dagster-databricks` `DatabricksWorkspaceComponent.assets_by_task_key` shape, keyed by Qlik Cloud app id:
 
 ```yaml
 assets_by_app:
@@ -67,7 +67,7 @@ assets_by_app:
 |---|---|---|---|
 | `tenant_url_env_var` | `str` | `"QLIK_CLOUD_TENANT_URL"` | Env var holding the tenant base URL, e.g. https://my-tenant.us.qlikcloud.com (Qlik Cloud is tenant-scoped -- there is no shared hostname). |
 | `apps` | `List[QlikCloudAppSpec]` | `list()` | Qlik Cloud apps to wrap as Dagster assets, one entry per dashboard/app. |
-| `assets_by_app` | `Dict[str, Dict[str, Any]]` | — | Override the asset spec for specific apps by app_id. Mirrors the official dagster-databricks `DatabricksWorkspaceComponent.assets_by_task_key` shape (same convention `snowflake_workspace.assets_by_name` uses in this regi… _(full docs in schema.json + component README)_ |
+| `assets_by_app` | `Dict[str, Dict[str, Any]]` | — | Override the asset spec for specific apps by app_id. Mirrors the official dagster-databricks `DatabricksWorkspaceComponent.assets_by_task_key` shape. Per-app keys (all optional): key, group_name, description, deps (merge… _(full docs in schema.json + component README)_ |
 | `polling_sensor` | `bool` | `false` | If true, adds ONE sensor (not one per app) that polls GET /api/v1/reloads?appId=... for every declared app, for reloads this component did NOT trigger (e.g. a scheduled reload configured in Qlik Cloud itself, or someone… _(full docs in schema.json + component README)_ |
 | `check_interval_seconds` | `int` | `300` | Seconds between sensor polls. Only used when polling_sensor=True. |
 

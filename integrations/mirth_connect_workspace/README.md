@@ -63,7 +63,7 @@ assets_by_channel:
     tags: {tier: critical}
 ```
 
-Keyed by `channel_id`. `key` / `group_name` / `description` / `kinds` / `owners` replace; `deps` / `metadata` / `tags` merge onto what the channel's own fields already set. Mirrors the official `dagster-databricks` `DatabricksWorkspaceComponent.assets_by_task_key` shape (same convention `snowflake_workspace.assets_by_name` and `qlik_cloud_workspace.assets_by_app` use elsewhere in this registry).
+Keyed by `channel_id`. `key` / `group_name` / `description` / `kinds` / `owners` replace; `deps` / `metadata` / `tags` merge onto what the channel's own fields already set. Mirrors the official `dagster-databricks` `DatabricksWorkspaceComponent.assets_by_task_key` shape.
 
 ## Actions
 
@@ -165,7 +165,7 @@ error_rate_threshold: 0.05
 |---|---|---|---|
 | `verify_ssl` | `bool` | `true` | Mirth ships with a self-signed TLS certificate by default -- set false for lab/demo installs still using the stock cert (same shape as ssis_workspace's trust_server_certificate). |
 | `channels` | `List[MirthChannelSpec]` | `list()` | HL7 channels to wrap as Dagster assets, one entry per channel. |
-| `assets_by_channel` | `Dict[str, Dict[str, Any]]` | — | Override the asset spec for specific channels by channel_id. Mirrors the official dagster-databricks `DatabricksWorkspaceComponent.assets_by_task_key` shape (same convention `snowflake_workspace.assets_by_name` / `qlik_c… _(full docs in schema.json + component README)_ |
+| `assets_by_channel` | `Dict[str, Dict[str, Any]]` | — | Override the asset spec for specific channels by channel_id. Mirrors the official dagster-databricks `DatabricksWorkspaceComponent.assets_by_task_key` shape. Per-channel keys (all optional): key, group_name, description… _(full docs in schema.json + component README)_ |
 | `action` | `str` | `"noop"` | noop (default) = external asset, declare-only, materialize does nothing. deploy = materialize deploys + starts the channel, confirmed by polling /channels/statuses (deploy/start both return 204 unconditionally per Mirth'… _(full docs in schema.json + component README)_ |
 | `polling_sensor` | `bool` | `false` | If true, adds ONE sensor (not one per channel) that polls each channel's cumulative message counters (received/filtered/queued/sent/error) and emits AssetObservation only for channels whose counters moved since the last… _(full docs in schema.json + component README)_ |
 | `check_interval_seconds` | `int` | `60` | Seconds between sensor polls. Only used when polling_sensor=True. |

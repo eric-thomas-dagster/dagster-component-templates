@@ -68708,7 +68708,7 @@
       "id": "warehouse_schema_assets",
       "name": "Warehouse Schema Assets",
       "category": "analytics",
-      "description": "Create one external Dagster asset per table/view in a database schema.",
+      "description": "Create one external Dagster asset per table/view in a database schema. Optional polling_sensor emits AssetObservation when a table's row count changes; kinds overridable (default ['sql']).",
       "path": "assets/analytics/warehouse_schema_assets",
       "tags": [
         "analytics",

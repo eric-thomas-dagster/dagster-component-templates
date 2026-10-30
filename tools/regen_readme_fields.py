@@ -131,59 +131,72 @@ def parse_fields(py_path: Path) -> list[dict]:
     # regardless of which one is the actual documented component. Every
     # component in this registry names its real component class "...Component"
     # and never uses that suffix for a nested spec/config class, so this is a
-    # reliable discriminator. Falls back to the old first-match behavior if no
-    # class is named "...Component" (shouldn't happen, but avoids regressing
-    # any file this doesn't apply to).
-    target = next((n for n in candidates if n.name.endswith("Component")), None)
-    if target is None and candidates:
-        target = candidates[0]
+    # reliable discriminator.
+    #
+    # Some files define TWO classes both literally named "...Component" behind
+    # a feature-detection branch (e.g. warehouse_schema_assets: a
+    # @dataclass StateBackedComponent variant when available, a plain
+    # dg.Model/Resolvable fallback otherwise) -- the dataclass one has no
+    # `Field(...)` calls to extract at all. So within the "...Component"-named
+    # candidates, try each in source order and use the first that actually
+    # yields fields, instead of locking onto whichever is textually first.
+    # Falls back to trying every other candidate the same way if none of the
+    # "...Component"-named ones yield anything (shouldn't normally be reached).
+    component_named = [n for n in candidates if n.name.endswith("Component")]
+    others = [n for n in candidates if not n.name.endswith("Component")]
+    for cls_node in component_named + others:
+        fields = _extract_fields_from_class(cls_node)
+        if fields:
+            return fields
+    return []
 
+
+def _extract_fields_from_class(target: ast.ClassDef) -> list[dict]:
     fields: list[dict] = []
-    if target is not None:
-        for idx, item in enumerate(target.body):
-            if not isinstance(item, ast.AnnAssign) or not isinstance(item.target, ast.Name):
-                continue
-            if item.value is None:
-                continue
-            # Look for `= Field(...)` calls
-            if not (isinstance(item.value, ast.Call) and _is_field_call(item.value)):
-                continue
-            internal_name = item.target.id
-            if internal_name.startswith("_"):
-                continue
-            type_str = ast.unparse(item.annotation)
-            field_kwargs = {kw.arg: kw.value for kw in item.value.keywords if kw.arg}
-            # If Field(..., alias="something") is present, the alias is the
-            # public-facing YAML key — prefer it over the Python attribute name.
-            alias_node = field_kwargs.get("alias")
-            if alias_node is not None and isinstance(alias_node, ast.Constant) and isinstance(alias_node.value, str):
-                name = alias_node.value
-            else:
-                name = internal_name
-            # Default
-            default_node = field_kwargs.get("default")
-            default_factory = field_kwargs.get("default_factory")
-            if default_node is not None:
-                default_str = _literal_str(default_node)
-            elif default_factory is not None:
-                default_str = f"`{ast.unparse(default_factory)}()`"
-            else:
-                # Required only if no default AND type isn't Optional
-                default_str = None
-            required = default_str is None and not _is_optional(type_str)
-            # Description
-            desc_node = field_kwargs.get("description")
-            description = _literal_str(desc_node, raw=True) if desc_node is not None else ""
-            description = description.replace("\n", " ").replace("|", "\\|").strip()
-            description = re.sub(r"\s+", " ", description)
-            fields.append({
-                "name": name,
-                "type_str": _clean_type(type_str),
-                "default_str": default_str,
-                "description": description,
-                "required": required,
-                "order": idx,
-            })
+    for idx, item in enumerate(target.body):
+        if not isinstance(item, ast.AnnAssign) or not isinstance(item.target, ast.Name):
+            continue
+        if item.value is None:
+            continue
+        # Look for `= Field(...)` calls
+        if not (isinstance(item.value, ast.Call) and _is_field_call(item.value)):
+            continue
+        internal_name = item.target.id
+        if internal_name.startswith("_"):
+            continue
+        type_str = ast.unparse(item.annotation)
+        field_kwargs = {kw.arg: kw.value for kw in item.value.keywords if kw.arg}
+        # If Field(..., alias="something") is present, the alias is the
+        # public-facing YAML key — prefer it over the Python attribute name.
+        alias_node = field_kwargs.get("alias")
+        if alias_node is not None and isinstance(alias_node, ast.Constant) and isinstance(alias_node.value, str):
+            name = alias_node.value
+        else:
+            name = internal_name
+        # Default
+        default_node = field_kwargs.get("default")
+        default_factory = field_kwargs.get("default_factory")
+        if default_node is not None:
+            default_str = _literal_str(default_node)
+        elif default_factory is not None:
+            default_str = f"`{ast.unparse(default_factory)}()`"
+        else:
+            # Required only if no default AND type isn't Optional
+            default_str = None
+        required = default_str is None and not _is_optional(type_str)
+        # Description
+        desc_node = field_kwargs.get("description")
+        description = _literal_str(desc_node, raw=True) if desc_node is not None else ""
+        description = description.replace("\n", " ").replace("|", "\\|").strip()
+        description = re.sub(r"\s+", " ", description)
+        fields.append({
+            "name": name,
+            "type_str": _clean_type(type_str),
+            "default_str": default_str,
+            "description": description,
+            "required": required,
+            "order": idx,
+        })
     return fields
 
 

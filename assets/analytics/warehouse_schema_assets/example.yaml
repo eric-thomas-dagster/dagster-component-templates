@@ -9,3 +9,6 @@ attributes:
   include_columns: true
   group_by_schema: true
   tag_with_schema: true
+  # kinds: [postgres]            # default: ['sql']
+  # polling_sensor: true         # emits AssetObservation when a table's row count changes
+  # observation_interval_seconds: 300

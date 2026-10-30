@@ -83,6 +83,7 @@ You also need a **database-specific driver**. Install the one that matches your 
 |---|---|---|---|
 | `key_prefix` | `str` | — | — |
 | `group_name` | `str` | — | — |
+| `kinds` | `list` | — | Asset kinds for the Dagster catalog. Default: ['sql']. |
 
 ### Source / target
 
@@ -100,6 +101,8 @@ You also need a **database-specific driver**. Install the one that matches your 
 | `include_columns` | `bool` | `true` | — |
 | `group_by_schema` | `bool` | `true` | — |
 | `tag_with_schema` | `bool` | `false` | — |
+| `polling_sensor` | `bool` | `false` | If true, adds a sensor polling each table's row count and emitting AssetObservation only for tables whose count changed since the last tick. |
+| `observation_interval_seconds` | `int` | `300` | Seconds between sensor polls. Only used when polling_sensor=True. |
 
 [//]: # (FIELDS:END)
 
@@ -234,6 +237,23 @@ dg utils refresh-defs-state
 git add .dagster/defs_state/
 git commit -m "chore: refresh warehouse schema cache"
 ```
+
+---
+
+## Observing changes — `polling_sensor`
+
+The cached schema answers "what tables exist," not "did a table just change." For tables that other systems (an ETL job, a vendor feed, a DBA) write to outside Dagster, `polling_sensor: true` adds a sensor that polls each table's row count and emits `AssetObservation` only for tables whose count actually changed since the last tick — the same change-only-on-delta discipline as this registry's other polling sensors:
+
+```yaml
+polling_sensor: true
+observation_interval_seconds: 300
+```
+
+This is a real `SELECT COUNT(*)` per table per tick, not a free check — leave it off (default) for warehouses with many or very large tables, or scope the component instance to just the tables you actually need freshness signal for via `table_pattern:` / `exclude_tables:`.
+
+## Overriding `kinds`
+
+Every imported table defaults to `kinds: ["sql"]`. Set `kinds:` to replace it (e.g. `["postgres"]`, `["snowflake", "warehouse"]`) for a catalog badge that matches your actual warehouse engine.
 
 ---
 

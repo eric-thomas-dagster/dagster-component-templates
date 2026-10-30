@@ -77,25 +77,35 @@ def _introspect_schemas(
     return results
 
 
+def _table_asset_key(t: dict, key_prefix: Optional[str]) -> dg.AssetKey:
+    key_parts = []
+    if key_prefix:
+        key_parts.append(key_prefix)
+    key_parts.extend([t["schema"], t["table"]])
+    return dg.AssetKey(key_parts)
+
+
 def _build_schema_defs(
     tables: list[dict],
     key_prefix: Optional[str],
     group_by_schema: bool,
     group_name: Optional[str],
     tag_with_schema: bool,
+    kinds: Optional[list[str]] = None,
 ) -> dg.Definitions:
+    # TableMetadataSet isn't exported from the top-level `dagster` package
+    # (confirmed: `hasattr(dagster, 'TableMetadataSet')` is False on current
+    # releases) -- only from its real, private location. `dg.TableMetadataSet`
+    # raised AttributeError for every table with introspected columns.
+    from dagster._core.definitions.metadata.metadata_set import TableMetadataSet
+
     specs = []
+    spec_kinds = set(kinds) if kinds else {"sql"}
 
     for t in tables:
         schema = t["schema"]
         table = t["table"]
-
-        # Asset key: [prefix, schema, table] or [schema, table] or [table]
-        key_parts = []
-        if key_prefix:
-            key_parts.append(key_prefix)
-        key_parts.extend([schema, table])
-        asset_key = dg.AssetKey(key_parts)
+        asset_key = _table_asset_key(t, key_prefix)
 
         # Column schema metadata
         metadata: dict = {}
@@ -109,7 +119,7 @@ def _build_schema_defs(
                 )
                 for c in cols
             ])
-            metadata.update(dg.TableMetadataSet(column_schema=column_schema))
+            metadata.update(TableMetadataSet(column_schema=column_schema))
 
         metadata["warehouse/schema"] = dg.MetadataValue.text(schema)
         metadata["warehouse/table"] = dg.MetadataValue.text(table)
@@ -126,11 +136,73 @@ def _build_schema_defs(
             group_name=group_name or (schema if group_by_schema else "warehouse"),
             metadata=metadata,
             tags=tags,
-            kinds={"sql"},
+            kinds=spec_kinds,
         )
         specs.append(spec)
 
     return dg.Definitions(assets=specs)
+
+
+def _build_row_count_sensor(
+    tables: list[dict],
+    database_url_env_var: str,
+    key_prefix: Optional[str],
+    observation_interval_seconds: int,
+):
+    """One shared sensor polling each table's row count, emitting
+    AssetObservation only for tables whose count actually changed since the
+    last tick -- same change-only-on-delta discipline as this registry's
+    other polling sensors (external_sftp_path, mirth_connect_workspace,
+    qlik_cloud_workspace). Opt-in: row counts are a real query per table per
+    tick, not free for warehouses with many/large tables."""
+    asset_keys = [_table_asset_key(t, key_prefix) for t in tables]
+    tables_by_key_str = {k.to_user_string(): t for k, t in zip(asset_keys, tables)}
+
+    @dg.sensor(
+        name="warehouse_schema_assets_row_count_observer",
+        minimum_interval_seconds=observation_interval_seconds,
+        asset_selection=dg.AssetSelection.assets(*asset_keys),
+    )
+    def _row_count_sensor(context: dg.SensorEvaluationContext):
+        import json as _json
+        from sqlalchemy import create_engine, text
+
+        last_counts: dict = _json.loads(context.cursor) if context.cursor else {}
+        new_counts: dict = dict(last_counts)
+        events = []
+
+        db_url = dg.EnvVar(database_url_env_var).get_value()
+        engine = create_engine(db_url)
+        try:
+            with engine.connect() as conn:
+                for key_str, t in tables_by_key_str.items():
+                    try:
+                        row = conn.execute(
+                            text(f'SELECT COUNT(*) FROM "{t["schema"]}"."{t["table"]}"')
+                        ).fetchone()
+                        count = int(row[0]) if row else 0
+                    except Exception as e:
+                        context.log.error(f"row-count query failed for {t['schema']}.{t['table']}: {e}")
+                        continue
+                    previous = last_counts.get(key_str)
+                    new_counts[key_str] = count
+                    if previous is None:
+                        continue  # first sighting -- record baseline, nothing to diff against yet
+                    if count == previous:
+                        continue
+                    events.append(dg.AssetObservation(
+                        asset_key=dg.AssetKey.from_user_string(key_str),
+                        metadata={"warehouse/row_count": count},
+                    ))
+        finally:
+            engine.dispose()
+
+        new_cursor = _json.dumps(new_counts)
+        if events:
+            return dg.SensorResult(asset_events=events, cursor=new_cursor)
+        return dg.SensorResult(cursor=new_cursor, skip_reason="No table row-count changes since last tick")
+
+    return _row_count_sensor
 
 
 if _HAS_STATE_BACKED:
@@ -168,6 +240,9 @@ if _HAS_STATE_BACKED:
         group_by_schema: bool = True
         group_name: Optional[str] = None
         tag_with_schema: bool = False
+        kinds: Optional[list] = None
+        polling_sensor: bool = False
+        observation_interval_seconds: int = 300
         defs_state: ResolvedDefsStateConfig = field(
             default_factory=DefsStateConfigArgs.local_filesystem
         )
@@ -256,13 +331,20 @@ if _HAS_STATE_BACKED:
                 return dg.Definitions()
 
             tables = json.loads(state_path.read_text())
-            return _build_schema_defs(
+            defs = _build_schema_defs(
                 tables=tables,
                 key_prefix=self.key_prefix,
                 group_by_schema=self.group_by_schema,
                 group_name=self.group_name,
                 tag_with_schema=self.tag_with_schema,
+                kinds=self.kinds,
             )
+            if self.polling_sensor and tables:
+                sensor = _build_row_count_sensor(
+                    tables, self.database_url_env_var, self.key_prefix, self.observation_interval_seconds,
+                )
+                defs = dg.Definitions.merge(defs, dg.Definitions(sensors=[sensor]))
+            return defs
 
 else:
     class WarehouseSchemaAssetsComponent(dg.Component, dg.Model, dg.Resolvable):  # type: ignore[no-redef]
@@ -277,6 +359,12 @@ else:
         group_by_schema: bool = dg.Field(default=True)
         group_name: Optional[str] = dg.Field(default=None)
         tag_with_schema: bool = dg.Field(default=False)
+        kinds: Optional[list] = dg.Field(default=None, description="Asset kinds for the Dagster catalog. Default: ['sql'].")
+        polling_sensor: bool = dg.Field(
+            default=False,
+            description="If true, adds a sensor polling each table's row count and emitting AssetObservation only for tables whose count changed since the last tick.",
+        )
+        observation_interval_seconds: int = dg.Field(default=300, description="Seconds between sensor polls. Only used when polling_sensor=True.")
 
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             db_url = dg.EnvVar(self.database_url_env_var).get_value()
@@ -288,10 +376,17 @@ else:
                 include_views=self.include_views,
                 include_columns=self.include_columns,
             )
-            return _build_schema_defs(
+            defs = _build_schema_defs(
                 tables=tables,
                 key_prefix=self.key_prefix,
                 group_by_schema=self.group_by_schema,
                 group_name=self.group_name,
                 tag_with_schema=self.tag_with_schema,
+                kinds=self.kinds,
             )
+            if self.polling_sensor and tables:
+                sensor = _build_row_count_sensor(
+                    tables, self.database_url_env_var, self.key_prefix, self.observation_interval_seconds,
+                )
+                defs = dg.Definitions.merge(defs, dg.Definitions(sensors=[sensor]))
+            return defs

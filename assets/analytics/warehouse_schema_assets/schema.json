@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.WarehouseSchemaAssetsComponent",
-  "description": "Create one external Dagster asset per table/view in a database schema.",
+  "description": "Create one external Dagster asset per table/view in a database schema. Optional polling_sensor emits AssetObservation when a table's row count changes; kinds overridable (default ['sql']).",
   "category": "analytics",
   "icon": "BarChart2",
   "x-dagster-io": {
@@ -75,6 +75,30 @@
       "label": "Tag With Schema",
       "required": false,
       "default": false
+    },
+    "kinds": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Kinds",
+      "description": "Asset kinds for the Dagster catalog. Default: ['sql'].",
+      "required": false,
+      "default": null,
+      "ui:widget": "list"
+    },
+    "polling_sensor": {
+      "type": "boolean",
+      "label": "Polling Sensor",
+      "description": "If true, adds a sensor polling each table's row count and emitting AssetObservation only for tables whose count changed since the last tick. A real query per table per tick -- not free for many/large tables.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "observation_interval_seconds": {
+      "type": "integer",
+      "label": "Observation Interval (seconds)",
+      "description": "Seconds between sensor polls. Only used when polling_sensor=True.",
+      "required": false,
+      "default": 300
     },
     "defs_state": {
       "type": "string",

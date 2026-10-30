@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.DataframeToCsvComponent",
-  "description": "Write a DataFrame to a CSV file.",
+  "description": "Write a DataFrame to a CSV file. source_table queries a warehouse table directly instead of requiring an upstream DataFrame asset; exports: lets one instance produce N files instead of one.",
   "category": "sink",
   "icon": "Table",
   "x-dagster-io": {
@@ -18,20 +18,48 @@
     "asset_name": {
       "type": "string",
       "label": "Asset Name",
-      "description": "Output Dagster asset name",
-      "required": true
+      "description": "Output Dagster asset name. Required unless exports: is set (mutually exclusive with it).",
+      "required": false
+    },
+    "exports": {
+      "type": "array",
+      "label": "Exports",
+      "description": "One component instance, N export assets: a list of per-export overrides (each requires at least asset_name, file_path, and one of upstream_asset_key/source_table). Mutually exclusive with the top-level asset_name.",
+      "required": false,
+      "default": null
     },
     "upstream_asset_key": {
       "type": "string",
       "label": "Upstream Asset Key",
-      "description": "Upstream asset key providing a DataFrame",
-      "required": true
+      "description": "Upstream asset key providing a DataFrame. Mutually exclusive with source_table -- set exactly one.",
+      "required": false
+    },
+    "source_table": {
+      "type": "string",
+      "label": "Source Table",
+      "description": "Fully-qualified warehouse table to query directly (e.g. 'ANALYTICS.PUBLIC.ORDERS'), instead of reading an upstream asset's DataFrame. Mutually exclusive with upstream_asset_key. Requires connection_url_env_var.",
+      "required": false,
+      "default": null
+    },
+    "connection_url_env_var": {
+      "type": "string",
+      "label": "Connection URL Env Var",
+      "description": "Env var holding a SQLAlchemy URL. Required (and only used) when source_table is set.",
+      "required": false,
+      "default": null
+    },
+    "partition_filter_column": {
+      "type": "string",
+      "label": "Partition Filter Column",
+      "description": "Only used with source_table. Column filtered via a parameterized WHERE clause when the run has a single partition key, pushing the filter into SQL instead of fetching the whole table.",
+      "required": false,
+      "default": null
     },
     "file_path": {
       "type": "string",
       "label": "File Path",
-      "description": "Destination file path. Supports env var substitution e.g. ${OUTPUT_DIR}/results.csv",
-      "required": true,
+      "description": "Destination file path. Required unless exports: is set. Supports env var substitution e.g. ${OUTPUT_DIR}/results.csv",
+      "required": false,
       "ui:widget": "file"
     },
     "delimiter": {

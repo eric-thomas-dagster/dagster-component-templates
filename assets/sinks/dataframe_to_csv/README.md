@@ -8,18 +8,11 @@ Writes a Pandas DataFrame to a CSV file. This is a terminal sink component — i
 
 ## Fields
 
-### Required
-
-| Field | Type | Description |
-|---|---|---|
-| `asset_name` | `str` | Output Dagster asset name |
-| `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame |
-| `file_path` | `str` | Destination file path or fsspec URI. Local paths (`/tmp/out.csv`) and remote URIs (`s3://bucket/out.csv`, `gs://bucket/out.csv`, `az://container/out.csv`) both work — pandas' `to_csv()` accepts fsspec URIs natively when… _(full docs in schema.json + component README)_ |
-
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_name` | `str` | — | Output Dagster asset name. Required unless `exports:` is set (mutually exclusive with it). |
 | `group_name` | `str` | — | Dagster asset group name |
 | `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in ONE run: the upstream frame (loaded once, spanning the whole range) is filtered to every partition key in the ran… _(full docs in schema.json + component README)_ |
 | `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com'] |
@@ -41,6 +34,7 @@ Writes a Pandas DataFrame to a CSV file. This is a terminal sink component — i
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `partition_filter_column` | `str` | — | Only used with `source_table`. Column filtered via `WHERE {partition_filter_column} = <partition_key>` (parameterized, not string-interpolated) when the run has a single partition key -- pushes the filter into SQL instea… _(full docs in schema.json + component README)_ |
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
@@ -59,10 +53,20 @@ Writes a Pandas DataFrame to a CSV file. This is a terminal sink component — i
 | `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
 | `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `source_table` | `str` | — | Fully-qualified warehouse table to query directly (e.g. 'ANALYTICS.PUBLIC.ORDERS'), instead of reading an upstream asset's DataFrame through an IO manager. Mutually exclusive with `upstream_asset_key` -- for exporting a… _(full docs in schema.json + component README)_ |
+| `file_path` | `str` | — | Destination file path or fsspec URI. Local paths (`/tmp/out.csv`) and remote URIs (`s3://bucket/out.csv`, `gs://bucket/out.csv`, `az://container/out.csv`) both work — pandas' `to_csv()` accepts fsspec URIs natively when… _(full docs in schema.json + component README)_ |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `exports` | `List[Dict[str, Any]]` | — | One component instance, N export assets: a list of per-export overrides, each applied on top of this instance's own field values. Each entry requires at least `asset_name`, `file_path`, and one of `upstream_asset_key`/`s… _(full docs in schema.json + component README)_ |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset key providing a DataFrame. Mutually exclusive with `source_table` -- set exactly one. |
+| `connection_url_env_var` | `str` | — | Env var holding a SQLAlchemy URL. Required (and only used) when `source_table` is set. |
 | `delimiter` | `str` | `","` | Column delimiter |
 | `include_index` | `bool` | `false` | Include row index in output |
 | `encoding` | `str` | `"utf-8"` | File encoding |
@@ -92,6 +96,47 @@ attributes:
     - region
   group_name: output
 ```
+
+## Exporting a warehouse table directly (`source_table`)
+
+For a dbt/warehouse table with no DataFrame-returning upstream asset of its own, query it directly instead of reading through an IO manager:
+
+```yaml
+type: dagster_community_components.DataframeToCsvComponent
+attributes:
+  asset_name: orders_export
+  source_table: ANALYTICS.PUBLIC.ORDERS
+  connection_url_env_var: SNOWFLAKE_URL
+  partition_filter_column: order_date       # pushed into a parameterized SQL WHERE
+  partition_type: daily
+  partition_start: "2024-01-01"
+  file_path: ${OUTPUT_DIR}/orders/{partition_key}.csv
+```
+
+`upstream_asset_key` and `source_table` are mutually exclusive — set exactly one. `partition_filter_column` only applies on a normal (single-partition-key) run; a backfill range fetches the whole table and relies on `partition_date_column`/`partition_static_column` to split it per key, same as the upstream-asset mode already does.
+
+## One instance, many exports (`exports:`)
+
+`exports:` declares a list, one component instance producing N files — each entry is a per-export override on top of the instance's own shared defaults (`connection_url_env_var`, `group_name`, partitioning, etc.):
+
+```yaml
+type: dagster_community_components.DataframeToCsvComponent
+attributes:
+  connection_url_env_var: SNOWFLAKE_URL     # shared by every export below
+  partition_type: daily
+  partition_start: "2024-01-01"
+  exports:
+    - asset_name: acme_daily_export
+      source_table: ANALYTICS.PUBLIC.ORDERS
+      partition_filter_column: order_date
+      file_path: ${OUTPUT_DIR}/acme/{partition_key}.csv
+    - asset_name: globex_daily_export
+      source_table: ANALYTICS.PUBLIC.ORDERS
+      partition_filter_column: order_date
+      file_path: ${OUTPUT_DIR}/globex/{partition_key}.csv
+```
+
+Each entry requires at least `asset_name`, `file_path`, and one of `upstream_asset_key`/`source_table`. `asset_name` at the top level and `exports:` are mutually exclusive — set one or the other, not both.
 
 ## Notes
 

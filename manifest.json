@@ -17912,7 +17912,7 @@
       "id": "dataframe_to_csv",
       "name": "DataFrame to CSV",
       "category": "sink",
-      "description": "Write a DataFrame to a CSV file.",
+      "description": "Write a DataFrame to a CSV file. source_table queries a warehouse table directly instead of requiring an upstream DataFrame asset; exports: lets one instance produce N files instead of one.",
       "path": "assets/sinks/dataframe_to_csv",
       "tags": [
         "sink",

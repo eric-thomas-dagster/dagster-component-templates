@@ -261,6 +261,42 @@ def _path_is_partition_templated(path):
     return bool(re.search(r"(?<!\$)\{(?!run_id\})", path or ""))
 
 
+def _query_source_table(context, source_table, connection_url_env_var, partition_filter_column):
+    """Warehouse-query mode: query `source_table` directly via SQLAlchemy
+    instead of reading an upstream asset's DataFrame through an IO manager --
+    for exporting a dbt/warehouse table that has no DataFrame-returning
+    Dagster asset of its own.
+
+    Filters server-side (`WHERE {partition_filter_column} = :pk`, the VALUE
+    parameterized, not string-interpolated -- `source_table`/
+    `partition_filter_column` are trusted component config, not per-run
+    input, so only the run-varying partition key value needs parameterizing)
+    when the run has exactly one partition key. For a backfill range (several
+    partition keys in one run), no filter is applied here -- the whole table
+    is fetched and the caller's existing partition_date_column/
+    partition_static_column client-side filtering splits it per key instead,
+    same as the upstream-asset mode already does.
+    """
+    import sqlalchemy
+    from dagster import EnvVar
+
+    db_url = EnvVar(connection_url_env_var).get_value()
+    if not db_url:
+        raise ValueError(f"{connection_url_env_var} is not set.")
+    engine = sqlalchemy.create_engine(db_url)
+    try:
+        if partition_filter_column and context.has_partition_key:
+            pk = context.partition_key
+            pk_value = pk.keys_by_dimension.get("date", str(pk)) if hasattr(pk, "keys_by_dimension") else str(pk)
+            query = sqlalchemy.text(f"SELECT * FROM {source_table} WHERE {partition_filter_column} = :pk")
+            context.log.info(f"Querying {source_table} filtered to {partition_filter_column} = {pk_value!r}")
+            return pd.read_sql(query, engine, params={"pk": pk_value})
+        context.log.info(f"Querying {source_table} (no single partition key to filter on)")
+        return pd.read_sql(f"SELECT * FROM {source_table}", engine)
+    finally:
+        engine.dispose()
+
+
 def _write_each_partition_key(context, upstream, write_one, can_split_rows):
     """Run ``write_one`` once per partition key of a single_run/multi_run backfill range.
 
@@ -294,9 +330,50 @@ def _write_each_partition_key(context, upstream, write_one, can_split_rows):
 class DataframeToCsvComponent(Component, Model, Resolvable):
     """Write a DataFrame to a CSV file."""
 
-    asset_name: str = Field(description="Output Dagster asset name")
-    upstream_asset_key: Union[str, List[str]] = Field(description="Upstream asset key providing a DataFrame")
-    file_path: str = Field(
+    asset_name: Optional[str] = Field(
+        default=None,
+        description="Output Dagster asset name. Required unless `exports:` is set (mutually exclusive with it).",
+    )
+    exports: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "One component instance, N export assets: a list of per-export overrides, each "
+            "applied on top of this instance's own field values. Each entry requires at least "
+            "`asset_name`, `file_path`, and one of `upstream_asset_key`/`source_table`. Mutually "
+            "exclusive with the top-level `asset_name` (single-export mode)."
+        ),
+    )
+    upstream_asset_key: Optional[Union[str, List[str]]] = Field(
+        default=None,
+        description="Upstream asset key providing a DataFrame. Mutually exclusive with `source_table` -- set exactly one.",
+    )
+    source_table: Optional[str] = Field(
+        default=None,
+        description=(
+            "Fully-qualified warehouse table to query directly (e.g. 'ANALYTICS.PUBLIC.ORDERS'), "
+            "instead of reading an upstream asset's DataFrame through an IO manager. Mutually "
+            "exclusive with `upstream_asset_key` -- for exporting a dbt/warehouse table that has no "
+            "DataFrame-returning Dagster asset of its own. Requires `connection_url_env_var`."
+        ),
+    )
+    connection_url_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var holding a SQLAlchemy URL. Required (and only used) when `source_table` is set.",
+    )
+    partition_filter_column: Optional[str] = Field(
+        default=None,
+        description=(
+            "Only used with `source_table`. Column filtered via `WHERE {partition_filter_column} = "
+            "<partition_key>` (parameterized, not string-interpolated) when the run has a single "
+            "partition key -- pushes the filter into SQL instead of fetching the whole table. For a "
+            "multi-axis partition key, the 'date' dimension is used. For a backfill range (several "
+            "partition keys in one run), this filter is NOT applied -- the whole table is fetched and "
+            "the existing `partition_date_column`/`partition_static_column` client-side filtering "
+            "(the same logic the upstream-asset mode already uses) splits it per key instead."
+        ),
+    )
+    file_path: Optional[str] = Field(
+        default=None,
         description=(
             "Destination file path or fsspec URI. Local paths "
             "(`/tmp/out.csv`) and remote URIs (`s3://bucket/out.csv`, "
@@ -490,13 +567,51 @@ class DataframeToCsvComponent(Component, Model, Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_upstream_asset_keys(cls, data):
-        return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=False)
+        return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=True)
 
     @classmethod
     def get_description(cls) -> str:
         return "Write a DataFrame to a CSV file."
 
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
+        """Dispatch to single-export or collection mode -- mutually exclusive,
+        same convention as sql_transform's asset_name/sql vs transforms:."""
+        has_single = bool(self.asset_name)
+        has_collection = bool(self.exports)
+        if has_single and has_collection:
+            raise ValueError("Set either asset_name (single export) or exports: (several exports), not both.")
+        if not has_single and not has_collection:
+            raise ValueError("Set either asset_name (single export) or exports: (several exports).")
+
+        if not has_collection:
+            return self._build_single_defs(load_context)
+
+        defs_list = []
+        for i, entry in enumerate(self.exports):
+            if not isinstance(entry, dict):
+                raise ValueError(f"exports[{i}] must be a mapping, got {type(entry).__name__}")
+            merged = {**self.model_dump(), **entry, "exports": None}
+            try:
+                instance = type(self)(**merged)
+            except Exception as e:
+                raise ValueError(f"exports[{i}] ({entry.get('asset_name', '<no asset_name>')!r}): {e}") from e
+            if not instance.asset_name:
+                raise ValueError(f"exports[{i}] is missing required field 'asset_name'")
+            defs_list.append(instance._build_single_defs(load_context))
+        return Definitions.merge(*defs_list)
+
+    def _build_single_defs(self, load_context: ComponentLoadContext) -> Definitions:
+        has_upstream = bool(self.upstream_asset_key)
+        has_source_table = bool(self.source_table)
+        if has_upstream and has_source_table:
+            raise ValueError(f"{self.asset_name}: set either upstream_asset_key or source_table, not both.")
+        if not has_upstream and not has_source_table:
+            raise ValueError(f"{self.asset_name}: set either upstream_asset_key or source_table.")
+        if has_source_table and not self.connection_url_env_var:
+            raise ValueError(f"{self.asset_name}: source_table requires connection_url_env_var.")
+        if not self.file_path:
+            raise ValueError(f"{self.asset_name}: file_path is required.")
+
         # Standard catalog fields — phase 2 wiring
         _column_lineage_md = _column_lineage_metadata(self)
         _retry_policy = None
@@ -518,6 +633,9 @@ class DataframeToCsvComponent(Component, Model, Resolvable):
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
         upstream_asset_key = self.upstream_asset_key
+        source_table = self.source_table
+        connection_url_env_var = self.connection_url_env_var
+        partition_filter_column = self.partition_filter_column
         file_path = self.file_path
         delimiter = self.delimiter
         include_index = self.include_index
@@ -578,7 +696,6 @@ class DataframeToCsvComponent(Component, Model, Resolvable):
 
         _asset_kwargs = dict(
             key=AssetKey.from_user_string(asset_name),
-            ins={"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))},
             partitions_def=partitions_def,
             owners=owners,
             tags=_all_tags,
@@ -590,6 +707,8 @@ class DataframeToCsvComponent(Component, Model, Resolvable):
         )
         if self.automation_condition is not None:
             _asset_kwargs["automation_condition"] = self.automation_condition
+        if upstream_asset_key:
+            _asset_kwargs["ins"] = {"upstream": AssetIn(key=AssetKey.from_user_string(upstream_asset_key))}
 
         _backfill_policy_obj = None
         if partitions_def is not None and self.backfill_policy == "single_run":
@@ -698,8 +817,7 @@ class DataframeToCsvComponent(Component, Model, Resolvable):
                 }
             )
 
-        @asset(backfill_policy=_backfill_policy_obj, **_asset_kwargs)
-        def _asset(context: AssetExecutionContext, upstream: Any) -> MaterializeResult:
+        def _after_upstream_resolved(context, upstream) -> MaterializeResult:
             # single_run/multi_run backfill range + path templated on the partition
             # key: one write per key. Otherwise one write (a non-templated path gets
             # the whole range's rows in a single file).
@@ -715,6 +833,20 @@ class DataframeToCsvComponent(Component, Model, Resolvable):
                 )
                 return MaterializeResult(metadata=_merged)
             return _write_one(context, upstream)
+
+        if source_table:
+            # Warehouse-query mode: no upstream asset dependency at all --
+            # query the table directly inside the asset body, server-side
+            # filtered to the current partition when possible, then reuse the
+            # exact same write/templating/partition-split logic above.
+            @asset(backfill_policy=_backfill_policy_obj, **_asset_kwargs)
+            def _asset(context: AssetExecutionContext) -> MaterializeResult:
+                upstream = _query_source_table(context, source_table, connection_url_env_var, partition_filter_column)
+                return _after_upstream_resolved(context, upstream)
+        else:
+            @asset(backfill_policy=_backfill_policy_obj, **_asset_kwargs)
+            def _asset(context: AssetExecutionContext, upstream: Any) -> MaterializeResult:
+                return _after_upstream_resolved(context, upstream)
 
         return Definitions(assets=[_asset])
 

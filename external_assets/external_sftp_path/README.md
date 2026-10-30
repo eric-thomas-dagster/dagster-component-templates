@@ -66,6 +66,7 @@ This component does not read from or write to Sftp Path. It is a **lineage decla
 | `check_interval_seconds` | `int` | `300` | Seconds between health checks. Only used when create_observation_sensor=True. |
 | `emit_materialization` | `bool` | `true` | When True (default), the sensor emits AssetMaterialization (asset shows healthy/green, downstream AutomationCondition.eager() fires on parent updates). When False, emits AssetObservation instead (no Dagster+ credit charg… _(full docs in schema.json + component README)_ |
 | `check_arrival` | `bool` | `false` | Also attach an `arrival` asset_check per path, verifying the directory is reachable and non-empty, via the same client interface as the observation sensor (the `resource_key` resource's `.observe(source) -> {data_version… _(full docs in schema.json + component README)_ |
+| `row_count_tolerance_pct` | `float` | — | If set, and the arrival check's observe() result includes both `row_count` and `expected_row_count`, the check additionally fails when the relative difference between them exceeds this percentage. Has no effect without a… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). |
 
 [//]: # (FIELDS:END)
@@ -143,6 +144,16 @@ attributes:
   check_arrival: true
   username_env_var: SFTP_USERNAME
   password_env_var: SFTP_PASSWORD
+```
+
+A custom `resource_key` client can opt into two extra checks by including either/both of these keys in its `observe()` result (the built-in paramiko fallback never sets them — it only knows file size/count, not row counts, decryption, or any external control-record source):
+
+- `decrypt_ok: bool` — if explicitly `False`, the check fails regardless of anything else.
+- `row_count` / `expected_row_count: int` — paired with `row_count_tolerance_pct`, fails the check if they differ by more than that percentage (e.g. a landed file's row count vs. a trading partner's separately-supplied control record):
+
+```yaml
+check_arrival: true
+row_count_tolerance_pct: 2.0   # fail if row_count is off from expected_row_count by more than 2%
 ```
 
 ## Several paths from one component instance

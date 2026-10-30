@@ -308,7 +308,26 @@ class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
             "and non-empty, via the same client interface as the observation sensor (the "
             "`resource_key` resource's `.observe(source) -> {data_version, file_count, ...}` when "
             "set, else paramiko directly). Independent of create_observation_sensor -- a check can "
-            "run (e.g. before a downstream job) without the polling sensor being enabled."
+            "run (e.g. before a downstream job) without the polling sensor being enabled.\n\n"
+            "The client's observe() result can opt into two extra, generic checks by including "
+            "either/both of these keys (the built-in paramiko fallback never sets them -- it only "
+            "knows file size/count, not row counts, decryption, or any external control-record "
+            "source; a custom resource_key client is required):\n"
+            "  decrypt_ok: bool  -- if explicitly False, the check fails regardless of anything else.\n"
+            "  row_count / expected_row_count: int -- with row_count_tolerance_pct set below, the "
+            "check additionally fails if these differ by more than that percentage (e.g. comparing "
+            "a landed file's row count against a trading partner's separately-supplied control "
+            "record)."
+        ),
+    )
+    row_count_tolerance_pct: Optional[float] = Field(
+        default=None,
+        description=(
+            "If set, and the arrival check's observe() result includes both `row_count` and "
+            "`expected_row_count`, the check additionally fails when the relative difference "
+            "between them exceeds this percentage. Has no effect without a resource_key client "
+            "that reports both keys -- the paramiko fallback can't know an external control-record "
+            "count. Only used when check_arrival=True."
         ),
     )
 
@@ -424,6 +443,30 @@ class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
                     )
                 except Exception as ex:
                     return dg.AssetCheckResult(passed=False, description=f"Could not observe {remote_path!r}: {ex}")
+
+                # Opt-in convention keys a custom resource_key client can report --
+                # see check_arrival's own description. Neither is set by the
+                # built-in paramiko fallback.
+                if observed.get("decrypt_ok") is False:
+                    return dg.AssetCheckResult(passed=False, description="File present but failed to decrypt.", metadata=observed)
+
+                row_count = observed.get("row_count")
+                expected_row_count = observed.get("expected_row_count")
+                if _self.row_count_tolerance_pct is not None and row_count is not None and expected_row_count is not None:
+                    if expected_row_count > 0:
+                        pct_diff = abs(row_count - expected_row_count) / expected_row_count * 100
+                    else:
+                        pct_diff = 0.0 if row_count == 0 else 100.0
+                    within_tolerance = pct_diff <= _self.row_count_tolerance_pct
+                    return dg.AssetCheckResult(
+                        passed=within_tolerance,
+                        description=(
+                            f"{row_count} rows vs {expected_row_count} expected "
+                            f"({pct_diff:.1f}% diff, tolerance {_self.row_count_tolerance_pct}%)."
+                        ),
+                        metadata={**observed, "row_count_diff_pct": pct_diff},
+                    )
+
                 file_count = observed.get("file_count")
                 if file_count is None:
                     # resource_key clients aren't required to report file_count --

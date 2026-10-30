@@ -191,3 +191,74 @@ def test_check_arrival_builds_one_asset_check_per_path_using_the_same_client():
     context2 = dg.build_asset_check_context(resources={"sftp_client": client})
     result2 = check_defs[0](context2)
     assert result2.passed is False
+
+
+class _FakeSftpClientWithRowCount:
+    def __init__(self, row_count, expected_row_count, decrypt_ok=True):
+        self.row_count = row_count
+        self.expected_row_count = expected_row_count
+        self.decrypt_ok = decrypt_ok
+
+    def observe(self, source):
+        return {
+            "data_version": "1",
+            "row_count": self.row_count,
+            "expected_row_count": self.expected_row_count,
+            "decrypt_ok": self.decrypt_ok,
+        }
+
+
+def test_row_count_tolerance_passes_within_tolerance_and_fails_outside_it():
+    comp = ExternalSftpPathAsset(
+        host="sftp.example.com",
+        paths=[{"key": "files/claims", "remote_path": "/claims"}],
+        resource_key="sftp_client",
+        check_arrival=True,
+        row_count_tolerance_pct=2.0,
+    )
+    check_def = list(comp.build_defs(None).asset_checks)[0]
+
+    # 1% off -- within a 2% tolerance.
+    client = _FakeSftpClientWithRowCount(row_count=990, expected_row_count=1000)
+    result = check_def(dg.build_asset_check_context(resources={"sftp_client": client}))
+    assert result.passed is True
+    assert result.metadata["row_count_diff_pct"].value == pytest.approx(1.0)
+
+    # 10% off -- outside a 2% tolerance.
+    client.row_count = 900
+    result2 = check_def(dg.build_asset_check_context(resources={"sftp_client": client}))
+    assert result2.passed is False
+
+
+def test_decrypt_ok_false_fails_the_check_even_within_row_count_tolerance():
+    comp = ExternalSftpPathAsset(
+        host="sftp.example.com",
+        paths=[{"key": "files/claims", "remote_path": "/claims"}],
+        resource_key="sftp_client",
+        check_arrival=True,
+        row_count_tolerance_pct=2.0,
+    )
+    check_def = list(comp.build_defs(None).asset_checks)[0]
+
+    client = _FakeSftpClientWithRowCount(row_count=1000, expected_row_count=1000, decrypt_ok=False)
+    result = check_def(dg.build_asset_check_context(resources={"sftp_client": client}))
+    assert result.passed is False
+    assert "decrypt" in result.description.lower()
+
+
+def test_row_count_tolerance_has_no_effect_without_both_keys_present():
+    """The paramiko fallback (and simpler resource clients) never set
+    row_count/expected_row_count -- the check must fall back to the plain
+    file_count presence check rather than silently passing/failing."""
+    comp = ExternalSftpPathAsset(
+        host="sftp.example.com",
+        paths=[{"key": "files/claims", "remote_path": "/claims"}],
+        resource_key="sftp_client",
+        check_arrival=True,
+        row_count_tolerance_pct=2.0,
+    )
+    check_def = list(comp.build_defs(None).asset_checks)[0]
+    client = _FakeSftpClientWithFileCount(file_count=5)
+    result = check_def(dg.build_asset_check_context(resources={"sftp_client": client}))
+    assert result.passed is True
+    assert result.metadata["file_count"].value == 5

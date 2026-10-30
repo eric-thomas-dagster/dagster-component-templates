@@ -122,9 +122,16 @@
     "check_arrival": {
       "type": "boolean",
       "label": "Check Arrival",
-      "description": "Also attach an `arrival` asset_check per path (reachable + non-empty), using the same client interface as the observation sensor. Independent of create_observation_sensor.",
+      "description": "Also attach an `arrival` asset_check per path (reachable + non-empty), using the same client interface as the observation sensor. Independent of create_observation_sensor. A custom resource_key client can opt into two extra checks via observe() result keys: decrypt_ok (bool, fails the check if explicitly False) and row_count/expected_row_count (paired with row_count_tolerance_pct).",
       "required": false,
       "default": false
+    },
+    "row_count_tolerance_pct": {
+      "type": "number",
+      "label": "Row Count Tolerance (%)",
+      "description": "If set, and observe() reports both row_count and expected_row_count, the arrival check fails when they differ by more than this percentage (e.g. a landed file's row count vs. a trading partner's control record). Requires a custom resource_key client -- the paramiko fallback never sets these keys.",
+      "required": false,
+      "default": null
     },
     "partition_type": {
       "type": "string",

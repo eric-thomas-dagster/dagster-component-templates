@@ -1,15 +1,32 @@
-"""Real (DuckDB-backed, not mocked) tests for the core requirement: only emit
-an AssetObservation when the summed MAR value for an asset has actually
-changed since the last tick -- a daily-synced usage table polled hourly
-should produce zero events on most ticks.
+"""Real (DuckDB-backed, not mocked) tests for the core requirements:
 
-Also covers: the numeric metadata key Dagster+ Insights custom metrics would
-register against (`fivetran/incremental_mar`), the default
-schema_name/table_name -> AssetKey reconstruction matching dagster_fivetran's
-own default translator, and demo_mode needing no real warehouse.
+1. Only emit an AssetObservation when an asset's cumulative month-to-date MAR
+   has actually changed since the last tick -- a daily-synced usage table
+   polled hourly should produce zero events on most ticks.
+2. A restatement to an EARLIER day this month -- including one old enough
+   that a short rolling lookback window would have missed it entirely -- is
+   still picked up, because the whole month is recomputed every tick rather
+   than a trailing N-day window.
+3. The reported numeric metric is a DELTA (net change since the last tick),
+   not the cumulative level -- Dagster+ Insights custom metrics have no
+   configurable aggregation and sum whatever's reported under a key, so
+   reporting the level itself would make the Insights chart balloon with
+   every tick instead of reflecting the real total.
+4. The per-asset running total resets at a calendar-month boundary, so the
+   first tick of a new month reports that month's fresh total as its delta,
+   not a large negative blip from diffing against last month's final number.
+
+Also covers: the default schema_name/table_name -> AssetKey reconstruction
+matching dagster_fivetran's own default translator, and demo_mode needing no
+real warehouse.
+
+Dates are built from `date.today().replace(day=1)` (the query's own
+month-start) rather than raw `days_ago` subtraction, so these tests can't
+flake near a real month boundary.
 """
 import contextlib
-from datetime import date, timedelta
+import json
+from datetime import date
 
 import dagster as dg
 import duckdb
@@ -19,6 +36,9 @@ from .conftest import load_component_module
 
 mod = load_component_module()
 FivetranUsageObservationSensorComponent = mod.FivetranUsageObservationSensorComponent
+
+_MONTH_START = date.today().replace(day=1)
+_TODAY = date.today()
 
 
 class _FakeWarehouseResource:
@@ -46,10 +66,10 @@ def warehouse():
     conn.close()
 
 
-def _insert(conn, schema_name, table_name, rows, days_ago=0, free_type="PAID"):
+def _insert(conn, schema_name, table_name, rows, on=_TODAY, free_type="PAID"):
     conn.execute(
         "INSERT INTO incremental_mar VALUES (?, ?, ?, ?, ?)",
-        [schema_name, table_name, rows, date.today() - timedelta(days=days_ago), free_type],
+        [schema_name, table_name, rows, on, free_type],
     )
 
 
@@ -66,7 +86,7 @@ def _run(comp, warehouse, cursor=None):
     return sensor_def(ctx)
 
 
-def test_first_tick_emits_a_baseline_observation_per_asset(warehouse):
+def test_first_tick_reports_the_full_total_as_its_delta(warehouse):
     _insert(warehouse, "postgres_orders", "orders", 1000)
     comp = _component()
     result = _run(comp, warehouse)
@@ -74,7 +94,8 @@ def test_first_tick_emits_a_baseline_observation_per_asset(warehouse):
     event = result.asset_events[0]
     assert event.asset_key == dg.AssetKey(["postgres_orders", "orders"])
     assert isinstance(event, dg.AssetObservation)
-    assert event.metadata["fivetran/incremental_mar"].value == 1000
+    assert event.metadata["fivetran/mar"].value == 1000
+    assert event.metadata["fivetran/mar_month_to_date"].value == "1000"
 
 
 def test_unchanged_value_on_next_tick_emits_nothing(warehouse):
@@ -87,15 +108,56 @@ def test_unchanged_value_on_next_tick_emits_nothing(warehouse):
     assert "no changed MAR" in result2.skip_reason.skip_message
 
 
-def test_changed_value_on_next_tick_emits_again_with_the_new_value(warehouse):
-    _insert(warehouse, "postgres_orders", "orders", 1000)
+def test_new_data_today_reports_only_the_increment_not_the_new_total(warehouse):
+    _insert(warehouse, "postgres_orders", "orders", 1000, on=_TODAY)
     comp = _component()
     result1 = _run(comp, warehouse)
+    assert result1.asset_events[0].metadata["fivetran/mar"].value == 1000
 
-    _insert(warehouse, "postgres_orders", "orders", 500, days_ago=1)  # restated prior day adds to the window's sum
+    _insert(warehouse, "postgres_orders", "orders", 500, on=_TODAY)
     result2 = _run(comp, warehouse, cursor=result1.cursor)
     assert len(result2.asset_events) == 1
-    assert result2.asset_events[0].metadata["fivetran/incremental_mar"].value == 1500
+    # The cumulative total is now 1500, but the DELTA reported (meant to be
+    # summed by Insights) must be just the 500 that's new -- summing 1000 and
+    # 500 reconstructs the real 1500 total; summing 1000 and 1500 would not.
+    assert result2.asset_events[0].metadata["fivetran/mar"].value == 500
+    assert result2.asset_events[0].metadata["fivetran/mar_month_to_date"].value == "1500"
+
+
+def test_restatement_of_an_earlier_day_this_month_is_still_picked_up(warehouse):
+    """The exact scenario a short rolling lookback window would get wrong:
+    a correction to a day old enough to have already fallen out of a
+    trailing N-day window. Recomputing the full month every tick means
+    there's no window for it to fall outside of."""
+    _insert(warehouse, "postgres_orders", "orders", 1000, on=_MONTH_START)
+    comp = _component()
+    result1 = _run(comp, warehouse)
+    assert result1.asset_events[0].metadata["fivetran/mar"].value == 1000
+
+    # Fivetran restates month_start's row upward, well after the fact --
+    # a lookback_days=2-style window would already have moved past this date.
+    _insert(warehouse, "postgres_orders", "orders", 400, on=_MONTH_START)
+    result2 = _run(comp, warehouse, cursor=result1.cursor)
+    assert len(result2.asset_events) == 1
+    # Delta of the restatement itself, not the new 1400 total.
+    assert result2.asset_events[0].metadata["fivetran/mar"].value == 400
+
+
+def test_new_month_resets_the_baseline_instead_of_reporting_a_negative_blip(warehouse):
+    _insert(warehouse, "postgres_orders", "orders", 500, on=_TODAY)
+    comp = _component()
+
+    # Simulate a cursor left over from a prior month with a much larger
+    # running total -- without a reset, naively diffing (10 - 5000) would
+    # report a nonsensical large negative delta for the start of a new month.
+    stale_cursor = json.dumps({
+        "tick": 50,
+        "month": "2020-01",
+        "last_mar": {"postgres_orders/orders": 5000.0},
+    })
+    result = _run(comp, warehouse, cursor=stale_cursor)
+    assert len(result.asset_events) == 1
+    assert result.asset_events[0].metadata["fivetran/mar"].value == 500
 
 
 def test_only_the_changed_asset_emits_not_the_unchanged_sibling(warehouse):
@@ -139,8 +201,8 @@ def test_demo_mode_needs_no_real_warehouse():
     defs = comp.build_defs(None)
     sensor_def = next(iter(defs.sensors))
     result1 = sensor_def(dg.build_sensor_context())
-    assert len(result1.asset_events) == 3  # baseline: all three demo rows are "new"
+    assert len(result1.asset_events) == 3  # baseline: all three demo rows report their full total as the delta
 
     result2 = sensor_def(dg.build_sensor_context(cursor=result1.cursor))
-    # The demo generator deliberately varies two of the three rows across ticks.
+    # The demo generator deliberately grows two of the three rows across ticks.
     assert 0 < len(result2.asset_events) < 3

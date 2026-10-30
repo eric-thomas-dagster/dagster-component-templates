@@ -27419,7 +27419,7 @@
       "id": "fivetran_usage_observation_sensor",
       "name": "Fivetran Usage Observation Sensor",
       "category": "observation",
-      "description": "Query the Fivetran Platform Connector's INCREMENTAL_MAR table and emit an AssetObservation per synced table ONLY when its usage has changed -- the numeric MAR value is meant to be registered as a Dagster+ Insights custom metric.",
+      "description": "Query the Fivetran Platform Connector's INCREMENTAL_MAR table for cumulative month-to-date usage per synced table, and emit an AssetObservation carrying the DELTA since the last tick -- a sum-safe metric for Dagster+ Insights custom metrics, which have no configurable aggregation.",
       "path": "observations/fivetran_usage_observation_sensor",
       "tags": [
         "observation",
@@ -27443,15 +27443,37 @@
       },
       "component_type": "dagster_community_components.FivetranUsageObservationSensorComponent",
       "icon": "favicon:fivetran.com",
-      "validation": {"level": "component_only", "last_validated": "2026-10-30"},
-      "agent_hints": {
-        "outputs": ["sensor", "observation"],
-        "requires_pip": [],
-        "chains_with": ["fivetran_assets", "snowflake_resource", "bigquery_resource"]
+      "validation": {
+        "level": "component_only",
+        "last_validated": "2026-10-30"
       },
-      "produces": ["sensor"],
+      "agent_hints": {
+        "outputs": [
+          "sensor",
+          "observation"
+        ],
+        "requires_pip": [],
+        "chains_with": [
+          "fivetran_assets",
+          "snowflake_resource",
+          "bigquery_resource"
+        ]
+      },
+      "produces": [
+        "sensor"
+      ],
       "stateful": false,
-      "keywords": ["fivetran", "platform connector", "incremental_mar", "mar", "monthly active rows", "usage", "billing", "insights", "custom metric"]
+      "keywords": [
+        "fivetran",
+        "platform connector",
+        "incremental_mar",
+        "mar",
+        "monthly active rows",
+        "usage",
+        "billing",
+        "insights",
+        "custom metric"
+      ]
     },
     {
       "id": "fix_message_parser",

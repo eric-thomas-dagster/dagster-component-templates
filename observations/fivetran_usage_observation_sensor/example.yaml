@@ -8,7 +8,6 @@ attributes:
   # Platform Connector connection syncing to it.
   mar_table: "ANALYTICS.FIVETRAN_LOG.INCREMENTAL_MAR"
 
-  lookback_days: 2         # catches a late Fivetran restatement of a prior day
   free_type_filter: PAID   # Fivetran's own billing-focused convention; set to null for all usage
   check_interval_seconds: 3600  # the Platform Connector itself typically syncs once a day
 

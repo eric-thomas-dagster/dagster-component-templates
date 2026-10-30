@@ -1,12 +1,12 @@
 {
   "component_type": "dagster_community_components.FivetranUsageObservationSensorComponent",
-  "description": "Query the Fivetran Platform Connector's INCREMENTAL_MAR table and emit an AssetObservation per synced table ONLY when its usage has changed -- the numeric MAR value is meant to be registered as a Dagster+ Insights custom metric.",
+  "description": "Query the Fivetran Platform Connector's INCREMENTAL_MAR table for cumulative month-to-date usage per synced table, and emit an AssetObservation carrying the DELTA since the last tick -- a sum-safe metric for Dagster+ Insights custom metrics, which have no configurable aggregation.",
   "category": "observation",
   "icon": "Eye",
   "x-dagster-io": {
     "outputs": {
       "type": "AssetObservation",
-      "description": "One AssetObservation (or AssetMaterialization) per (schema_name, table_name) whose summed MAR changed since the last tick, keyed to match dagster_fivetran's default AssetKey([schema_name, table_name])."
+      "description": "One AssetObservation (or AssetMaterialization) per (schema_name, table_name) whose cumulative month-to-date MAR changed since the last tick, carrying the delta as fivetran/mar. Keyed to match dagster_fivetran's default AssetKey([schema_name, table_name])."
     }
   },
   "attributes": {
@@ -29,13 +29,6 @@
       "description": "Fully-qualified INCREMENTAL_MAR table name, e.g. 'MYDB.FIVETRAN_LOG.INCREMENTAL_MAR' (Snowflake) or 'my_project.fivetran_log.incremental_mar' (BigQuery).",
       "required": false,
       "default": "incremental_mar"
-    },
-    "lookback_days": {
-      "type": "integer",
-      "label": "Lookback Days",
-      "description": "How many days back to sum incremental_rows each tick, to catch late Fivetran restatements of a prior day.",
-      "required": false,
-      "default": 2
     },
     "free_type_filter": {
       "type": "string",

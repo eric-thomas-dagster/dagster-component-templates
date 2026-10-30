@@ -23,7 +23,18 @@ attributes:
       derive_from_upstreams: true
       strategy: most_frequent     # or 'least_frequent'
 
-    # Preset for everything else
+    # Wait for a job Dagster doesn't own (e.g. an external HL7 feed) to
+    # report in since this morning's cron tick, then run once. Also gates
+    # on upstream data-quality checks, not just upstream freshness.
+    - name: wait_for_external_job
+      selection: "key:lab_results_staging"
+      all_deps_updated_since_cron: "30 18 * * 1-5"
+      require_blocking_checks_passed: true
+
+    # Preset for everything else — eager() plus a safe one-time backfill of
+    # the latest missing partition (for turning automation on against a
+    # graph that already has its upstream data), gated on blocking checks.
     - name: catchall_eager
       selection: "*"
-      preset: eager
+      preset: eager_fill_missing
+      require_blocking_checks_passed: true

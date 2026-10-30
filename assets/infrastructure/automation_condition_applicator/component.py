@@ -13,23 +13,42 @@ hundreds of assets typically want to set this BROADLY ("everything tagged
 ("but `critical_metrics` runs every 5 min"). Doing this per-asset means
 editing every defs.yaml; doing it via this component centralizes the rules.
 
-Three rule shapes supported:
+Five rule shapes supported:
 
 1. **Cron string** — `cron: "0 9 * * *"` → `on_cron(cron)`
    With optional `ignore_selection` / `allow_selection` for the daily+monthly
    mix pattern (see README).
 
 2. **Preset** — `preset: eager` / `any_downstream_conditions` / `on_missing` /
-   `on_deploy_if_code_changed` — the named AutomationCondition factory methods,
-   plus one synthetic composite: `on_deploy_if_code_changed` fires exactly once
-   per deploy for assets whose `code_version` changed. Great for the "run
-   changed dbt models immediately after deploy" pattern.
+   `on_deploy_if_code_changed` / `eager_fill_missing` — the named
+   AutomationCondition factory methods, plus two synthetic composites:
+   `on_deploy_if_code_changed` fires exactly once per deploy for assets whose
+   `code_version` changed (great for "run changed dbt models immediately
+   after deploy"); `eager_fill_missing` is `eager()` plus a safe one-time
+   backfill of the latest missing partition, for turning automation on for a
+   graph that already has its upstream data (bare `eager()` only reacts to
+   changes AFTER its first evaluation, so it would otherwise leave an
+   already-fed graph unbuilt until the next new event).
 
-3. **Derive from upstreams** — `derive_from_upstreams: true` + `strategy:
+3. **Wait for dependencies since a cron tick** —
+   `all_deps_updated_since_cron: "0 9 * * *"` → `all_deps_updated_since_cron(cron)
+   & ~any_deps_in_progress() & ~in_progress()`. How an asset waits for work it
+   doesn't own (a job outside Dagster's control) without hand-written polling:
+   hold until every dependency has reported an update since the tick, then
+   run once.
+
+4. **Derive from upstreams** — `derive_from_upstreams: true` + `strategy:
    most_frequent | least_frequent`. Walks each asset's dependencies, finds
    their cron schedules / freshness policies, and generates the right
    `on_cron(...)` + ignore/allow combination automatically. Handles the
    "3 daily upstreams + 1 monthly" case the Dagster skill described.
+
+5. **Python escape hatch** — `python: "module.path:function_name"` — for
+   anything the four shapes above can't express.
+
+One modifier composes with any of the five shapes: `require_blocking_checks_passed: true`
+ANDs `all_deps_blocking_checks_passed()` onto the condition — for gating
+downstream work on upstream data-quality checks, not just upstream freshness.
 
 Fall-through semantics:
 
@@ -135,6 +154,22 @@ def _build_condition_for_rule(
                 dg.AutomationCondition.code_version_changed().since_last_handled()
                 & ~dg.AutomationCondition.in_progress()
             )
+        elif preset == "eager_fill_missing":
+            # eager() alone only reacts to CHANGES after its first evaluation —
+            # turning automation on for a graph that already has its upstream
+            # data would leave everything unbuilt until the next new event.
+            # The second clause is plain state, not an event: the latest
+            # partition is missing, its dependencies already exist, nothing
+            # is running, and the last attempt didn't fail.
+            fill_missing = (
+                dg.AutomationCondition.in_latest_time_window()
+                & dg.AutomationCondition.missing()
+                & ~dg.AutomationCondition.any_deps_missing()
+                & ~dg.AutomationCondition.any_deps_in_progress()
+                & ~dg.AutomationCondition.in_progress()
+                & ~dg.AutomationCondition.execution_failed()
+            )
+            condition = dg.AutomationCondition.eager() | fill_missing
         else:
             method = getattr(dg.AutomationCondition, preset, None)
             if method is None or not callable(method):
@@ -172,10 +207,27 @@ def _build_condition_for_rule(
             offset_minutes=rule.get("offset_minutes", 0),
         )
 
+    # ---- Wait for every dependency since a cron tick, then run once ----
+    elif rule.get("all_deps_updated_since_cron"):
+        # How an asset waits for work it doesn't own (e.g. a job started
+        # outside Dagster): hold until every dependency has reported an
+        # update since the most recent cron tick, then fire exactly once.
+        # ~any_deps_in_progress() / ~in_progress() are not optional here --
+        # unlike on_cron (which Dagster itself dedupes per tick),
+        # all_deps_updated_since_cron stays TRUE for the whole period
+        # between ticks, so without these guards it would re-request on
+        # every single automation-sensor evaluation while that's the case.
+        condition = (
+            dg.AutomationCondition.all_deps_updated_since_cron(rule["all_deps_updated_since_cron"])
+            & ~dg.AutomationCondition.any_deps_in_progress()
+            & ~dg.AutomationCondition.in_progress()
+        )
+
     else:
         raise ValueError(
             f"rule {rule.get('name', '<unnamed>')!r}: must specify one of "
-            "'python', 'preset', 'cron', or 'derive_from_upstreams'."
+            "'python', 'preset', 'cron', 'all_deps_updated_since_cron', or "
+            "'derive_from_upstreams'."
         )
 
     if condition is None:
@@ -192,6 +244,11 @@ def _build_condition_for_rule(
             days=rule.get("business_days", "1-5"),
             rule_name=rule.get("name", "<unnamed>"),
         )
+
+    if rule.get("require_blocking_checks_passed"):
+        # Orthogonal to the rule shape above -- composes with any of them
+        # (preset / cron / all_deps_updated_since_cron / derive_from_upstreams).
+        condition = condition & dg.AutomationCondition.all_deps_blocking_checks_passed()
 
     # ---- Label override (auto-labels are descriptive but verbose) ------
     label = rule.get("label")
@@ -849,9 +906,15 @@ class AutomationConditionApplicatorComponent(dg.Component, dg.Model, dg.Resolvab
               derive_from_upstreams: true
               strategy: most_frequent
 
+            - name: wait_for_external_job
+              selection: "key:lab_results_staging"
+              all_deps_updated_since_cron: "30 18 * * 1-5"
+              require_blocking_checks_passed: true
+
             - name: catchall_eager
               selection: "*"
-              preset: eager
+              preset: eager_fill_missing
+              require_blocking_checks_passed: true
         ```
     """
 
@@ -877,8 +940,12 @@ class AutomationConditionApplicatorComponent(dg.Component, dg.Model, dg.Resolvab
         description=(
             "Ordered list of rules. First selection-match wins (fall-through). "
             "Each rule has 'selection' + one of: 'cron' (with optional "
-            "'ignore_selection'/'allow_selection'), 'preset', or "
-            "'derive_from_upstreams: true' (+ optional 'strategy')."
+            "'ignore_selection'/'allow_selection'), 'preset' (incl. 'eager_fill_missing'), "
+            "'all_deps_updated_since_cron' (wait for every dependency since a cron tick, "
+            "then run once), 'derive_from_upstreams: true' (+ optional 'strategy'), or "
+            "'python' (escape hatch). Any rule can also set "
+            "'require_blocking_checks_passed: true' to additionally gate on "
+            "all_deps_blocking_checks_passed()."
         ),
     )
 

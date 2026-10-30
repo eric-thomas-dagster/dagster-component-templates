@@ -12,13 +12,15 @@ Apply Dagster `AutomationCondition`s **broadly** to many assets at once via decl
 - [Mental model — how it runs](#mental-model--how-it-runs)
 - [Rule shapes](#rule-shapes) — pick one per rule
   - [`cron`](#shape-1-explicit-cron) — explicit
-  - [`preset`](#shape-2-preset) — named factory
+  - [`preset`](#shape-2-preset) — named factory, incl. `eager_fill_missing`
   - [`derive_from_upstreams`](#shape-3-derive-from-upstreams) — 6 strategies
   - [`python`](#shape-4-python-escape-hatch) — universal escape
-- [Modifiers](#modifiers) — compose with any shape
+  - [`all_deps_updated_since_cron`](#shape-5-wait-for-dependencies-since-a-cron-tick) — wait for external work
+- [Modifiers](#modifiers)
   - [`label`](#modifier-label)
   - [`business_hours_only`](#modifier-business_hours_only)
   - [`min_interval_minutes`](#modifier-min_interval_minutes)
+  - [`require_blocking_checks_passed`](#modifier-require_blocking_checks_passed)
 - [Selection language](#selection-language) — comprehensive
 - [Fall-through priority](#fall-through-priority)
 - [Cadence propagation](#cadence-propagation-through-chains)
@@ -38,7 +40,7 @@ Dagster gives you two ways to apply `AutomationCondition`s across many assets. P
 | Need | Use |
 |---|---|
 | Apply ONE `AutomationCondition` per asset selection ("everything in this folder gets `eager`; assets tagged `hourly` get a cron") | **Built-in `dagster.DefsFolderComponent` with `post_processing.assets[].attributes.automation_condition`** — zero custom code, zero `definitions.py` wiring |
-| Fall-through rules, `derive_from_upstreams` (6 strategies), `tiered` / `staggered`, `business_hours_only`, `min_interval_minutes`, Python escape hatch | **This component** + one-line `defs_with_automation_rules(__file__)` in `definitions.py` |
+| Fall-through rules, `derive_from_upstreams` (6 strategies), `tiered` / `staggered`, `all_deps_updated_since_cron` (wait for external work), `require_blocking_checks_passed`, `business_hours_only`, `min_interval_minutes`, Python escape hatch | **This component** + one-line `defs_with_automation_rules(__file__)` in `definitions.py` |
 
 ### Shape 1 — built-in `DefsFolderComponent` (no this component needed)
 
@@ -146,7 +148,7 @@ Three guarantees:
 
 ## Rule shapes
 
-Each rule has exactly ONE of: `cron`, `preset`, `derive_from_upstreams`, or `python`. Plus optional [modifiers](#modifiers).
+Each rule has exactly ONE of: `cron`, `preset`, `derive_from_upstreams`, `all_deps_updated_since_cron`, or `python`. Plus optional [modifiers](#modifiers).
 
 ### Shape 1 — Explicit cron
 
@@ -180,6 +182,29 @@ Any zero-arg method on `dg.AutomationCondition`. Most common: `eager`, `on_missi
 ```yaml
 - selection: "*"
   preset: eager
+```
+
+#### `preset: eager_fill_missing` — turning automation on for a graph that already has its data
+
+Bare `eager()` only reacts to **changes after its first evaluation** — flipping it on for a graph that already has its upstream feeds would leave everything unbuilt until the next new file/event lands. `eager_fill_missing` adds a safe, one-time backfill on top:
+
+```python
+fill_missing = (
+    AutomationCondition.in_latest_time_window()
+    & AutomationCondition.missing()
+    & ~AutomationCondition.any_deps_missing()
+    & ~AutomationCondition.any_deps_in_progress()
+    & ~AutomationCondition.in_progress()
+    & ~AutomationCondition.execution_failed()
+)
+AutomationCondition.eager() | fill_missing
+```
+
+The second clause is plain state, not an event: the latest partition is missing, its dependencies already exist, nothing is running, and the last attempt didn't fail.
+
+```yaml
+- selection: "*"
+  preset: eager_fill_missing
 ```
 
 #### `preset: on_deploy_if_code_changed` — the "run changed dbt models on deploy" pattern
@@ -310,11 +335,32 @@ def my_complex_condition() -> dg.AutomationCondition:
 
 The callable can take **zero args** (one condition for all matching assets) or **one arg** (the asset spec — for per-asset customization). Must return an `AutomationCondition`.
 
+### Shape 5 — Wait for dependencies since a cron tick
+
+How an asset waits for work it doesn't own — a job started outside Dagster's control (SQL Agent, an external HL7 interface engine, a vendor's batch load) — without hand-written polling. Holds until **every** dependency has reported an update since the most recent cron tick, then runs once:
+
+```yaml
+- selection: "key:lab_results_staging"
+  all_deps_updated_since_cron: "30 18 * * 1-5"   # weekday evenings
+```
+
+Under the hood:
+
+```python
+AutomationCondition.all_deps_updated_since_cron(cron)
+    & ~AutomationCondition.any_deps_in_progress()
+    & ~AutomationCondition.in_progress()
+```
+
+The `~any_deps_in_progress()` / `~in_progress()` guards are not optional and are always included — unlike `on_cron` (which Dagster itself dedupes per tick), `all_deps_updated_since_cron` stays **true for the entire period** between ticks, so without them this would re-request the asset on every single automation-sensor evaluation while that state holds, not just once.
+
+This differs from `strategy: any_dep_updated` / `all_deps_updated` (under [Shape 3](#shape-3-derive-from-upstreams)): those derive a cadence from each dependency's own metadata and fire relative to "since last fire." `all_deps_updated_since_cron` is anchored to an explicit, independent schedule you choose — the right shape when the thing you're waiting for doesn't run on a Dagster-visible cadence at all.
+
 ---
 
 ## Modifiers
 
-Compose with any cron-producing shape. Multiple modifiers can apply to one rule.
+Multiple modifiers can apply to one rule. `label` and `require_blocking_checks_passed` compose with any shape; `business_hours_only` and `min_interval_minutes` require a cron-producing shape (they need an extractable cron to constrain/floor).
 
 ### Modifier: `label`
 
@@ -369,6 +415,22 @@ Debounce floor — replace the derived cron with a coarser one if it's faster th
 Example: upstream every 5 min + `min_interval_minutes: 60` → `0 * * * *` (hourly). Upstream daily + same floor → daily preserved (already slower than floor).
 
 Picks sane round crons: 5/10/15/30 minutely, hourly multiples (1/2/3/4/6/8/12), daily, weekly, monthly. Requires a cron-producing strategy (refuses for `any_dep_updated` / `all_deps_updated`).
+
+### Modifier: `require_blocking_checks_passed`
+
+ANDs `all_deps_blocking_checks_passed()` onto whatever condition the rule's shape produced. Composes with every shape — `preset`, `cron`, `all_deps_updated_since_cron`, `derive_from_upstreams`, `python` — since it's a pure AND, not a cron transformation. Gates downstream automation on upstream **data-quality** checks, not just upstream freshness:
+
+```yaml
+- selection: "*"
+  preset: eager_fill_missing
+  require_blocking_checks_passed: true
+```
+
+```yaml
+- selection: "key:lab_results_staging"
+  all_deps_updated_since_cron: "30 18 * * 1-5"
+  require_blocking_checks_passed: true
+```
 
 ---
 
@@ -726,7 +788,7 @@ If a rule isn't applying:
 
 | Field | Type | Description |
 |---|---|---|
-| `rules` | `List[Dict[str, Any]]` | Ordered list of rules. First selection-match wins (fall-through). Each rule has 'selection' + one of: 'cron' (with optional 'ignore_selection'/'allow_selection'), 'preset', or 'derive_from_upstreams: true' (+ optional 'strategy'). |
+| `rules` | `List[Dict[str, Any]]` | Ordered list of rules. First selection-match wins (fall-through). Each rule has 'selection' + one of: 'cron' (with optional 'ignore_selection'/'allow_selection'), 'preset' (incl. 'eager_fill_missing'), 'all_deps_updated_… _(full docs in schema.json + component README)_ |
 
 ### Other
 

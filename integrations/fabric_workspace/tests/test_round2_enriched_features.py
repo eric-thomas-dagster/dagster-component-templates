@@ -33,6 +33,11 @@ into the base component:
   un-partitioning a specific item even when the component-wide fields ARE
   set, instead of every runnable item in the instance sharing one
   partitions_def.
+- T: partition_end_offset/partition_timezone thread through to every
+  time-window partitions definition (Daily/Weekly/Monthly/Hourly/cron) --
+  without them a daily set only ever holds completed UTC days, so a
+  notebook meant to run intraday under an eager AutomationCondition would
+  re-run yesterday's partition instead of processing today.
 """
 import importlib.util
 import json
@@ -717,3 +722,62 @@ def test_item_partitions_overrides_partition_parameter_name_per_item(tmp_path, a
     params = {p["name"]: p for p in captured["calls"][0]["parameters"]}
     assert params["override_param"]["value"] == "2024-06-15"
     assert "default_param" not in params
+
+
+# ── T: partition_end_offset / partition_timezone ──────────────────────────
+
+def test_partition_end_offset_reaches_the_daily_partitions_def(tmp_path):
+    comp = _component(partition_type="daily", partition_start="2024-01-01", partition_end_offset=1)
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state()))
+    asset_def = next(iter(defs.assets))
+    assert asset_def.partitions_def.end_offset == 1
+
+
+def test_partition_end_offset_defaults_to_zero_completed_windows_only(tmp_path):
+    comp = _component(partition_type="daily", partition_start="2024-01-01")
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state()))
+    asset_def = next(iter(defs.assets))
+    assert asset_def.partitions_def.end_offset == 0
+
+
+def test_partition_timezone_reaches_the_daily_partitions_def(tmp_path):
+    comp = _component(partition_type="daily", partition_start="2024-01-01", partition_timezone="America/New_York")
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state()))
+    asset_def = next(iter(defs.assets))
+    assert asset_def.partitions_def.timezone == "America/New_York"
+
+
+def test_partition_end_offset_and_timezone_reach_the_cron_partitions_def(tmp_path):
+    comp = _component(
+        partition_type="cron", partition_start="2024-01-01",
+        partition_cron_schedule="0 0 * * 1-5",
+        partition_end_offset=1, partition_timezone="America/New_York",
+    )
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state()))
+    asset_def = next(iter(defs.assets))
+    assert isinstance(asset_def.partitions_def, dg.TimeWindowPartitionsDefinition)
+    assert asset_def.partitions_def.end_offset == 1
+    assert asset_def.partitions_def.timezone == "America/New_York"
+
+
+def test_item_partitions_can_override_end_offset_and_timezone_per_item(tmp_path):
+    """item_partitions fully replaces the component-wide fields -- an item
+    entry that doesn't set partition_end_offset/partition_timezone gets
+    Dagster's own defaults (0/UTC), not the component-wide custom values."""
+    comp = _component(
+        partition_type="daily", partition_start="2024-01-01",
+        partition_end_offset=1, partition_timezone="America/New_York",
+        item_partitions={
+            "part_b_notebook": {
+                "partition_type": "daily", "partition_start": "2024-01-01",
+                "partition_end_offset": 0,
+            },
+        },
+    )
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _two_pipeline_state()))
+    live = _asset_by_name(defs, "live_notebook")
+    other = _asset_by_name(defs, "part_b_notebook")
+    assert live.partitions_def.end_offset == 1
+    assert live.partitions_def.timezone == "America/New_York"
+    assert other.partitions_def.end_offset == 0
+    assert other.partitions_def.timezone == "UTC"  # Dagster's own default, not inherited from the component

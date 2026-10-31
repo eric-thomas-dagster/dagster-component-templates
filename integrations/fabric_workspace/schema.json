@@ -243,6 +243,20 @@
       "required": false,
       "default": "%Y-%m-%d"
     },
+    "partition_end_offset": {
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today until tomorrow. Set to 1 to include the current, still-in-progress window (e.g. today's partition for a notebook meant to run intraday under an eager AutomationCondition). Overridable per item via item_partitions.",
+      "required": false,
+      "default": 0
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). Overridable per item via item_partitions.",
+      "required": false,
+      "default": null
+    },
     "partition_parameter_name": {
       "type": "string",
       "label": "Partition Parameter Name",

@@ -67,6 +67,8 @@ attributes:
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partitioning as a list of per-dimension specs, instead of the flat partition_type fields. Set one or the other, not both. |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only. |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). Overridable per item via item_partitions. |
 | `partition_parameter_name` | `str` | — | When set (and the asset is partitioned), injects the run's partition key as this Fabric parameter name on every triggered job, merged with default_parameters/item_parameters (those take precedence if they also set the sa… _(full docs in schema.json + component README)_ |
 
 ### Retry policy
@@ -292,6 +294,25 @@ As with any Dagster partitioned asset, an unpartitioned downstream asset
 waits on **every** partition before it's considered up to date — standard
 Dagster semantics, not specific to this component.
 
+**`partition_end_offset`/`partition_timezone`** thread through to the
+underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (real,
+documented kwargs on all of them). By default (`end_offset: 0`), a
+time-based partition set only ever holds **completed** windows — a daily
+set never includes today until tomorrow. For a notebook meant to run
+intraday (e.g. every 15 minutes under an eager `AutomationCondition`) and
+process *today's* data, set `partition_end_offset: 1` so today's partition
+exists and is eligible to materialize; otherwise the asset would keep
+re-running yesterday's partition with yesterday's data:
+
+```yaml
+attributes:
+  partition_type: daily
+  partition_start: "2024-01-01"
+  partition_end_offset: 1
+  partition_timezone: America/New_York
+  partition_parameter_name: load_date
+```
+
 ### Per-item partitioning
 
 Partitioning is set once per component instance by default, which means
@@ -316,10 +337,13 @@ attributes:
 An `item_partitions` entry **fully replaces** the component-wide
 `partition_type`/`partition_start`/`partition_values`/
 `dynamic_partition_name`/`partition_dimensions`/`partition_cron_schedule`/
-`partition_cron_fmt`/`partition_parameter_name` fields for that one item —
-including an empty dict (`{}`) to explicitly un-partition an item even when
-the component-wide `partition_type` IS set. Items with no entry fall back to
-the component-wide fields.
+`partition_cron_fmt`/`partition_end_offset`/`partition_timezone`/
+`partition_parameter_name` fields for that one item — including an empty
+dict (`{}`) to explicitly un-partition an item even when the component-wide
+`partition_type` IS set. Items with no entry fall back to the component-wide
+fields. An item entry that doesn't set its own `partition_end_offset`/
+`partition_timezone` gets Dagster's own defaults (`0`/`UTC`), not the
+component-wide custom values — the replacement is complete, not a merge.
 
 ## Observation sensor
 

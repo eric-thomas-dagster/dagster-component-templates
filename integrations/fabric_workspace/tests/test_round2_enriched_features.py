@@ -268,12 +268,15 @@ def test_load_date_override_tag_replaces_the_computed_date(tmp_path, auth, monke
 
 # ── E: OneLake exit-value read ────────────────────────────────────────────
 
-def test_exit_value_is_read_from_onelake_and_attached_as_metadata(tmp_path, auth, monkeypatch):
+def test_exit_value_is_read_from_the_configured_lakehouse_not_the_notebook_item(tmp_path, auth, monkeypatch):
+    """A Notebook has no OneLake storage of its own -- the exit-value file
+    must be read from lakehouse_id, never the triggered item's own id."""
     import requests
 
     def _get(url, headers=None, **k):
         if "onelake.dfs.fabric.microsoft.com" in url:
-            assert url == "https://onelake.dfs.fabric.microsoft.com/ws-1/item-1/Files/exit_value.txt"
+            assert url == "https://onelake.dfs.fabric.microsoft.com/ws-1/lh-1/Files/exit_value.txt"
+            assert "item-1" not in url
             assert headers["Authorization"] == "Bearer fake-storage-token"
             return _FakeResponse(200, text="ok")
         return _FakeResponse(200, {"status": "Completed", "id": "job-1"})
@@ -283,6 +286,7 @@ def test_exit_value_is_read_from_onelake_and_attached_as_metadata(tmp_path, auth
 
     comp = _component(
         workspace=FabricResource(workspace_id="ws-1", tenant_id="t", client_id="c", client_secret="s", poll_interval_seconds=0),
+        lakehouse_id="lh-1",
         exit_value_file="exit_value.txt",
     )
     defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state()))
@@ -305,9 +309,139 @@ def test_data_failure_exit_value_turns_a_completed_job_into_a_failure(tmp_path, 
 
     comp = _component(
         workspace=FabricResource(workspace_id="ws-1", tenant_id="t", client_id="c", client_secret="s", poll_interval_seconds=0),
+        lakehouse_id="lh-1",
         exit_value_file="exit_value.txt",
         data_failure_exit_values=["no_rows_processed"],
     )
     defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state()))
     result = dg.materialize(list(defs.assets), raise_on_error=False)
     assert not result.success
+
+
+def test_lakehouse_id_required_when_exit_value_file_is_set():
+    with pytest.raises(Exception, match="lakehouse_id is required"):
+        _component(exit_value_file="exit_value.txt")
+
+
+def test_exit_value_read_failure_fails_closed_instead_of_silently_skipping(tmp_path, auth, monkeypatch):
+    """A 404/network/auth failure reading the exit-value file must raise,
+    not warn-and-return-None -- the whole point of the field is to catch
+    bad data that would otherwise pass as a green materialization."""
+    import requests
+
+    def _get(url, headers=None, **k):
+        if "onelake.dfs.fabric.microsoft.com" in url:
+            return _FakeResponse(404, text="not found")
+        return _FakeResponse(200, {"status": "Completed", "id": "job-1"})
+
+    monkeypatch.setattr(requests, "post", lambda *a, **k: _FakeResponse(202, headers={"Location": "https://fabric/instances/1"}))
+    monkeypatch.setattr(requests, "get", _get)
+
+    comp = _component(
+        workspace=FabricResource(workspace_id="ws-1", tenant_id="t", client_id="c", client_secret="s", poll_interval_seconds=0),
+        lakehouse_id="lh-1",
+        exit_value_file="exit_value.txt",
+    )
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state()))
+    result = dg.materialize(list(defs.assets), raise_on_error=False)
+    assert not result.success
+
+
+def test_exit_value_file_load_date_placeholder_is_substituted(tmp_path, auth, monkeypatch):
+    import requests
+    captured = {}
+
+    def _get(url, headers=None, **k):
+        if "onelake.dfs.fabric.microsoft.com" in url:
+            captured["url"] = url
+            return _FakeResponse(200, text="ok")
+        return _FakeResponse(200, {"status": "Completed", "id": "job-1"})
+
+    monkeypatch.setattr(requests, "post", lambda *a, **k: _FakeResponse(202, headers={"Location": "https://fabric/instances/1"}))
+    monkeypatch.setattr(requests, "get", _get)
+
+    comp = _component(
+        workspace=FabricResource(workspace_id="ws-1", tenant_id="t", client_id="c", client_secret="s", poll_interval_seconds=0),
+        lakehouse_id="lh-1",
+        exit_value_file="exit_values/{load_date}.txt",
+        load_date_parameter="load_date",
+    )
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state()))
+    result = dg.materialize(
+        list(defs.assets), raise_on_error=True,
+        tags={"fabric/load_date_override": "2020-01-01"},
+    )
+    assert result.success
+    assert captured["url"] == "https://onelake.dfs.fabric.microsoft.com/ws-1/lh-1/Files/exit_values/2020-01-01.txt"
+
+
+# ── L: failure-classification consistency ──────────────────────────────────
+
+def test_trigger_failure_path_has_class_prefix_and_metadata(auth, monkeypatch):
+    import requests
+    monkeypatch.setattr(requests, "post", lambda *a, **k: _FakeResponse(
+        403, json_body={"errorCode": "SomeUnrecognisedCode", "message": "nope"},
+    ))
+
+    comp = _component()
+    with pytest.raises(dg.Failure) as exc_info:
+        comp._trigger_item_run(_ctx(), "item-1", "DataPipeline")
+    assert exc_info.value.metadata["failure_class"].value == "auth"
+    assert exc_info.value.description.startswith("[auth]")
+
+
+def test_token_failure_carries_failure_class_and_prefix(monkeypatch):
+    class _BoomResource(FabricResource):
+        def get_token(self):
+            raise RuntimeError("boom")
+
+    comp = _component(workspace=_BoomResource(workspace_id="ws-1", tenant_id="t", client_id="c", client_secret="s"))
+    with pytest.raises(dg.Failure) as exc_info:
+        comp._trigger_item_run(_ctx(), "item-1", "DataPipeline")
+    assert exc_info.value.metadata["failure_class"].value == "auth"
+    assert exc_info.value.description.startswith("[auth]")
+
+
+def test_401_trigger_response_classified_as_auth_even_with_an_unrecognised_error_code(auth, monkeypatch):
+    import requests
+    monkeypatch.setattr(requests, "post", lambda *a, **k: _FakeResponse(
+        401, json_body={"errorCode": "TotallyUnknownCode", "message": "access denied somehow"},
+    ))
+
+    comp = _component()
+    with pytest.raises(dg.Failure) as exc_info:
+        comp._trigger_item_run(_ctx(), "item-1", "DataPipeline")
+    assert exc_info.value.metadata["failure_class"].value == "auth"
+
+
+def test_polled_failure_without_401_and_without_auth_keywords_stays_other(auth, monkeypatch):
+    """http_status_code only applies on the trigger-request path -- a polled
+    job-status Failed has no HTTP status of its own, so an unrecognised
+    errorCode there still lands in 'other', not 'auth'."""
+    import requests
+    monkeypatch.setattr(requests, "post", lambda *a, **k: _FakeResponse(202, headers={"Location": "https://fabric/instances/1"}))
+    monkeypatch.setattr(requests, "get", lambda *a, **k: _FakeResponse(200, {
+        "status": "Failed", "id": "job-1",
+        "failureReason": {"errorCode": "TotallyUnknownCode", "message": "something broke", "isRetriable": False},
+    }))
+
+    comp = _component(workspace=FabricResource(workspace_id="ws-1", tenant_id="t", client_id="c", client_secret="s", poll_interval_seconds=0))
+    with pytest.raises(dg.Failure) as exc_info:
+        comp._trigger_item_run(_ctx(), "item-1", "DataPipeline")
+    assert exc_info.value.metadata["failure_class"].value == "other"
+
+
+# ── M: per-item pool override ────────────────────────────────────────────
+
+def test_item_pools_overrides_the_component_wide_pool_for_a_matching_item(tmp_path):
+    comp = _component(pool="shared_pool", item_pools={"nightly_ingest": "special_pool"})
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state(name="nightly_ingest")))
+    asset_def = next(iter(defs.assets))
+    assert asset_def.op.pool == "special_pool"
+
+
+def test_item_pools_falls_back_to_component_wide_pool_for_a_non_matching_item(tmp_path):
+    comp = _component(pool="shared_pool", item_pools={"some_other_item": "special_pool"})
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state(name="nightly_ingest")))
+    asset_def = next(iter(defs.assets))
+    assert asset_def.op.pool == "shared_pool"

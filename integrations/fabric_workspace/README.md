@@ -88,8 +88,10 @@ attributes:
 | `item_parameters` | `Dict[str, Dict[str, Any]]` | — | Per-item parameter overrides, keyed by the Fabric item's display name (e.g. {'my_notebook': {'load_date': '2024-01-01'}}). Merged OVER default_parameters for that specific item -- lets one notebook wait for a different i… _(full docs in schema.json + component README)_ |
 | `load_date_parameter` | `str` | — | If set, injects today's date (in load_date_timezone, ISO format) as this parameter name into every triggered job, alongside default_parameters/item_parameters. Override for one run via the 'fabric/load_date_override' run… _(full docs in schema.json + component README)_ |
 | `load_date_timezone` | `str` | `"UTC"` | IANA timezone name used to compute 'today' for load_date_parameter. |
-| `pool` | `str` | — | Dagster concurrency pool name applied to every runnable (Notebook/DataPipeline/Dataflow) asset -- prevents overlapping runs of the same Fabric item. |
-| `exit_value_file` | `str` | — | Relative OneLake path (under the item's Files/ root, e.g. 'exit_value.txt') that the notebook ALSO writes its notebookutils.notebook.exit(...) value to. Read after the job reports Completed, via OneLake's ADLS Gen2-compa… _(full docs in schema.json + component README)_ |
+| `pool` | `str` | — | Dagster concurrency pool name applied to every runnable (Notebook/DataPipeline/Dataflow) asset -- prevents overlapping runs of the same Fabric item. Overridable per item via item_pools. |
+| `item_pools` | `Dict[str, str]` | — | Per-item concurrency pool overrides, keyed by the Fabric item's display name (same convention as item_parameters). Overrides `pool` for that specific item -- e.g. to give one notebook its own limit distinct from the rest… _(full docs in schema.json + component README)_ |
+| `lakehouse_id` | `str` | — | OneLake item (GUID) to read exit_value_file from. Required when exit_value_file is set. A Notebook has no OneLake storage of its own -- notebookutils.fs resolves relative paths against its attached DEFAULT Lakehouse, not… _(full docs in schema.json + component README)_ |
+| `exit_value_file` | `str` | — | Relative OneLake path under lakehouse_id's Files/ root (e.g. 'exit_value.txt', or 'exit_values/{load_date}.txt' when load_date_parameter is also set) that the notebook ALSO writes its notebookutils.notebook.exit(...) val… _(full docs in schema.json + component README)_ |
 | `data_failure_exit_values` | `List[str]` | — | If exit_value_file's content exactly matches one of these strings (e.g. 'no_rows_processed'), an otherwise-Completed job is raised as a data-quality dg.Failure instead of succeeding silently. Only used when exit_value_file is set. |
 | `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects new Fabric item job completions and emits AssetObservation events. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceComponent. Off by d… _(full docs in schema.json + component README)_ |
 | `sensor_check_interval_seconds` | `int` | `300` | Seconds between polling-sensor ticks. Only used when polling_sensor=True. Distinct from workspace.poll_interval_seconds, which governs the in-asset trigger-and-wait loop for runs Dagster itself kicks off. |
@@ -125,17 +127,22 @@ message instead of polling until the timeout. A timeout requests
 cancellation of the orphaned Fabric job; a job that already reached its own
 terminal state doesn't get a pointless cancel call.
 
-Every `dg.Failure` carries a `failure_class` metadata value and a matching
-`[class]` prefix on the description — `auth` (an insufficient-privileges /
-authorization errorCode), `collision` (`Deduped`), or `other` (everything
-else, including a notebook's own code/data bugs). A deliberately NOT
-attempted fifth bucket: distinguishing "the Fabric platform itself broke" from
-"the notebook's own code or data was bad" would need a verified, exhaustive
-Fabric error-code catalog that doesn't exist publicly — rather than guess,
-both stay in `other`. The one exception is `exit_value_file` +
+Every `dg.Failure` raised by this component — auth (token acquisition),
+trigger-request, and polled-job-status — consistently carries a
+`failure_class` metadata value and a matching `[class]` prefix on the
+description: `auth` (an insufficient-privileges/authorization errorCode, OR
+a 401/403 on the initial trigger request even if Fabric's own errorCode
+doesn't match a known keyword), `collision` (`Deduped`), or `other`
+(everything else, including a notebook's own code/data bugs). A deliberately
+NOT attempted fifth bucket: distinguishing "the Fabric platform itself broke"
+from "the notebook's own code or data was bad" would need a verified,
+exhaustive Fabric error-code catalog that doesn't exist publicly — rather
+than guess, both stay in `other`. The one exception is `exit_value_file` +
 `data_failure_exit_values` below, which classifies as `data` with real
 confidence because it's an explicit, notebook-signaled condition, not an
-inferred one.
+inferred one. (The HTTP-status-based `auth` check only applies to the
+trigger-request path — the polled job-status path has no HTTP status of its
+own, only Fabric's job-level status string.)
 
 Retries: `max_retries` (default `1`) and `retry_backoff_seconds` (default
 `30`, doubling per attempt via the run's `retry_number` — i.e. real
@@ -208,9 +215,24 @@ metadata on the materialization.
 Set `pool` to put every triggered Notebook/DataPipeline/Dataflow asset in a
 Dagster [concurrency pool](https://docs.dagster.io/guides/operate/managing-concurrency)
 — e.g. to cap concurrent runs against a shared, cost-sensitive Fabric
-capacity. Subclasses that need deeper per-asset customization (partitions,
-extra run config, a different pool per item) can override
+capacity. Use `item_pools` (keyed by Fabric display name, same convention as
+`item_parameters`) to give one specific item its own pool instead of sharing
+the component-wide one:
+
+```yaml
+attributes:
+  pool: fabric_jobs
+  item_pools:
+    expensive_notebook: fabric_jobs_heavy
+```
+
+Subclasses that need deeper per-asset customization (partitions, extra run
+config, something this field set doesn't cover) can override
 `_runnable_asset_kwargs(...)` instead of copying all of `_build_runnable_asset`.
+Native partitioning (e.g. `daily_partitions_start_date`) is NOT implemented —
+an unpartitioned downstream asset would end up waiting on every partition,
+and this component doesn't yet have a clean answer for that; out of scope
+for now.
 
 Set the `fabric/skip` run tag to `"true"` to audit-skip the actual Fabric
 trigger for a run — useful for a dry-run or a manually-excluded item without
@@ -260,7 +282,9 @@ attributes:
   workspace:
     workspace_id: "{{ env.FABRIC_WORKSPACE_ID }}"
   import_notebooks: true
-  exit_value_file: exit_value.txt
+  lakehouse_id: "{{ env.FABRIC_LAKEHOUSE_ID }}"
+  exit_value_file: "exit_values/{load_date}.txt"
+  load_date_parameter: load_date
   data_failure_exit_values: ["no_rows_processed", "schema_drift"]
 ```
 
@@ -269,16 +293,31 @@ unreachable from the Job Scheduler API directly — "completed, but signalled
 bad data" can't be detected from the polled status alone. The workaround:
 have the notebook also write its exit value to a file in OneLake
 (`notebookutils.fs.put("Files/exit_value.txt", exit_value, overwrite=True)`),
-and set `exit_value_file` to that path (relative to the item's `Files/` root).
-After the job reports `Completed`, the component reads it back via OneLake's
-ADLS Gen2-compatible API (a separate `storage.azure.com` OAuth scope from the
-Fabric API itself) and attaches it as `fabric/exit_value` metadata. If the
-value matches one of `data_failure_exit_values`, the otherwise-`Completed`
-run is raised as a `dg.Failure` with `failure_class: data` instead of
-succeeding silently. A read failure (auth, 404, network) degrades
-gracefully — a logged warning, no metadata, the job's own status still
-decides success/failure — rather than failing a run over the exit-value
-check itself.
+and set `exit_value_file` to that path (relative to `lakehouse_id`'s `Files/`
+root; `{load_date}` is substituted with the resolved `load_date_parameter`
+value when both are set).
+
+**`lakehouse_id` is required when `exit_value_file` is set, and is
+deliberately NOT the notebook's own item id.** A Notebook has no OneLake
+storage of its own — `notebookutils.fs` resolves relative paths against the
+notebook's attached *default Lakehouse*, confirmed against Microsoft's own
+`notebookutils` file-system docs and the OneLake overview's item-type list
+(lakehouses/warehouses/eventhouses/KQL databases, not notebooks, are OneLake
+data items). Set `lakehouse_id` to that Lakehouse's own item GUID — the
+component raises a config error at load time if `exit_value_file` is set
+without it.
+
+After the job reports `Completed`, the component reads the file back via
+OneLake's ADLS Gen2-compatible API (a separate `storage.azure.com` OAuth
+scope from the Fabric API itself) and attaches it as `fabric/exit_value`
+metadata. If the value matches one of `data_failure_exit_values`, the
+otherwise-`Completed` run is raised as a `dg.Failure` with
+`failure_class: data` instead of succeeding silently. A read failure (auth,
+404, network) **fails closed** — it raises a real `dg.Failure` rather than
+logging a warning and skipping the check — since the entire point of
+configuring this field is to catch bad data that would otherwise pass as a
+green materialization; silently skipping the check on a transient read
+failure would defeat it.
 
 ## Known limitations
 

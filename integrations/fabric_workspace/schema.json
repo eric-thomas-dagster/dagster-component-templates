@@ -153,14 +153,28 @@
     "pool": {
       "type": "string",
       "label": "Pool",
-      "description": "Dagster concurrency pool assigned to every triggered Notebook/DataPipeline/Dataflow asset, e.g. to cap how many Fabric jobs run concurrently against a shared capacity.",
+      "description": "Dagster concurrency pool assigned to every triggered Notebook/DataPipeline/Dataflow asset, e.g. to cap how many Fabric jobs run concurrently against a shared capacity. Overridable per item via item_pools.",
+      "required": false,
+      "default": null
+    },
+    "item_pools": {
+      "type": "object",
+      "label": "Item Pools",
+      "description": "Per-item concurrency pool overrides, keyed by the Fabric item's display name (same convention as item_parameters). Overrides `pool` for that specific item.",
+      "required": false,
+      "default": null
+    },
+    "lakehouse_id": {
+      "type": "string",
+      "label": "Lakehouse ID",
+      "description": "OneLake item (GUID) to read exit_value_file from. Required when exit_value_file is set. A Notebook has no OneLake storage of its own -- notebookutils.fs resolves relative paths against its attached default Lakehouse, not the notebook item itself -- so this must name a real storage-bearing item (a Lakehouse or Warehouse), not the triggered item's own id.",
       "required": false,
       "default": null
     },
     "exit_value_file": {
       "type": "string",
       "label": "Exit Value File",
-      "description": "Path (relative to the item's OneLake Files/ root) to a file a Notebook writes with its own notebookutils.notebook.exit(...) value, which the Job Scheduler API itself cannot surface. Read back via OneLake's ADLS Gen2-compatible API (a separate storage.azure.com OAuth scope) after the job reports Completed. The value is attached as 'fabric/exit_value' metadata; a read failure degrades gracefully (metadata omitted, warning logged) rather than failing the run. See data_failure_exit_values to turn a specific value into a real Failure.",
+      "description": "Path (relative to lakehouse_id's OneLake Files/ root, e.g. 'exit_value.txt' or 'exit_values/{load_date}.txt') to a file a Notebook writes with its own notebookutils.notebook.exit(...) value, which the Job Scheduler API itself cannot surface. Read back via OneLake's ADLS Gen2-compatible API (a separate storage.azure.com OAuth scope) after the job reports Completed. The value is attached as 'fabric/exit_value' metadata. A read failure (auth, 404, network) raises a real Failure -- fails CLOSED, since the point of this field is to catch bad data that would otherwise pass as a green materialization. See data_failure_exit_values to turn a specific value into a data-quality Failure.",
       "required": false,
       "default": null
     },

@@ -143,7 +143,13 @@ def _looks_retriable(error_code: str, message: str) -> bool:
     return any(k in text for k in _RETRIABLE_KEYWORDS)
 
 
-def _classify_fabric_failure(status: str, error_code: str, message: str, is_retriable: Optional[bool]) -> str:
+def _classify_fabric_failure(
+    status: str,
+    error_code: str,
+    message: str,
+    is_retriable: Optional[bool],
+    http_status_code: Optional[int] = None,
+) -> str:
     """Best-effort, honest failure classification for an "at a glance" label.
 
     Four buckets, not five: "auth" and "infrastructure" (capacity/throttling,
@@ -158,9 +164,16 @@ def _classify_fabric_failure(status: str, error_code: str, message: str, is_retr
     The one case this component CAN confidently call "data" is a notebook's
     own exit-value signal (see `data_failure_exit_values`), not a generic
     Failed/Cancelled status.
+
+    `http_status_code` is only available on the initial trigger-request path
+    (the polled job-status path has no HTTP status of its own, only Fabric's
+    job-level status string) -- a 401/403 there is authoritative for "auth"
+    even when Fabric's errorCode doesn't match the keyword list below.
     """
     if status == "Deduped":
         return "collision"
+    if http_status_code in (401, 403):
+        return "auth"
     text = f"{error_code} {message}".lower()
     if any(k in text for k in _AUTH_KEYWORDS):
         return "auth"
@@ -486,19 +499,43 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
     pool: Optional[str] = Field(
         default=None,
-        description="Dagster concurrency pool name applied to every runnable (Notebook/DataPipeline/Dataflow) asset -- prevents overlapping runs of the same Fabric item.",
+        description="Dagster concurrency pool name applied to every runnable (Notebook/DataPipeline/Dataflow) asset -- prevents overlapping runs of the same Fabric item. Overridable per item via item_pools.",
+    )
+    item_pools: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "Per-item concurrency pool overrides, keyed by the Fabric item's display "
+            "name (same convention as item_parameters). Overrides `pool` for that "
+            "specific item -- e.g. to give one notebook its own limit distinct from "
+            "the rest of the workspace instead of sharing a single component-wide pool."
+        ),
     )
 
+    lakehouse_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "OneLake item (GUID) to read exit_value_file from. Required when "
+            "exit_value_file is set. A Notebook has no OneLake storage of its own -- "
+            "notebookutils.fs resolves relative paths against its attached DEFAULT "
+            "Lakehouse, not the notebook item itself -- so exit_value_file must name "
+            "a real storage-bearing item (a Lakehouse or Warehouse), not the "
+            "triggered item's own id."
+        ),
+    )
     exit_value_file: Optional[str] = Field(
         default=None,
         description=(
-            "Relative OneLake path (under the item's Files/ root, e.g. 'exit_value.txt') "
-            "that the notebook ALSO writes its notebookutils.notebook.exit(...) value to. "
-            "Read after the job reports Completed, via OneLake's ADLS Gen2-compatible "
+            "Relative OneLake path under lakehouse_id's Files/ root (e.g. "
+            "'exit_value.txt', or 'exit_values/{load_date}.txt' when load_date_parameter "
+            "is also set) that the notebook ALSO writes its notebookutils.notebook.exit(...) "
+            "value to. Read after the job reports Completed, via OneLake's ADLS Gen2-compatible "
             "API (a separate 'https://storage.azure.com/.default' OAuth scope from the "
             "Fabric API itself) -- the Job Scheduler API has no way to return this value "
             "directly, so a Completed job with no actual rows processed otherwise looks "
-            "identical to a real success."
+            "identical to a real success. A read failure (auth, 404, or anything else) "
+            "raises a real dg.Failure rather than silently skipping the data-failure check -- "
+            "this is deliberately fail-closed, since the entire point of configuring this "
+            "field is to catch bad data that would otherwise pass as a green materialization."
         ),
     )
     data_failure_exit_values: Optional[List[str]] = Field(
@@ -541,6 +578,16 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
     @classmethod
     def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component=cls.__name__, mode="multi", optional=True)
+
+    @model_validator(mode="after")
+    def _validate_exit_value_config(self):
+        if self.exit_value_file and not self.lakehouse_id:
+            raise ValueError(
+                "lakehouse_id is required when exit_value_file is set. A Notebook has "
+                "no OneLake storage of its own -- name the Lakehouse/Warehouse item "
+                "the notebook actually writes exit_value_file to."
+            )
+        return self
 
     @public
     def get_asset_spec(self, props: FabricObjectProps) -> AssetSpec:
@@ -1014,8 +1061,9 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             },
             description=f"Fabric {item_type} run: {name}",
         )
-        if self.pool:
-            base_kwargs["pool"] = self.pool
+        item_pool = (self.item_pools or {}).get(name) or self.pool
+        if item_pool:
+            base_kwargs["pool"] = item_pool
         return self._apply_translation(
             base_kwargs,
             kind=kind,
@@ -1082,51 +1130,83 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                 metadata["fabric/load_date"] = load_date
 
             if _self.exit_value_file:
-                exit_value = _self._read_onelake_exit_value(item_id, _self.exit_value_file, context.log)
-                if exit_value is not None:
-                    metadata["fabric/exit_value"] = exit_value
-                    if _self.data_failure_exit_values and exit_value in _self.data_failure_exit_values:
+                exit_value_path = _self.exit_value_file
+                if "{load_date}" in exit_value_path:
+                    if load_date is None:
                         raise dg.Failure(
                             description=(
-                                f"Fabric job for item {item_id} reported Completed, but its "
-                                f"notebook signalled a data failure via exit value: {exit_value!r}."
+                                f"exit_value_file ({exit_value_path!r}) uses a {{load_date}} "
+                                "placeholder, but load_date_parameter isn't set on this "
+                                "component instance, so there's no load_date to substitute."
                             ),
-                            metadata={**metadata, "failure_class": "data"},
+                            metadata=metadata,
                         )
+                    exit_value_path = exit_value_path.replace("{load_date}", load_date)
+                exit_value = _self._read_onelake_exit_value(_self.lakehouse_id, exit_value_path, context.log)
+                metadata["fabric/exit_value"] = exit_value
+                if _self.data_failure_exit_values and exit_value in _self.data_failure_exit_values:
+                    raise dg.Failure(
+                        description=(
+                            f"Fabric job for item {item_id} reported Completed, but its "
+                            f"notebook signalled a data failure via exit value: {exit_value!r}."
+                        ),
+                        metadata={**metadata, "failure_class": "data"},
+                    )
 
             return dg.MaterializeResult(metadata=metadata)
 
         return _runnable
 
-    def _read_onelake_exit_value(self, item_id: str, exit_value_file: str, asset_log) -> Optional[str]:
+    def _read_onelake_exit_value(self, lakehouse_id: str, exit_value_file: str, asset_log) -> str:
         """Read a small text file from OneLake via its ADLS Gen2-compatible
         API -- the only way to get a notebook's own exit value, since the
         Job Scheduler API doesn't surface `notebookutils.notebook.exit(...)`.
 
-        GET https://onelake.dfs.fabric.microsoft.com/{workspace}/{item}/Files/{path}
+        GET https://onelake.dfs.fabric.microsoft.com/{workspace}/{lakehouse}/Files/{path}
         verified against OneLake's own docs (learn.microsoft.com/fabric/
         onelake/onelake-access-api): GUIDs for both workspace and item need
         no item-type suffix, and the response body IS the raw file content
         (no JSON envelope) -- confirmed against the underlying ADLS Gen2
         "Path - Read" API reference. Uses a SEPARATE OAuth scope
         (`https://storage.azure.com/.default`) from the Fabric API itself.
+
+        `lakehouse_id` is deliberately NOT the triggered item's own id: a
+        Notebook has no OneLake storage of its own (notebookutils.fs resolves
+        relative paths against its attached DEFAULT Lakehouse -- confirmed
+        via Microsoft's own notebookutils file-system docs and the OneLake
+        overview's item-type list, which names lakehouses/warehouses/
+        eventhouses/KQL databases, not notebooks, as OneLake data items). The
+        caller must pass the actual storage-bearing item's id via the
+        `lakehouse_id` component field.
+
+        Fails CLOSED (raises `dg.Failure`) on any read failure -- auth,
+        non-2xx, or a network exception -- rather than warning and returning
+        None. The entire point of configuring exit_value_file is to catch bad
+        data that would otherwise pass as a green materialization; silently
+        skipping that check on a transient read failure would defeat it.
         """
         import requests
         try:
             token = self.workspace.get_storage_token()
         except Exception as e:
-            asset_log.warning(f"OneLake: couldn't acquire a storage-scoped token: {e}")
-            return None
-        url = f"{_ONELAKE_DFS_BASE}/{self.workspace.workspace_id}/{item_id}/Files/{exit_value_file}"
+            raise dg.Failure(
+                description=f"OneLake: couldn't acquire a storage-scoped token to read exit_value_file: {e}",
+                metadata={"failure_class": "auth"},
+            ) from e
+        url = f"{_ONELAKE_DFS_BASE}/{self.workspace.workspace_id}/{lakehouse_id}/Files/{exit_value_file}"
         try:
             resp = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=30)
-            if resp.status_code >= 300:
-                asset_log.warning(f"OneLake: couldn't read exit-value file ({resp.status_code}): {resp.text[:200]}")
-                return None
-            return resp.text.strip()
         except Exception as e:
-            asset_log.warning(f"OneLake: exit-value read raised: {e}")
-            return None
+            raise dg.Failure(description=f"OneLake: exit-value read raised: {e}") from e
+        if resp.status_code >= 300:
+            raise dg.Failure(
+                description=f"OneLake: couldn't read exit-value file ({resp.status_code}): {resp.text[:200]}",
+                metadata={
+                    "failure_class": "auth" if resp.status_code in (401, 403) else "other",
+                    "onelake_status_code": resp.status_code,
+                },
+            )
+        return resp.text.strip()
 
     def _cancel_job_instance(self, instance_url: str, headers: dict, asset_log) -> None:
         """Best-effort cancellation of a still-running Fabric job instance.
@@ -1195,8 +1275,8 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             # Auth failures previously escaped as a raw azure.core/azure.identity
             # exception; wrap them so the Dagster UI shows a clear description.
             raise dg.Failure(
-                description=f"Fabric authentication failed: {e}",
-                metadata={"fabric_item_id": item_id, "fabric_item_type": item_type},
+                description=f"[auth] Fabric authentication failed: {e}",
+                metadata={"fabric_item_id": item_id, "fabric_item_type": item_type, "failure_class": "auth"},
             ) from e
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
@@ -1218,15 +1298,19 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             trigger_is_retriable = error["isRetriable"]
             if trigger_is_retriable is None:
                 trigger_is_retriable = resp.status_code in (429, 430) or _looks_retriable(error["errorCode"], error["message"])
+            failure_class = _classify_fabric_failure(
+                "Failed", error["errorCode"], error["message"], trigger_is_retriable,
+                http_status_code=resp.status_code,
+            )
             md = {
                 "fabric_item_id": item_id,
                 "fabric_item_type": item_type,
                 "fabric_error_code": error["errorCode"],
                 "fabric_status_code": resp.status_code,
-                "failure_class": _classify_fabric_failure("Failed", error["errorCode"], error["message"], trigger_is_retriable),
+                "failure_class": failure_class,
             }
             failure_exc = dg.Failure(
-                description=f"Fabric run trigger failed ({resp.status_code}): {error['message']}",
+                description=f"[{failure_class}] Fabric run trigger failed ({resp.status_code}): {error['message']}",
                 metadata=md,
             )
             if trigger_is_retriable:

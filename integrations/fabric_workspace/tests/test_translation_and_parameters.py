@@ -104,7 +104,7 @@ def test_default_parameters_apply_to_every_runnable_item(tmp_path, monkeypatch):
 
     captured = {}
 
-    def _fake_trigger(self, context, item_id, item_type, parameters=None):
+    def _fake_trigger(self, context, item_id, item_type, parameters=None, extra_execution_data=None):
         captured["parameters"] = parameters
         return {"status": "Completed"}
 
@@ -126,7 +126,7 @@ def test_item_parameters_override_default_parameters_for_that_item_only(tmp_path
 
     captured = {}
 
-    def _fake_trigger(self, context, item_id, item_type, parameters=None):
+    def _fake_trigger(self, context, item_id, item_type, parameters=None, extra_execution_data=None):
         captured[item_id] = parameters
         return {"status": "Completed"}
 

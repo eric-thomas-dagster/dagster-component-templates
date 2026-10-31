@@ -68,6 +68,10 @@ class FabricLakehouseIOManager(dg.ConfigurableIOManager):
     tenant_id_env_var: Optional[str] = Field(default=None)
     client_id_env_var: Optional[str] = Field(default=None)
     client_secret_env_var: Optional[str] = Field(default=None)
+    use_azure_cli: bool = Field(
+        default=False,
+        description="Force Azure CLI auth when no service principal is set (local dev only -- needs an interactive `az login` session). Leave false in production/CI to let delta-rs/object_store's own default credential resolution run instead (can include managed identity).",
+    )
 
     def _table_name(self, context, partition_key=None) -> str:
         parts = [_sanitize(p) for p in context.asset_key.path]
@@ -94,7 +98,13 @@ class FabricLakehouseIOManager(dg.ConfigurableIOManager):
                 "azure_client_id": client,
                 "azure_client_secret": secret,
             }
-        return {"use_azure_cli": "true"}
+        if self.use_azure_cli:
+            return {"use_azure_cli": "true"}
+        # No explicit credential: let delta-rs/object_store's own default
+        # credential resolution run instead of forcing CLI-only auth, which
+        # fails outright in any non-interactive deployment (CI, a Dagster+
+        # agent, an Azure VM without `az login`).
+        return {}
 
     def handle_output(self, context, obj) -> None:
         if obj is None:
@@ -160,6 +170,10 @@ class FabricLakehouseIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
     tenant_id_env_var: Optional[str] = Field(default=None)
     client_id_env_var: Optional[str] = Field(default=None)
     client_secret_env_var: Optional[str] = Field(default=None)
+    use_azure_cli: bool = Field(
+        default=False,
+        description="Force Azure CLI auth when no service principal is set (local dev only -- needs an interactive `az login` session). Leave false in production/CI to let delta-rs/object_store's own default credential resolution run instead.",
+    )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         io_manager = FabricLakehouseIOManager(
@@ -170,5 +184,6 @@ class FabricLakehouseIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
             tenant_id_env_var=self.tenant_id_env_var,
             client_id_env_var=self.client_id_env_var,
             client_secret_env_var=self.client_secret_env_var,
+            use_azure_cli=self.use_azure_cli,
         )
         return dg.Definitions(resources={self.resource_key: io_manager})

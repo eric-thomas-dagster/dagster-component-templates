@@ -61,6 +61,13 @@
       "label": "Client Secret Env Var",
       "required": false,
       "default": null
+    },
+    "use_azure_cli": {
+      "description": "Force Azure CLI auth when no service principal is set (local dev only -- needs an interactive `az login` session). Leave false in production/CI to let delta-rs/object_store's own default credential resolution run instead.",
+      "type": "boolean",
+      "label": "Use Azure Cli",
+      "required": false,
+      "default": false
     }
   }
 }

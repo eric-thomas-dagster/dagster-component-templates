@@ -694,6 +694,34 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             "a different input than another from the same component instance."
         ),
     )
+    execution_data: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Raw executionData sent on every triggered job -- Fabric's own term for "
+            "'fixed static data, defined by the specific item job type' (confirmed via "
+            "the Job Scheduler REST reference: executionData and parameters can be sent "
+            "TOGETHER in the same request). Unlike default_parameters/item_parameters, "
+            "this is NOT converted to any shape -- sent exactly as given, merged into "
+            "whatever executionData object is otherwise built for the item type (e.g. "
+            "merged alongside a Notebook's own auto-built executionData.parameters). "
+            "Needed for job types whose required config isn't exposed as a dedicated "
+            "field yet -- e.g. Spark Job Definition's executableFile/mainClass/"
+            "commandLineArguments/additionalLibraryUris/defaultLakehouseId/environmentId "
+            "(confirmed via learn.microsoft.com/rest/api/fabric/sparkjobdefinition/"
+            "background-jobs/run-on-demand-spark-job-definition), though note Spark Job "
+            "Definition ALSO uses a different URL path "
+            "(/sparkJobDefinitions/{id}/jobs/sparkjob/instances, not /items/{id}/jobs/...) "
+            "that this component doesn't build yet -- full native support for triggering "
+            "Spark Job Definition/DBT Job/Copy Job/Materialized Lake Views items isn't "
+            "implemented; DBT Job and Copy Job's exact job-type strings also haven't been "
+            "confirmed against a primary Fabric doc page, only an unverified third-party "
+            "source."
+        ),
+    )
+    item_execution_data: Optional[Dict[str, Dict[str, Any]]] = Field(
+        default=None,
+        description="Per-item executionData overrides, keyed by Fabric display name (same convention as item_parameters). Merged OVER execution_data for that specific item.",
+    )
     load_date_parameter: Optional[str] = Field(
         default=None,
         description=(
@@ -1437,6 +1465,8 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
         resolved_parameters: Dict[str, Any] = dict(self.default_parameters or {})
         resolved_parameters.update((self.item_parameters or {}).get(name) or {})
+        resolved_execution_data: Dict[str, Any] = dict(self.execution_data or {})
+        resolved_execution_data.update((self.item_execution_data or {}).get(name) or {})
 
         @dg.asset(**asset_kwargs)
         def _runnable(context: dg.AssetExecutionContext):
@@ -1482,7 +1512,10 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                     load_date = datetime.datetime.now(ZoneInfo(_self.load_date_timezone)).date().isoformat()
                 run_parameters[_self.load_date_parameter] = load_date
 
-            state = _self._trigger_item_run(context, item_id, item_type, run_parameters or None)
+            state = _self._trigger_item_run(
+                context, item_id, item_type, run_parameters or None,
+                extra_execution_data=resolved_execution_data or None,
+            )
 
             metadata: Dict[str, Any] = {
                 "fabric_item_id": item_id,
@@ -1614,6 +1647,7 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         item_id: str,
         item_type: str,
         parameters: Optional[Dict[str, Any]] = None,
+        extra_execution_data: Optional[Dict[str, Any]] = None,
     ) -> dict:
         """Trigger a Fabric on-demand item job and poll until done.
 
@@ -1652,7 +1686,24 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             "Notebook": "RunNotebook",
             "Dataflow": "Refresh",
         }
-        job_type = job_type_map.get(item_type, "Pipeline")
+        if item_type not in job_type_map:
+            # Previously silently defaulted to "Pipeline" for ANY unmapped
+            # item_type -- a real landmine: a typo'd item_type, or an item
+            # kind this component doesn't natively discover/import, would
+            # silently be triggered as if it were a Data Pipeline instead of
+            # failing clearly. Spark Job Definition/DBT Job/Copy Job/
+            # Materialized Lake Views are NOT supported here yet (see
+            # extra_execution_data's docstring) -- raise rather than guess.
+            raise dg.Failure(
+                description=(
+                    f"Fabric item type {item_type!r} has no known job type mapping "
+                    f"(supported: {sorted(job_type_map)}). This component doesn't yet "
+                    "support triggering Spark Job Definition/DBT Job/Copy Job/"
+                    "Materialized Lake Views items."
+                ),
+                metadata={"fabric_item_id": item_id, "fabric_item_type": item_type},
+            )
+        job_type = job_type_map[item_type]
         run_url = (
             f"{_FABRIC_API_BASE}/workspaces/{self.workspace.workspace_id}"
             f"/items/{item_id}/jobs/instances?jobType={job_type}"
@@ -1662,11 +1713,24 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             # generic top-level `parameters` list -- see
             # _to_notebook_execution_data's docstring for the two
             # independent Microsoft sources confirming this.
-            execution_data = _to_notebook_execution_data(parameters)
+            execution_data = _to_notebook_execution_data(parameters) or {}
+            if extra_execution_data:
+                execution_data = {**execution_data, **extra_execution_data}
             body = {"executionData": execution_data} if execution_data else None
         else:
             fabric_params = _to_fabric_parameters(parameters)
-            body = {"parameters": fabric_params} if fabric_params else None
+            body = {}
+            if fabric_params:
+                body["parameters"] = fabric_params
+            if extra_execution_data:
+                # Confirmed via the Job Scheduler REST reference's own
+                # example that `executionData` and `parameters` can be sent
+                # TOGETHER in the same request (each item type defines its
+                # own executionData schema -- see extra_execution_data's
+                # field description for the ones we've verified so far,
+                # e.g. Spark Job Definition's executableFile/mainClass/...).
+                body["executionData"] = extra_execution_data
+            body = body or None
         resp = requests.post(run_url, json=body, headers=headers, timeout=60)
         if resp.status_code >= 300:
             error = _extract_fabric_error(resp)

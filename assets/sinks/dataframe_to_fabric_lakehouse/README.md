@@ -85,10 +85,22 @@ derived.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `tenant_id_env_var` | `str` | — | — |
+| `use_azure_cli` | `bool` | `false` | Force Azure CLI auth when no service principal is set (local dev only -- needs an interactive `az login` session). Leave false in production/CI to let delta-rs/object_store's own default credential resolution run instead. |
 | `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run). |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition when partition_type='dynamic'. |
 
 [//]: # (FIELDS:END)
+
+## Auth
+
+With service principal env vars set, writes authenticate with
+`azure_tenant_id`/`azure_client_id`/`azure_client_secret`. Without them, the
+default sends an **empty** `storage_options` dict to delta-rs, letting
+`object_store`'s own default Azure credential resolution run (can include
+managed identity in Azure compute) rather than forcing CLI-only auth. Set
+`use_azure_cli: true` to force Azure CLI auth instead — local dev only
+(needs an interactive `az login` session); it fails outright in CI or a
+Dagster+ agent, so leave it `false` anywhere without an interactive session.
 
 ## Companion components
 

@@ -56,6 +56,62 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+def _wait_for_arm_operation(resp, headers, max_wait_seconds: int, poll_interval_seconds: int, log=None) -> None:
+    """Poll an Azure Resource Manager long-running operation to completion.
+
+    Standard ARM async-operation contract (learn.microsoft.com/azure/
+    azure-resource-manager/management/async-operations): prefer the
+    `Azure-AsyncOperation` header URL over `Location` when both are present;
+    a GET on it returns JSON with a `status` field whose terminal values are
+    `Succeeded`/`Failed`/`Canceled` (any other value, e.g. a resource-provider-
+    specific one, means still in progress). Use the response's own
+    `Retry-After` header for poll cadence when present. Confirmed this
+    applies to Fabric capacity suspend/resume/scale specifically via
+    learn.microsoft.com/rest/api/microsoftfabric/fabric-capacities/suspend's
+    own documented 202 response (both headers present in its example).
+
+    Without this, a 202 Accepted was treated as "done" -- for `suspend`
+    specifically, that means Dagster reports success while the capacity may
+    still be billing for a while longer, defeating the whole point of a
+    pause-nightly schedule.
+    """
+    import time as _time
+    import requests
+
+    op_url = resp.headers.get("azure-asyncoperation") or resp.headers.get("Location")
+    if not op_url:
+        if log:
+            log.info("No Azure-AsyncOperation/Location header on the response -- nothing to poll.")
+        return
+
+    elapsed = 0
+    while elapsed < max_wait_seconds:
+        poll_resp = requests.get(op_url, headers=headers, timeout=60)
+        poll_resp.raise_for_status()
+        try:
+            body = poll_resp.json()
+        except Exception:
+            body = {}
+        status = body.get("status") or ("Succeeded" if poll_resp.status_code in (200, 204) else None)
+        if log:
+            log.info(f"Fabric capacity operation: status={status!r} elapsed={elapsed}s")
+        if status == "Succeeded" or (status is None and poll_resp.status_code in (200, 204)):
+            return
+        if status in ("Failed", "Canceled"):
+            raise dg.Failure(
+                description=f"Fabric capacity operation ended with status {status!r}: {body}",
+                metadata={"azure_operation_status": status},
+            )
+        wait = int(poll_resp.headers.get("Retry-After") or poll_interval_seconds)
+        _time.sleep(wait)
+        elapsed += wait
+
+    raise dg.Failure(
+        description=f"Fabric capacity operation timed out after {elapsed}s waiting for completion.",
+        metadata={"azure_async_operation_url": op_url},
+    )
+
+
 class FabricCapacityAdminJobComponent(dg.Component, dg.Model, dg.Resolvable):
     """Pause/resume/scale a Microsoft Fabric capacity."""
 
@@ -76,6 +132,24 @@ class FabricCapacityAdminJobComponent(dg.Component, dg.Model, dg.Resolvable):
     tenant_id_env_var: Optional[str] = Field(default=None)
     client_id_env_var: Optional[str] = Field(default=None)
     client_secret_env_var: Optional[str] = Field(default=None)
+
+    wait_for_completion: bool = Field(
+        default=True,
+        description=(
+            "Poll the Azure Resource Manager async operation (Azure-AsyncOperation "
+            "header, falling back to Location) until it reports Succeeded/Failed/"
+            "Canceled, instead of returning as soon as the request is accepted "
+            "(202). Without this, 'suspend' completing successfully in Dagster "
+            "doesn't mean the capacity has actually stopped billing yet -- the "
+            "whole point of pausing nightly is to stop the hourly charge "
+            "immediately, not some unknown time later."
+        ),
+    )
+    max_wait_seconds: int = Field(default=600, description="Only used when wait_for_completion=True.")
+    poll_interval_seconds: int = Field(
+        default=15,
+        description="Fallback poll interval when wait_for_completion=True and the response has no Retry-After header.",
+    )
 
     schedule: Optional[str] = Field(
         default=None,
@@ -135,8 +209,9 @@ class FabricCapacityAdminJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 raise ValueError(f"Invalid action '{self.action}'. Use 'suspend', 'resume', or 'scale'.")
 
             if resp.status_code >= 300:
-                raise Exception(
-                    f"Fabric capacity {self.action} failed: {resp.status_code} {resp.text[:300]}"
+                raise dg.Failure(
+                    description=f"Fabric capacity {self.action} failed: {resp.status_code} {resp.text[:300]}",
+                    metadata={"azure_status_code": resp.status_code},
                 )
 
             op_url = resp.headers.get("azure-asyncoperation") or resp.headers.get("Location")
@@ -144,6 +219,12 @@ class FabricCapacityAdminJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 f"Fabric capacity '{self.capacity_name}': {self.action} accepted "
                 f"(status={resp.status_code}). Async URL: {op_url or '(none)'}"
             )
+
+            if self.wait_for_completion:
+                _wait_for_arm_operation(
+                    resp, headers, self.max_wait_seconds, self.poll_interval_seconds, log=context.log,
+                )
+                context.log.info(f"Fabric capacity '{self.capacity_name}': {self.action} completed.")
 
         @dg.job(name=self.job_name, tags=self.tags or None)
         def _the_job():

@@ -100,6 +100,8 @@ attributes:
 | `key` | `str` | — | Disambiguator for the cached discovery-state key. Without this, two FabricWorkspaceComponent instances pointed at the SAME workspace_id but different import_*/filter settings (e.g. one importing only notebooks matching '… _(full docs in schema.json + component README)_ |
 | `default_parameters` | `Dict[str, Any]` | — | Parameters passed to every triggered Notebook/DataPipeline/Dataflow job (e.g. a load date), merged with `item_parameters` below. A plain {name: value} dict -- converted internally to Fabric's documented Parameter[] reque… _(full docs in schema.json + component README)_ |
 | `item_parameters` | `Dict[str, Dict[str, Any]]` | — | Per-item parameter overrides, keyed by the Fabric item's display name (e.g. {'my_notebook': {'load_date': '2024-01-01'}}). Merged OVER default_parameters for that specific item -- lets one notebook wait for a different i… _(full docs in schema.json + component README)_ |
+| `execution_data` | `Dict[str, Any]` | — | Raw executionData sent on every triggered job -- Fabric's own term for 'fixed static data, defined by the specific item job type' (confirmed via the Job Scheduler REST reference: executionData and parameters can be sent… _(full docs in schema.json + component README)_ |
+| `item_execution_data` | `Dict[str, Dict[str, Any]]` | — | Per-item executionData overrides, keyed by Fabric display name (same convention as item_parameters). Merged OVER execution_data for that specific item. |
 | `load_date_parameter` | `str` | — | If set, injects today's date (in load_date_timezone, ISO format) as this parameter name into every triggered job, alongside default_parameters/item_parameters. Override for one run via the 'fabric/load_date_override' run… _(full docs in schema.json + component README)_ |
 | `load_date_timezone` | `str` | `"UTC"` | IANA timezone name used to compute 'today' for load_date_parameter. |
 | `pool` | `str` | — | Dagster concurrency pool name applied to every runnable (Notebook/DataPipeline/Dataflow) asset -- prevents overlapping runs of the same Fabric item. Overridable per item via item_pools. |
@@ -210,6 +212,52 @@ earlier claim in this README that it's the same shape everywhere:
 Not every item/job type accepts parameters at all; Fabric's own API returns
 `errorCode: FeatureNotAvailable` for ones that don't, surfaced as a clear
 Failure rather than a generic HTTP error.
+
+## Execution data (escape hatch for unsupported job types)
+
+```yaml
+attributes:
+  execution_data:
+    tableName: Table1
+  item_execution_data:
+    my_special_pipeline:
+      optimizeSettings:
+        vOrder: true
+```
+
+`execution_data`/`item_execution_data` send Fabric's `executionData` field
+exactly as given — its own term for "fixed static data, defined by the
+specific item job type" (confirmed via the Job Scheduler REST reference's
+own example: `executionData` and the top-level `parameters` list can be
+sent **together** in the same request). Unlike `default_parameters`/
+`item_parameters`, nothing here is converted to any particular shape. For a
+Notebook, it's merged alongside the auto-built `executionData.parameters`
+(so you can add e.g. `configuration` — environment/default-lakehouse/Spark
+pool settings — without losing the parameters this component already
+builds from `default_parameters`/`item_parameters`/`load_date_parameter`).
+
+This is the escape hatch for job types whose required config isn't exposed
+as a dedicated field yet. Confirmed and documented, but **not yet natively
+supported** (no discovery/import, no dedicated fields, and for Spark Job
+Definition a different URL path this component doesn't build):
+
+- **Spark Job Definition** (`jobType: sparkjob`, confirmed via its own REST
+  reference) needs `executableFile`/`mainClass`/`commandLineArguments`/
+  `additionalLibraryUris`/`defaultLakehouseId`/`environmentId` in
+  `executionData` — but it's triggered via a **different URL path**
+  (`/sparkJobDefinitions/{id}/jobs/sparkjob/instances`, not the generic
+  `/items/{id}/jobs/{jobType}/instances` this component uses for every
+  other item type), so `execution_data` alone can't make it work yet.
+- **DBT Job** and **Copy Job**'s exact `jobType` strings have NOT been
+  confirmed against a primary Fabric doc page (only an unverified
+  third-party source) — not implemented until verified.
+- **Materialized Lake Views refresh** is a Lakehouse sub-operation, not a
+  separate item type — not yet wired up either.
+
+An item type this component doesn't recognize (anything outside
+`DataPipeline`/`Notebook`/`Dataflow`) now raises a clear `dg.Failure`
+instead of silently being triggered as if it were a Data Pipeline, which is
+what used to happen.
 
 ## Success metadata
 

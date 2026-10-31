@@ -28,6 +28,23 @@ class FabricLakehouseResource(dg.ConfigurableResource):
     tenant_id_env_var: Optional[str] = Field(default=None)
     client_id_env_var: Optional[str] = Field(default=None)
     client_secret_env_var: Optional[str] = Field(default=None)
+    use_azure_cli: bool = Field(
+        default=False,
+        description=(
+            "When no service principal is configured, force Azure CLI auth "
+            "(delta-rs' use_azure_cli storage_option) -- only works with an "
+            "interactive `az login` session, e.g. local dev. Leave false in "
+            "production/CI (no interactive session): no service principal and "
+            "use_azure_cli=false sends an empty storage_options dict instead, "
+            "letting delta-rs/object_store's own default Azure credential "
+            "resolution order run (confirmed via object_store's AzureConfigKey "
+            "docs: CredentialType, when not forced, follows 'the default "
+            "resolution order', which can include managed identity) -- the "
+            "closest equivalent this storage layer has to azure-identity's "
+            "DefaultAzureCredential chain, which fabric_workspace uses on its "
+            "own (unrelated) Fabric-API auth surface."
+        ),
+    )
 
     def table_path(self, table_name: str) -> str:
         """Return the OneLake abfss URL for a Delta table."""
@@ -54,8 +71,15 @@ class FabricLakehouseResource(dg.ConfigurableResource):
                 "azure_client_id": client,
                 "azure_client_secret": secret,
             }
-        # Fallback to managed identity / az login
-        return {"use_azure_cli": "true"}
+        if self.use_azure_cli:
+            return {"use_azure_cli": "true"}
+        # No explicit credential: let delta-rs/object_store's own default
+        # credential resolution run (can include managed identity in Azure
+        # compute) -- forcing use_azure_cli here would fail outright in any
+        # non-interactive deployment (CI, a Dagster+ agent, an Azure VM
+        # without `az login`), which is exactly where a real default-chain
+        # fallback is needed most.
+        return {}
 
 
 class FabricLakehouseResourceComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -67,6 +91,10 @@ class FabricLakehouseResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     tenant_id_env_var: Optional[str] = Field(default=None)
     client_id_env_var: Optional[str] = Field(default=None)
     client_secret_env_var: Optional[str] = Field(default=None)
+    use_azure_cli: bool = Field(
+        default=False,
+        description="Force Azure CLI auth when no service principal is set (local dev only -- needs an interactive `az login` session). Leave false in production/CI to let delta-rs/object_store's own default credential resolution run instead.",
+    )
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = FabricLakehouseResource(
@@ -75,5 +103,6 @@ class FabricLakehouseResourceComponent(dg.Component, dg.Model, dg.Resolvable):
             tenant_id_env_var=self.tenant_id_env_var,
             client_id_env_var=self.client_id_env_var,
             client_secret_env_var=self.client_secret_env_var,
+            use_azure_cli=self.use_azure_cli,
         )
         return dg.Definitions(resources={self.resource_key: resource})

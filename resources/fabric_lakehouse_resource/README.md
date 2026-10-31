@@ -33,6 +33,7 @@ Centralizes the abfss URL pattern so other ops don't have to re-derive it.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `tenant_id_env_var` | `str` | — | — |
+| `use_azure_cli` | `bool` | `false` | Force Azure CLI auth when no service principal is set (local dev only -- needs an interactive `az login` session). Leave false in production/CI to let delta-rs/object_store's own default credential resolution run instead. |
 
 [//]: # (FIELDS:END)
 
@@ -61,6 +62,19 @@ attributes:
   client_id_env_var: AZURE_CLIENT_ID
   client_secret_env_var: AZURE_CLIENT_SECRET
 ```
+
+## Auth
+
+With service principal env vars set, `storage_options()` sends
+`azure_tenant_id`/`azure_client_id`/`azure_client_secret` to delta-rs.
+Without them, the default is an **empty** `storage_options` dict, letting
+delta-rs/`object_store`'s own default Azure credential resolution run
+(confirmed via `object_store`'s `AzureConfigKey` docs — it follows "the
+default resolution order" when no credential type is forced, which can
+include managed identity in Azure compute). Set `use_azure_cli: true` to
+force CLI auth instead — only useful for local dev with an interactive
+`az login` session; it fails outright in CI or a Dagster+ agent, so leave it
+`false` (the default) anywhere without an interactive session.
 
 ## Companion components
 

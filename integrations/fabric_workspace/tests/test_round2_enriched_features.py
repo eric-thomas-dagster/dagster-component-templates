@@ -781,3 +781,94 @@ def test_item_partitions_can_override_end_offset_and_timezone_per_item(tmp_path)
     assert live.partitions_def.timezone == "America/New_York"
     assert other.partitions_def.end_offset == 0
     assert other.partitions_def.timezone == "UTC"  # Dagster's own default, not inherited from the component
+
+
+# ── execution_data / item_execution_data ──────────────────────────────────
+# Airflow-comparison finding: Fabric's own REST reference confirms
+# executionData ("fixed static data, defined by the specific item job
+# type") and the top-level parameters list can be sent TOGETHER in the same
+# request. This is the escape hatch for job types whose required config
+# (e.g. Spark Job Definition's executableFile/mainClass/...) isn't exposed
+# as a dedicated field yet.
+
+def test_execution_data_merges_alongside_parameters(tmp_path, auth, monkeypatch):
+    import requests
+    captured = {}
+
+    def _post(url, json=None, **k):
+        captured["json"] = json
+        return _FakeResponse(202, headers={"Location": "https://fabric/instances/1"})
+
+    monkeypatch.setattr(requests, "post", _post)
+    monkeypatch.setattr(requests, "get", lambda *a, **k: _FakeResponse(200, {"status": "Completed", "id": "job-1"}))
+
+    comp = _component(
+        workspace=FabricResource(workspace_id="ws-1", tenant_id="t", client_id="c", client_secret="s", poll_interval_seconds=0),
+        default_parameters={"load_date": "2024-01-01"},
+        execution_data={"tableName": "Table1"},
+    )
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state()))
+    result = dg.materialize(list(defs.assets), raise_on_error=True)
+    assert result.success
+
+    assert captured["json"]["executionData"] == {"tableName": "Table1"}
+    params = {p["name"]: p for p in captured["json"]["parameters"]}
+    assert params["load_date"]["value"] == "2024-01-01"
+
+
+def test_item_execution_data_merges_over_the_component_wide_default(tmp_path, auth, monkeypatch):
+    import requests
+    captured = {}
+
+    def _post(url, json=None, **k):
+        captured["json"] = json
+        return _FakeResponse(202, headers={"Location": "https://fabric/instances/1"})
+
+    monkeypatch.setattr(requests, "post", _post)
+    monkeypatch.setattr(requests, "get", lambda *a, **k: _FakeResponse(200, {"status": "Completed", "id": "job-1"}))
+
+    comp = _component(
+        workspace=FabricResource(workspace_id="ws-1", tenant_id="t", client_id="c", client_secret="s", poll_interval_seconds=0),
+        execution_data={"tableName": "default_table"},
+        item_execution_data={"nightly_ingest": {"tableName": "override_table", "extra": "x"}},
+    )
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state(name="nightly_ingest")))
+    result = dg.materialize(list(defs.assets), raise_on_error=True)
+    assert result.success
+    assert captured["json"]["executionData"] == {"tableName": "override_table", "extra": "x"}
+
+
+def test_execution_data_merges_into_notebook_executiondata_alongside_parameters(tmp_path, auth, monkeypatch):
+    """For Notebook, execution_data must merge alongside the auto-built
+    executionData.parameters dict, not replace it."""
+    import requests
+    captured = {}
+
+    def _post(url, json=None, **k):
+        captured["json"] = json
+        return _FakeResponse(202, headers={"Location": "https://fabric/instances/1"})
+
+    monkeypatch.setattr(requests, "post", _post)
+    monkeypatch.setattr(requests, "get", lambda *a, **k: _FakeResponse(200, {"status": "Completed", "id": "job-1"}))
+
+    comp = _component(
+        workspace=FabricResource(workspace_id="ws-1", tenant_id="t", client_id="c", client_secret="s", poll_interval_seconds=0),
+        import_pipelines=False, import_notebooks=True,
+        default_parameters={"load_date": "2024-01-01"},
+        execution_data={"configuration": {"useStarterPool": True}},
+    )
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, {"notebooks": [{"id": "item-1", "displayName": "nb1", "workspaceId": "ws-1"}]}))
+    result = dg.materialize(list(defs.assets), raise_on_error=True)
+    assert result.success
+
+    exec_data = captured["json"]["executionData"]
+    assert exec_data["parameters"]["load_date"] == {"value": "2024-01-01", "type": "string"}
+    assert exec_data["configuration"] == {"useStarterPool": True}
+
+
+def test_unmapped_item_type_raises_instead_of_silently_defaulting_to_pipeline(auth):
+    """Previously `job_type_map.get(item_type, "Pipeline")` silently
+    triggered an unrecognised item type as if it were a DataPipeline."""
+    comp = _component()
+    with pytest.raises(dg.Failure, match="has no known job type mapping"):
+        comp._trigger_item_run(_ctx(), "item-1", "SparkJobDefinition")

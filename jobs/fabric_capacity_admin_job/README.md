@@ -44,6 +44,13 @@ Typical schedule pair:
 | `client_id_env_var` | `str` | — | — |
 | `client_secret_env_var` | `str` | — | — |
 
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `wait_for_completion` | `bool` | `true` | Poll the Azure Resource Manager async operation (Azure-AsyncOperation header, falling back to Location) until it reports Succeeded/Failed/Canceled, instead of returning as soon as the request is accepted (202). Without t… _(full docs in schema.json + component README)_ |
+| `poll_interval_seconds` | `int` | `15` | Fallback poll interval when wait_for_completion=True and the response has no Retry-After header. |
+
 ### Catalog metadata
 
 | Field | Type | Default | Description |
@@ -62,10 +69,24 @@ Typical schedule pair:
 |---|---|---|---|
 | `action` | `str` | `"suspend"` | 'suspend' (pause billing) \| 'resume' \| 'scale' (change SKU) |
 | `tenant_id_env_var` | `str` | — | — |
+| `max_wait_seconds` | `int` | `600` | Only used when wait_for_completion=True. |
 | `schedule` | `str` | — | Cron schedule (e.g. '0 19 * * *' for 7pm daily, '0 6 * * 1-5' for 6am weekdays) |
 | `schedule_default_status` | `str` | `"STOPPED"` | — |
 
 [//]: # (FIELDS:END)
+
+## Waits for the operation to actually complete
+
+`suspend`/`resume`/`scale` return `202 Accepted` with an
+`Azure-AsyncOperation` header (confirmed via the Fabric Capacities REST
+reference's own documented example) — this component polls it to
+`Succeeded`/`Failed`/`Canceled` by default (`wait_for_completion: true`,
+`max_wait_seconds: 600`), rather than treating the 202 itself as "done." For
+`suspend` specifically, that distinction matters: a nightly pause schedule
+reporting success in Dagster should mean the capacity has actually stopped
+billing, not just that Azure accepted the request. Set
+`wait_for_completion: false` to skip polling and return immediately after
+the 202 (the old behavior) if you don't need that guarantee.
 
 ## Companion components
 

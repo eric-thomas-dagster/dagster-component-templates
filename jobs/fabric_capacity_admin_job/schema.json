@@ -66,6 +66,27 @@
       "required": false,
       "default": null
     },
+    "wait_for_completion": {
+      "description": "Poll the Azure Resource Manager async operation (Azure-AsyncOperation header, falling back to Location) until it reports Succeeded/Failed/Canceled, instead of returning as soon as the request is accepted (202). Without this, 'suspend' completing successfully in Dagster doesn't mean the capacity has actually stopped billing yet.",
+      "type": "boolean",
+      "label": "Wait For Completion",
+      "required": false,
+      "default": true
+    },
+    "max_wait_seconds": {
+      "description": "Only used when wait_for_completion=True.",
+      "type": "integer",
+      "label": "Max Wait Seconds",
+      "required": false,
+      "default": 600
+    },
+    "poll_interval_seconds": {
+      "description": "Fallback poll interval when wait_for_completion=True and the response has no Retry-After header.",
+      "type": "integer",
+      "label": "Poll Interval Seconds",
+      "required": false,
+      "default": 15
+    },
     "schedule": {
       "description": "Cron schedule (e.g. '0 19 * * *' for 7pm daily, '0 6 * * 1-5' for 6am weekdays)",
       "type": "string",

@@ -134,6 +134,10 @@ class DataframeToFabricLakehouseComponent(Component, Model, Resolvable):
     tenant_id_env_var: Optional[str] = Field(default=None)
     client_id_env_var: Optional[str] = Field(default=None)
     client_secret_env_var: Optional[str] = Field(default=None)
+    use_azure_cli: bool = Field(
+        default=False,
+        description="Force Azure CLI auth when no service principal is set (local dev only -- needs an interactive `az login` session). Leave false in production/CI to let delta-rs/object_store's own default credential resolution run instead.",
+    )
 
     group_name: Optional[str] = Field(default=None)
     description: Optional[str] = Field(default=None)
@@ -291,6 +295,7 @@ class DataframeToFabricLakehouseComponent(Component, Model, Resolvable):
         tenant_env = self.tenant_id_env_var
         client_env = self.client_id_env_var
         secret_env = self.client_secret_env_var
+        use_azure_cli = self.use_azure_cli
 
         kinds = ["azure", "fabric", "delta"]
         tags = dict(self.asset_tags or {})
@@ -339,11 +344,10 @@ class DataframeToFabricLakehouseComponent(Component, Model, Resolvable):
                         _pk_keep.update(upstream.index)
                 upstream = _pk_base.iloc[sorted(_pk_keep)] if _pk_filtered else _pk_base
             try:
-                from azure.identity import DefaultAzureCredential, ClientSecretCredential
                 from deltalake import write_deltalake
             except ImportError as e:
                 raise ImportError(
-                    "deltalake + azure-identity required: pip install deltalake azure-identity"
+                    "deltalake required: pip install deltalake"
                 ) from e
 
             tenant = os.environ.get(tenant_env) if tenant_env else None
@@ -356,13 +360,21 @@ class DataframeToFabricLakehouseComponent(Component, Model, Resolvable):
             )
 
             # deltalake supports azure_storage_options or storage_options for Azure
-            storage_options = {"use_azure_cli": "true"}
             if tenant and client and secret:
                 storage_options = {
                     "azure_tenant_id": tenant,
                     "azure_client_id": client,
                     "azure_client_secret": secret,
                 }
+            elif use_azure_cli:
+                storage_options = {"use_azure_cli": "true"}
+            else:
+                # No explicit credential: let delta-rs/object_store's own
+                # default credential resolution run (can include managed
+                # identity) instead of forcing CLI-only auth, which fails
+                # outright in any non-interactive deployment (CI, a
+                # Dagster+ agent, an Azure VM without `az login`).
+                storage_options = {}
 
             context.log.info(
                 f"Writing {len(upstream)} rows to Fabric Lakehouse '{lh}' "

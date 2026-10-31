@@ -108,6 +108,20 @@
       "required": false,
       "default": null
     },
+    "execution_data": {
+      "type": "object",
+      "label": "Execution Data",
+      "description": "Raw executionData sent on every triggered job -- Fabric's own 'fixed static data, defined by the specific item job type'. Sent exactly as given (not converted), merged alongside whatever executionData is otherwise built for the item type. Needed for job types whose config isn't exposed as a dedicated field yet, e.g. Spark Job Definition's executableFile/mainClass/commandLineArguments.",
+      "required": false,
+      "default": null
+    },
+    "item_execution_data": {
+      "type": "object",
+      "label": "Item Execution Data",
+      "description": "Per-item executionData overrides, keyed by Fabric display name. Merged over execution_data for that specific item.",
+      "required": false,
+      "default": null
+    },
     "polling_sensor": {
       "type": "boolean",
       "label": "Polling Sensor",

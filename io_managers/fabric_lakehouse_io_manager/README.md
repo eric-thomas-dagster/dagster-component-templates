@@ -67,6 +67,7 @@ def orders_clean(orders_raw: pd.DataFrame) -> pd.DataFrame:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `tenant_id_env_var` | `str` | — | — |
+| `use_azure_cli` | `bool` | `false` | Force Azure CLI auth when no service principal is set (local dev only -- needs an interactive `az login` session). Leave false in production/CI to let delta-rs/object_store's own default credential resolution run instead. |
 
 [//]: # (FIELDS:END)
 
@@ -88,6 +89,17 @@ For partitioned assets, the partition key is appended to the table name:
 `orders_2026_03_15`. Use this when you want one Delta table per partition;
 for one table with a partition column, write a small adapter asset that
 adds a `partition_key` column and uses `if_exists: append`.
+
+## Auth
+
+With service principal env vars set, writes authenticate with
+`azure_tenant_id`/`azure_client_id`/`azure_client_secret`. Without them, the
+default sends an **empty** `storage_options` dict to delta-rs, letting
+`object_store`'s own default Azure credential resolution run (can include
+managed identity in Azure compute) rather than forcing CLI-only auth. Set
+`use_azure_cli: true` to force Azure CLI auth instead — local dev only
+(needs an interactive `az login` session); it fails outright in CI or a
+Dagster+ agent, so leave it `false` anywhere without an interactive session.
 
 ## Companion components
 

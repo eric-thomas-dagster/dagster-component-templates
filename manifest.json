@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-10-30",
+  "last_updated": "2026-10-31",
   "components": [
     {
       "id": "ab_controls",

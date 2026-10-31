@@ -22,6 +22,8 @@ from pydantic import Field
 def _build_partitions_def(partition_type, partition_start, partition_values, dynamic_partition_name,
     cron_schedule=None,
     cron_fmt="%Y-%m-%d",
+    end_offset=0,
+    timezone=None,
 ):
     """Shared partitions-def factory matching dataframe_to_snowflake's shape."""
     if isinstance(partition_values, (list, tuple)):
@@ -31,15 +33,15 @@ def _build_partitions_def(partition_type, partition_start, partition_values, dyn
     if not partition_type: return None
     if partition_type in ("daily","weekly","monthly","hourly") and not partition_start:
         raise ValueError(f"partition_type={partition_type!r} requires partition_start.")
-    if partition_type == "daily":   return DailyPartitionsDefinition(start_date=partition_start)
-    if partition_type == "weekly":  return WeeklyPartitionsDefinition(start_date=partition_start)
-    if partition_type == "monthly": return MonthlyPartitionsDefinition(start_date=partition_start)
-    if partition_type == "hourly":  return HourlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "daily":   return DailyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "weekly":  return WeeklyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "monthly": return MonthlyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
+    if partition_type == "hourly":  return HourlyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
     if partition_type == "cron":
         from dagster import TimeWindowPartitionsDefinition
         if not cron_schedule:
             raise ValueError("partition_type='cron' requires cron_schedule, e.g. '0 0 * * 1-5' for weekdays only.")
-        return TimeWindowPartitionsDefinition(start=partition_start, fmt=cron_fmt, cron_schedule=cron_schedule)
+        return TimeWindowPartitionsDefinition(start=partition_start, fmt=cron_fmt, cron_schedule=cron_schedule, end_offset=end_offset, timezone=timezone)
     if partition_type == "static":
         if not _values: raise ValueError("partition_type='static' requires partition_values.")
         return StaticPartitionsDefinition(_values)
@@ -51,7 +53,7 @@ def _build_partitions_def(partition_type, partition_start, partition_values, dyn
         if not _values or not partition_start:
             raise ValueError("partition_type='multi' requires partition_values + partition_start.")
         return MultiPartitionsDefinition({
-            "date": DailyPartitionsDefinition(start_date=partition_start),
+            "date": DailyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone),
             "static_dim": StaticPartitionsDefinition(_values),
         })
     raise ValueError(f"unknown partition_type: {partition_type!r}")
@@ -141,6 +143,20 @@ class SnowflakeTaskComponent(Component, Model, Resolvable):
         default="%Y-%m-%d",
         description="strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
     )
+    partition_end_offset: int = Field(
+        default=0,
+        description=(
+            "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron "
+            "partitions definition. 0 (the Dagster default) means a time-based "
+            "partition set only ever holds COMPLETED windows -- e.g. a daily set "
+            "never includes today until tomorrow. Set to 1 to include the "
+            "current, still-in-progress window."
+        ),
+    )
+    partition_timezone: Optional[str] = Field(
+        default=None,
+        description="IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
+    )
     partition_start: Optional[str] = Field(
         default=None,
         description="Partition start date in ISO format (e.g. '2024-01-01'). Required for time-based partition types.",
@@ -221,7 +237,7 @@ class SnowflakeTaskComponent(Component, Model, Resolvable):
             self.partition_values, self.dynamic_partition_name,
         
     cron_schedule=self.partition_cron_schedule,
-    cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
+    cron_fmt=self.partition_cron_fmt or "%Y-%m-%d", end_offset=self.partition_end_offset, timezone=self.partition_timezone,
 )
         kinds = list(self.kinds or []) or ["snowflake"]
         tags = dict(self.asset_tags or {})

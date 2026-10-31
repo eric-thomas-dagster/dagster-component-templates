@@ -134,6 +134,20 @@ class CubeQueryAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         default="%Y-%m-%d",
         description="strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
     )
+    partition_end_offset: int = Field(
+        default=0,
+        description=(
+            "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron "
+            "partitions definition. 0 (the Dagster default) means a time-based "
+            "partition set only ever holds COMPLETED windows -- e.g. a daily set "
+            "never includes today until tomorrow. Set to 1 to include the "
+            "current, still-in-progress window."
+        ),
+    )
+    partition_timezone: Optional[str] = Field(
+        default=None,
+        description="IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
+    )
     backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
         default=None,
         description=(
@@ -189,7 +203,7 @@ class CubeQueryAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name, self.partition_dimensions
         ,
     cron_schedule=self.partition_cron_schedule,
-    cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
+    cron_fmt=self.partition_cron_fmt or "%Y-%m-%d", end_offset=self.partition_end_offset, timezone=self.partition_timezone,
 )
 
         backfill_policy = None
@@ -304,6 +318,8 @@ def _build_partitions_def(
     partition_dimensions,
     cron_schedule=None,
     cron_fmt="%Y-%m-%d",
+    end_offset=0,
+    timezone=None,
 ):
     """Construct a Dagster partitions_def from the canonical partition fields.
 
@@ -329,25 +345,25 @@ def _build_partitions_def(
 
     def _build_axis(spec):
         t = spec.get("type")
+        _end_offset = spec.get("end_offset", 0)
+        _timezone = spec.get("timezone")
         if t in ("daily", "weekly", "monthly", "hourly") and not spec.get("start"):
             raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
         if t == "daily":
-            return DailyPartitionsDefinition(start_date=spec["start"])
+            return DailyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
         if t == "weekly":
-            return WeeklyPartitionsDefinition(start_date=spec["start"])
+            return WeeklyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
         if t == "monthly":
-            return MonthlyPartitionsDefinition(start_date=spec["start"])
+            return MonthlyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
         if t == "hourly":
-            return HourlyPartitionsDefinition(start_date=spec["start"])
+            return HourlyPartitionsDefinition(start_date=spec["start"], end_offset=_end_offset, timezone=_timezone)
         if t == "cron":
             from dagster import TimeWindowPartitionsDefinition
             if not spec.get("start"):
                 raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
             if not spec.get("cron_schedule"):
                 raise ValueError("partition dimension type='cron' requires 'cron_schedule'")
-            return TimeWindowPartitionsDefinition(
-                start=spec["start"], fmt=spec.get("fmt") or "%Y-%m-%d", cron_schedule=spec["cron_schedule"],
-            )
+            return TimeWindowPartitionsDefinition(start=spec["start"], fmt=spec.get("fmt") or "%Y-%m-%d", cron_schedule=spec["cron_schedule"], end_offset=_end_offset, timezone=_timezone)
         if t == "static":
             vals = spec.get("values") or []
             if isinstance(vals, str):
@@ -379,20 +395,20 @@ def _build_partitions_def(
             f"partition_type={partition_type!r} requires partition_start (ISO date, e.g. '2024-01-01')."
         )
     if partition_type == "daily":
-        return DailyPartitionsDefinition(start_date=partition_start)
+        return DailyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
     if partition_type == "weekly":
-        return WeeklyPartitionsDefinition(start_date=partition_start)
+        return WeeklyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
     if partition_type == "monthly":
-        return MonthlyPartitionsDefinition(start_date=partition_start)
+        return MonthlyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
     if partition_type == "hourly":
-        return HourlyPartitionsDefinition(start_date=partition_start)
+        return HourlyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone)
     if partition_type == "cron":
         from dagster import TimeWindowPartitionsDefinition
         if not cron_schedule:
             raise ValueError(
                 "partition_type='cron' requires cron_schedule, e.g. '0 0 * * 1-5' for weekdays only."
             )
-        return TimeWindowPartitionsDefinition(start=partition_start, fmt=cron_fmt, cron_schedule=cron_schedule)
+        return TimeWindowPartitionsDefinition(start=partition_start, fmt=cron_fmt, cron_schedule=cron_schedule, end_offset=end_offset, timezone=timezone)
     if partition_type == "static":
         if not _values:
             raise ValueError("partition_type='static' requires partition_values (comma-separated).")
@@ -409,7 +425,7 @@ def _build_partitions_def(
         if not partition_start:
             raise ValueError("partition_type='multi' requires partition_start (the date axis start).")
         return MultiPartitionsDefinition({
-            "date": DailyPartitionsDefinition(start_date=partition_start),
+            "date": DailyPartitionsDefinition(start_date=partition_start, end_offset=end_offset, timezone=timezone),
             "static_dim": StaticPartitionsDefinition(_values),
         })
     raise ValueError(f"unknown partition_type: {partition_type!r}")

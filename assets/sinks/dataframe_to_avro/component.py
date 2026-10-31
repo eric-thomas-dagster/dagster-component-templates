@@ -119,6 +119,8 @@ def _resolve_path(file_path: str, context: AssetExecutionContext) -> str:
 def _build_partitions_def(
     partition_type, partition_start, partition_values, dynamic_partition_name,
     cron_schedule=None, cron_fmt="%Y-%m-%d",
+    end_offset=0,
+    timezone=None,
 ):
     if not partition_type:
         return None
@@ -128,20 +130,18 @@ def _build_partitions_def(
         StaticPartitionsDefinition, DynamicPartitionsDefinition,
     )
     if partition_type == "daily":
-        return DailyPartitionsDefinition(start_date=partition_start or "2024-01-01")
+        return DailyPartitionsDefinition(start_date=partition_start or "2024-01-01", end_offset=end_offset, timezone=timezone)
     if partition_type == "weekly":
-        return WeeklyPartitionsDefinition(start_date=partition_start or "2024-01-01")
+        return WeeklyPartitionsDefinition(start_date=partition_start or "2024-01-01", end_offset=end_offset, timezone=timezone)
     if partition_type == "monthly":
-        return MonthlyPartitionsDefinition(start_date=partition_start or "2024-01-01")
+        return MonthlyPartitionsDefinition(start_date=partition_start or "2024-01-01", end_offset=end_offset, timezone=timezone)
     if partition_type == "hourly":
-        return HourlyPartitionsDefinition(start_date=partition_start or "2024-01-01T00:00:00")
+        return HourlyPartitionsDefinition(start_date=partition_start or "2024-01-01T00:00:00", end_offset=end_offset, timezone=timezone)
     if partition_type == "cron":
         from dagster import TimeWindowPartitionsDefinition
         if not cron_schedule:
             raise ValueError("partition_type='cron' requires cron_schedule, e.g. '0 0 * * 1-5' for weekdays only.")
-        return TimeWindowPartitionsDefinition(
-            start=partition_start or "2024-01-01", fmt=cron_fmt, cron_schedule=cron_schedule,
-        )
+        return TimeWindowPartitionsDefinition(start=partition_start or "2024-01-01", fmt=cron_fmt, cron_schedule=cron_schedule, end_offset=end_offset, timezone=timezone)
     if partition_type == "static":
         vals = partition_values or []
         if isinstance(vals, str):
@@ -352,6 +352,20 @@ class DataframeToAvroComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only.",
     )
     partition_cron_fmt: Optional[str] = Field(default="%Y-%m-%d", description="strftime format for partition keys produced by partition_type='cron'.")
+    partition_end_offset: int = Field(
+        default=0,
+        description=(
+            "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron "
+            "partitions definition. 0 (the Dagster default) means a time-based "
+            "partition set only ever holds COMPLETED windows -- e.g. a daily set "
+            "never includes today until tomorrow. Set to 1 to include the "
+            "current, still-in-progress window."
+        ),
+    )
+    partition_timezone: Optional[str] = Field(
+        default=None,
+        description="IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
+    )
 
     backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
         default=None,
@@ -441,7 +455,7 @@ class DataframeToAvroComponent(dg.Component, dg.Model, dg.Resolvable):
             self.partition_type, self.partition_start,
             self.partition_values, self.dynamic_partition_name,
             cron_schedule=self.partition_cron_schedule,
-            cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
+            cron_fmt=self.partition_cron_fmt or "%Y-%m-%d", end_offset=self.partition_end_offset, timezone=self.partition_timezone,
         )
 
         _backfill_policy_obj = None

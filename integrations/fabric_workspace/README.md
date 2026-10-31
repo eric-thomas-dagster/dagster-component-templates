@@ -45,11 +45,23 @@ attributes:
 |---|---|---|
 | `workspace` | `FabricResource` | Fabric connection as a FabricResource (workspace_id + optional tenant_id/client_id/client_secret for service-principal auth). Secrets typically arrive via `{{ env.XXX }}` Jinja templating in defs.yaml. Falls back to Defa… _(full docs in schema.json + component README)_ |
 
+### Execution
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `max_retries` | `int` | `1` | Max retries requested for a Fabric failure Fabric itself flags as retriable (failureReason.isRetriable, or a capacity/throttling keyword match as a fallback when that flag is absent). |
+
 ### Catalog metadata
 
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `group_name` | `str` | `"fabric"` | — |
+
+### Retry policy
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `retry_backoff_seconds` | `int` | `30` | Base seconds to wait before a retriable-failure retry. Grows exponentially per attempt (retry_backoff_seconds * 2^attempt) when the run's own retry_number is available. |
 
 ### Source / target
 
@@ -74,6 +86,11 @@ attributes:
 | `key` | `str` | — | Disambiguator for the cached discovery-state key. Without this, two FabricWorkspaceComponent instances pointed at the SAME workspace_id but different import_*/filter settings (e.g. one importing only notebooks matching '… _(full docs in schema.json + component README)_ |
 | `default_parameters` | `Dict[str, Any]` | — | Parameters passed to every triggered Notebook/DataPipeline/Dataflow job (e.g. a load date), merged with `item_parameters` below. A plain {name: value} dict -- converted internally to Fabric's documented Parameter[] reque… _(full docs in schema.json + component README)_ |
 | `item_parameters` | `Dict[str, Dict[str, Any]]` | — | Per-item parameter overrides, keyed by the Fabric item's display name (e.g. {'my_notebook': {'load_date': '2024-01-01'}}). Merged OVER default_parameters for that specific item -- lets one notebook wait for a different i… _(full docs in schema.json + component README)_ |
+| `load_date_parameter` | `str` | — | If set, injects today's date (in load_date_timezone, ISO format) as this parameter name into every triggered job, alongside default_parameters/item_parameters. Override for one run via the 'fabric/load_date_override' run… _(full docs in schema.json + component README)_ |
+| `load_date_timezone` | `str` | `"UTC"` | IANA timezone name used to compute 'today' for load_date_parameter. |
+| `pool` | `str` | — | Dagster concurrency pool name applied to every runnable (Notebook/DataPipeline/Dataflow) asset -- prevents overlapping runs of the same Fabric item. |
+| `exit_value_file` | `str` | — | Relative OneLake path (under the item's Files/ root, e.g. 'exit_value.txt') that the notebook ALSO writes its notebookutils.notebook.exit(...) value to. Read after the job reports Completed, via OneLake's ADLS Gen2-compa… _(full docs in schema.json + component README)_ |
+| `data_failure_exit_values` | `List[str]` | — | If exit_value_file's content exactly matches one of these strings (e.g. 'no_rows_processed'), an otherwise-Completed job is raised as a data-quality dg.Failure instead of succeeding silently. Only used when exit_value_file is set. |
 | `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects new Fabric item job completions and emits AssetObservation events. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceComponent. Off by d… _(full docs in schema.json + component README)_ |
 | `sensor_check_interval_seconds` | `int` | `300` | Seconds between polling-sensor ticks. Only used when polling_sensor=True. Distinct from workspace.poll_interval_seconds, which governs the in-asset trigger-and-wait loop for runs Dagster itself kicks off. |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
@@ -100,13 +117,35 @@ Reference: https://learn.microsoft.com/rest/api/fabric/
 ## Failure handling
 
 A Failed, Cancelled, Deduped, or timed-out Fabric run raises `dg.Failure` (or
-`dg.RetryRequested`, once, when Fabric's own `failureReason.isRetriable` flag
-says the failure is transient) — it no longer returns the job's state dict as
-if it were a successful materialization. `Deduped` (another instance of the
-same job type was already running; Fabric skipped this one) fails immediately
-with a clear message instead of polling until the timeout. A timeout
-requests cancellation of the orphaned Fabric job; a job that already reached
-its own terminal state doesn't get a pointless cancel call.
+`dg.RetryRequested`, when the failure is retriable — see below) — it no
+longer returns the job's state dict as if it were a successful
+materialization. `Deduped` (another instance of the same job type was
+already running; Fabric skipped this one) fails immediately with a clear
+message instead of polling until the timeout. A timeout requests
+cancellation of the orphaned Fabric job; a job that already reached its own
+terminal state doesn't get a pointless cancel call.
+
+Every `dg.Failure` carries a `failure_class` metadata value and a matching
+`[class]` prefix on the description — `auth` (an insufficient-privileges /
+authorization errorCode), `collision` (`Deduped`), or `other` (everything
+else, including a notebook's own code/data bugs). A deliberately NOT
+attempted fifth bucket: distinguishing "the Fabric platform itself broke" from
+"the notebook's own code or data was bad" would need a verified, exhaustive
+Fabric error-code catalog that doesn't exist publicly — rather than guess,
+both stay in `other`. The one exception is `exit_value_file` +
+`data_failure_exit_values` below, which classifies as `data` with real
+confidence because it's an explicit, notebook-signaled condition, not an
+inferred one.
+
+Retries: `max_retries` (default `1`) and `retry_backoff_seconds` (default
+`30`, doubling per attempt via the run's `retry_number` — i.e. real
+exponential backoff in an actual Dagster run) are both configurable per
+instance. A failure is treated as retriable from Fabric's own
+`failureReason.isRetriable` flag when present; when Fabric omits that flag
+(observed for some capacity-paused / throttled failures), a keyword fallback
+checks the error code/message for capacity, throttle, rate-limit, and
+similar terms — this fallback never overrides an explicit
+`isRetriable: false`.
 
 ## Parameters
 
@@ -134,6 +173,50 @@ item types — not a different shape per item type as is sometimes assumed.
 Not every item/job type accepts parameters; Fabric's own API returns
 `errorCode: FeatureNotAvailable` for ones that don't, surfaced as a clear
 Failure rather than a generic HTTP error.
+
+## Success metadata
+
+A successful trigger returns a real `MaterializeResult` (not the raw Fabric
+state dict) with `fabric_item_id`, `fabric_item_type`,
+`fabric_job_instance_id`, `fabric_job_status`, and `fabric_job_instance_url`
+— enough to jump straight from the Dagster UI to the matching run in the
+Fabric portal.
+
+## Load date
+
+```yaml
+type: dagster_community_components.FabricWorkspaceComponent
+attributes:
+  workspace:
+    workspace_id: "{{ env.FABRIC_WORKSPACE_ID }}"
+  import_pipelines: true
+  load_date_parameter: load_date
+  load_date_timezone: America/New_York
+```
+
+When set, `load_date_parameter` auto-injects today's date (in
+`load_date_timezone`, ISO `YYYY-MM-DD`) as that parameter name on every
+triggered run, merged with `default_parameters`/`item_parameters` (those take
+precedence if they also set the same key). For a one-off backfill, override
+the computed date for a specific run with the `fabric/load_date_override` run
+tag (e.g. `fabric/load_date_override: "2024-01-01"`) instead of editing the
+component config. The resolved value is attached as `fabric/load_date`
+metadata on the materialization.
+
+## Concurrency pool and audited skip
+
+Set `pool` to put every triggered Notebook/DataPipeline/Dataflow asset in a
+Dagster [concurrency pool](https://docs.dagster.io/guides/operate/managing-concurrency)
+— e.g. to cap concurrent runs against a shared, cost-sensitive Fabric
+capacity. Subclasses that need deeper per-asset customization (partitions,
+extra run config, a different pool per item) can override
+`_runnable_asset_kwargs(...)` instead of copying all of `_build_runnable_asset`.
+
+Set the `fabric/skip` run tag to `"true"` to audit-skip the actual Fabric
+trigger for a run — useful for a dry-run or a manually-excluded item without
+changing component config. The asset still materializes (with
+`fabric_skipped: true` metadata) so downstream assets aren't blocked, but no
+Fabric API call is made.
 
 ## Observation sensor
 
@@ -169,9 +252,36 @@ asset identity.
 - `dataframe_to_table` (existing) — write to Fabric Data Warehouse via
   the SQL endpoint (`mssql+pyodbc://<id>.datawarehouse.fabric.microsoft.com`)
 
+## Reading a notebook's own exit value (OneLake)
+
+```yaml
+type: dagster_community_components.FabricWorkspaceComponent
+attributes:
+  workspace:
+    workspace_id: "{{ env.FABRIC_WORKSPACE_ID }}"
+  import_notebooks: true
+  exit_value_file: exit_value.txt
+  data_failure_exit_values: ["no_rows_processed", "schema_drift"]
+```
+
+A notebook's own `notebookutils.notebook.exit(...)` return value is
+unreachable from the Job Scheduler API directly — "completed, but signalled
+bad data" can't be detected from the polled status alone. The workaround:
+have the notebook also write its exit value to a file in OneLake
+(`notebookutils.fs.put("Files/exit_value.txt", exit_value, overwrite=True)`),
+and set `exit_value_file` to that path (relative to the item's `Files/` root).
+After the job reports `Completed`, the component reads it back via OneLake's
+ADLS Gen2-compatible API (a separate `storage.azure.com` OAuth scope from the
+Fabric API itself) and attaches it as `fabric/exit_value` metadata. If the
+value matches one of `data_failure_exit_values`, the otherwise-`Completed`
+run is raised as a `dg.Failure` with `failure_class: data` instead of
+succeeding silently. A read failure (auth, 404, network) degrades
+gracefully — a logged warning, no metadata, the job's own status still
+decides success/failure — rather than failing a run over the exit-value
+check itself.
+
 ## Known limitations
 
-- **A notebook's own `notebookutils.notebook.exit(...)` return value is unreachable.** The Job Scheduler API doesn't surface it — "completed, but signalled bad data" can't be detected from `_trigger_item_run` alone. Workaround: have the notebook also write its exit value to a file in OneLake, and read it back (e.g. via `translation:` metadata or a downstream asset) after the job reports `Completed`.
 - **`import_semantic_models: true`'s observable-source-asset keys could clash with `dagster_powerbi`'s own `semantic_model/<name>` assets** if both are enabled against the same workspace. Use one or the other, or set `translation:` to prefix the key.
 - **`dg add --auto-install` may not install `azure-identity`** even though it's in `requirements.txt` and the component imports it lazily (same convention as every other heavy/optional dependency in this registry — a fast `dg load`, no hard dependency chain). If you hit an `ImportError` at first materialization rather than at load time, run `uv add azure-identity` (or your project's equivalent) by hand.
 

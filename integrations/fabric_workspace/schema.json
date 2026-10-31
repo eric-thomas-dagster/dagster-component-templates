@@ -121,6 +121,58 @@
       "description": "Seconds between polling-sensor ticks. Only used when polling_sensor=True. Distinct from workspace.poll_interval_seconds, which governs the in-asset trigger-and-wait loop for runs Dagster itself kicks off.",
       "required": false,
       "default": 300
+    },
+    "max_retries": {
+      "type": "integer",
+      "label": "Max Retries",
+      "description": "Max retries requested via dg.RetryRequested for a Fabric run that fails with a transient/retriable signal (Fabric's own failureReason.isRetriable, or a capacity/throttle keyword fallback when that flag is absent). Only used when the failure is classified as retriable -- a non-retriable failure (e.g. auth, bad notebook code) always fails immediately regardless of this value.",
+      "required": false,
+      "default": 1
+    },
+    "retry_backoff_seconds": {
+      "type": "integer",
+      "label": "Retry Backoff Seconds",
+      "description": "Base seconds to wait before a retry; doubles per attempt (exponential backoff) using the run's retry_number.",
+      "required": false,
+      "default": 30
+    },
+    "load_date_parameter": {
+      "type": "string",
+      "label": "Load Date Parameter",
+      "description": "Fabric parameter name to auto-inject with the current date (see load_date_timezone) on every triggered run, merged with default_parameters/item_parameters. Override a specific run with the 'fabric/load_date_override' run tag (e.g. for a backfill). Unset by default -- no date parameter is injected.",
+      "required": false,
+      "default": null
+    },
+    "load_date_timezone": {
+      "type": "string",
+      "label": "Load Date Timezone",
+      "description": "IANA timezone used to compute 'today' for load_date_parameter. Only used when load_date_parameter is set.",
+      "required": false,
+      "default": "UTC"
+    },
+    "pool": {
+      "type": "string",
+      "label": "Pool",
+      "description": "Dagster concurrency pool assigned to every triggered Notebook/DataPipeline/Dataflow asset, e.g. to cap how many Fabric jobs run concurrently against a shared capacity.",
+      "required": false,
+      "default": null
+    },
+    "exit_value_file": {
+      "type": "string",
+      "label": "Exit Value File",
+      "description": "Path (relative to the item's OneLake Files/ root) to a file a Notebook writes with its own notebookutils.notebook.exit(...) value, which the Job Scheduler API itself cannot surface. Read back via OneLake's ADLS Gen2-compatible API (a separate storage.azure.com OAuth scope) after the job reports Completed. The value is attached as 'fabric/exit_value' metadata; a read failure degrades gracefully (metadata omitted, warning logged) rather than failing the run. See data_failure_exit_values to turn a specific value into a real Failure.",
+      "required": false,
+      "default": null
+    },
+    "data_failure_exit_values": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Data Failure Exit Values",
+      "description": "Exit values (read via exit_value_file) that should turn an otherwise-Completed Fabric run into a dg.Failure with failure_class='data' -- e.g. a notebook that signals 'no_rows_processed' without itself failing. Only used when exit_value_file is set.",
+      "required": false,
+      "default": null
     }
   }
 }

@@ -77,6 +77,8 @@ from pydantic import ConfigDict, Field
 
 _FABRIC_API_BASE = "https://api.fabric.microsoft.com/v1"
 _FABRIC_SCOPE = "https://api.fabric.microsoft.com/.default"
+_ONELAKE_STORAGE_SCOPE = "https://storage.azure.com/.default"
+_ONELAKE_DFS_BASE = "https://onelake.dfs.fabric.microsoft.com"
 
 # Fabric item types we know how to import. Lakehouse/Warehouse/SemanticModel/
 # Report become observable source assets; Notebook/DataPipeline/Dataflow
@@ -126,6 +128,45 @@ def _to_fabric_parameters(params: Optional[Dict[str, Any]]) -> Optional[List[Dic
         {"name": str(k), "value": v, "type": _infer_fabric_parameter_type(v)}
         for k, v in params.items()
     ]
+
+
+_RETRIABLE_KEYWORDS = ("capacity", "throttl", "toomanyrequests", "paused", "suspended")
+_AUTH_KEYWORDS = ("unauthorized", "forbidden", "insufficientprivileges", "authentication", "accountisdisabled")
+
+
+def _looks_retriable(error_code: str, message: str) -> bool:
+    """Heuristic fallback ONLY used when Fabric's own `failureReason.isRetriable`
+    flag is absent (None) -- when Fabric tells us directly, that's authoritative
+    and this is never consulted. Matches the same capacity/throttle vocabulary
+    the original gap report suggested as a fallback for exactly this case."""
+    text = f"{error_code} {message}".lower()
+    return any(k in text for k in _RETRIABLE_KEYWORDS)
+
+
+def _classify_fabric_failure(status: str, error_code: str, message: str, is_retriable: Optional[bool]) -> str:
+    """Best-effort, honest failure classification for an "at a glance" label.
+
+    Four buckets, not five: "auth" and "infrastructure" (capacity/throttling,
+    confirmed either by Fabric's own isRetriable flag or the same keyword
+    heuristic as _looks_retriable) and "collision" (Deduped) are all
+    distinguishable from real signals. A fifth "fabric platform bug" vs.
+    "the notebook's own code/data" split was also requested, but errorCode
+    alone doesn't reliably tell those apart without a verified, comprehensive
+    Fabric error-code catalog this component doesn't have -- rather than
+    fabricate that distinction, both land in "other" with the real errorCode/
+    message still attached so a human can tell the difference themselves.
+    The one case this component CAN confidently call "data" is a notebook's
+    own exit-value signal (see `data_failure_exit_values`), not a generic
+    Failed/Cancelled status.
+    """
+    if status == "Deduped":
+        return "collision"
+    text = f"{error_code} {message}".lower()
+    if any(k in text for k in _AUTH_KEYWORDS):
+        return "auth"
+    if is_retriable or _looks_retriable(error_code, message):
+        return "infrastructure"
+    return "other"
 
 
 def _extract_fabric_error(resp) -> Dict[str, Any]:
@@ -225,6 +266,14 @@ class FabricResource(dg.ConfigurableResource):
 
     def get_token(self) -> str:
         return self._credential().get_token(_FABRIC_SCOPE).token
+
+    def get_storage_token(self) -> str:
+        """Separate OAuth scope for OneLake file reads (the ADLS Gen2-compatible
+        API), distinct from the Fabric API's own `_FABRIC_SCOPE`. Verified
+        against OneLake's own docs (learn.microsoft.com/fabric/onelake/
+        onelake-access-api): OneLake only accepts tokens in the Storage
+        audience, i.e. `https://storage.azure.com/.default`."""
+        return self._credential().get_token(_ONELAKE_STORAGE_SCOPE).token
 
 
 # Backward-compat alias -- the resource may also be referenced as
@@ -410,6 +459,54 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             "(e.g. {'my_notebook': {'load_date': '2024-01-01'}}). Merged OVER "
             "default_parameters for that specific item -- lets one notebook wait for "
             "a different input than another from the same component instance."
+        ),
+    )
+    load_date_parameter: Optional[str] = Field(
+        default=None,
+        description=(
+            "If set, injects today's date (in load_date_timezone, ISO format) as this "
+            "parameter name into every triggered job, alongside default_parameters/"
+            "item_parameters. Override for one run via the 'fabric/load_date_override' "
+            "run tag (e.g. for a manual backfill), recorded in run history as a plain tag."
+        ),
+    )
+    load_date_timezone: str = Field(
+        default="UTC",
+        description="IANA timezone name used to compute 'today' for load_date_parameter.",
+    )
+
+    max_retries: int = Field(
+        default=1,
+        description="Max retries requested for a Fabric failure Fabric itself flags as retriable (failureReason.isRetriable, or a capacity/throttling keyword match as a fallback when that flag is absent).",
+    )
+    retry_backoff_seconds: int = Field(
+        default=30,
+        description="Base seconds to wait before a retriable-failure retry. Grows exponentially per attempt (retry_backoff_seconds * 2^attempt) when the run's own retry_number is available.",
+    )
+
+    pool: Optional[str] = Field(
+        default=None,
+        description="Dagster concurrency pool name applied to every runnable (Notebook/DataPipeline/Dataflow) asset -- prevents overlapping runs of the same Fabric item.",
+    )
+
+    exit_value_file: Optional[str] = Field(
+        default=None,
+        description=(
+            "Relative OneLake path (under the item's Files/ root, e.g. 'exit_value.txt') "
+            "that the notebook ALSO writes its notebookutils.notebook.exit(...) value to. "
+            "Read after the job reports Completed, via OneLake's ADLS Gen2-compatible "
+            "API (a separate 'https://storage.azure.com/.default' OAuth scope from the "
+            "Fabric API itself) -- the Job Scheduler API has no way to return this value "
+            "directly, so a Completed job with no actual rows processed otherwise looks "
+            "identical to a real success."
+        ),
+    )
+    data_failure_exit_values: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "If exit_value_file's content exactly matches one of these strings (e.g. "
+            "'no_rows_processed'), an otherwise-Completed job is raised as a data-quality "
+            "dg.Failure instead of succeeding silently. Only used when exit_value_file is set."
         ),
     )
 
@@ -888,19 +985,18 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
         return _ext
 
-    def _build_runnable_asset(self, row: dict, item_type: str, kind: str, upstream_keys, runnable_items: Optional[List[Dict[str, Any]]] = None):
-        """Build a materializable @asset that triggers a Fabric notebook /
-        pipeline / dataflow job and polls it to completion.
+    def _runnable_asset_kwargs(self, row: dict, item_type: str, kind: str, upstream_keys) -> Dict[str, Any]:
+        """Build the `@dg.asset(...)` kwargs for a single runnable item.
 
-        When `runnable_items` is passed, appends this item's FINAL,
-        translation-resolved {item_id, item_type, key} -- consumed by the
-        polling sensor so it observes against the asset's real key, not a
-        re-derived default that can drift from a translation: override.
+        Split out from `_build_runnable_asset` specifically so a subclass can
+        override just this piece (e.g. to add run config, a custom
+        partitions_def, or other per-item @asset kwargs this base component
+        doesn't expose) without having to copy the whole method, including
+        the compute-function body.
         """
         item_id = row.get("id")
         name = row.get("displayName") or "unnamed"
         default_name = f"fabric_{item_type.lower()}_{name}"
-        _self = self
 
         base_kwargs: Dict[str, Any] = dict(
             key=dg.AssetKey.from_user_string(default_name),
@@ -918,7 +1014,9 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             },
             description=f"Fabric {item_type} run: {name}",
         )
-        asset_kwargs = self._apply_translation(
+        if self.pool:
+            base_kwargs["pool"] = self.pool
+        return self._apply_translation(
             base_kwargs,
             kind=kind,
             name=name,
@@ -930,6 +1028,21 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             },
         )
 
+    def _build_runnable_asset(self, row: dict, item_type: str, kind: str, upstream_keys, runnable_items: Optional[List[Dict[str, Any]]] = None):
+        """Build a materializable @asset that triggers a Fabric notebook /
+        pipeline / dataflow job and polls it to completion.
+
+        When `runnable_items` is passed, appends this item's FINAL,
+        translation-resolved {item_id, item_type, key} -- consumed by the
+        polling sensor so it observes against the asset's real key, not a
+        re-derived default that can drift from a translation: override.
+        """
+        item_id = row.get("id")
+        name = row.get("displayName") or "unnamed"
+        _self = self
+
+        asset_kwargs = self._runnable_asset_kwargs(row, item_type, kind, upstream_keys)
+
         if runnable_items is not None:
             runnable_items.append({"item_id": item_id, "item_type": item_type, "key": asset_kwargs["key"]})
 
@@ -938,9 +1051,82 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
         @dg.asset(**asset_kwargs)
         def _runnable(context: dg.AssetExecutionContext):
-            return _self._trigger_item_run(context, item_id, item_type, resolved_parameters or None)
+            if context.run.tags.get("fabric/skip") == "true":
+                context.log.info("fabric/skip=true run tag set -- skipping the actual Fabric trigger.")
+                return dg.MaterializeResult(
+                    metadata={"fabric_item_id": item_id, "fabric_item_type": item_type, "fabric_skipped": True},
+                )
+
+            run_parameters = dict(resolved_parameters)
+            load_date = None
+            if _self.load_date_parameter:
+                override = context.run.tags.get("fabric/load_date_override")
+                if override:
+                    load_date = override
+                else:
+                    import datetime
+                    from zoneinfo import ZoneInfo
+                    load_date = datetime.datetime.now(ZoneInfo(_self.load_date_timezone)).date().isoformat()
+                run_parameters[_self.load_date_parameter] = load_date
+
+            state = _self._trigger_item_run(context, item_id, item_type, run_parameters or None)
+
+            metadata: Dict[str, Any] = {
+                "fabric_item_id": item_id,
+                "fabric_item_type": item_type,
+                "fabric_job_instance_id": state.get("id", ""),
+                "fabric_job_status": state.get("status", ""),
+                "fabric_job_instance_url": state.get("_instance_url", ""),
+            }
+            if load_date is not None:
+                metadata["fabric/load_date"] = load_date
+
+            if _self.exit_value_file:
+                exit_value = _self._read_onelake_exit_value(item_id, _self.exit_value_file, context.log)
+                if exit_value is not None:
+                    metadata["fabric/exit_value"] = exit_value
+                    if _self.data_failure_exit_values and exit_value in _self.data_failure_exit_values:
+                        raise dg.Failure(
+                            description=(
+                                f"Fabric job for item {item_id} reported Completed, but its "
+                                f"notebook signalled a data failure via exit value: {exit_value!r}."
+                            ),
+                            metadata={**metadata, "failure_class": "data"},
+                        )
+
+            return dg.MaterializeResult(metadata=metadata)
 
         return _runnable
+
+    def _read_onelake_exit_value(self, item_id: str, exit_value_file: str, asset_log) -> Optional[str]:
+        """Read a small text file from OneLake via its ADLS Gen2-compatible
+        API -- the only way to get a notebook's own exit value, since the
+        Job Scheduler API doesn't surface `notebookutils.notebook.exit(...)`.
+
+        GET https://onelake.dfs.fabric.microsoft.com/{workspace}/{item}/Files/{path}
+        verified against OneLake's own docs (learn.microsoft.com/fabric/
+        onelake/onelake-access-api): GUIDs for both workspace and item need
+        no item-type suffix, and the response body IS the raw file content
+        (no JSON envelope) -- confirmed against the underlying ADLS Gen2
+        "Path - Read" API reference. Uses a SEPARATE OAuth scope
+        (`https://storage.azure.com/.default`) from the Fabric API itself.
+        """
+        import requests
+        try:
+            token = self.workspace.get_storage_token()
+        except Exception as e:
+            asset_log.warning(f"OneLake: couldn't acquire a storage-scoped token: {e}")
+            return None
+        url = f"{_ONELAKE_DFS_BASE}/{self.workspace.workspace_id}/{item_id}/Files/{exit_value_file}"
+        try:
+            resp = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=30)
+            if resp.status_code >= 300:
+                asset_log.warning(f"OneLake: couldn't read exit-value file ({resp.status_code}): {resp.text[:200]}")
+                return None
+            return resp.text.strip()
+        except Exception as e:
+            asset_log.warning(f"OneLake: exit-value read raised: {e}")
+            return None
 
     def _cancel_job_instance(self, instance_url: str, headers: dict, asset_log) -> None:
         """Best-effort cancellation of a still-running Fabric job instance.
@@ -962,6 +1148,18 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                 asset_log.info("Fabric: cancellation requested.")
         except Exception as e:
             asset_log.warning(f"Fabric: cancel request raised: {e}")
+
+    def _retry_backoff(self, context: dg.AssetExecutionContext) -> int:
+        """Exponential backoff for a retriable-failure RetryRequested:
+        retry_backoff_seconds * 2^attempt. `context.retry_number` isn't
+        available outside a real step execution context (e.g. direct
+        asset invocation in a test), so this falls back to attempt 0 --
+        the base backoff, not an error -- in that case."""
+        try:
+            attempt = context.retry_number
+        except Exception:
+            attempt = 0
+        return self.retry_backoff_seconds * (2 ** attempt)
 
     def _trigger_item_run(
         self,
@@ -1017,15 +1215,23 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         resp = requests.post(run_url, json=body, headers=headers, timeout=60)
         if resp.status_code >= 300:
             error = _extract_fabric_error(resp)
-            raise dg.Failure(
+            trigger_is_retriable = error["isRetriable"]
+            if trigger_is_retriable is None:
+                trigger_is_retriable = resp.status_code in (429, 430) or _looks_retriable(error["errorCode"], error["message"])
+            md = {
+                "fabric_item_id": item_id,
+                "fabric_item_type": item_type,
+                "fabric_error_code": error["errorCode"],
+                "fabric_status_code": resp.status_code,
+                "failure_class": _classify_fabric_failure("Failed", error["errorCode"], error["message"], trigger_is_retriable),
+            }
+            failure_exc = dg.Failure(
                 description=f"Fabric run trigger failed ({resp.status_code}): {error['message']}",
-                metadata={
-                    "fabric_item_id": item_id,
-                    "fabric_item_type": item_type,
-                    "fabric_error_code": error["errorCode"],
-                    "fabric_status_code": resp.status_code,
-                },
+                metadata=md,
             )
+            if trigger_is_retriable:
+                raise dg.RetryRequested(max_retries=self.max_retries, seconds_to_wait=self._retry_backoff(context)) from failure_exc
+            raise failure_exc
 
         instance_url = resp.headers.get("Location")
         if not instance_url:
@@ -1045,6 +1251,7 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
                 if status == "Completed":
                     reached_fabric_terminal_state = True
+                    state["_instance_url"] = instance_url
                     return state
 
                 if status == "Deduped":
@@ -1059,6 +1266,7 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                             "fabric_item_id": item_id,
                             "fabric_item_type": item_type,
                             "fabric_job_instance": state.get("id", ""),
+                            "failure_class": "collision",
                         },
                     )
 
@@ -1068,24 +1276,28 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                     error_code = failure.get("errorCode") or ""
                     message = failure.get("message") or f"Fabric job ended with status {status}"
                     is_retriable = failure.get("isRetriable")
+                    failure_class = _classify_fabric_failure(status, error_code, message, is_retriable)
                     md = {
                         "fabric_item_id": item_id,
                         "fabric_item_type": item_type,
                         "fabric_status": status,
                         "fabric_error_code": error_code,
                         "fabric_job_instance": state.get("id", ""),
+                        "failure_class": failure_class,
                     }
                     failure_exc = dg.Failure(
-                        description=f"Fabric job {status.lower()}: {message}",
+                        description=f"[{failure_class}] Fabric job {status.lower()}: {message}",
                         metadata=md,
                     )
+                    if is_retriable is None:
+                        is_retriable = _looks_retriable(error_code, message)
                     if is_retriable:
-                        # Fabric's own failureReason.isRetriable flag, not a guess
-                        # based on matching error-code/message substrings -- the
-                        # authoritative signal the API itself provides for whether
-                        # re-triggering the job is worth attempting.
+                        # Fabric's own failureReason.isRetriable flag when present; a
+                        # capacity/throttle keyword fallback only when that flag is
+                        # absent (None) -- never overrides an explicit isRetriable=False.
                         asset_log.warning(f"Fabric job failed with a retriable error ({error_code}): {message}")
-                        raise dg.RetryRequested(max_retries=1, seconds_to_wait=30) from failure_exc
+                        backoff = self._retry_backoff(context)
+                        raise dg.RetryRequested(max_retries=self.max_retries, seconds_to_wait=backoff) from failure_exc
                     raise failure_exc
 
                 time.sleep(self.workspace.poll_interval_seconds)

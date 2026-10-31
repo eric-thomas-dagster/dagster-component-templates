@@ -25,6 +25,14 @@ into the base component:
   plus `partition_parameter_name` injecting the run's partition key into
   the triggered Fabric job's own parameters (same convention as
   azure_data_factory).
+- R: a name collision between load_date_parameter and partition_parameter_name
+  no longer silently sends "today" over a backfill's actual partition key --
+  the partition key wins (the run tag override still wins over both).
+- S: item_partitions (keyed by display name) lets one item be partitioned
+  independently of the component-wide partition_type -- including fully
+  un-partitioning a specific item even when the component-wide fields ARE
+  set, instead of every runnable item in the instance sharing one
+  partitions_def.
 """
 import importlib.util
 import json
@@ -61,6 +69,20 @@ def _write_state(tmp_path, state):
 
 def _one_pipeline_state(name="nightly_ingest"):
     return {"pipelines": [{"id": "item-1", "displayName": name, "workspaceId": "ws-1"}]}
+
+
+def _two_pipeline_state(name_a="live_notebook", name_b="part_b_notebook"):
+    return {"pipelines": [
+        {"id": "item-1", "displayName": name_a, "workspaceId": "ws-1"},
+        {"id": "item-2", "displayName": name_b, "workspaceId": "ws-1"},
+    ]}
+
+
+def _asset_by_name(defs, name_fragment):
+    for a in defs.assets:
+        if name_fragment in str(a.key):
+            return a
+    raise AssertionError(f"no asset matching {name_fragment!r} in {[str(a.key) for a in defs.assets]}")
 
 
 class _FakeResponse:
@@ -541,3 +563,157 @@ def test_partition_key_not_injected_without_partition_parameter_name(tmp_path, a
     result = dg.materialize([asset_def], partition_key="2024-06-15", raise_on_error=True)
     assert result.success
     assert captured["json"] is None
+
+
+# ── R: load_date_parameter / partition_parameter_name collision ──────────
+
+def test_partition_key_wins_over_todays_date_on_a_name_collision(tmp_path, auth, monkeypatch):
+    """Component-feedback repro: a backfill of 2026-01-03 must send
+    load_date=2026-01-03, not today's date, when load_date_parameter and
+    partition_parameter_name point at the same Fabric parameter name."""
+    import requests
+    captured = {}
+
+    def _post(url, json=None, **k):
+        captured["json"] = json
+        return _FakeResponse(202, headers={"Location": "https://fabric/instances/1"})
+
+    monkeypatch.setattr(requests, "post", _post)
+    monkeypatch.setattr(requests, "get", lambda *a, **k: _FakeResponse(200, {"status": "Completed", "id": "job-1"}))
+
+    comp = _component(
+        workspace=FabricResource(workspace_id="ws-1", tenant_id="t", client_id="c", client_secret="s", poll_interval_seconds=0),
+        partition_type="daily",
+        partition_start="2024-01-01",
+        partition_parameter_name="load_date",
+        load_date_parameter="load_date",
+    )
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state()))
+    asset_def = next(iter(defs.assets))
+    result = dg.materialize([asset_def], partition_key="2026-01-03", raise_on_error=True)
+    assert result.success
+
+    params = {p["name"]: p for p in captured["json"]["parameters"]}
+    assert params["load_date"]["value"] == "2026-01-03"
+    assert len(params) == 1  # one Fabric parameter, not two separate load_date writes
+
+
+def test_load_date_override_tag_still_wins_over_the_collision(tmp_path, auth, monkeypatch):
+    import requests
+    captured = {}
+
+    def _post(url, json=None, **k):
+        captured["json"] = json
+        return _FakeResponse(202, headers={"Location": "https://fabric/instances/1"})
+
+    monkeypatch.setattr(requests, "post", _post)
+    monkeypatch.setattr(requests, "get", lambda *a, **k: _FakeResponse(200, {"status": "Completed", "id": "job-1"}))
+
+    comp = _component(
+        workspace=FabricResource(workspace_id="ws-1", tenant_id="t", client_id="c", client_secret="s", poll_interval_seconds=0),
+        partition_type="daily",
+        partition_start="2024-01-01",
+        partition_parameter_name="load_date",
+        load_date_parameter="load_date",
+    )
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state()))
+    asset_def = next(iter(defs.assets))
+    result = dg.materialize(
+        [asset_def], partition_key="2026-01-03", raise_on_error=True,
+        tags={"fabric/load_date_override": "1999-12-31"},
+    )
+    assert result.success
+    params = {p["name"]: p for p in captured["json"]["parameters"]}
+    assert params["load_date"]["value"] == "1999-12-31"
+
+
+def test_no_collision_when_parameter_names_differ(tmp_path, auth, monkeypatch):
+    """Different names for load_date_parameter and partition_parameter_name:
+    both parameters are sent, load_date still computes 'today' as before."""
+    import requests
+    captured = {}
+
+    def _post(url, json=None, **k):
+        captured["json"] = json
+        return _FakeResponse(202, headers={"Location": "https://fabric/instances/1"})
+
+    monkeypatch.setattr(requests, "post", _post)
+    monkeypatch.setattr(requests, "get", lambda *a, **k: _FakeResponse(200, {"status": "Completed", "id": "job-1"}))
+
+    comp = _component(
+        workspace=FabricResource(workspace_id="ws-1", tenant_id="t", client_id="c", client_secret="s", poll_interval_seconds=0),
+        partition_type="daily",
+        partition_start="2024-01-01",
+        partition_parameter_name="run_date",
+        load_date_parameter="load_date",
+    )
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state()))
+    asset_def = next(iter(defs.assets))
+    result = dg.materialize([asset_def], partition_key="2026-01-03", raise_on_error=True)
+    assert result.success
+
+    params = {p["name"]: p for p in captured["json"]["parameters"]}
+    assert params["run_date"]["value"] == "2026-01-03"
+    assert params["load_date"]["value"] != "2026-01-03"  # computed as today, unaffected
+
+
+# ── S: item_partitions per-item override ──────────────────────────────────
+
+def test_item_partitions_partitions_only_the_named_item(tmp_path):
+    """Component-wide partition_type is unset; only the item with an
+    item_partitions entry gets a real partitions_def."""
+    comp = _component(
+        item_partitions={
+            "live_notebook": {"partition_type": "daily", "partition_start": "2024-01-01"},
+        },
+    )
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _two_pipeline_state()))
+    live = _asset_by_name(defs, "live_notebook")
+    other = _asset_by_name(defs, "part_b_notebook")
+    assert isinstance(live.partitions_def, dg.DailyPartitionsDefinition)
+    assert other.partitions_def is None
+
+
+def test_item_partitions_can_explicitly_unpartition_one_item(tmp_path):
+    """Component-wide partition_type IS set; an empty item_partitions entry
+    fully un-partitions that one item instead of inheriting the default."""
+    comp = _component(
+        partition_type="daily",
+        partition_start="2024-01-01",
+        item_partitions={"part_b_notebook": {}},
+    )
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _two_pipeline_state()))
+    live = _asset_by_name(defs, "live_notebook")
+    other = _asset_by_name(defs, "part_b_notebook")
+    assert isinstance(live.partitions_def, dg.DailyPartitionsDefinition)
+    assert other.partitions_def is None
+
+
+def test_item_partitions_overrides_partition_parameter_name_per_item(tmp_path, auth, monkeypatch):
+    import requests
+    captured = {}
+
+    def _post(url, json=None, **k):
+        captured.setdefault("calls", []).append(json)
+        return _FakeResponse(202, headers={"Location": "https://fabric/instances/1"})
+
+    monkeypatch.setattr(requests, "post", _post)
+    monkeypatch.setattr(requests, "get", lambda *a, **k: _FakeResponse(200, {"status": "Completed", "id": "job-1"}))
+
+    comp = _component(
+        workspace=FabricResource(workspace_id="ws-1", tenant_id="t", client_id="c", client_secret="s", poll_interval_seconds=0),
+        partition_parameter_name="default_param",
+        item_partitions={
+            "live_notebook": {
+                "partition_type": "daily", "partition_start": "2024-01-01",
+                "partition_parameter_name": "override_param",
+            },
+        },
+    )
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _two_pipeline_state()))
+    live = _asset_by_name(defs, "live_notebook")
+    result = dg.materialize([live], partition_key="2024-06-15", raise_on_error=True)
+    assert result.success
+    params = {p["name"]: p for p in captured["calls"][0]["parameters"]}
+    assert params["override_param"]["value"] == "2024-06-15"
+    assert "default_param" not in params

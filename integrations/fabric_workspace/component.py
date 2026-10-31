@@ -634,7 +634,13 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             "If set, injects today's date (in load_date_timezone, ISO format) as this "
             "parameter name into every triggered job, alongside default_parameters/"
             "item_parameters. Override for one run via the 'fabric/load_date_override' "
-            "run tag (e.g. for a manual backfill), recorded in run history as a plain tag."
+            "run tag (e.g. for a manual backfill), recorded in run history as a plain tag. "
+            "If this is also set to the SAME name as partition_parameter_name on a "
+            "partitioned run, the partition key wins over 'today' -- e.g. a backfill of "
+            "partition 2026-01-03 sends load_date=2026-01-03, not today's date. Without "
+            "this collision (different names, or no partition_parameter_name), "
+            "load_date_parameter always computes 'today' as before. The override run "
+            "tag still wins over both."
         ),
     )
     load_date_timezone: str = Field(
@@ -722,12 +728,31 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         description=(
             "When set (and the asset is partitioned), injects the run's partition key "
             "as this Fabric parameter name on every triggered job, merged with "
-            "default_parameters/item_parameters/load_date_parameter (those take "
-            "precedence if they also set the same key). Mirrors the same "
-            "partition-key-to-pipeline-parameter convention as azure_data_factory. "
-            "An unpartitioned downstream asset still waits on ALL partitions to "
-            "materialize before it's considered up to date -- standard Dagster "
-            "partition semantics, not specific to this component."
+            "default_parameters/item_parameters (those take precedence if they also "
+            "set the same key). Mirrors the same partition-key-to-pipeline-parameter "
+            "convention as azure_data_factory. If this is also set to the SAME name as "
+            "load_date_parameter, the partition key wins as the load date instead of "
+            "'today' -- see load_date_parameter. An unpartitioned downstream asset "
+            "still waits on ALL partitions to materialize before it's considered up "
+            "to date -- standard Dagster partition semantics, not specific to this "
+            "component. Overridable per item via item_partitions."
+        ),
+    )
+    item_partitions: Optional[Dict[str, Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Per-item partitioning overrides, keyed by the Fabric item's display name "
+            "(same convention as item_parameters/item_pools). When an item has an "
+            "entry here, it FULLY REPLACES the component-wide partition_type/"
+            "partition_start/partition_values/dynamic_partition_name/"
+            "partition_dimensions/partition_cron_schedule/partition_cron_fmt/"
+            "partition_parameter_name fields for that item -- including explicitly "
+            "un-partitioning it (an empty dict, or one with no partition_type) even "
+            "when the component-wide partition_type IS set. Items with no entry here "
+            "fall back to the component-wide fields. Lets one live notebook be daily-"
+            "partitioned without forcing every other item from the same component "
+            "instance (a static-per-workspace collector, an unpartitioned semantic "
+            "model) to inherit the same partitions_def."
         ),
     )
 
@@ -1221,6 +1246,44 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
         return _ext
 
+    def _resolve_item_partitions(self, name: str):
+        """Returns (partitions_def, partition_parameter_name) for one item.
+
+        An `item_partitions` entry for this display name FULLY REPLACES the
+        component-wide partition_type/etc fields for that item -- partition
+        config is a cohesive unit (type+start+values+cron all go together),
+        so a per-item override means "this item has its own partitioning
+        scheme entirely," including explicitly un-partitioning it (an empty
+        dict, or one with no partition_type) even when the component-wide
+        partition_type IS set. Without this, partitioning one live notebook
+        would force every other item from the same component instance --
+        a static-per-workspace collector, an unpartitioned semantic model --
+        to inherit the exact same partitions_def too (component-feedback:
+        "partitioning the live notebook would also partition Part B's
+        notebook... and force the unpartitioned semantic model to wait on
+        all partitions").
+        """
+        item_cfg = (self.item_partitions or {}).get(name)
+        if item_cfg is not None:
+            partitions_def = _build_partitions_def(
+                item_cfg.get("partition_type"),
+                item_cfg.get("partition_start"),
+                item_cfg.get("partition_values"),
+                item_cfg.get("dynamic_partition_name"),
+                item_cfg.get("partition_dimensions"),
+                cron_schedule=item_cfg.get("partition_cron_schedule"),
+                cron_fmt=item_cfg.get("partition_cron_fmt") or "%Y-%m-%d",
+            )
+            partition_parameter_name = item_cfg.get("partition_parameter_name", self.partition_parameter_name)
+            return partitions_def, partition_parameter_name
+        partitions_def = _build_partitions_def(
+            self.partition_type, self.partition_start, self.partition_values,
+            self.dynamic_partition_name, self.partition_dimensions,
+            cron_schedule=self.partition_cron_schedule,
+            cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
+        )
+        return partitions_def, self.partition_parameter_name
+
     def _runnable_asset_kwargs(self, row: dict, item_type: str, kind: str, upstream_keys) -> Dict[str, Any]:
         """Build the `@dg.asset(...)` kwargs for a single runnable item.
 
@@ -1253,12 +1316,7 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         item_pool = (self.item_pools or {}).get(name) or self.pool
         if item_pool:
             base_kwargs["pool"] = item_pool
-        partitions_def = _build_partitions_def(
-            self.partition_type, self.partition_start, self.partition_values,
-            self.dynamic_partition_name, self.partition_dimensions,
-            cron_schedule=self.partition_cron_schedule,
-            cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
-        )
+        partitions_def, _ = self._resolve_item_partitions(name)
         if partitions_def is not None:
             base_kwargs["partitions_def"] = partitions_def
         return self._apply_translation(
@@ -1302,17 +1360,36 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                     metadata={"fabric_item_id": item_id, "fabric_item_type": item_type, "fabric_skipped": True},
                 )
 
+            _, item_partition_parameter_name = _self._resolve_item_partitions(name)
+            partition_key = context.partition_key if context.has_partition_key else None
+
             run_parameters = dict(resolved_parameters)
-            if _self.partition_parameter_name and context.has_partition_key:
-                pkey = context.partition_key
-                run_parameters.setdefault(_self.partition_parameter_name, pkey)
-                context.log.info(f"partitioned run: passing {_self.partition_parameter_name}={pkey} to Fabric")
+            if item_partition_parameter_name and partition_key is not None:
+                run_parameters.setdefault(item_partition_parameter_name, partition_key)
+                context.log.info(f"partitioned run: passing {item_partition_parameter_name}={partition_key} to Fabric")
 
             load_date = None
             if _self.load_date_parameter:
                 override = context.run.tags.get("fabric/load_date_override")
+                collides_with_partition = (
+                    partition_key is not None
+                    and _self.load_date_parameter == item_partition_parameter_name
+                )
                 if override:
                     load_date = override
+                elif collides_with_partition:
+                    # load_date_parameter and partition_parameter_name name the SAME
+                    # Fabric parameter -- the partition key is the more specific,
+                    # deliberately-targeted value (e.g. a backfill of one historical
+                    # day), so it wins over "today" instead of being silently
+                    # clobbered by it (component-feedback: a backfill of 2026-01-03
+                    # silently sent today's date instead, a real wrong-data bug).
+                    load_date = partition_key
+                    context.log.info(
+                        f"load_date_parameter collides with partition_parameter_name "
+                        f"({_self.load_date_parameter!r}) -- using partition key "
+                        f"{partition_key!r} as the load date, not today's date."
+                    )
                 else:
                     import datetime
                     from zoneinfo import ZoneInfo
@@ -1330,8 +1407,8 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             }
             if load_date is not None:
                 metadata["fabric/load_date"] = load_date
-            if context.has_partition_key:
-                metadata["fabric/partition_key"] = context.partition_key
+            if partition_key is not None:
+                metadata["fabric/partition_key"] = partition_key
 
             if _self.exit_value_file:
                 exit_value_path = _self.exit_value_file

@@ -67,7 +67,7 @@ attributes:
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partitioning as a list of per-dimension specs, instead of the flat partition_type fields. Set one or the other, not both. |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only. |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. |
-| `partition_parameter_name` | `str` | — | When set (and the asset is partitioned), injects the run's partition key as this Fabric parameter name on every triggered job, merged with default_parameters/item_parameters/load_date_parameter (those take precedence if… _(full docs in schema.json + component README)_ |
+| `partition_parameter_name` | `str` | — | When set (and the asset is partitioned), injects the run's partition key as this Fabric parameter name on every triggered job, merged with default_parameters/item_parameters (those take precedence if they also set the sa… _(full docs in schema.json + component README)_ |
 
 ### Retry policy
 
@@ -106,6 +106,7 @@ attributes:
 | `exit_value_file` | `str` | — | Relative OneLake path under lakehouse_id's Files/ root (e.g. 'exit_value.txt', or 'exit_values/{load_date}.txt' when load_date_parameter is also set) that the notebook ALSO writes its notebookutils.notebook.exit(...) val… _(full docs in schema.json + component README)_ |
 | `data_failure_exit_values` | `List[str]` | — | If exit_value_file's content exactly matches one of these strings (e.g. 'no_rows_processed'), an otherwise-Completed job is raised as a data-quality dg.Failure instead of succeeding silently. Only used when exit_value_file is set. |
 | `dynamic_partition_name` | `str` | — | Required when partition_type='dynamic'. |
+| `item_partitions` | `Dict[str, Dict[str, Any]]` | — | Per-item partitioning overrides, keyed by the Fabric item's display name (same convention as item_parameters/item_pools). When an item has an entry here, it FULLY REPLACES the component-wide partition_type/partition_star… _(full docs in schema.json + component README)_ |
 | `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects new Fabric item job completions and emits AssetObservation events. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceComponent. Off by d… _(full docs in schema.json + component README)_ |
 | `sensor_check_interval_seconds` | `int` | `300` | Seconds between polling-sensor ticks. Only used when polling_sensor=True. Distinct from workspace.poll_interval_seconds, which governs the in-asset trigger-and-wait loop for runs Dagster itself kicks off. |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
@@ -273,16 +274,52 @@ backfill in the Dagster UI/CLI, not just a single on-demand trigger per item.
 
 When `partition_parameter_name` is also set, the run's own `partition_key` is
 injected as that Fabric parameter name on every triggered job (merged with
-`default_parameters`/`item_parameters`/`load_date_parameter` — those take
-precedence if they also set the same key), the same partition-key-to-
-pipeline-parameter convention `azure_data_factory` uses, and attached as
-`fabric/partition_key` metadata. Without `partition_parameter_name`, the
-asset is still a real partitioned asset (for scheduling/backfill purposes),
-but the Fabric job itself never learns which partition triggered it.
+`default_parameters`/`item_parameters` — those take precedence if they also
+set the same key), the same partition-key-to-pipeline-parameter convention
+`azure_data_factory` uses, and attached as `fabric/partition_key` metadata.
+Without `partition_parameter_name`, the asset is still a real partitioned
+asset (for scheduling/backfill purposes), but the Fabric job itself never
+learns which partition triggered it.
+
+**If `partition_parameter_name` names the SAME Fabric parameter as
+`load_date_parameter`, the partition key wins over "today"** — a backfill of
+partition `2026-01-03` sends `load_date=2026-01-03`, not today's date. (The
+`fabric/load_date_override` run tag still wins over both.) Without that name
+collision, `load_date_parameter` computes "today" exactly as described in
+[Load date](#load-date) above, independent of partitioning.
 
 As with any Dagster partitioned asset, an unpartitioned downstream asset
 waits on **every** partition before it's considered up to date — standard
 Dagster semantics, not specific to this component.
+
+### Per-item partitioning
+
+Partitioning is set once per component instance by default, which means
+every runnable asset it builds shares the same `partitions_def` — not what
+you want when only one notebook needs daily backfills and the rest of the
+workspace (a static-per-workspace collector, an unpartitioned semantic
+model) shouldn't be forced to inherit it, or wait on every partition as a
+downstream dependency. Use `item_partitions` (keyed by Fabric display name,
+same convention as `item_parameters`/`item_pools`) to override partitioning
+for one specific item:
+
+```yaml
+attributes:
+  # unpartitioned by default
+  item_partitions:
+    live_notebook:
+      partition_type: daily
+      partition_start: "2024-01-01"
+      partition_parameter_name: load_date
+```
+
+An `item_partitions` entry **fully replaces** the component-wide
+`partition_type`/`partition_start`/`partition_values`/
+`dynamic_partition_name`/`partition_dimensions`/`partition_cron_schedule`/
+`partition_cron_fmt`/`partition_parameter_name` fields for that one item —
+including an empty dict (`{}`) to explicitly un-partition an item even when
+the component-wide `partition_type` IS set. Items with no entry fall back to
+the component-wide fields.
 
 ## Observation sensor
 

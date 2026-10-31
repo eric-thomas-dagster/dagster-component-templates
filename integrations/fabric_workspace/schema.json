@@ -139,7 +139,7 @@
     "load_date_parameter": {
       "type": "string",
       "label": "Load Date Parameter",
-      "description": "Fabric parameter name to auto-inject with the current date (see load_date_timezone) on every triggered run, merged with default_parameters/item_parameters. Override a specific run with the 'fabric/load_date_override' run tag (e.g. for a backfill). Unset by default -- no date parameter is injected.",
+      "description": "Fabric parameter name to auto-inject with the current date (see load_date_timezone) on every triggered run, merged with default_parameters/item_parameters. Override a specific run with the 'fabric/load_date_override' run tag (e.g. for a backfill). If this is also set to the SAME name as partition_parameter_name on a partitioned run, the partition key wins over 'today' (e.g. a backfill of 2026-01-03 sends load_date=2026-01-03). Unset by default -- no date parameter is injected.",
       "required": false,
       "default": null
     },
@@ -246,7 +246,14 @@
     "partition_parameter_name": {
       "type": "string",
       "label": "Partition Parameter Name",
-      "description": "When set (and the asset is partitioned), injects the run's partition key as this Fabric parameter name on every triggered job, merged with default_parameters/item_parameters/load_date_parameter. Mirrors the same partition-key-to-pipeline-parameter convention as azure_data_factory.",
+      "description": "When set (and the asset is partitioned), injects the run's partition key as this Fabric parameter name on every triggered job, merged with default_parameters/item_parameters. Mirrors the same partition-key-to-pipeline-parameter convention as azure_data_factory. If set to the SAME name as load_date_parameter, the partition key wins as the load date instead of 'today'. Overridable per item via item_partitions.",
+      "required": false,
+      "default": null
+    },
+    "item_partitions": {
+      "type": "object",
+      "label": "Item Partitions",
+      "description": "Per-item partitioning overrides, keyed by the Fabric item's display name (same convention as item_parameters/item_pools). When an item has an entry here, it FULLY REPLACES the component-wide partition_type/partition_start/partition_values/dynamic_partition_name/partition_dimensions/partition_cron_schedule/partition_cron_fmt/partition_parameter_name fields for that item -- including explicitly un-partitioning it (an empty dict) even when the component-wide partition_type IS set.",
       "required": false,
       "default": null
     }

@@ -62,13 +62,51 @@ def _to_fabric_parameters(params):
     count: `parameters` is a top-level field, not nested under
     `executionData` (that's for fixed, item-type-specific static config,
     a different thing), and it must be a typed Parameter[] list, not a bare
-    dict."""
+    dict.
+
+    CORRECTION: this top-level shape is for DataPipeline/Dataflow, NOT
+    Notebook -- see `_to_notebook_execution_data` below. An earlier version
+    of this docstring claimed this shape was used "across item types";
+    that was wrong, confirmed via Microsoft's own
+    apache-airflow-providers-microsoft-fabric (`MSFabricNotebookJobParameters`)
+    and the official `fab` CLI's job-run docs, both of which build a
+    completely different shape for Notebook specifically.
+    """
     if not params:
         return None
     return [
         {"name": str(k), "value": v, "type": _infer_fabric_parameter_type(v)}
         for k, v in params.items()
     ]
+
+
+def _infer_notebook_parameter_type(value):
+    """Fabric Notebook executionData parameter type: 'string'/'int'/'float'/
+    'bool' -- a different, lowercase vocabulary from _infer_fabric_parameter_type's
+    ItemJobParameterType (Text/Boolean/Number/Integer)."""
+    if isinstance(value, bool):
+        return "bool"
+    if isinstance(value, int):
+        return "int"
+    if isinstance(value, float):
+        return "float"
+    return "string"
+
+
+def _to_notebook_execution_data(params):
+    """Build the executionData shape a Fabric Notebook's RunNotebook job
+    actually reads parameters from: {"parameters": {<name>: {"value": ...,
+    "type": ...}}} -- confirmed via Microsoft's own
+    MSFabricNotebookJobParameters dataclass and the official `fab` CLI's
+    job-run docs, NOT the generic top-level Parameter[] list."""
+    if not params:
+        return None
+    return {
+        "parameters": {
+            str(k): {"value": v, "type": _infer_notebook_parameter_type(v)}
+            for k, v in params.items()
+        }
+    }
 
 
 def _extract_fabric_error(resp):
@@ -133,10 +171,13 @@ class FabricPipelineTriggerJobComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None,
         description=(
             "Optional {name: value} parameters to pass to the pipeline/notebook/dataflow. "
-            "Converted internally to Fabric's documented Parameter[] request shape "
-            "({name, value, type}, type inferred from the Python value). Not all item/job "
-            "types accept parameters -- Fabric's own API returns errorCode FeatureNotAvailable "
-            "for ones that don't, surfaced as a clear Failure."
+            "For DataPipeline/Dataflow, converted to Fabric's documented Parameter[] request "
+            "shape ({name, value, type}, type inferred from the Python value). For Notebook, "
+            "sent instead as executionData.parameters (a dict keyed by name, lowercase "
+            "string/int/float/bool types) -- a Notebook reads its own executionData, not the "
+            "generic Parameter[] list. Not all item/job types accept parameters -- Fabric's "
+            "own API returns errorCode FeatureNotAvailable for ones that don't, surfaced as a "
+            "clear Failure."
         ),
     )
 
@@ -188,8 +229,12 @@ class FabricPipelineTriggerJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 f"/items/{self.item_id}/jobs/instances?jobType={job_type}"
             )
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-            fabric_params = _to_fabric_parameters(self.parameters)
-            body = {"parameters": fabric_params} if fabric_params else None
+            if self.item_type == "Notebook":
+                execution_data = _to_notebook_execution_data(self.parameters)
+                body = {"executionData": execution_data} if execution_data else None
+            else:
+                fabric_params = _to_fabric_parameters(self.parameters)
+                body = {"parameters": fabric_params} if fabric_params else None
             resp = requests.post(run_url, json=body, headers=headers, timeout=60)
             if resp.status_code >= 300:
                 error = _extract_fabric_error(resp)

@@ -188,12 +188,26 @@ attributes:
 
 `default_parameters` applies to every triggered Notebook/DataPipeline/Dataflow;
 `item_parameters` (keyed by Fabric display name) merges over it for one
-specific item. Both accept a plain `{name: value}` dict — converted
-internally to Fabric's documented `Parameter[]` request shape
-(`{name, value, type}`, type inferred from the Python value: bool → Boolean,
-int → Integer, float → Number, else → Text). This is the SAME shape across
-item types — not a different shape per item type as is sometimes assumed.
-Not every item/job type accepts parameters; Fabric's own API returns
+specific item. Both accept a plain `{name: value}` dict.
+
+**The request shape sent to Fabric differs by item type** — this corrects an
+earlier claim in this README that it's the same shape everywhere:
+
+- **DataPipeline / Dataflow**: the generic top-level `parameters` list,
+  Fabric's documented `Parameter[]` shape (`{name, value, type}`, type
+  inferred from the Python value: bool → Boolean, int → Integer,
+  float → Number, else → Text).
+- **Notebook**: nested under `executionData.parameters` instead, as a dict
+  keyed by name (`{"<name>": {"value": ..., "type": ...}}`, with its own
+  lowercase type vocabulary: bool → `bool`, int → `int`, float → `float`,
+  else → `string`) — a Notebook's `executionData` is its own
+  item-type-specific payload, not the generic `Parameter[]` list. Confirmed
+  via Microsoft's own `apache-airflow-providers-microsoft-fabric`
+  (`MSFabricNotebookJobParameters`) and the official `fab` CLI's job-run
+  docs, both of which build exactly this shape for Notebook and only this
+  shape — neither ever uses the top-level list for a Notebook trigger.
+
+Not every item/job type accepts parameters at all; Fabric's own API returns
 `errorCode: FeatureNotAvailable` for ones that don't, surfaced as a clear
 Failure rather than a generic HTTP error.
 

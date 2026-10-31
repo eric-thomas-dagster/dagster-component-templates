@@ -3,11 +3,16 @@ FabricPipelineTriggerJobComponent (dagster-demo-factory component-feedback,
 evaluated alongside fabric_workspace v1.1.0):
 
 1. `parameters` were sent as `{"executionData": {"parameters": <raw dict>}}`
-   -- doesn't match Fabric's documented request shape on either count:
-   `parameters` is a TOP-LEVEL request field (not nested under
-   `executionData`, which is separate, fixed per-item-type config), and it
-   must be a typed Parameter[] list ({name, value, type}), not a bare dict.
-   Verified against the current Fabric REST API docs.
+   for EVERY item type -- doesn't match Fabric's documented request shape on
+   either count for DataPipeline/Dataflow: `parameters` is a TOP-LEVEL
+   request field there (not nested under `executionData`), and it must be a
+   typed Parameter[] list ({name, value, type}), not a bare dict. CORRECTED
+   LATER: Notebook turned out to be the one case where `executionData` genuinely
+   IS the right place -- just with a typed dict shape
+   ({"parameters": {name: {value, type}}}), not the raw dict this bug
+   originally sent. Confirmed via Microsoft's own
+   apache-airflow-providers-microsoft-fabric MSFabricNotebookJobParameters
+   class and the official `fab` CLI's job-run docs.
 2. `Deduped` wasn't a recognized terminal status, so a job-scheduling
    collision just polled until the timeout.
 3. Failed/Cancelled raised a bare `Exception` with a raw state dict dump --
@@ -172,3 +177,28 @@ def test_parameters_sent_in_fabrics_documented_top_level_typed_shape(fake_azure_
     params = {p["name"]: p for p in captured["json"]["parameters"]}
     assert params["load_date"] == {"name": "load_date", "value": "2024-01-01", "type": "Text"}
     assert params["retries"] == {"name": "retries", "value": 3, "type": "Integer"}
+
+
+def test_notebook_parameters_sent_as_executiondata_dict_not_the_top_level_list(fake_azure_identity, monkeypatch):
+    """A Notebook is NOT the same shape as DataPipeline/Dataflow -- it reads
+    its parameters out of executionData.parameters (a dict keyed by name,
+    lowercase string/int/float/bool types), confirmed via Microsoft's own
+    apache-airflow-providers-microsoft-fabric MSFabricNotebookJobParameters
+    class and the official `fab` CLI's job-run docs."""
+    import requests
+    captured = {}
+
+    def _post(url, json=None, **k):
+        captured["json"] = json
+        return _FakeResponse(202, headers={"Location": "https://fabric/instances/1"})
+
+    monkeypatch.setattr(requests, "post", _post)
+    monkeypatch.setattr(requests, "get", lambda *a, **k: _FakeResponse(200, {"status": "Completed"}))
+
+    comp = _component(item_type="Notebook", parameters={"load_date": "2024-01-01", "retries": 3})
+    _run_job(comp)
+
+    assert "parameters" not in (captured["json"] or {})
+    exec_params = captured["json"]["executionData"]["parameters"]
+    assert exec_params["load_date"] == {"value": "2024-01-01", "type": "string"}
+    assert exec_params["retries"] == {"value": 3, "type": "int"}

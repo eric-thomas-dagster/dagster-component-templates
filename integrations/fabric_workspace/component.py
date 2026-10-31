@@ -112,15 +112,24 @@ def _infer_fabric_parameter_type(value: Any) -> str:
 
 def _to_fabric_parameters(params: Optional[Dict[str, Any]]) -> Optional[List[Dict[str, Any]]]:
     """Convert a plain {name: value} dict into Fabric's documented Job
-    Scheduler request shape: a list of {name, value, type} objects.
+    Scheduler request shape: a top-level `parameters` list of
+    {name, value, type} objects. Used for DataPipeline/Dataflow and any
+    other non-Notebook item type -- see `_to_notebook_execution_data` for
+    Notebook, which needs a DIFFERENT shape (corrected below).
 
-    Verified against the current Fabric REST API docs (learn.microsoft.com/
-    rest/api/fabric/core/job-scheduler/run-on-demand-item-job): this `Parameter[]`
-    shape is the SAME across item types (Notebook/DataPipeline/Dataflow) --
-    there is no separate per-item-type dict shape. The API itself warns that
-    `parameters` is "not broadly supported": an item/job type that doesn't
-    support it returns errorCode `FeatureNotAvailable`, surfaced as a clear
-    Failure by `_trigger_item_run` rather than a generic HTTP error.
+    CORRECTION to an earlier (round-1) claim in this file's history: this
+    top-level `Parameter[]` list is NOT the same shape used across every
+    item type -- that was wrong. The generic REST reference
+    (learn.microsoft.com/rest/api/fabric/core/job-scheduler/run-on-demand-item-job)
+    only shows this shape in its generic/"Execute" job-type examples, and
+    separately documents `executionData` as "fixed static data, defined by
+    the specific item job type" -- i.e. genuinely per-item-type. Confirmed
+    via TWO independent official Microsoft sources for Notebook specifically:
+    Microsoft's own apache-airflow-providers-microsoft-fabric ships a
+    dedicated `MSFabricNotebookJobParameters` dataclass that sends ONLY
+    `{"executionData": {"parameters": {<name>: {"value": ..., "type": ...}}}}`
+    (a dict keyed by name, never the top-level list) for RunNotebook; the
+    official `fab` CLI's own job-run docs show the identical inner shape.
     """
     if not params:
         return None
@@ -128,6 +137,46 @@ def _to_fabric_parameters(params: Optional[Dict[str, Any]]) -> Optional[List[Dic
         {"name": str(k), "value": v, "type": _infer_fabric_parameter_type(v)}
         for k, v in params.items()
     ]
+
+
+def _infer_notebook_parameter_type(value: Any) -> str:
+    """Map a plain Python value to a Fabric Notebook executionData parameter
+    type: 'string' | 'int' | 'float' | 'bool' -- a DIFFERENT, lowercase
+    vocabulary from `_infer_fabric_parameter_type`'s ItemJobParameterType
+    (Text/Boolean/Number/Integer), confirmed via Microsoft's own
+    `MSFabricNotebookJobParameters` dataclass and the `fab` CLI's job-run
+    docs (both independently show this exact lowercase vocabulary for
+    Notebook's own executionData.parameters, not the generic Parameter[]
+    enum)."""
+    if isinstance(value, bool):
+        return "bool"
+    if isinstance(value, int):
+        return "int"
+    if isinstance(value, float):
+        return "float"
+    return "string"
+
+
+def _to_notebook_execution_data(params: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Convert a plain {name: value} dict into the executionData shape a
+    Fabric Notebook's RunNotebook job actually reads, per Microsoft's own
+    `MSFabricNotebookJobParameters`/`fab` CLI job-run docs:
+
+        {"executionData": {"parameters": {<name>: {"value": ..., "type": ...}}}}
+
+    NOT the generic top-level `parameters: Parameter[]` list `_to_fabric_parameters`
+    builds for DataPipeline/Dataflow -- that shape is for item types that read
+    the generic job-parameter mechanism; a Notebook reads its own parameters
+    out of `executionData` instead, with its own (lowercase) type vocabulary.
+    """
+    if not params:
+        return None
+    return {
+        "parameters": {
+            str(k): {"value": v, "type": _infer_notebook_parameter_type(v)}
+            for k, v in params.items()
+        }
+    }
 
 
 _RETRIABLE_KEYWORDS = ("capacity", "throttl", "toomanyrequests", "paused", "suspended")
@@ -1608,8 +1657,16 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             f"{_FABRIC_API_BASE}/workspaces/{self.workspace.workspace_id}"
             f"/items/{item_id}/jobs/instances?jobType={job_type}"
         )
-        fabric_params = _to_fabric_parameters(parameters)
-        body = {"parameters": fabric_params} if fabric_params else None
+        if item_type == "Notebook":
+            # Notebooks read their parameters out of executionData, not the
+            # generic top-level `parameters` list -- see
+            # _to_notebook_execution_data's docstring for the two
+            # independent Microsoft sources confirming this.
+            execution_data = _to_notebook_execution_data(parameters)
+            body = {"executionData": execution_data} if execution_data else None
+        else:
+            fabric_params = _to_fabric_parameters(parameters)
+            body = {"parameters": fabric_params} if fabric_params else None
         resp = requests.post(run_url, json=body, headers=headers, timeout=60)
         if resp.status_code >= 300:
             error = _extract_fabric_error(resp)

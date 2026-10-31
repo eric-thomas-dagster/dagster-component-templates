@@ -11,8 +11,14 @@ v1.1.0):
 3. No parameters were ever sent -- a notebook couldn't receive a load date
    or any per-run override. Fixed via `default_parameters`/`item_parameters`,
    converted to Fabric's documented `Parameter[]` request shape
-   ({name, value, type} -- verified the SAME shape is used across item
-   types, not a different shape per item type as sometimes assumed).
+   ({name, value, type}) for DataPipeline/Dataflow. CORRECTED LATER: an
+   earlier claim here that this shape is the SAME across all item types was
+   wrong -- Notebook actually reads its parameters out of
+   `executionData.parameters` instead (a dict keyed by name, lowercase
+   string/int/float/bool types), confirmed via Microsoft's own
+   apache-airflow-providers-microsoft-fabric `MSFabricNotebookJobParameters`
+   class and the official `fab` CLI's job-run docs. See
+   `_to_notebook_execution_data`'s docstring in component.py.
 4. Auth failures escaped as a raw azure.identity exception instead of a
    clear Dagster Failure.
 5. Timeout now requests cancellation of the orphaned Fabric job instead of
@@ -206,12 +212,39 @@ def test_parameters_are_sent_in_fabrics_documented_shape(auth, monkeypatch):
     monkeypatch.setattr(requests, "get", lambda *a, **k: _FakeResponse(200, {"status": "Completed", "id": "job-1"}))
 
     comp = _component(workspace=FabricResource(workspace_id="ws-1", tenant_id="t", client_id="c", client_secret="s", poll_interval_seconds=0))
-    comp._trigger_item_run(_ctx(), "item-1", "Notebook", parameters={"load_date": "2024-01-01", "retries": 3, "dry_run": True})
+    comp._trigger_item_run(_ctx(), "item-1", "DataPipeline", parameters={"load_date": "2024-01-01", "retries": 3, "dry_run": True})
 
     params = {p["name"]: p for p in captured["json"]["parameters"]}
     assert params["load_date"] == {"name": "load_date", "value": "2024-01-01", "type": "Text"}
     assert params["retries"] == {"name": "retries", "value": 3, "type": "Integer"}
     assert params["dry_run"] == {"name": "dry_run", "value": True, "type": "Boolean"}
+
+
+def test_notebook_parameters_are_sent_as_executiondata_not_the_top_level_list(auth, monkeypatch):
+    """Notebook is NOT the same shape as DataPipeline/Dataflow -- it reads
+    its parameters out of executionData.parameters (a dict keyed by name,
+    lowercase string/int/float/bool types), confirmed via Microsoft's own
+    apache-airflow-providers-microsoft-fabric MSFabricNotebookJobParameters
+    class and the official `fab` CLI's job-run docs, not the generic
+    top-level Parameter[] list."""
+    import requests
+    captured = {}
+
+    def _post(url, json=None, **k):
+        captured["json"] = json
+        return _FakeResponse(202, headers={"Location": "https://fabric/instances/1"})
+
+    monkeypatch.setattr(requests, "post", _post)
+    monkeypatch.setattr(requests, "get", lambda *a, **k: _FakeResponse(200, {"status": "Completed", "id": "job-1"}))
+
+    comp = _component(workspace=FabricResource(workspace_id="ws-1", tenant_id="t", client_id="c", client_secret="s", poll_interval_seconds=0))
+    comp._trigger_item_run(_ctx(), "item-1", "Notebook", parameters={"load_date": "2024-01-01", "retries": 3, "dry_run": True})
+
+    assert "parameters" not in captured["json"]
+    exec_params = captured["json"]["executionData"]["parameters"]
+    assert exec_params["load_date"] == {"value": "2024-01-01", "type": "string"}
+    assert exec_params["retries"] == {"value": 3, "type": "int"}
+    assert exec_params["dry_run"] == {"value": True, "type": "bool"}
 
 
 def test_no_parameters_sends_no_request_body(auth, monkeypatch):

@@ -53,8 +53,25 @@ def my_custom_asset(fabric: FabricWorkspaceResource):
     for item in items:
         instance_url = fabric.trigger_item_run(item["id"], "DataPipeline")
         state = fabric.wait_for_run(instance_url, log=context.log)
-        ...
+        # wait_for_run returns the raw Fabric state dict in every case --
+        # this resource is a thin client, the custom op decides what a
+        # Failed/Cancelled/Deduped/Timeout status means. Always check it:
+        if state["status"] != "Completed":
+            raise dg.Failure(description=f"Fabric run {state['status']}: {state}")
 ```
+
+`trigger_item_run`'s optional `parameters` ({name: value}) is sent in a
+shape that depends on `item_type`:
+
+- **DataPipeline / Dataflow**: the top-level `parameters` list, Fabric's
+  documented `Parameter[]` shape (`{name, value, type}`, type inferred from
+  the Python value).
+- **Notebook**: nested under `executionData.parameters` instead, as a dict
+  keyed by name (`{"<name>": {"value": ..., "type": ...}}`, with its own
+  lowercase type vocabulary) — a Notebook reads its own `executionData`, not
+  the generic `Parameter[]` list. Confirmed via Microsoft's own
+  `apache-airflow-providers-microsoft-fabric` (`MSFabricNotebookJobParameters`)
+  and the official `fab` CLI's job-run docs.
 
 ```yaml
 type: dagster_community_components.FabricWorkspaceResourceComponent

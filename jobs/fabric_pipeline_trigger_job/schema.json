@@ -36,7 +36,7 @@
       ]
     },
     "parameters": {
-      "description": "Optional parameters to pass to the pipeline/notebook (forwarded as JSON body).",
+      "description": "Optional {name: value} parameters to pass to the pipeline/notebook/dataflow. Converted internally to Fabric's documented Parameter[] request shape ({name, value, type}, type inferred from the Python value). Not all item/job types accept parameters -- Fabric's own API returns errorCode FeatureNotAvailable for ones that don't, surfaced as a clear Failure.",
       "type": "object",
       "label": "Parameters",
       "required": false,

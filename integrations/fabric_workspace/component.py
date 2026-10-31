@@ -84,6 +84,67 @@ _FABRIC_SCOPE = "https://api.fabric.microsoft.com/.default"
 _RUNNABLE_ITEM_TYPES = {"Notebook", "DataPipeline", "Dataflow"}
 _DATASET_ITEM_TYPES = {"Lakehouse", "Warehouse", "SemanticModel", "Report"}
 
+# Fabric's own Job Scheduler status enum (verified against the current REST
+# API docs, learn.microsoft.com/rest/api/fabric/core/job-scheduler/
+# get-item-job-instance): NotStarted, InProgress, Completed, Failed,
+# Cancelled, Deduped. All but the first two are terminal. "Deduped" means
+# another instance of the same job type was already running and this one
+# was skipped -- it is NOT the same as a normal completion, and was
+# previously treated as "still in progress" here, so a run that collided
+# with an already-running instance just polled until it hit the timeout.
+
+
+def _infer_fabric_parameter_type(value: Any) -> str:
+    """Map a plain Python value to one of Fabric's documented
+    ItemJobParameterType values (Integer / Number / Text / Boolean --
+    DateTime/Guid/VariableReference/Automatic are also valid but not
+    inferable from a bare Python value)."""
+    if isinstance(value, bool):
+        return "Boolean"
+    if isinstance(value, int):
+        return "Integer"
+    if isinstance(value, float):
+        return "Number"
+    return "Text"
+
+
+def _to_fabric_parameters(params: Optional[Dict[str, Any]]) -> Optional[List[Dict[str, Any]]]:
+    """Convert a plain {name: value} dict into Fabric's documented Job
+    Scheduler request shape: a list of {name, value, type} objects.
+
+    Verified against the current Fabric REST API docs (learn.microsoft.com/
+    rest/api/fabric/core/job-scheduler/run-on-demand-item-job): this `Parameter[]`
+    shape is the SAME across item types (Notebook/DataPipeline/Dataflow) --
+    there is no separate per-item-type dict shape. The API itself warns that
+    `parameters` is "not broadly supported": an item/job type that doesn't
+    support it returns errorCode `FeatureNotAvailable`, surfaced as a clear
+    Failure by `_trigger_item_run` rather than a generic HTTP error.
+    """
+    if not params:
+        return None
+    return [
+        {"name": str(k), "value": v, "type": _infer_fabric_parameter_type(v)}
+        for k, v in params.items()
+    ]
+
+
+def _extract_fabric_error(resp) -> Dict[str, Any]:
+    """Best-effort parse of Fabric's documented ErrorResponse shape
+    (errorCode / message / isRetriable / moreDetails) from a non-2xx
+    response. Falls back to the raw response text if the body isn't JSON
+    or doesn't match the expected shape."""
+    try:
+        body = resp.json()
+    except Exception:
+        return {"errorCode": "", "message": resp.text[:300], "isRetriable": None}
+    if isinstance(body, dict):
+        return {
+            "errorCode": body.get("errorCode") or "",
+            "message": body.get("message") or resp.text[:300],
+            "isRetriable": body.get("isRetriable"),
+        }
+    return {"errorCode": "", "message": resp.text[:300], "isRetriable": None}
+
 
 @record
 class FabricObjectProps:
@@ -318,6 +379,40 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         description="Asset keys that all imported assets wait for (lineage-only).",
     )
 
+    key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Disambiguator for the cached discovery-state key. Without this, two "
+            "FabricWorkspaceComponent instances pointed at the SAME workspace_id but "
+            "different import_*/filter settings (e.g. one importing only notebooks "
+            "matching 'part_a', another only pipelines) would hash to the same state "
+            "key and silently share one state file. Set a distinct `key:` per instance "
+            "when you split one workspace across multiple component instances."
+        ),
+    )
+
+    default_parameters: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Parameters passed to every triggered Notebook/DataPipeline/Dataflow job "
+            "(e.g. a load date), merged with `item_parameters` below. A plain "
+            "{name: value} dict -- converted internally to Fabric's documented "
+            "Parameter[] request shape ({name, value, type}, type inferred from the "
+            "Python value). Not all item/job types accept parameters -- Fabric's own "
+            "API returns errorCode FeatureNotAvailable for ones that don't, surfaced "
+            "as a clear Failure rather than a generic HTTP error."
+        ),
+    )
+    item_parameters: Optional[Dict[str, Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Per-item parameter overrides, keyed by the Fabric item's display name "
+            "(e.g. {'my_notebook': {'load_date': '2024-01-01'}}). Merged OVER "
+            "default_parameters for that specific item -- lets one notebook wait for "
+            "a different input than another from the same component instance."
+        ),
+    )
+
     polling_sensor: bool = Field(
         default=False,
         description=(
@@ -394,7 +489,11 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
     @property
     def defs_state_config(self) -> DefsStateConfig:
-        wsid_hash = hashlib.sha256(self.workspace.workspace_id.encode()).hexdigest()[:12]
+        # Hash workspace_id + the optional instance disambiguator (`key`), not
+        # workspace_id alone -- otherwise two instances over the same workspace
+        # with different import_*/filter settings silently share one state file.
+        hash_input = self.workspace.workspace_id + (self.key or "")
+        wsid_hash = hashlib.sha256(hash_input.encode()).hexdigest()[:12]
         default_key = f"{self.__class__.__name__}[{wsid_hash}]"
         return DefsStateConfig.from_args(self.defs_state, default_key=default_key)
 
@@ -426,8 +525,19 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         translator returns the default AssetSpec and this method is a no-op --
         all pre-existing per-asset kwargs (name, key, group_name, metadata,
         tags, kinds, deps) win. When a ``translation:`` callable IS set, its
-        AssetSpec's key / tags / metadata / kinds / owners flow into the
-        kwargs (translation-provided values win over inferred ones).
+        AssetSpec's key / tags / metadata / kinds / owners / deps /
+        automation_condition / freshness_policy / description flow into the
+        kwargs (translation-provided values win over inferred ones; `deps`
+        and `tags`/`metadata`/`kinds` are merged rather than replaced, so a
+        `translation:` can ADD a per-item dependency without having to
+        re-declare `upstream_asset_keys`'s own deps).
+
+        Before this fix, only key/metadata/tags/kinds/owners/group_name were
+        copied from the translated AssetSpec -- setting `deps` or
+        `automation_condition` inside a `translation:` callable silently did
+        nothing, with no error raised, and `upstream_asset_keys` had no way
+        to vary per item as a result (component-feedback: translation
+        silently drops deps and automation_condition).
         """
         if self.translation is None:
             return kwargs
@@ -458,6 +568,21 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             merged["owners"] = list(base_spec.owners)
         if base_spec.group_name and "group_name" not in kwargs:
             merged["group_name"] = base_spec.group_name
+        if base_spec.deps:
+            existing_deps = list(merged.get("deps") or [])
+            existing_dep_keys = {getattr(d, "asset_key", d) for d in existing_deps}
+            for dep in base_spec.deps:
+                dep_key = getattr(dep, "asset_key", dep)
+                if dep_key not in existing_dep_keys:
+                    existing_deps.append(dep)
+                    existing_dep_keys.add(dep_key)
+            merged["deps"] = existing_deps
+        if base_spec.automation_condition is not None:
+            merged["automation_condition"] = base_spec.automation_condition
+        if base_spec.freshness_policy is not None:
+            merged["freshness_policy"] = base_spec.freshness_policy
+        if base_spec.description:
+            merged["description"] = base_spec.description
         return merged
 
     def _list_items(self) -> List[dict]:
@@ -808,20 +933,73 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         if runnable_items is not None:
             runnable_items.append({"item_id": item_id, "item_type": item_type, "key": asset_kwargs["key"]})
 
+        resolved_parameters: Dict[str, Any] = dict(self.default_parameters or {})
+        resolved_parameters.update((self.item_parameters or {}).get(name) or {})
+
         @dg.asset(**asset_kwargs)
         def _runnable(context: dg.AssetExecutionContext):
-            return _self._trigger_item_run(item_id, item_type, context.log)
+            return _self._trigger_item_run(context, item_id, item_type, resolved_parameters or None)
 
         return _runnable
 
-    def _trigger_item_run(self, item_id: str, item_type: str, asset_log) -> dict:
+    def _cancel_job_instance(self, instance_url: str, headers: dict, asset_log) -> None:
+        """Best-effort cancellation of a still-running Fabric job instance.
+
+        POST {instance_url}/cancel -- https://learn.microsoft.com/rest/api/fabric/core/job-scheduler/cancel-item-job-instance
+        Used on timeout and when polling is interrupted by an unexpected
+        exception, so a Dagster-side timeout/interrupt doesn't leave an
+        orphaned Fabric job running. Never called once the job has already
+        reached one of its own terminal states (Completed/Failed/Cancelled/
+        Deduped) -- Fabric would just answer with a benign `JobAlreadyCompleted`
+        error in that case, so there's nothing useful to cancel.
+        """
+        import requests
+        try:
+            resp = requests.post(f"{instance_url}/cancel", headers=headers, timeout=30)
+            if resp.status_code >= 300:
+                asset_log.warning(f"Fabric: cancel request failed ({resp.status_code}): {resp.text[:200]}")
+            else:
+                asset_log.info("Fabric: cancellation requested.")
+        except Exception as e:
+            asset_log.warning(f"Fabric: cancel request raised: {e}")
+
+    def _trigger_item_run(
+        self,
+        context: dg.AssetExecutionContext,
+        item_id: str,
+        item_type: str,
+        parameters: Optional[Dict[str, Any]] = None,
+    ) -> dict:
         """Trigger a Fabric on-demand item job and poll until done.
 
         POST /workspaces/{ws}/items/{id}/jobs/instances?jobType=<T>
         The response Location header carries the job instance URL we poll.
+
+        Raises `dg.Failure` for Failed / Cancelled / Deduped / Timeout, and
+        `dg.RetryRequested` when Fabric's own `failureReason.isRetriable`
+        flag says the failure is transient. Previously this method RETURNED
+        the state dict in every case including failure, so a failed Fabric
+        run showed up as a green Dagster materialization, with nothing
+        downstream any the wiser (component-feedback: a failed Fabric run
+        is a green Dagster materialization).
+
+        Accepts the full `context` (not just a logger) so a subclass can
+        read the partition key / retry number / run config, matching the
+        same `context` a subclassed `execute()` hook gets on
+        `FivetranAccountComponent`.
         """
         import requests
-        token = self.workspace.get_token()
+        asset_log = context.log
+
+        try:
+            token = self.workspace.get_token()
+        except Exception as e:
+            # Auth failures previously escaped as a raw azure.core/azure.identity
+            # exception; wrap them so the Dagster UI shows a clear description.
+            raise dg.Failure(
+                description=f"Fabric authentication failed: {e}",
+                metadata={"fabric_item_id": item_id, "fabric_item_type": item_type},
+            ) from e
         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
         job_type_map = {
@@ -834,9 +1012,20 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             f"{_FABRIC_API_BASE}/workspaces/{self.workspace.workspace_id}"
             f"/items/{item_id}/jobs/instances?jobType={job_type}"
         )
-        resp = requests.post(run_url, headers=headers, timeout=60)
+        fabric_params = _to_fabric_parameters(parameters)
+        body = {"parameters": fabric_params} if fabric_params else None
+        resp = requests.post(run_url, json=body, headers=headers, timeout=60)
         if resp.status_code >= 300:
-            raise Exception(f"Fabric run trigger failed: {resp.status_code} {resp.text[:300]}")
+            error = _extract_fabric_error(resp)
+            raise dg.Failure(
+                description=f"Fabric run trigger failed ({resp.status_code}): {error['message']}",
+                metadata={
+                    "fabric_item_id": item_id,
+                    "fabric_item_type": item_type,
+                    "fabric_error_code": error["errorCode"],
+                    "fabric_status_code": resp.status_code,
+                },
+            )
 
         instance_url = resp.headers.get("Location")
         if not instance_url:
@@ -845,18 +1034,79 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
         asset_log.info(f"Fabric job triggered. Instance: {instance_url}")
         elapsed = 0
-        while elapsed < self.workspace.max_wait_seconds:
-            state_resp = requests.get(instance_url, headers=headers, timeout=60)
-            state_resp.raise_for_status()
-            state = state_resp.json()
-            status = state.get("status", "Unknown")
-            asset_log.info(f"Fabric job: status={status} elapsed={elapsed}s")
-            if status in {"Completed", "Failed", "Cancelled"}:
-                return state
-            time.sleep(self.workspace.poll_interval_seconds)
-            elapsed += self.workspace.poll_interval_seconds
+        reached_fabric_terminal_state = False
+        try:
+            while elapsed < self.workspace.max_wait_seconds:
+                state_resp = requests.get(instance_url, headers=headers, timeout=60)
+                state_resp.raise_for_status()
+                state = state_resp.json()
+                status = state.get("status", "Unknown")
+                asset_log.info(f"Fabric job: status={status} elapsed={elapsed}s")
 
-        return {"status": "Timeout", "instance_url": instance_url}
+                if status == "Completed":
+                    reached_fabric_terminal_state = True
+                    return state
+
+                if status == "Deduped":
+                    reached_fabric_terminal_state = True
+                    raise dg.Failure(
+                        description=(
+                            f"Fabric job for item {item_id} was Deduped: another instance of "
+                            "the same job type was already running, so Fabric skipped this one. "
+                            "Not a failure of this run's own logic -- a scheduling collision."
+                        ),
+                        metadata={
+                            "fabric_item_id": item_id,
+                            "fabric_item_type": item_type,
+                            "fabric_job_instance": state.get("id", ""),
+                        },
+                    )
+
+                if status in ("Failed", "Cancelled"):
+                    reached_fabric_terminal_state = True
+                    failure = state.get("failureReason") or {}
+                    error_code = failure.get("errorCode") or ""
+                    message = failure.get("message") or f"Fabric job ended with status {status}"
+                    is_retriable = failure.get("isRetriable")
+                    md = {
+                        "fabric_item_id": item_id,
+                        "fabric_item_type": item_type,
+                        "fabric_status": status,
+                        "fabric_error_code": error_code,
+                        "fabric_job_instance": state.get("id", ""),
+                    }
+                    failure_exc = dg.Failure(
+                        description=f"Fabric job {status.lower()}: {message}",
+                        metadata=md,
+                    )
+                    if is_retriable:
+                        # Fabric's own failureReason.isRetriable flag, not a guess
+                        # based on matching error-code/message substrings -- the
+                        # authoritative signal the API itself provides for whether
+                        # re-triggering the job is worth attempting.
+                        asset_log.warning(f"Fabric job failed with a retriable error ({error_code}): {message}")
+                        raise dg.RetryRequested(max_retries=1, seconds_to_wait=30) from failure_exc
+                    raise failure_exc
+
+                time.sleep(self.workspace.poll_interval_seconds)
+                elapsed += self.workspace.poll_interval_seconds
+
+            asset_log.warning(f"Fabric job timed out after {elapsed}s.")
+            raise dg.Failure(
+                description=f"Fabric job for item {item_id} timed out after {elapsed}s waiting for completion.",
+                metadata={
+                    "fabric_item_id": item_id,
+                    "fabric_item_type": item_type,
+                    "fabric_job_instance_url": instance_url,
+                },
+            )
+        finally:
+            # Cancel on timeout, or on any other exception interrupting the poll
+            # loop -- but not when Fabric's own job already reached a terminal
+            # state on its own (Completed/Failed/Cancelled/Deduped), where
+            # there's nothing left running to cancel.
+            if not reached_fabric_terminal_state:
+                self._cancel_job_instance(instance_url, headers, asset_log)
 
 
 class DagsterFabricTranslator:

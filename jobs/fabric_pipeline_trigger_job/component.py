@@ -34,6 +34,58 @@ _JOB_TYPE_MAP = {
     "Dataflow": "Refresh",
 }
 
+# Fabric's own Job Scheduler status enum (verified against the current REST
+# API docs, learn.microsoft.com/rest/api/fabric/core/job-scheduler/
+# get-item-job-instance): NotStarted, InProgress, Completed, Failed,
+# Cancelled, Deduped. "Deduped" means another instance of the same job type
+# was already running and this one was skipped by Fabric -- a real terminal
+# outcome, not "still in progress," handled explicitly below.
+
+
+def _infer_fabric_parameter_type(value):
+    if isinstance(value, bool):
+        return "Boolean"
+    if isinstance(value, int):
+        return "Integer"
+    if isinstance(value, float):
+        return "Number"
+    return "Text"
+
+
+def _to_fabric_parameters(params):
+    """Convert a plain {name: value} dict into Fabric's documented Job
+    Scheduler request shape: a top-level `parameters` list of
+    {name, value, type} objects -- verified against the current API docs
+    (learn.microsoft.com/rest/api/fabric/core/job-scheduler/run-on-demand-item-job).
+    This was previously sent as `executionData.parameters` with the raw
+    dict value, which doesn't match the documented request shape on either
+    count: `parameters` is a top-level field, not nested under
+    `executionData` (that's for fixed, item-type-specific static config,
+    a different thing), and it must be a typed Parameter[] list, not a bare
+    dict."""
+    if not params:
+        return None
+    return [
+        {"name": str(k), "value": v, "type": _infer_fabric_parameter_type(v)}
+        for k, v in params.items()
+    ]
+
+
+def _extract_fabric_error(resp):
+    """Best-effort parse of Fabric's documented ErrorResponse shape
+    (errorCode / message / isRetriable) from a non-2xx response."""
+    try:
+        body = resp.json()
+    except Exception:
+        return {"errorCode": "", "message": resp.text[:300], "isRetriable": None}
+    if isinstance(body, dict):
+        return {
+            "errorCode": body.get("errorCode") or "",
+            "message": body.get("message") or resp.text[:300],
+            "isRetriable": body.get("isRetriable"),
+        }
+    return {"errorCode": "", "message": resp.text[:300], "isRetriable": None}
+
 
 
 # BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
@@ -79,7 +131,13 @@ class FabricPipelineTriggerJobComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     parameters: Optional[dict] = Field(
         default=None,
-        description="Optional parameters to pass to the pipeline/notebook (forwarded as JSON body).",
+        description=(
+            "Optional {name: value} parameters to pass to the pipeline/notebook/dataflow. "
+            "Converted internally to Fabric's documented Parameter[] request shape "
+            "({name, value, type}, type inferred from the Python value). Not all item/job "
+            "types accept parameters -- Fabric's own API returns errorCode FeatureNotAvailable "
+            "for ones that don't, surfaced as a clear Failure."
+        ),
     )
 
     wait_for_completion: bool = Field(default=True)
@@ -119,21 +177,26 @@ class FabricPipelineTriggerJobComponent(dg.Component, dg.Model, dg.Resolvable):
             else:
                 cred = DefaultAzureCredential()
 
-            token = cred.get_token(_FABRIC_SCOPE).token
+            try:
+                token = cred.get_token(_FABRIC_SCOPE).token
+            except Exception as e:
+                raise dg.Failure(description=f"Fabric authentication failed: {e}") from e
+
             job_type = _JOB_TYPE_MAP.get(self.item_type, self.item_type)
             run_url = (
                 f"{_FABRIC_API_BASE}/workspaces/{self.workspace_id}"
                 f"/items/{self.item_id}/jobs/instances?jobType={job_type}"
             )
-            body = {"executionData": {"parameters": self.parameters}} if self.parameters else None
-            resp = requests.post(
-                run_url,
-                json=body,
-                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-                timeout=60,
-            )
+            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+            fabric_params = _to_fabric_parameters(self.parameters)
+            body = {"parameters": fabric_params} if fabric_params else None
+            resp = requests.post(run_url, json=body, headers=headers, timeout=60)
             if resp.status_code >= 300:
-                raise Exception(f"Fabric trigger failed: {resp.status_code} {resp.text[:300]}")
+                error = _extract_fabric_error(resp)
+                raise dg.Failure(
+                    description=f"Fabric run trigger failed ({resp.status_code}): {error['message']}",
+                    metadata={"fabric_error_code": error["errorCode"], "fabric_status_code": resp.status_code},
+                )
 
             instance_url = resp.headers.get("Location")
             if not instance_url:
@@ -146,25 +209,61 @@ class FabricPipelineTriggerJobComponent(dg.Component, dg.Model, dg.Resolvable):
                 return
 
             elapsed = 0
-            while elapsed < self.max_wait_seconds:
-                state_resp = requests.get(
-                    instance_url,
-                    headers={"Authorization": f"Bearer {token}"},
-                    timeout=60,
-                )
-                state_resp.raise_for_status()
-                state = state_resp.json()
-                status = state.get("status", "Unknown")
-                context.log.info(f"Fabric job status={status} elapsed={elapsed}s")
-                if status in {"Completed", "Failed", "Cancelled"}:
-                    if status != "Completed":
-                        raise Exception(f"Fabric job ended with status: {status}. Details: {state}")
-                    context.log.info(f"Fabric job completed.")
-                    return
-                time.sleep(self.poll_interval_seconds)
-                elapsed += self.poll_interval_seconds
+            reached_fabric_terminal_state = False
+            try:
+                while elapsed < self.max_wait_seconds:
+                    state_resp = requests.get(instance_url, headers=headers, timeout=60)
+                    state_resp.raise_for_status()
+                    state = state_resp.json()
+                    status = state.get("status", "Unknown")
+                    context.log.info(f"Fabric job status={status} elapsed={elapsed}s")
 
-            raise Exception(f"Fabric job timed out after {self.max_wait_seconds}s")
+                    if status == "Completed":
+                        reached_fabric_terminal_state = True
+                        context.log.info("Fabric job completed.")
+                        return
+
+                    if status == "Deduped":
+                        reached_fabric_terminal_state = True
+                        raise dg.Failure(
+                            description=(
+                                f"Fabric job for item {self.item_id} was Deduped: another instance "
+                                "of the same job type was already running, so Fabric skipped this "
+                                "one. Not a failure of this run's own logic -- a scheduling collision."
+                            ),
+                        )
+
+                    if status in ("Failed", "Cancelled"):
+                        reached_fabric_terminal_state = True
+                        failure = state.get("failureReason") or {}
+                        error_code = failure.get("errorCode") or ""
+                        message = failure.get("message") or f"Fabric job ended with status {status}"
+                        is_retriable = failure.get("isRetriable")
+                        md = {"fabric_status": status, "fabric_error_code": error_code}
+                        failure_exc = dg.Failure(description=f"Fabric job {status.lower()}: {message}", metadata=md)
+                        if is_retriable:
+                            context.log.warning(f"Fabric job failed with a retriable error ({error_code}): {message}")
+                            raise dg.RetryRequested(max_retries=1, seconds_to_wait=30) from failure_exc
+                        raise failure_exc
+
+                    time.sleep(self.poll_interval_seconds)
+                    elapsed += self.poll_interval_seconds
+
+                context.log.warning(f"Fabric job timed out after {elapsed}s.")
+                raise dg.Failure(description=f"Fabric job for item {self.item_id} timed out after {elapsed}s.")
+            finally:
+                # Cancel on timeout or any other interrupting exception -- not when
+                # Fabric's own job already reached a terminal state on its own,
+                # where there's nothing left running to cancel.
+                if not reached_fabric_terminal_state:
+                    try:
+                        cancel_resp = requests.post(f"{instance_url}/cancel", headers=headers, timeout=30)
+                        if cancel_resp.status_code >= 300:
+                            context.log.warning(f"Fabric: cancel request failed ({cancel_resp.status_code}): {cancel_resp.text[:200]}")
+                        else:
+                            context.log.info("Fabric: cancellation requested.")
+                    except Exception as e:
+                        context.log.warning(f"Fabric: cancel request raised: {e}")
 
         @dg.job(name=self.job_name, tags=self.tags or None)
         def _the_job():

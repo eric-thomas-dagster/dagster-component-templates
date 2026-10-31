@@ -86,6 +86,28 @@
       "required": false,
       "default": null
     },
+    "key": {
+      "type": "string",
+      "label": "Key",
+      "description": "Disambiguator for the cached discovery-state key. Without this, two FabricWorkspaceComponent instances pointed at the same workspace_id but different import_*/filter settings would share one state file.",
+      "required": false,
+      "default": null
+    },
+    "default_parameters": {
+      "type": "object",
+      "label": "Default Parameters",
+      "description": "Parameters passed to every triggered Notebook/DataPipeline/Dataflow job (e.g. a load date), merged with item_parameters. A plain {name: value} dict, converted internally to Fabric's documented Parameter[] request shape.",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value"
+    },
+    "item_parameters": {
+      "type": "object",
+      "label": "Item Parameters",
+      "description": "Per-item parameter overrides, keyed by the Fabric item's display name. Merged over default_parameters for that specific item.",
+      "required": false,
+      "default": null
+    },
     "polling_sensor": {
       "type": "boolean",
       "label": "Polling Sensor",

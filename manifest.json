@@ -1060,8 +1060,8 @@
       },
       "icon": "Brain",
       "validation": {
-        "level": "code",
-        "evidence": "12 pytest cases covering demo-mode end-to-end memory formation (grouping by user_id/run_id, infer true/false semantics, metadata_column parsing), the validate_search smoke check (pass + WARN-non-blocking fail), the real-mode _build_memory_client seam (vector_store/llm/embedder config passthrough, agent_id/run_id only sent when configured), and the repo-wide upstream_asset_key normalization convention. No live Mem0/OpenAI/Qdrant call tested -- get_all/update/delete are not implemented (unverified OSS API shapes).",
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/agent_memory_formation.md -- real dg launch end-to-end via the CLI (RUN_SUCCESS, memory_search_smoke_check asset check passed, real formed memories inspected in the demo JSON file). Plus 12 pytest cases (grouping by user_id/run_id, infer semantics, real-mode config passthrough). No live Mem0/OpenAI/Qdrant call tested -- get_all/update/delete are not implemented (unverified OSS API shapes).",
         "last_validated": "2026-10-31"
       },
       "agent_hints": {
@@ -8761,8 +8761,8 @@
       },
       "icon": "Brain",
       "validation": {
-        "level": "code",
-        "evidence": "13 pytest cases covering demo-mode end-to-end materialization, text and raw-bytes image input (asserting the image content block carries raw bytes, not base64), output_schema validation (valid/invalid/missing-field cases), min_valid_rate ERROR-blocking vs WARN-non-blocking checks, row-level call-failure isolation (one bad row doesn't abort the run), partition-aware row filtering, and token/latency metadata aggregation -- real mode's boto3 bedrock-runtime client mocked at the _build_bedrock_client seam. No live AWS Bedrock call tested.",
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qwen3_self_hosted_vs_bedrock.md -- real dg launch end-to-end via the CLI (RUN_SUCCESS, row-level category/urgency output, JSON-schema validated). Plus 13 pytest cases (raw-bytes image input, output_schema validation, min_valid_rate checks, row-level failure isolation, token/latency aggregation). Real-mode boto3 bedrock-runtime calls not exercised against a live AWS account.",
         "last_validated": "2026-10-31"
       },
       "agent_hints": {
@@ -23094,8 +23094,8 @@
       },
       "icon": "Server",
       "validation": {
-        "level": "code",
-        "evidence": "15 pytest cases covering demo-mode end-to-end materialization (a real local script opening a real dagster_pipes.open_dagster_pipes() context against the real PipesECSClient/PipesCloudWatchMessageReader classes, with only the boto3 ecs/logs clients faked), partition-key delivery via Pipes extras, single_run backfill ranges, metadata_checks (pass/block/warn), mutually-exclusive launch-config validation, and run_task_params building (capacity provider sugar, strategy passthrough, launch_type, network config, container overrides, deep-merge overrides). Real-mode boto3 ecs/logs calls not exercised against a live AWS account.",
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/qwen3_self_hosted_vs_bedrock.md -- real dg launch end-to-end via the CLI (RUN_SUCCESS, real Pipes protocol over a real local subprocess, schema_valid_rate check passed). Plus 15 pytest cases (partition-key delivery via Pipes extras, single_run backfill ranges, metadata_checks, launch-config validation, run_task_params building). Real-mode boto3 ecs/logs calls not exercised against a live AWS account.",
         "last_validated": "2026-10-31"
       },
       "agent_hints": {
@@ -67579,8 +67579,8 @@
       "icon": "Sparkles",
       "validation": {
         "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vector_rag.md",
-        "last_validated": "2026-05-08"
+        "evidence": "chromadb path: https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/vector_rag.md. s3vectors path (added 2026-10-31): https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/s3_vectors_rag.md -- real embed-write-query round-trip, 8 vectors written, 24 query results, every ticket's own embedding ranked itself the closest match via real cosine similarity.",
+        "last_validated": "2026-10-31"
       },
       "produces": [
         "asset",
@@ -67627,8 +67627,8 @@
       "icon": "Sparkles",
       "validation": {
         "level": "live",
-        "evidence": "Live-verified (added 2026-09-28, part of a backport giving this component parity with context_engineering_pipeline): source: {kind: warehouse_query} against a real DuckDB database, writing real embeddings into a real ChromaDB collection via dg.materialize.",
-        "last_validated": "2026-09-28"
+        "evidence": "chromadb path (2026-09-28): source: {kind: warehouse_query} against a real DuckDB database, writing real embeddings into a real ChromaDB collection via dg.materialize. s3vectors path (added 2026-10-31): https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/s3_vectors_rag.md -- real embed-write-query round-trip, 8 vectors written via the new provider, PutVectors batching verified at the real 500/call AWS limit.",
+        "last_validated": "2026-10-31"
       },
       "produces": [
         "asset",

@@ -20,6 +20,11 @@ into the base component:
   and `data_failure_exit_values` turns a matching value into a real Failure.
 - F: `pool` field reaches the @asset kwargs; `fabric/skip` run tag skips
   the actual trigger with an audited MaterializeResult.
+- N: native partitioning via the repo's shared `_build_partitions_def`
+  convention (daily/weekly/monthly/hourly/static/dynamic/cron/multi-axis),
+  plus `partition_parameter_name` injecting the run's partition key into
+  the triggered Fabric job's own parameters (same convention as
+  azure_data_factory).
 """
 import importlib.util
 import json
@@ -445,3 +450,94 @@ def test_item_pools_falls_back_to_component_wide_pool_for_a_non_matching_item(tm
     defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state(name="nightly_ingest")))
     asset_def = next(iter(defs.assets))
     assert asset_def.op.pool == "shared_pool"
+
+
+# ── N: native partitioning ──────────────────────────────────────────────
+# The repo has a mature, widely-shared `_build_partitions_def` convention
+# (~670 components, incl. the directly-analogous databricks_clean_room_
+# notebook_run and snowflake_task) and azure_data_factory already
+# demonstrates injecting context.partition_key into a triggered pipeline's
+# own parameters -- so this was NOT out of scope, just not yet ported.
+
+def test_daily_partition_type_builds_a_real_partitions_def(tmp_path):
+    comp = _component(partition_type="daily", partition_start="2024-01-01")
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state()))
+    asset_def = next(iter(defs.assets))
+    assert isinstance(asset_def.partitions_def, dg.DailyPartitionsDefinition)
+
+
+def test_cron_partition_type_builds_a_time_window_partitions_def(tmp_path):
+    comp = _component(partition_type="cron", partition_start="2024-01-01", partition_cron_schedule="0 0 * * 1-5")
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state()))
+    asset_def = next(iter(defs.assets))
+    assert isinstance(asset_def.partitions_def, dg.TimeWindowPartitionsDefinition)
+
+
+def test_no_partition_type_leaves_the_asset_unpartitioned(tmp_path):
+    comp = _component()
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state()))
+    asset_def = next(iter(defs.assets))
+    assert asset_def.partitions_def is None
+
+
+def test_daily_partition_type_without_start_raises_a_clear_config_error(tmp_path):
+    comp = _component(partition_type="daily")
+    with pytest.raises(Exception, match="requires partition_start"):
+        comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state()))
+
+
+def test_partition_values_accepts_a_list_and_normalizes_to_csv():
+    comp = _component(partition_type="static", partition_values=["a", "b", "c"])
+    assert comp.partition_values == "a,b,c"
+
+
+def test_partition_key_reaches_fabric_parameters_via_materialize(tmp_path, auth, monkeypatch):
+    import requests
+    captured = {}
+
+    def _post(url, json=None, **k):
+        captured["json"] = json
+        return _FakeResponse(202, headers={"Location": "https://fabric/instances/1"})
+
+    monkeypatch.setattr(requests, "post", _post)
+    monkeypatch.setattr(requests, "get", lambda *a, **k: _FakeResponse(200, {"status": "Completed", "id": "job-1"}))
+
+    comp = _component(
+        workspace=FabricResource(workspace_id="ws-1", tenant_id="t", client_id="c", client_secret="s", poll_interval_seconds=0),
+        partition_type="daily",
+        partition_start="2024-01-01",
+        partition_parameter_name="run_date",
+    )
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state()))
+    asset_def = next(iter(defs.assets))
+    result = dg.materialize([asset_def], partition_key="2024-06-15", raise_on_error=True)
+    assert result.success
+
+    params = {p["name"]: p for p in captured["json"]["parameters"]}
+    assert params["run_date"]["value"] == "2024-06-15"
+
+    md = result.get_asset_materialization_events()[0].materialization.metadata
+    assert md["fabric/partition_key"].value == "2024-06-15"
+
+
+def test_partition_key_not_injected_without_partition_parameter_name(tmp_path, auth, monkeypatch):
+    import requests
+    captured = {}
+
+    def _post(url, json=None, **k):
+        captured["json"] = json
+        return _FakeResponse(202, headers={"Location": "https://fabric/instances/1"})
+
+    monkeypatch.setattr(requests, "post", _post)
+    monkeypatch.setattr(requests, "get", lambda *a, **k: _FakeResponse(200, {"status": "Completed", "id": "job-1"}))
+
+    comp = _component(
+        workspace=FabricResource(workspace_id="ws-1", tenant_id="t", client_id="c", client_secret="s", poll_interval_seconds=0),
+        partition_type="daily",
+        partition_start="2024-01-01",
+    )
+    defs = comp.build_defs_from_state(None, _write_state(tmp_path, _one_pipeline_state()))
+    asset_def = next(iter(defs.assets))
+    result = dg.materialize([asset_def], partition_key="2024-06-15", raise_on_error=True)
+    assert result.success
+    assert captured["json"] is None

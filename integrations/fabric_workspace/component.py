@@ -200,6 +200,160 @@ def _extract_fabric_error(resp) -> Dict[str, Any]:
     return {"errorCode": "", "message": resp.text[:300], "isRetriable": None}
 
 
+def _build_partitions_def(
+    partition_type,
+    partition_start,
+    partition_values,
+    dynamic_partition_name,
+    partition_dimensions,
+    cron_schedule=None,
+    cron_fmt="%Y-%m-%d",
+):
+    """Construct a Dagster partitions_def from the canonical partition fields.
+
+    Same shared shape as `databricks_clean_room_notebook_run`/`snowflake_task`/
+    the other ~670 components across this repo carrying this helper (verified
+    before assuming a bespoke daily-only field was needed here -- the repo
+    already has a mature, tested, multi-axis convention for exactly this).
+
+    Strict: raises ValueError on misconfigured combinations rather than
+    silently picking a default. Specifically:
+      - time-based partition_type without partition_start
+      - partition_type=multi/static without partition_values
+      - partition_type=dynamic without dynamic_partition_name
+      - both partition_dimensions AND flat fields set (ambiguous intent)
+    """
+    from dagster import (
+        DailyPartitionsDefinition, WeeklyPartitionsDefinition,
+        MonthlyPartitionsDefinition, HourlyPartitionsDefinition,
+        StaticPartitionsDefinition, MultiPartitionsDefinition,
+        DynamicPartitionsDefinition,
+    )
+
+    if partition_dimensions and partition_type:
+        raise ValueError(
+            "Set either partition_type (flat-fields shape) or "
+            "partition_dimensions (multi-axis shape), not both."
+        )
+
+    def _build_axis(spec):
+        t = spec.get("type")
+        if t in ("daily", "weekly", "monthly", "hourly") and not spec.get("start"):
+            raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
+        if t == "daily":
+            return DailyPartitionsDefinition(start_date=spec["start"])
+        if t == "weekly":
+            return WeeklyPartitionsDefinition(start_date=spec["start"])
+        if t == "monthly":
+            return MonthlyPartitionsDefinition(start_date=spec["start"])
+        if t == "hourly":
+            return HourlyPartitionsDefinition(start_date=spec["start"])
+        if t == "cron":
+            from dagster import TimeWindowPartitionsDefinition
+            if not spec.get("start"):
+                raise ValueError(f"partition dimension type={t!r} requires 'start' (ISO date)")
+            if not spec.get("cron_schedule"):
+                raise ValueError("partition dimension type='cron' requires 'cron_schedule'")
+            return TimeWindowPartitionsDefinition(
+                start=spec["start"], fmt=spec.get("fmt") or "%Y-%m-%d", cron_schedule=spec["cron_schedule"],
+            )
+        if t == "static":
+            vals = spec.get("values") or []
+            if isinstance(vals, str):
+                vals = [v.strip() for v in vals.split(",") if v.strip()]
+            if not vals:
+                raise ValueError("partition dimension type='static' requires non-empty 'values'")
+            return StaticPartitionsDefinition(list(vals))
+        if t == "dynamic":
+            name = spec.get("dynamic_partition_name") or spec.get("name")
+            if not name:
+                raise ValueError("partition dimension type='dynamic' requires a name")
+            return DynamicPartitionsDefinition(name=name)
+        raise ValueError(f"unknown partition type: {t!r}")
+
+    if partition_dimensions:
+        if len(partition_dimensions) == 1:
+            return _build_axis(partition_dimensions[0])
+        axes = {d["name"]: _build_axis(d) for d in partition_dimensions}
+        return MultiPartitionsDefinition(axes)
+
+    if not partition_type:
+        return None
+    if isinstance(partition_values, (list, tuple)):
+        _values = [str(v).strip() for v in partition_values if str(v).strip()]
+    else:
+        _values = [v.strip() for v in (str(partition_values) if partition_values else "").split(",") if v.strip()]
+    if partition_type in ("daily", "weekly", "monthly", "hourly", "cron") and not partition_start:
+        raise ValueError(
+            f"partition_type={partition_type!r} requires partition_start (ISO date, e.g. '2024-01-01')."
+        )
+    if partition_type == "daily":
+        return DailyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "weekly":
+        return WeeklyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "monthly":
+        return MonthlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "hourly":
+        return HourlyPartitionsDefinition(start_date=partition_start)
+    if partition_type == "cron":
+        from dagster import TimeWindowPartitionsDefinition
+        if not cron_schedule:
+            raise ValueError(
+                "partition_type='cron' requires cron_schedule, e.g. '0 0 * * 1-5' for weekdays only."
+            )
+        return TimeWindowPartitionsDefinition(start=partition_start, fmt=cron_fmt, cron_schedule=cron_schedule)
+    if partition_type == "static":
+        if not _values:
+            raise ValueError("partition_type='static' requires partition_values (comma-separated).")
+        return StaticPartitionsDefinition(_values)
+    if partition_type == "dynamic":
+        if not dynamic_partition_name:
+            raise ValueError(
+                "partition_type='dynamic' requires dynamic_partition_name."
+            )
+        return DynamicPartitionsDefinition(name=dynamic_partition_name)
+    if partition_type == "multi":
+        if not _values:
+            raise ValueError("partition_type='multi' requires partition_values (comma-separated).")
+        if not partition_start:
+            raise ValueError("partition_type='multi' requires partition_start (the date axis start).")
+        return MultiPartitionsDefinition({
+            "date": DailyPartitionsDefinition(start_date=partition_start),
+            "static_dim": StaticPartitionsDefinition(_values),
+        })
+    raise ValueError(f"unknown partition_type: {partition_type!r}")
+
+
+# BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
+from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
+from pydantic import model_validator  # noqa: E402,F401
+
+
+def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
+    """Accept the shapes people (and LLMs) naturally write for common boilerplate fields."""
+    if not isinstance(data, dict):
+        return data
+    out = dict(data)
+    for k in lists:  # List[str]: "a" / "a, b" -> ["a", "b"]; strip + drop empties
+        v = out.get(k)
+        if isinstance(v, str):
+            v = v.split(",")
+        if isinstance(v, (list, tuple)):
+            out[k] = [x.strip() if isinstance(x, str) else x for x in v if not (isinstance(x, str) and not x.strip())]
+    for k in csv:  # comma-separated str given as a list -> "a,b"
+        v = out.get(k)
+        if isinstance(v, (list, tuple, set)):
+            out[k] = ",".join(str(x).strip() for x in v)
+    for k in tags:  # Dict[str, str]: scalars -> str, ["k=v"] / ["k:v"] -> {k: v}
+        v = out.get(k)
+        if isinstance(v, (list, tuple)) and v and all(isinstance(x, str) and ("=" in x or ":" in x) for x in v):
+            v = dict((p.strip() for p in (x.split("=", 1) if "=" in x else x.split(":", 1))) for x in v)
+        if isinstance(v, dict):
+            out[k] = {str(a).strip(): (str(b).lower() if isinstance(b, bool) else str(b)) for a, b in v.items() if b is not None}
+    return out
+# END field-shape normalization
+
+
 @record
 class FabricObjectProps:
     """Data passed to translation callables for each imported Fabric object.
@@ -547,6 +701,36 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         ),
     )
 
+    partition_type: Optional[str] = Field(
+        default=None,
+        description="'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic' | 'cron' | None. Same canonical shape used across this repo's other ~670 partitioned components. Applies to every runnable (Notebook/DataPipeline/Dataflow) asset built by this component instance.",
+    )
+    partition_start: Optional[str] = Field(default=None, description="Required for time-based partition_type values (ISO date, e.g. '2024-01-01').")
+    partition_values: Optional[Union[str, List[str]]] = Field(default=None, description="Comma-separated or list values for partition_type='static'/'multi'.")
+    dynamic_partition_name: Optional[str] = Field(default=None, description="Required when partition_type='dynamic'.")
+    partition_dimensions: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description="Multi-axis partitioning as a list of per-dimension specs, instead of the flat partition_type fields. Set one or the other, not both.",
+    )
+    partition_cron_schedule: Optional[str] = Field(
+        default=None,
+        description="Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only.",
+    )
+    partition_cron_fmt: Optional[str] = Field(default="%Y-%m-%d", description="strftime format for partition keys produced by partition_type='cron'.")
+    partition_parameter_name: Optional[str] = Field(
+        default=None,
+        description=(
+            "When set (and the asset is partitioned), injects the run's partition key "
+            "as this Fabric parameter name on every triggered job, merged with "
+            "default_parameters/item_parameters/load_date_parameter (those take "
+            "precedence if they also set the same key). Mirrors the same "
+            "partition-key-to-pipeline-parameter convention as azure_data_factory. "
+            "An unpartitioned downstream asset still waits on ALL partitions to "
+            "materialize before it's considered up to date -- standard Dagster "
+            "partition semantics, not specific to this component."
+        ),
+    )
+
     polling_sensor: bool = Field(
         default=False,
         description=(
@@ -578,6 +762,11 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
     @classmethod
     def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component=cls.__name__, mode="multi", optional=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_field_shapes(cls, data):
+        return coerce_field_shapes(data, csv=("partition_values",))
 
     @model_validator(mode="after")
     def _validate_exit_value_config(self):
@@ -1064,6 +1253,14 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         item_pool = (self.item_pools or {}).get(name) or self.pool
         if item_pool:
             base_kwargs["pool"] = item_pool
+        partitions_def = _build_partitions_def(
+            self.partition_type, self.partition_start, self.partition_values,
+            self.dynamic_partition_name, self.partition_dimensions,
+            cron_schedule=self.partition_cron_schedule,
+            cron_fmt=self.partition_cron_fmt or "%Y-%m-%d",
+        )
+        if partitions_def is not None:
+            base_kwargs["partitions_def"] = partitions_def
         return self._apply_translation(
             base_kwargs,
             kind=kind,
@@ -1106,6 +1303,11 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                 )
 
             run_parameters = dict(resolved_parameters)
+            if _self.partition_parameter_name and context.has_partition_key:
+                pkey = context.partition_key
+                run_parameters.setdefault(_self.partition_parameter_name, pkey)
+                context.log.info(f"partitioned run: passing {_self.partition_parameter_name}={pkey} to Fabric")
+
             load_date = None
             if _self.load_date_parameter:
                 override = context.run.tags.get("fabric/load_date_override")
@@ -1128,6 +1330,8 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             }
             if load_date is not None:
                 metadata["fabric/load_date"] = load_date
+            if context.has_partition_key:
+                metadata["fabric/partition_key"] = context.partition_key
 
             if _self.exit_value_file:
                 exit_value_path = _self.exit_value_file

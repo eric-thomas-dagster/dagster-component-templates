@@ -187,6 +187,68 @@
       "description": "Exit values (read via exit_value_file) that should turn an otherwise-Completed Fabric run into a dg.Failure with failure_class='data' -- e.g. a notebook that signals 'no_rows_processed' without itself failing. Only used when exit_value_file is set.",
       "required": false,
       "default": null
+    },
+    "partition_type": {
+      "type": "string",
+      "label": "Partition Type",
+      "description": "'daily' | 'weekly' | 'monthly' | 'hourly' | 'static' | 'dynamic' | 'cron' | None. Same canonical partitioning shape used across this repo's other partitioned components. Applies to every runnable (Notebook/DataPipeline/Dataflow) asset built by this component instance.",
+      "required": false,
+      "default": null
+    },
+    "partition_start": {
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Required for time-based partition_type values (ISO date, e.g. '2024-01-01').",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Partition Values",
+      "description": "Comma-separated or list values for partition_type='static'/'multi'.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Required when partition_type='dynamic'.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partitioning as a list of per-dimension specs, instead of the flat partition_type fields. Set one or the other, not both.",
+      "required": false,
+      "default": null
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only.",
+      "required": false,
+      "default": null
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'.",
+      "required": false,
+      "default": "%Y-%m-%d"
+    },
+    "partition_parameter_name": {
+      "type": "string",
+      "label": "Partition Parameter Name",
+      "description": "When set (and the asset is partitioned), injects the run's partition key as this Fabric parameter name on every triggered job, merged with default_parameters/item_parameters/load_date_parameter. Mirrors the same partition-key-to-pipeline-parameter convention as azure_data_factory.",
+      "required": false,
+      "default": null
     }
   }
 }

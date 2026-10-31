@@ -57,6 +57,18 @@ attributes:
 |---|---|---|---|
 | `group_name` | `str` | `"fabric"` | — |
 
+### Partitions
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `partition_type` | `str` | — | 'daily' \| 'weekly' \| 'monthly' \| 'hourly' \| 'static' \| 'dynamic' \| 'cron' \| None. Same canonical shape used across this repo's other ~670 partitioned components. Applies to every runnable (Notebook/DataPipeline/Da… _(full docs in schema.json + component README)_ |
+| `partition_start` | `str` | — | Required for time-based partition_type values (ISO date, e.g. '2024-01-01'). |
+| `partition_values` | `Union[str, List[str]]` | — | Comma-separated or list values for partition_type='static'/'multi'. |
+| `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partitioning as a list of per-dimension specs, instead of the flat partition_type fields. Set one or the other, not both. |
+| `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only. |
+| `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. |
+| `partition_parameter_name` | `str` | — | When set (and the asset is partitioned), injects the run's partition key as this Fabric parameter name on every triggered job, merged with default_parameters/item_parameters/load_date_parameter (those take precedence if… _(full docs in schema.json + component README)_ |
+
 ### Retry policy
 
 | Field | Type | Default | Description |
@@ -93,6 +105,7 @@ attributes:
 | `lakehouse_id` | `str` | — | OneLake item (GUID) to read exit_value_file from. Required when exit_value_file is set. A Notebook has no OneLake storage of its own -- notebookutils.fs resolves relative paths against its attached DEFAULT Lakehouse, not… _(full docs in schema.json + component README)_ |
 | `exit_value_file` | `str` | — | Relative OneLake path under lakehouse_id's Files/ root (e.g. 'exit_value.txt', or 'exit_values/{load_date}.txt' when load_date_parameter is also set) that the notebook ALSO writes its notebookutils.notebook.exit(...) val… _(full docs in schema.json + component README)_ |
 | `data_failure_exit_values` | `List[str]` | — | If exit_value_file's content exactly matches one of these strings (e.g. 'no_rows_processed'), an otherwise-Completed job is raised as a data-quality dg.Failure instead of succeeding silently. Only used when exit_value_file is set. |
+| `dynamic_partition_name` | `str` | — | Required when partition_type='dynamic'. |
 | `generate_sensor` | `bool` | `false` | If true, adds a polling sensor that detects new Fabric item job completions and emits AssetObservation events. Matches the `polling_sensor` convention on FivetranAccountComponent and SnowflakeWorkspaceComponent. Off by d… _(full docs in schema.json + component README)_ |
 | `sensor_check_interval_seconds` | `int` | `300` | Seconds between polling-sensor ticks. Only used when polling_sensor=True. Distinct from workspace.poll_interval_seconds, which governs the in-asset trigger-and-wait loop for runs Dagster itself kicks off. |
 | `defs_state` | `ResolvedDefsStateConfig` | `DefsStateConfigArgs.local_filesystem()` | State backend for cached workspace discovery. Local filesystem by default. Overridden per-deploy for prod runs against Dagster Cloud. |
@@ -226,19 +239,50 @@ attributes:
     expensive_notebook: fabric_jobs_heavy
 ```
 
-Subclasses that need deeper per-asset customization (partitions, extra run
-config, something this field set doesn't cover) can override
-`_runnable_asset_kwargs(...)` instead of copying all of `_build_runnable_asset`.
-Native partitioning (e.g. `daily_partitions_start_date`) is NOT implemented —
-an unpartitioned downstream asset would end up waiting on every partition,
-and this component doesn't yet have a clean answer for that; out of scope
-for now.
+Subclasses that need deeper per-asset customization this field set doesn't
+cover can override `_runnable_asset_kwargs(...)` instead of copying all of
+`_build_runnable_asset`.
 
 Set the `fabric/skip` run tag to `"true"` to audit-skip the actual Fabric
 trigger for a run — useful for a dry-run or a manually-excluded item without
 changing component config. The asset still materializes (with
 `fabric_skipped: true` metadata) so downstream assets aren't blocked, but no
 Fabric API call is made.
+
+## Partitions
+
+```yaml
+type: dagster_community_components.FabricWorkspaceComponent
+attributes:
+  workspace:
+    workspace_id: "{{ env.FABRIC_WORKSPACE_ID }}"
+  import_pipelines: true
+  partition_type: daily
+  partition_start: "2024-01-01"
+  partition_parameter_name: run_date
+```
+
+`partition_type` (`daily` / `weekly` / `monthly` / `hourly` / `static` /
+`dynamic` / `cron`) applies the same canonical, widely-shared partitioning
+shape used across this repo's other partitioned components to every
+runnable asset built by this component instance — including
+`partition_cron_schedule`/`partition_cron_fmt` for a custom cadence (e.g.
+`'0 0 * * 1-5'` for weekdays only) and `partition_dimensions` for multi-axis
+partitioning instead of the flat fields. This enables native multi-date
+backfill in the Dagster UI/CLI, not just a single on-demand trigger per item.
+
+When `partition_parameter_name` is also set, the run's own `partition_key` is
+injected as that Fabric parameter name on every triggered job (merged with
+`default_parameters`/`item_parameters`/`load_date_parameter` — those take
+precedence if they also set the same key), the same partition-key-to-
+pipeline-parameter convention `azure_data_factory` uses, and attached as
+`fabric/partition_key` metadata. Without `partition_parameter_name`, the
+asset is still a real partitioned asset (for scheduling/backfill purposes),
+but the Fabric job itself never learns which partition triggered it.
+
+As with any Dagster partitioned asset, an unpartitioned downstream asset
+waits on **every** partition before it's considered up to date — standard
+Dagster semantics, not specific to this component.
 
 ## Observation sensor
 

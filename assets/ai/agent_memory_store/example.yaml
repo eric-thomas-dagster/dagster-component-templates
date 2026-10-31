@@ -26,14 +26,18 @@ attributes:
 
   # Real mode (demo_mode: false) example -- Mem0's own self-hosted default
   # stack if vector_store/llm/embedder are all left unset is Qdrant (on-disk)
-  # + OpenAI (requires OPENAI_API_KEY). To use a different stack:
+  # + OpenAI (requires OPENAI_API_KEY). NOTE: Mem0's own zero-config default
+  # model (gpt-5-mini) currently crashes -- its default temperature=0.1
+  # isn't accepted by that model's real API (confirmed live 2026-10-31,
+  # see README "Known issue"). Set llm explicitly to a model that accepts
+  # a custom temperature, e.g.:
   #
   # vector_store:
   #   provider: qdrant
   #   config: {host: localhost, port: 6333}
   # llm:
   #   provider: openai
-  #   config: {model: gpt-5-mini}
+  #   config: {model: gpt-4o-mini, temperature: 0.1}
   # embedder:
   #   provider: openai
   #   config: {model: text-embedding-3-small}

@@ -1061,7 +1061,7 @@
       "icon": "Brain",
       "validation": {
         "level": "live",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/agent_memory_formation.md -- real dg launch end-to-end via the CLI (RUN_SUCCESS, memory_search_smoke_check asset check passed, real formed memories inspected in the demo JSON file). Plus 12 pytest cases (grouping by user_id/run_id, infer semantics, real-mode config passthrough). No live Mem0/OpenAI/Qdrant call tested -- get_all/update/delete are not implemented (unverified OSS API shapes).",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/agent_memory_formation.md -- real dg launch end-to-end via the CLI (RUN_SUCCESS, memory_search_smoke_check asset check passed, real formed memories inspected in the demo JSON file). Plus 12 pytest cases (grouping by user_id/run_id, infer semantics, real-mode config passthrough). Real mode (demo_mode: false) separately live-verified against actual mem0ai + real OpenAI (gpt-4o-mini extraction, text-embedding-3-small embeddings) + real on-disk Qdrant: a two-turn conversation was correctly consolidated into two distinct real extracted facts, validate_search passed for real, and the facts were independently re-confirmed durable via a second, separate Memory() instance's own real search. This run also found a real bug in Mem0's own current defaults (gpt-5-mini zero-config default rejects Mem0's hardcoded temperature=0.1) -- documented as a workaround in the component's README, not fixable on our side. get_all/update/delete remain unimplemented (unverified OSS API shapes).",
         "last_validated": "2026-10-31"
       },
       "agent_hints": {

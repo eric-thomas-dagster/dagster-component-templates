@@ -18,7 +18,17 @@ This component wraps `add()` (write) and an optional `search()` smoke check — 
 
 `demo_mode: true` (the default) never calls Mem0, an LLM, or an embedder. The component's internal `_DemoMemoryClient` persists to a local JSON file (`demo_store_path`, default `./{asset_name}_agent_memory_demo.json`) and returns real-shaped `add()`/`search()` responses — `infer=true` extracts the last user message as the "memory" (a simple stand-in for real fact extraction), `infer=false` stores the raw message list verbatim, matching Mem0's own documented `infer` semantics.
 
-Set `demo_mode: false` for a real Mem0 stack. If `vector_store`/`llm`/`embedder` are all left unset, Mem0's own self-hosted default applies: on-disk Qdrant + OpenAI (`gpt-5-mini` for extraction, `text-embedding-3-small` for embeddings) — requires `OPENAI_API_KEY`. Set any of the three to use a different stack, e.g.:
+Set `demo_mode: false` for a real Mem0 stack. If `vector_store`/`llm`/`embedder` are all left unset, Mem0's own self-hosted default applies: on-disk Qdrant + OpenAI (`gpt-5-mini` for extraction, `text-embedding-3-small` for embeddings) — requires `OPENAI_API_KEY`.
+
+**Known issue with Mem0's own zero-config default (confirmed live, 2026-10-31):** Mem0's default config hardcodes `temperature: 0.1` for the extraction LLM call, but `gpt-5-mini` (Mem0's own default model) only accepts its default temperature (`1`) — OpenAI rejects anything else with `400 Unsupported value: 'temperature' does not support 0.1 with this model`, which surfaces as `mem0.exceptions.LLMError: LLM extraction failed`. This is a bug in Mem0's own current defaults, not this component. **Workaround:** set `llm` explicitly to a model that accepts a custom temperature, e.g.:
+
+```yaml
+llm:
+  provider: openai
+  config: {model: gpt-4o-mini, temperature: 0.1}
+```
+
+To use a fully custom stack instead of Mem0's defaults:
 
 ```yaml
 vector_store:
@@ -26,12 +36,14 @@ vector_store:
   config: {host: localhost, port: 6333}
 llm:
   provider: openai
-  config: {model: gpt-5-mini}
+  config: {model: gpt-4o-mini, temperature: 0.1}
 ```
 
 ## Validation notes
 
 Verified directly against Mem0's own docs (`docs.mem0.ai`), not inferred from a blog: the self-hosted quickstart confirms `Memory()`'s zero-config defaults and the `add(messages, user_id=...)` / `search(query, filters={"user_id": ...})` shapes (note: `search` takes a `filters` dict, not a `user_id` keyword argument — an easy mistake, since the cloud API's examples read differently). The configuration docs confirm `Memory.from_config({"vector_store": {...}, "llm": {...}, "embedder": {...}})`. `add()`'s full parameter list beyond `messages`/`user_id` (i.e. `agent_id`/`run_id`/`metadata`/`infer`) is confirmed on Mem0's cloud API reference but not pinned down for the self-hosted class specifically — see "Scope" above for how this component handles that gap.
+
+**Real-mode round-trip verified live (2026-10-31, not just `demo_mode`):** `demo_mode: false` against real `mem0ai` + real OpenAI (`gpt-4o-mini` extraction + `text-embedding-3-small` embeddings) + real on-disk Qdrant. A two-turn conversation ("I'm allergic to shellfish and prefer window seats" / "Got it...") correctly extracted into **two distinct consolidated facts** ("User is allergic to shellfish.", "User prefers window seats when flying.") — real semantic fact extraction, not just storage. `validate_search` passed for real (2 results). Independently re-verified by opening a **second, separate** `Memory()` instance after the run and searching it directly — the facts were durably persisted to real on-disk storage, not just an in-process artifact. This run is also what surfaced the `temperature`/`gpt-5-mini` incompatibility documented above.
 
 ## Relationship to a receipt-store / agent-memory platform play
 

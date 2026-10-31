@@ -98,7 +98,6 @@ class _ApprovalFS:
         if self.is_uri:
             self.fs.mv(src, dst)
         else:
-            Path(dst).rsplit("/", 1) if "/" in dst else None
             Path(dst).parent.mkdir(parents=True, exist_ok=True)
             shutil.move(src, dst)
     def delete(self, p: str) -> None:

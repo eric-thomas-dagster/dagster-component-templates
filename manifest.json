@@ -5820,9 +5820,9 @@
         ]
       },
       "validation": {
-        "level": "code",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/hitl_bundle.md",
-        "last_validated": "2026-08-20"
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/hitl_bundle.md. Also live-validated via https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/agent_governance_escalation.md and https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/compliance_evidence_automation.md.",
+        "last_validated": "2026-10-31"
       },
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -13569,7 +13569,7 @@
       "validation": {
         "level": "code",
         "last_validated": "2026-10-21",
-        "notes": "Receipts, excluded items, outcomes, evidence-weighted scoring, rerank/exploration, async writer, versioned spec (JSON Schema conformance), per-partition staleness and rebuilds, lineage-walking recall with partition mapping, context-health asset checks (executed for real), MCP/trace ids on receipts, @context_asset decorator with enforceable policy, downstream consumption validation, retention enforcement, grounding check and context_health, implicit reformulation signals, and the usage sensor (real DagsterInstance) tested locally; FastMCP gateway and middleware tested against FastMCP 4.1.0. Also covers the warehouse backends added since: backend='bigquery' and the generic backend='sql' (Postgres/MySQL/Snowflake/Databricks/DuckDB, via SQLAlchemy or a plain DBAPI connector) are parity-tested against the SQLite store's own results, with transient-failure retries, vendor-client contract tests against the real client libraries, fuzz tests, and the generated SQL audited against the Snowflake/BigQuery/Databricks docs -- not run against a real warehouse (tools/verify_receipts_backend.py is the one-command self-test to run against yours). Also runnable end to end (not just committed tests): https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering.md (serving via rag_pipeline), https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering_mcp.md (serving via a standalone FastMCP gateway reading/writing this store directly), and https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering_partitioned.md (the identical loop with a daily-partitioned build: a rebuild of only the one partition whose chunk picked up bad feedback correctly excludes it while never-served partitions stay untouched) -- all run end to end, exit 0."
+        "notes": "Receipts, excluded items, outcomes, evidence-weighted scoring, rerank/exploration, async writer, versioned spec (JSON Schema conformance), per-partition staleness and rebuilds, lineage-walking recall with partition mapping, context-health asset checks (executed for real), MCP/trace ids on receipts, @context_asset decorator with enforceable policy, downstream consumption validation, retention enforcement, grounding check and context_health, implicit reformulation signals, and the usage sensor (real DagsterInstance) tested locally; FastMCP gateway and middleware tested against FastMCP 4.1.0. Also covers the warehouse backends added since: backend='bigquery' and the generic backend='sql' (Postgres/MySQL/Snowflake/Databricks/DuckDB, via SQLAlchemy or a plain DBAPI connector) are parity-tested against the SQLite store's own results, with transient-failure retries, vendor-client contract tests against the real client libraries, fuzz tests, and the generated SQL audited against the Snowflake/BigQuery/Databricks docs -- not run against a real warehouse (tools/verify_receipts_backend.py is the one-command self-test to run against yours). Also runnable end to end (not just committed tests): https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering.md (serving via rag_pipeline), https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering_mcp.md (serving via a standalone FastMCP gateway reading/writing this store directly), https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/context_engineering_partitioned.md (the identical loop with a daily-partitioned build: a rebuild of only the one partition whose chunk picked up bad feedback correctly excludes it while never-served partitions stay untouched), and https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/receipts_learning_loop.md (the generalized version of the same loop as a standalone vector_store_writer/rag_pipeline chain rather than context_engineering_pipeline: 10 real receipts written, 10 outcomes ingested, 10 real learned priors computed via refresh_item_scores() and read back on a second retrieval round) -- all run end to end, exit 0."
       },
       "produces": [
         "resource"
@@ -15429,7 +15429,7 @@
         "pip": [
           "dagster",
           "pydantic",
-          "mcp>=1.30,<3   # only for the stdio MCP server entrypoint (python component.py); verified with mcp 1.30.0 and 2.3.0. The toolset + resource do not need it"
+          "mcp>=1.30,<3"
         ]
       },
       "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_instance_tools/README.md",
@@ -15439,9 +15439,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_instance_tools/requirements.txt",
       "icon": "MagnifyingGlass",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-10-23",
-        "evidence": "tests/ in the component dir: real on-disk Dagster instance with succeeding, failing, partitioned and failing-check assets; stdio MCP server driven by the real mcp client and by agentic_pipeline's own MCP discovery. Some answers are impossible without definitions_module; Dagster+ and remote instances not exercised."
+        "level": "live",
+        "last_validated": "2026-10-31",
+        "evidence": "tests/ in the component dir: real on-disk Dagster instance with succeeding, failing, partitioned and failing-check assets; stdio MCP server driven by the real mcp client and by agentic_pipeline's own MCP discovery. Some answers are impossible without definitions_module; Dagster+ and remote instances not exercised. Also live-validated via the real CLI: https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/self_healing_pipeline.md -- a real RUN_FAILURE diagnosed via list_recent_failures/get_run_summary, real error class/message/stack-tail pulled from Dagster's own event log. This build also found and fixed two real packaging bugs: an empty __init__.py that didn't export the component class (a pattern that turned out to affect 15 other components too, also fixed), and an unparseable inline requirements.txt comment."
       },
       "agent_hints": {
         "inputs": "allow (tool allow-list), max_result_chars, definitions_module (optional; unlocks downstream lineage and partition totals), DAGSTER_HOME for the MCP server.",
@@ -27621,8 +27621,9 @@
       "component_type": "dagster_community_components.FivetranUsageObservationSensorComponent",
       "icon": "favicon:fivetran.com",
       "validation": {
-        "level": "component_only",
-        "last_validated": "2026-10-30"
+        "level": "live",
+        "last_validated": "2026-10-31",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/fivetran_cost_governance.md -- real tick logic verified via dagster.build_sensor_context() across two ticks (sensors run on the daemon, not dg launch), confirming the delta-not-level and skip-if-unchanged behavior for real, then the downstream budget-check -> Slack-alert chain verified via a real dg launch."
       },
       "agent_hints": {
         "outputs": [
@@ -43215,9 +43216,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/multi_approver_gate/requirements.txt",
       "icon": "UsersRound",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-08-31",
-        "evidence": "dagster.materialize verified all three quorum states end-to-end (pending / approved / rejected) plus allowlist filter, on a fresh uvx create-dagster project."
+        "level": "live",
+        "last_validated": "2026-10-31",
+        "evidence": "dagster.materialize verified all three quorum states end-to-end (pending / approved / rejected) plus allowlist filter, on a fresh uvx create-dagster project. Also live-validated via the real CLI: https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/agent_governance_escalation.md (2-of-3 quorum, both approve and reject paths) and https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/compliance_evidence_automation.md (1-of-2 quorum)."
       },
       "agent_hints": {
         "inputs": "upstream_asset_key — asset whose value passes through when quorum approves.",
@@ -52819,9 +52820,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/rag_grounding_check/requirements.txt",
       "icon": "Check",
       "validation": {
-        "level": "code",
-        "evidence": "Live-verified, nothing mocked: mode='overlap' scoring on genuinely-grounded and genuinely-ungrounded (fabricated-detail) answers, including a regression test for a real false positive found live ('Q3' misread as the number '3' before a word-boundary fix); cross-materialization regression detection (mirrors rag_eval exactly) -- a first 'good' materialization passes, a second 'bad' one correctly detects the drop and fails; source: {kind: warehouse_query} against a real DuckDB database; max_fabrication_rate/mutual-exclusivity/invalid-mode validation guards. Mocked (no free/local backend exists): mode='llm_judge' -- litellm.completion is mocked, prompt construction/JSON parsing/score-mapping logic verified for real.",
-        "last_validated": "2026-09-28"
+        "level": "live",
+        "evidence": "Live-verified, nothing mocked: mode='overlap' scoring on genuinely-grounded and genuinely-ungrounded (fabricated-detail) answers, including a regression test for a real false positive found live ('Q3' misread as the number '3' before a word-boundary fix); cross-materialization regression detection (mirrors rag_eval exactly) -- a first 'good' materialization passes, a second 'bad' one correctly detects the drop and fails; source: {kind: warehouse_query} against a real DuckDB database; max_fabrication_rate/mutual-exclusivity/invalid-mode validation guards. Mocked (no free/local backend exists): mode='llm_judge' -- litellm.completion is mocked, prompt construction/JSON parsing/score-mapping logic verified for real. Also live-validated via the real CLI: https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/trustworthy_rag.md -- mode: overlap evaluated end-to-end against 3 real generated answers alongside llm_judge.",
+        "last_validated": "2026-10-31"
       },
       "agent_hints": {
         "inputs": "Query/answer/sources rows via upstream_asset_key (e.g. rag_pipeline's generate-step output) or source: {kind: warehouse_query, resource_key, sql}.",
@@ -53262,9 +53263,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/receipt_outcome_ingestion/requirements.txt",
       "icon": "ThumbsUp",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-10-17",
-        "evidence": "tests/ in the component dir: real ContextReceiptStore, real files, real DuckDB resource, real local HTTP server (pagination, secret headers); idempotent re-ingest, supersession, cursor, loop proof into item_feedback. Zendesk preset mapping written from documentation, not run against Zendesk."
+        "level": "live",
+        "last_validated": "2026-10-31",
+        "evidence": "tests/ in the component dir: real ContextReceiptStore, real files, real DuckDB resource, real local HTTP server (pagination, secret headers); idempotent re-ingest, supersession, cursor, loop proof into item_feedback. Zendesk preset mapping written from documentation, not run against Zendesk. Also live-validated via the real CLI: https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/receipts_learning_loop.md -- 10 real outcomes ingested, feeding 10 real learned per-chunk priors via refresh_item_scores()."
       },
       "agent_hints": {
         "inputs": "store_resource_key (a ContextReceiptStore resource); source {kind: sql|file|http_json}; mapping {receipt_id, signal|signal_value, value|value_map|scale, outcome_ref, occurred_at}.",
@@ -54058,9 +54059,9 @@
         ]
       },
       "validation": {
-        "level": "code",
-        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/hitl_bundle.md",
-        "last_validated": "2026-08-20"
+        "level": "live",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/hitl_bundle.md. Also live-validated (and a real crash fixed -- _ApprovalFS.move() called Path.rsplit(), a str-only method, on every call) via https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/agent_governance_escalation.md -- both the approve and real reject-with-feedback-and-re-run paths.",
+        "last_validated": "2026-10-31"
       },
       "version": "1.0.0",
       "author": "Dagster Community",
@@ -62707,9 +62708,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/structured_document_extractor/requirements.txt",
       "icon": "FileSearch",
       "validation": {
-        "level": "code",
-        "evidence": "Verified end-to-end against a real local Dagster materialization for BOTH input modes: upstream_asset_key (file_lister -> this component) and path (this component listing files directly, no separate asset) -- litellm.completion mocked to avoid real API spend. Preset resolution, the custom-with-no-output_fields error path, the unknown-document_type error path, and the both-modes/neither-mode-set error path all behave as documented. Also verified post_process (move and delete): successfully-extracted rows' source files are moved/deleted, a failed row's file is left in place for retry, and both post_process='move' without post_process_dir and post_process set with input_type='text' raise the documented validation errors. Also verified against REAL files: a real PNG is base64-encoded correctly into a vision content block (decoded bytes checked against the real PNG header, not just mocked), a real digitally-generated PDF has its actual pdfplumber-extracted text reach the prompt instead of raw PDF bytes, a PDF with no extractable text fails that row cleanly (previously this whole file-reading path silently produced garbage for every PDF/image -- opened in text mode with errors='replace' regardless of extension), llm_max_retries is forwarded to litellm's num_retries, and malformed/non-object LLM JSON responses are handled as clean per-row failures. Also verified field_regions: a region crop was checked pixel-by-pixel (a red/blue split test image) to confirm the correct area is cropped and sent as an extra labeled content block alongside the full image; no field_regions set produces exactly the prior message shape.",
-        "last_validated": "2026-09-25"
+        "level": "live",
+        "evidence": "Verified end-to-end against a real local Dagster materialization for BOTH input modes: upstream_asset_key (file_lister -> this component) and path (this component listing files directly, no separate asset) -- litellm.completion mocked to avoid real API spend. Preset resolution, the custom-with-no-output_fields error path, the unknown-document_type error path, and the both-modes/neither-mode-set error path all behave as documented. Also verified post_process (move and delete): successfully-extracted rows' source files are moved/deleted, a failed row's file is left in place for retry, and both post_process='move' without post_process_dir and post_process set with input_type='text' raise the documented validation errors. Also verified against REAL files: a real PNG is base64-encoded correctly into a vision content block (decoded bytes checked against the real PNG header, not just mocked), a real digitally-generated PDF has its actual pdfplumber-extracted text reach the prompt instead of raw PDF bytes, a PDF with no extractable text fails that row cleanly (previously this whole file-reading path silently produced garbage for every PDF/image -- opened in text mode with errors='replace' regardless of extension), llm_max_retries is forwarded to litellm's num_retries, and malformed/non-object LLM JSON responses are handled as clean per-row failures. Also verified field_regions: a region crop was checked pixel-by-pixel (a red/blue split test image) to confirm the correct area is cropped and sent as an extra labeled content block alongside the full image; no field_regions set produces exactly the prior message shape. Also live-validated via the real CLI: https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/generative_media_pipeline.md -- structuring real video-scene summaries into fields, chained into embeddings_generator -> vector_store_writer.",
+        "last_validated": "2026-10-31"
       },
       "agent_hints": {
         "inputs": "A DataFrame with a column of document text or file paths (e.g. file_lister's local_path column).",
@@ -67366,8 +67367,9 @@
       "component_type": "dagster_community_components.VantaEvidenceResponseAgentComponent",
       "icon": "favicon:vanta.com",
       "validation": {
-        "level": "code",
-        "last_validated": "2026-07-06"
+        "level": "live",
+        "last_validated": "2026-10-31",
+        "evidence": "https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/compliance_evidence_automation.md -- real evidence narratives drafted for 2 SOC2 controls, quorum (1/1) APPROVED end-to-end via a real dg launch."
       },
       "produces": [
         "asset"
@@ -68145,9 +68147,9 @@
       "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/video_scene_summarizer/requirements.txt",
       "icon": "Film",
       "validation": {
-        "level": "code",
-        "evidence": "Verified end-to-end against REAL ffmpeg-generated videos (not just mocked content, litellm.completion mocked to avoid real API spend): a real 3-scene video (red->blue->green hard cuts) correctly detects 2 scene boundaries at the right timestamps, extracts real non-empty frame files, and each scene gets a (mocked) LLM summary; a genuinely static video correctly falls back to a single first-frame row instead of producing zero rows; a corrupt/unreadable video is counted as a real error in video_errors output metadata instead of failing the whole run or being silently skipped. Two real ffmpeg compatibility bugs were caught and fixed by this real-file testing (not visible against mocks): -vsync vfr was removed in ffmpeg 9.x (now -fps_mode vfr), and ffmpeg exits nonzero -- not zero -- when the scene filter matches no frames at all (handled explicitly rather than treated as a hard failure).",
-        "last_validated": "2026-09-25"
+        "level": "live",
+        "evidence": "Verified end-to-end against REAL ffmpeg-generated videos (not just mocked content, litellm.completion mocked to avoid real API spend): a real 3-scene video (red->blue->green hard cuts) correctly detects 2 scene boundaries at the right timestamps, extracts real non-empty frame files, and each scene gets a (mocked) LLM summary; a genuinely static video correctly falls back to a single first-frame row instead of producing zero rows; a corrupt/unreadable video is counted as a real error in video_errors output metadata instead of failing the whole run or being silently skipped. Two real ffmpeg compatibility bugs were caught and fixed by this real-file testing (not visible against mocks): -vsync vfr was removed in ffmpeg 9.x (now -fps_mode vfr), and ffmpeg exits nonzero -- not zero -- when the scene filter matches no frames at all (handled explicitly rather than treated as a hard failure). Also live-validated with a real OPENAI_API_KEY via the real CLI: https://github.com/eric-thomas-dagster/dagster-community-components-cli/blob/main/examples/generative_media_pipeline.md -- real vision-LLM summarization chained into structured_document_extractor -> embeddings_generator -> vector_store_writer.",
+        "last_validated": "2026-10-31"
       },
       "agent_hints": {
         "inputs": "A DataFrame with a column of video file paths (e.g. file_lister's local_path column, or synthetic_video_generator's file_path column).",

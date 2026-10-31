@@ -43,6 +43,7 @@ Reference: https://learn.microsoft.com/rest/api/fabric/
 
 import hashlib
 import json
+import logging
 import time
 from pathlib import Path
 from typing import Annotated, Any, Dict, List, Optional
@@ -77,6 +78,8 @@ from pydantic import ConfigDict, Field
 
 _FABRIC_API_BASE = "https://api.fabric.microsoft.com/v1"
 _FABRIC_SCOPE = "https://api.fabric.microsoft.com/.default"
+
+_logger = logging.getLogger(__name__)
 _ONELAKE_STORAGE_SCOPE = "https://storage.azure.com/.default"
 _ONELAKE_DFS_BASE = "https://onelake.dfs.fabric.microsoft.com"
 
@@ -998,10 +1001,20 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         same include_names/filter_by_comment_pattern union/OR precedence
         snowflake_workspace already uses (replicated here for parity, not
         reinvented).
+
+        All four filters are case-insensitive, matching
+        snowflake_workspace's own convention exactly (it applies
+        re.IGNORECASE to exclude_name_pattern/filter_by_name_pattern/
+        filter_by_comment_pattern too, not just its comment-based filter) --
+        an earlier version of this method applied IGNORECASE only to
+        filter_by_description_pattern and include_names, which meant
+        `exclude_name_pattern: FUEL` silently failed to exclude
+        `fuel_price_transform` (component-feedback: "case handling is
+        inconsistent").
         """
         import re
 
-        if self.exclude_name_pattern and re.search(self.exclude_name_pattern, name):
+        if self.exclude_name_pattern and re.search(self.exclude_name_pattern, name, re.IGNORECASE):
             return False
 
         has_inclusion_criteria = bool(
@@ -1012,7 +1025,7 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
 
         if self.include_names and name.upper() in {n.upper() for n in self.include_names}:
             return True
-        if self.filter_by_name_pattern and re.search(self.filter_by_name_pattern, name):
+        if self.filter_by_name_pattern and re.search(self.filter_by_name_pattern, name, re.IGNORECASE):
             return True
         if self.filter_by_description_pattern and description:
             if re.search(self.filter_by_description_pattern, description, re.IGNORECASE):
@@ -1188,11 +1201,13 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             "semantic_models": [],
             "reports": [],
         }
+        survivor_count = 0
         for item in items:
             item_type = item.get("type", "")
             name = item.get("displayName") or item.get("name") or "unnamed"
             if not self._matches_filter(name, description=item.get("description")):
                 continue
+            survivor_count += 1
             row = {
                 "id": item.get("id"),
                 "displayName": name,
@@ -1215,11 +1230,105 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             elif item_type == "Report":
                 buckets["reports"].append(row)
 
+        self._warn_on_unmatched_filters(items, survivor_count)
+        runnable_names = {
+            row["displayName"]
+            for kind in ("notebooks", "pipelines", "dataflows")
+            for row in buckets[kind]
+        }
+        self._warn_on_unmatched_item_settings(runnable_names)
+
         state = {
             "workspace_id": self.workspace.workspace_id,
             **buckets,
         }
         state_path.write_text(json.dumps(state, indent=2, default=str))
+
+    def _warn_on_unmatched_item_settings(self, runnable_names: set) -> None:
+        """Warn when a key in item_parameters/item_pools/item_partitions/
+        item_execution_data doesn't match any surviving runnable (Notebook/
+        DataPipeline/Dataflow) item's display name -- at state-write time,
+        not silently. A misspelled key here previously left that item with
+        no override at all: unpartitioned instead of backfillable
+        (item_partitions), no pool (item_pools), the wrong/default
+        parameters (item_parameters/item_execution_data) -- with nothing
+        anywhere saying the key never matched (component-feedback: "a
+        misspelled key in item_partitions leaves the notebook unpartitioned
+        so no backfill").
+        """
+        for field_name, mapping in (
+            ("item_parameters", self.item_parameters),
+            ("item_pools", self.item_pools),
+            ("item_partitions", self.item_partitions),
+            ("item_execution_data", self.item_execution_data),
+        ):
+            if not mapping:
+                continue
+            for key in mapping:
+                if key not in runnable_names:
+                    _logger.warning(
+                        f"fabric_workspace: {field_name} key {key!r} doesn't match any "
+                        "discovered Notebook/DataPipeline/Dataflow item's display name -- "
+                        "check for a typo or a renamed item. This override will never apply."
+                    )
+
+    def _warn_on_unmatched_filters(self, items: List[dict], survivor_count: int) -> None:
+        """Warn when a configured filter matched nothing, at state-write
+        time -- not just silently returning an empty/smaller-than-expected
+        set. Without this, a misspelled `include_names` entry (or a regex
+        that never matches) silently drops that item with no hint anywhere
+        (component-feedback: a downstream asset keeps depending on the now-
+        missing item's key with no indication why it never shows up).
+
+        Checked against the FULL discovered item list (before
+        exclude_name_pattern's own veto) -- the goal is catching a typo'd
+        name/pattern, not re-explaining that something was deliberately
+        excluded.
+        """
+        import re
+
+        if not items:
+            return
+        all_names = [item.get("displayName") or item.get("name") or "unnamed" for item in items]
+        all_descriptions = [item.get("description") for item in items]
+
+        if self.include_names:
+            upper_names = {n.upper() for n in all_names}
+            for entry in self.include_names:
+                if entry.upper() not in upper_names:
+                    _logger.warning(
+                        f"fabric_workspace: include_names entry {entry!r} matched no "
+                        "discovered Fabric item -- check for a typo or a renamed item."
+                    )
+
+        if self.filter_by_name_pattern:
+            if not any(re.search(self.filter_by_name_pattern, n, re.IGNORECASE) for n in all_names):
+                _logger.warning(
+                    f"fabric_workspace: filter_by_name_pattern {self.filter_by_name_pattern!r} "
+                    "matched no discovered Fabric item."
+                )
+
+        if self.filter_by_description_pattern:
+            if not any(
+                d and re.search(self.filter_by_description_pattern, d, re.IGNORECASE)
+                for d in all_descriptions
+            ):
+                _logger.warning(
+                    f"fabric_workspace: filter_by_description_pattern "
+                    f"{self.filter_by_description_pattern!r} matched no discovered Fabric item."
+                )
+
+        has_any_filter = bool(
+            self.include_names or self.filter_by_name_pattern
+            or self.filter_by_description_pattern or self.exclude_name_pattern
+        )
+        if has_any_filter and survivor_count == 0:
+            _logger.warning(
+                f"fabric_workspace: {len(items)} Fabric item(s) discovered, but the "
+                "configured filters (include_names/filter_by_name_pattern/"
+                "filter_by_description_pattern/exclude_name_pattern) excluded ALL of "
+                "them -- the cached state will be empty."
+            )
 
     def build_defs_from_state(
         self,
@@ -1791,8 +1900,24 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                 "fabric_status_code": resp.status_code,
                 "failure_class": failure_class,
             }
+            description = f"[{failure_class}] Fabric run trigger failed ({resp.status_code}): {error['message']}"
+            if error["errorCode"] == "ItemNotFound":
+                # Confirmed via the Job Scheduler REST reference's own
+                # documented error code list. The cached discovery state knew
+                # this item (it's the one being triggered), but Fabric now
+                # says it doesn't exist -- deleted or renamed since the last
+                # refresh. The asset stays in Dagster's catalog until the next
+                # refresh-defs-state, so this is otherwise an opaque Fabric
+                # error with no hint that the cache (not the trigger logic) is
+                # the real problem (component-feedback: "a run against it
+                # fails with the raw Fabric error, labelled other").
+                description += (
+                    " -- this item's cached state may be stale (deleted or renamed in "
+                    "Fabric since the last discovery refresh); run `dg utils "
+                    "refresh-defs-state` to re-sync."
+                )
             failure_exc = dg.Failure(
-                description=f"[{failure_class}] Fabric run trigger failed ({resp.status_code}): {error['message']}",
+                description=description,
                 metadata=md,
             )
             if trigger_is_retriable:
@@ -1805,15 +1930,20 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
             return {"status": "Triggered", "instance_url": None}
 
         asset_log.info(f"Fabric job triggered. Instance: {instance_url}")
-        elapsed = 0
+        # Monotonic wall-clock elapsed time, not a sleep-count accumulator --
+        # `elapsed += poll_interval_seconds` ignored how long each poll's own
+        # HTTP round-trip took, so max_wait_seconds was exceeded whenever
+        # polls were slow, and with poll_interval_seconds=0 it never timed
+        # out at all (component-feedback: "read from the code, not run").
+        start_time = time.monotonic()
         reached_fabric_terminal_state = False
         try:
-            while elapsed < self.workspace.max_wait_seconds:
+            while (elapsed := time.monotonic() - start_time) < self.workspace.max_wait_seconds:
                 state_resp = requests.get(instance_url, headers=headers, timeout=60)
                 state_resp.raise_for_status()
                 state = state_resp.json()
                 status = state.get("status", "Unknown")
-                asset_log.info(f"Fabric job: status={status} elapsed={elapsed}s")
+                asset_log.info(f"Fabric job: status={status} elapsed={elapsed:.1f}s")
 
                 if status == "Completed":
                     reached_fabric_terminal_state = True
@@ -1867,11 +1997,11 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
                     raise failure_exc
 
                 time.sleep(self.workspace.poll_interval_seconds)
-                elapsed += self.workspace.poll_interval_seconds
 
-            asset_log.warning(f"Fabric job timed out after {elapsed}s.")
+            elapsed = time.monotonic() - start_time
+            asset_log.warning(f"Fabric job timed out after {elapsed:.1f}s.")
             raise dg.Failure(
-                description=f"Fabric job for item {item_id} timed out after {elapsed}s waiting for completion.",
+                description=f"Fabric job for item {item_id} timed out after {elapsed:.1f}s waiting for completion.",
                 metadata={
                     "fabric_item_id": item_id,
                     "fabric_item_type": item_type,

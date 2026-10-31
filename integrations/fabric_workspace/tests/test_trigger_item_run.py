@@ -158,6 +158,34 @@ def test_timeout_raises_failure_and_cancels_the_job(auth, monkeypatch):
     assert cancel_calls == ["https://fabric/instances/1/cancel"]
 
 
+def test_timeout_uses_a_monotonic_clock_not_a_sleep_count(auth, monkeypatch):
+    """Component-feedback: `elapsed += poll_interval_seconds` ignored how
+    long each poll's own HTTP round-trip took. With poll_interval_seconds=0
+    specifically, the old accumulator literally never advanced regardless of
+    how much real wall-clock time passed polling took -- an infinite loop,
+    never timing out. Simulate a SLOW poll (the fake GET itself takes real
+    time) with poll_interval_seconds=0 and max_wait_seconds=1 -- two
+    ~0.6s-real-time polls cross the 1-second threshold, so this must time
+    out via the monotonic clock; the old code would hang here forever."""
+    import time as _time
+    import requests
+    monkeypatch.setattr(requests, "post", lambda *a, **k: _FakeResponse(202, headers={"Location": "https://fabric/instances/1"}))
+
+    def _slow_get(*a, **k):
+        _time.sleep(0.6)
+        return _FakeResponse(200, {"status": "InProgress", "id": "job-1"})
+
+    monkeypatch.setattr(requests, "get", _slow_get)
+
+    comp = _component(workspace=FabricResource(
+        workspace_id="ws-1", tenant_id="t", client_id="c", client_secret="s",
+        poll_interval_seconds=0, max_wait_seconds=1,
+    ))
+    with pytest.raises(dg.Failure) as exc_info:
+        comp._trigger_item_run(_ctx(), "item-1", "DataPipeline")
+    assert "timed out" in exc_info.value.description
+
+
 def test_completed_job_does_not_call_cancel(auth, monkeypatch):
     import requests
     cancel_calls = []

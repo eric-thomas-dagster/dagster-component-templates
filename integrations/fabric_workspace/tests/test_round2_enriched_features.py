@@ -422,6 +422,35 @@ def test_trigger_failure_path_has_class_prefix_and_metadata(auth, monkeypatch):
     assert exc_info.value.description.startswith("[auth]")
 
 
+def test_item_not_found_gets_a_stale_state_hint(auth, monkeypatch):
+    """Component-feedback: a notebook deleted/renamed in Fabric stays an
+    asset until the next refresh-defs-state; a run against it previously
+    just surfaced the raw Fabric ItemNotFound error with no hint that the
+    CACHE, not the trigger logic, is stale."""
+    import requests
+    monkeypatch.setattr(requests, "post", lambda *a, **k: _FakeResponse(
+        404, json_body={"errorCode": "ItemNotFound", "message": "Requested item ID not found."},
+    ))
+
+    comp = _component()
+    with pytest.raises(dg.Failure) as exc_info:
+        comp._trigger_item_run(_ctx(), "item-1", "DataPipeline")
+    assert "refresh-defs-state" in exc_info.value.description
+    assert "stale" in exc_info.value.description
+
+
+def test_other_errors_get_no_stale_state_hint(auth, monkeypatch):
+    import requests
+    monkeypatch.setattr(requests, "post", lambda *a, **k: _FakeResponse(
+        403, json_body={"errorCode": "InsufficientPrivileges", "message": "nope"},
+    ))
+
+    comp = _component()
+    with pytest.raises(dg.Failure) as exc_info:
+        comp._trigger_item_run(_ctx(), "item-1", "DataPipeline")
+    assert "refresh-defs-state" not in exc_info.value.description
+
+
 def test_token_failure_carries_failure_class_and_prefix(monkeypatch):
     class _BoomResource(FabricResource):
         def get_token(self):

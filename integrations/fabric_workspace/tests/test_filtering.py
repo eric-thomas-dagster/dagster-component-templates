@@ -90,6 +90,163 @@ def test_filter_by_description_pattern_with_no_description_excludes():
     assert comp._matches_filter("item_a", description=None) is False
 
 
+def test_exclude_name_pattern_is_case_insensitive():
+    """Component-feedback: an earlier version only made include_names/
+    filter_by_description_pattern case-insensitive -- exclude_name_pattern
+    silently failed to exclude 'fuel_price_transform' when configured as
+    'FUEL'."""
+    comp = _component(exclude_name_pattern="FUEL")
+    assert comp._matches_filter("fuel_price_transform") is False
+
+
+def test_filter_by_name_pattern_is_case_insensitive():
+    comp = _component(filter_by_name_pattern="FUEL")
+    assert comp._matches_filter("fuel_price_transform") is True
+
+
+# ── V: warn when a filter matches nothing ──────────────────────────────────
+
+def test_misspelled_include_names_entry_warns(tmp_path, monkeypatch, caplog):
+    import asyncio
+    import logging
+
+    comp = _component(include_names=["nightly_ingest", "typo_name"])
+    fake_items = [
+        {"id": "item-1", "displayName": "nightly_ingest", "type": "DataPipeline", "workspaceId": "ws-1"},
+    ]
+    monkeypatch.setattr(comp, "_list_items", lambda: fake_items)
+
+    with caplog.at_level(logging.WARNING):
+        asyncio.run(comp.write_state_to_path(tmp_path / "state.json"))
+
+    assert any("typo_name" in r.message for r in caplog.records)
+    assert not any("nightly_ingest" in r.message and "matched no" in r.message for r in caplog.records)
+
+
+def test_filter_by_name_pattern_matching_nothing_warns(tmp_path, monkeypatch, caplog):
+    import asyncio
+    import logging
+
+    comp = _component(filter_by_name_pattern="^zzz_no_match_")
+    fake_items = [
+        {"id": "item-1", "displayName": "nightly_ingest", "type": "DataPipeline", "workspaceId": "ws-1"},
+    ]
+    monkeypatch.setattr(comp, "_list_items", lambda: fake_items)
+
+    with caplog.at_level(logging.WARNING):
+        asyncio.run(comp.write_state_to_path(tmp_path / "state.json"))
+
+    assert any("filter_by_name_pattern" in r.message and "matched no" in r.message for r in caplog.records)
+
+
+def test_filter_matching_everything_out_warns_once_more_loudly(tmp_path, monkeypatch, caplog):
+    import asyncio
+    import logging
+
+    comp = _component(include_names=["typo_a", "typo_b"])
+    fake_items = [
+        {"id": "item-1", "displayName": "nightly_ingest", "type": "DataPipeline", "workspaceId": "ws-1"},
+    ]
+    monkeypatch.setattr(comp, "_list_items", lambda: fake_items)
+
+    with caplog.at_level(logging.WARNING):
+        asyncio.run(comp.write_state_to_path(tmp_path / "state.json"))
+
+    assert any("excluded ALL" in r.message for r in caplog.records)
+
+
+def test_no_filters_configured_never_warns(tmp_path, monkeypatch, caplog):
+    import asyncio
+    import logging
+
+    comp = _component()
+    fake_items = [
+        {"id": "item-1", "displayName": "nightly_ingest", "type": "DataPipeline", "workspaceId": "ws-1"},
+    ]
+    monkeypatch.setattr(comp, "_list_items", lambda: fake_items)
+
+    with caplog.at_level(logging.WARNING):
+        asyncio.run(comp.write_state_to_path(tmp_path / "state.json"))
+
+    assert not caplog.records
+
+
+# ── X: warn on unknown item_* keys ──────────────────────────────────────────
+
+def test_misspelled_item_partitions_key_warns(tmp_path, monkeypatch, caplog):
+    import asyncio
+    import logging
+
+    comp = _component(item_partitions={"typo_name": {"partition_type": "daily", "partition_start": "2024-01-01"}})
+    fake_items = [
+        {"id": "item-1", "displayName": "nightly_ingest", "type": "DataPipeline", "workspaceId": "ws-1"},
+    ]
+    monkeypatch.setattr(comp, "_list_items", lambda: fake_items)
+
+    with caplog.at_level(logging.WARNING):
+        asyncio.run(comp.write_state_to_path(tmp_path / "state.json"))
+
+    assert any("item_partitions" in r.message and "typo_name" in r.message for r in caplog.records)
+
+
+def test_correct_item_partitions_key_does_not_warn(tmp_path, monkeypatch, caplog):
+    import asyncio
+    import logging
+
+    comp = _component(item_partitions={"nightly_ingest": {"partition_type": "daily", "partition_start": "2024-01-01"}})
+    fake_items = [
+        {"id": "item-1", "displayName": "nightly_ingest", "type": "DataPipeline", "workspaceId": "ws-1"},
+    ]
+    monkeypatch.setattr(comp, "_list_items", lambda: fake_items)
+
+    with caplog.at_level(logging.WARNING):
+        asyncio.run(comp.write_state_to_path(tmp_path / "state.json"))
+
+    assert not caplog.records
+
+
+def test_misspelled_item_pools_item_parameters_item_execution_data_keys_all_warn(tmp_path, monkeypatch, caplog):
+    import asyncio
+    import logging
+
+    comp = _component(
+        item_pools={"typo_pools": "x"},
+        item_parameters={"typo_params": {"a": 1}},
+        item_execution_data={"typo_exec": {"a": 1}},
+    )
+    fake_items = [
+        {"id": "item-1", "displayName": "nightly_ingest", "type": "DataPipeline", "workspaceId": "ws-1"},
+    ]
+    monkeypatch.setattr(comp, "_list_items", lambda: fake_items)
+
+    with caplog.at_level(logging.WARNING):
+        asyncio.run(comp.write_state_to_path(tmp_path / "state.json"))
+
+    messages = [r.message for r in caplog.records]
+    assert any("item_pools" in m and "typo_pools" in m for m in messages)
+    assert any("item_parameters" in m and "typo_params" in m for m in messages)
+    assert any("item_execution_data" in m and "typo_exec" in m for m in messages)
+
+
+def test_item_setting_key_matching_a_non_runnable_item_still_warns(tmp_path, monkeypatch, caplog):
+    """A Lakehouse/Warehouse/SemanticModel/Report name doesn't count as a
+    valid item_* key -- those item kinds never get parameters/pools/
+    partitions/execution_data."""
+    import asyncio
+    import logging
+
+    comp = _component(item_parameters={"my_lakehouse": {"a": 1}})
+    fake_items = [
+        {"id": "item-1", "displayName": "my_lakehouse", "type": "Lakehouse", "workspaceId": "ws-1"},
+    ]
+    monkeypatch.setattr(comp, "_list_items", lambda: fake_items)
+
+    with caplog.at_level(logging.WARNING):
+        asyncio.run(comp.write_state_to_path(tmp_path / "state.json"))
+
+    assert any("item_parameters" in r.message and "my_lakehouse" in r.message for r in caplog.records)
+
+
 def test_description_is_read_from_the_real_item_during_discovery(tmp_path, monkeypatch):
     """Integration-level: write_state_to_path actually reads item['description']
     from the Fabric API response and threads it into _matches_filter -- not

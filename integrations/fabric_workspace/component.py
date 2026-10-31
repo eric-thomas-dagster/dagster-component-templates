@@ -654,6 +654,29 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         default=None,
         description="Regex applied to Fabric item display names for exclusion.",
     )
+    include_names: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Explicit, exact-match allow-list of item display names "
+            "(case-insensitive) -- bypasses filter_by_name_pattern entirely "
+            "when set, the same include_names convention as "
+            "snowflake_workspace. Use this when you know the real list of "
+            "item names and don't want to guess at (or wait on confirmation "
+            "of) a naming convention a regex would have to match. "
+            "exclude_name_pattern still applies on top, as a safety veto."
+        ),
+    )
+    filter_by_description_pattern: Optional[str] = Field(
+        default=None,
+        description=(
+            "Regex applied to a Fabric item's own description field (same "
+            "filter_by_comment_pattern convention as snowflake_workspace, "
+            "adapted to Fabric's equivalent metadata field) -- a "
+            "deterministic alternative to filter_by_name_pattern for teams "
+            "that annotate cadence/ownership/tier via item descriptions "
+            "rather than naming convention."
+        ),
+    )
 
     group_name: str = Field(default="fabric")
     upstream_asset_keys: Optional[Union[str, List[str]]] = Field(
@@ -965,16 +988,36 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         default_key = f"{self.__class__.__name__}[{wsid_hash}]"
         return DefsStateConfig.from_args(self.defs_state, default_key=default_key)
 
-    def _matches_filter(self, name: str) -> bool:
-        if self.filter_by_name_pattern:
-            import re
-            if not re.search(self.filter_by_name_pattern, name):
-                return False
-        if self.exclude_name_pattern:
-            import re
-            if re.search(self.exclude_name_pattern, name):
-                return False
-        return True
+    def _matches_filter(self, name: str, description: Optional[str] = None) -> bool:
+        """Check if an item should be included based on filters.
+
+        Precedence: exclude_name_pattern always vetoes, regardless of any
+        other match. Then: include_names (explicit, exact allow-list) OR
+        filter_by_name_pattern OR filter_by_description_pattern -- an item
+        is included if it satisfies ANY configured inclusion criterion, the
+        same include_names/filter_by_comment_pattern union/OR precedence
+        snowflake_workspace already uses (replicated here for parity, not
+        reinvented).
+        """
+        import re
+
+        if self.exclude_name_pattern and re.search(self.exclude_name_pattern, name):
+            return False
+
+        has_inclusion_criteria = bool(
+            self.include_names or self.filter_by_name_pattern or self.filter_by_description_pattern
+        )
+        if not has_inclusion_criteria:
+            return True
+
+        if self.include_names and name.upper() in {n.upper() for n in self.include_names}:
+            return True
+        if self.filter_by_name_pattern and re.search(self.filter_by_name_pattern, name):
+            return True
+        if self.filter_by_description_pattern and description:
+            if re.search(self.filter_by_description_pattern, description, re.IGNORECASE):
+                return True
+        return False
 
     def _apply_translation(
         self,
@@ -1148,7 +1191,7 @@ class FabricWorkspaceComponent(StateBackedComponent, Model, Resolvable):
         for item in items:
             item_type = item.get("type", "")
             name = item.get("displayName") or item.get("name") or "unnamed"
-            if not self._matches_filter(name):
+            if not self._matches_filter(name, description=item.get("description")):
                 continue
             row = {
                 "id": item.get("id"),

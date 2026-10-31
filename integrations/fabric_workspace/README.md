@@ -17,6 +17,40 @@ family with a different API surface.
 | SemanticModel | external asset | No |
 | Report | external asset | No |
 
+## Filtering
+
+```yaml
+attributes:
+  exclude_name_pattern: "_deprecated$"
+  include_names: ["nightly_ingest", "weekly_rollup"]
+  filter_by_name_pattern: "^prod_"
+  filter_by_description_pattern: "owner:data-eng"
+```
+
+`exclude_name_pattern` always vetoes an item, even one explicitly listed in
+`include_names`. Otherwise an item is included if it matches **any**
+configured inclusion criterion — `include_names` (exact, case-insensitive
+allow-list) OR `filter_by_name_pattern` OR `filter_by_description_pattern`
+(matched against the item's own `description` field, case-insensitive) —
+union/OR semantics, not AND. This is the same `include_names`/
+`filter_by_comment_pattern` precedence `snowflake_workspace` already uses,
+replicated here for parity rather than reinvented. With none of the three
+set, every item passes (unchanged from before). With only
+`filter_by_name_pattern` set, an item that doesn't match it is excluded —
+the same hard-requirement behavior this field has always had.
+
+All patterns are regexes matched with `re.search` (unanchored — `fuel`
+also matches `fuel_old`; anchor with `^…$` for an exact segment match), one
+shared pattern across every imported item type (Lakehouse/Warehouse/
+Notebook/DataPipeline/Dataflow/SemanticModel/Report) — not configurable
+per type.
+
+Filtering runs at **discovery time** (when the cached workspace state is
+written), not at Dagster load time — changing any of these fields requires
+`dg utils refresh-defs-state` (or waiting for the component's own refresh
+cadence) to take effect, the same as any other change to `import_*`/
+`filter_by_name_pattern`.
+
 ## Multiple instances over one workspace
 
 Two `FabricWorkspaceComponent` instances pointed at the *same* `workspace_id` but different `import_*`/filter settings (e.g. one importing only notebooks matching `part_a`, another only pipelines) hash to the same cached discovery-state key by default — they'd silently share one state file. Set a distinct `key:` per instance to split them:
@@ -82,6 +116,7 @@ attributes:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `filter_by_name_pattern` | `str` | — | Regex applied to Fabric item display names for inclusion. |
+| `filter_by_description_pattern` | `str` | — | Regex applied to a Fabric item's own description field (same filter_by_comment_pattern convention as snowflake_workspace, adapted to Fabric's equivalent metadata field) -- a deterministic alternative to filter_by_name_pa… _(full docs in schema.json + component README)_ |
 
 ### Other
 
@@ -96,6 +131,7 @@ attributes:
 | `import_semantic_models` | `bool` | `false` | — |
 | `import_reports` | `bool` | `false` | — |
 | `exclude_name_pattern` | `str` | — | Regex applied to Fabric item display names for exclusion. |
+| `include_names` | `List[str]` | — | Explicit, exact-match allow-list of item display names (case-insensitive) -- bypasses filter_by_name_pattern entirely when set, the same include_names convention as snowflake_workspace. Use this when you know the real li… _(full docs in schema.json + component README)_ |
 | `upstream_asset_keys` | `Union[str, List[str]]` | — | Asset keys that all imported assets wait for (lineage-only). |
 | `key` | `str` | — | Disambiguator for the cached discovery-state key. Without this, two FabricWorkspaceComponent instances pointed at the SAME workspace_id but different import_*/filter settings (e.g. one importing only notebooks matching '… _(full docs in schema.json + component README)_ |
 | `default_parameters` | `Dict[str, Any]` | — | Parameters passed to every triggered Notebook/DataPipeline/Dataflow job (e.g. a load date), merged with `item_parameters` below. A plain {name: value} dict -- converted internally to Fabric's documented Parameter[] reque… _(full docs in schema.json + component README)_ |

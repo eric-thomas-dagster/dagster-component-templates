@@ -69,6 +69,23 @@
       "required": false,
       "default": null
     },
+    "include_names": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Include Names",
+      "description": "Explicit, exact-match allow-list of item display names (case-insensitive) -- bypasses filter_by_name_pattern entirely when set, the same include_names convention as snowflake_workspace. exclude_name_pattern still applies on top, as a safety veto.",
+      "required": false,
+      "default": null
+    },
+    "filter_by_description_pattern": {
+      "type": "string",
+      "label": "Filter By Description (regex)",
+      "description": "Regex applied to a Fabric item's own description field (same filter_by_comment_pattern convention as snowflake_workspace) -- a deterministic alternative to filter_by_name_pattern for teams that annotate cadence/ownership/tier via item descriptions rather than naming convention.",
+      "required": false,
+      "default": null
+    },
     "group_name": {
       "description": "Dagster asset group name.",
       "type": "string",

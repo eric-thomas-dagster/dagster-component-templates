@@ -1,0 +1,289 @@
+{
+  "component_type": "dagster_community_components.BedrockConverseAssetComponent",
+  "description": "Call AWS Bedrock's Converse API directly (boto3, not a litellm passthrough) once per row of an upstream DataFrame, optionally validating the JSON response against a declared output_schema and adding one output column per schema property. Supports text and raw-bytes image input.",
+  "category": "ai",
+  "icon": "si:amazonwebservices",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "pd.DataFrame",
+      "description": "One row per item to send to Bedrock, read from upstream_asset_key via input_column."
+    },
+    "outputs": {
+      "type": "pd.DataFrame",
+      "description": "The upstream DataFrame with new column(s) appended -- one per output_schema property, or a single raw-text column when output_schema is unset."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Dagster asset key emitted by this component."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "Upstream asset key providing a DataFrame with one row per item to send to Bedrock."
+    },
+    "input_column": {
+      "type": "string",
+      "label": "Input Column",
+      "required": false,
+      "default": "text",
+      "description": "Column holding the input -- raw text (input_type='text') or a path to an image file (input_type='image')."
+    },
+    "input_type": {
+      "type": "string",
+      "label": "Input Type",
+      "required": false,
+      "default": "text",
+      "enum": ["text", "image"],
+      "ui:widget": "select",
+      "description": "'text': input_column is sent as the prompt's text content. 'image': input_column is a path to an image file, read and sent as a raw-bytes image content block."
+    },
+    "image_format": {
+      "type": "string",
+      "label": "Image Format",
+      "required": false,
+      "default": null,
+      "enum": ["png", "jpeg", "gif", "webp"],
+      "ui:widget": "select",
+      "description": "Override the image format Bedrock is told to expect. Unset = inferred from the file extension."
+    },
+    "model_id": {
+      "type": "string",
+      "label": "Model ID",
+      "required": false,
+      "default": "qwen.qwen3-vl-235b-a22b",
+      "description": "Bedrock model ID for the Converse API, e.g. 'qwen.qwen3-vl-235b-a22b' (vision-capable Qwen3) or 'qwen.qwen3-235b-a22b-v1:0' (text-only)."
+    },
+    "aws_region": {
+      "type": "string",
+      "label": "AWS Region",
+      "required": true,
+      "description": "AWS region for the bedrock-runtime client."
+    },
+    "prompt_template": {
+      "type": "string",
+      "label": "Prompt Template",
+      "required": false,
+      "default": "{input}",
+      "ui:widget": "textarea",
+      "description": "Prompt sent to the model. For input_type='text', '{input}' is replaced with the row's input_column value; the literal text is used as-is otherwise (e.g. for input_type='image', where the image itself is the primary content and this is an instruction)."
+    },
+    "output_schema": {
+      "type": "object",
+      "label": "Output Schema",
+      "required": false,
+      "default": null,
+      "description": "JSON schema (with 'properties') the model's JSON response is validated against. One output column is added per property; missing or schema-invalid responses fill those columns with None. Leave unset to store the raw text response in output_column instead."
+    },
+    "output_column": {
+      "type": "string",
+      "label": "Output Column",
+      "required": false,
+      "default": "llm_response",
+      "description": "Column name for the raw text response when output_schema is unset. Ignored (schema properties become the output columns instead) when output_schema is set."
+    },
+    "max_tokens": {
+      "type": "integer",
+      "label": "Max Tokens",
+      "required": false,
+      "default": 1024,
+      "description": "inferenceConfig.maxTokens for the Converse call."
+    },
+    "temperature": {
+      "type": "number",
+      "label": "Temperature",
+      "required": false,
+      "default": 0.0,
+      "description": "inferenceConfig.temperature for the Converse call."
+    },
+    "min_valid_rate": {
+      "type": "number",
+      "label": "Min Valid Rate",
+      "required": false,
+      "default": null,
+      "description": "Only used when output_schema is set: minimum fraction of rows whose response must validate against output_schema. Emits a blocking (ERROR) or non-blocking (WARN) 'output_schema_valid_rate' check per min_valid_rate_severity. Leave unset for no check."
+    },
+    "min_valid_rate_severity": {
+      "type": "string",
+      "label": "Min Valid Rate Severity",
+      "required": false,
+      "default": "WARN",
+      "enum": ["ERROR", "WARN"],
+      "ui:widget": "select",
+      "description": "Severity of the output_schema_valid_rate check when min_valid_rate is set."
+    },
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox",
+      "description": "Return deterministic synthetic Converse responses instead of calling AWS Bedrock. Set false for a real account."
+    },
+    "aws_access_key_id": {
+      "type": "string",
+      "label": "AWS Access Key Id",
+      "required": false,
+      "default": null
+    },
+    "aws_secret_access_key": {
+      "type": "string",
+      "label": "AWS Secret Access Key",
+      "required": false,
+      "default": null,
+      "ui:widget": "secret"
+    },
+    "aws_session_token": {
+      "type": "string",
+      "label": "AWS Session Token",
+      "required": false,
+      "default": null,
+      "ui:widget": "secret"
+    },
+    "group_name": {
+      "description": "Asset group name.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "description": "Asset tags.",
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds. Default: ['bedrock', 'aws', 'llm'].",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "dynamic"
+      ]
+    },
+    "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+      "type": "string",
+      "label": "Partition Start",
+      "required": false
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "description": "Comma-separated for static."
+    },
+    "dynamic_partition_name": {
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "required": false,
+      "description": "Multi-axis partitioning."
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today until tomorrow. Set to 1 to include the current, still-in-progress window.",
+      "required": false,
+      "default": 0
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "type": "string",
+      "label": "Partition Date Column",
+      "required": false,
+      "default": null,
+      "description": "Upstream column holding each row's date, used to filter to the current partition's rows when time-partitioned. Unset = no row filtering."
+    },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one Dagster run. 'multi_run' launches one run per partition (optionally capped via Backfill Max Partitions Per Run). Leave empty for Dagster's default. Ignored when no partitioning is configured.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "aws",
+    "bedrock",
+    "llm",
+    "vision",
+    "qwen",
+    "converse"
+  ],
+  "name": "Bedrock Converse Asset"
+}

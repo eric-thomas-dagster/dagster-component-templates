@@ -1,0 +1,55 @@
+type: dagster_community_components.EcsPipesAssetComponent
+attributes:
+  asset_name: gpu_batch_inference
+
+  task_definition: my-inference-task:3
+  container_name: inference
+  cluster: my-gpu-cluster
+  subnets: [subnet-0123456789abcdef0]
+  aws_region: us-east-2
+
+  # Sugar for a one-entry capacityProviderStrategy. Use capacity_provider_strategy
+  # for a weighted multi-provider strategy, or launch_type for plain Fargate/EC2.
+  capacity_provider: gpu-g6e
+
+  log_group: /ecs/my-inference-task
+  extras:
+    model_version: "3.8"
+
+  metadata_checks:
+    - name: schema_valid_rate
+      metadata_key: schema_valid_rate
+      comparator: gte
+      threshold: 0.98
+      severity: ERROR
+    - name: docs_failed_zero
+      metadata_key: docs_failed
+      comparator: eq
+      threshold: 0
+      severity: WARN
+
+  group_name: ml
+  kinds: [ecs, pipes, aws, gpu]
+  owners:
+    - ml-platform@example.com
+
+  # Demo mode runs inference_task/run_batch.py as a real local subprocess
+  # against fake ECS/CloudWatch clients -- set false for a real cluster.
+  demo_mode: true
+  local_script_path: inference_task/run_batch.py
+
+  # Example task script (referenced above):
+  #
+  #   # inference_task/run_batch.py
+  #   from dagster_pipes import open_dagster_pipes
+  #
+  #   with open_dagster_pipes() as pipes:
+  #       pipes.log.info("running inference")
+  #       # ... run the model, validate outputs against a schema ...
+  #       pipes.report_asset_materialization(
+  #           metadata={
+  #               "schema_valid_rate": 0.99,
+  #               "docs_failed": 0,
+  #               "rows_processed": 1842,
+  #           },
+  #       )

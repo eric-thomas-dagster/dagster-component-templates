@@ -1,0 +1,8 @@
+# PipesECSClient / PipesCloudWatchMessageReader come from dagster-aws.
+# boto3 is a transitive dep of dagster-aws but pinned here explicitly since
+# this component's real-mode client construction imports it directly.
+dagster-aws>=0.29
+boto3>=1.34
+
+# Inside the ECS task's container, dagster-pipes must be installed in the
+# task's own image. Not a Dagster-worker-side dep.

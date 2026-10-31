@@ -8675,6 +8675,67 @@
       ]
     },
     {
+      "id": "bedrock_converse_asset",
+      "name": "Bedrock Converse Asset",
+      "category": "ai",
+      "description": "Call AWS Bedrock's Converse API directly (boto3, not a litellm passthrough) once per row of an upstream DataFrame, optionally validating the JSON response against a declared output_schema and adding one output column per schema property. Supports text and raw-bytes image input.",
+      "path": "assets/ai/bedrock_converse_asset",
+      "tags": [
+        "aws",
+        "bedrock",
+        "llm",
+        "vision",
+        "qwen",
+        "converse"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bedrock_converse_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bedrock_converse_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bedrock_converse_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bedrock_converse_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/bedrock_converse_asset/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "boto3>=1.34",
+          "pandas>=2.0.0",
+          "jsonschema>=4.18.0"
+        ]
+      },
+      "icon": "Brain",
+      "validation": {
+        "level": "code",
+        "evidence": "13 pytest cases covering demo-mode end-to-end materialization, text and raw-bytes image input (asserting the image content block carries raw bytes, not base64), output_schema validation (valid/invalid/missing-field cases), min_valid_rate ERROR-blocking vs WARN-non-blocking checks, row-level call-failure isolation (one bad row doesn't abort the run), partition-aware row filtering, and token/latency metadata aggregation -- real mode's boto3 bedrock-runtime client mocked at the _build_bedrock_client seam. No live AWS Bedrock call tested.",
+        "last_validated": "2026-10-31"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame from upstream_asset_key with one row per item -- raw text or a path to an image file.",
+        "outputs": "The upstream DataFrame with new column(s) appended: one per output_schema property, or a single raw-text column when output_schema is unset.",
+        "output_type": "pd.DataFrame",
+        "side_effects": "Calls boto3 bedrock-runtime client.converse() once per upstream row (sequentially). In demo_mode, calls an internal deterministic fake instead.",
+        "requires_pip": [
+          "boto3",
+          "pandas",
+          "jsonschema"
+        ],
+        "anti_uses": "Not for models unavailable on Bedrock (use a litellm-based component like structured_document_extractor/image_llm_extractor instead). Not for multi-turn conversations (each row is a single-turn call). Not for very large row counts needing true batch/async inference (Bedrock's separate batch API isn't wrapped here)."
+      },
+      "produces": [
+        "asset",
+        "asset_check"
+      ],
+      "keywords": [
+        "bedrock",
+        "aws",
+        "llm",
+        "vision",
+        "qwen",
+        "converse",
+        "structured extraction",
+        "jsonschema"
+      ]
+    },
+    {
       "id": "bicep_asset",
       "name": "bicep_asset",
       "category": "infrastructure",
@@ -22945,6 +23006,65 @@
       "keywords": [
         "report",
         "aggregate"
+      ]
+    },
+    {
+      "id": "ecs_pipes_asset",
+      "name": "ECS Pipes Asset",
+      "category": "infrastructure",
+      "description": "Launch a containerized batch job on AWS ECS (Fargate, EC2, or GPU-backed capacity providers) via Dagster Pipes, streaming CloudWatch logs and Pipes metadata back into the Dagster event log and materializing the result with optional metadata-driven asset checks. Wraps the real dagster_aws.pipes.PipesECSClient -- requires the task's container to open a dagster_pipes.open_dagster_pipes() context.",
+      "path": "assets/infrastructure/ecs_pipes_asset",
+      "tags": [
+        "aws",
+        "ecs",
+        "pipes",
+        "containers",
+        "gpu",
+        "batch"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/ecs_pipes_asset/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/ecs_pipes_asset/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/ecs_pipes_asset/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/ecs_pipes_asset/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/infrastructure/ecs_pipes_asset/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster-aws>=0.29",
+          "boto3>=1.34"
+        ]
+      },
+      "icon": "Server",
+      "validation": {
+        "level": "code",
+        "evidence": "15 pytest cases covering demo-mode end-to-end materialization (a real local script opening a real dagster_pipes.open_dagster_pipes() context against the real PipesECSClient/PipesCloudWatchMessageReader classes, with only the boto3 ecs/logs clients faked), partition-key delivery via Pipes extras, single_run backfill ranges, metadata_checks (pass/block/warn), mutually-exclusive launch-config validation, and run_task_params building (capacity provider sugar, strategy passthrough, launch_type, network config, container overrides, deep-merge overrides). Real-mode boto3 ecs/logs calls not exercised against a live AWS account.",
+        "last_validated": "2026-10-31"
+      },
+      "agent_hints": {
+        "inputs": "None on the Dagster side. The ECS task's container receives extras via the Pipes bootstrap (readable as pipes.extras / pipes.get_extra(...)), plus any container_command/container_environment overrides configured on the component.",
+        "outputs": "One asset whose materialization is driven by pipes.report_asset_materialization() called from inside the ECS task's container, optionally evaluated against metadata_checks.",
+        "output_type": "asset",
+        "side_effects": "Launches a real ECS task via PipesECSClient.run() (RunTask on the configured cluster/task_definition) and polls CloudWatch logs via PipesCloudWatchMessageReader. In demo_mode, launches local_script_path as a local subprocess instead.",
+        "requires_pip": [
+          "dagster-aws",
+          "boto3"
+        ],
+        "anti_uses": "Not for a container that doesn't call open_dagster_pipes() (it will run but report no metadata). Not for Modal/other serverless platforms (use ModalPipesAssetComponent). Not for a custom Pipes message channel other than CloudWatch (subclass and override _build_pipes_client)."
+      },
+      "produces": [
+        "asset",
+        "asset_check"
+      ],
+      "keywords": [
+        "ecs",
+        "pipes",
+        "aws",
+        "gpu",
+        "fargate",
+        "capacity provider",
+        "batch inference",
+        "dagster pipes"
       ]
     },
     {
@@ -71178,5 +71298,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1365
+  "total": 1367
 }

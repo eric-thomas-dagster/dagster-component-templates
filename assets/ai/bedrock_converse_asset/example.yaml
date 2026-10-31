@@ -1,0 +1,29 @@
+type: dagster_community_components.BedrockConverseAssetComponent
+attributes:
+  asset_name: invoice_baseline_extraction
+  upstream_asset_key: carrier_invoices
+  input_column: file_path
+  input_type: image
+
+  aws_region: us-east-2
+  model_id: qwen.qwen3-vl-235b-a22b
+  prompt_template: >-
+    Extract invoice_number, carrier_name, and total_amount from this invoice.
+    Return only a JSON object with those three keys.
+
+  output_schema:
+    type: object
+    properties:
+      invoice_number: { type: string }
+      carrier_name: { type: string }
+      total_amount: { type: number }
+
+  min_valid_rate: 0.9
+  min_valid_rate_severity: WARN
+
+  group_name: ml
+  kinds: [bedrock, aws, llm, vision]
+  owners:
+    - ml-platform@example.com
+
+  demo_mode: true

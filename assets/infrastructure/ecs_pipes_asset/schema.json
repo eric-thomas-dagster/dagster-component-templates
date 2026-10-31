@@ -1,0 +1,339 @@
+{
+  "component_type": "dagster_community_components.EcsPipesAssetComponent",
+  "description": "Launch a containerized batch job on AWS ECS (Fargate, EC2, or GPU-backed capacity providers) via Dagster Pipes, streaming CloudWatch logs and Pipes metadata back into the Dagster event log and materializing the result with optional metadata-driven asset checks. Wraps the real dagster_aws.pipes.PipesECSClient -- requires the task's container to open a dagster_pipes.open_dagster_pipes() context.",
+  "category": "infrastructure",
+  "icon": "si:amazonecs",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "MaterializeResult",
+      "description": "One asset whose materialization is triggered by the ECS task's PipesContext.report_asset_materialization(), optionally evaluated against configurable metadata_checks."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Dagster asset key emitted by this component."
+    },
+    "task_definition": {
+      "type": "string",
+      "label": "Task Definition",
+      "required": true,
+      "description": "ECS task definition family:revision (or ARN) to run."
+    },
+    "container_name": {
+      "type": "string",
+      "label": "Container Name",
+      "required": true,
+      "description": "Name of the container (within the task definition) that opens the Pipes context."
+    },
+    "cluster": {
+      "type": "string",
+      "label": "Cluster",
+      "required": true,
+      "description": "ECS cluster name or ARN to run the task in."
+    },
+    "subnets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Subnets",
+      "required": true,
+      "ui:widget": "list",
+      "description": "Subnet IDs for the task's awsvpc network configuration."
+    },
+    "aws_region": {
+      "type": "string",
+      "label": "AWS Region",
+      "required": true,
+      "description": "AWS region for the ecs/logs clients."
+    },
+    "security_groups": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Security Groups",
+      "required": false,
+      "default": null,
+      "ui:widget": "list",
+      "description": "Security group IDs for the task's awsvpc network configuration."
+    },
+    "assign_public_ip": {
+      "type": "string",
+      "label": "Assign Public Ip",
+      "required": false,
+      "default": null,
+      "enum": [
+        "ENABLED",
+        "DISABLED"
+      ],
+      "ui:widget": "select",
+      "description": "ECS awsvpcConfiguration.assignPublicIp -- 'ENABLED' or 'DISABLED' (the literal strings ECS's API expects, not a boolean)."
+    },
+    "capacity_provider": {
+      "type": "string",
+      "label": "Capacity Provider",
+      "required": false,
+      "default": null,
+      "description": "Single capacity provider name (e.g. a GPU capacity provider). Sugar for a one-entry capacityProviderStrategy. Mutually exclusive with capacity_provider_strategy and launch_type."
+    },
+    "capacity_provider_strategy": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Capacity Provider Strategy",
+      "required": false,
+      "default": null,
+      "description": "Full ECS capacityProviderStrategy (list of {capacityProvider, weight, base}) for a weighted multi-provider strategy. Mutually exclusive with capacity_provider and launch_type."
+    },
+    "launch_type": {
+      "type": "string",
+      "label": "Launch Type",
+      "required": false,
+      "default": null,
+      "enum": [
+        "FARGATE",
+        "EC2"
+      ],
+      "ui:widget": "select",
+      "description": "ECS launchType ('FARGATE' or 'EC2') for accounts not using capacity providers. Mutually exclusive with capacity_provider and capacity_provider_strategy."
+    },
+    "container_command": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Container Command",
+      "required": false,
+      "default": null,
+      "ui:widget": "list",
+      "description": "Command override for the container, e.g. ['python', 'run_batch.py']."
+    },
+    "container_environment": {
+      "type": "object",
+      "label": "Container Environment",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value",
+      "description": "Environment variable overrides for the container, as a plain {name: value} dict -- converted internally to ECS's [{name, value}] list shape."
+    },
+    "run_task_params_overrides": {
+      "type": "object",
+      "label": "Run Task Params Overrides",
+      "required": false,
+      "default": null,
+      "description": "Raw overrides deep-merged on top of the run_task_params this component builds, for anything not covered by an explicit field above."
+    },
+    "log_group": {
+      "type": "string",
+      "label": "Log Group",
+      "required": true,
+      "description": "CloudWatch log group the task's awslogs driver writes to."
+    },
+    "log_stream_prefix": {
+      "type": "string",
+      "label": "Log Stream Prefix",
+      "required": false,
+      "default": null,
+      "description": "CloudWatch log stream prefix, if the task definition's awslogs-stream-prefix isn't the default."
+    },
+    "extras": {
+      "type": "object",
+      "label": "Extras",
+      "required": false,
+      "default": null,
+      "ui:widget": "key-value",
+      "description": "Arbitrary extra data passed to PipesECSClient.run(extras=...) and available to the task via the Pipes context."
+    },
+    "pipes_container_name": {
+      "type": "string",
+      "label": "Pipes Container Name",
+      "required": false,
+      "default": null,
+      "description": "Container name Pipes reads messages from, if different from container_name."
+    },
+    "metadata_checks": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Metadata Checks",
+      "required": false,
+      "default": null,
+      "description": "Configurable AssetCheckSpec/AssetCheckResult pairs driven by the Pipes result's own metadata, e.g. [{name: schema_valid_rate, metadata_key: schema_valid_rate, comparator: gte, threshold: 0.98, severity: ERROR}]. comparator is one of gte/lte/eq/gt/lt; severity is ERROR (blocking) or WARN. Only evaluated for a single-partition (or unpartitioned) run -- a single_run backfill range folds metadata from multiple task launches into one MaterializeResult and does not emit per-partition checks."
+    },
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox",
+      "description": "Run the task as a real local subprocess against fake ECS/CloudWatch clients instead of a real ECS cluster. The real PipesECSClient/PipesCloudWatchMessageReader code runs unmodified in both modes -- only the boto3 API calls are faked. Set false for the real cluster."
+    },
+    "local_script_path": {
+      "type": "string",
+      "label": "Local Script Path",
+      "required": false,
+      "default": null,
+      "description": "Script demo mode launches locally (via sys.executable) in place of the real ECS task. Required when demo_mode=true."
+    },
+    "aws_access_key_id": {
+      "type": "string",
+      "label": "AWS Access Key Id",
+      "required": false,
+      "default": null
+    },
+    "aws_secret_access_key": {
+      "type": "string",
+      "label": "AWS Secret Access Key",
+      "required": false,
+      "default": null,
+      "ui:widget": "secret"
+    },
+    "aws_session_token": {
+      "type": "string",
+      "label": "AWS Session Token",
+      "required": false,
+      "default": null,
+      "ui:widget": "secret"
+    },
+    "group_name": {
+      "description": "Asset group name.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "description": "Asset tags.",
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds. Default: ['ecs', 'pipes', 'aws'].",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "dynamic"
+      ]
+    },
+    "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+      "type": "string",
+      "label": "Partition Start",
+      "required": false
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "description": "Comma-separated for static."
+    },
+    "dynamic_partition_name": {
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "required": false,
+      "description": "Multi-axis partitioning."
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today until tomorrow. Set to 1 to include the current, still-in-progress window.",
+      "required": false,
+      "default": 0
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
+      "required": false,
+      "default": null
+    },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one Dagster run, launching one ECS task per partition in the range (metadata each task reports is folded into one result keyed '<partition>/<name>'). 'multi_run' launches one run per partition (optionally capped via Backfill Max Partitions Per Run). Leave empty for Dagster's default. Ignored when no partitioning is configured.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "aws",
+    "ecs",
+    "pipes",
+    "containers",
+    "gpu",
+    "batch"
+  ],
+  "name": "ECS Pipes Asset"
+}

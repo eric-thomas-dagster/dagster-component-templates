@@ -2,11 +2,17 @@
 
 > **🔑 API key required.** This component calls an LLM provider. Set `OPENAI_API_KEY` for OpenAI (default), or configure an alternate provider (Anthropic / Azure OpenAI / Ollama / etc.) via the component's `provider`, `model`, and `api_key_env_var` fields. See the schema for the exact field names this component exposes.
 
-Write embeddings to vector databases (Pinecone, ChromaDB, Qdrant, FAISS) with metadata and batch operations. Works seamlessly with Dagster's IO manager pattern - connect embedding assets and automatically store vectors!
+Write embeddings to vector databases (Pinecone, ChromaDB, Qdrant, FAISS, AWS S3 Vectors) with metadata and batch operations. Works seamlessly with Dagster's IO manager pattern - connect embedding assets and automatically store vectors!
 
 ## Purpose
 
-Store vector embeddings for semantic search and RAG systems. Supports ChromaDB (local), Pinecone (cloud), Qdrant, and FAISS.
+Store vector embeddings for semantic search and RAG systems. Supports ChromaDB (local), Pinecone (cloud), Qdrant, FAISS, and AWS S3 Vectors.
+
+## AWS S3 Vectors (`provider: s3vectors`)
+
+Native vector storage in S3 (GA since December 2025) -- no separate vector database to run or pay for if you're already on AWS. Requires `vector_bucket_name` and `aws_region` (both required only for this provider). The vector bucket and index are created automatically on first write if they don't already exist, with `dataType: float32` and `distanceMetric: cosine` (hardcoded, matching how the existing Qdrant branch also hardcodes cosine distance rather than exposing a config field). Writes batch at a hard AWS limit of 500 vectors per call regardless of `batch_size`.
+
+`demo_mode` (default `true`) is specific to this provider -- it writes to a local JSON file instead of a real AWS account, so you can build and test a pipeline before paying for anything. Point [`VectorStoreQueryComponent`](../vector_store_query)'s `connection_string` at the same path (and set its `demo_mode: true` too) to query what this component wrote in demo mode. Set `demo_mode: false` for a real bucket.
 
 ## Ingestion
 
@@ -24,7 +30,7 @@ This mirrors `context_engineering_pipeline`'s dual-ingestion design, so this com
 
 ## Features
 
-- **Multiple Providers**: Pinecone, ChromaDB, Qdrant, FAISS
+- **Multiple Providers**: Pinecone, ChromaDB, Qdrant, FAISS, AWS S3 Vectors
 - **Batch Writing**: Efficient batch operations
 - **Metadata Support**: Store text and custom metadata with vectors
 - **Upsert Support**: Update existing vectors
@@ -66,7 +72,7 @@ Returns a dictionary with status information:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset |
-| `provider` | `str` | Provider: 'pinecone', 'weaviate', 'chromadb', 'faiss', 'qdrant' |
+| `provider` | `str` | Provider: 'pinecone', 'weaviate', 'chromadb', 'faiss', 'qdrant', 's3vectors' |
 | `collection_name` | `str` | Collection/index name |
 
 ### Connection
@@ -108,6 +114,8 @@ Returns a dictionary with status information:
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
@@ -134,6 +142,9 @@ Returns a dictionary with status information:
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream asset key providing a DataFrame with embeddings to write. Mutually exclusive with `source` -- set exactly one. |
 | `source` | `Dict[str, Any]` | — | Pull rows directly via SQL instead of from an upstream asset -- e.g. embeddings already computed and stored in a warehouse table: {kind: warehouse_query, resource_key: <registered resource>, sql: <query>}. resource_key m… _(full docs in schema.json + component README)_ |
+| `vector_bucket_name` | `str` | — | S3 Vectors bucket name. Required when provider='s3vectors'. Ignored by every other provider. |
+| `aws_region` | `str` | — | AWS region for the s3vectors client. Required when provider='s3vectors'. Ignored by every other provider. |
+| `demo_mode` | `bool` | `true` | Only affects provider='s3vectors' -- writes to a local JSON-file-backed fake instead of a real AWS account (no effect on chromadb/pinecone/qdrant/faiss, which have no demo concept and always hit the real/local service th… _(full docs in schema.json + component README)_ |
 
 [//]: # (FIELDS:END)
 
@@ -201,6 +212,18 @@ attributes:
   api_key: ${PINECONE_API_KEY}
 ```
 
+### AWS S3 Vectors
+```yaml
+type: dagster_community_components.VectorStoreWriterComponent
+attributes:
+  asset_name: s3_vector_index
+  provider: s3vectors
+  collection_name: my-index
+  vector_bucket_name: my-vector-bucket
+  aws_region: us-east-2
+  demo_mode: true  # local JSON file -- set false for a real bucket
+```
+
 ### With Custom Metadata Columns
 ```yaml
 # Upstream: Embedding Generator with DataFrame output
@@ -224,6 +247,7 @@ attributes:
 ## Requirements
 - chromadb >= 0.4.0, pinecone-client >= 3.0.0
 - qdrant-client >= 1.7.0, faiss-cpu >= 1.7.4
+- boto3 >= 1.43 (s3vectors; demo_mode needs no AWS dependency at all)
 - pandas >= 2.0.0, numpy >= 1.24.0
 
 ## Asset Dependencies & Lineage

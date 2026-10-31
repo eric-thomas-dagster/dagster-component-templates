@@ -1032,6 +1032,63 @@
       ]
     },
     {
+      "id": "agent_memory_store",
+      "name": "Agent Memory Store",
+      "category": "ai",
+      "description": "Form long-term agent memory from a DataFrame of conversation turns using Mem0 (self-hosted) -- distinct from simple chat-history storage, this extracts and consolidates durable facts per user/session via an LLM + vector store, retrievable later via semantic search. Grouped per user (and optionally per agent/session) before calling Mem0's add() once per group.",
+      "path": "assets/ai/agent_memory_store",
+      "tags": [
+        "ai",
+        "mem0",
+        "memory",
+        "llm",
+        "agents",
+        "rag"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_memory_store/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_memory_store/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_memory_store/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_memory_store/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/agent_memory_store/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "mem0ai",
+          "pandas>=2.0.0"
+        ]
+      },
+      "icon": "Brain",
+      "validation": {
+        "level": "code",
+        "evidence": "12 pytest cases covering demo-mode end-to-end memory formation (grouping by user_id/run_id, infer true/false semantics, metadata_column parsing), the validate_search smoke check (pass + WARN-non-blocking fail), the real-mode _build_memory_client seam (vector_store/llm/embedder config passthrough, agent_id/run_id only sent when configured), and the repo-wide upstream_asset_key normalization convention. No live Mem0/OpenAI/Qdrant call tested -- get_all/update/delete are not implemented (unverified OSS API shapes).",
+        "last_validated": "2026-10-31"
+      },
+      "agent_hints": {
+        "inputs": "DataFrame of conversation turns from upstream_asset_key -- one row per message, with user_id/role/content columns.",
+        "outputs": "None (no materialized value) -- the asset's effect is writing memories into the configured Mem0 store. Metadata reports groups_written/memories_written.",
+        "side_effects": "Calls Mem0's add() once per (user_id[, agent_id][, run_id]) group, which in turn may call a real LLM (fact extraction, when infer=true) and embedder/vector-store. In demo_mode, writes to a local JSON file instead.",
+        "requires_pip": [
+          "mem0ai",
+          "pandas"
+        ],
+        "anti_uses": "Not for simple chat-history storage (use conversation_memory). Not for reading memories back into a pipeline as an asset -- this component only writes; validate_search is a QA smoke check, not a retrieval API. Not for get_all/update/delete (not implemented -- unverified OSS API shapes)."
+      },
+      "produces": [
+        "asset",
+        "asset_check"
+      ],
+      "keywords": [
+        "mem0",
+        "agent memory",
+        "long-term memory",
+        "llm",
+        "vector store",
+        "fact extraction",
+        "personalization"
+      ]
+    },
+    {
       "id": "agent_review_queue",
       "name": "agent_review_queue",
       "category": "ai",
@@ -67510,6 +67567,7 @@
           "pinecone-client>=3.0.0",
           "qdrant-client>=1.7.0",
           "faiss-cpu>=1.7.4",
+          "boto3>=1.43",
           "pandas>=2.0.0"
         ]
       },
@@ -67556,6 +67614,7 @@
           "pinecone-client>=3.0.0",
           "qdrant-client>=1.7.0",
           "faiss-cpu>=1.7.4",
+          "boto3>=1.43",
           "pandas>=2.0.0",
           "numpy>=1.24.0"
         ]
@@ -71298,5 +71357,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1367
+  "total": 1368
 }

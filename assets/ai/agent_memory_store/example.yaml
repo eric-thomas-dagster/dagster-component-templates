@@ -1,0 +1,39 @@
+type: dagster_community_components.AgentMemoryStoreComponent
+attributes:
+  asset_name: customer_agent_memory
+  upstream_asset_key: support_chat_turns
+
+  user_id_column: customer_id
+  role_column: role
+  content_column: content
+
+  # Optional: scope memories per conversation session rather than accumulating
+  # across a customer's entire history.
+  # run_id_column: session_id
+
+  # Smoke-check that written memories are actually retrievable -- catches a
+  # silently-broken vector-store/embedder config without asserting relevance.
+  validate_search: true
+  validate_search_query: "What does this customer care about?"
+
+  group_name: agent_memory
+  kinds: [mem0, memory, llm]
+  owners:
+    - support-ai@example.com
+
+  # Demo mode writes to a local JSON file -- no Mem0/LLM/embedder calls, no API keys.
+  demo_mode: true
+
+  # Real mode (demo_mode: false) example -- Mem0's own self-hosted default
+  # stack if vector_store/llm/embedder are all left unset is Qdrant (on-disk)
+  # + OpenAI (requires OPENAI_API_KEY). To use a different stack:
+  #
+  # vector_store:
+  #   provider: qdrant
+  #   config: {host: localhost, port: 6333}
+  # llm:
+  #   provider: openai
+  #   config: {model: gpt-5-mini}
+  # embedder:
+  #   provider: openai
+  #   config: {model: text-embedding-3-small}

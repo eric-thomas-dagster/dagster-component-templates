@@ -1,0 +1,7 @@
+mem0ai
+pandas>=2.0.0
+
+# Self-hosted Mem0's own default stack (if vector_store/llm/embedder are left
+# unset): Qdrant (on-disk) + OpenAI (fact extraction + embeddings). Set
+# OPENAI_API_KEY, or configure vector_store/llm/embedder for a different
+# stack. Not needed at all for demo_mode.

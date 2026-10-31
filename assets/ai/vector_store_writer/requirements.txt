@@ -2,6 +2,10 @@ chromadb>=0.4.0
 pinecone-client>=3.0.0
 qdrant-client>=1.7.0
 faiss-cpu>=1.7.4
+
+# provider=s3vectors only -- not needed for demo_mode
+boto3>=1.43
+
 pandas>=2.0.0
 numpy>=1.24.0
 

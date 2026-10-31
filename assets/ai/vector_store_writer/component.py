@@ -296,6 +296,53 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+def _build_s3vectors_client(region_name: str) -> Any:
+    """Isolated client construction -- tests monkeypatch
+    `vector_store_writer_component._build_s3vectors_client` to return a fake
+    client instead of calling the real (paid, AWS-account-specific) API."""
+    import boto3
+
+    return boto3.client("s3vectors", region_name=region_name)
+
+
+class _DemoS3VectorsClient:
+    """Deterministic, zero-cost stand-in for `boto3.client("s3vectors")`.
+    Persists to a local JSON file so a demo writer run and a later demo query
+    run (a separate component/process) round-trip against the same data --
+    matching the existing faiss branch's own local-file persistence
+    convention (`connection_string or f"./{collection_name}.faiss"`)."""
+
+    def __init__(self, path: str):
+        self._path = path
+
+    def _load(self) -> Dict[str, Any]:
+        if os.path.exists(self._path):
+            import json
+            with open(self._path) as f:
+                return json.load(f)
+        return {"indexes": {}}
+
+    def _save(self, data: Dict[str, Any]) -> None:
+        import json
+        with open(self._path, "w") as f:
+            json.dump(data, f)
+
+    def create_vector_bucket(self, vectorBucketName: str, **_kw) -> None:
+        pass  # a bucket is just a namespace in the local JSON file -- nothing to pre-create
+
+    def create_index(self, vectorBucketName: str, indexName: str, dataType: str, dimension: int, distanceMetric: str, **_kw) -> None:
+        data = self._load()
+        data["indexes"].setdefault(indexName, {"dimension": dimension, "distanceMetric": distanceMetric, "vectors": {}})
+        self._save(data)
+
+    def put_vectors(self, vectorBucketName: str, indexName: str, vectors: List[Dict[str, Any]], **_kw) -> None:
+        data = self._load()
+        index = data["indexes"].setdefault(indexName, {"dimension": len(vectors[0]["data"]["float32"]) if vectors else 0, "distanceMetric": "cosine", "vectors": {}})
+        for v in vectors:
+            index["vectors"][v["key"]] = {"data": v["data"], "metadata": v.get("metadata", {})}
+        self._save(data)
+
+
 class VectorStoreWriterComponent(Component, Model, Resolvable):
     """Component for writing embeddings to vector stores.
 
@@ -313,7 +360,7 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
     """
 
     asset_name: str = Field(description="Name of the asset")
-    provider: str = Field(description="Provider: 'pinecone', 'weaviate', 'chromadb', 'faiss', 'qdrant'")
+    provider: str = Field(description="Provider: 'pinecone', 'weaviate', 'chromadb', 'faiss', 'qdrant', 's3vectors'")
     collection_name: str = Field(description="Collection/index name")
     embedding_column: Union[str, int] = Field(default="embedding", description="Column with embeddings")
     text_column: Union[str, int] = Field(default="text", description="Column with text")
@@ -427,6 +474,24 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
         ),
     )
 
+    vector_bucket_name: Optional[str] = Field(
+        default=None,
+        description="S3 Vectors bucket name. Required when provider='s3vectors'. Ignored by every other provider.",
+    )
+    aws_region: Optional[str] = Field(
+        default=None,
+        description="AWS region for the s3vectors client. Required when provider='s3vectors'. Ignored by every other provider.",
+    )
+    demo_mode: bool = Field(
+        default=True,
+        description=(
+            "Only affects provider='s3vectors' -- writes to a local JSON-file-backed fake instead "
+            "of a real AWS account (no effect on chromadb/pinecone/qdrant/faiss, which have no demo "
+            "concept and always hit the real/local service they're configured for). Set false for "
+            "a real S3 Vectors bucket."
+        ),
+    )
+
     retry_policy_max_retries: Optional[int] = Field(
 
         default=None,
@@ -468,6 +533,14 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
     def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=True)
 
+    @model_validator(mode="after")
+    def _validate_s3vectors_config(self):
+        if self.provider == "s3vectors" and not (self.vector_bucket_name and self.aws_region):
+            raise ValueError(
+                "VectorStoreWriterComponent: provider='s3vectors' requires both `vector_bucket_name` and `aws_region`."
+            )
+        return self
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         provider = self.provider
@@ -479,6 +552,9 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
         api_key = self.api_key
         batch_size = self.batch_size
         upsert = self.upsert
+        vector_bucket_name = self.vector_bucket_name
+        aws_region = self.aws_region
+        demo_mode = self.demo_mode
         description = self.description or f"Write embeddings to {provider}/{collection_name}"
         group_name = self.group_name
         upstream_asset_key = self.upstream_asset_key
@@ -713,6 +789,39 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
                     pickle.dump(metadata, f)
 
                 faiss.write_index(index, index_path)
+
+            elif provider == "s3vectors":
+                if demo_mode:
+                    demo_path = connection_string or f"./{vector_bucket_name}_{collection_name}_s3vectors_demo.json"
+                    client = _DemoS3VectorsClient(demo_path)
+                else:
+                    client = _build_s3vectors_client(aws_region)
+
+                client.create_vector_bucket(vectorBucketName=vector_bucket_name)
+                embedding_dim = len(df[embedding_column].iloc[0])
+                client.create_index(
+                    vectorBucketName=vector_bucket_name, indexName=collection_name,
+                    dataType="float32", dimension=embedding_dim, distanceMetric="cosine",
+                )
+
+                vectors = []
+                for idx, row in df.iterrows():
+                    metadata = {text_column: row[text_column]} if text_column in df.columns else {}
+                    for col in metadata_columns:
+                        if col in df.columns:
+                            metadata[col] = row[col]
+                    vectors.append({
+                        "key": f"doc_{idx}",
+                        "data": {"float32": [float(x) for x in row[embedding_column]]},
+                        "metadata": metadata,
+                    })
+
+                # PutVectors is capped at 500 vectors per call -- a real, confirmed AWS limit.
+                for i in range(0, len(vectors), min(batch_size, 500)):
+                    client.put_vectors(
+                        vectorBucketName=vector_bucket_name, indexName=collection_name,
+                        vectors=vectors[i:i + min(batch_size, 500)],
+                    )
 
             else:
                 raise ValueError(f"Unsupported provider: {provider}")

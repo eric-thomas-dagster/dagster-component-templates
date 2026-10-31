@@ -228,6 +228,60 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 # END field-shape normalization
 
 
+def _build_s3vectors_client(region_name: str) -> Any:
+    """Isolated client construction -- tests monkeypatch
+    `vector_store_query_component._build_s3vectors_client` to return a fake
+    client instead of calling the real (paid, AWS-account-specific) API."""
+    import boto3
+
+    return boto3.client("s3vectors", region_name=region_name)
+
+
+class _DemoS3VectorsClient:
+    """Deterministic, zero-cost stand-in for `boto3.client("s3vectors")`'s
+    query path. Reads the same local JSON file format
+    VectorStoreWriterComponent's demo mode writes, and brute-force
+    cosine-ranks against it -- matching the existing faiss branch's own
+    local-file persistence convention."""
+
+    def __init__(self, path: str):
+        self._path = path
+
+    def query_vectors(self, vectorBucketName: str, indexName: str, topK: int, queryVector: Dict[str, Any], filter: Optional[Dict[str, Any]] = None, returnMetadata: bool = True, returnDistance: bool = True, **_kw) -> Dict[str, Any]:
+        import json
+        import math
+
+        if not os.path.exists(self._path):
+            return {"vectors": []}
+        with open(self._path) as f:
+            data = json.load(f)
+        index = (data.get("indexes") or {}).get(indexName, {"vectors": {}})
+        query = queryVector["float32"]
+        query_norm = math.sqrt(sum(x * x for x in query)) or 1.0
+
+        scored = []
+        for key, entry in index["vectors"].items():
+            metadata = entry.get("metadata", {})
+            if filter and not all(metadata.get(k) == v for k, v in filter.items()):
+                continue
+            vec = entry["data"]["float32"]
+            dot = sum(a * b for a, b in zip(query, vec))
+            vec_norm = math.sqrt(sum(x * x for x in vec)) or 1.0
+            cosine_distance = 1.0 - (dot / (query_norm * vec_norm))
+            scored.append((cosine_distance, key, metadata))
+
+        scored.sort(key=lambda t: t[0])
+        results = []
+        for distance, key, metadata in scored[:topK]:
+            item = {"key": key}
+            if returnMetadata:
+                item["metadata"] = metadata
+            if returnDistance:
+                item["distance"] = distance
+            results.append(item)
+        return {"vectors": results}
+
+
 class VectorStoreQueryComponent(Component, Model, Resolvable):
     """Component for querying vector stores.
 
@@ -246,7 +300,7 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
     """
 
     asset_name: str = Field(description="Name of the asset")
-    provider: str = Field(description="Provider: 'pinecone', 'weaviate', 'chromadb', 'faiss', 'qdrant'")
+    provider: str = Field(description="Provider: 'pinecone', 'weaviate', 'chromadb', 'faiss', 'qdrant', 's3vectors'")
     collection_name: str = Field(description="Collection/index name")
     query_text: Optional[str] = Field(default=None, description="Direct query text (alternative to embedding)")
     top_k: int = Field(default=10, description="Number of results")
@@ -256,6 +310,23 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
     include_distances: bool = Field(default=True, description="Include similarity distances")
     embedding_column: Union[str, int] = Field(default="embedding", description="Column name containing query embeddings in the upstream DataFrame")
     query_text_column: Optional[Union[str, int]] = Field(default=None, description="Column with query text to copy into output rows (helps downstream rerankers correlate query+document)")
+    vector_bucket_name: Optional[str] = Field(
+        default=None,
+        description="S3 Vectors bucket name. Required when provider='s3vectors'. Ignored by every other provider.",
+    )
+    aws_region: Optional[str] = Field(
+        default=None,
+        description="AWS region for the s3vectors client. Required when provider='s3vectors'. Ignored by every other provider.",
+    )
+    demo_mode: bool = Field(
+        default=True,
+        description=(
+            "Only affects provider='s3vectors' -- queries a local JSON-file-backed fake instead "
+            "of a real AWS account (no effect on chromadb/pinecone/qdrant/faiss). Set false for "
+            "a real S3 Vectors bucket. Point `connection_string` at the same path "
+            "VectorStoreWriterComponent's demo mode wrote to, to query what it wrote."
+        ),
+    )
     description: Optional[str] = Field(default=None, description="Asset description")
     group_name: Optional[str] = Field(default=None, description="Asset group")
     partition_type: Optional[str] = Field(
@@ -427,6 +498,14 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
     def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=False)
 
+    @model_validator(mode="after")
+    def _validate_s3vectors_config(self):
+        if self.provider == "s3vectors" and not (self.vector_bucket_name and self.aws_region):
+            raise ValueError(
+                "VectorStoreQueryComponent: provider='s3vectors' requires both `vector_bucket_name` and `aws_region`."
+            )
+        return self
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         include_preview = self.include_preview_metadata
@@ -441,6 +520,9 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
         include_distances = self.include_distances
         embedding_column = self.embedding_column
         query_text_column = self.query_text_column
+        vector_bucket_name = self.vector_bucket_name
+        aws_region = self.aws_region
+        demo_mode = self.demo_mode
         description = self.description or f"Query {provider}/{collection_name}"
         group_name = self.group_name
         upstream_asset_key = self.upstream_asset_key
@@ -669,6 +751,33 @@ group_name=group_name,
                             "distance": float(distances[0][i]),
                             "metadata": metadata[doc_idx] if doc_idx < len(metadata) else {}
                         })
+
+                elif provider == "s3vectors":
+                    if demo_mode:
+                        demo_path = connection_string or f"./{vector_bucket_name}_{collection_name}_s3vectors_demo.json"
+                        client = _DemoS3VectorsClient(demo_path)
+                    else:
+                        client = _build_s3vectors_client(aws_region)
+
+                    import json as _json
+                    query_response = client.query_vectors(
+                        vectorBucketName=vector_bucket_name, indexName=collection_name,
+                        topK=top_k, queryVector={"float32": [float(x) for x in query_embedding]},
+                        filter=_json.loads(filter_metadata) if filter_metadata else None,
+                        returnMetadata=True, returnDistance=include_distances,
+                    )
+
+                    for v in query_response.get("vectors", []):
+                        result = {
+                            "query_row_index": idx,
+                            "key": v["key"],
+                            "metadata": v.get("metadata", {}),
+                        }
+                        if query_text_column and query_text_column in row.index:
+                            result["query"] = row[query_text_column]
+                        if include_distances and "distance" in v:
+                            result["distance"] = v["distance"]
+                        results.append(result)
 
                 else:
                     raise ValueError(f"Unsupported provider: {provider}")

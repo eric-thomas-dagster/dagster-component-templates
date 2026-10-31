@@ -8,6 +8,12 @@ Query vector databases for semantic search using embeddings. Returns most releva
 
 Perform semantic search across your vector database. Perfect for RAG systems, document search, and similarity finding.
 
+## AWS S3 Vectors (`provider: s3vectors`)
+
+Native vector storage in S3 (GA since December 2025). Requires `vector_bucket_name` and `aws_region` (both required only for this provider). `filter_metadata` (a JSON string, e.g. `'{"species": "canine"}'`) maps directly onto S3 Vectors' own `filter` parameter and genuinely restricts results for this provider.
+
+`demo_mode` (default `true`) queries a local JSON file instead of a real AWS account -- point `connection_string` at the same path [`VectorStoreWriterComponent`](../vector_store_writer)'s demo mode wrote to (with `demo_mode: true` on both sides) to query what it wrote, with a real brute-force cosine ranking over that file. Set `demo_mode: false` for a real bucket.
+
 **Compatible with:**
 - Embedding Generator (producing query embeddings as array or list)
 - Any asset producing embedding array/list
@@ -15,7 +21,7 @@ Perform semantic search across your vector database. Perfect for RAG systems, do
 
 ## Features
 
-- **Multiple Providers**: ChromaDB, Pinecone, Qdrant, FAISS
+- **Multiple Providers**: ChromaDB, Pinecone, Qdrant, FAISS, AWS S3 Vectors
 - **Configurable Results**: Control number of results (top_k)
 - **Metadata Filtering**: Filter results by metadata
 - **Distance/Similarity Scores**: Include similarity metrics
@@ -57,7 +63,7 @@ Returns a Pandas DataFrame with search results containing:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset |
-| `provider` | `str` | Provider: 'pinecone', 'weaviate', 'chromadb', 'faiss', 'qdrant' |
+| `provider` | `str` | Provider: 'pinecone', 'weaviate', 'chromadb', 'faiss', 'qdrant', 's3vectors' |
 | `collection_name` | `str` | Collection/index name |
 | `upstream_asset_key` | `Union[str, List[str]]` | Upstream asset key providing a DataFrame with query embeddings |
 
@@ -95,6 +101,8 @@ Returns a Pandas DataFrame with search results containing:
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
@@ -125,6 +133,9 @@ Returns a Pandas DataFrame with search results containing:
 | `include_distances` | `bool` | `true` | Include similarity distances |
 | `embedding_column` | `Union[str, int]` | `"embedding"` | Column name containing query embeddings in the upstream DataFrame |
 | `query_text_column` | `Union[str, int]` | — | Column with query text to copy into output rows (helps downstream rerankers correlate query+document) |
+| `vector_bucket_name` | `str` | — | S3 Vectors bucket name. Required when provider='s3vectors'. Ignored by every other provider. |
+| `aws_region` | `str` | — | AWS region for the s3vectors client. Required when provider='s3vectors'. Ignored by every other provider. |
+| `demo_mode` | `bool` | `true` | Only affects provider='s3vectors' -- queries a local JSON-file-backed fake instead of a real AWS account (no effect on chromadb/pinecone/qdrant/faiss). Set false for a real S3 Vectors bucket. Point `connection_string` at… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 25 rows or a sample) for builder UIs. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata. For long DataFrames (>10x preview_rows), a random sample is used; otherwise head(). |
@@ -185,6 +196,20 @@ attributes:
   query_text: "${USER_QUERY}"
   api_key: ${PINECONE_API_KEY}
   top_k: 10
+```
+
+### With AWS S3 Vectors
+```yaml
+type: dagster_community_components.VectorStoreQueryComponent
+attributes:
+  asset_name: s3_vector_results
+  provider: s3vectors
+  collection_name: my-index
+  vector_bucket_name: my-vector-bucket
+  aws_region: us-east-2
+  top_k: 10
+  filter_metadata: '{"category": "support"}'
+  demo_mode: true  # query the same local JSON file the writer's demo mode wrote to
 ```
 
 ### From Upstream Embedding

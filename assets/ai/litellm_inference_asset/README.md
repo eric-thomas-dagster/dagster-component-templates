@@ -33,10 +33,12 @@ LiteLLM routes to 100+ providers using a unified `model` string:
 | Mistral          | `mistral/mistral-large-latest`                |
 | Cohere           | `cohere/command-r-plus`                       |
 | Groq             | `groq/llama-3.1-70b-versatile`               |
-| Together AI      | `together_ai/meta-llama/Llama-3-70b-chat`    |
+| Together AI      | `together_ai/Qwen/Qwen3.5-9B` — **note:** `api_key_env_var` must be `TOGETHERAI_API_KEY` (no underscore between TOGETHER and AI) |
+| Cerebras         | `cerebras/llama3-70b-instruct`                |
+| Fireworks AI     | `fireworks_ai/accounts/fireworks/models/kimi-k3` |
 | Ollama (local)   | `ollama/llama3.2`                             |
 
-See the [LiteLLM provider docs](https://docs.litellm.ai/docs/providers) for the full list.
+See the [LiteLLM provider docs](https://docs.litellm.ai/docs/providers) for the full list. All of these (including fast-inference providers like Cerebras/Fireworks/Groq/Together) work today with zero code changes — just a `model` string and matching `api_key_env_var`.
 
 ---
 

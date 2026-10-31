@@ -24,14 +24,15 @@
     "provider": {
       "type": "string",
       "label": "Provider",
-      "description": "Provider: 'pinecone', 'weaviate', 'chromadb', 'faiss', 'qdrant'",
+      "description": "Provider: 'pinecone', 'weaviate', 'chromadb', 'faiss', 'qdrant', 's3vectors'",
       "required": true,
       "enum": [
         "pinecone",
         "weaviate",
         "chromadb",
         "faiss",
-        "qdrant"
+        "qdrant",
+        "s3vectors"
       ],
       "ui:widget": "select"
     },
@@ -326,6 +327,26 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "vector_bucket_name": {
+      "type": "string",
+      "label": "Vector Bucket Name",
+      "description": "S3 Vectors bucket name. Required when provider='s3vectors'. Ignored by every other provider.",
+      "required": false
+    },
+    "aws_region": {
+      "type": "string",
+      "label": "AWS Region",
+      "description": "AWS region for the s3vectors client. Required when provider='s3vectors'. Ignored by every other provider.",
+      "required": false
+    },
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "description": "Only affects provider='s3vectors' -- queries a local JSON-file-backed fake instead of a real AWS account (no effect on chromadb/pinecone/qdrant/faiss). Set false for a real S3 Vectors bucket. Point `connection_string` at the same path VectorStoreWriterComponent's demo mode wrote to, to query what it wrote.",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
     }
   },
   "tags": [

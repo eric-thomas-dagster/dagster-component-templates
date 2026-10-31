@@ -1,0 +1,265 @@
+{
+  "component_type": "dagster_community_components.AgentMemoryStoreComponent",
+  "description": "Form long-term agent memory from a DataFrame of conversation turns using Mem0 (self-hosted) -- distinct from simple chat-history storage, this extracts and consolidates durable facts per user/session via an LLM + vector store, retrievable later via semantic search. Grouped per user (and optionally per agent/session) before calling Mem0's add() once per group.",
+  "category": "ai",
+  "icon": "Brain",
+  "x-dagster-io": {
+    "inputs": {
+      "type": "pd.DataFrame",
+      "description": "One row per conversation turn (role + content), from upstream_asset_key."
+    },
+    "outputs": {
+      "type": "None",
+      "description": "No materialized value -- the asset's effect is writing memories into the configured (or demo) Mem0 store. Metadata reports groups_written/memories_written."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "required": true,
+      "description": "Dagster asset key emitted by this component."
+    },
+    "upstream_asset_key": {
+      "type": "string",
+      "label": "Upstream Asset Key",
+      "required": true,
+      "description": "Upstream asset key providing a DataFrame of conversation turns -- one row per message."
+    },
+    "user_id_column": {
+      "type": "string",
+      "label": "User Id Column",
+      "required": false,
+      "default": "user_id",
+      "description": "Column identifying who the conversation is with. Rows are grouped by this (and agent_id_column/run_id_column, if set) before calling Mem0's add() once per group."
+    },
+    "agent_id_column": {
+      "type": "string",
+      "label": "Agent Id Column",
+      "required": false,
+      "default": null,
+      "description": "Column identifying which agent participated, if memories should be scoped per-agent as well as per-user."
+    },
+    "run_id_column": {
+      "type": "string",
+      "label": "Run Id Column",
+      "required": false,
+      "default": null,
+      "description": "Column identifying the conversation/session, if memories should be scoped per-run rather than accumulated across a user's entire history."
+    },
+    "role_column": {
+      "type": "string",
+      "label": "Role Column",
+      "required": false,
+      "default": "role",
+      "description": "Column holding each turn's role ('user'/'assistant'/etc)."
+    },
+    "content_column": {
+      "type": "string",
+      "label": "Content Column",
+      "required": false,
+      "default": "content",
+      "description": "Column holding each turn's message text."
+    },
+    "metadata_column": {
+      "type": "string",
+      "label": "Metadata Column",
+      "required": false,
+      "default": null,
+      "description": "Optional column holding a JSON object (or JSON string) of extra metadata to attach -- the first non-null value in each group is used."
+    },
+    "infer": {
+      "type": "boolean",
+      "label": "Infer",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox",
+      "description": "Passed to Mem0's add(infer=...). true (default) runs fact extraction over the messages; false stores the raw messages verbatim with no extraction LLM call."
+    },
+    "vector_store": {
+      "type": "object",
+      "label": "Vector Store",
+      "required": false,
+      "default": null,
+      "description": "Mem0 vector_store config, e.g. {provider: qdrant, config: {host: localhost, port: 6333}}. Unset = Mem0's own on-disk default."
+    },
+    "llm": {
+      "type": "object",
+      "label": "LLM",
+      "required": false,
+      "default": null,
+      "description": "Mem0 llm config (used for fact extraction when infer=true), e.g. {provider: openai, config: {model: gpt-5-mini}}. Unset = Mem0's own default -- requires OPENAI_API_KEY."
+    },
+    "embedder": {
+      "type": "object",
+      "label": "Embedder",
+      "required": false,
+      "default": null,
+      "description": "Mem0 embedder config, e.g. {provider: openai, config: {model: text-embedding-3-small}}. Unset = Mem0's own default."
+    },
+    "validate_search": {
+      "type": "boolean",
+      "label": "Validate Search",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox",
+      "description": "After writing, run one Mem0 search() as a smoke check -- catches a silently-broken vector-store/embedder config. Emits a non-blocking (WARN) asset check."
+    },
+    "validate_search_query": {
+      "type": "string",
+      "label": "Validate Search Query",
+      "required": false,
+      "default": null,
+      "description": "Query text for the validate_search smoke check. Required when validate_search=true."
+    },
+    "demo_mode": {
+      "type": "boolean",
+      "label": "Demo Mode",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox",
+      "description": "Form memories against a local JSON-file-backed fake instead of a real Mem0/LLM/embedder stack. Set false for a real configuration."
+    },
+    "demo_store_path": {
+      "type": "string",
+      "label": "Demo Store Path",
+      "required": false,
+      "default": null,
+      "description": "Path to the local JSON file demo_mode reads/writes. Unset = './{asset_name}_agent_memory_demo.json'."
+    },
+    "group_name": {
+      "description": "Asset group name.",
+      "type": "string",
+      "label": "Group Name",
+      "required": false
+    },
+    "description": {
+      "description": "Asset description.",
+      "type": "string",
+      "label": "Description",
+      "required": false
+    },
+    "owners": {
+      "description": "Asset owners.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Owners",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "tags": {
+      "description": "Asset tags.",
+      "type": "object",
+      "label": "Tags",
+      "required": false,
+      "ui:widget": "key-value"
+    },
+    "kinds": {
+      "description": "Asset kinds. Default: ['mem0', 'memory', 'llm'].",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "ui:widget": "list"
+    },
+    "partition_type": {
+      "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned.",
+      "type": "string",
+      "label": "Partition Type",
+      "required": false,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "dynamic"
+      ]
+    },
+    "partition_start": {
+      "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
+      "type": "string",
+      "label": "Partition Start",
+      "required": false
+    },
+    "partition_values": {
+      "type": "string",
+      "label": "Partition Values",
+      "required": false,
+      "description": "Comma-separated for static."
+    },
+    "dynamic_partition_name": {
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic').",
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "required": false
+    },
+    "partition_dimensions": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "required": false,
+      "description": "Multi-axis partitioning."
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today until tomorrow. Set to 1 to include the current, still-in-progress window.",
+      "required": false,
+      "default": 0
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
+      "required": false,
+      "default": null
+    },
+    "backfill_policy": {
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one Dagster run. 'multi_run' launches one run per partition (optionally capped via Backfill Max Partitions Per Run). Leave empty for Dagster's default. Ignored when no partitioning is configured.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
+      "required": false,
+      "default": null
+    }
+  },
+  "tags": [
+    "ai",
+    "mem0",
+    "memory",
+    "llm",
+    "agents",
+    "rag"
+  ],
+  "name": "Agent Memory Store"
+}

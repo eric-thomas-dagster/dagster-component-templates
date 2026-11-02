@@ -15,6 +15,11 @@ class PapertrailResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     papertrail_port: int = Field(description="Papertrail port.")
     resource_key: str = Field(default="papertrail", description="Dagster resource key.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Papertrail Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_papertrail import papertrail_logger
         # The Papertrail integration registers a logger; we expose the

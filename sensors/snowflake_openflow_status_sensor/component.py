@@ -117,6 +117,11 @@ class SnowflakeOpenflowStatusSensorComponent(Component, Model, Resolvable):
 
         return snowflake.connector.connect(**self._connection_kwargs())
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Snowflake Openflow Status Sensor', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _self = self
         default_status = (

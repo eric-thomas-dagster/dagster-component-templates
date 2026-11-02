@@ -32,6 +32,11 @@ class WandbResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     entity: Optional[str] = Field(default=None, description="W&B entity/team name")
     project: Optional[str] = Field(default=None, description="Default W&B project name")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Wandb Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = WandbResource(
             api_key=dg.EnvVar(self.api_key_env_var),

@@ -60,6 +60,11 @@ class FirebaseStorageMonitorComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Initial sensor status: 'running' or 'stopped'.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Firebase Storage Monitor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         sensor_name = self.sensor_name
         bucket_name = self.bucket_name

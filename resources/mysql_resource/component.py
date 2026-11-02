@@ -37,6 +37,11 @@ class MySQLResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     password_env_var: Optional[str] = Field(default=None, description="Environment variable holding the database password")
     ssl_disabled: bool = Field(default=False, description="Disable TLS. Default False (TLS required); set True only for trusted local networks.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='My SQL Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         password = dg.EnvVar(self.password_env_var) if self.password_env_var else ""
         resource = MySQLResource(

@@ -32,6 +32,11 @@ class IcebergIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Iceberg IO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         properties: Dict[str, Any] = {
             k: v for k, v in {"uri": self.catalog_uri, "warehouse": self.warehouse}.items() if v is not None

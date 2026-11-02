@@ -138,6 +138,11 @@ class S3CsvIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
     aws_secret_key_env_var: Optional[str] = Field(default=None, description="Env var for secret key.")
     endpoint_url: Optional[str] = Field(default=None, description="Custom S3 endpoint.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='S3 Csv IO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         io_manager = S3CsvIOManager(
             bucket=self.bucket,

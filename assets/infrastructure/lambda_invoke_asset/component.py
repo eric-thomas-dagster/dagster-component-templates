@@ -387,6 +387,11 @@ class LambdaInvokeAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=("owners", "kinds", "deps"), csv=("partition_values",), tags=("asset_tags",))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Lambda Invoke Asset', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if self.invocation_type not in ("RequestResponse", "Event"):
             raise ValueError(f"invocation_type must be 'RequestResponse' or 'Event', got {self.invocation_type!r}")

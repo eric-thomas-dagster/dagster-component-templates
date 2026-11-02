@@ -1143,6 +1143,11 @@ class HttpExternalAssetComponent(dg.Component, dg.Model, dg.Resolvable):
             raise ValueError("HttpExternalAssetComponent.assets must contain at least one asset")
         return v
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Http External Asset', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         assets_defs = []
         for spec in self.assets:

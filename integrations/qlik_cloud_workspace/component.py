@@ -244,6 +244,11 @@ class QlikCloudWorkspaceComponent(dg.Component, dg.Model, dg.Resolvable):
             result["owners"] = override["owners"]
         return result
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Qlik Cloud Workspace', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         import os
         _self = self

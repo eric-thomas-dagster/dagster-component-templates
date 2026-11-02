@@ -179,6 +179,11 @@ class MixpanelResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     base_url: str = Field(default="https://api.mixpanel.com")
     request_timeout_seconds: int = Field(default=30)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Mixpanel Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         r = MixpanelResource(
             project_id=self.project_id,

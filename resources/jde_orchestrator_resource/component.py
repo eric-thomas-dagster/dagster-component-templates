@@ -78,6 +78,11 @@ class JDEOrchestratorResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     api_path_prefix: str = Field(default="/jderest/v3/orchestrator", description="Orchestrator API path. v3 for JDE Tools 9.2.7+, v2 for older.")
     verify_ssl: bool = Field(default=True)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='JDE Orchestrator Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         import os
         resource = JDEOrchestratorResource(

@@ -156,6 +156,11 @@ class SnowflakeSnowpipeLoadSensorComponent(dg.Component, dg.Model, dg.Resolvable
             )
         return snowflake.connector.connect(**ck)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Snowflake Snowpipe Load Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         default_status = (

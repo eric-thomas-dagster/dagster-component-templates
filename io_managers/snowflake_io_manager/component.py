@@ -17,6 +17,11 @@ class SnowflakeIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
     schema_name: Optional[str] = Field(default="PUBLIC", description="Default schema for asset tables")
     role: Optional[str] = Field(default=None, description="Snowflake role to use")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Snowflake IO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_snowflake_pandas import SnowflakePandasIOManager
         io_manager = SnowflakePandasIOManager(

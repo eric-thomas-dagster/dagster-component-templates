@@ -159,6 +159,11 @@ class FivetranUsageObservationSensorComponent(dg.Component, dg.Model, dg.Resolva
         description="Skip the real warehouse query entirely -- returns synthetic, deterministic MAR rows that change on alternating ticks. No resource_key or real warehouse required.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Fivetran Usage Observation Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         resource_key = self.resource_key

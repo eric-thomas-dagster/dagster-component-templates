@@ -13,6 +13,11 @@ class S3ResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     aws_secret_access_key_env_var: Optional[str] = Field(default=None, description="Environment variable holding the AWS secret access key")
     endpoint_url: Optional[str] = Field(default=None, description="Custom endpoint URL for MinIO or LocalStack, e.g. 'http://localhost:9000'")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='S3 Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_aws.s3 import S3Resource
         kwargs: dict = {}

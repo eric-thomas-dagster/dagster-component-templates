@@ -439,6 +439,11 @@ class DatabaseViewsMigrationComponent(dg.Component, dg.Model, dg.Resolvable):
             "substitutions. Emits a per-view status DataFrame for the migration report."
         )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Database Views Migration', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         source_type = self.source_type.lower()
         target_type = self.target_type.lower()

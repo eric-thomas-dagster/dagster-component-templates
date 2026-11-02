@@ -339,6 +339,11 @@ class FigmentStakingRewardsIngestionComponent(Component, Model, Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=(), tags=('asset_tags',))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Figment Staking Rewards Ingestion', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name, self.partition_dimensions

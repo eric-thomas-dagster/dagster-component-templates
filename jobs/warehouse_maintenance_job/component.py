@@ -39,6 +39,11 @@ class WarehouseMaintenanceJobComponent(dg.Component, dg.Model, dg.Resolvable):
     fail_fast: bool = Field(default=True, description="Stop on first failure (False = collect errors and continue)")
 
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Warehouse Maintenance Job', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from sqlalchemy import create_engine, text
         import os

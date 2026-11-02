@@ -118,6 +118,11 @@ class TwilioNotificationSensor(Component, Model, Resolvable):
         description="Minimum time (in seconds) between sensor evaluations.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Twilio Notification Sensor', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         # Capture fields for the closure.
         sensor_name = self.sensor_name

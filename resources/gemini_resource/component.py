@@ -9,6 +9,11 @@ class GeminiResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     resource_key: str = Field(default="gemini_resource", description="Key used to register this resource. Other components reference it via resource_key.")
     api_key_env_var: str = Field(default="GEMINI_API_KEY", description="Environment variable holding the Google Gemini API key")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Gemini Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_gemini import GeminiResource
         resource = GeminiResource(api_key=dg.EnvVar(self.api_key_env_var))

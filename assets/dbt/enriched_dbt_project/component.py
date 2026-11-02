@@ -2023,6 +2023,11 @@ except ImportError:
         fail_fast: bool = Field(default=False)
         poll_interval: float = Field(default=5.0)
 
+        @classmethod
+        def get_form_config(cls):
+            from dagster.components.resolved.form_config import ComponentFormConfig
+            return ComponentFormConfig(label='Enriched Dbt Project', editable=True)
+
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             raise ImportError(
                 "EnrichedDbtProjectComponent requires dagster-dbt. "

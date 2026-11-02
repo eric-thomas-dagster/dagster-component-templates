@@ -4371,6 +4371,11 @@ class ContextReceiptStoreComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Shrinkage for item quality priors: higher needs more outcome evidence to move a prior.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Context Receipt Store', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if isinstance(self.retry_max_attempts, bool) or self.retry_max_attempts < 1:
             raise ValueError(f"retry_max_attempts must be an integer >= 1, got {self.retry_max_attempts!r}")

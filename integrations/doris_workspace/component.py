@@ -456,6 +456,11 @@ class DorisWorkspaceComponent(Component, Model, Resolvable):
 
     # --------------------------------------------------------------------- build_defs
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Doris Workspace', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         engine = self._create_engine()
         assets: list = []

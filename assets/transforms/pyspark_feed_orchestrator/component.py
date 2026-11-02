@@ -1004,6 +1004,11 @@ class PySparkFeedOrchestratorComponent(dg.Component, Model, Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('kinds',), csv=(), tags=('tags',))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Py Spark Feed Orchestrator', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         # Resolve feeds_dir against the component's YAML location.
         base = _resolve_base(context)

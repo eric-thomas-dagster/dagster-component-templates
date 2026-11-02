@@ -45,6 +45,11 @@ class FacebookAdsResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Facebook Ad Account ID e.g. 'act_123456789'",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Facebook Ads Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = FacebookAdsResource(
             app_id_env_var=self.app_id_env_var,

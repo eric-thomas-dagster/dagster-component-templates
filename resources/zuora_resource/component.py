@@ -127,6 +127,11 @@ class ZuoraResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     client_id_env_var: str = Field(description="Env var with the Zuora OAuth2 Client ID.")
     client_secret_env_var: str = Field(description="Env var with the Zuora OAuth2 Client Secret.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Zuora Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         return dg.Definitions(resources={self.resource_key: ZuoraResource(
             base_url=self.base_url,

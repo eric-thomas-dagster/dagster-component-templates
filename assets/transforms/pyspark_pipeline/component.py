@@ -639,6 +639,11 @@ class PySparkPipelineComponent(Component, Model, Resolvable):
         upstream_keys = [self.upstream_asset_key] if self.upstream_asset_key else []
         return [flat_step], [flat_sink], upstream_keys
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Py Spark Pipeline', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name, self.partition_dimensions

@@ -366,6 +366,11 @@ else:
         )
         observation_interval_seconds: int = dg.Field(default=300, description="Seconds between sensor polls. Only used when polling_sensor=True.")
 
+        @classmethod
+        def get_form_config(cls):
+            from dagster.components.resolved.form_config import ComponentFormConfig
+            return ComponentFormConfig(label='Warehouse Schema Assets', editable=True)
+
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             db_url = dg.EnvVar(self.database_url_env_var).get_value()
             tables = _introspect_schemas(

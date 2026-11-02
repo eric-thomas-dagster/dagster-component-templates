@@ -69,6 +69,11 @@ class KafkaResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     sasl_username_env_var: Optional[str] = Field(default=None, description="Environment variable holding the SASL username")
     sasl_password_env_var: Optional[str] = Field(default=None, description="Environment variable holding the SASL password")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Kafka Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = KafkaResource(
             bootstrap_servers=self.bootstrap_servers,

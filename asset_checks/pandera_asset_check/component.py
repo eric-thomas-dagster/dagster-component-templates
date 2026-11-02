@@ -17,6 +17,11 @@ class PanderaAssetCheckComponent(dg.Component, dg.Model, dg.Resolvable):
     blocking: bool = Field(default=True, description="If True, schema failures block downstream materializations.")
     description: Optional[str] = Field(default=None, description="Asset-check description.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Pandera Asset Check', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_pandera import pandera_schema_to_dagster_type
         import importlib

@@ -80,6 +80,11 @@ class RPAHealthCheckComponent(dg.Component, dg.Model, dg.Resolvable):
         description="'WARN' (flag only) or 'ERROR' (blocks downstream materialization).",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='RPA Health Check', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         # Close over field values for the check body.
         target_asset = self.target_asset

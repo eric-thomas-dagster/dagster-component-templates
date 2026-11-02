@@ -295,6 +295,11 @@ class AggregateFreshnessSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         default=None, description="Description for the declared rollup asset."
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Aggregate Freshness Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if self.default_status not in ("running", "stopped"):
             raise ValueError(

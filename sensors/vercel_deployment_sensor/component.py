@@ -114,6 +114,11 @@ class VercelDeploymentSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     minimum_interval_seconds: int = Field(default=60, description="Seconds between polls.")
     default_status: str = Field(default="running", description="'running' or 'stopped'.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Vercel Deployment Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if bool(self.project_id) == bool(self.project_name):
             raise ValueError(

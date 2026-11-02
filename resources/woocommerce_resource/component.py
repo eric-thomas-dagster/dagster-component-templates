@@ -254,6 +254,11 @@ class WooCommerceResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Retry attempts on 429 (honors Retry-After) / 5xx.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Woo Commerce Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         import os
         consumer_key = os.environ.get(self.consumer_key_env_var, "")

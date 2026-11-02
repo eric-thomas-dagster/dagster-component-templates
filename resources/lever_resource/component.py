@@ -160,6 +160,11 @@ class LeverResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     base_url: str = Field(default="https://api.lever.co/v1", description="Lever API base URL.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Lever Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = LeverResource(
             api_key_env_var=self.api_key_env_var,

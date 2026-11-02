@@ -15,6 +15,11 @@ class BigQueryIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
     gcp_credentials_env_var: Optional[str] = Field(default=None, description="Environment variable holding a JSON service account key (optional; uses ADC if not set)")
     temporary_gcs_bucket: Optional[str] = Field(default=None, description="GCS bucket for temporary files during load jobs")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Big Query IO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_gcp_pandas import BigQueryPandasIOManager
         kwargs = dict(

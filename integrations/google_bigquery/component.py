@@ -241,6 +241,11 @@ class GoogleBigQueryComponent(Component, Model, Resolvable):
     )
 
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Google Big Query', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions from BigQuery entities."""
         # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).

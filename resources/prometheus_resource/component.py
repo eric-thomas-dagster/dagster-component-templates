@@ -15,6 +15,11 @@ class PrometheusResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     timeout: int = Field(default=30, description="Push timeout in seconds.")
     resource_key: str = Field(default="prometheus", description="Dagster resource key.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Prometheus Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_prometheus import PrometheusResource
         resource = PrometheusResource(gateway=self.gateway, timeout=self.timeout)

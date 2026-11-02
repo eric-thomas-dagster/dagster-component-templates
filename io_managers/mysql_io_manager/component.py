@@ -139,6 +139,11 @@ class MySQLIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
     schema_name: Optional[str] = Field(default=None, description="MySQL schema name.")
     if_exists: str = Field(default="replace", description="'replace', 'append', or 'fail'.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='My SQLIO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         io_manager = MySQLIOManager(
             connection_url=dg.EnvVar(self.connection_url_env_var).get_value() or "",

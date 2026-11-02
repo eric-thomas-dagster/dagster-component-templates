@@ -419,6 +419,11 @@ class DataframeToIcebergTableComponent(Component, Model, Resolvable):
         description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5'.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dataframe To Iceberg Table', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         freshness_policy = None
         if self.freshness_max_lag_minutes is not None:

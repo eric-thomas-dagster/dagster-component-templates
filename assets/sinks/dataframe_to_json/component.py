@@ -504,6 +504,11 @@ class DataframeToJsonComponent(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Write a DataFrame to a JSON or JSON Lines file."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dataframe To Json', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         # Standard catalog fields — phase 2 wiring
         _column_lineage_md = _column_lineage_metadata(self)

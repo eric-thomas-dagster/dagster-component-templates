@@ -12,6 +12,11 @@ class PySparkResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     master: Optional[str] = Field(default=None, description="Spark master URL, e.g. 'local[*]' or 'spark://host:7077'")
     app_name: str = Field(default="dagster", description="Spark application name")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Py Spark Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_pyspark import PySparkResource
         spark_conf = dict(self.spark_config or {})

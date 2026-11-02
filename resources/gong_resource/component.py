@@ -72,6 +72,11 @@ class GongResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Gong API base URL. Override for regional endpoints (EU/APAC).",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Gong Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = GongResource(
             access_key=dg.EnvVar(self.access_key_env_var),

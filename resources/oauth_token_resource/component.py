@@ -127,6 +127,11 @@ class OAuthTokenResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Refresh the token this many seconds BEFORE it expires (avoid mid-request expiry).",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='O Auth Token Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         cfg = self
 

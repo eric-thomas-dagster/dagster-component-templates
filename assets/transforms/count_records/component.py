@@ -473,6 +473,11 @@ class CountRecordsComponent(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Count rows in a DataFrame, optionally grouped by one or more columns."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Count Records', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         if bool(self.upstream_asset_key) == bool(self.source):
             raise ValueError("CountRecordsComponent: set exactly one of `upstream_asset_key` or `source`.")

@@ -62,6 +62,11 @@ class ComposerAirflowAuthBackendResourceComponent(Component, Model, Resolvable):
         ),
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Composer Airflow Auth Backend Resource', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         creds_dict = self.credentials
         if creds_dict is None:

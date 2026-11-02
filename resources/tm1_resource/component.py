@@ -114,6 +114,11 @@ class TM1ResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Enable TLS certificate verification. Set false only for self-signed dev servers.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='TM 1 Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         import os
         resource = TM1Resource(

@@ -742,6 +742,11 @@ class InsightsCustomMetricsSyncComponent(dg.Component, dg.Model, dg.Resolvable):
     def _desired(self) -> List[Dict[str, Optional[str]]]:
         return resolve_metrics(self._static_presets(), self.metrics)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Insights Custom Metrics Sync', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if self.on_error not in ("warn", "fail"):
             raise ValueError("on_error must be 'warn' or 'fail'")

@@ -69,6 +69,11 @@ class KustomerResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Env var holding the Kustomer API key"
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Kustomer Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         return dg.Definitions(resources={
             self.resource_key: KustomerResource(

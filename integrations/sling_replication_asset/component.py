@@ -16,6 +16,11 @@ class SlingReplicationAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     group_name: Optional[str] = Field(default="sling", description="Asset group applied to every stream in the replication.")
     name: Optional[str] = Field(default="sling_replication", description="Op name for the replication run.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Sling Replication Asset', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_sling import SlingResource, sling_assets, DagsterSlingTranslator
 

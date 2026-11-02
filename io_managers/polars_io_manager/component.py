@@ -16,6 +16,11 @@ class PolarsIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
     resource_key: str = Field(default="io_manager", description="Dagster resource key. Use 'io_manager' to make this the default.")
     base_dir: str = Field(default="dagster_storage", description="Local directory under which to store Parquet files.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Polars IO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         io_manager = PolarsParquetIOManager(
             base_dir=self.base_dir,

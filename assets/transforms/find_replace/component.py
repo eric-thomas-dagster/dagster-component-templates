@@ -466,6 +466,11 @@ class FindReplace(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Look up values in one column against a reference DataFrame and replace with mapped values."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Find Replace', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         if bool(self.upstream_asset_key) == bool(self.source):
             raise ValueError("FindReplace: set exactly one of `upstream_asset_key` or `source`.")

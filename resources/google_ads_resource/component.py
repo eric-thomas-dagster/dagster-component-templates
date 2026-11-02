@@ -82,6 +82,11 @@ class GoogleAdsResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Manager (MCC) account ID, 10 digits, no dashes. Optional.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Google Ads Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = GoogleAdsResource(
             developer_token_env_var=self.developer_token_env_var,

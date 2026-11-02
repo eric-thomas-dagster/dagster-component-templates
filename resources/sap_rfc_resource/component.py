@@ -128,6 +128,11 @@ class SapRFCResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     trace: int = Field(default=0, description="RFC trace level 0-3")
     connect_timeout_seconds: int = Field(default=30)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Sap RFC Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         cfg = self
 

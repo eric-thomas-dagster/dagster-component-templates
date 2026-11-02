@@ -9,6 +9,11 @@ class SlackResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     resource_key: str = Field(default="slack_resource", description="Key used to register this resource. Other components reference it via resource_key.")
     token_env_var: str = Field(description="Environment variable holding the Slack bot token (xoxb-...)")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Slack Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_slack import SlackResource
         resource = SlackResource(token=dg.EnvVar(self.token_env_var))

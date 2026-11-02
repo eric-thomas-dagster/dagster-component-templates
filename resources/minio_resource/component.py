@@ -32,6 +32,11 @@ class MinIOResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     secure: bool = Field(default=False, description="Use HTTPS (TLS) for the connection")
     default_bucket: str = Field(default="lake", description="Default bucket name for object storage operations")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Min IO Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = MinIOResource(
             endpoint=self.endpoint,

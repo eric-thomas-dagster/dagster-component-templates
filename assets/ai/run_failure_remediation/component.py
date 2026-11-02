@@ -1508,6 +1508,11 @@ class RunFailureRemediationComponent(dg.Component, dg.Model, dg.Resolvable):
         """The dynamic partitions definition failed run ids are registered on (share it with your triage assets)."""
         return dg.DynamicPartitionsDefinition(name=self.dynamic_partitions_name)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Run Failure Remediation', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         self.validate_config()
         engine = _Engine(self)

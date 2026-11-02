@@ -316,6 +316,11 @@ class IcebergIngestionComponent(Component, Model, Resolvable):
         props["type"] = self.catalog_type
         return load_catalog(self.catalog_name, **props)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Iceberg Ingestion', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         component = self
         asset_name = self.asset_name

@@ -31,6 +31,11 @@ class LinearIssueSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     state_types: List[str] = Field(default=["unstarted", "started"], description="Workflow state types to listen for.")
 
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Linear Issue Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         targets = [AssetKey.from_user_string(k) for k in self.asset_keys]

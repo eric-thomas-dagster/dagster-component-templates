@@ -87,6 +87,11 @@ class GreenhouseResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Greenhouse user ID to attribute write operations to (required by the Harvest API's On-Behalf-Of header).",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Greenhouse Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = GreenhouseResource(
             api_key=dg.EnvVar(self.api_key_env_var),

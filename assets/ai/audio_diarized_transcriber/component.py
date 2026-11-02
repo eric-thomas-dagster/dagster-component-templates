@@ -297,6 +297,11 @@ class AudioDiarizedTranscriberComponent(Component, Model, Resolvable):
     def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=False)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Audio Diarized Transcriber', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         backend = self.diarization_backend
         if backend not in ("google_cloud_speech", "pyannote"):

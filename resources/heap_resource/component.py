@@ -64,6 +64,11 @@ class HeapResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Env var holding your Heap environment ID (App ID).",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Heap Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = HeapResource(app_id=dg.EnvVar(self.app_id_env_var))
         return dg.Definitions(resources={self.resource_key: resource})

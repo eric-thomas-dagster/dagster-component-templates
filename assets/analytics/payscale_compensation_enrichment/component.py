@@ -667,6 +667,11 @@ class PayscaleCompensationEnrichmentComponent(Component, Model, Resolvable):
     def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=False)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Payscale Compensation Enrichment', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key

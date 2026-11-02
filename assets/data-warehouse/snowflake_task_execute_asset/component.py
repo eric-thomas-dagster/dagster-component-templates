@@ -180,6 +180,11 @@ class SnowflakeTaskExecuteAssetComponent(Component, Model, Resolvable):
             kwargs["password"] = os.environ.get(self.password_env_var, "")
         return kwargs
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Snowflake Task Execute Asset', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _self = self
         kinds = set(self.kinds) if self.kinds else set()

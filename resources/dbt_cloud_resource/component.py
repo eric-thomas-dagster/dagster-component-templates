@@ -10,6 +10,11 @@ class DbtCloudResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     auth_token_env_var: str = Field(description="Environment variable holding the dbt Cloud API token")
     account_id: int = Field(description="dbt Cloud account ID (numeric)")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dbt Cloud Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_dbt import DbtCloudResource
         resource = DbtCloudResource(

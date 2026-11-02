@@ -341,6 +341,11 @@ class TrainTestSplitterComponent(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Split a DataFrame into train/test (and optional val) assets using random, time, or hash strategies."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Train Test Splitter', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         partitions_def = _build_partitions_def(
             self.partition_type,

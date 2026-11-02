@@ -16,6 +16,11 @@ class HexProjectAssetsComponent(dg.Component, dg.Model, dg.Resolvable):
     asset_name: str = Field(description="Dagster asset name to expose in the catalog.")
     group_name: str = Field(default="hex", description="Asset group name.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Hex Project Assets', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_hex.resources import HexResource
         from dagster_hex.asset_defs import build_hex_asset

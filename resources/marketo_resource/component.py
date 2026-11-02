@@ -78,6 +78,11 @@ class MarketoResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     client_id_env_var: str = Field(description="Env var with OAuth Client ID")
     client_secret_env_var: str = Field(description="Env var with OAuth Client Secret")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Marketo Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         return dg.Definitions(resources={self.resource_key: MarketoResource(
             rest_url=self.rest_url,

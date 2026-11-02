@@ -129,6 +129,11 @@ class IterableResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     base_url: str = Field(default="https://api.iterable.com")
     request_timeout_seconds: int = Field(default=30)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Iterable Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         r = IterableResource(
             api_key_env_var=self.api_key_env_var,

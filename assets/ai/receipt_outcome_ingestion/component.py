@@ -817,6 +817,11 @@ class ReceiptOutcomeIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
         if self.max_rows is not None and self.max_rows < 1:
             raise ValueError("max_rows must be >= 1")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Receipt Outcome Ingestion', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         self._validate()
         src, mapping = dict(self.source), dict(self.mapping)

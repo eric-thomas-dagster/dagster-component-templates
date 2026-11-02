@@ -359,6 +359,11 @@ class ManagedFlinkApplicationAssetComponent(dg.Component, dg.Model, dg.Resolvabl
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=("owners", "kinds", "deps"), csv=("partition_values",), tags=("asset_tags",))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Managed Flink Application Asset', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if self.desired_state not in ("running", "stopped"):
             raise ValueError(f"desired_state must be 'running' or 'stopped', got {self.desired_state!r}")

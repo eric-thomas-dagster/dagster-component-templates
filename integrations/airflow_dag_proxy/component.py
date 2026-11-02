@@ -15,6 +15,11 @@ class AirflowDagProxyComponent(dg.Component, dg.Model, dg.Resolvable):
     dag_id: str = Field(description="DAG ID variable name in that module (or fully-qualified attribute).")
     target: str = Field(default="job", description="'job' (run as Dagster job) or 'asset' (assets per task).")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Airflow Dag Proxy', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_airflow import make_dagster_definitions_from_airflow_dag
         import importlib

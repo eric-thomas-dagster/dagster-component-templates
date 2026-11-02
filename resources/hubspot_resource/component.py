@@ -324,6 +324,11 @@ class HubSpotResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Retry attempts on 429 (honors Retry-After) / 5xx.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Hub Spot Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         import os
         access_token = os.environ.get(self.access_token_env_var, "")

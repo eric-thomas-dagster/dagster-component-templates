@@ -230,6 +230,11 @@ class LineageToPurviewComponent(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=False)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Lineage To Purview', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         partitions_def = None
         if self.partition_type:

@@ -408,6 +408,11 @@ class XmlParser(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Parse XML content in a column into separate fields using XPath expressions."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Xml Parser', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         # Standard catalog fields — phase 2 wiring
         _retry_policy = None

@@ -36,6 +36,11 @@ class MLflowResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     username_env_var: Optional[str] = Field(default=None, description="Environment variable holding the MLflow server username")
     password_env_var: Optional[str] = Field(default=None, description="Environment variable holding the MLflow server password")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='M Lflow Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = MLflowResource(
             tracking_uri=self.tracking_uri,

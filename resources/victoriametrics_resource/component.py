@@ -98,6 +98,11 @@ class VictoriaMetricsResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     basic_password_env_var: Optional[str] = Field(default=None, description="Env var with HTTP basic password.")
     timeout_seconds: int = Field(default=60, ge=1)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Victoria Metrics Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = VictoriaMetricsResource(
             base_url=self.base_url,

@@ -1096,6 +1096,11 @@ else:
         poll_interval_seconds: int = 30
         job_timeout_seconds: int = 7200
         assets_by_job_name: Optional[dict] = None
+        @classmethod
+        def get_form_config(cls):
+            from dagster.components.resolved.form_config import ComponentFormConfig
+            return ComponentFormConfig(label='Auto Sys Asset', editable=True)
+
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             import tempfile
             from pathlib import Path as _Path

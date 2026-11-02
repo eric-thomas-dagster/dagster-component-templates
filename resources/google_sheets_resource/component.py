@@ -47,6 +47,11 @@ class GoogleSheetsResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="OAuth scopes for the Google Sheets API",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Google Sheets Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = GoogleSheetsResource(
             gcp_credentials_json=dg.EnvVar(self.gcp_credentials_env_var),

@@ -287,6 +287,11 @@ class AWSCDKAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     def get_component_schema(cls):
         return cls.schema()
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='AWSCDK Asset', editable=True)
+
     def build_defs(self, load_context: dg.ComponentLoadContext) -> dg.Definitions:
         # Capture all config as local variables for use inside the asset fn.
         # freshness_max_lag_minutes / freshness_cron -> FreshnessPolicy (applied to the asset(s) below)

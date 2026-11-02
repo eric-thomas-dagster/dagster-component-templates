@@ -168,6 +168,11 @@ class HuggingfacePipelineComponent(Component, Model, Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=(), tags=('asset_tags',))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Huggingface Pipeline', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _self = self
         kinds = set(self.kinds) if self.kinds else set()

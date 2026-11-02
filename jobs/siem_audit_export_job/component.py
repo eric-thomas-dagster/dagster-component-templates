@@ -51,6 +51,11 @@ class SiemAuditExportJobComponent(dg.Component, dg.Model, dg.Resolvable):
     fail_on_zero_events: bool = Field(default=False, description="Fail the job when 0 events were returned")
 
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Siem Audit Export Job', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         # The compound is built inline — three @op stages wired into one @job.
         # Source stage produces a DataFrame; normalize transforms it; sink ships it.

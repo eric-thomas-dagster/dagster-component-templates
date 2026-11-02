@@ -511,6 +511,11 @@ class SampleComponent(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Sample rows from a DataFrame by count or fraction."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Sample', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         if bool(self.upstream_asset_key) == bool(self.source):
             raise ValueError("SampleComponent: set exactly one of `upstream_asset_key` or `source`.")

@@ -49,6 +49,11 @@ class TrinoResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     schema_name: Optional[str] = Field(default=None, description="Default schema within the catalog")
     password_env_var: Optional[str] = Field(default=None, description="Environment variable holding the Trino password (for basic auth)")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Trino Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = TrinoResource(
             host=self.host,

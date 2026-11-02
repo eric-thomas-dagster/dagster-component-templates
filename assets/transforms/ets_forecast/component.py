@@ -469,6 +469,11 @@ class EtsForecastComponent(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Fit an ETS (Exponential Smoothing / Holt-Winters) model and generate forecasts."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Ets Forecast', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         if bool(self.upstream_asset_key) == bool(self.source):
             raise ValueError("EtsForecastComponent: set exactly one of `upstream_asset_key` or `source`.")

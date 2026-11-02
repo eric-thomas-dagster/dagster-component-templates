@@ -17,6 +17,11 @@ class FivetranAssetsComponent(dg.Component, dg.Model, dg.Resolvable):
     connector_filter: Optional[List[str]] = Field(default=None, description="Optional list of connector_ids to include.")
     group_name: str = Field(default="fivetran", description="Asset group.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Fivetran Assets', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_fivetran import FivetranWorkspace, build_fivetran_assets_definitions
         workspace = FivetranWorkspace(

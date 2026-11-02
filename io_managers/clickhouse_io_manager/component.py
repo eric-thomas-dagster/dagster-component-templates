@@ -19,6 +19,11 @@ class ClickhouseIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
     database: str = Field(default="default", description="ClickHouse database.")
     secure: bool = Field(default=True, description="Use HTTPS.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Clickhouse IO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_clickhouse_pandas import ClickhousePandasIOManager
         io_manager = ClickhousePandasIOManager(

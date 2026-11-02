@@ -280,6 +280,11 @@ class AthenaIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Hive partition column name used when writing partitioned assets",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Athena IO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         io_manager = AthenaIOManager(
             database=self.database,

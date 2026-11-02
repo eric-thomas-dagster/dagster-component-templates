@@ -105,6 +105,11 @@ class PreciselyDISDQCheckComponent(dg.Component, dg.Model, dg.Resolvable):
         description="AssetCheckSeverity for failing checks: 'WARN' or 'ERROR'.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Precisely DISDQ Check', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster import AssetCheckSeverity, AssetCheckSpec, asset_check, AssetCheckResult, AssetCheckExecutionContext, MetadataValue
 

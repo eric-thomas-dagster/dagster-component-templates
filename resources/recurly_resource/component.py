@@ -80,6 +80,11 @@ class RecurlyResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     api_key_env_var: str = Field(description="Env var with the Recurly PRIVATE API key.")
     api_version: str = Field(default="2021-02-25", description="Recurly dated API version.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Recurly Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         return dg.Definitions(resources={self.resource_key: RecurlyResource(
             api_key_env_var=self.api_key_env_var,

@@ -675,6 +675,11 @@ class WarmScheduledJobComponent(Component, Model, Resolvable):
 
         return specs
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Warm Scheduled Job', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         job_specs = self._normalize_job_specs()
         warmup_path = self.warmup_fn

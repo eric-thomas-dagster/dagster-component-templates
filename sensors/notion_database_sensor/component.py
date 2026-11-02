@@ -31,6 +31,11 @@ class NotionDatabaseSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     page_size: int = Field(default=50, description="Rows fetched per query.")
 
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Notion Database Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         targets = [AssetKey.from_user_string(k) for k in self.asset_keys]

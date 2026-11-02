@@ -489,6 +489,11 @@ class MultiRowFormulaComponent(Component, Model, Resolvable):
             "differences, cumulative sums, and percent changes."
         )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Multi Row Formula', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         if bool(self.upstream_asset_key) == bool(self.source):
             raise ValueError("MultiRowFormulaComponent: set exactly one of `upstream_asset_key` or `source`.")

@@ -382,6 +382,11 @@ class SqlTransformComponent(dg.Component, dg.Model, dg.Resolvable):
     def get_description(cls) -> str:
         return "Run a SELECT on the warehouse and materialize the result as a table (CTAS pushdown)."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Sql Transform', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         """Dispatch to single-transform or collection mode -- mutually exclusive,
         same convention as external_sftp_path's asset_key/remote_path vs paths:."""

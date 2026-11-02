@@ -74,6 +74,11 @@ class ClickHouseTableObservationSensorComponent(dg.Component, dg.Model, dg.Resol
         ),
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Click House Table Observation Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         required_resource_keys = {self.resource_key} if self.resource_key else set()

@@ -34,6 +34,11 @@ class PostgresResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     password_env_var: str = Field(description="Environment variable holding the database password")
     sslmode: Optional[str] = Field(default="prefer", description="SSL mode: disable, allow, prefer, require, verify-ca, verify-full")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Postgres Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = PostgresResource(
             host=self.host,

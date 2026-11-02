@@ -229,6 +229,11 @@ class VantaEvidenceResponseAgentComponent(dg.Component, dg.Model, dg.Resolvable)
     def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=False)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Vanta Evidence Response Agent', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         _kinds = list(self.kinds or []) or ["ai", "vanta"]

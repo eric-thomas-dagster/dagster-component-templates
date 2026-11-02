@@ -409,6 +409,11 @@ class RampResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Token endpoint path, relative to base_url.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Ramp Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = RampResource(
             client_id_env_var=self.client_id_env_var,

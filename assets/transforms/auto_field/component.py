@@ -488,6 +488,11 @@ class AutoFieldComponent(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Automatically optimize DataFrame column dtypes to reduce memory usage."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Auto Field', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         if bool(self.upstream_asset_key) == bool(self.source):
             raise ValueError("AutoFieldComponent: set exactly one of `upstream_asset_key` or `source`.")

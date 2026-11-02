@@ -268,6 +268,11 @@ class LakeFSIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Format string. Available substitutions: {asset_key}, {partition_key}, {timestamp}, {row_count}",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Lake FSIO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         io_manager = LakeFSIOManager(
             repository=self.repository,

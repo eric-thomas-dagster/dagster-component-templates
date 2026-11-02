@@ -61,6 +61,11 @@ class PinterestAdsResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Pinterest Ads API base URL (override for a different API version).",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Pinterest Ads Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = PinterestAdsResource(
             access_token_env_var=self.access_token_env_var,

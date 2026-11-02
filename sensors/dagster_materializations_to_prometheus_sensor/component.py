@@ -83,6 +83,11 @@ class DagsterMaterializationsToPrometheusSensorComponent(dg.Component, dg.Model,
     interval_seconds: int = Field(default=60, ge=10, description="Sensor poll interval.")
     request_timeout_seconds: int = Field(default=15, ge=1)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dagster Materializations To Prometheus Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
 

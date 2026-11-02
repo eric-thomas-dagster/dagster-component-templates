@@ -254,6 +254,11 @@ class MinIOIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Column name used to scope per-partition Delta overwrites",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Min IOIO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         io_manager = MinIODeltaIOManager(
             bucket=self.bucket,

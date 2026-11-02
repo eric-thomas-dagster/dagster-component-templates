@@ -169,6 +169,11 @@ class S3MonitorSensorComponent(Component, Model, Resolvable):
         ),
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='S3 Monitor Sensor', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         sensor_name = self.sensor_name
         bucket_name = self.bucket_name

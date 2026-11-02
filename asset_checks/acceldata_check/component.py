@@ -48,6 +48,11 @@ class AcceldataCheckComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Optional — 'WARN' or 'ERROR'. Defaults to ERROR.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Acceldata Check', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         asset_key = dg.AssetKey(self.asset_key.split("/"))

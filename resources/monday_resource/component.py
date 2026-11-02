@@ -81,6 +81,11 @@ class MondayResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="monday.com API version sent via the 'API-Version' header",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Monday Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         return dg.Definitions(
             resources={

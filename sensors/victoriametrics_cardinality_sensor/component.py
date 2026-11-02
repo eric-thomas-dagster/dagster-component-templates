@@ -116,6 +116,11 @@ class VictoriaMetricsCardinalitySensorComponent(dg.Component, dg.Model, dg.Resol
 
     request_timeout_seconds: int = Field(default=30, ge=1)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Victoria Metrics Cardinality Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
 

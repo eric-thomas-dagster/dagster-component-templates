@@ -374,6 +374,11 @@ class ComfyUIWorkflowRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=("owners", "kinds", "deps"), csv=("partition_values",), tags=("asset_tags",))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Comfy UI Workflow Run Asset', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if bool(self.workflow_path) == bool(self.workflow):
             raise ValueError("Set exactly one of workflow_path or workflow.")

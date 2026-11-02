@@ -120,6 +120,11 @@ class AssetToJobTriggerSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         description="'running' or 'stopped' -- initial status of the sensor.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Asset To Job Trigger Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if self.default_status not in ("running", "stopped"):
             raise ValueError(

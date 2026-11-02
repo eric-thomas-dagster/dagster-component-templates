@@ -38,6 +38,11 @@ class RedisResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     ssl: bool = Field(default=False, description="Enable TLS (use rediss:// in url for managed services)")
     url_env_var: Optional[str] = Field(default=None, description="Environment variable holding a full redis:// or rediss:// URL. When set, takes precedence over host/port/password.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Redis Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         url = dg.EnvVar(self.url_env_var) if self.url_env_var else ""
         password = dg.EnvVar(self.password_env_var) if self.password_env_var else ""

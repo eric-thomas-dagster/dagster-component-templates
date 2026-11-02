@@ -249,6 +249,11 @@ class DocumentCorpusComponent(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('owners', 'kinds'), csv=('partition_values',), tags=('asset_tags',))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Document Corpus', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _column_lineage_md = _column_lineage_metadata(self)
         asset_name = self.asset_name

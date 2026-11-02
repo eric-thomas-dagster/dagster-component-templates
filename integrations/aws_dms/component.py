@@ -448,6 +448,11 @@ class AWSDMSComponent(Component, Model, Resolvable):
 
         return assets
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='AWSDMS', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Resolve component to Dagster definitions."""
         client = self._get_client()

@@ -471,6 +471,11 @@ class StreamingConsumerComponent(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Always-running queue consumer — polls a queue, transforms with polars, writes to a sink."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Streaming Consumer', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         # Copy attrs into closure so the compute fn doesn't hold `self`.
         asset_name = self.asset_name

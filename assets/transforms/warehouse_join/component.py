@@ -362,6 +362,11 @@ class WarehouseJoinComponent(Component, Model, Resolvable):
         finally:
             engine.dispose()
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Warehouse Join', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         dialect = self.dialect.lower()
         if dialect not in _SUPPORTED_DIALECTS:

@@ -150,6 +150,11 @@ class PandaDocResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="PandaDoc API base URL.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Panda Doc Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = PandaDocResource(api_key=self.api_key, base_url=self.base_url)
         return dg.Definitions(resources={self.resource_key: resource})

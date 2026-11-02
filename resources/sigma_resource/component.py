@@ -155,6 +155,11 @@ class SigmaResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Sigma REST API base URL for your org's cloud/region (see component docstring for the regional host table).",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Sigma Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = SigmaResource(
             client_id_env_var=self.client_id_env_var,

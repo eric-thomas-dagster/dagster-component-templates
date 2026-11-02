@@ -79,6 +79,11 @@ class VitallyResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Env var holding the Vitally REST API key (Settings -> Integrations -> REST API)",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Vitally Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if self.region not in ("us", "eu"):
             raise ValueError(f"VitallyResourceComponent: region must be 'us' or 'eu', got {self.region!r}")

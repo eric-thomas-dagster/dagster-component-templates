@@ -42,6 +42,11 @@ class MemcachedResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     port: int = Field(default=11211, description="Memcached port")
     timeout_seconds: float = Field(default=3.0, description="Connect + read/write timeout")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Memcached Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = MemcachedResource(
             host=self.host,

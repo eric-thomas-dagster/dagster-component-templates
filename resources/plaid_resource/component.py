@@ -48,6 +48,11 @@ class PlaidResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     client_id_env_var: str = Field(description="Env var with Plaid client_id")
     secret_env_var: str = Field(description="Env var with Plaid secret")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Plaid Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         return dg.Definitions(resources={self.resource_key: PlaidResource(
             environment=self.environment,

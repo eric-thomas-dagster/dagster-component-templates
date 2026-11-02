@@ -226,6 +226,11 @@ class HelpScoutResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Help Scout OAuth2 token endpoint.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Help Scout Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = HelpScoutResource(
             client_id_env_var=self.client_id_env_var,

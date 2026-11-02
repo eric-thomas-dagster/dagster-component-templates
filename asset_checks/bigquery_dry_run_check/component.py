@@ -70,6 +70,11 @@ class BigqueryDryRunCheckComponent(dg.Component, dg.Model, dg.Resolvable):
     severity: Literal["ERROR", "WARN"] = Field(default="ERROR")
     blocking: bool = Field(default=True)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Bigquery Dry Run Check', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         creds_dict = self.credentials
         if creds_dict is None:

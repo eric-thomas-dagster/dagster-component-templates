@@ -270,6 +270,11 @@ class DatabricksAssetBundleComponent(Component, Model, Resolvable):
             deps=deps if deps else None,
         )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Databricks Asset Bundle', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions from Databricks Asset Bundle configuration."""
         # Load bundle configuration

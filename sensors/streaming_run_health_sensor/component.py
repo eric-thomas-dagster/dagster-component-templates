@@ -90,6 +90,11 @@ class StreamingRunHealthSensorComponent(Component, dg.Model, dg.Resolvable):
     def get_description(cls) -> str:
         return "Health sensor that relaunches a long-running job whenever no run is currently active."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Streaming Run Health Sensor', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         sensor_name = self.sensor_name
         job_name = self.job_name

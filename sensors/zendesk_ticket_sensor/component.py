@@ -32,6 +32,11 @@ class ZendeskTicketSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     statuses: Optional[List[str]] = Field(default=None, description="Optional ticket statuses to filter on (e.g. ['new', 'open']).")
 
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Zendesk Ticket Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         targets = [AssetKey.from_user_string(k) for k in self.asset_keys]

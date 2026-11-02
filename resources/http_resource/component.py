@@ -33,6 +33,11 @@ class HTTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     auth_header_env_var: Optional[str] = Field(default=None, description="Env var containing the Authorization header value, e.g. 'Bearer token123'")
     timeout_seconds: int = Field(default=30, description="Request timeout in seconds")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='HTTP Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = HTTPResource(
             base_url=self.base_url,

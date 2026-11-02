@@ -310,6 +310,11 @@ class Db2ResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         ),
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Db2 Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if self.system_type not in _DEFAULT_PORTS:
             raise ValueError(

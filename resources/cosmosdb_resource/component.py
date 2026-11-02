@@ -27,6 +27,11 @@ class CosmosDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     key_env_var: str = Field(description="Environment variable holding the Cosmos DB account key")
     database_name: str = Field(default="", description="Default database name (optional — can also be passed per-call)")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Cosmos DB Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         key = dg.EnvVar(self.key_env_var) if self.key_env_var else ""
         resource = CosmosDBResource(

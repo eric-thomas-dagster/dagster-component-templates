@@ -118,6 +118,11 @@ class SapEventMeshSensorComponent(dg.Component, dg.Model, dg.Resolvable):
         default="stopped", description="'running' or 'stopped' (default — explicit opt-in)"
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Sap Event Mesh Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         cfg = self
         default_status = (

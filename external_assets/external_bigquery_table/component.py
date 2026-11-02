@@ -289,6 +289,11 @@ class ExternalBigQueryTableAsset(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('kinds', 'owners'), csv=('partition_values',), tags=())
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='External Big Query Table Asset', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         partitions_def = _build_partitions_def(
             self.partition_type,

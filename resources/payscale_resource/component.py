@@ -349,6 +349,11 @@ class PayscaleResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         default=60.0, description="Give up waiting for a report after this many seconds."
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Payscale Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = PayscaleResource(
             customer_id=self.customer_id,

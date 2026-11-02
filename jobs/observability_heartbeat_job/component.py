@@ -42,6 +42,11 @@ class ObservabilityHeartbeatJobComponent(dg.Component, dg.Model, dg.Resolvable):
     teams_webhook_url_env: Optional[str] = Field(default=None, description="Teams webhook URL env var")
 
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Observability Heartbeat Job', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         import requests, os
         _self = self

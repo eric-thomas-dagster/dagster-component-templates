@@ -92,6 +92,11 @@ class LaunchDarklyResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Env var holding a LaunchDarkly API access token.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Launch Darkly Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = LaunchDarklyResource(api_token=dg.EnvVar(self.api_token_env_var))
         return dg.Definitions(resources={self.resource_key: resource})

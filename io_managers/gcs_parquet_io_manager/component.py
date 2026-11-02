@@ -177,6 +177,11 @@ class GCSParquetIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Environment variable holding a JSON service-account key. Leave empty to use Application Default Credentials.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='GCS Parquet IO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         io_manager = GCSParquetIOManager(
             bucket=self.bucket,

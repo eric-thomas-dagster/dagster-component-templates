@@ -59,6 +59,23 @@ def make_run(run_id="run-abc", job_name="my_job", status="SUCCESS",
     return r
 
 
+def make_run_record(run=None, start_time=None, end_time=None, create_timestamp=None, **run_kwargs):
+    """A RunRecord-shaped mock: start_time/end_time/create_timestamp live on
+    the record itself (real RunRecord fields), not on `.dagster_run` (a real
+    DagsterRun has none of them -- see DagsterRun._fields). Mirrors
+    get_run_records()'s real return shape, the fix for the bug where code
+    used to read these straight off a bare DagsterRun from get_runs()."""
+    rec = MagicMock()
+    rec.dagster_run = run if run is not None else make_run(**run_kwargs)
+    rec.start_time = start_time
+    rec.end_time = end_time
+    if create_timestamp is not None:
+        rec.create_timestamp.timestamp.return_value = create_timestamp
+    else:
+        rec.create_timestamp = None
+    return rec
+
+
 # ── Model construction ─────────────────────────────────────────────────
 
 class TestModelConstruction:
@@ -296,13 +313,14 @@ class TestRunStuckTrigger:
         sensor = comp_mod._build_run_stuck_sensor(
             "test_stuck", trigger, actions, comp_mod.dg.DefaultSensorStatus.STOPPED
         )
-        # Mock the instance to return one long-running run
+        # Mock the instance to return one long-running run. start_time lives
+        # on the RunRecord (get_run_records()), not on the bare DagsterRun.
         ctx = make_context(cursor="")
-        long_run = make_run(
+        long_record = make_run_record(
             run_id="stuck-run-1",
             start_time=time.time() - 200,  # 200s ago > 100s threshold
         )
-        ctx.instance.get_runs.return_value = [long_run]
+        ctx.instance.get_run_records.return_value = [long_record]
         # Invoke the underlying evaluation_fn
         result = unwrap(sensor._evaluation_fn(ctx))
         # Should return a SensorResult (fired) — not a SkipReason
@@ -316,7 +334,7 @@ class TestRunStuckTrigger:
             "test_stuck2", trigger, [], comp_mod.dg.DefaultSensorStatus.STOPPED
         )
         ctx = make_context()
-        ctx.instance.get_runs.return_value = []
+        ctx.instance.get_run_records.return_value = []
         result = unwrap(sensor._evaluation_fn(ctx))
         assert hasattr(result, "skip_message")
 
@@ -531,12 +549,13 @@ class TestRunStartupSlowTrigger:
             "test", trigger, actions, comp_mod.dg.DefaultSensorStatus.STOPPED
         )
         ctx = make_context()
-        run = MagicMock()
-        run.run_id = "r-slow"
-        run.job_name = "j"
-        run.create_timestamp = 1000
-        run.start_time = 1200  # 200s startup > 60s
-        ctx.instance.get_runs.return_value = [run]
+        # create_timestamp/start_time live on the RunRecord (get_run_records()),
+        # not on the bare DagsterRun.
+        record = make_run_record(
+            run_id="r-slow", job_name="j",
+            create_timestamp=1000, start_time=1200,  # 200s startup > 60s
+        )
+        ctx.instance.get_run_records.return_value = [record]
         result = unwrap(sensor._evaluation_fn(ctx))
         assert result is not None
         assert hasattr(result, "run_requests")
@@ -547,12 +566,11 @@ class TestRunStartupSlowTrigger:
             "test", trigger, [], comp_mod.dg.DefaultSensorStatus.STOPPED
         )
         ctx = make_context()
-        run = MagicMock()
-        run.run_id = "r-fast"
-        run.job_name = "j"
-        run.create_timestamp = 1000
-        run.start_time = 1005  # 5s — well under
-        ctx.instance.get_runs.return_value = [run]
+        record = make_run_record(
+            run_id="r-fast", job_name="j",
+            create_timestamp=1000, start_time=1005,  # 5s — well under
+        )
+        ctx.instance.get_run_records.return_value = [record]
         result = unwrap(sensor._evaluation_fn(ctx))
         assert hasattr(result, "skip_message")
 
@@ -1890,3 +1908,75 @@ class TestPartitionKey:
             "date": "2024-01-15",
             "region": "us",
         }
+
+
+class TestEvaluateCompoundLeaf:
+    """_evaluate_compound_leaf's RunStatusTrigger/RunDurationTrigger/
+    RunStuckTrigger branches had no test coverage at all before this fix --
+    each called get_runs() (DagsterRun, no start_time/end_time/mode) and read
+    .end_time/.start_time directly, raising AttributeError on the first real
+    run. These use a REAL dg.instance_for_test() + real executed jobs, not
+    MagicMock stand-ins, since that's exactly what hid the original bug
+    elsewhere in this file.
+    """
+
+    def test_run_status_trigger_fires_on_real_completed_run(self):
+        dg = comp_mod.dg
+        with dg.instance_for_test() as instance:
+
+            @dg.job
+            def _probe():
+                @dg.op
+                def _o():
+                    return 1
+                _o()
+
+            _probe.execute_in_process(instance=instance)
+            sub = comp_mod.RunStatusTrigger(status="SUCCESS")
+            fired = comp_mod._evaluate_compound_leaf(sub, instance, last_fire_ts=0)
+            assert fired is True
+            # A fire_ts in the future must not re-fire.
+            not_fired = comp_mod._evaluate_compound_leaf(sub, instance, last_fire_ts=time.time() + 100)
+            assert not_fired is False
+
+    def test_run_duration_trigger_fires_on_real_completed_run(self):
+        dg = comp_mod.dg
+        with dg.instance_for_test() as instance:
+
+            @dg.job
+            def _probe():
+                @dg.op
+                def _o():
+                    return 1
+                _o()
+
+            _probe.execute_in_process(instance=instance)
+            sub = comp_mod.RunDurationTrigger(max_duration_seconds=0)
+            fired = comp_mod._evaluate_compound_leaf(sub, instance, last_fire_ts=0)
+            assert fired is True
+
+            sub_high_threshold = comp_mod.RunDurationTrigger(max_duration_seconds=9999)
+            not_fired = comp_mod._evaluate_compound_leaf(sub_high_threshold, instance, last_fire_ts=0)
+            assert not_fired is False
+
+    def test_run_stuck_trigger_does_not_crash_with_no_in_flight_runs(self):
+        """Regression test for the direct r.start_time AttributeError (this
+        branch filters to STARTED/STARTING runs; with none in flight, the
+        pre-fix code still crashed as soon as it iterated, since the crash
+        was on attribute access, not on a specific status value)."""
+        dg = comp_mod.dg
+        with dg.instance_for_test() as instance:
+
+            @dg.job
+            def _probe():
+                @dg.op
+                def _o():
+                    return 1
+                _o()
+
+            _probe.execute_in_process(instance=instance)
+            sub = comp_mod.RunStuckTrigger(max_running_seconds=0)
+            # The completed run above is SUCCESS, not STARTED/STARTING, so
+            # this must find zero in-flight runs and return False safely.
+            fired = comp_mod._evaluate_compound_leaf(sub, instance, last_fire_ts=0)
+            assert fired is False

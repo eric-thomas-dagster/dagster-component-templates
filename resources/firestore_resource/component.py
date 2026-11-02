@@ -36,6 +36,11 @@ class FirestoreResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     gcp_credentials_env_var: Optional[str] = Field(default=None, description="Environment variable holding service account JSON. Leave empty to use Application Default Credentials.")
     database: str = Field(default="(default)", description="Firestore database ID. '(default)' targets the default database.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Firestore Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         gcp_credentials = (
             dg.EnvVar(self.gcp_credentials_env_var) if self.gcp_credentials_env_var else ""

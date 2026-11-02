@@ -187,6 +187,11 @@ class DataframeToClickHouseComponent(dg.Component, dg.Model, dg.Resolvable):
     @classmethod
     def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=False)
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dataframe To Click House', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         kinds = set(self.kinds) if self.kinds else set()

@@ -15,6 +15,11 @@ class MSTeamsResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     timeout_seconds: int = Field(default=60, description="HTTP timeout.")
     resource_key: str = Field(default="msteams", description="Dagster resource key.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='MS Teams Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_msteams import MSTeamsResource
         resource = MSTeamsResource(

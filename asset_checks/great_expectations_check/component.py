@@ -58,6 +58,11 @@ class GreatExpectationsCheckComponent(dg.Component, dg.Model, dg.Resolvable):
     def get_description(cls) -> str:
         return "Run a GE expectation suite — one Dagster asset check per expectation."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Great Expectations Check', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster import (
             AssetCheckResult,

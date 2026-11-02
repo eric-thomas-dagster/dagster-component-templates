@@ -93,6 +93,11 @@ class MssqlResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="When True, skip server-cert verification. Use only for self-signed local SQL Server.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Mssql Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = MssqlResource(
             host=self.host,

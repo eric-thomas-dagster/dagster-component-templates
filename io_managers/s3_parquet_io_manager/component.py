@@ -190,6 +190,11 @@ class S3ParquetIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Custom S3-compatible endpoint URL (e.g. for MinIO: 'http://localhost:9000')",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='S3 Parquet IO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         io_manager = S3ParquetIOManager(
             bucket=self.bucket,

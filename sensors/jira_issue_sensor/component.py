@@ -33,6 +33,11 @@ class JiraIssueSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     fields: List[str] = Field(default=["summary", "status", "priority", "assignee"], description="Fields to fetch per issue.")
 
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Jira Issue Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         targets = [AssetKey.from_user_string(k) for k in self.asset_keys]

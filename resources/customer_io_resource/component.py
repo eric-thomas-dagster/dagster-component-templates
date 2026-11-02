@@ -126,6 +126,11 @@ class CustomerIoResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     base_url: str = Field(default="https://track.customer.io")
     request_timeout_seconds: int = Field(default=30)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Customer Io Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         r = CustomerIoResource(
             site_id_env_var=self.site_id_env_var,

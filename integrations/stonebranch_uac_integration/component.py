@@ -330,6 +330,11 @@ class StonebranchUACIntegrationComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Cron for the Stonebranch vs Dagster state reconciliation job.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Stonebranch UAC Integration', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         demo_mode = self.demo_mode
         endpoint = self.endpoint

@@ -593,6 +593,11 @@ class TwitterAdsIngestionComponent(Component, Model, Resolvable):
         description="Column used to filter the upstream DataFrame to the current static partition value.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Twitter Ads Ingestion', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _column_lineage_md = _column_lineage_metadata(self)
         asset_name = self.asset_name

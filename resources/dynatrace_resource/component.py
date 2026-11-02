@@ -75,6 +75,11 @@ class DynatraceResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     environment_url: str = Field(description="Dynatrace environment URL")
     api_token_env_var: str = Field(description="Env var holding the API token")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dynatrace Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         return dg.Definitions(resources={self.resource_key: DynatraceResource(
             environment_url=self.environment_url,

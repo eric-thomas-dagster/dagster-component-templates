@@ -43,6 +43,11 @@ class DuckDBIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Repo to install the `quack` extension from (`core_nightly` until the extension stabilizes).",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Duck DBIO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if not self.quack_remote:
             # Default: vanilla DuckDBPandasIOManager (in-process file).

@@ -86,6 +86,11 @@ class QlikComposeResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     api_token_env_var: Optional[str] = Field(default=None, description="Env var with API token (preferred for prod).")
     verify_ssl: bool = Field(default=True)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Qlik Compose Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         import os
         has_token = bool(self.api_token_env_var)

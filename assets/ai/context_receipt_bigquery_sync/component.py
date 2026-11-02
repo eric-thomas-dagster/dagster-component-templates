@@ -460,6 +460,11 @@ class ContextReceiptBigQuerySyncComponent(dg.Component, dg.Model, dg.Resolvable)
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=(), tags=('asset_tags',))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Context Receipt Big Query Sync', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if self.batch_size < 1 or self.max_batches < 1:
             raise ValueError("batch_size and max_batches must be >= 1")

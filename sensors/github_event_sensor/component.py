@@ -31,6 +31,11 @@ class GithubEventSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     event_types: List[str] = Field(default=["PullRequestEvent", "PushEvent", "IssuesEvent"], description="GitHub event_type names to listen for.")
 
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Github Event Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         targets = [AssetKey.from_user_string(k) for k in self.asset_keys]

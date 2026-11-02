@@ -65,6 +65,11 @@ class AsanaResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Asana workspace GID",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Asana Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = AsanaResource(
             access_token_env_var=self.access_token_env_var,

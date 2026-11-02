@@ -13,6 +13,11 @@ class QdrantResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     port: int = Field(default=6333, description="Qdrant REST port")
     api_key_env_var: Optional[str] = Field(default=None, description="Environment variable holding the Qdrant API key (for Qdrant Cloud)")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Qdrant Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_qdrant import QdrantResource
         api_key = dg.EnvVar(self.api_key_env_var) if self.api_key_env_var else None

@@ -514,6 +514,11 @@ class TextToColumns(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Split a text column into multiple columns or rows by a separator."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Text To Columns', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         if bool(self.upstream_asset_key) == bool(self.source):
             raise ValueError("TextToColumns: set exactly one of `upstream_asset_key` or `source`.")

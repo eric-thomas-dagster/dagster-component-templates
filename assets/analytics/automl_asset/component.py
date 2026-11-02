@@ -530,6 +530,11 @@ class AutoMLAssetComponent(Component, Model, Resolvable):
     def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=True)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Auto ML Asset', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         if self.task_type not in ("classification", "regression"):
             raise ValueError(f"AutoMLAssetComponent: task_type must be 'classification' or 'regression', got {self.task_type!r}.")

@@ -13,6 +13,11 @@ class MotherDuckIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
     database: str = Field(default="my_db", description="MotherDuck database name, e.g. 'my_db'")
     schema_name: Optional[str] = Field(default="main", description="Schema within the MotherDuck database")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Mother Duck IO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_duckdb_pandas import DuckDBPandasIOManager
 

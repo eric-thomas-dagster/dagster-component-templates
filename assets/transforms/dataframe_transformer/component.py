@@ -682,6 +682,11 @@ class DataFrameTransformerComponent(Component, Model, Resolvable):
             return json.dumps(v)
         return v
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Data Frame Transformer', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         # Standard catalog fields — phase 2 wiring
         _retry_policy = None

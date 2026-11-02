@@ -346,6 +346,11 @@ class AzureStreamAnalyticsComponent(Component, Model, Resolvable):
 
         return asa_observation_sensor
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Azure Stream Analytics', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions from this component."""
         client = self._get_client()

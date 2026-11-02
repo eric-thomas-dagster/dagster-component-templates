@@ -405,6 +405,11 @@ class DremioIngestionComponent(Component, Model, Resolvable):
         context.log.info(f"Dremio Flight returned {table.num_rows} rows")
         return table.to_pandas()
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dremio Ingestion', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         description = self.description or f"Dremio ingestion ({asset_name})"

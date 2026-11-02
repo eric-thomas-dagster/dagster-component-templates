@@ -20,6 +20,11 @@ class SnowflakePySparkIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
     warehouse: Optional[str] = Field(default=None, description="Snowflake warehouse.")
     role: Optional[str] = Field(default=None, description="Snowflake role.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Snowflake Py Spark IO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_snowflake_pyspark import SnowflakePySparkIOManager
         io_manager = SnowflakePySparkIOManager(

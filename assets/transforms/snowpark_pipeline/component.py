@@ -675,6 +675,11 @@ class SnowparkPipelineComponent(Component, Model, Resolvable):
         flat_sink = dict(self.sink, **{"from": "_default"})
         return [flat_step], [flat_sink]
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Snowpark Pipeline', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         steps, sinks = self._normalize()
         asset_name = self.asset_name

@@ -137,6 +137,11 @@ class DagsterPlusAssetEventsIngestionComponent(dg.Component, dg.Model, dg.Resolv
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('owners', 'kinds'), csv=('partition_values',), tags=('asset_tags',))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dagster Plus Asset Events Ingestion', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         partitions_def = None
         if self.partition_type:

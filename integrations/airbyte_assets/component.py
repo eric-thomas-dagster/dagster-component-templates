@@ -17,6 +17,11 @@ class AirbyteAssetsComponent(dg.Component, dg.Model, dg.Resolvable):
     connection_filter: Optional[List[str]] = Field(default=None, description="Optional list of connection_ids to include.")
     group_name: str = Field(default="airbyte", description="Asset group for the imported connections.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Airbyte Assets', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_airbyte import AirbyteCloudWorkspace, build_airbyte_assets_definitions
         workspace = AirbyteCloudWorkspace(

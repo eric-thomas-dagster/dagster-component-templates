@@ -71,6 +71,11 @@ class SupabaseStorageMonitorComponent(Component, Model, Resolvable):
         description="Page size for storage.list() calls. Supabase caps at 1000.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Supabase Storage Monitor', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         sensor_name = self.sensor_name
         bucket_name = self.bucket_name

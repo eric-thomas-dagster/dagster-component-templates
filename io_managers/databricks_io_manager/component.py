@@ -289,6 +289,11 @@ class DatabricksIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Column name used to scope per-partition DELETE+INSERT writes",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Databricks IO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         io_manager = DatabricksIOManager(
             server_hostname=self.server_hostname,

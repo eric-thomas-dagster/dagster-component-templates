@@ -296,6 +296,11 @@ class InsightlyResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Retry attempts on 429 / 5xx (exponential backoff, capped at 10s).",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Insightly Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = InsightlyResource(
             api_key_env_var=self.api_key_env_var,

@@ -169,6 +169,11 @@ class MongoDBIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
     database: str = Field(description="MongoDB database name.")
     if_exists: str = Field(default="replace", description="'replace', 'append', or 'fail'.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Mongo DBIO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if self.connection_uri:
             resolved_uri = self.connection_uri

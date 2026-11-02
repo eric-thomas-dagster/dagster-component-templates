@@ -127,6 +127,11 @@ class SnowflakeStreamComponent(Component, Model, Resolvable):
         body += f"  SHOW_INITIAL_ROWS = {str(self.show_initial_rows).upper()}"
         return body
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Snowflake Stream', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         # Build retry policy (opt-in via retry_policy_max_retries).
         _retry_policy = None

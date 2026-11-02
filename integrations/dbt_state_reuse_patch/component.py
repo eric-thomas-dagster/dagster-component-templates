@@ -140,6 +140,11 @@ class DbtStateReusePatchComponent(dg.Component, dg.Resolvable, dg.Model):
     No configuration needed. Patches apply globally at code-location load.
     """
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dbt State Reuse Patch', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         result = _apply_dbt_resilience_patches()
         # Log to the dagster logger so it surfaces in the code-location boot log.

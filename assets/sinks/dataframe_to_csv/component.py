@@ -589,6 +589,11 @@ class DataframeToCsvComponent(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Write a DataFrame to a CSV file."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dataframe To Csv', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         """Dispatch to single-export or collection mode -- mutually exclusive,
         same convention as sql_transform's asset_name/sql vs transforms:."""

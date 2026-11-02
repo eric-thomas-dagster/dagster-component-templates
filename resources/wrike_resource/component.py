@@ -72,6 +72,11 @@ class WrikeResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Wrike API base URL.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Wrike Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = WrikeResource(
             access_token_env_var=self.access_token_env_var,

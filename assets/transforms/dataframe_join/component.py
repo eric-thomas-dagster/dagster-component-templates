@@ -396,6 +396,11 @@ class DataframeJoin(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Join two DataFrame assets on common or specified columns."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dataframe Join', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         _include_preview = self.include_preview_metadata
         _preview_rows = self.preview_rows

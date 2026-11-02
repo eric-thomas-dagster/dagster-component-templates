@@ -542,6 +542,11 @@ else:
             description="Backoff strategy: 'linear' or 'exponential'.",
         )
 
+        @classmethod
+        def get_form_config(cls):
+            from dagster.components.resolved.form_config import ComponentFormConfig
+            return ComponentFormConfig(label='Open API Ingestion', editable=True)
+
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             spec = _fetch_spec(self.spec_url, self.spec_path)
             grouped = _extract_endpoints(spec, self.include_tags, self.exclude_tags)

@@ -31,6 +31,11 @@ class StripeEventSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     limit_per_tick: int = Field(default=100, description="Max events per evaluation.")
 
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Stripe Event Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         targets = [AssetKey.from_user_string(k) for k in self.asset_keys]

@@ -359,6 +359,11 @@ class FlinkJobRunAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=("owners", "kinds", "deps", "program_args"), csv=("partition_values",), tags=("asset_tags",))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Flink Job Run Asset', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if self.wait_mode not in ("until_finished", "until_running", "fire_and_forget"):
             raise ValueError(f"wait_mode must be 'until_finished', 'until_running', or 'fire_and_forget', got {self.wait_mode!r}")

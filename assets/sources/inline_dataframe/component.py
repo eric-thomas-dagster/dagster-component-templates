@@ -127,6 +127,11 @@ class InlineDataframeComponent(Component, Model, Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=(), tags=('asset_tags',))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Inline Dataframe', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         # Stringify column names — accept int (template-coerced from YAML

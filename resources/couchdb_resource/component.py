@@ -27,6 +27,11 @@ class CouchDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     username: Optional[str] = Field(default="", description="CouchDB username (leave empty for anonymous access)")
     password_env_var: Optional[str] = Field(default=None, description="Environment variable holding the CouchDB password")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Couch DB Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         password = dg.EnvVar(self.password_env_var) if self.password_env_var else ""
         resource = CouchDBResource(

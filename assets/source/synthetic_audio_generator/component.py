@@ -165,6 +165,11 @@ class SyntheticAudioGeneratorComponent(Component, Model, Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('deps', 'owners'), csv=('partition_values',), tags=('tags',))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Synthetic Audio Generator', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         partitions_def = None
         if self.partition_type:

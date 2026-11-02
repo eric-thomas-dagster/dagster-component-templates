@@ -549,6 +549,11 @@ class SummarizeComponent(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Group and aggregate a DataFrame by one or more columns."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Summarize', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         if bool(self.upstream_asset_key) == bool(self.source):
             raise ValueError("SummarizeComponent: set exactly one of `upstream_asset_key` or `source`.")

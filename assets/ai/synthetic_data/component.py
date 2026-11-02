@@ -317,6 +317,11 @@ class SyntheticDataComponent(Component, Model, Resolvable):
     )
 
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Synthetic Data', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         _column_lineage_md = _column_lineage_metadata(self)
         asset_name = self.asset_name

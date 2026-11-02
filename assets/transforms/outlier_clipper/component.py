@@ -301,6 +301,11 @@ class OutlierClipperComponent(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Detect and clip, drop, or flag outliers in numeric columns using IQR, z-score, or quantile thresholds."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Outlier Clipper', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         if bool(self.upstream_asset_key) == bool(self.source):
             raise ValueError("OutlierClipperComponent: set exactly one of `upstream_asset_key` or `source`.")

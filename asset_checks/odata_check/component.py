@@ -116,6 +116,11 @@ class ODataCheckComponent(dg.Component, dg.Model, dg.Resolvable):
             return None, {"Authorization": f"Bearer {_require_env(self.auth_token_env_var)}"}
         raise ValueError(f"unknown auth_type: {self.auth_type!r}")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='O Data Check', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         component = self
         asset_key = AssetKey(self.asset_key.split("/"))

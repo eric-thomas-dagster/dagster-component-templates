@@ -133,6 +133,11 @@ class AzureOpenAIResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     client_id_env_var: Optional[str] = Field(default=None)
     client_secret_env_var: Optional[str] = Field(default=None)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Azure Open AI Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = AzureOpenAIResource(
             azure_endpoint=self.azure_endpoint,

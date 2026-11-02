@@ -197,6 +197,11 @@ class Auth0ResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Env var holding the M2M application's Client Secret.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Auth0 Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = Auth0Resource(
             tenant_domain=self.tenant_domain,

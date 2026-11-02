@@ -118,6 +118,11 @@ class QuickBooksResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     refresh_token_env_var: str = Field(description="Env var with OAuth2 Refresh Token")
     minor_version: int = Field(default=75, description="QuickBooks API minor version.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Quick Books Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         return dg.Definitions(resources={self.resource_key: QuickBooksResource(
             realm_id=self.realm_id,

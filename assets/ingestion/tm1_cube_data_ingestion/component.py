@@ -121,6 +121,11 @@ class TM1CubeDataIngestionComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Max rows to include in the preview when include_preview_metadata is True.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='TM 1 Cube Data Ingestion', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name, self.partition_dimensions

@@ -139,6 +139,11 @@ class OutreachResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Outreach OAuth token endpoint",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Outreach Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = OutreachResource(
             client_id_env_var=self.client_id_env_var,

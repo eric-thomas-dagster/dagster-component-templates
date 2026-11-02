@@ -72,6 +72,11 @@ class InfluxDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     bucket: Optional[str] = Field(default=None, description="Default destination bucket.")
     timeout_ms: int = Field(default=30000, ge=100)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Influx DB Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = InfluxDBResource(
             url=self.url,

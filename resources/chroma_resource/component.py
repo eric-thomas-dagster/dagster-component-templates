@@ -13,6 +13,11 @@ class ChromaResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     api_key_env_var: Optional[str] = Field(default=None, description="Environment variable holding the Chroma API key")
     local_path: Optional[str] = Field(default=None, description="Local path for persistent client mode (omit host/port for local)")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Chroma Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_chroma import ChromaResource
         api_key = dg.EnvVar(self.api_key_env_var) if self.api_key_env_var else None

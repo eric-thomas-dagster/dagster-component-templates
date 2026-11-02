@@ -39,6 +39,11 @@ class DynamoDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     aws_secret_access_key_env_var: Optional[str] = Field(default=None, description="Environment variable holding the AWS secret access key.")
     endpoint_url: Optional[str] = Field(default=None, description="Custom DynamoDB endpoint URL for LocalStack or DynamoDB Local, e.g. 'http://localhost:8000'.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dynamo DB Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         aws_access_key_id = (
             dg.EnvVar(self.aws_access_key_id_env_var) if self.aws_access_key_id_env_var else ""

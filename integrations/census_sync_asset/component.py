@@ -16,6 +16,11 @@ class CensusSyncAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     asset_name: str = Field(description="Dagster asset name.")
     group_name: str = Field(default="census", description="Asset group.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Census Sync Asset', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_census.resources import CensusResource
         from dagster_census.asset_defs import build_census_asset

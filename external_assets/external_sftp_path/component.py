@@ -499,6 +499,11 @@ class ExternalSftpPathAsset(dg.Component, dg.Model, dg.Resolvable):
 
         return [_make_check(e) for e in entries]
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='External Sftp Path Asset', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         entries = self._resolve_path_entries()
         partitions_def = _build_partitions_def(

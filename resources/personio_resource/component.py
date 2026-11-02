@@ -36,6 +36,11 @@ class PersonioResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Env var holding Personio client secret",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Personio Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = PersonioResource(
             client_id_env_var=self.client_id_env_var,

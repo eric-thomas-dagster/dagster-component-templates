@@ -120,6 +120,11 @@ class DagsterPlusToSiemJobComponent(dg.Component, dg.Model, dg.Resolvable):
     # Failure handling
     fail_on_zero_events: bool = Field(default=False)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dagster Plus To Siem Job', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         import datetime as dt

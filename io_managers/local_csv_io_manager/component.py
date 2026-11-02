@@ -125,6 +125,11 @@ class LocalCsvIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Create base_dir if it doesn't exist.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Local Csv IO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         io_manager = LocalCsvIOManager(
             base_dir=self.base_dir,

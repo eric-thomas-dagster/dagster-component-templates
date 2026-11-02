@@ -474,6 +474,11 @@ class MakeColumnsComponent(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Reshape a single column of values into a wide multi-column format."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Make Columns', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         if bool(self.upstream_asset_key) == bool(self.source):
             raise ValueError("MakeColumnsComponent: set exactly one of `upstream_asset_key` or `source`.")

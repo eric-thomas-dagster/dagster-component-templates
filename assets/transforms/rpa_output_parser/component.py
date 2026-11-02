@@ -164,6 +164,11 @@ class RPAOutputParserComponent(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component=cls.__name__, mode="multi", optional=False)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='RPA Output Parser', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         upstream_keys = [dg.AssetKey(k.split("/")) for k in self.upstream_asset_keys]
         _asset_name = self.asset_name

@@ -108,6 +108,11 @@ class MailchimpResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Env var holding a Mailchimp API key.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Mailchimp Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = MailchimpResource(api_key=dg.EnvVar(self.api_key_env_var))
         return dg.Definitions(resources={self.resource_key: resource})

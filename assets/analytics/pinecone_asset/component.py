@@ -515,6 +515,11 @@ class PineconeAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Lineage-only upstream asset keys (no data passed at runtime).",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Pinecone Asset', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         # Standard catalog fields — phase 2 wiring
         _column_lineage_md = _column_lineage_metadata(self)

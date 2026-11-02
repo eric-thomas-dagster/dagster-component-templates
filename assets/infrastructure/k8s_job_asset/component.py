@@ -57,6 +57,11 @@ class K8sJobAssetComponent(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('deps',), csv=(), tags=())
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='K8s Job Asset', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_k8s import execute_k8s_job, k8s_job_op
         deps_keys = [dg.AssetKey.from_user_string(k) for k in (self.deps or [])]

@@ -368,6 +368,11 @@ class SapHanaIngestionComponent(Component, Model, Resolvable):
             q = q.replace("{partition_key}", partition_key)
         return q
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Sap Hana Ingestion', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         description = self.description or f"SAP HANA ingestion ({asset_name})"

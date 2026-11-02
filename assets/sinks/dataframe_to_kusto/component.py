@@ -231,6 +231,11 @@ class DataframeToKustoComponent(Component, Model, Resolvable):
     def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=False)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dataframe To Kusto', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         partitions_def = None
         partition_date_column = self.partition_date_column

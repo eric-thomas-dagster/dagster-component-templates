@@ -57,6 +57,11 @@ class SFTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="If True, automatically accept unknown host keys (insecure — enables MITM). Default False rejects unknown hosts.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='SFTP Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = SFTPResource(
             host=self.host,

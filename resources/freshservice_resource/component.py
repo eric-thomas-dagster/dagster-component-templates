@@ -86,6 +86,11 @@ class FreshserviceResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Env var holding Freshservice API key",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Freshservice Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = FreshserviceResource(
             domain=self.domain,

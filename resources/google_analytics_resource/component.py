@@ -39,6 +39,11 @@ class GoogleAnalyticsResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Env var holding GCP service account JSON string",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Google Analytics Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = GoogleAnalyticsResource(
             property_id=self.property_id,

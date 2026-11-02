@@ -399,6 +399,11 @@ class GoogleDatastreamComponent(Component, Model, Resolvable):
 
         return datastream_observation_sensor
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Google Datastream', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions from this component."""
         client = self._get_client()

@@ -956,6 +956,11 @@ class AutomationConditionApplicatorComponent(dg.Component, dg.Model, dg.Resolvab
     def get_preserve_existing(self) -> bool:
         return self.preserve_existing
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Automation Condition Applicator', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         # No-op by itself: Dagster's component framework doesn't let one
         # component post-process another's already-built Definitions, so

@@ -111,6 +111,11 @@ class PrefectFlowRunSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     dynamic_partitions_name: Optional[str] = Field(default=None)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Prefect Flow Run Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         from dagster._core.definitions.sensor_definition import DefaultSensorStatus

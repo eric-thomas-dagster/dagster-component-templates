@@ -561,6 +561,11 @@ class AttentiveIngestionComponent(Component, Model, Resolvable):
             return dlt.destinations.filesystem(bucket_url=self.bucket_url)
         return "filesystem"
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Attentive Ingestion', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _column_lineage_md = _column_lineage_metadata(self)
         component = self

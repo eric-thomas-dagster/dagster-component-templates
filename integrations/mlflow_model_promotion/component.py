@@ -121,6 +121,11 @@ class MLflowModelPromotionComponent(Component, Model, Resolvable):
         default=None, description="Env var for HTTP-basic MLflow auth password (optional)."
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='M Lflow Model Promotion', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         tracking_uri_env_var = self.tracking_uri_env_var

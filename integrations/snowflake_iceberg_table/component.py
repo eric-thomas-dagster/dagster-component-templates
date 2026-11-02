@@ -150,6 +150,11 @@ class SnowflakeIcebergTableComponent(Component, Model, Resolvable):
             body += f"AS\n  {self.sql}"
         return body
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Snowflake Iceberg Table', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _retry_policy = None
         if self.retry_policy_max_retries is not None:

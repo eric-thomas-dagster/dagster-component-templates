@@ -472,6 +472,11 @@ class FilterComponent(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Filter rows from a DataFrame using a query condition."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Filter', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         _include_preview = self.include_preview_metadata
         _preview_rows = self.preview_rows

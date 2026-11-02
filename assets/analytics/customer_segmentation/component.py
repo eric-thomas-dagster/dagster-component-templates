@@ -616,6 +616,11 @@ class CustomerSegmentationComponent(Component, Model, Resolvable):
     )
 
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Customer Segmentation', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build asset definitions."""
         _column_lineage_md = _column_lineage_metadata(self)

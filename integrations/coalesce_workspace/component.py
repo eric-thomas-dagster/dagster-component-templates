@@ -756,6 +756,11 @@ else:
         catalog_api_token_env_var: Optional[str] = Field(default=None)
         catalog_base_url: str = Field(default="https://api.castordoc.com/public/graphql")
 
+        @classmethod
+        def get_form_config(cls):
+            from dagster.components.resolved.form_config import ComponentFormConfig
+            return ComponentFormConfig(label='Coalesce Workspace', editable=True)
+
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             token = dg.EnvVar(self.api_token_env_var).get_value()
             headers = {"Authorization": f"Bearer {token}"}

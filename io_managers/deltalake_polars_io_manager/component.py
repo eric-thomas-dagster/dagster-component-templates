@@ -22,6 +22,11 @@ class DeltaLakePolarsIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
     azure_storage_key_env_var: Optional[str] = Field(default=None, description="Environment variable for Azure storage account key (ADLS storage)")
     gcp_credentials_env_var: Optional[str] = Field(default=None, description="Environment variable holding a GCS service account JSON key")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Delta Lake Polars IO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_deltalake_polars import DeltaLakePolarsIOManager
         from dagster_deltalake import LocalConfig, S3Config, AzureConfig, GcsConfig

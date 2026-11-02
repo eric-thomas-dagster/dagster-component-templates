@@ -706,6 +706,11 @@ class SalesforceResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Retry attempts on 429 / 5xx (exponential backoff, capped at 10s) + one on 401 (token refresh).",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Salesforce Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         import os
         mode = (self.auth_mode or "password").lower()

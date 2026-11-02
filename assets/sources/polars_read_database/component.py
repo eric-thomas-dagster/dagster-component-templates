@@ -201,6 +201,11 @@ class PolarsReadDatabaseComponent(Component, Model, Resolvable):
             return v
         raise ValueError("Set either 'connection_uri' or 'connection_uri_env_var'")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Polars Read Database', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name, self.partition_dimensions

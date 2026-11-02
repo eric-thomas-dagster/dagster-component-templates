@@ -246,6 +246,11 @@ class CopperResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Retry attempts on 429 / 5xx (exponential backoff, honors Retry-After).",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Copper Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = CopperResource(
             api_key_env_var=self.api_key_env_var,

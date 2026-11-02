@@ -16,6 +16,11 @@ class LookerAssetsComponent(dg.Component, dg.Model, dg.Resolvable):
     client_secret_env_var: str = Field(default="LOOKER_CLIENT_SECRET", description="Env var with API3 client_secret.")
     project: Optional[str] = Field(default=None, description="Optional LookML project filter.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Looker Assets', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_looker import LookerResource, build_looker_asset_specs
         looker = LookerResource(

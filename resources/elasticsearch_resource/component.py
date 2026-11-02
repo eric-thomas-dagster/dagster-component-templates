@@ -38,6 +38,11 @@ class ElasticsearchResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     password_env_var: Optional[str] = Field(default=None, description="Env var holding the Elasticsearch password. Set this OR password.")
     verify_certs: bool = Field(default=True, description="Verify TLS certificates. Set to False for self-signed dev clusters only.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Elasticsearch Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if self.api_key:
             api_key = self.api_key

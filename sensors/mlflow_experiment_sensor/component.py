@@ -116,6 +116,11 @@ class MLflowExperimentSensorComponent(Component, Model, Resolvable):
         ),
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='M Lflow Experiment Sensor', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         # Close over field values (avoid self references in the sensor body).
         sensor_name = self.sensor_name

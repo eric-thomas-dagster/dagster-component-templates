@@ -17,6 +17,11 @@ class TableauAssetsComponent(dg.Component, dg.Model, dg.Resolvable):
     token_value_env_var: str = Field(default="TABLEAU_TOKEN_VALUE", description="Env var with PAT value.")
     online: bool = Field(default=True, description="Tableau Online (vs Server).")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Tableau Assets', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_tableau import TableauCloudWorkspace, TableauServerWorkspace, load_tableau_asset_specs
         ws_cls = TableauCloudWorkspace if self.online else TableauServerWorkspace

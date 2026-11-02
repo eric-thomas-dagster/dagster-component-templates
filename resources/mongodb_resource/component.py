@@ -26,6 +26,11 @@ class MongoDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     database: str = Field(default="", description="Default database name (optional)")
     tls: bool = Field(default=False, description="Enable TLS. Required for MongoDB Atlas; leave False for local/self-hosted clusters that don't terminate TLS.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Mongo DB Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if self.connection_string:
             cs = self.connection_string

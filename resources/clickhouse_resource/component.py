@@ -107,6 +107,11 @@ class ClickHouseResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     password_env_var: Optional[str] = Field(default=None, description="Env var with password.")
     secure: bool = Field(default=False, description="Enable TLS.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Click House Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = ClickHouseResource(
             host=self.host,

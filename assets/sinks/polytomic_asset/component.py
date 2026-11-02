@@ -551,6 +551,11 @@ else:
         retry_policy_max_retries: Optional[int] = None
         retry_policy_delay_seconds: Optional[int] = None
         retry_policy_backoff: str = "exponential"
+        @classmethod
+        def get_form_config(cls):
+            from dagster.components.resolved.form_config import ComponentFormConfig
+            return ComponentFormConfig(label='Polytomic Asset', editable=True)
+
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             api_key = dg.EnvVar(self.api_key_env_var).get_value()
             all_syncs = _list_syncs(api_key)

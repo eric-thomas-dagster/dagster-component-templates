@@ -492,6 +492,11 @@ class RecordIdComponent(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Add a unique sequential identifier to each row, with optional sorting, grouping, and prefix."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Record Id', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         if bool(self.upstream_asset_key) == bool(self.source):
             raise ValueError("RecordIdComponent: set exactly one of `upstream_asset_key` or `source`.")

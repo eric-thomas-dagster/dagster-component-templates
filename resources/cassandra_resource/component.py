@@ -45,6 +45,11 @@ class CassandraResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     password_env_var: Optional[str] = Field(default=None, description="Environment variable holding the Cassandra password")
     ssl: bool = Field(default=False, description="Enable TLS using the system default SSL context")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Cassandra Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         password = dg.EnvVar(self.password_env_var) if self.password_env_var else ""
         resource = CassandraResource(

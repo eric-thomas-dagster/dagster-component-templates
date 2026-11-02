@@ -213,6 +213,11 @@ class LanceIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Custom S3 endpoint URL, e.g. 'http://localhost:9000' for MinIO",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Lance IO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         io_manager = LanceIOManager(
             base_path=self.base_path,

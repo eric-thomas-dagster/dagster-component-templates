@@ -124,6 +124,11 @@ class PostHogEventsIngestionComponent(Component, Model, Resolvable):
     include_preview_metadata: bool = Field(default=True)
     preview_rows: int = Field(default=25, ge=1, le=500)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Post Hog Events Ingestion', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name, self.partition_dimensions

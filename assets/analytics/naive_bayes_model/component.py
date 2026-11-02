@@ -700,6 +700,11 @@ class NaiveBayesModelComponent(Component, Model, Resolvable):
     )
 
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Naive Bayes Model', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key

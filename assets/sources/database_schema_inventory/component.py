@@ -252,6 +252,11 @@ class DatabaseSchemaInventoryComponent(dg.Component, dg.Model, dg.Resolvable):
             "for warehouse migration planning."
         )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Database Schema Inventory', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         db_type = self.database_type.lower()
         if db_type not in _INVENTORY_QUERIES:

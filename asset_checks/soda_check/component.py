@@ -76,6 +76,11 @@ class SodaCheckComponent(dg.Component, dg.Model, dg.Resolvable):
     def get_description(cls) -> str:
         return "Run a Soda scan — one Dagster asset check per SodaCL check (community)."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Soda Check', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster import (
             AssetCheckResult,

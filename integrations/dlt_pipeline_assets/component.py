@@ -17,6 +17,11 @@ class DltPipelineAssetsComponent(dg.Component, dg.Model, dg.Resolvable):
     source_name: str = Field(description="dlt source variable name (or factory function).")
     group_name: str = Field(default="dlt", description="Asset group.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dlt Pipeline Assets', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_dlt import DagsterDltResource, dlt_assets
         import importlib

@@ -74,6 +74,11 @@ class DynamicFanoutJobComponent(dg.Component, dg.Model, dg.Resolvable):
 
     fail_on_empty: bool = Field(default=False, description="Fail the job if discover returns no items")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dynamic Fanout Job', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
 

@@ -404,6 +404,11 @@ class PdfTextExtractorComponent(Component, Model, Resolvable):
     def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=False)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Pdf Text Extractor', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         # Standard catalog fields — phase 2 wiring
         _retry_policy = None

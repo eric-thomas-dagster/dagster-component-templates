@@ -30,6 +30,11 @@ class RssFeedSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     max_entries_per_tick: int = Field(default=20, description="Cap entries emitted per evaluation.")
 
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Rss Feed Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         targets = [AssetKey.from_user_string(k) for k in self.asset_keys]

@@ -416,6 +416,11 @@ class DataframeUnion(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Stack multiple DataFrame assets vertically (like SQL UNION ALL)."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dataframe Union', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         # Standard catalog fields — phase 2 wiring
         _retry_policy = None

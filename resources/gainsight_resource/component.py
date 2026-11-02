@@ -68,6 +68,11 @@ class GainsightResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Env var holding the org-wide Gainsight Access Key (Administration -> Connectors 2.0 -> Gainsight API -> Access_Key)",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Gainsight Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = GainsightResource(
             base_url=self.base_url,

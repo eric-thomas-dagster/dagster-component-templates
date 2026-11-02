@@ -32,6 +32,11 @@ class GitlabEventSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     actions: List[str] = Field(default=["pushed", "merged", "opened", "closed"], description="Event 'action_name' values to filter on.")
 
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Gitlab Event Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         targets = [AssetKey.from_user_string(k) for k in self.asset_keys]

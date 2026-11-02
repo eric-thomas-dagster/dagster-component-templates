@@ -71,6 +71,11 @@ class TotangoResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Env var holding the Totango service token",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Totango Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if self.region not in ("us", "eu"):
             raise ValueError(f"TotangoResourceComponent: region must be 'us' or 'eu', got {self.region!r}")

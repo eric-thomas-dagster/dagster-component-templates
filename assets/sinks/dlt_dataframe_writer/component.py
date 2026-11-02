@@ -670,6 +670,11 @@ class DLTDataFrameWriterComponent(Component, Model, Resolvable):
         description="Lineage-only upstream asset keys (no data passed at runtime).",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='DLT Data Frame Writer', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions for the DLT DataFrame writer."""
         _column_lineage_md = _column_lineage_metadata(self)

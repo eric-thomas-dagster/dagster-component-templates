@@ -76,6 +76,11 @@ class LinearResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Linear GraphQL endpoint.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Linear Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = LinearResource(
             api_key_env_var=self.api_key_env_var,

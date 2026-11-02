@@ -36,6 +36,11 @@ class SMTPResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     password_env_var: str = Field(description="Environment variable holding the SMTP password")
     use_tls: bool = Field(default=True, description="Enable STARTTLS encryption")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='SMTP Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = SMTPResource(
             host=self.host,

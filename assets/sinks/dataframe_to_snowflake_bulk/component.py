@@ -215,6 +215,11 @@ class DataframeToSnowflakeBulkComponent(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Bulk-load a DataFrame to Snowflake via internal stage + COPY INTO (memory-efficient, chunked parquet)."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dataframe To Snowflake Bulk', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         upstream_asset_key = self.upstream_asset_key

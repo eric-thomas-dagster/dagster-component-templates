@@ -311,6 +311,11 @@ class GmailDraftCreateComponent(Component, Model, Resolvable):
     def _coerce_upstream_asset_keys(cls, data):
         return coerce_upstream_input(data, component=cls.__name__, mode="single", optional=False)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Gmail Draft Create', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         retry_policy = None
         if self.retry_policy_max_retries is not None:

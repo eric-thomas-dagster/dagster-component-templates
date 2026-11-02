@@ -453,6 +453,11 @@ else:
         poll_interval_seconds: int = 10
         execution_timeout_seconds: int = 3600
         assets_by_state_machine_name: Optional[dict] = None
+        @classmethod
+        def get_form_config(cls):
+            from dagster.components.resolved.form_config import ComponentFormConfig
+            return ComponentFormConfig(label='Step Functions Asset', editable=True)
+
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             sfn = _make_boto3_client(self.region_name, self.aws_profile, self.role_arn)
             machines = _list_state_machines(sfn, self.name_prefix, self.exclude_names)

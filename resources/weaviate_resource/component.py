@@ -12,6 +12,11 @@ class WeaviateResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     url: Optional[str] = Field(default=None, description="Weaviate instance URL for cloud or local, e.g. 'https://my-cluster.weaviate.network'")
     api_key_env_var: Optional[str] = Field(default=None, description="Environment variable holding the Weaviate API key (for Weaviate Cloud)")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Weaviate Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_weaviate import WeaviateResource
         api_key = dg.EnvVar(self.api_key_env_var) if self.api_key_env_var else None

@@ -117,6 +117,11 @@ class ODataResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     verify_ssl: bool = Field(default=True)
     timeout_seconds: int = Field(default=120)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='O Data Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         cfg = self
 

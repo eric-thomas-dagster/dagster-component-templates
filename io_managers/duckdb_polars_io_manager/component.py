@@ -15,6 +15,11 @@ class DuckDBPolarsIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
     database: str = Field(default="dagster.duckdb", description="DuckDB file path.")
     schema_name: Optional[str] = Field(default="main", description="Schema.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Duck DB Polars IO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_duckdb_polars import DuckDBPolarsIOManager
         io_manager = DuckDBPolarsIOManager(database=self.database, schema=self.schema_name)

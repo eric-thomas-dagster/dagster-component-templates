@@ -541,6 +541,11 @@ class VectorStoreWriterComponent(Component, Model, Resolvable):
             )
         return self
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Vector Store Writer', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_name = self.asset_name
         provider = self.provider

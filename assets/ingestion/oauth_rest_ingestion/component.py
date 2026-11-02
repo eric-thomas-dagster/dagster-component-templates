@@ -326,6 +326,11 @@ class OAuthRestIngestionComponent(Component, Model, Resolvable):
             {self.oauth_token_resource_key} if self.oauth_token_resource_key else set()
         )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='O Auth Rest Ingestion', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         component = self
         asset_name = self.asset_name

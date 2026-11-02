@@ -40,6 +40,11 @@ class LinkedInAdsResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="LinkedIn Ad Account ID",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Linked In Ads Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = LinkedInAdsResource(
             access_token_env_var=self.access_token_env_var,

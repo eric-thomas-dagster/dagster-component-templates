@@ -347,6 +347,11 @@ class DocumentMergerComponent(Component, Model, Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=('partition_values',), tags=('asset_tags',))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Document Merger', editable=True)
+
     def build_defs(self, load_context: ComponentLoadContext) -> Definitions:
         # Standard catalog fields — phase 2 wiring
         _retry_policy = None

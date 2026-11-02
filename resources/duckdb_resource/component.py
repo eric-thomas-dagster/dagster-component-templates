@@ -48,6 +48,11 @@ class DuckDBResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="If True, runs `USE <quack_attach_as>;` after attach — unqualified table names then resolve to the remote (closer to drop-in replacement for a local DuckDB).",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Duck DB Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_duckdb import DuckDBResource
 

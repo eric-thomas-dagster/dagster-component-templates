@@ -313,6 +313,11 @@ class JiraResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     verify_ssl: bool = Field(default=True, description="TLS cert verification.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Jira Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         resource = JiraResource(
             email=dg.EnvVar(self.email_env_var),

@@ -108,6 +108,11 @@ class MLflowModelVersionCheckComponent(Component, Model, Resolvable):
         default=None, description="Env var for HTTP-basic MLflow auth password (optional)."
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='M Lflow Model Version Check', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         # Close over field values for the check body.
         asset_key_str = self.asset_key

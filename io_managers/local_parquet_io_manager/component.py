@@ -159,6 +159,11 @@ class LocalParquetIOManagerComponent(dg.Component, dg.Model, dg.Resolvable):
         description="'pandas' or 'polars'. 'polars' reads/writes via `DataFrame.write_parquet`/`pl.read_parquet` directly -- not through the `dagster-polars` package, so it isn't affected by that package's Polars 2.0 incompatibility (community-integrations#359).",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Local Parquet IO Manager', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         backend = (self.backend or "pandas").lower()
         if backend not in ("pandas", "polars"):

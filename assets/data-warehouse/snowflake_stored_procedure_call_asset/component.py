@@ -189,6 +189,11 @@ class SnowflakeStoredProcedureCallAssetComponent(Component, Model, Resolvable):
         s = str(v).replace("'", "''")
         return f"'{s}'"
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Snowflake Stored Procedure Call Asset', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _self = self
         kinds = set(self.kinds) if self.kinds else set()

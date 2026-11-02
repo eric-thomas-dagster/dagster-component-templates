@@ -443,6 +443,11 @@ class AWSRedshiftComponent(Component, Model, Resolvable):
 
         return assets
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='AWS Redshift', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions from this component."""
         session = self._get_boto3_session()

@@ -370,6 +370,11 @@ class AnsibleAssetComponent(dg.Component, dg.Model, dg.Resolvable):
         description="For backfill_policy='multi_run' only: maximum partitions materialized per run. Leave unset for Dagster's default (1 partition per run).",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Ansible Asset', editable=True)
+
     def build_defs(self, load_context: dg.ComponentLoadContext) -> dg.Definitions:
         # freshness_max_lag_minutes / freshness_cron -> FreshnessPolicy (applied to the asset(s) below)
         # retry_policy_* settings -> RetryPolicy (applied to the asset(s) below)

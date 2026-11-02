@@ -2647,6 +2647,11 @@ except ImportError:
         emit_skip_reason_observations: bool = Field(default=False)
         filter_external_packages_from_sensor: bool = Field(default=False)
 
+        @classmethod
+        def get_form_config(cls):
+            from dagster.components.resolved.form_config import ComponentFormConfig
+            return ComponentFormConfig(label='Enriched Dbt Cloud Workspace', editable=True)
+
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             raise ImportError(
                 "EnrichedDbtCloudWorkspaceComponent requires dagster-dbt with the "

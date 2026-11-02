@@ -218,6 +218,11 @@ class SqlServerChangeTrackingAssetComponent(dg.Component, dg.Model, dg.Resolvabl
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('deps', 'owners', 'kinds'), tags=('asset_tags',))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Sql Server Change Tracking Asset', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         if not self.primary_key_columns:
             raise ValueError("primary_key_columns must be non-empty.")

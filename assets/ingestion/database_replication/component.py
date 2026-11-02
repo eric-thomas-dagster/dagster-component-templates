@@ -142,6 +142,11 @@ class DatabaseReplicationComponent(dg.Component, dg.Model, dg.Resolvable):
             "No data lands in Python memory; suitable for any size table."
         )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Database Replication', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         import os
 

@@ -46,6 +46,11 @@ class BigqueryTableFreshnessCheckComponent(dg.Component, dg.Model, dg.Resolvable
     severity: Literal["ERROR", "WARN"] = Field(default="ERROR")
     blocking: bool = Field(default=False, description="Default False — SLO checks usually alert, not block.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Bigquery Table Freshness Check', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         creds_dict = self.credentials
         if creds_dict is None:

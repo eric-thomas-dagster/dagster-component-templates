@@ -936,6 +936,11 @@ class DatabaseTablesMigrationComponent(dg.Component, dg.Model, dg.Resolvable):
             "Emits per-table status DataFrame."
         )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Database Tables Migration', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         source_type = self.source_type.lower()
         target_type = self.target_type.lower()

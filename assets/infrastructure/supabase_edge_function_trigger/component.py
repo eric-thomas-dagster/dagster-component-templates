@@ -94,6 +94,11 @@ class SupabaseEdgeFunctionTriggerComponent(Component, Model, Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('deps', 'owners', 'kinds'), csv=(), tags=('tags',))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Supabase Edge Function Trigger', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         asset_key_str = self.asset_key
         function_name = self.function_name

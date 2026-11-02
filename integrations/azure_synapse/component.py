@@ -506,6 +506,11 @@ class AzureSynapseComponent(Component, Model, Resolvable):
 
         return synapse_observation_sensor
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Azure Synapse', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build Dagster definitions for the imported Synapse workspace."""
         mgmt_client = self._get_management_client()

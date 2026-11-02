@@ -16,6 +16,11 @@ class AirliftDagAssetsComponent(dg.Component, dg.Model, dg.Resolvable):
     auth_pass_env_var: str = Field(default="AIRFLOW_PASSWORD", description="Env var with Airflow password.")
     dag_id: str = Field(description="Airflow DAG ID to mirror.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Airlift Dag Assets', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_airlift.core import AirflowInstance, BasicAuthBackend, build_defs_from_airflow_instance
         airflow_instance = AirflowInstance(

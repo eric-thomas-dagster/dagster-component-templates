@@ -183,6 +183,11 @@ class ExternalIcebergTableAsset(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('owners',), csv=('partition_values',), tags=('tags',))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='External Iceberg Table Asset', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         full_name = f"{self.catalog_name}.{self.namespace}.{self.table_name}"
         partitions_def = _build_partitions_def(

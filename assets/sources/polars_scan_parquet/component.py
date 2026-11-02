@@ -198,6 +198,11 @@ class PolarsScanParquetComponent(Component, Model, Resolvable):
     def get_description(cls) -> str:
         return "Read parquet via polars's lazy scanner with predicate + column pushdown."
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Polars Scan Parquet', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         partitions_def = _build_partitions_def(
             self.partition_type, self.partition_start, self.partition_values, self.dynamic_partition_name, self.partition_dimensions

@@ -1818,6 +1818,11 @@ class EnhancedDataQualityChecks(dg.Component, dg.Model, dg.Resolvable):
         # (which aren't valid AssetSelection syntax but are handy shortcuts).
         return [k for k in discovered_keys if fnmatch.fnmatch(k, target)]
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Enhanced Data Quality Checks', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         """Build asset check definitions with automatic processing mode selection."""
 

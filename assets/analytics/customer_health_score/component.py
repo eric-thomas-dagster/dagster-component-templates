@@ -1120,6 +1120,11 @@ class CustomerHealthScoreComponent(Component, Model, Resolvable):
     )
 
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Customer Health Score', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         """Build asset definitions."""
         asset_name = self.asset_name

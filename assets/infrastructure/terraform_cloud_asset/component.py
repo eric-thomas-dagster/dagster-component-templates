@@ -620,6 +620,11 @@ else:
             description="Override AssetSpec for specific HCP Terraform workspaces by name",
         )
 
+        @classmethod
+        def get_form_config(cls):
+            from dagster.components.resolved.form_config import ComponentFormConfig
+            return ComponentFormConfig(label='Terraform Cloud Asset', editable=True)
+
         def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
             token = dg.EnvVar(self.api_token_env_var).get_value()
             raw_workspaces = _list_workspaces(token, self.organization)

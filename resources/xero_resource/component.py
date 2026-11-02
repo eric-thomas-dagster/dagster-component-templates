@@ -159,6 +159,11 @@ class XeroResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Xero tenant (org) id. If unset, auto-discovered via GET /connections.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Xero Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         return dg.Definitions(resources={self.resource_key: XeroResource(
             client_id_env_var=self.client_id_env_var,

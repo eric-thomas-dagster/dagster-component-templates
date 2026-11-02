@@ -82,6 +82,11 @@ class HuggingfaceSpaceStatusSensorComponent(Component, Model, Resolvable):
     minimum_interval_seconds: int = Field(default=60, description="Seconds between Hub API polls.")
     default_status: str = Field(default="running", description="'running' or 'stopped'.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Huggingface Space Status Sensor', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _self = self
         targets = set(s.upper() for s in (self.target_stages or ["RUNNING"]))

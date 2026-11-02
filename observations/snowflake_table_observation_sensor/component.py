@@ -74,6 +74,11 @@ class SnowflakeTableObservationSensorComponent(dg.Component, dg.Model, dg.Resolv
         ),
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Snowflake Table Observation Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         resource_key = self.resource_key

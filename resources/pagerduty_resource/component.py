@@ -380,6 +380,11 @@ class PagerDutyResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     verify_ssl: bool = Field(default=True, description="TLS cert verification.")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Pager Duty Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         kwargs: dict = {
             "api_token": dg.EnvVar(self.api_token_env_var),

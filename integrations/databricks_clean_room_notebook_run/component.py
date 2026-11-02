@@ -310,6 +310,11 @@ class DatabricksCleanRoomNotebookRunComponent(dg.Component, dg.Model, dg.Resolva
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=("owners", "kinds", "deps"), csv=("partition_values",), tags=("asset_tags",))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Databricks Clean Room Notebook Run', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         partitions_def = _build_partitions_def(

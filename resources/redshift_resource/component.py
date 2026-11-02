@@ -16,6 +16,11 @@ class RedshiftResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     schema_name: Optional[str] = Field(default=None, description="Default schema")
     autocommit: bool = Field(default=False, description="Enable autocommit mode")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Redshift Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         from dagster_aws.redshift import RedshiftClientResource
         resource = RedshiftClientResource(

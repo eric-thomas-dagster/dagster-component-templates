@@ -299,6 +299,11 @@ class WarehouseSummarizeComponent(Component, Model, Resolvable):
             return v
         raise ValueError("Set either 'database_url' or 'database_url_env_var'")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Warehouse Summarize', editable=True)
+
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         dialect = self.dialect.lower()
         if dialect not in _SUPPORTED_DIALECTS:

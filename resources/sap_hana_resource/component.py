@@ -55,6 +55,11 @@ class SapHanaResourceComponent(dg.Component, dg.Model, dg.Resolvable):
     encrypt: bool = Field(default=True, description="TLS — required for HANA Cloud")
     validate_certificate: bool = Field(default=True, description="Verify the server certificate")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Sap Hana Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         cfg = self
 

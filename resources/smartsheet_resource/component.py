@@ -298,6 +298,11 @@ class SmartsheetResourceComponent(dg.Component, dg.Model, dg.Resolvable):
         description="Retry attempts on 429 (honors Retry-After) / 5xx.",
     )
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Smartsheet Resource', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         import os
 

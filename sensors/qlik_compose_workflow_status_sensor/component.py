@@ -37,6 +37,11 @@ class QlikComposeWorkflowStatusSensorComponent(dg.Component, dg.Model, dg.Resolv
     minimum_interval_seconds: int = Field(default=60)
     default_status: str = Field(default="running")
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Qlik Compose Workflow Status Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
         required_resource_keys = {self.resource_key}

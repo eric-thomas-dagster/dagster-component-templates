@@ -54921,7 +54921,12 @@
         "outputs": "Op-shaped job that MERGEs new/updated Dagster runs into a warehouse table (Snowflake | BigQuery | Postgres). Run-level (one row per run) — complement to event-log exports.",
         "requires_pip": []
       },
-      "icon": "Upload"
+      "icon": "Upload",
+      "validation": {
+        "level": "live",
+        "evidence": "Fixed a real crash: the shipped component read start_time/end_time/create_timestamp/mode directly off DagsterRun (via get_runs()), but those only exist on the RunRecord wrapper from get_run_records() -- DagsterRun has none of them, and mode was removed from Dagster years ago -- so _row() raised AttributeError on every real run with any data. Also fixed RunsFilter(updated_after=...) being passed a raw epoch float where installed dagster==1.13.24 requires a real datetime.datetime (confirmed via inspect.signature). Live-validated end-to-end against a real, disposable postgres:16-alpine Docker container: real Dagster jobs (success + failure) executed against a real DagsterInstance, this component's generated job run for real via execute_in_process, real rows confirmed landed in Postgres with correct status/start_time/end_time/duration_seconds/tags_json, and a second incremental run confirmed the cursor sweep + ON CONFLICT upsert correctly update the first run's own in-flight row rather than duplicating it. Plus 7 committed pytest cases (confirmed to actually catch the original bug by reverting the fix and re-running -- 5 of 7 failed as expected). Snowflake/BigQuery paths share the same _row() construction the live Postgres test exercised but are structurally reviewed only, not live-tested (no credentials in this environment).",
+        "last_validated": "2026-11-02"
+      }
     },
     {
       "id": "rundeck_integration",

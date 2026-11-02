@@ -11,6 +11,7 @@ Idempotent upsert via MERGE-by-run_id so replaying is safe.
 import json
 import os
 import time
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import dagster as dg
@@ -20,21 +21,26 @@ from pydantic import Field
 CURSOR_TAG = "run_history_to_warehouse/last_update_ts"
 
 
-def _row(run) -> Dict[str, Any]:
+def _row(record) -> Dict[str, Any]:
+    # `record` is a RunRecord (from get_run_records), not a bare DagsterRun --
+    # start_time/end_time/create_timestamp only exist on RunRecord. DagsterRun
+    # itself has no start_time/end_time/create_timestamp/mode attributes at all
+    # (mode was removed from Dagster years ago); accessing them on a DagsterRun
+    # directly raises AttributeError.
+    run = record.dagster_run
     tags = run.tags or {}
+    start = record.start_time
+    end = record.end_time
     return {
         "run_id": run.run_id,
         "job_name": run.job_name,
         "status": run.status.value,
-        "create_timestamp": getattr(run, "create_timestamp", None),
-        "start_time": run.start_time,
-        "end_time": run.end_time,
-        "duration_seconds": (
-            (run.end_time - run.start_time) if (run.start_time and run.end_time) else None
-        ),
+        "create_timestamp": record.create_timestamp.timestamp() if record.create_timestamp else None,
+        "start_time": start,
+        "end_time": end,
+        "duration_seconds": (end - start) if (start is not None and end is not None) else None,
         "root_run_id": run.root_run_id,
         "parent_run_id": run.parent_run_id,
-        "mode": run.mode,
         "tags_json": json.dumps(tags, default=str)[:4000],
     }
 
@@ -85,7 +91,6 @@ class RunHistoryToWarehouseJobComponent(dg.Component, dg.Model, dg.Resolvable):
           duration_seconds NUMBER/FLOAT,
           root_run_id STRING,
           parent_run_id STRING,
-          mode STRING,
           tags_json STRING
         );
     """
@@ -130,32 +135,35 @@ class RunHistoryToWarehouseJobComponent(dg.Component, dg.Model, dg.Resolvable):
             # Cursor: last updated_after we swept from.
             last_ts = None
             try:
-                prior = context.instance.get_runs(
+                prior = context.instance.get_run_records(
                     filters=dg.RunsFilter(job_name=_self.job_name, statuses=[dg.DagsterRunStatus.SUCCESS]),
                     limit=2,
+                    order_by="create_timestamp",
+                    ascending=False,
                 )
-                for r in prior:
-                    if r.run_id == context.run_id:
+                for rec in prior:
+                    if rec.dagster_run.run_id == context.run_id:
                         continue
-                    v = (r.tags or {}).get(CURSOR_TAG)
+                    v = (rec.dagster_run.tags or {}).get(CURSOR_TAG)
                     if v:
                         last_ts = float(v)
                         break
             except Exception as _exc:
                 context.log.warning(f"Could not read the previous cursor from run tags; falling back to the initial lookback window ({type(_exc).__name__}: {_exc})")
 
-            since = last_ts or (time.time() - _self.initial_lookback_hours * 3600.0)
+            since_ts = last_ts or (time.time() - _self.initial_lookback_hours * 3600.0)
+            since_dt = datetime.fromtimestamp(since_ts, tz=timezone.utc)
 
-            runs = context.instance.get_runs(
-                filters=dg.RunsFilter(updated_after=since),
+            records = context.instance.get_run_records(
+                filters=dg.RunsFilter(updated_after=since_dt),
                 limit=_self.batch_limit,
             )
-            if not runs:
+            if not records:
                 context.log.info("No new/updated runs.")
                 context.instance.add_run_tags(context.run_id, {CURSOR_TAG: str(time.time())})
                 return {"merged": 0}
 
-            rows = [_row(r) for r in runs]
+            rows = [_row(r) for r in records]
             merged = _merge_to_warehouse(_self, rows, context.log)
 
             context.instance.add_run_tags(context.run_id, {CURSOR_TAG: str(time.time())})
@@ -207,7 +215,7 @@ def _merge_snowflake(cfg, rows) -> int:
         # Snowflake MERGE via temp table + INSERT/UPDATE
         cur.execute(f"CREATE TEMPORARY TABLE {cfg.table}_stg LIKE {cfg.table}")
         cur.executemany(
-            f"INSERT INTO {cfg.table}_stg VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+            f"INSERT INTO {cfg.table}_stg VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
             [tuple(r.values()) for r in rows],
         )
         cur.execute(f"""
@@ -215,7 +223,7 @@ def _merge_snowflake(cfg, rows) -> int:
             WHEN MATCHED THEN UPDATE SET
                 status=s.status, end_time=s.end_time, duration_seconds=s.duration_seconds, tags_json=s.tags_json
             WHEN NOT MATCHED THEN INSERT VALUES (s.run_id, s.job_name, s.status, s.create_timestamp,
-                s.start_time, s.end_time, s.duration_seconds, s.root_run_id, s.parent_run_id, s.mode, s.tags_json)
+                s.start_time, s.end_time, s.duration_seconds, s.root_run_id, s.parent_run_id, s.tags_json)
         """)
         conn.commit()
         return len(rows)
@@ -248,8 +256,8 @@ def _merge_postgres(cfg, rows) -> int:
             cur.execute(f"""
                 INSERT INTO {cfg.postgres_schema}.{cfg.table}
                   (run_id, job_name, status, create_timestamp, start_time, end_time,
-                   duration_seconds, root_run_id, parent_run_id, mode, tags_json)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                   duration_seconds, root_run_id, parent_run_id, tags_json)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (run_id) DO UPDATE SET
                   status = EXCLUDED.status,
                   end_time = EXCLUDED.end_time,

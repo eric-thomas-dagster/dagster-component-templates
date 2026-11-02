@@ -17,6 +17,7 @@ for that run — no separate event log cleanup needed.
 
 import time
 from collections import defaultdict
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import dagster as dg
@@ -106,6 +107,11 @@ class DagsterRunPruneJobComponent(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=(), csv=(), tags=('tags',))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dagster Run Prune Job', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
 
@@ -116,24 +122,34 @@ class DagsterRunPruneJobComponent(dg.Component, dg.Model, dg.Resolvable):
 
             # Pull candidate old runs. Query in pages until we've either
             # exhausted candidates or hit max_deletes_per_run.
+            # RunsFilter.updated_before/updated_after require a real datetime,
+            # not epoch seconds (confirmed via inspect.signature against the
+            # installed dagster version) -- a raw float silently fails to
+            # filter correctly (or raises, depending on storage backend).
+            age_threshold_dt = datetime.fromtimestamp(age_threshold, tz=timezone.utc)
+
             statuses = list(TERMINAL_STATUSES) if _self.only_terminal_states else None
             filters = dg.RunsFilter(
                 statuses=statuses,
                 tags=dict(_self.tags_filter) if _self.tags_filter else None,
-                updated_before=age_threshold,  # updated_before uses epoch seconds
+                updated_before=age_threshold_dt,
             )
 
-            candidates = context.instance.get_runs(filters=filters, limit=_self.max_deletes_per_run * 2)
-            context.log.info(f"Found {len(candidates)} candidate runs older than {_self.max_age_days} days.")
+            # start_time/create_timestamp only exist on RunRecord (from
+            # get_run_records()), not on the bare DagsterRun get_runs()
+            # returns -- accessing create_timestamp directly on a DagsterRun
+            # raises AttributeError.
+            candidate_records = context.instance.get_run_records(filters=filters, limit=_self.max_deletes_per_run * 2)
+            context.log.info(f"Found {len(candidate_records)} candidate runs older than {_self.max_age_days} days.")
 
-            if not candidates:
+            if not candidate_records:
                 return {"deleted": 0, "kept_by_recency": 0, "checked": 0}
 
             # Group by job_name and sort each group by create_timestamp DESC
             # so we can preserve the last N per job.
             per_job: Dict[str, list] = defaultdict(list)
-            for r in candidates:
-                per_job[r.job_name or "_unknown_job_"].append(r)
+            for rec in candidate_records:
+                per_job[rec.dagster_run.job_name or "_unknown_job_"].append(rec)
 
             to_delete: List[Any] = []
             kept_by_recency = 0
@@ -145,14 +161,14 @@ class DagsterRunPruneJobComponent(dg.Component, dg.Model, dg.Resolvable):
             # newest N candidates per job (since anything newer than
             # cutoff isn't in candidates and is already safe).
             for job_name, group in per_job.items():
-                group.sort(key=lambda r: r.create_timestamp, reverse=True)
+                group.sort(key=lambda rec: rec.create_timestamp, reverse=True)
                 # How many "recent" runs already exist for this job outside candidates?
                 recent_count = 0
                 try:
                     recent = context.instance.get_runs(
                         filters=dg.RunsFilter(
                             job_name=job_name,
-                            updated_after=age_threshold,
+                            updated_after=age_threshold_dt,
                         ),
                         limit=_self.keep_last_n_per_job or 1,
                     )
@@ -178,26 +194,27 @@ class DagsterRunPruneJobComponent(dg.Component, dg.Model, dg.Resolvable):
                     f"by keep_last_n_per_job={_self.keep_last_n_per_job} safety net."
                 )
                 return {
-                    "checked": len(candidates),
+                    "checked": len(candidate_records),
                     "would_delete": len(to_delete),
                     "kept_by_recency": kept_by_recency,
                     "dry_run": True,
                 }
 
             deleted = 0
-            for r in to_delete:
+            for rec in to_delete:
+                run_id = rec.dagster_run.run_id
                 try:
-                    context.instance.delete_run(r.run_id)
+                    context.instance.delete_run(run_id)
                     deleted += 1
                 except Exception as exc:  # noqa: BLE001
-                    context.log.warning(f"Failed to delete run {r.run_id}: {exc}")
+                    context.log.warning(f"Failed to delete run {run_id}: {exc}")
 
             context.log.info(
-                f"Pruned {deleted} runs (checked {len(candidates)}, "
+                f"Pruned {deleted} runs (checked {len(candidate_records)}, "
                 f"kept {kept_by_recency} by recency safety net)."
             )
             return {
-                "checked": len(candidates),
+                "checked": len(candidate_records),
                 "deleted": deleted,
                 "kept_by_recency": kept_by_recency,
                 "max_age_days": _self.max_age_days,

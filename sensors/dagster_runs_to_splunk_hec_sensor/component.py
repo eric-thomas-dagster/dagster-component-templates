@@ -92,6 +92,11 @@ class DagsterRunsToSplunkHecSensorComponent(dg.Component, dg.Model, dg.Resolvabl
     default_status: str = Field(default="STOPPED", description="STOPPED | RUNNING")
     request_timeout_seconds: int = Field(default=15, ge=1)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dagster Runs To Splunk Hec Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
 
@@ -145,11 +150,20 @@ class DagsterRunsToSplunkHecSensorComponent(dg.Component, dg.Model, dg.Resolvabl
         if self.monitor_jobs and job_name not in self.monitor_jobs:
             return
 
+        # context.dagster_run is a DagsterRun -- it has no start_time/end_time
+        # attribute at all (confirmed via DagsterRun._fields); those only
+        # exist on the RunRecord wrapper from get_run_records().
+        record = next(iter(context.instance.get_run_records(
+            filters=dg.RunsFilter(run_ids=[run.run_id]), limit=1,
+        )), None)
+        start_time = record.start_time if record else None
+        end_time = record.end_time if record else None
+
         duration_seconds = 0.0
-        if run.start_time and run.end_time:
-            duration_seconds = float(run.end_time - run.start_time)
-        elif run.start_time:
-            duration_seconds = max(0.0, time.time() - float(run.start_time))
+        if start_time and end_time:
+            duration_seconds = float(end_time - start_time)
+        elif start_time:
+            duration_seconds = max(0.0, time.time() - float(start_time))
 
         fields: dict = {
             "dagster_run_id": run.run_id,

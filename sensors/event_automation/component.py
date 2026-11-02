@@ -2717,9 +2717,17 @@ def _build_run_duration_sensor(
             return None
         if trigger.on_status != "ANY" and status != trigger.on_status:
             return None
-        if not (run.start_time and run.end_time):
+        # context.dagster_run is a DagsterRun -- it has no start_time/end_time
+        # attribute at all (confirmed via DagsterRun._fields); those only
+        # exist on the RunRecord wrapper from get_run_records().
+        record = next(iter(context.instance.get_run_records(
+            filters=dg.RunsFilter(run_ids=[run.run_id]), limit=1,
+        )), None)
+        start_time = record.start_time if record else None
+        end_time = record.end_time if record else None
+        if not (start_time and end_time):
             return None
-        duration = float(run.end_time - run.start_time)
+        duration = float(end_time - start_time)
         if duration <= trigger.max_duration_seconds:
             return None
         tokens = _default_tokens(
@@ -2752,17 +2760,21 @@ def _build_run_stuck_sensor(
             already_alerted = json.loads(context.cursor) if context.cursor else {}
         except Exception:
             already_alerted = {}
-        running = instance.get_runs(
+        # start_time only exists on RunRecord (from get_run_records()), not
+        # on the bare DagsterRun get_runs() returns -- accessing it directly
+        # on a DagsterRun raises AttributeError.
+        running_records = instance.get_run_records(
             filters=dg.RunsFilter(statuses=[dg.DagsterRunStatus.STARTED, dg.DagsterRunStatus.STARTING])
         )
         all_requests = []
         stuck_ids = []
-        for run in running:
+        for record in running_records:
+            run = record.dagster_run
             if not _run_matches_filters(
                 run, trigger.job_name, trigger.job_name_pattern, trigger.run_tags
             ):
                 continue
-            start = run.start_time or now
+            start = record.start_time or now
             duration = now - float(start)
             if duration < trigger.max_running_seconds:
                 continue
@@ -3905,23 +3917,27 @@ def _build_run_startup_slow_sensor(
         except Exception:
             already_alerted = set()
         # Look at runs that have started recently — check the gap between
-        # creation timestamp and start_time
-        recent = instance.get_runs(
+        # creation timestamp and start_time. Both only exist on RunRecord
+        # (from get_run_records()), not on the bare DagsterRun get_runs()
+        # returns -- the previous getattr(..., None) fallback silently
+        # always returned None, so this trigger never fired for any run.
+        recent = instance.get_run_records(
             filters=dg.RunsFilter(
                 statuses=[dg.DagsterRunStatus.STARTED, dg.DagsterRunStatus.SUCCESS, dg.DagsterRunStatus.FAILURE]
             ),
             limit=50,
         )
         alerts = []
-        for run in recent:
+        for record in recent:
+            run = record.dagster_run
             if run.run_id in already_alerted:
                 continue
             if not _run_matches_filters(
                 run, trigger.job_name, trigger.job_name_pattern, trigger.run_tags
             ):
                 continue
-            create_ts = getattr(run, "create_timestamp", None) or getattr(run, "creation_timestamp", None)
-            start_ts = getattr(run, "start_time", None)
+            create_ts = record.create_timestamp.timestamp() if record.create_timestamp else None
+            start_ts = record.start_time
             if not (create_ts and start_ts):
                 continue
             try:
@@ -4616,11 +4632,15 @@ def _evaluate_compound_leaf(sub, instance, last_fire_ts: float) -> bool:
     with real events) are best-effort via recent-runs scan."""
     now = time.time()
     if isinstance(sub, RunStatusTrigger):
-        recent = instance.get_runs(limit=20)
-        for r in recent:
+        # end_time only exists on RunRecord (from get_run_records()), not on
+        # the bare DagsterRun get_runs() returns -- accessing it directly on
+        # a DagsterRun raises AttributeError.
+        recent = instance.get_run_records(limit=20)
+        for rec in recent:
+            r = rec.dagster_run
             if sub.job_name and r.job_name != sub.job_name:
                 continue
-            end = float(r.end_time or 0)
+            end = float(rec.end_time or 0)
             if end > last_fire_ts and r.status.value == sub.status:
                 return True
         return False
@@ -4650,24 +4670,28 @@ def _evaluate_compound_leaf(sub, instance, last_fire_ts: float) -> bool:
                 return True
         return False
     if isinstance(sub, RunDurationTrigger):
-        recent = instance.get_runs(limit=20)
-        for r in recent:
+        # start_time/end_time only exist on RunRecord (from
+        # get_run_records()), not on the bare DagsterRun get_runs() returns.
+        recent = instance.get_run_records(limit=20)
+        for rec in recent:
+            r = rec.dagster_run
             if sub.job_name and r.job_name != sub.job_name:
                 continue
-            if not (r.start_time and r.end_time and r.end_time > last_fire_ts):
+            if not (rec.start_time and rec.end_time and rec.end_time > last_fire_ts):
                 continue
-            duration = float(r.end_time - r.start_time)
+            duration = float(rec.end_time - rec.start_time)
             if duration > sub.max_duration_seconds:
                 return True
         return False
     if isinstance(sub, RunStuckTrigger):
-        running = instance.get_runs(
+        running = instance.get_run_records(
             filters=dg.RunsFilter(statuses=[dg.DagsterRunStatus.STARTED, dg.DagsterRunStatus.STARTING])
         )
-        for r in running:
+        for rec in running:
+            r = rec.dagster_run
             if sub.job_name and r.job_name != sub.job_name:
                 continue
-            if r.start_time and (now - float(r.start_time)) > sub.max_running_seconds:
+            if rec.start_time and (now - float(rec.start_time)) > sub.max_running_seconds:
                 return True
         return False
     # AssetCheckFailedTrigger / MetricThresholdTrigger / SqsPollTrigger:
@@ -4724,6 +4748,11 @@ class EventAutomationComponent(dg.Component, dg.Model, dg.Resolvable):
             keys = getattr(trig, "asset_keys", None)
             if isinstance(keys, str):
                 trig.asset_keys = _resolve_asset_keys(keys, sibling_defs, discovered_keys)
+
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Event Automation', editable=True)
 
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         sensor_status = (

@@ -96,6 +96,11 @@ class DagsterFailuresToOtlpSensorComponent(dg.Component, dg.Model, dg.Resolvable
     default_status: str = Field(default="STOPPED", description="STOPPED | RUNNING")
     request_timeout_seconds: int = Field(default=15, ge=1)
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Dagster Failures To Otlp Sensor', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
 
@@ -140,9 +145,18 @@ class DagsterFailuresToOtlpSensorComponent(dg.Component, dg.Model, dg.Resolvable
         if self.monitor_jobs and run.job_name not in self.monitor_jobs:
             return
 
+        # context.dagster_run is a DagsterRun -- it has no start_time/end_time
+        # attribute at all (confirmed via DagsterRun._fields); those only
+        # exist on the RunRecord wrapper from get_run_records().
+        record = next(iter(context.instance.get_run_records(
+            filters=dg.RunsFilter(run_ids=[run.run_id]), limit=1,
+        )), None)
+        start_time = record.start_time if record else None
+        end_time = record.end_time if record else None
+
         duration_seconds = 0.0
-        if run.start_time and run.end_time:
-            duration_seconds = float(run.end_time - run.start_time)
+        if start_time and end_time:
+            duration_seconds = float(end_time - start_time)
 
         # Failure detail — context.failure_event carries the first failure event.
         body_text = f"Dagster run {run.run_id} for job {run.job_name} failed."
@@ -160,7 +174,7 @@ class DagsterFailuresToOtlpSensorComponent(dg.Component, dg.Model, dg.Resolvable
         except Exception:
             pass
 
-        time_unix_nano = int((run.end_time or time.time()) * 1_000_000_000)
+        time_unix_nano = int((end_time or time.time()) * 1_000_000_000)
 
         # Hand-built OTLP/HTTP logs envelope.
         otlp_body = {

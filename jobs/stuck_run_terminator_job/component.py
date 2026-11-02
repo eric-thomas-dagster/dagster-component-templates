@@ -101,6 +101,11 @@ class StuckRunTerminatorJobComponent(dg.Component, dg.Model, dg.Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=(), csv=(), tags=('tags',))
 
+    @classmethod
+    def get_form_config(cls):
+        from dagster.components.resolved.form_config import ComponentFormConfig
+        return ComponentFormConfig(label='Stuck Run Terminator Job', editable=True)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> dg.Definitions:
         _self = self
 
@@ -109,7 +114,10 @@ class StuckRunTerminatorJobComponent(dg.Component, dg.Model, dg.Resolvable):
             now = time.time()
             threshold_seconds = _self.stuck_after_hours * 3600.0
 
-            runs = context.instance.get_runs(
+            # start_time/create_timestamp only exist on RunRecord (from
+            # get_run_records()), not on the bare DagsterRun get_runs() returns --
+            # accessing them directly on a DagsterRun raises AttributeError.
+            records = context.instance.get_run_records(
                 filters=dg.RunsFilter(
                     statuses=list(IN_FLIGHT_STATUSES),
                     tags=dict(_self.tags_filter) if _self.tags_filter else None,
@@ -118,10 +126,11 @@ class StuckRunTerminatorJobComponent(dg.Component, dg.Model, dg.Resolvable):
             )
 
             stuck: List[Any] = []
-            for r in runs:
+            for record in records:
+                r = record.dagster_run
                 # Prefer start_time; fall back to create_timestamp.
-                start = r.start_time or (
-                    r.create_timestamp.timestamp() if hasattr(r.create_timestamp, "timestamp") else None
+                start = record.start_time or (
+                    record.create_timestamp.timestamp() if record.create_timestamp else None
                 )
                 if start is None:
                     continue
@@ -131,10 +140,10 @@ class StuckRunTerminatorJobComponent(dg.Component, dg.Model, dg.Resolvable):
 
             if not stuck:
                 context.log.info(
-                    f"No stuck runs found (checked {len(runs)} in-flight runs, "
+                    f"No stuck runs found (checked {len(records)} in-flight runs, "
                     f"threshold={_self.stuck_after_hours}h)"
                 )
-                return {"terminated": 0, "checked": len(runs)}
+                return {"terminated": 0, "checked": len(records)}
 
             terminated_ids: List[str] = []
             for run, age_hours in stuck:
@@ -170,7 +179,7 @@ class StuckRunTerminatorJobComponent(dg.Component, dg.Model, dg.Resolvable):
                     context.log.error(f"Failed to terminate {run.run_id}: {exc}")
 
             return {
-                "checked": len(runs),
+                "checked": len(records),
                 "stuck_found": len(stuck),
                 "terminated": len(terminated_ids),
                 "dry_run": _self.dry_run,

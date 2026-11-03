@@ -105,6 +105,7 @@
       "ui:widget": "list"
     },
     "freshness_max_lag_minutes": {
+      "x-dagster-group": "advanced",
       "type": "integer",
       "label": "Freshness Max Lag (minutes)",
       "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
@@ -112,6 +113,7 @@
       "default": null
     },
     "freshness_cron": {
+      "x-dagster-group": "advanced",
       "type": "string",
       "label": "Freshness Cron Schedule",
       "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
@@ -120,6 +122,7 @@
       "x-dagster-widget": "cron"
     },
     "include_preview_metadata": {
+      "x-dagster-group": "advanced",
       "type": "boolean",
       "label": "Include Preview Metadata",
       "description": "Include sample data preview in metadata",
@@ -128,6 +131,7 @@
       "ui:widget": "checkbox"
     },
     "preview_rows": {
+      "x-dagster-group": "advanced",
       "type": "integer",
       "label": "Preview Rows",
       "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
@@ -135,6 +139,7 @@
       "default": 25
     },
     "destination": {
+      "x-dagster-group": "destination",
       "type": "string",
       "label": "Destination",
       "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB \u2192 DataFrame mode.",
@@ -167,12 +172,14 @@
       "ui:widget": "list"
     },
     "dataset_name": {
+      "x-dagster-group": "destination",
       "description": "Target dataset/schema in the destination. Defaults to the asset name.",
       "type": "string",
       "label": "Dataset Name",
       "required": false
     },
     "persist_only": {
+      "x-dagster-group": "destination",
       "description": "If True with destination set: emit a MaterializeResult and skip DataFrame return. If False: query the destination back into a DataFrame (only meaningful for SQL destinations \u2014 non-SQL destinations always emit MaterializeResult).",
       "type": "boolean",
       "label": "Persist Only",
@@ -426,6 +433,7 @@
       "required": false
     },
     "bucket_url": {
+      "x-dagster-group": "destination",
       "type": "string",
       "label": "Bucket Url",
       "required": false,
@@ -462,6 +470,7 @@
       }
     },
     "partition_type": {
+      "x-dagster-group": "partitions",
       "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key is exposed via context.partition_key for use in filtering / templating.",
       "type": "string",
       "label": "Partition Type",
@@ -478,24 +487,28 @@
       "ui:widget": "select"
     },
     "partition_start": {
+      "x-dagster-group": "partitions",
       "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set.",
       "type": "string",
       "label": "Partition Start",
       "required": false
     },
     "retry_policy_max_retries": {
+      "x-dagster-group": "advanced",
       "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "x-dagster-group": "advanced",
       "description": "Seconds between retries (default 1).",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "x-dagster-group": "advanced",
       "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Policy Backoff",
@@ -522,6 +535,7 @@
       "x-dagster-widget": "column"
     },
     "partition_values": {
+      "x-dagster-group": "partitions",
       "description": "Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'.",
       "type": "string",
       "label": "Partition Values",
@@ -542,6 +556,7 @@
       "x-dagster-widget": "column"
     },
     "backfill_policy": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Backfill Policy",
       "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run: the full dataset is fetched once (as always) and then filtered down to the whole range via Partition Date Column/Partition Static Column (same mechanism as a normal tick, just spanning more rows). 'multi_run' launches one run per partition (optionally capped via Backfill Max Partitions Per Run). Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is not set. Requires a partition-range-aware IO manager (e.g. a DB-table IO manager with partition_expr set) -- a generic filesystem/default IO manager cannot persist a single_run output spanning multiple partitions and will raise a clear error at materialization time.",
@@ -554,6 +569,7 @@
       "ui:widget": "select"
     },
     "backfill_policy_max_partitions_per_run": {
+      "x-dagster-group": "partitions",
       "type": "integer",
       "label": "Backfill Max Partitions Per Run",
       "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
@@ -561,6 +577,7 @@
       "default": null
     },
     "dynamic_partition_name": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Dynamic Partition Name",
       "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
@@ -568,6 +585,7 @@
       "default": null
     },
     "partition_dimensions": {
+      "x-dagster-group": "partitions",
       "type": "array",
       "items": {
         "type": "object"
@@ -578,18 +596,21 @@
       "default": null
     },
     "partition_cron_schedule": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Cron Schedule",
       "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
       "required": false
     },
     "partition_cron_fmt": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Cron Fmt",
       "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
       "required": false
     },
     "partition_end_offset": {
+      "x-dagster-group": "partitions",
       "type": "integer",
       "label": "Partition End Offset",
       "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today until tomorrow. Set to 1 to include the current, still-in-progress window.",
@@ -597,6 +618,7 @@
       "default": 0
     },
     "partition_timezone": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Timezone",
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",

@@ -141,6 +141,7 @@
       "ui:widget": "list"
     },
     "include_preview_metadata": {
+      "x-dagster-group": "advanced",
       "type": "boolean",
       "label": "Include Preview Metadata",
       "description": "Include sample data preview in metadata",
@@ -149,6 +150,7 @@
       "ui:widget": "checkbox"
     },
     "preview_rows": {
+      "x-dagster-group": "advanced",
       "type": "integer",
       "label": "Preview Rows",
       "description": "Rows to include in the preview metadata",
@@ -166,6 +168,7 @@
       "ui:widget": "list"
     },
     "partition_type": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Type",
       "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned.",
@@ -183,6 +186,7 @@
       "ui:widget": "select"
     },
     "backfill_policy": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Backfill Policy",
       "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (the date-window filter already handles a multi-partition range correctly). 'multi_run' launches one run per partition. Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is not set. 'single_run' requires a partition-range-aware IO manager (e.g. a DB-table IO manager with partition_expr set) -- a generic filesystem/default IO manager cannot persist a single_run output spanning multiple partitions and will raise a clear error at materialization time.",
@@ -195,6 +199,7 @@
       "ui:widget": "select"
     },
     "backfill_policy_max_partitions_per_run": {
+      "x-dagster-group": "partitions",
       "type": "integer",
       "label": "Backfill Max Partitions Per Run",
       "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
@@ -202,6 +207,7 @@
       "default": null
     },
     "partition_start": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Start",
       "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
@@ -209,6 +215,7 @@
       "default": null
     },
     "partition_values": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Values",
       "description": "Comma-separated values for static or multi partitioning, e.g. 'us,eu,asia'.",
@@ -216,6 +223,7 @@
       "default": null
     },
     "dynamic_partition_name": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Dynamic Partition Name",
       "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
@@ -223,6 +231,7 @@
       "default": null
     },
     "partition_dimensions": {
+      "x-dagster-group": "partitions",
       "type": "array",
       "items": {
         "type": "object"
@@ -241,18 +250,21 @@
       "ui:widget": "resource-picker"
     },
     "partition_cron_schedule": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Cron Schedule",
       "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
       "required": false
     },
     "partition_cron_fmt": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Cron Fmt",
       "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
       "required": false
     },
     "partition_end_offset": {
+      "x-dagster-group": "partitions",
       "type": "integer",
       "label": "Partition End Offset",
       "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today until tomorrow. Set to 1 to include the current, still-in-progress window.",
@@ -260,6 +272,7 @@
       "default": 0
     },
     "partition_timezone": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Timezone",
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",

@@ -75,6 +75,7 @@
       "default": "posthog"
     },
     "partition_type": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Type",
       "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None. A partitioned run sends only the rows in its partition (see partition_date_column / partition_static_column).",
@@ -92,6 +93,7 @@
       "ui:widget": "select"
     },
     "partition_start": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Start",
       "description": "Partition start date in ISO format. Required for time-based partition types.",
@@ -99,6 +101,7 @@
       "default": null
     },
     "partition_values": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Values",
       "description": "Comma-separated values for static or multi partitioning.",
@@ -106,6 +109,7 @@
       "default": null
     },
     "dynamic_partition_name": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Dynamic Partition Name",
       "description": "Name for DynamicPartitionsDefinition.",
@@ -113,6 +117,7 @@
       "default": null
     },
     "partition_dimensions": {
+      "x-dagster-group": "partitions",
       "type": "array",
       "items": {
         "type": "object"
@@ -123,6 +128,7 @@
       "default": null
     },
     "include_preview_metadata": {
+      "x-dagster-group": "advanced",
       "type": "boolean",
       "label": "Include Preview Metadata",
       "description": "Include sample data preview in metadata",
@@ -131,6 +137,7 @@
       "ui:widget": "checkbox"
     },
     "preview_rows": {
+      "x-dagster-group": "advanced",
       "type": "integer",
       "label": "Preview Rows",
       "description": "How many rows to include in the preview. Large tables (>10\u00d7 this number) are sampled randomly.",
@@ -138,18 +145,21 @@
       "default": 25
     },
     "partition_cron_schedule": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Cron Schedule",
       "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
       "required": false
     },
     "partition_cron_fmt": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Cron Fmt",
       "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
       "required": false
     },
     "partition_end_offset": {
+      "x-dagster-group": "partitions",
       "type": "integer",
       "label": "Partition End Offset",
       "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today until tomorrow. Set to 1 to include the current, still-in-progress window.",
@@ -157,6 +167,7 @@
       "default": 0
     },
     "partition_timezone": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Timezone",
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",

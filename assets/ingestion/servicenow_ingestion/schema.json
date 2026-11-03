@@ -139,12 +139,14 @@
       "required": false
     },
     "freshness_max_lag_minutes": {
+      "x-dagster-group": "advanced",
       "description": "Maximum acceptable lag in minutes before the asset is considered stale. Defines a FreshnessPolicy.",
       "type": "integer",
       "label": "Freshness Max Lag (minutes)",
       "required": false
     },
     "freshness_cron": {
+      "x-dagster-group": "advanced",
       "description": "Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
       "type": "string",
       "label": "Freshness Cron",
@@ -152,18 +154,21 @@
       "x-dagster-widget": "cron"
     },
     "retry_policy_max_retries": {
+      "x-dagster-group": "advanced",
       "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
       "type": "integer",
       "label": "Retry Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "x-dagster-group": "advanced",
       "description": "Seconds between retries (default 1).",
       "type": "integer",
       "label": "Retry Delay (seconds)",
       "required": false
     },
     "retry_policy_backoff": {
+      "x-dagster-group": "advanced",
       "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Backoff",
@@ -177,6 +182,7 @@
       "ui:widget": "select"
     },
     "include_preview_metadata": {
+      "x-dagster-group": "advanced",
       "description": "Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access.",
       "type": "boolean",
       "label": "Include Preview",
@@ -184,6 +190,7 @@
       "default": false
     },
     "preview_rows": {
+      "x-dagster-group": "advanced",
       "description": "Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used.",
       "type": "integer",
       "label": "Preview Rows",
@@ -191,6 +198,7 @@
       "default": 25
     },
     "partition_type": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Type",
       "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'static' / 'multi' / 'dynamic' / None for unpartitioned.",
@@ -208,6 +216,7 @@
       "ui:widget": "select"
     },
     "partition_start": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Start",
       "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
@@ -215,6 +224,7 @@
       "default": null
     },
     "partition_values": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Values",
       "description": "Comma-separated values for static or multi partitioning, e.g. 'us,eu,asia'.",
@@ -222,6 +232,7 @@
       "default": null
     },
     "dynamic_partition_name": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Dynamic Partition Name",
       "description": "Name for DynamicPartitionsDefinition when partition_type='dynamic'.",
@@ -229,6 +240,7 @@
       "default": null
     },
     "partition_dimensions": {
+      "x-dagster-group": "partitions",
       "type": "array",
       "items": {
         "type": "object"
@@ -251,18 +263,21 @@
       "required": false
     },
     "partition_cron_schedule": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Cron Schedule",
       "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
       "required": false
     },
     "partition_cron_fmt": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Cron Fmt",
       "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
       "required": false
     },
     "partition_end_offset": {
+      "x-dagster-group": "partitions",
       "type": "integer",
       "label": "Partition End Offset",
       "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today until tomorrow. Set to 1 to include the current, still-in-progress window.",
@@ -270,6 +285,7 @@
       "default": 0
     },
     "partition_timezone": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Timezone",
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",

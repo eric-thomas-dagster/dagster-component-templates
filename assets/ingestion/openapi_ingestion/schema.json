@@ -103,6 +103,7 @@
       "default": null
     },
     "partition_type": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Type",
       "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / None for unpartitioned.",
@@ -117,6 +118,7 @@
       "ui:widget": "select"
     },
     "partition_start": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Start",
       "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
@@ -132,6 +134,7 @@
       "x-dagster-widget": "column"
     },
     "backfill_policy": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Backfill Policy",
       "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run: each tag asset's full result set is fetched once (as always) and then filtered down to the whole range via Partition Date Column before being written. 'multi_run' launches one run per partition (optionally capped via Backfill Max Partitions Per Run). Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is not set.",
@@ -144,6 +147,7 @@
       "ui:widget": "select"
     },
     "backfill_policy_max_partitions_per_run": {
+      "x-dagster-group": "partitions",
       "type": "integer",
       "label": "Backfill Max Partitions Per Run",
       "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",

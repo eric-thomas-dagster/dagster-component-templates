@@ -150,6 +150,7 @@
       "ui:widget": "list"
     },
     "freshness_max_lag_minutes": {
+      "x-dagster-group": "advanced",
       "type": "integer",
       "label": "Freshness Max Lag (minutes)",
       "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
@@ -157,6 +158,7 @@
       "default": null
     },
     "freshness_cron": {
+      "x-dagster-group": "advanced",
       "type": "string",
       "label": "Freshness Cron Schedule",
       "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
@@ -176,6 +178,7 @@
       "ui:widget": "list"
     },
     "include_preview_metadata": {
+      "x-dagster-group": "advanced",
       "description": "Include a preview of the DataFrame about to be written, in metadata, so builder UIs can show 'what's being sunk' without warehouse access.",
       "type": "boolean",
       "label": "Include Preview Metadata",
@@ -183,6 +186,7 @@
       "default": false
     },
     "preview_rows": {
+      "x-dagster-group": "advanced",
       "description": "Rows in the preview when include_preview_metadata=True. Random sample if len > 10x preview_rows; else head.",
       "type": "integer",
       "label": "Preview Rows",
@@ -190,6 +194,7 @@
       "default": 25
     },
     "partition_type": {
+      "x-dagster-group": "partitions",
       "description": "Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key is exposed via context.partition_key for use in filtering / templating.",
       "type": "string",
       "label": "Partition Type",
@@ -206,6 +211,7 @@
       "ui:widget": "select"
     },
     "backfill_policy": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Backfill Policy",
       "description": "Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run (reads and concatenates one S3 file per day in the range, then writes once). 'multi_run' launches one run per partition. Leave empty for Dagster's default (one run per partition, uncapped). Ignored when Partition Type is not set. Unlike dlt-based ingestion connectors, this asset writes directly to SQL and returns no IO-managed value, so 'single_run' works with any IO manager.",
@@ -218,6 +224,7 @@
       "ui:widget": "select"
     },
     "backfill_policy_max_partitions_per_run": {
+      "x-dagster-group": "partitions",
       "type": "integer",
       "label": "Backfill Max Partitions Per Run",
       "description": "For Backfill Policy = 'multi_run' only: maximum partitions materialized per run. Leave empty for Dagster's default (1).",
@@ -225,24 +232,28 @@
       "default": null
     },
     "partition_start": {
+      "x-dagster-group": "partitions",
       "description": "Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set.",
       "type": "string",
       "label": "Partition Start",
       "required": false
     },
     "retry_policy_max_retries": {
+      "x-dagster-group": "advanced",
       "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
       "type": "integer",
       "label": "Retry Policy Max Retries",
       "required": false
     },
     "retry_policy_delay_seconds": {
+      "x-dagster-group": "advanced",
       "description": "Seconds between retries (default 1).",
       "type": "integer",
       "label": "Retry Policy Delay Seconds",
       "required": false
     },
     "retry_policy_backoff": {
+      "x-dagster-group": "advanced",
       "description": "Backoff strategy: 'linear' or 'exponential'.",
       "type": "string",
       "label": "Retry Policy Backoff",
@@ -269,6 +280,7 @@
       "x-dagster-widget": "column"
     },
     "partition_values": {
+      "x-dagster-group": "partitions",
       "description": "Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'.",
       "type": "string",
       "label": "Partition Values",
@@ -289,6 +301,7 @@
       "x-dagster-widget": "column"
     },
     "dynamic_partition_name": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Dynamic Partition Name",
       "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
@@ -296,6 +309,7 @@
       "default": null
     },
     "partition_dimensions": {
+      "x-dagster-group": "partitions",
       "type": "array",
       "items": {
         "type": "object"
@@ -313,18 +327,21 @@
       "default": null
     },
     "partition_cron_schedule": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Cron Schedule",
       "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
       "required": false
     },
     "partition_cron_fmt": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Cron Fmt",
       "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
       "required": false
     },
     "partition_end_offset": {
+      "x-dagster-group": "partitions",
       "type": "integer",
       "label": "Partition End Offset",
       "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today until tomorrow. Set to 1 to include the current, still-in-progress window.",
@@ -332,6 +349,7 @@
       "default": 0
     },
     "partition_timezone": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Timezone",
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",

@@ -214,6 +214,7 @@
       "required": false
     },
     "partition_type": {
+      "x-dagster-group": "partitions",
       "default": null,
       "description": "daily, hourly, weekly or monthly. Each partition copies only the rows whose partition_column falls in its window, replacing that window in the target. Leave empty for unpartitioned.",
       "enum": [
@@ -228,6 +229,7 @@
       "ui:widget": "select"
     },
     "partition_start": {
+      "x-dagster-group": "partitions",
       "default": null,
       "description": "First partition, as an ISO date (e.g. '2024-01-01'). Required with partition_type.",
       "label": "Partition Start Date",
@@ -239,6 +241,7 @@
       }
     },
     "partition_column": {
+      "x-dagster-group": "partitions",
       "type": "string",
       "label": "Partition Column",
       "description": "Date or timestamp column in the source that decides which partition a row belongs to. Required with partition_type unless every stream sets its own.",
@@ -250,6 +253,7 @@
       }
     },
     "partition_replace": {
+      "x-dagster-group": "partitions",
       "type": "boolean",
       "label": "Partition Replace",
       "description": "Delete the partition's window in the target before loading it, so rows deleted at the source disappear too. If false, a re-run only upserts (requires a primary key).",

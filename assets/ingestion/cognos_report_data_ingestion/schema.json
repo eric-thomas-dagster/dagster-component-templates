@@ -76,5 +76,6 @@
       "required": false,
       "default": 25
     }
-  }
+  },
+  "name": "Cognos Report Data Ingestion"
 }

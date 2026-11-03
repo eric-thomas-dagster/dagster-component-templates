@@ -347,5 +347,6 @@
       "required": false,
       "default": null
     }
-  }
+  },
+  "name": "File Ingestion"
 }

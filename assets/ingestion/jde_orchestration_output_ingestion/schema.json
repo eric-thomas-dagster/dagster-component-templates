@@ -72,5 +72,6 @@
       "required": false,
       "default": 25
     }
-  }
+  },
+  "name": "JDE Orchestration Output Ingestion"
 }

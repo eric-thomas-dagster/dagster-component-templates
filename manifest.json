@@ -5846,7 +5846,7 @@
     },
     {
       "id": "archive_fetcher",
-      "name": "archive_fetcher",
+      "name": "Archive Fetcher",
       "category": "source",
       "description": "Download a remote archive (zip / tar / tar.gz / tar.bz2 / tar.xz / gz / bz2), extract it, and emit a {filename: absolute_path_or_uri} dict for downstream consumption. Supports local paths and remote URIs (s3://, gs://, abfss://, az://) via fsspec.",
       "version": "1.0.0",
@@ -12707,7 +12707,7 @@
     },
     {
       "id": "cognos_report_data_ingestion",
-      "name": "cognos_report_data_ingestion",
+      "name": "Cognos Report Data Ingestion",
       "component_type": "dagster_community_components.CognosReportDataIngestionComponent",
       "path": "assets/ingestion/cognos_report_data_ingestion",
       "category": "source",
@@ -26729,7 +26729,7 @@
     },
     {
       "id": "file_ingestion",
-      "name": "file_ingestion",
+      "name": "File Ingestion",
       "category": "source",
       "description": "Unified tabular-file ingestion — reads CSV / TSV / JSON / JSONL / Parquet / Excel into a pandas DataFrame. Three mutually-exclusive input modes: file_path (fixed local or fsspec URI), from_upstream (resolve from upstream asset's dict), or from_run_config (sensor-injected RunConfig with optional {partition_key} interpolation for dynamic-partition flows).",
       "version": "1.0.0",
@@ -34851,7 +34851,7 @@
     },
     {
       "id": "jde_orchestration_output_ingestion",
-      "name": "jde_orchestration_output_ingestion",
+      "name": "JDE Orchestration Output Ingestion",
       "component_type": "dagster_community_components.JDEOrchestrationOutputIngestionComponent",
       "path": "assets/ingestion/jde_orchestration_output_ingestion",
       "category": "source",

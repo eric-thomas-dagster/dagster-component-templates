@@ -216,5 +216,6 @@
       "type": "string",
       "x-dagster-widget": "cron"
     }
-  }
+  },
+  "name": "Archive Fetcher"
 }

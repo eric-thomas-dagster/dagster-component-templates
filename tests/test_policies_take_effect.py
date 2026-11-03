@@ -28,6 +28,7 @@ UNBUILDABLE = {
     "ingestion/google_sheets_ingestion": "its example gives credentials as a string",
     "sinks/dataframe_to_azure_table": "its example omits the required partition_key_column",
     "dbt/enriched_dbt_cloud_workspace": "its example uses {{ env.X }} templates that only Dagster's own resolver evaluates",
+    "ingestion/database_replication": "partitioned replication also requires primary_key (not just partition_column), and its example's primary_key is commented out since the example defaults to unpartitioned full_refresh mode",
 }
 NO_PARTITIONS = {"infrastructure/rivery_run_asset": "a Rivery river takes no partition-dependent input; it warns that it is not partitioned"}
 
@@ -75,6 +76,8 @@ def _build(folder, extra, monkeypatch):
         settings.update(partition_type="daily", partition_start="2026-01-01")
         if "partition_date_column" in fields and not attrs.get("partition_date_column"):
             settings["partition_date_column"] = "ts"
+        if "partition_column" in fields and not attrs.get("partition_column"):
+            settings["partition_column"] = "ts"
     if "backfill_policy" in fields:
         settings["backfill_policy"] = "single_run"
     settings.update({k: v for k, v in extra.items() if k in fields})

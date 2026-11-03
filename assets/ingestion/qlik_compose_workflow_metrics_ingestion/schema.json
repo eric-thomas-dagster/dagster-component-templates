@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.QlikComposeWorkflowMetricsIngestionComponent",
   "description": "Emit a DataFrame with per-workflow metrics from Qlik Compose (state, last-run duration, rows loaded, error count). One row per workflow per materialization. Foundation for DW-build observability dashboards.",
+  "summary": "Monitor Qlik Compose data-warehouse build workflows with per-run status and performance metrics.",
   "category": "source",
   "vertical": "productivity",
   "icon": "TableChart",

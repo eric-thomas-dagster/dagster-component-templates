@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.SegmentIngestionComponent",
   "description": "Ingest Segment CDP workspace configuration data (sources, destinations, catalog) using dlt's generic REST API source.",
+  "summary": "Ingest Segment customer data platform workspace configuration, including sources, destinations, and catalog.",
   "category": "ingestion",
   "vertical": "marketing",
   "icon": "si:segment",

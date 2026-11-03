@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.RestApiIngestionComponent",
   "description": "Component for fetching data from REST APIs.",
+  "summary": "Fetch and ingest data from any REST API endpoint you configure.",
   "category": "ingestion",
 
   "vertical": "internal",

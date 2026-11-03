@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.AmperityIngestionComponent",
   "description": "Ingest Amperity CDP audit-event, campaign, segment, and ingest-job data using dlt's generic REST API source.",
+  "summary": "Ingest Amperity customer data platform events, campaigns, segments, and ingest jobs.",
   "category": "ingestion",
   "vertical": "marketing",
   "icon": "Fingerprint",

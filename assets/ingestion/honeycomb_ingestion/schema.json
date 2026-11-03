@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.HoneycombIngestionComponent",
   "description": "Ingest Honeycomb dataset metadata using dlt's generic REST API source.",
+  "summary": "Ingest Honeycomb dataset metadata.",
   "category": "ingestion",
   "vertical": "devops-observability",
   "icon": "Hexagon",

@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.HubSpotIngestionComponent",
   "description": "Component for ingesting HubSpot CRM and marketing data using dlt.",
+  "summary": "Ingest HubSpot CRM and marketing data.",
   "category": "ingestion",
   "vertical": "marketing",
   "icon": "si:hubspot",

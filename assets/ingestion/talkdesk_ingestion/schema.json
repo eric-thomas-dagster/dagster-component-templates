@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.TalkdeskIngestionComponent",
   "description": "Ingest Talkdesk contact center data (contacts, campaigns, users) using dlt's generic REST API source.",
+  "summary": "Ingest Talkdesk contact center data, including contacts, campaigns, and users.",
   "category": "ingestion",
   "vertical": "support",
   "icon": "Headset",

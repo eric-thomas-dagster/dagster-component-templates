@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ZoomInfoIngestionComponent",
   "description": "Ingest ZoomInfo contact and company search data using dlt's generic REST API source. Note: ZoomInfo access is not self-serve -- requires an existing paid contract.",
+  "summary": "Ingest ZoomInfo contact and company search data.",
   "category": "ingestion",
   "vertical": "sales-intelligence",
   "icon": "Building2",

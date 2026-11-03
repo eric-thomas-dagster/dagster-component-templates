@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.KafkaToDatabaseAssetComponent",
   "description": "Consume messages from a Kafka topic and write them to a database table.",
+  "summary": "Consume messages from a Kafka topic into a database table.",
   "category": "ingestion",
   "vertical": "streaming",
   "icon": "si:apachekafka",

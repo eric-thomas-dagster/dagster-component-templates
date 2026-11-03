@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.RabbitMQToDatabaseAssetComponent",
   "description": "Drain messages from a RabbitMQ queue and write them to a database table.",
+  "summary": "Load messages from a RabbitMQ queue into a database table.",
   "category": "ingestion",
   "vertical": "streaming",
   "icon": "si:rabbitmq",

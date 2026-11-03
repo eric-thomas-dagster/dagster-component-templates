@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ClerkIngestionComponent",
   "description": "Ingest Clerk user and organization data using dlt's generic REST API source.",
+  "summary": "Ingest Clerk users and organizations.",
   "category": "ingestion",
   "vertical": "security",
   "icon": "KeyRound",

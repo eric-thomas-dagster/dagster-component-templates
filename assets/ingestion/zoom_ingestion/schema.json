@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ZoomIngestionComponent",
   "description": "Ingest Zoom meetings/webinars/users data using dlt's generic REST API source.",
+  "summary": "Ingest Zoom meetings, webinars, and user data.",
   "category": "ingestion",
   "vertical": "productivity",
   "icon": "si:zoom",

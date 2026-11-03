@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.StatuspageIngestionComponent",
   "description": "Ingest Atlassian Statuspage incident/component data using dlt's generic REST API source.",
+  "summary": "Ingest incident and component status data from Atlassian Statuspage.",
   "category": "ingestion",
   "vertical": "devops-observability",
   "icon": "si:statuspage",

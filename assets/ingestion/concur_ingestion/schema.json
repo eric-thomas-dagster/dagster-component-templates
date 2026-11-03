@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ConcurIngestionComponent",
   "description": "Ingest SAP Concur travel/expense data using dlt's generic REST API source.",
+  "summary": "Ingest SAP Concur travel and expense data.",
   "category": "ingestion",
   "vertical": "finance-hr",
   "icon": "ArrowUpFromLine",

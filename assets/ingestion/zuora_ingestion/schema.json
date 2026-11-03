@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ZuoraIngestionComponent",
   "description": "Ingest Zuora subscription billing data (accounts, subscriptions, invoices) using dlt's generic REST API source.",
+  "summary": "Ingest Zuora subscription billing data, including accounts, subscriptions, and invoices.",
   "category": "ingestion",
   "vertical": "finance-hr",
   "icon": "Repeat",

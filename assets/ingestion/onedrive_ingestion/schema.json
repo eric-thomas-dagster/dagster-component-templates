@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.OneDriveIngestionComponent",
   "description": "Ingest OneDrive/SharePoint file listings via Microsoft Graph (app-only auth) using dlt's generic REST API source.",
+  "summary": "Ingest OneDrive and SharePoint file listings.",
   "category": "ingestion",
   "vertical": "cloud-storage",
   "icon": "si:microsoftonedrive",

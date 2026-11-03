@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.RecurlyIngestionComponent",
   "description": "Ingest Recurly subscription billing data using dlt's generic REST API source.",
+  "summary": "Ingest Recurly subscription billing data.",
   "category": "ingestion",
   "vertical": "finance-hr",
   "icon": "Repeat",

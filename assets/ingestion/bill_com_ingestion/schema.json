@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.BillComIngestionComponent",
   "description": "Ingest Bill.com AP/AR data using dlt's generic REST API source.",
+  "summary": "Ingest Bill.com accounts payable and receivable data.",
   "category": "ingestion",
   "vertical": "finance-hr",
   "icon": "Receipt",

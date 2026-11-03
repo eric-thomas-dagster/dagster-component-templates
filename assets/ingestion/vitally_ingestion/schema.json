@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.VitallyAccountsIngestionComponent",
   "description": "Ingest Vitally Accounts (health/NPS data) via Vitally REST API and return a pandas DataFrame.",
+  "summary": "Ingest Vitally customer health and NPS account data.",
   "category": "source",
   "vertical": "customer-success",
   "icon": "SmilePlus",

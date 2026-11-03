@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.SSHAssetComponent",
   "description": "Run shell commands on a remote host via SSH as a Dagster asset.",
+  "summary": "Run shell commands on a remote server over SSH.",
   "category": "ingestion",
 
   "vertical": "devops-observability",

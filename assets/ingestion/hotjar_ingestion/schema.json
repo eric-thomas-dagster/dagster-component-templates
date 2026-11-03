@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.HotjarIngestionComponent",
   "description": "Ingest Hotjar on-site survey and survey-response data using dlt's generic REST API source.",
+  "summary": "Ingest Hotjar on-site surveys and survey responses.",
   "category": "ingestion",
   "vertical": "marketing",
   "icon": "MousePointerClick",

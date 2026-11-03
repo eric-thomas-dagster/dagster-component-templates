@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.XeroIngestionComponent",
   "description": "Ingest Xero accounting data using dlt's generic REST API source.",
+  "summary": "Ingest Xero accounting data.",
   "category": "ingestion",
   "vertical": "finance-hr",
   "icon": "si:xero",

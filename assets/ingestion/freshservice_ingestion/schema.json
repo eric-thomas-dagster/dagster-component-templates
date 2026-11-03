@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.FreshserviceIngestionComponent",
   "description": "Ingest Freshservice ITSM ticket, requester, agent, and asset data using dlt's generic REST API source. Distinct product from Freshdesk.",
+  "summary": "Ingest Freshservice IT service management tickets, requesters, agents, and assets.",
   "category": "ingestion",
   "vertical": "support",
   "icon": "si:freshworks",

@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.PubSubToDatabaseAssetComponent",
   "description": "Pull messages from a GCP Pub/Sub subscription and write to a database table.",
+  "summary": "Load messages from a Google Cloud Pub/Sub subscription into a database table.",
   "category": "ingestion",
   "vertical": "streaming",
   "icon": "ArrowUpFromLine",

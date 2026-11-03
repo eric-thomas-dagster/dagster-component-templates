@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.SQLToDatabaseAssetComponent",
   "description": "Read from a source database and write to a destination database table.",
+  "summary": "Copy data from one SQL database into a table in another.",
   "category": "ingestion",
   "vertical": "database",
   "icon": "ArrowUpFromLine",

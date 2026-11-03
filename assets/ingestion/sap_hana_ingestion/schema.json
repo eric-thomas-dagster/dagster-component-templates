@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.SapHanaIngestionComponent",
   "description": "Query SAP HANA (Cloud or on-premise) and return the result as a Dagster asset (pandas DataFrame).",
+  "summary": "Query data from SAP HANA, cloud or on-premise.",
   "category": "source",
 
   "vertical": "database",

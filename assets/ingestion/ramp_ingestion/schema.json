@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.RampIngestionComponent",
   "description": "Ingest Ramp corporate card/spend data using dlt's generic REST API source.",
+  "summary": "Ingest Ramp corporate card and spend management data.",
   "category": "ingestion",
   "vertical": "finance-hr",
   "icon": "ArrowUpFromLine",

@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.SalesloftPeopleIngestionComponent",
   "description": "Ingest Salesloft People via Salesloft's REST API and return a pandas DataFrame.",
+  "summary": "Ingest contact and people records from Salesloft.",
   "category": "source",
   "vertical": "sales-engagement",
   "icon": "si:salesloft",

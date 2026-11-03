@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.BigCommerceIngestionComponent",
   "description": "Ingest BigCommerce product, customer, and category data using dlt's generic REST API source.",
+  "summary": "Ingest BigCommerce products, customers, and categories.",
   "category": "ingestion",
   "vertical": "crm-sales",
   "icon": "si:bigcommerce",

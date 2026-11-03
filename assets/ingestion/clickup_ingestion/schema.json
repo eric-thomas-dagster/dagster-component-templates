@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ClickUpIngestionComponent",
   "description": "Ingest ClickUp project management data using dlt's generic REST API source.",
+  "summary": "Ingest ClickUp project management data.",
   "category": "ingestion",
   "vertical": "productivity",
   "icon": "si:clickup",

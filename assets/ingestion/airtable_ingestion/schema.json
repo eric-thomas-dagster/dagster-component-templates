@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.AirtableIngestionComponent",
   "description": "Component for ingesting Airtable database data using dlt.",
+  "summary": "Ingest Airtable database data.",
   "category": "ingestion",
   "vertical": "productivity",
   "icon": "si:airtable",

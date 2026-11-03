@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ZohoDeskIngestionComponent",
   "description": "Ingest Zoho Desk ticket, contact, and agent data using dlt's generic REST API source.",
+  "summary": "Ingest Zoho Desk tickets, contacts, and agents.",
   "category": "ingestion",
   "vertical": "support",
   "icon": "si:zoho",

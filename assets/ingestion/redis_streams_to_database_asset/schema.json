@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.RedisStreamsToDatabaseAssetComponent",
   "description": "Read entries from a Redis Stream and write them to a database table.",
+  "summary": "Load entries from a Redis Stream into a database table.",
   "category": "ingestion",
   "vertical": "streaming",
   "icon": "si:redis",

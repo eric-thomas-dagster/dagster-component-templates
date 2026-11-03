@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.TealiumIngestionComponent",
   "description": "Ingest Tealium AudienceStream visitor-profile data (for a known list of identifiers) using dlt's generic REST API source.",
+  "summary": "Ingest Tealium AudienceStream visitor profile data.",
   "category": "ingestion",
   "vertical": "marketing",
   "icon": "Tags",

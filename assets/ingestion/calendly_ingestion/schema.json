@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.CalendlyIngestionComponent",
   "description": "Ingest Calendly scheduling data using dlt's generic REST API source.",
+  "summary": "Ingest Calendly scheduling data.",
   "category": "ingestion",
   "vertical": "productivity",
   "icon": "si:calendly",

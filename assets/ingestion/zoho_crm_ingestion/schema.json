@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ZohoCrmIngestionComponent",
   "description": "Ingest Zoho CRM records using dlt's generic REST API source.",
+  "summary": "Ingest Zoho CRM records.",
   "category": "ingestion",
   "vertical": "crm-sales",
   "icon": "si:zoho",

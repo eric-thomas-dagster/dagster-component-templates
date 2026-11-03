@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.DeltaIngestionComponent",
   "description": "Read from an EXISTING external Delta Lake table (S3 / ADLS / GCS / Unity Catalog) into a Dagster asset as a pandas DataFrame. Uses delta-rs (no Spark / JVM). Supports version + timestamp time-travel + partition-predicate pushdown.",
+  "summary": "Read an existing Delta Lake table into a Dagster asset.",
   "category": "source",
 
   "vertical": "database",

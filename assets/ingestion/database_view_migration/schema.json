@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.DatabaseViewMigrationComponent",
   "description": "Replicate a SQL view from source to target with optional table-ref + function-name substitutions. Reads source view DDL, rewrites refs, executes CREATE OR REPLACE VIEW on target.",
+  "summary": "Replicate a single database view from one database to another.",
   "category": "infrastructure",
   "icon": "Eye",
   "x-dagster-io": {

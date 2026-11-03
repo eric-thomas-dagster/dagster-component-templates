@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.OpenAPIIngestionComponent",
   "description": "Create one Dagster asset per OpenAPI tag group, backed by a cached spec.",
+  "summary": "Ingest data from any OpenAPI-described REST API.",
   "category": "ingestion",
   "vertical": "internal",
   "icon": "ArrowUpFromLine",

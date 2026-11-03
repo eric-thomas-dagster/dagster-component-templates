@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.GrafanaCloudIngestionComponent",
   "description": "Ingest Grafana Cloud dashboard and datasource metadata using dlt's generic REST API source.",
+  "summary": "Ingest Grafana Cloud dashboard and datasource metadata.",
   "category": "ingestion",
   "vertical": "devops-observability",
   "icon": "si:grafana",

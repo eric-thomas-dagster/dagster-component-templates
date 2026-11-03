@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.PostmanIngestionComponent",
   "description": "Ingest Postman API-platform collection, workspace, environment, and monitor metadata using dlt's generic REST API source.",
+  "summary": "Ingest Postman API collections, workspaces, environments, and monitors.",
   "category": "ingestion",
   "vertical": "devops-observability",
   "icon": "si:postman",

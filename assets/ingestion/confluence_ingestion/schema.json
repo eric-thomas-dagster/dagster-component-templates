@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ConfluenceIngestionComponent",
   "description": "Ingest Confluence Cloud pages and spaces using dlt's generic REST API source.",
+  "summary": "Ingest Confluence Cloud pages and spaces.",
   "category": "ingestion",
   "vertical": "productivity",
   "icon": "si:confluence",

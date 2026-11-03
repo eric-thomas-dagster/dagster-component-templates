@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ExpensifyIngestionComponent",
   "description": "Ingest Expensify expense report data using dlt's generic REST API source.",
+  "summary": "Ingest Expensify expense report data.",
   "category": "ingestion",
   "vertical": "finance-hr",
   "icon": "si:expensify",

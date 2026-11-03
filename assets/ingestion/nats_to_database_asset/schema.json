@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.NATSToDatabaseAssetComponent",
   "description": "Subscribe to a NATS subject/JetStream and write messages to a database table.",
+  "summary": "Stream NATS subject/JetStream messages into a database table.",
   "category": "ingestion",
   "vertical": "streaming",
   "icon": "ArrowUpFromLine",

@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.FirestoreCollectionIngestionComponent",
   "description": "Read a Firestore collection (or subcollection) into a pandas DataFrame.",
+  "summary": "Read a Firestore collection into a Dagster asset.",
   "category": "source",
   "vertical": "database",
   "icon": "si:firebase",

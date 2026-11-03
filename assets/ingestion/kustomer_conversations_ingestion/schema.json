@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.KustomerConversationsIngestionComponent",
   "description": "Ingest Kustomer conversations via the Search API (POST /v1/customers/search, queryContext=conversation) and return a pandas DataFrame.",
+  "summary": "Ingest Kustomer customer conversations.",
   "category": "source",
   "vertical": "support-cx",
   "icon": "si:kustomer",

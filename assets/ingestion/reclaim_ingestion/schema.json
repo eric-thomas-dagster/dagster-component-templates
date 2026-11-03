@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ReclaimIngestionComponent",
   "description": "Ingest Reclaim.ai AI-scheduling task, calendar event, and Smart Habit data using dlt's generic REST API source.",
+  "summary": "Ingest Reclaim.ai scheduling tasks, calendar events, and Smart Habits.",
   "category": "ingestion",
   "vertical": "productivity",
   "icon": "Calendar",

@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.GCSToDatabaseAssetComponent",
   "description": "Read a file from GCS and write it to a database table.",
+  "summary": "Move a file from Google Cloud Storage into a database table.",
   "category": "ingestion",
   "vertical": "cloud-storage",
   "icon": "si:googlecloud",

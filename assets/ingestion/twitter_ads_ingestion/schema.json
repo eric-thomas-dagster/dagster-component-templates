@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.TwitterAdsIngestionComponent",
   "description": "Component for ingesting Twitter/X Ads data using dlt - returns DataFrames.",
+  "summary": "Ingest Twitter/X Ads campaign and performance data.",
   "category": "ingestion",
   "vertical": "social",
   "icon": "si:x",

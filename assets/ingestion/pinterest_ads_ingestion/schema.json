@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.PinterestAdsIngestionComponent",
   "description": "Component for ingesting Pinterest Ads data using dlt - returns DataFrames.",
+  "summary": "Ingest Pinterest Ads campaign and performance data.",
   "category": "ingestion",
   "vertical": "social",
   "icon": "si:pinterest",

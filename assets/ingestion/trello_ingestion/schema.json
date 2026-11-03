@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.TrelloIngestionComponent",
   "description": "Ingest Trello boards/cards data using dlt's generic REST API source.",
+  "summary": "Ingest Trello boards and cards.",
   "category": "ingestion",
   "vertical": "productivity",
   "icon": "si:trello",

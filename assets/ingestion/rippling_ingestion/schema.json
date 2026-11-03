@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.RippleIngestionComponent",
   "description": "Ingest Rippling HR/workforce data using dlt's generic REST API source.",
+  "summary": "Ingest Rippling HR and workforce data.",
   "category": "ingestion",
   "vertical": "finance-hr",
   "icon": "ArrowUpFromLine",

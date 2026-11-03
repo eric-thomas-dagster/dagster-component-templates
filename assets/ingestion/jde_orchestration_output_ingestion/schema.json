@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.JDEOrchestrationOutputIngestionComponent",
   "description": "Execute a JDE orchestration and emit its row-list output as a Dagster DataFrame. Common pattern: orchestrations that wrap JDE Data Services (table reads) or Business Function calls returning tabular results. Foundation for JDE \u2192 warehouse pipelines.",
+  "summary": "Run a JD Edwards orchestration and ingest its output as a table.",
   "category": "source",
   "vertical": "productivity",
   "icon": "TableChart",

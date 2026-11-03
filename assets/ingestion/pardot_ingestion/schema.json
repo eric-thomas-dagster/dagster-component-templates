@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.PardotIngestionComponent",
   "description": "Ingest Salesforce Account Engagement (Pardot) prospect, campaign, list, and visitor data using dlt's generic REST API source.",
+  "summary": "Ingest Salesforce Account Engagement (Pardot) prospects and campaigns.",
   "category": "ingestion",
   "vertical": "marketing",
   "icon": "Megaphone",

@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.OptimizelyIngestionComponent",
   "description": "Ingest Optimizely Feature/Web Experimentation data (projects, experiments, audiences) using dlt's generic REST API source.",
+  "summary": "Ingest Optimizely experimentation projects, experiments, and audiences.",
   "category": "ingestion",
   "vertical": "devops-observability",
   "icon": "FlaskConical",

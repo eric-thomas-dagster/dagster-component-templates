@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.DocumentIngestionComponent",
   "description": "Component for ingesting documents for RAG/Q&A systems.",
+  "summary": "Ingest documents from files, URLs, or directories for retrieval-augmented generation (RAG) and Q&A systems.",
   "category": "ingestion",
 
   "vertical": "productivity",

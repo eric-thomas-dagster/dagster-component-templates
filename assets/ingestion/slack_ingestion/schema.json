@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.SlackIngestionComponent",
   "description": "Component for ingesting Slack workspace data using dlt.",
+  "summary": "Ingest Slack channels, messages, and users.",
   "category": "ingestion",
   "vertical": "productivity",
   "icon": "si:slack",

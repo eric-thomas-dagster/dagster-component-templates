@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.MatomoIngestionComponent",
   "description": "Component for ingesting Matomo web analytics data using dlt.",
+  "summary": "Ingest Matomo web analytics data.",
   "category": "ingestion",
   "vertical": "marketing",
   "icon": "ArrowUpFromLine",

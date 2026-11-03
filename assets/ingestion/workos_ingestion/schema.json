@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.WorkOSIngestionComponent",
   "description": "Ingest WorkOS SSO/directory-sync data using dlt's generic REST API source.",
+  "summary": "Ingest WorkOS single sign-on and directory sync data.",
   "category": "ingestion",
   "vertical": "security",
   "icon": "Building2",

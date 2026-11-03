@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.PersonioIngestionComponent",
   "description": "Component for ingesting Personio HR management data using dlt.",
+  "summary": "Ingest Personio HR management data.",
   "category": "ingestion",
   "vertical": "finance-hr",
   "icon": "ArrowUpFromLine",

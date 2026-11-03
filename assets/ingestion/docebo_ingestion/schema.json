@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.DoceboIngestionComponent",
   "description": "Ingest Docebo LMS user, course, and enrollment data using dlt's generic REST API source.",
+  "summary": "Ingest Docebo learning-management user, course, and enrollment data.",
   "category": "ingestion",
   "vertical": "finance-hr",
   "icon": "GraduationCap",

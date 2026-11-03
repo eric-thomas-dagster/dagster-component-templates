@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.CultureAmpIngestionComponent",
   "description": "Ingest Culture Amp employee-experience, performance-review, and demographic data using dlt's generic REST API source.",
+  "summary": "Ingest Culture Amp employee-experience, performance-review, and demographic data.",
   "category": "ingestion",
   "vertical": "hr",
   "icon": "Smile",

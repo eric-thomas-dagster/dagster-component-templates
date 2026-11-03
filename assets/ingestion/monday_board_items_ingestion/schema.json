@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.MondayBoardItemsIngestionComponent",
   "description": "Ingest Items from a monday.com board via its GraphQL API (boards/items_page/next_items_page cursor pagination) and return a pandas DataFrame.",
+  "summary": "Ingest items from a monday.com board.",
   "category": "source",
   "vertical": "productivity",
   "icon": "si:monday",

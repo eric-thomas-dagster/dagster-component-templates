@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.BrazeIngestionComponent",
   "description": "Ingest Braze marketing automation data using dlt's generic REST API source.",
+  "summary": "Ingest Braze marketing automation data.",
   "category": "ingestion",
   "vertical": "marketing",
   "icon": "ArrowUpFromLine",

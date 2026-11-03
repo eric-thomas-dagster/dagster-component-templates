@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.SalesforceIngestionComponent",
   "description": "Component for ingesting Salesforce CRM data using dlt.",
+  "summary": "Ingest Salesforce CRM records such as accounts, contacts, leads, and opportunities.",
   "category": "ingestion",
   "vertical": "crm-sales",
   "icon": "si:salesforce",

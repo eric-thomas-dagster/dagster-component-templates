@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.AmplitudeIngestionComponent",
   "description": "Ingest Amplitude event definitions and cohort metadata using dlt's generic REST API source.",
+  "summary": "Ingest Amplitude event definitions and cohort metadata.",
   "category": "ingestion",
   "vertical": "marketing",
   "icon": "si:amplitude",

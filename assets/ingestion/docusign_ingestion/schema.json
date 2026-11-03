@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.DocuSignIngestionComponent",
   "description": "Ingest DocuSign envelope and template data using dlt's generic REST API source.",
+  "summary": "Ingest DocuSign envelope and template data.",
   "category": "ingestion",
   "vertical": "productivity",
   "icon": "si:docusign",

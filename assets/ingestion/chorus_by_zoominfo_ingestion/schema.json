@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ChorusByZoomInfoIngestionComponent",
   "description": "Ingest Chorus by ZoomInfo call engagement and user data using dlt's generic REST API source.",
+  "summary": "Ingest Chorus by ZoomInfo call engagement and user data.",
   "category": "ingestion",
   "vertical": "sales-intelligence",
   "icon": "Mic",

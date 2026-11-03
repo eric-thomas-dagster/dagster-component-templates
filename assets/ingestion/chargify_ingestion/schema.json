@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ChargifyIngestionComponent",
   "description": "Ingest Chargify/Maxio Advanced Billing subscription, customer, and invoice data using dlt's generic REST API source.",
+  "summary": "Ingest Chargify (Maxio Advanced Billing) subscriptions, customers, and invoices.",
   "category": "ingestion",
   "vertical": "finance-hr",
   "icon": "Receipt",

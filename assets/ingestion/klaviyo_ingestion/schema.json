@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.KlaviyoIngestionComponent",
   "description": "Ingest Klaviyo marketing data using dlt's generic REST API source.",
+  "summary": "Ingest Klaviyo marketing and email campaign data.",
   "category": "ingestion",
   "vertical": "marketing",
   "icon": "si:klaviyo",

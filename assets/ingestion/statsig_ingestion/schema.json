@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.StatsigIngestionComponent",
   "description": "Ingest Statsig feature gate and experiment configuration data using dlt's generic REST API source.",
+  "summary": "Ingest Statsig feature flag and experiment configuration data.",
   "category": "ingestion",
   "vertical": "devops-observability",
   "icon": "FlaskConical",

@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.WooCommerceIngestionComponent",
   "description": "Ingest WooCommerce store data using dlt's generic REST API source.",
+  "summary": "Ingest WooCommerce online store data.",
   "category": "ingestion",
   "vertical": "crm-sales",
   "icon": "si:woocommerce",

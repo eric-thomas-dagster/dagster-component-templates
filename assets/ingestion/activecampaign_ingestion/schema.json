@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ActiveCampaignIngestionComponent",
   "description": "Ingest ActiveCampaign marketing/CRM data using dlt's generic REST API source.",
+  "summary": "Ingest ActiveCampaign marketing and CRM data.",
   "category": "ingestion",
   "vertical": "marketing",
   "icon": "ArrowUpFromLine",

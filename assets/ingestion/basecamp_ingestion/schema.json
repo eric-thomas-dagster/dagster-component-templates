@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.BasecampIngestionComponent",
   "description": "Ingest Basecamp projects/todos data using dlt's generic REST API source.",
+  "summary": "Ingest Basecamp projects and to-dos.",
   "category": "ingestion",
   "vertical": "productivity",
   "icon": "si:basecamp",

@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.NotionIngestionComponent",
   "description": "Component for ingesting Notion workspace databases using dlt.",
+  "summary": "Ingest Notion workspace databases.",
   "category": "ingestion",
   "vertical": "productivity",
   "icon": "si:notion",

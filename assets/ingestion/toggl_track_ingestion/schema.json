@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.TogglTrackIngestionComponent",
   "description": "Ingest Toggl Track time entries, projects, and clients using dlt's generic REST API source.",
+  "summary": "Ingest Toggl Track time entries, projects, and clients.",
   "category": "ingestion",
   "vertical": "productivity",
   "icon": "Clock",

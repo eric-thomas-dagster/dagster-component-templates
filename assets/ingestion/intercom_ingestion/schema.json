@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.IntercomIngestionComponent",
   "description": "Ingest Intercom support data using dlt's generic REST API source.",
+  "summary": "Ingest Intercom support and messaging data.",
   "category": "ingestion",
   "vertical": "support",
   "icon": "si:intercom",

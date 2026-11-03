@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.StreamingConsumerComponent",
   "description": "Always-running queue → transform → sink asset. Compute is a bounded (or unbounded) consumer loop, not a sensor firing per-batch. Emits one AssetMaterialization heartbeat per batch. Pair with StreamingRunHealthSensorComponent for auto-restart. v1 supports queue.kind: kafka.",
+  "summary": "Continuously consume a message queue, transform each batch, and write it to a sink.",
   "category": "ingestion",
 
   "vertical": "streaming",

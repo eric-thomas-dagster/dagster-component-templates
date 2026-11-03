@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.GitHubIngestionComponent",
   "description": "Component for ingesting GitHub repository data using dlt.",
+  "summary": "Ingest GitHub repositories, issues, and pull requests.",
   "category": "ingestion",
   "vertical": "devops-observability",
   "icon": "si:github",

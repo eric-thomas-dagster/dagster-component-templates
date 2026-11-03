@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.OmniIngestionComponent",
   "description": "Ingest Omni BI account metadata (dashboards, models, queries) using dlt's generic REST API source.",
+  "summary": "Ingest Omni BI dashboards, models, and queries.",
   "category": "ingestion",
   "vertical": "devops-observability",
   "icon": "ArrowUpFromLine",

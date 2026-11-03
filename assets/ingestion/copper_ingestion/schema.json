@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.CopperIngestionComponent",
   "description": "Ingest Copper CRM data using dlt's generic REST API source.",
+  "summary": "Ingest Copper CRM contact, company, and deal data.",
   "category": "ingestion",
   "vertical": "crm-sales",
   "icon": "ArrowUpFromLine",

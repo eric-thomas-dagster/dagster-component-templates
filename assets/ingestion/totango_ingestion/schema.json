@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.TotangoAccountsIngestionComponent",
   "description": "Ingest Totango Account records via the Totango Search API (POST /api/v1/search/accounts) and return a pandas DataFrame.",
+  "summary": "Ingest Totango customer account records for customer success reporting.",
   "category": "source",
   "vertical": "customer-success",
   "icon": "UsersRound",

@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ShopifyIngestionComponent",
   "description": "Component for ingesting Shopify e-commerce data using dlt.",
+  "summary": "Ingest Shopify orders, products, and customers.",
   "category": "ingestion",
   "vertical": "crm-sales",
   "icon": "si:shopify",

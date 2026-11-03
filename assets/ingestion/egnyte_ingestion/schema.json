@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.EgnyteIngestionComponent",
   "description": "Ingest Egnyte file/folder listings, users, and groups using dlt's generic REST API source.",
+  "summary": "Ingest Egnyte file and folder listings, users, and groups.",
   "category": "ingestion",
   "vertical": "cloud-storage",
   "icon": "FolderOpen",

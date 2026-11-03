@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.PandaDocIngestionComponent",
   "description": "Ingest PandaDoc document, template, and folder data using dlt's generic REST API source.",
+  "summary": "Ingest PandaDoc documents, templates, and folders.",
   "category": "ingestion",
   "vertical": "productivity",
   "icon": "si:pandadoc",

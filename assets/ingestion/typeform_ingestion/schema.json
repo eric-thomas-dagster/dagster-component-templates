@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.TypeformIngestionComponent",
   "description": "Ingest Typeform forms and responses using dlt's generic REST API source.",
+  "summary": "Ingest Typeform forms and responses.",
   "category": "ingestion",
   "vertical": "productivity",
   "icon": "si:typeform",

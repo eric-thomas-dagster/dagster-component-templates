@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ServiceBusToDatabaseAssetComponent",
   "description": "Drain messages from an Azure Service Bus queue/subscription and write to a database.",
+  "summary": "Load messages from an Azure Service Bus queue or subscription into a database table.",
   "category": "ingestion",
   "vertical": "streaming",
   "icon": "ArrowUpFromLine",

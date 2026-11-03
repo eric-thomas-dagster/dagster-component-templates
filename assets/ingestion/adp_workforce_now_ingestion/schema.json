@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.AdpWorkforceNowIngestionComponent",
   "description": "Ingest ADP Workforce Now HR data using dlt's generic REST API source.",
+  "summary": "Ingest ADP Workforce Now HR data.",
   "category": "ingestion",
   "vertical": "finance-hr",
   "icon": "ArrowUpFromLine",

@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ConstantContactIngestionComponent",
   "description": "Ingest Constant Contact contact and list data using dlt's generic REST API source.",
+  "summary": "Ingest Constant Contact contacts and lists.",
   "category": "ingestion",
   "vertical": "marketing",
   "icon": "Mail",

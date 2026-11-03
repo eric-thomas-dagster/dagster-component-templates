@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ImapInboxSourceComponent",
   "description": "ImapInboxSourceComponent \u2014 fetch emails from an IMAP server.",
+  "summary": "Fetch emails from an IMAP inbox.",
   "category": "source",
   "vertical": "productivity",
   "icon": "Inbox",

@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.EventHubsToDatabaseAssetComponent",
   "description": "Consume events from an Azure Event Hub and write them to a database table.",
+  "summary": "Stream events from an Azure Event Hub into a database table.",
   "category": "ingestion",
   "vertical": "streaming",
   "icon": "ArrowUpFromLine",

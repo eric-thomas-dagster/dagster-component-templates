@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.DynamicsCrmIngestionComponent",
   "description": "Ingest Microsoft Dynamics 365 CRM data (accounts, contacts, opportunities, leads) via the Dataverse Web API (OData v4) using dlt's generic REST API source.",
+  "summary": "Ingest Microsoft Dynamics 365 CRM accounts, contacts, opportunities, and leads.",
   "category": "ingestion",
   "vertical": "crm-sales",
   "icon": "Building2",

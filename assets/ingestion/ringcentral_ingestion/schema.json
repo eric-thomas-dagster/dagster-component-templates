@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.RingCentralIngestionComponent",
   "description": "Ingest RingCentral call logs, messages, and extension data using dlt's generic REST API source.",
+  "summary": "Ingest RingCentral call logs, messages, and extension data.",
   "category": "ingestion",
   "vertical": "support",
   "icon": "Phone",

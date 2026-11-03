@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.LaunchDarklyIngestionComponent",
   "description": "Ingest LaunchDarkly feature flag and project data using dlt's generic REST API source.",
+  "summary": "Ingest LaunchDarkly feature flag and project data.",
   "category": "ingestion",
   "vertical": "devops-observability",
   "icon": "si:launchdarkly",

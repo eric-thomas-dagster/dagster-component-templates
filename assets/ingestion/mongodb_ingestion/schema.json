@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.MongoDBIngestionComponent",
   "description": "Component for ingesting MongoDB database data using dlt.",
+  "summary": "Ingest data from a MongoDB database.",
   "category": "ingestion",
   "vertical": "database",
   "icon": "si:mongodb",

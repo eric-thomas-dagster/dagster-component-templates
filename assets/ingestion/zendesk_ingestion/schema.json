@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ZendeskIngestionComponent",
   "description": "Component for ingesting Zendesk customer support data using dlt.",
+  "summary": "Ingest Zendesk customer support data.",
   "category": "ingestion",
   "vertical": "support",
   "icon": "si:zendesk",

@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.SQSToDatabaseAssetComponent",
   "description": "Drain messages from an SQS queue and write them to a database table.",
+  "summary": "Load messages from an Amazon SQS queue into a database table.",
   "category": "ingestion",
   "vertical": "streaming",
   "icon": "ArrowUpFromLine",

@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.S3ToDatabaseAssetComponent",
   "description": "Component for loading files from S3 into a database table.",
+  "summary": "Load files stored in Amazon S3 into a database table.",
   "category": "ingestion",
   "vertical": "cloud-storage",
   "icon": "si:amazons3",

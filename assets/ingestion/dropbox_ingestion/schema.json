@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.DropboxIngestionComponent",
   "description": "Ingest Dropbox file/folder listings via a hand-written cursor-paginated fetch (not dlt's rest_api_source -- Dropbox's list_folder endpoint is POST+JSON-body, not GET+query-params).",
+  "summary": "Ingest Dropbox file and folder listings.",
   "category": "ingestion",
   "vertical": "cloud-storage",
   "icon": "si:dropbox",

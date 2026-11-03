@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.FigmentStakingRewardsIngestionComponent",
   "description": "Ingest granular and/or aggregated staking rewards/balances per validator/delegator from Figment's institutional staking Rewards API (POST /{network}/rewards), across networks (Ethereum, Solana, ...), and return a pandas DataFrame.",
+  "summary": "Ingest staking rewards and balances per validator or delegator across blockchain networks.",
   "category": "source",
   "vertical": "crypto-staking",
   "icon": "si:figment",

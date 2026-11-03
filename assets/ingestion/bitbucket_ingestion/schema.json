@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.BitbucketIngestionComponent",
   "description": "Ingest Bitbucket Cloud repository data using dlt's generic REST API source.",
+  "summary": "Ingest Bitbucket Cloud repository data.",
   "category": "ingestion",
   "vertical": "devops-observability",
   "icon": "si:bitbucket",

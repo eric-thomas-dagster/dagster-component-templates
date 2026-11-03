@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ADLSToDatabaseAssetComponent",
   "description": "Read a file from ADLS Gen2 and write it to a database table.",
+  "summary": "Load a file from Azure Data Lake Storage Gen2 into a database table.",
   "category": "ingestion",
   "vertical": "cloud-storage",
   "icon": "si:microsoftazure",

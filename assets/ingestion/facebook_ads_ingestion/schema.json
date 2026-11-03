@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.FacebookAdsIngestionComponent",
   "description": "Component for ingesting Facebook Ads data using dlt - returns DataFrames.",
+  "summary": "Ingest Facebook Ads campaign, ad set, ad, creative, lead, and performance data.",
   "category": "ingestion",
   "vertical": "social",
   "icon": "si:facebook",

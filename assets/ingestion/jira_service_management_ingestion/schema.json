@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.JiraServiceManagementIngestionComponent",
   "description": "Ingest Jira Service Management service desk, request, and organization data using dlt's generic REST API source. Distinct product surface from core Jira.",
+  "summary": "Ingest Jira Service Management service desk and request data.",
   "category": "ingestion",
   "vertical": "support",
   "icon": "si:jira",

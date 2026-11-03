@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.DatabaseTablesMigrationComponent",
   "description": "DDL-first table migration: build portable CREATE TABLE statements from source INFORMATION_SCHEMA (types + PKs + FKs + NOT NULL + defaults) and execute on target. Emits per-table status DataFrame.",
+  "summary": "Recreate a database's table structure (columns, keys, constraints) on a new database.",
   "category": "infrastructure",
   "icon": "Table2",
   "x-dagster-io": {

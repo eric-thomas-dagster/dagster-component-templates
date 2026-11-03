@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.PersonaIngestionComponent",
   "description": "Ingest Persona identity-verification inquiry, account, and case data using dlt's generic REST API source.",
+  "summary": "Ingest Persona identity verification inquiries and cases.",
   "category": "ingestion",
   "vertical": "security",
   "icon": "ShieldCheck",

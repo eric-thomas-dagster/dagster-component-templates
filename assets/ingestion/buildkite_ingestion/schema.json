@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.BuildkiteIngestionComponent",
   "description": "Ingest Buildkite organization, pipeline, and build data using dlt's generic REST API source.",
+  "summary": "Ingest Buildkite organizations, pipelines, and builds.",
   "category": "ingestion",
   "vertical": "devops-observability",
   "icon": "si:buildkite",

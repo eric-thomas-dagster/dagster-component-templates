@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.ODataIngestionComponent",
   "description": "Generic OData v2/v4 client. Covers SAP S/4HANA, SuccessFactors, Datasphere, Microsoft Dynamics 365 / Dataverse, MS Graph, SharePoint, Business Central, Oracle Fusion, Epicor, IFS, and any other OData-exposing system.",
+  "summary": "Ingest data from any OData-exposing system, such as SAP S/4HANA, Dynamics 365, or SharePoint.",
   "category": "source",
 
   "vertical": "internal",

@@ -1,6 +1,7 @@
 {
   "component_type": "dagster_community_components.LinkedInAdsIngestionComponent",
   "description": "Component for ingesting LinkedIn Ads data using dlt - returns DataFrames.",
+  "summary": "Ingest LinkedIn Ads campaign and performance data.",
   "category": "ingestion",
   "vertical": "social",
   "icon": "si:linkedin",

@@ -1,0 +1,135 @@
+{
+  "component_type": "dagster_community_components.SalesforceRecordSensorComponent",
+  "description": "Trigger a run when a Salesforce object has new or updated records.",
+  "summary": "Trigger a run when Salesforce records are created or updated.",
+  "category": "sensor",
+  "icon": "si:salesforce",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "RunRequest",
+      "description": "RunRequest per new or updated Salesforce record"
+    }
+  },
+  "attributes": {
+    "sensor_name": {
+      "description": "Unique sensor name.",
+      "type": "string",
+      "label": "Sensor Name",
+      "required": true
+    },
+    "asset_keys": {
+      "description": "Slash-separated asset keys to materialize when a record matches.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Asset Keys",
+      "required": true
+    },
+    "minimum_interval_seconds": {
+      "description": "Minimum seconds between sensor evaluations.",
+      "type": "integer",
+      "label": "Minimum Interval Seconds",
+      "default": 60,
+      "required": false
+    },
+    "default_status": {
+      "description": "'RUNNING' or 'STOPPED'.",
+      "type": "string",
+      "label": "Default Status",
+      "default": "stopped",
+      "enum": [
+        "running",
+        "stopped"
+      ],
+      "required": false
+    },
+    "sobject": {
+      "description": "Salesforce object to poll (e.g. 'Opportunity', 'Lead', 'Case', 'Account').",
+      "type": "string",
+      "label": "Sobject",
+      "required": true
+    },
+    "fields": {
+      "description": "SOQL fields to select. 'Id' and 'LastModifiedDate' are used internally -- include them even if you add more.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Fields",
+      "default": ["Id", "Name", "LastModifiedDate"],
+      "required": false
+    },
+    "soql_filter": {
+      "description": "Additional WHERE clause, ANDed with the LastModifiedDate cursor filter (e.g. \"StageName = 'Closed Won'\").",
+      "type": "string",
+      "label": "Soql Filter",
+      "required": false
+    },
+    "resource_key": {
+      "description": "Optional resource key registered by a SalesforceResourceComponent. When set, queries run via that resource's own soql(...) method at run time instead of the inline consumer_key/consumer_secret/username/password/security_token below -- lets one Salesforce credential serve the ingestion connector, the salesforce_record_upsert reverse-ETL sink, and this sensor without configuring it three times. Only meaningful when that resource is configured with auth_mode='password' (this sensor's standalone path only supports the password grant, not JWT Bearer, either).",
+      "type": "string",
+      "label": "Resource Key",
+      "required": false
+    },
+    "domain": {
+      "description": "'login' (production) or 'test' (sandbox). Ignored when resource_key is set.",
+      "type": "string",
+      "label": "Domain",
+      "default": "login",
+      "required": false
+    },
+    "consumer_key": {
+      "description": "Connected App consumer key. Required unless resource_key is set.",
+      "type": "string",
+      "label": "Consumer Key",
+      "required": false,
+      "x-dagster-required-unless": "resource_key"
+    },
+    "consumer_secret": {
+      "description": "Connected App consumer secret. Required unless resource_key is set.",
+      "type": "string",
+      "label": "Consumer Secret",
+      "required": false,
+      "ui:widget": "password",
+      "x-dagster-required-unless": "resource_key"
+    },
+    "username": {
+      "description": "Salesforce username. Required unless resource_key is set.",
+      "type": "string",
+      "label": "Username",
+      "required": false,
+      "x-dagster-required-unless": "resource_key"
+    },
+    "password": {
+      "description": "Salesforce password. Required unless resource_key is set.",
+      "type": "string",
+      "label": "Password",
+      "required": false,
+      "ui:widget": "password",
+      "x-dagster-required-unless": "resource_key"
+    },
+    "security_token": {
+      "description": "Salesforce security token (Settings > Personal Setup > Reset My Security Token). Required unless resource_key is set.",
+      "type": "string",
+      "label": "Security Token",
+      "required": false,
+      "ui:widget": "password",
+      "x-dagster-required-unless": "resource_key"
+    },
+    "api_version": {
+      "description": "Salesforce REST API version. Ignored when resource_key is set.",
+      "type": "string",
+      "label": "Api Version",
+      "default": "58.0",
+      "required": false
+    }
+  },
+  "tags": [
+    "sensor",
+    "salesforce",
+    "crm",
+    "automation"
+  ],
+  "name": "SalesforceRecordSensor"
+}

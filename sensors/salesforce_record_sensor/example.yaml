@@ -1,0 +1,9 @@
+type: dagster_community_components.SalesforceRecordSensorComponent
+attributes:
+  sensor_name: salesforce_closed_won_sensor
+  asset_keys: [opportunity_features]
+  sobject: Opportunity
+  fields: [Id, Name, StageName, Amount, LastModifiedDate]
+  soql_filter: "StageName = 'Closed Won'"
+  resource_key: salesforce
+  minimum_interval_seconds: 300

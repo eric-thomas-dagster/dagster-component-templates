@@ -1179,6 +1179,7 @@ _CLASS_PATHS: dict[str, str] = {
     "SageIntacctResourceComponent": "resources/sage_intacct_resource/component.py",
     "SalesforceEventLogIngestionComponent": "ingestion/salesforce_event_log_ingestion/component.py",
     "SalesforceIngestionComponent": "assets/ingestion/salesforce_ingestion/component.py",
+    "SalesforceRecordSensorComponent": "sensors/salesforce_record_sensor/component.py",
     "SalesforceRecordUpsertComponent": "assets/reverse_etl/salesforce_record_upsert/component.py",
     "SalesforceResourceComponent": "resources/salesforce_resource/component.py",
     "SalesloftPeopleIngestionComponent": "assets/ingestion/salesloft_people_ingestion/component.py",

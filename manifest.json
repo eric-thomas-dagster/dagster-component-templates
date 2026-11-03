@@ -55727,6 +55727,55 @@
       "vertical": "crm-sales"
     },
     {
+      "id": "salesforce_record_sensor",
+      "name": "SalesforceRecordSensor",
+      "category": "sensor",
+      "description": "Trigger a run when a Salesforce object has new or updated records.",
+      "path": "sensors/salesforce_record_sensor",
+      "tags": [
+        "sensor",
+        "salesforce",
+        "crm",
+        "automation"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/salesforce_record_sensor/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/salesforce_record_sensor/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/salesforce_record_sensor/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/salesforce_record_sensor/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/sensors/salesforce_record_sensor/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-02"
+      },
+      "produces": [
+        "sensor"
+      ],
+      "agent_hints": {
+        "outputs": "Trigger a run when a Salesforce object has new or updated records.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "consumes": [
+        "resource:salesforce"
+      ],
+      "keywords": [
+        "salesforce records",
+        "soql",
+        "trigger",
+        "event listener",
+        "watcher"
+      ],
+      "icon": "si:salesforce"
+    },
+    {
       "id": "salesforce_record_upsert",
       "name": "Salesforce Record Upsert",
       "component_type": "dagster_community_components.SalesforceRecordUpsertComponent",
@@ -71417,5 +71466,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1369
+  "total": 1370
 }

@@ -1,0 +1,53 @@
+{
+  "component_type": "dagster_community_components.SharePointResourceComponent",
+  "description": "Register a SharePoint (Microsoft Graph) resource for use by other components.",
+  "summary": "Share one Microsoft Graph / SharePoint connection with other components.",
+  "category": "resource",
+  "icon": "si:sharepoint",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "sharepoint_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "sharepoint_resource"
+    },
+    "tenant_id_env_var": {
+      "type": "string",
+      "label": "Tenant Id Env Var",
+      "description": "Env var with Azure tenant ID.",
+      "required": true
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client Id Env Var",
+      "description": "Env var with Azure app client ID.",
+      "required": true
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "description": "Env var with Azure app client secret.",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "description": "Per-request timeout in seconds.",
+      "required": false,
+      "default": 30
+    }
+  },
+  "tags": [
+    "resource",
+    "sharepoint",
+    "microsoft",
+    "office365"
+  ],
+  "name": "SharePoint Resource"
+}

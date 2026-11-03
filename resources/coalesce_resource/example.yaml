@@ -1,0 +1,5 @@
+type: dagster_community_components.CoalesceResourceComponent
+attributes:
+  resource_key: coalesce_resource
+  environment_id: my-env-id
+  api_token_env_var: COALESCE_API_TOKEN

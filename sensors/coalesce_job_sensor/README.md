@@ -1,6 +1,8 @@
 # Coalesce Job Sensor
 
-Polls the Coalesce Scheduler API and triggers a Dagster job when a specified Coalesce job run completes successfully. Uses a cursor to avoid re-triggering on already-processed runs.
+Polls a specific Coalesce run (by `runCounter`) via the Scheduler API and triggers a Dagster job when it completes successfully. Uses a cursor to avoid re-triggering once the same run has already fired.
+
+Coalesce's Scheduler API has no endpoint to list or search runs by job/environment -- only `startRun`, `runStatus`, `rerun`, and `cancelRun` exist, and `runStatus` requires an exact `runCounter`. So there is no "trigger when any run of job X completes" mode: you poll one specific run, identified by the `runCounter` it was started with (e.g. by `CoalesceResource.start_run()`, Coalesce's own UI, or its native scheduler).
 
 ## Required packages
 
@@ -17,16 +19,15 @@ requests>=2.28.0
 | Field | Type | Description |
 |---|---|---|
 | `sensor_name` | `str` | Unique sensor name |
-| `environment_id` | `str` | Coalesce environment ID |
-| `job_id` | `str` | Coalesce job ID to monitor |
-| `api_token_env_var` | `str` | Env var containing the Coalesce API token |
-| `job_name` | `str` | Dagster job to trigger when Coalesce run succeeds |
+| `run_counter` | `str` | The Coalesce run to poll, by its runCounter (returned when the run was started, e.g. by CoalesceResource.start_run() or Coalesce's own UI/scheduler). Coalesce's Scheduler API has no way to list or search runs, so there i… _(full docs in schema.json + component README)_ |
+| `job_name` | `str` | Dagster job to trigger when the Coalesce run completes |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | — | Optional Dagster resource key. |
+| `api_token_env_var` | `str` | — | Env var containing the Coalesce API token. Required unless resource_key is set. |
+| `resource_key` | `str` | — | Optional resource key registered by a CoalesceResourceComponent. When set, polls run via that resource's own get_run_status(...) method instead of the inline api_token_env_var/api_base_url below. |
 
 ### Sensor configuration
 
@@ -34,6 +35,12 @@ requests>=2.28.0
 |---|---|---|---|
 | `minimum_interval_seconds` | `int` | `60` | Seconds between polls |
 | `default_status` | `str` | `"running"` | running or stopped |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `api_base_url` | `str` | `"https://app.coalescesoftware.io"` | Coalesce API base URL. Ignored when resource_key is set. |
 
 [//]: # (FIELDS:END)
 
@@ -43,10 +50,24 @@ requests>=2.28.0
 type: dagster_community_components.CoalesceJobSensorComponent
 attributes:
   sensor_name: coalesce_transform_done
-  environment_id: "prod-environment-abc123"
-  job_id: "daily-transform-job-xyz"
+  run_counter: "12345"
   api_token_env_var: COALESCE_API_TOKEN
   job_name: downstream_processing_job
   minimum_interval_seconds: 60
   default_status: running
 ```
+
+### Sharing a credential via CoalesceResourceComponent
+
+```yaml
+type: dagster_community_components.CoalesceJobSensorComponent
+attributes:
+  sensor_name: coalesce_transform_done
+  run_counter: "12345"
+  resource_key: coalesce_resource
+  job_name: downstream_processing_job
+```
+
+## Real terminal status values
+
+Coalesce's `runStatus` field returns `completed`, `failed`, or `canceled` (one L) at the end of a run -- not `succeeded`/`cancelled`/`error`, which an earlier version of this sensor incorrectly checked for (meaning it could never actually fire).

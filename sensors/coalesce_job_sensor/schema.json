@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.CoalesceJobSensorComponent",
-  "description": "Trigger a Dagster job when a Coalesce job run completes.",
+  "description": "Trigger a Dagster job when a specific Coalesce run (by runCounter) completes.",
   "category": "sensor",
   "icon": "Radar",
   "x-dagster-io": {
@@ -16,29 +16,31 @@
       "description": "Unique sensor name",
       "required": true
     },
-    "environment_id": {
+    "run_counter": {
       "type": "string",
-      "label": "Environment Id",
-      "description": "Coalesce environment ID",
-      "required": true
-    },
-    "job_id": {
-      "type": "string",
-      "label": "Job Id",
-      "description": "Coalesce job ID to monitor",
+      "label": "Run Counter",
+      "description": "The Coalesce run to poll, by its runCounter (returned when the run was started, e.g. by CoalesceResource.start_run() or Coalesce's own UI/scheduler). Coalesce's Scheduler API has no way to list or search runs, so there is no 'latest run for a job' option -- the exact runCounter must already be known.",
       "required": true
     },
     "api_token_env_var": {
       "type": "string",
       "label": "Api Token Env Var",
-      "description": "Env var containing the Coalesce API token",
-      "required": true,
-      "ui:widget": "env_var"
+      "description": "Env var containing the Coalesce API token. Required unless resource_key is set.",
+      "required": false,
+      "ui:widget": "env_var",
+      "x-dagster-required-unless": "resource_key"
+    },
+    "api_base_url": {
+      "type": "string",
+      "label": "Api Base Url",
+      "description": "Coalesce API base URL. Ignored when resource_key is set.",
+      "required": false,
+      "default": "https://app.coalescesoftware.io"
     },
     "job_name": {
       "type": "string",
       "label": "Job Name",
-      "description": "Dagster job to trigger when Coalesce run succeeds",
+      "description": "Dagster job to trigger when the Coalesce run completes",
       "required": true
     },
     "minimum_interval_seconds": {
@@ -63,7 +65,7 @@
     "resource_key": {
       "type": "string",
       "label": "Resource Key",
-      "description": "Optional Dagster resource key.",
+      "description": "Optional resource key registered by a CoalesceResourceComponent. When set, polls run via that resource's own get_run_status(...) method instead of the inline api_token_env_var/api_base_url above.",
       "required": false,
       "default": null,
       "ui:widget": "resource-picker"

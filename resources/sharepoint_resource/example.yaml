@@ -1,0 +1,6 @@
+type: dagster_community_components.SharePointResourceComponent
+attributes:
+  resource_key: sharepoint_resource
+  tenant_id_env_var: AZURE_TENANT_ID
+  client_id_env_var: AZURE_CLIENT_ID
+  client_secret_env_var: AZURE_CLIENT_SECRET

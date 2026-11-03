@@ -1,0 +1,53 @@
+{
+  "component_type": "dagster_community_components.CoalesceResourceComponent",
+  "description": "Register a Coalesce Scheduler API resource for use by other components.",
+  "summary": "Share one Coalesce connection with other components.",
+  "category": "resource",
+  "icon": "si:coalesce",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "coalesce_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "coalesce_resource"
+    },
+    "environment_id": {
+      "type": "string",
+      "label": "Environment ID",
+      "description": "Coalesce environment ID.",
+      "required": true
+    },
+    "api_token_env_var": {
+      "type": "string",
+      "label": "Api Token Env Var",
+      "description": "Env var with the Coalesce API token.",
+      "required": true,
+      "ui:widget": "env_var"
+    },
+    "api_base_url": {
+      "type": "string",
+      "label": "Api Base Url",
+      "description": "Coalesce API base URL (regional deployments may differ).",
+      "required": false,
+      "default": "https://app.coalescesoftware.io"
+    },
+    "request_timeout_seconds": {
+      "type": "integer",
+      "label": "Request Timeout Seconds",
+      "description": "Per-request timeout in seconds.",
+      "required": false,
+      "default": 30
+    }
+  },
+  "tags": [
+    "resource",
+    "coalesce",
+    "dbt"
+  ],
+  "name": "Coalesce Resource"
+}

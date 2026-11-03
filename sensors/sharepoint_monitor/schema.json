@@ -31,21 +31,24 @@
     "tenant_id_env_var": {
       "type": "string",
       "label": "Tenant Id Env Var",
-      "description": "Env var with Azure tenant ID",
-      "required": true
+      "description": "Env var with Azure tenant ID. Required unless resource_key is set.",
+      "required": false,
+      "x-dagster-required-unless": "resource_key"
     },
     "client_id_env_var": {
       "type": "string",
       "label": "Client Id Env Var",
-      "description": "Env var with Azure app client ID",
-      "required": true
+      "description": "Env var with Azure app client ID. Required unless resource_key is set.",
+      "required": false,
+      "x-dagster-required-unless": "resource_key"
     },
     "client_secret_env_var": {
       "type": "string",
       "label": "Client Secret Env Var",
-      "description": "Env var with Azure app client secret",
-      "required": true,
-      "ui:widget": "env_var"
+      "description": "Env var with Azure app client secret. Required unless resource_key is set.",
+      "required": false,
+      "ui:widget": "env_var",
+      "x-dagster-required-unless": "resource_key"
     },
     "folder_path": {
       "type": "string",
@@ -89,7 +92,7 @@
     "resource_key": {
       "type": "string",
       "label": "Resource Key",
-      "description": "Optional Dagster resource key.",
+      "description": "Optional resource key registered by a SharePointResourceComponent. When set, polls run via that resource's own list_library_items(...) method instead of the inline tenant_id_env_var/client_id_env_var/client_secret_env_var above.",
       "required": false,
       "default": null,
       "ui:widget": "resource-picker"

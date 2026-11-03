@@ -1,8 +1,7 @@
 type: dagster_community_components.CoalesceJobSensorComponent
 attributes:
   sensor_name: coalesce_transform_done
-  environment_id: "prod-environment-abc123"
-  job_id: "daily-transform-job-xyz"
+  run_counter: "12345"
   api_token_env_var: COALESCE_API_TOKEN
   job_name: downstream_processing_job
   minimum_interval_seconds: 60

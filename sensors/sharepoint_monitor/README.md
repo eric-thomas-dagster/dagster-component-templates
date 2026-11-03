@@ -21,16 +21,15 @@ On each tick, the sensor:
 | `sensor_name` | `str` | Unique sensor name |
 | `site_url` | `str` | SharePoint site URL |
 | `library_name` | `str` | Document library name (e.g. 'Documents' or 'Reports') |
-| `tenant_id_env_var` | `str` | Env var with Azure tenant ID |
-| `client_id_env_var` | `str` | Env var with Azure app client ID |
-| `client_secret_env_var` | `str` | Env var with Azure app client secret |
 | `job_name` | `str` | Job to trigger when new/modified files are detected |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | — | Optional Dagster resource key. |
+| `client_id_env_var` | `str` | — | Env var with Azure app client ID. Required unless resource_key is set. |
+| `client_secret_env_var` | `str` | — | Env var with Azure app client secret. Required unless resource_key is set. |
+| `resource_key` | `str` | — | Optional resource key registered by a SharePointResourceComponent. When set, polls run via that resource's own list_library_items(...) method instead of the inline tenant_id_env_var/client_id_env_var/client_secret_env_var below. |
 
 ### Sensor configuration
 
@@ -43,6 +42,7 @@ On each tick, the sensor:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `tenant_id_env_var` | `str` | — | Env var with Azure tenant ID. Required unless resource_key is set. |
 | `folder_path` | `str` | — | Optional subfolder path within the library |
 | `file_extension_filter` | `str` | — | Filter by extension e.g. '.xlsx' (empty = all files) |
 

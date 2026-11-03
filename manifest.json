@@ -12654,7 +12654,7 @@
       "id": "coalesce_job_sensor",
       "name": "Coalesce Job Sensor",
       "category": "sensor",
-      "description": "Trigger a Dagster job when a Coalesce job run completes.",
+      "description": "Trigger a Dagster job when a specific Coalesce run (by runCounter) completes.",
       "version": "1.0.0",
       "author": "Dagster Community",
       "path": "sensors/coalesce_job_sensor",
@@ -12698,6 +12698,50 @@
         "event listener",
         "watcher"
       ]
+    },
+    {
+      "id": "coalesce_resource",
+      "name": "Coalesce Resource",
+      "category": "resource",
+      "description": "Register a Coalesce Scheduler API resource for use by other components.",
+      "path": "resources/coalesce_resource",
+      "tags": [
+        "resource",
+        "coalesce",
+        "dbt"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/coalesce_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/coalesce_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/coalesce_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/coalesce_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/coalesce_resource/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-02"
+      },
+      "produces": [
+        "resource"
+      ],
+      "agent_hints": {
+        "outputs": "Register a Coalesce Scheduler API resource for use by other components.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "keywords": [
+        "coalesce",
+        "scheduler",
+        "run status",
+        "shared credentials"
+      ],
+      "icon": "si:coalesce"
     },
     {
       "id": "coalesce_workspace",
@@ -58053,6 +58097,51 @@
       ]
     },
     {
+      "id": "sharepoint_resource",
+      "name": "SharePoint Resource",
+      "category": "resource",
+      "description": "Register a SharePoint (Microsoft Graph) resource for use by other components.",
+      "path": "resources/sharepoint_resource",
+      "tags": [
+        "resource",
+        "sharepoint",
+        "microsoft",
+        "office365"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sharepoint_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sharepoint_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sharepoint_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sharepoint_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/sharepoint_resource/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-02"
+      },
+      "produces": [
+        "resource"
+      ],
+      "agent_hints": {
+        "outputs": "Register a SharePoint (Microsoft Graph) resource for use by other components.",
+        "requires_pip": [
+          "requests"
+        ]
+      },
+      "keywords": [
+        "sharepoint",
+        "microsoft graph",
+        "document library",
+        "shared credentials"
+      ],
+      "icon": "si:sharepoint"
+    },
+    {
       "id": "shell_command_asset",
       "name": "ShellCommandAsset",
       "category": "infrastructure",
@@ -71554,5 +71643,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1372
+  "total": 1374
 }

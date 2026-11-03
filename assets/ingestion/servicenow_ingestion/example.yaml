@@ -13,9 +13,18 @@ attributes:
   max_records: 50000
   group_name: servicenow
 
+  # --- Share credentials with servicenow_record_upsert / servicenow_sensor ---
+  # resource_key: servicenow_resource  # registered by ServiceNowResourceComponent
+  # (omit instance_env_var/username_env_var/password_env_var/bearer_token_env_var when using resource_key)
+
   # --- Production OAuth (bearer token) — pair with oauth_token_resource ---
   # bearer_token_env_var: SNOW_ACCESS_TOKEN
   # (omit username/password when using bearer_token_env_var)
+
+  # --- Persist directly to a warehouse instead of returning a DataFrame ---
+  # destination: snowflake            # or bigquery, postgres, databricks, filesystem, ...
+  # dataset_name: servicenow
+  # persist_only: true                 # see ../DESTINATIONS.md
 
   # --- Other common tables ---
   # table: change_request

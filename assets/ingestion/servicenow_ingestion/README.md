@@ -1,6 +1,10 @@
 # ServiceNowIngestionComponent
 
-Read records from any ServiceNow table (incident, change_request, sc_request, sys_user, cmdb_ci, custom tables) into a DataFrame asset. Uses the standard ServiceNow Table API, paginates via `sysparm_limit` + `sysparm_offset`, applies an optional encoded-query filter, and supports both basic auth (dev instances) and bearer-token OAuth (production).
+Read records from any ServiceNow table (incident, change_request, sc_request, sys_user, cmdb_ci, custom tables) using dlt's generic REST API source (`dlt.sources.rest_api.rest_api_source`). ServiceNow has no official dlt-maintained verified source, so this uses the same config-driven REST connector pattern as `workday_ingestion` and the ad-platform ingestion components in this repo. ServiceNow's Table API pagination (`sysparm_offset` + `sysparm_limit`, stop on an empty page) maps onto dlt's `OffsetPaginator`.
+
+By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Set `destination` to persist directly to any dlt-supported destination (Snowflake, BigQuery, Postgres, filesystem, etc.) instead — see `../DESTINATIONS.md`.
+
+Auth is either direct env vars (`instance_env_var` + `username_env_var`/`password_env_var`, or `instance_env_var` + `bearer_token_env_var`), or a shared `resource_key` pointing at a `ServiceNowResourceComponent` — the same resource `servicenow_record_upsert` and `servicenow_sensor` use, so one set of credentials can serve all three.
 
 ## Use cases
 
@@ -8,11 +12,14 @@ Read records from any ServiceNow table (incident, change_request, sc_request, sy
 - Snapshot the CMDB into a data product downstream of asset discovery
 - Sync change-management activity for compliance / audit reporting
 - Materialize a custom ServiceNow table for downstream Dagster transforms
+- Persist straight into Snowflake/BigQuery/Postgres/etc. via `destination`, skipping a separate warehouse-load step
 
 ## Dependencies
 
-- `requests>=2.28.0`
+- `dlt>=1.0.0`
 - `pandas>=1.5.0`
+- `requests>=2.28.0`
+- `tabulate>=0.9.0`
 
 ## Configuration
 
@@ -73,15 +80,15 @@ See <https://www.servicenow.com/docs/bundle/yokohama-platform-user-interface/pag
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `instance_env_var` | `str` | Env var with the ServiceNow instance subdomain (e.g. 'mycompany' or 'dev123456') |
 | `table` | `str` | ServiceNow table to query (e.g. 'incident', 'change_request', 'sc_request', 'sys_user', 'cmdb_ci', or a custom table name). |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `username_env_var` | `str` | — | Env var with ServiceNow username (basic auth). Required unless bearer_token_env_var is set. |
-| `password_env_var` | `str` | — | Env var with ServiceNow password (basic auth). Required unless bearer_token_env_var is set. |
+| `username_env_var` | `str` | — | Env var with ServiceNow username (basic auth). Required unless resource_key or bearer_token_env_var is set. |
+| `password_env_var` | `str` | — | Env var with ServiceNow password (basic auth). Required unless resource_key or bearer_token_env_var is set. |
+| `resource_key` | `str` | — | Optional resource key registered by a ServiceNowResourceComponent. When set, credentials (instance/username/password/bearer_token) are read from that resource at run time instead of instance_env_var/username_env_var/pass… _(full docs in schema.json + component README)_ |
 
 ### Execution
 
@@ -96,9 +103,10 @@ See <https://www.servicenow.com/docs/bundle/yokohama-platform-user-interface/pag
 |---|---|---|---|
 | `deps` | `List[str]` | — | Upstream asset keys for lineage |
 | `group_name` | `str` | — | Asset group for organization |
+| `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill strategy for a partitioned asset. 'single_run' materializes a whole backfill range in one run (rows are filtered to the whole range); 'multi_run' launches one run per partition, optionally capped by backfill_pol… _(full docs in schema.json + component README)_ |
 | `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com'] |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'} |
-| `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set. |
+| `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from destination/component name if not set. |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']} |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
 
@@ -113,15 +121,17 @@ See <https://www.servicenow.com/docs/bundle/yokohama-platform-user-interface/pag
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned |
+| `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
-| `partition_date_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current date partition key. |
+| `partition_date_column` | `Union[str, int]` | — | Column used to filter the returned DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'. |
 | `partition_static_dim` | `str` | — | Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'. |
-| `partition_static_column` | `Union[str, int]` | — | Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id'). |
+| `partition_static_column` | `Union[str, int]` | — | Column used to filter the returned DataFrame to the current static/dynamic partition key (e.g. 'customer_id'). |
 
 ### Retry policy
 
@@ -131,16 +141,30 @@ See <https://www.servicenow.com/docs/bundle/yokohama-platform-user-interface/pag
 | `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
 | `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
 
+### Source / target
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `bucket_url` | `str` | — | Bucket/path URL for filesystem-shaped storage (e.g. 's3://my-bucket/path', 'gs://my-bucket/path', 'az://my-container/path', or 'file:///local/path'). Required when destination='filesystem' (the final write target). Also… _(full docs in schema.json + component README)_ |
+
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `instance_env_var` | `str` | — | Env var with the ServiceNow instance subdomain (e.g. 'mycompany' or 'dev123456'). Required unless resource_key is set. |
 | `bearer_token_env_var` | `str` | — | Env var with ServiceNow OAuth bearer token. When set, basic-auth env vars are ignored. |
 | `sysparm_query` | `str` | — | ServiceNow encoded query string filter (e.g. 'state=approved^priority=1'). See ServiceNow docs on encoded queries. |
 | `sysparm_fields` | `str` | — | Comma-separated list of fields to return. Defaults to all fields if unset. |
 | `sysparm_display_value` | `str` | `"false"` | Reference field display: 'false' = sys_id only, 'true' = display value only, 'all' = both. Default 'false' (raw). |
-| `verify_ssl` | `bool` | `true` | Enable TLS verification. Set false only for self-signed dev instances. |
+| `verify_ssl` | `bool` | `true` | Enable TLS verification. Set false only for self-signed dev instances. Ignored when resource_key is set (the resource's own verify_ssl applies). |
+| `destination` | `str` | — | dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB -> DataFrame mode. |
+| `dataset_name` | `str` | — | Target dataset/schema in the destination. Defaults to the asset name. |
+| `persist_only` | `bool` | `false` | If True with destination set: emit a MaterializeResult and skip DataFrame return. If False: query the destination back into a DataFrame (only meaningful for SQL destinations -- non-SQL destinations always emit MaterializeResult). |
+| `destination_credentials_url` | `str` | — | Inline connection string passed to dlt's destination factory. Useful when one Dagster project ingests into multiple accounts of the same destination type. If unset, dlt resolves credentials from env vars -- see ../DESTINATIONS.md. |
+| `destination_credentials_env_var` | `str` | — | Alternative to destination_credentials_url: name of an env var holding the connection string. Resolved at run-time. |
+| `athena_query_result_bucket` | `str` | — | Optional S3 path where Athena writes query results (e.g. 's3://my-bucket/results/'). Only used when destination='athena'. May be omitted to use Athena-managed query results instead. |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'. |
+| `backfill_policy_max_partitions_per_run` | `int` | — | For backfill_policy='multi_run' only: maximum partitions materialized per run (default 1). |
 | `include_preview_metadata` | `bool` | `false` | Include a preview of the output data in metadata (first 5 rows as a markdown table). Used by builder UIs to render asset shape without warehouse access. |
 | `preview_rows` | `int` | `25` | Rows to include in the preview metadata when `include_preview_metadata` is True. For long DataFrames (>10x preview_rows), a random sample is used so the preview reflects the data distribution; otherwise head() is used. |
 

@@ -224,6 +224,14 @@
       "required": false,
       "default": null
     },
+    "partition_date_column": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Date Column",
+      "description": "Column used to filter the returned DataFrame to the current date partition key.",
+      "required": false,
+      "x-dagster-widget": "column"
+    },
     "partition_values": {
       "x-dagster-group": "partitions",
       "type": "string",
@@ -256,6 +264,14 @@
       "label": "Partition Static Dim",
       "description": "Dimension name for the static axis in multi-partitioning, e.g. 'customer' or 'region'.",
       "required": false
+    },
+    "partition_static_column": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Static Column",
+      "description": "Column used to filter the returned DataFrame to the current static/dynamic partition key (e.g. 'customer_id').",
+      "required": false,
+      "x-dagster-widget": "column"
     },
     "column_lineage": {
       "type": "object",
@@ -292,6 +308,70 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Optional resource key registered by a ServiceNowResourceComponent. When set, credentials (instance/username/password/bearer_token) are read from that resource at run time instead of instance_env_var/username_env_var/password_env_var/bearer_token_env_var above -- lets one ServiceNow credential serve this ingestion connector, servicenow_record_upsert, and servicenow_sensor without configuring it three times.",
+      "required": false
+    },
+    "destination": {
+      "type": "string",
+      "label": "Destination",
+      "description": "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB -> DataFrame mode.",
+      "required": false
+    },
+    "dataset_name": {
+      "type": "string",
+      "label": "Dataset Name",
+      "description": "Target dataset/schema in the destination. Defaults to the asset name.",
+      "required": false
+    },
+    "persist_only": {
+      "type": "boolean",
+      "label": "Persist Only",
+      "description": "If True with destination set: emit a MaterializeResult and skip DataFrame return. If False: query the destination back into a DataFrame (only meaningful for SQL destinations -- non-SQL destinations always emit MaterializeResult).",
+      "required": false
+    },
+    "destination_credentials_url": {
+      "type": "string",
+      "label": "Destination Credentials Url",
+      "description": "Inline connection string passed to dlt's destination factory. Useful when one Dagster project ingests into multiple accounts of the same destination type. If unset, dlt resolves credentials from env vars -- see ../DESTINATIONS.md.",
+      "required": false
+    },
+    "destination_credentials_env_var": {
+      "type": "string",
+      "label": "Destination Credentials Env Var",
+      "description": "Alternative to destination_credentials_url: name of an env var holding the connection string. Resolved at run-time.",
+      "required": false
+    },
+    "bucket_url": {
+      "type": "string",
+      "label": "Bucket Url",
+      "description": "Bucket/path URL for filesystem-shaped storage (e.g. 's3://my-bucket/path', 'gs://my-bucket/path', 'az://my-container/path', or 'file:///local/path'). Required when destination='filesystem' (the final write target). Also used as the staging area when destination='databricks' or 'athena', both of which require an intermediate filesystem stage before the warehouse-side load -- dlt resolves the bucket's credentials from the destination-appropriate standard environment variables (e.g. AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY) unless destination_credentials_url/destination_credentials_env_var is set.",
+      "required": false
+    },
+    "athena_query_result_bucket": {
+      "type": "string",
+      "label": "Athena Query Result Bucket",
+      "description": "Optional S3 path where Athena writes query results (e.g. 's3://my-bucket/results/'). Only used when destination='athena'. May be omitted to use Athena-managed query results instead.",
+      "required": false
+    },
+    "backfill_policy": {
+      "type": "string",
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "label": "Backfill Policy",
+      "description": "Backfill strategy for a partitioned asset. 'single_run' materializes a whole backfill range in one run (rows are filtered to the whole range); 'multi_run' launches one run per partition, optionally capped by backfill_policy_max_partitions_per_run. Unset keeps Dagster's default. Needs a partition-range-aware IO manager for single_run.",
+      "required": false
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "type": "integer",
+      "label": "Backfill Policy Max Partitions Per Run",
+      "description": "For backfill_policy='multi_run' only: maximum partitions materialized per run (default 1).",
+      "required": false
     }
   },
   "tags": [

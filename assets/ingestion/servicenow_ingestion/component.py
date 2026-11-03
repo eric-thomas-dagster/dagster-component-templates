@@ -1,38 +1,75 @@
 """ServiceNow Ingestion Component.
 
 Read records from any ServiceNow table (incident, change_request, sc_request,
-sys_user, cmdb_ci, custom tables, etc.) as a DataFrame asset. Goes through
-the standard ServiceNow Table API + Dagster context, with pagination, query
-filtering, field selection, and basic-auth or bearer-token (OAuth) auth.
+sys_user, cmdb_ci, custom tables, etc.) using dlt's generic REST API source
+(dlt.sources.rest_api.rest_api_source). ServiceNow has no official
+dlt-maintained verified-source package (confirmed against dlthub's own
+ServiceNow scaffold, which is itself built the same way -- a plain
+rest_api_source config, not an installable connector), so this uses the same
+config-driven REST connector pattern as workday_ingestion / the ad-platform
+ingestions in this repo. ServiceNow's Table API pagination (`sysparm_offset`
++ `sysparm_limit`, stop on an empty page) maps onto dlt's OffsetPaginator.
 
-Common use cases:
-  - Pull last 90 days of incidents → warehouse for service-quality analytics
-  - Snapshot the CMDB into a data product
-  - Sync change-management activity for compliance / audit
-  - Materialize a custom ServiceNow table that downstream Dagster assets
-    transform and route to the data warehouse
+By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame.
+Set `destination` to persist directly to any dlt-supported destination
+(snowflake, bigquery, postgres, filesystem, etc.). See
+`assets/ingestion/DESTINATIONS.md` for the full configuration reference.
 
 Auth: either env vars directly (instance_env_var + username_env_var +
-password_env_var, OR instance_env_var + bearer_token_env_var) — or via
-a shared `servicenow_resource` if you have multiple ServiceNow assets in
-the same project.
+password_env_var, OR instance_env_var + bearer_token_env_var) -- or via a
+shared `servicenow_resource` (`resource_key`, registered by
+ServiceNowResourceComponent) if you have multiple ServiceNow components
+(this one, `servicenow_record_upsert`, `servicenow_sensor`) in the same
+project and want to configure credentials once.
 """
 
 import os
 from typing import Any, Dict, List, Optional, Union
+
 import pandas as pd
+import dlt
 from dagster import (
     AssetExecutionContext,
     AssetKey,
     Component,
     ComponentLoadContext,
     Definitions,
+    MaterializeResult,
     MetadataValue,
     Model,
+    Output,
     Resolvable,
     asset,
 )
 from pydantic import Field
+
+
+# BEGIN partition row-filter helper (inlined per component; keep copies identical, see tests/test_partition_port_ingestion.py)
+from typing import Literal  # noqa: E402,F401
+
+
+def _filter_df_to_partition(df, context, partition_date_column, partition_static_column):
+    """Keep the rows that belong to the run's partition(s). A no-op for an unpartitioned run.
+
+    Time partitions use `context.partition_time_window` (which spans the whole range of a backfill run) against
+    `partition_date_column`; static/dynamic/multi partitions match `partition_static_column` against
+    `context.partition_keys`. Without the relevant column the frame is returned unchanged."""
+    import pandas as pd
+
+    if not (context.has_partition_key or context.has_partition_key_range):
+        return df
+    if partition_date_column and partition_date_column in df.columns:
+        try:
+            window = context.partition_time_window
+        except Exception:
+            return df  # static/dynamic/multi partition: no time window
+        dates = pd.to_datetime(df[partition_date_column], errors="coerce", utc=True)
+        return df[(dates >= pd.Timestamp(window.start)) & (dates < pd.Timestamp(window.end))]
+    if partition_static_column and partition_static_column in df.columns:
+        keys = {str(k) for k in context.partition_keys}
+        return df[df[partition_static_column].astype(str).isin(keys)]
+    return df
+# END partition row-filter helper
 
 
 def _require_env(name: str) -> str:
@@ -46,7 +83,6 @@ def _require_env(name: str) -> str:
             "Dagster code location (or point the *_env_var field at one that is)."
         )
     return value
-
 
 
 def _build_partitions_def(
@@ -76,7 +112,6 @@ def _build_partitions_def(
         DynamicPartitionsDefinition,
     )
 
-    # Both shapes set: ambiguous. Pick one.
     if partition_dimensions and partition_type:
         raise ValueError(
             "Set either partition_type (flat-fields shape) or "
@@ -171,7 +206,6 @@ def _build_partitions_def(
     raise ValueError(f"unknown partition_type: {partition_type!r}")
 
 
-
 # BEGIN field-shape normalization (inlined per component; keep copies identical — see tests/test_field_shapes.py)
 from typing import Any, Dict, List, Optional, Union  # noqa: E402,F401
 from pydantic import model_validator  # noqa: E402,F401
@@ -203,13 +237,9 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 
 
 class ServiceNowIngestionComponent(Component, Model, Resolvable):
-    """Component for reading records from a ServiceNow table.
+    """Read records from a ServiceNow table using dlt's generic REST API source.
 
-    Calls the ServiceNow Table API (`/api/now/table/<table>`), paginates
-    via `sysparm_limit` + `sysparm_offset`, applies an optional encoded
-    `sysparm_query` filter, and returns results as a DataFrame asset.
-
-    Example (basic auth — dev instance):
+    Example (basic auth — dev instance, DataFrame mode):
         ```yaml
         type: dagster_community_components.ServiceNowIngestionComponent
         attributes:
@@ -225,34 +255,47 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
           group_name: servicenow
         ```
 
-    Example (OAuth bearer token — production):
+    Example (shared resource, persisted to Snowflake):
         ```yaml
         type: dagster_community_components.ServiceNowIngestionComponent
         attributes:
           asset_name: change_requests_open
-          instance_env_var: SNOW_INSTANCE
-          bearer_token_env_var: SNOW_ACCESS_TOKEN
+          resource_key: servicenow_resource
           table: change_request
           sysparm_query: "state!=closed"
-          group_name: servicenow
+          destination: snowflake
+          dataset_name: servicenow
+          persist_only: true
         ```
     """
 
     asset_name: str = Field(description="Name of the asset to create")
-    instance_env_var: str = Field(
-        description="Env var with the ServiceNow instance subdomain (e.g. 'mycompany' or 'dev123456')",
+    instance_env_var: Optional[str] = Field(
+        default=None,
+        description="Env var with the ServiceNow instance subdomain (e.g. 'mycompany' or 'dev123456'). Required unless resource_key is set.",
     )
     username_env_var: Optional[str] = Field(
         default=None,
-        description="Env var with ServiceNow username (basic auth). Required unless bearer_token_env_var is set.",
+        description="Env var with ServiceNow username (basic auth). Required unless resource_key or bearer_token_env_var is set.",
     )
     password_env_var: Optional[str] = Field(
         default=None,
-        description="Env var with ServiceNow password (basic auth). Required unless bearer_token_env_var is set.",
+        description="Env var with ServiceNow password (basic auth). Required unless resource_key or bearer_token_env_var is set.",
     )
     bearer_token_env_var: Optional[str] = Field(
         default=None,
         description="Env var with ServiceNow OAuth bearer token. When set, basic-auth env vars are ignored.",
+    )
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a ServiceNowResourceComponent. When set, "
+            "credentials (instance/username/password/bearer_token) are read from that "
+            "resource at run time instead of instance_env_var/username_env_var/password_env_var/"
+            "bearer_token_env_var above -- lets one ServiceNow credential serve this ingestion "
+            "connector, servicenow_record_upsert, and servicenow_sensor without configuring it "
+            "three times."
+        ),
     )
     table: str = Field(
         description="ServiceNow table to query (e.g. 'incident', 'change_request', 'sc_request', 'sys_user', 'cmdb_ci', or a custom table name).",
@@ -279,8 +322,68 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
     )
     verify_ssl: bool = Field(
         default=True,
-        description="Enable TLS verification. Set false only for self-signed dev instances.",
+        description="Enable TLS verification. Set false only for self-signed dev instances. Ignored when resource_key is set (the resource's own verify_ssl applies).",
     )
+
+    # --- Destination fields (see ../DESTINATIONS.md) --------------------------
+
+    destination: Optional[str] = Field(
+        default=None,
+        description=(
+            "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', "
+            "'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', "
+            "'mssql', 'motherduck'). Leave empty for in-memory DuckDB -> DataFrame mode."
+        ),
+    )
+    dataset_name: Optional[str] = Field(
+        default=None,
+        description="Target dataset/schema in the destination. Defaults to the asset name.",
+    )
+    persist_only: bool = Field(
+        default=False,
+        description=(
+            "If True with destination set: emit a MaterializeResult and skip DataFrame return. "
+            "If False: query the destination back into a DataFrame (only meaningful for SQL "
+            "destinations -- non-SQL destinations always emit MaterializeResult)."
+        ),
+    )
+    destination_credentials_url: Optional[str] = Field(
+        default=None,
+        description=(
+            "Inline connection string passed to dlt's destination factory. Useful when one "
+            "Dagster project ingests into multiple accounts of the same destination type. "
+            "If unset, dlt resolves credentials from env vars -- see ../DESTINATIONS.md."
+        ),
+    )
+    destination_credentials_env_var: Optional[str] = Field(
+        default=None,
+        description=(
+            "Alternative to destination_credentials_url: name of an env var holding the "
+            "connection string. Resolved at run-time."
+        ),
+    )
+    bucket_url: Optional[str] = Field(
+        default=None,
+        description=(
+            "Bucket/path URL for filesystem-shaped storage (e.g. 's3://my-bucket/path', "
+            "'gs://my-bucket/path', 'az://my-container/path', or 'file:///local/path'). "
+            "Required when destination='filesystem' (the final write target). Also used "
+            "as the staging area when destination='databricks' or 'athena', both of which "
+            "require an intermediate filesystem stage before the warehouse-side load -- "
+            "dlt resolves the bucket's credentials from the destination-appropriate "
+            "standard environment variables (e.g. AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY) "
+            "unless destination_credentials_url/destination_credentials_env_var is set."
+        ),
+    )
+    athena_query_result_bucket: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional S3 path where Athena writes query results (e.g. "
+            "'s3://my-bucket/results/'). Only used when destination='athena'. May be "
+            "omitted to use Athena-managed query results instead."
+        ),
+    )
+
     deps: Optional[List[str]] = Field(
         default=None,
         description="Upstream asset keys for lineage",
@@ -291,7 +394,7 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
     )
     partition_type: Optional[str] = Field(
         default=None,
-        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', or None for unpartitioned",
+        description="Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned",
     )
 
     partition_cron_schedule: Optional[str] = Field(
@@ -302,10 +405,7 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
             "Dagster's TimeWindowPartitionsDefinition(cron_schedule=...)."
         ),
     )
-    partition_cron_fmt: Optional[str] = Field(
-        default="%Y-%m-%d",
-        description="strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
-    )
+    partition_cron_fmt: Optional[str] = Field(default="%Y-%m-%d", description="strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.")
     partition_end_offset: int = Field(
         default=0,
         description=(
@@ -316,28 +416,17 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
             "current, still-in-progress window."
         ),
     )
-    partition_timezone: Optional[str] = Field(
-        default=None,
-        description="IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
-    )
-    partition_start: Optional[str] = Field(
-        default=None,
-        description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.",
-    )
+    partition_timezone: Optional[str] = Field(default=None, description="IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).")
+    partition_start: Optional[str] = Field(default=None, description="Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types.")
     partition_date_column: Optional[Union[str, int]] = Field(
         default=None,
-        description="Column used to filter upstream DataFrame to the current date partition key.",
+        description="Column used to filter the returned DataFrame to the current date partition key.",
     )
-    dynamic_partition_name: Optional[str] = Field(
-        default=None,
-        description="Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
-    )
-
+    dynamic_partition_name: Optional[str] = Field(default=None, description="Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.")
     partition_dimensions: Optional[List[Dict[str, Any]]] = Field(
         default=None,
         description="Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
     )
-
     partition_values: Optional[Union[str, List[str]]] = Field(
         default=None,
         description="Comma-separated values for static or multi partitioning, e.g. 'customer_a,customer_b,customer_c'.",
@@ -348,7 +437,20 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
     )
     partition_static_column: Optional[Union[str, int]] = Field(
         default=None,
-        description="Column used to filter upstream DataFrame to the current static partition dimension (e.g. 'customer_id').",
+        description="Column used to filter the returned DataFrame to the current static/dynamic partition key (e.g. 'customer_id').",
+    )
+    backfill_policy: Optional[Literal["single_run", "multi_run"]] = Field(
+        default=None,
+        description=(
+            "Backfill strategy for a partitioned asset. 'single_run' materializes a whole backfill range in one run "
+            "(rows are filtered to the whole range); 'multi_run' launches one run per partition, optionally capped by "
+            "backfill_policy_max_partitions_per_run. Unset keeps Dagster's default. Needs a partition-range-aware IO "
+            "manager for single_run."
+        ),
+    )
+    backfill_policy_max_partitions_per_run: Optional[int] = Field(
+        default=None,
+        description="For backfill_policy='multi_run' only: maximum partitions materialized per run (default 1).",
     )
     owners: Optional[List[str]] = Field(
         default=None,
@@ -360,7 +462,7 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
     )
     kinds: Optional[List[str]] = Field(
         default=None,
-        description="Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from component name if not set.",
+        description="Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from destination/component name if not set.",
     )
     freshness_max_lag_minutes: Optional[int] = Field(
         default=None,
@@ -396,31 +498,9 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
         ),
     )
 
-    retry_policy_max_retries: Optional[int] = Field(
-
-        default=None,
-
-        description="Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
-
-    )
-
-    retry_policy_delay_seconds: Optional[int] = Field(
-
-        default=None,
-
-        description="Seconds between retries (default 1).",
-
-    )
-
-    retry_policy_backoff: str = Field(
-
-        default="exponential",
-
-        description="Backoff strategy: 'linear' or 'exponential'.",
-
-    )
-
-
+    retry_policy_max_retries: Optional[int] = Field(default=None, description="Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.")
+    retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries (default 1).")
+    retry_policy_backoff: str = Field(default="exponential", description="Backoff strategy: 'linear' or 'exponential'.")
 
     description: Optional[str] = Field(
         default=None,
@@ -432,26 +512,73 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
     def _coerce_field_shapes(cls, data):
         return coerce_field_shapes(data, lists=('deps', 'owners', 'kinds'), csv=('partition_values',), tags=('asset_tags',))
 
+    def _resolve_destination(self):
+        """Build the dlt `destination` argument."""
+        if not self.destination:
+            return "duckdb"
+        creds = None
+        if self.destination_credentials_url:
+            creds = self.destination_credentials_url
+        elif self.destination_credentials_env_var:
+            creds = os.environ.get(self.destination_credentials_env_var)
+        if creds:
+            factory = getattr(dlt.destinations, self.destination, None)
+            if factory is not None:
+                return factory(credentials=creds)
+        return self.destination
+
+    def _resolve_destination_with_bucket(self):
+        """Wraps _resolve_destination() to inject `bucket_url` (filesystem) or `query_result_bucket`
+        (athena) -- dlt needs these to know where to write/query, separately from the staging area
+        wired by _resolve_staging() for destinations that go through one."""
+        if self.destination == "filesystem" and self.bucket_url:
+            creds = None
+            if self.destination_credentials_url:
+                creds = self.destination_credentials_url
+            elif self.destination_credentials_env_var:
+                creds = os.environ.get(self.destination_credentials_env_var)
+            return dlt.destinations.filesystem(bucket_url=self.bucket_url, credentials=creds)
+        if self.destination == "athena" and self.athena_query_result_bucket:
+            creds = None
+            if self.destination_credentials_url:
+                creds = self.destination_credentials_url
+            elif self.destination_credentials_env_var:
+                creds = os.environ.get(self.destination_credentials_env_var)
+            athena_kwargs = {"query_result_bucket": self.athena_query_result_bucket}
+            if creds:
+                athena_kwargs["credentials"] = creds
+            return dlt.destinations.athena(**athena_kwargs)
+        return self._resolve_destination()
+
+    def _resolve_staging(self):
+        """Databricks and Athena both load via an intermediate filesystem stage -- dlt requires this
+        staging destination to be activated explicitly, it is never auto-enabled."""
+        if self.destination not in ("databricks", "athena"):
+            return None
+        if self.bucket_url:
+            return dlt.destinations.filesystem(bucket_url=self.bucket_url)
+        return "filesystem"
+
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
         return ComponentFormConfig(label='Service Now Ingestion', editable=True)
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
+        _column_lineage_md = _column_lineage_metadata(self)
+        component = self
         asset_name = self.asset_name
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
-        instance_env_var = self.instance_env_var
-        username_env_var = self.username_env_var
-        password_env_var = self.password_env_var
-        bearer_token_env_var = self.bearer_token_env_var
         table = self.table
         sysparm_query = self.sysparm_query
         sysparm_fields = self.sysparm_fields
         sysparm_display_value = self.sysparm_display_value
         page_size = self.page_size
         max_records = self.max_records
-        verify_ssl = self.verify_ssl
+        destination = self.destination
+        dataset_name = self.dataset_name or asset_name
+        persist_only = self.persist_only
         deps = self.deps
         group_name = self.group_name
 
@@ -461,34 +588,34 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
             self.partition_values,
             self.dynamic_partition_name,
             self.partition_dimensions,
-        
-    cron_schedule=self.partition_cron_schedule,
-    cron_fmt=self.partition_cron_fmt or "%Y-%m-%d", end_offset=self.partition_end_offset, timezone=self.partition_timezone,
-)
-        partition_type = self.partition_type
+            cron_schedule=self.partition_cron_schedule,
+            cron_fmt=self.partition_cron_fmt or "%Y-%m-%d", end_offset=self.partition_end_offset, timezone=self.partition_timezone,
+        )
         partition_date_column = self.partition_date_column
         partition_static_column = self.partition_static_column
-        partition_static_dim = self.partition_static_dim
 
-        # Infer kinds from component name if not explicitly set
-        _comp_name = "mongodb_reader"  # component directory name
+        _backfill_policy_obj = None
+        if partitions_def is not None and self.backfill_policy == "single_run":
+            from dagster import BackfillPolicy as _BackfillPolicy
+            _backfill_policy_obj = _BackfillPolicy.single_run()
+        elif partitions_def is not None and self.backfill_policy == "multi_run":
+            from dagster import BackfillPolicy as _BackfillPolicy
+            _backfill_policy_obj = _BackfillPolicy.multi_run(max_partitions_per_run=self.backfill_policy_max_partitions_per_run or 1)
+
+        # Infer kinds from destination/component name if not explicitly set
         _kind_map = {
             "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
             "postgres": "postgres", "postgresql": "postgres", "mysql": "mysql",
-            "s3": "s3", "adls": "azure", "azure": "azure", "gcs": "gcp",
-            "google": "gcp", "databricks": "databricks", "dbt": "dbt",
-            "kafka": "kafka", "mongodb": "mongodb", "redis": "redis",
-            "neo4j": "neo4j", "elasticsearch": "elasticsearch", "pinecone": "pinecone",
-            "chromadb": "chromadb", "pgvector": "postgres",
+            "mssql": "mssql", "clickhouse": "clickhouse", "duckdb": "duckdb",
+            "motherduck": "duckdb", "databricks": "databricks", "athena": "athena",
+            "filesystem": "filesystem", "delta": "delta", "iceberg": "iceberg",
         }
-        _inferred_kinds = self.kinds or []
+        _inferred_kinds = list(self.kinds or [])
+        if destination and destination in _kind_map:
+            _inferred_kinds.append(_kind_map[destination])
         if not _inferred_kinds:
-            _comp_lower = asset_name.lower()
-            for keyword, kind in _kind_map.items():
-                if keyword in _comp_lower:
-                    _inferred_kinds.append(kind)
-            if not _inferred_kinds:
-                _inferred_kinds = ["python"]
+            _inferred_kinds = ["servicenow", "python"]
+        _inferred_kinds = list(dict.fromkeys(_inferred_kinds))
 
         # Build combined tags: user tags + kind tags
         _all_tags = dict(self.asset_tags or {})
@@ -498,144 +625,184 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
         # Build freshness policy
         _freshness_policy = None
         if self.freshness_max_lag_minutes is not None:
-            from dagster import FreshnessPolicy
             _freshness_policy = _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
 
         owners = self.owners or []
-        column_lineage = self.column_lineage if hasattr(self, 'column_lineage') else None
-
 
         # Build retry policy (auto-generated; opt-in via retry_policy_max_retries).
-
-
         _retry_policy = None
-
-
         if self.retry_policy_max_retries is not None:
-
-
             from dagster import Backoff, RetryPolicy
-
-
             _retry_policy = RetryPolicy(
-
-
                 max_retries=self.retry_policy_max_retries,
-
-
                 delay=self.retry_policy_delay_seconds or 1,
-
-
                 backoff=Backoff[self.retry_policy_backoff.upper()],
-
-
             )
 
-
-
-        @asset(retry_policy=_retry_policy,
+        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
             key=AssetKey.from_user_string(asset_name),
             description=self.description or (f"ServiceNow table reader: {table}"),
-            partitions_def=partitions_def,
-                        owners=owners,
+            owners=owners,
             tags=_all_tags,
             freshness_policy=_freshness_policy,
-group_name=group_name,
+            group_name=group_name,
             deps=[AssetKey.from_user_string(d) for d in (deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
-        def servicenow_ingestion_asset(context: AssetExecutionContext) -> pd.DataFrame:
+        def servicenow_ingestion_asset(context: AssetExecutionContext):
             if context.has_partition_key:
                 context.log.info(f"Running for partition: {context.partition_key}")
-            """Read records from the ServiceNow table and return as a DataFrame."""
-            try:
-                import requests
-            except ImportError:
-                raise ImportError("requests required: pip install requests")
+            if not component.resource_key and not (
+                component.instance_env_var
+                and (component.bearer_token_env_var or (component.username_env_var and component.password_env_var))
+            ):
+                raise ValueError(
+                    "ServiceNowIngestionComponent: supply resource_key (a registered "
+                    "ServiceNowResourceComponent) OR instance_env_var + (username_env_var + "
+                    "password_env_var OR bearer_token_env_var)."
+                )
+            if _column_lineage_md:
+                context.add_output_metadata(_column_lineage_md)
 
-            instance = _require_env(instance_env_var)
-            if not instance:
-                raise ValueError(f"{instance_env_var} is empty")
+            import requests as _requests
+            from dlt.sources.helpers.rest_client.paginators import OffsetPaginator
+            from dlt.sources.rest_api import rest_api_source
 
-            # Auth: bearer token wins if present, otherwise basic auth.
-            headers = {"Accept": "application/json"}
-            auth = None
-            if bearer_token_env_var:
-                token = os.environ.get(bearer_token_env_var, "")
-                if not token:
-                    raise ValueError(f"{bearer_token_env_var} is empty")
-                headers["Authorization"] = f"Bearer {token}"
+            context.log.info(f"Starting ServiceNow ingestion, destination={destination or 'duckdb (in-memory)'}")
+
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                instance = _res.instance
+                username = _res.username
+                password = _res.password
+                bearer_token = _res.bearer_token
+                verify_ssl = _res.verify_ssl
             else:
-                if not (username_env_var and password_env_var):
-                    raise ValueError(
-                        "Provide bearer_token_env_var OR (username_env_var + password_env_var)."
-                    )
-                auth = (_require_env(username_env_var), _require_env(password_env_var))
+                instance = _require_env(component.instance_env_var)
+                bearer_token = os.environ.get(component.bearer_token_env_var) if component.bearer_token_env_var else None
+                if bearer_token:
+                    username = password = None
+                else:
+                    username = _require_env(component.username_env_var)
+                    password = _require_env(component.password_env_var)
+                verify_ssl = component.verify_ssl
 
-            url = f"https://{instance}.service-now.com/api/now/table/{table}"
-            base_params: Dict[str, Any] = {
-                "sysparm_limit": page_size,
-                "sysparm_display_value": sysparm_display_value,
-            }
+            auth = {"type": "bearer", "token": bearer_token} if bearer_token else {"type": "http_basic", "username": username, "password": password}
+            session = _requests.Session()
+            session.verify = verify_ssl
+
+            endpoint_params: Dict[str, Any] = {"sysparm_display_value": sysparm_display_value}
             if sysparm_query:
-                base_params["sysparm_query"] = sysparm_query
+                endpoint_params["sysparm_query"] = sysparm_query
             if sysparm_fields:
-                base_params["sysparm_fields"] = sysparm_fields
+                endpoint_params["sysparm_fields"] = sysparm_fields
 
-            all_records: List[Dict[str, Any]] = []
-            offset = 0
-            while True:
-                params = {**base_params, "sysparm_offset": offset}
-                context.log.info(
-                    f"GET {url}?sysparm_offset={offset}&sysparm_limit={page_size}"
-                    + (f"&sysparm_query={sysparm_query}" if sysparm_query else "")
-                )
-                resp = requests.get(
-                    url, headers=headers, auth=auth, params=params,
-                    verify=verify_ssl, timeout=60,
-                )
-                resp.raise_for_status()
-                batch = resp.json().get("result", [])
-                if not batch:
-                    break
-                all_records.extend(batch)
-                if max_records is not None and len(all_records) >= max_records:
-                    all_records = all_records[:max_records]
-                    break
-                if len(batch) < page_size:
-                    break
-                offset += page_size
-
-            df = pd.DataFrame(all_records)
-            context.log.info(
-                f"Retrieved {len(df)} records from ServiceNow table '{table}' "
-                f"({len(df.columns)} columns)"
+            paginator = OffsetPaginator(
+                limit=page_size,
+                offset_param="sysparm_offset",
+                limit_param="sysparm_limit",
+                total_path=None,
+                stop_after_empty_page=True,
+                maximum_offset=max_records,
             )
 
-            # Build column schema metadata
-            from dagster import TableSchema, TableColumn, TableColumnLineage, TableColumnDep
-            _col_schema = TableSchema(columns=[
-                TableColumn(name=str(col), type=str(df.dtypes[col]))
-                for col in df.columns
-            ])
-            _metadata = {
-                "dagster/row_count": MetadataValue.int(len(df)),
-                "dagster/column_schema": MetadataValue.table_schema(_col_schema),
+            config = {
+                "client": {
+                    "base_url": f"https://{instance}.service-now.com/api",
+                    "auth": auth,
+                    "session": session,
+                    "paginator": paginator,
+                },
+                "resources": [
+                    {
+                        "name": table,
+                        "endpoint": {
+                            "path": f"now/table/{table}",
+                            "data_selector": "result",
+                            "params": endpoint_params,
+                        },
+                    }
+                ],
             }
-            # ServiceNow is a source — no upstream DataFrame to infer column lineage from.
-            if include_preview and len(df) > 0:
+
+            pipeline = dlt.pipeline(
+                pipeline_name=f"{asset_name}_pipeline",
+                destination=component._resolve_destination_with_bucket(),
+                staging=component._resolve_staging(),
+                dataset_name=dataset_name,
+            )
+
+            context.log.info(f"Creating ServiceNow REST API source for table {table!r}...")
+            source = rest_api_source(config)
+
+            context.log.info("Extracting ServiceNow data...")
+            load_info = pipeline.run(source)
+            context.log.info(f"ServiceNow data loaded: {load_info}")
+
+            base_metadata = {
+                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                "dataset_name": MetadataValue.text(dataset_name),
+                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                "table": MetadataValue.text(table),
+            }
+
+            non_sql_destinations = {"filesystem", "delta", "iceberg"}
+            is_non_sql = destination in non_sql_destinations
+            if persist_only or is_non_sql:
+                if is_non_sql and not persist_only:
+                    context.log.warning(
+                        f"destination={destination!r} is not SQL-backed; cannot return DataFrame. "
+                        f"Set persist_only=true to silence this warning."
+                    )
+                return MaterializeResult(metadata=base_metadata)
+
+            all_data = []
+            resource_metadata = {}
+            with pipeline.sql_client() as client:
                 try:
-                    _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
-                    _metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    with client.execute_query(
+                        f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
+                    ) as cur:
+                        tables_df = cur.df()
+                    table_names = tables_df["table_name"].tolist()
+                except Exception:
+                    table_names = [table]
+
+                for table_name in table_names:
+                    try:
+                        with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
+                            df = cur.df()
+                        if len(df) > 0:
+                            all_data.append(df)
+                            resource_metadata[table_name] = len(df)
+                    except Exception as e:
+                        context.log.warning(f"Could not load {table_name}: {e}")
+
+            if not all_data:
+                context.log.warning(f"No data extracted from ServiceNow table '{table}'.")
+                return Output(value=pd.DataFrame(), metadata=base_metadata)
+
+            combined_df = pd.concat(all_data, ignore_index=True)
+            combined_df = _filter_df_to_partition(combined_df, context, partition_date_column, partition_static_column)
+
+            if max_records is not None and len(combined_df) > max_records:
+                combined_df = combined_df.head(max_records)
+
+            metadata = {
+                **base_metadata,
+                "row_count": MetadataValue.int(len(combined_df)),
+                "column_count": MetadataValue.int(len(combined_df.columns)),
+            }
+            if include_preview and len(combined_df) > 0:
+                try:
+                    _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
+                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
                 except Exception as _e:
                     context.log.warning(f"preview emission failed: {_e}")
-            context.add_output_metadata(_metadata)
-            return df
+            return Output(value=combined_df, metadata=metadata)
 
         from dagster import build_column_schema_change_checks
-
-
         _schema_checks = build_column_schema_change_checks(assets=[servicenow_ingestion_asset])
-
 
         return Definitions(assets=[servicenow_ingestion_asset], asset_checks=list(_schema_checks))
 
@@ -654,3 +821,39 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
+
+# BEGIN column-lineage helper (inlined per component; keep copies identical, see tests/test_column_lineage.py)
+def _column_lineage_metadata(component):
+    """`dagster/column_lineage` metadata from the component's `column_lineage` mapping ({output column: [upstream columns]}).
+
+    The upstream asset is `upstream_asset_key`, or the only entry of `deps`. With several upstream assets, name each
+    column as "<asset_key>:<column>". Returns {} when the mapping is unset, or (with a warning) when no upstream asset
+    can be resolved, since lineage needs an upstream asset to point at."""
+    import warnings
+
+    import dagster as _dg
+
+    mapping = getattr(component, "column_lineage", None)
+    if not mapping:
+        return {}
+    ups = getattr(component, "upstream_asset_key", None) or getattr(component, "deps", None) or []
+    ups = [ups] if isinstance(ups, (str, _dg.AssetKey)) else list(ups)
+    ups = [u.to_user_string() if isinstance(u, _dg.AssetKey) else str(u) for u in ups]
+    deps = {}
+    for out_col, in_cols in mapping.items():
+        refs = []
+        for ic in [in_cols] if isinstance(in_cols, str) else in_cols:
+            key, _, col = str(ic).rpartition(":")
+            if key in ups and col:
+                refs.append(_dg.TableColumnDep(asset_key=_dg.AssetKey.from_user_string(key), column_name=col))
+            elif len(ups) == 1:
+                refs.append(_dg.TableColumnDep(asset_key=_dg.AssetKey.from_user_string(ups[0]), column_name=str(ic)))
+            else:
+                warnings.warn(
+                    f"column_lineage ignored: cannot tell which upstream asset {ic!r} belongs to "
+                    f"(upstream assets: {ups or 'none'}; use '<asset_key>:<column>' with several upstream assets)"
+                )
+                return {}
+        deps[str(out_col)] = refs
+    return {"dagster/column_lineage": _dg.MetadataValue.column_lineage(_dg.TableColumnLineage(deps))}
+# END column-lineage helper

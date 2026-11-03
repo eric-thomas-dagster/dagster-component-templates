@@ -32,7 +32,7 @@ def test_helper_copies_are_identical_and_wired_into_the_asset():
         blocks.setdefault(re.search(rf"{BEGIN}.*?{END}", s, re.S).group(0), []).append(p)
         assert "_column_lineage_md = _column_lineage_metadata(" in s, p
         assert re.search(r"if _column_lineage_md:\n\s+\w+\.add_output_metadata\(_column_lineage_md\)", s), p
-    assert len(blocks) == 1 and len(_users()) == 255
+    assert len(blocks) == 1 and len(_users()) == 256
 
 
 def test_every_declaring_component_either_applies_or_never_declared_it():

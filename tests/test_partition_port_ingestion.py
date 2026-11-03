@@ -142,6 +142,13 @@ def _build(folder, monkeypatch, extra):
     _block_network(monkeypatch)
     extra = {**REQUIRED.get(folder.name, {}), **extra}
     doc = next(d for d in yaml.safe_load_all((folder / "example.yaml").read_text()) if d and "attributes" in d)
+    # Most connectors take credentials as literal fields (any placeholder string works, since the
+    # network is fully faked). A few instead take an *_env_var field holding the NAME of an env var
+    # the component resolves itself at run time -- for those, the named env var must actually be set
+    # or the asset raises before ever reaching the faked network.
+    for key, value in {**doc["attributes"], **extra}.items():
+        if key.endswith("_env_var") and isinstance(value, str) and value:
+            monkeypatch.setenv(value, "test-value")
     monkeypatch.setattr(sys, "meta_path", [*sys.meta_path, _FakeSourcesFinder()])
     spec = importlib.util.spec_from_file_location(f"ing_{folder.name}", folder / "component.py")
     mod = importlib.util.module_from_spec(spec)
@@ -182,7 +189,7 @@ def test_helper_copies_identical_and_everything_is_wired():
         props = props.get("attributes") or props.get("properties")
         assert {"partition_date_column", "partition_static_column", "backfill_policy", "backfill_policy_max_partitions_per_run"} <= set(props), f
         assert "does not currently use the partition key" not in props["partition_type"]["description"], f
-    assert len(blocks) == 1 and len(_ported()) == 110
+    assert len(blocks) == 1 and len(_ported()) == 111
 
 
 @pytest.mark.parametrize("folder", _ported(), ids=lambda p: p.name)

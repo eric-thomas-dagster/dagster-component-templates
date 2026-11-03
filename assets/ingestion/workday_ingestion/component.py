@@ -545,14 +545,6 @@ class WorkdayIngestionComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _column_lineage_md = _column_lineage_metadata(self)
         component = self
-        if not self.resource_key and not (
-            self.base_url and self.token_url and self.client_id and self.client_secret and self.refresh_token
-        ):
-            raise ValueError(
-                "WorkdayIngestionComponent: supply resource_key (a registered "
-                "WorkdayResourceComponent) OR all of base_url/token_url/client_id/"
-                "client_secret/refresh_token."
-            )
         asset_name = self.asset_name
         description = self.description or "Ingest Workday HCM worker data using dlt's generic REST API source."
         group_name = self.group_name
@@ -631,6 +623,15 @@ class WorkdayIngestionComponent(Component, Model, Resolvable):
             required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def workday_ingestion_asset(context: AssetExecutionContext):
+            if not component.resource_key and not (
+                component.base_url and component.token_url and component.client_id
+                and component.client_secret and component.refresh_token
+            ):
+                raise ValueError(
+                    "WorkdayIngestionComponent: supply resource_key (a registered "
+                    "WorkdayResourceComponent) OR all of base_url/token_url/client_id/"
+                    "client_secret/refresh_token."
+                )
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
             from dlt.sources.rest_api import rest_api_source

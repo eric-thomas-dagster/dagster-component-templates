@@ -490,6 +490,7 @@ _CLASS_PATHS: dict[str, str] = {
     "ExpensifyIngestionComponent": "assets/ingestion/expensify_ingestion/component.py",
     "ExternalAdlsAsset": "external_assets/external_adls_asset/component.py",
     "ExternalArgoWorkflowAsset": "external_assets/external_argo_workflow/component.py",
+    "ExternalAssetCatalogComponent": "external_assets/external_asset_catalog/component.py",
     "ExternalBigQueryTableAsset": "external_assets/external_bigquery_table/component.py",
     "ExternalClickHouseTableComponent": "external_assets/external_clickhouse_table/component.py",
     "ExternalCubeMetricAsset": "external_assets/external_cube_metric/component.py",

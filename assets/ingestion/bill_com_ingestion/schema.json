@@ -24,6 +24,7 @@
       "required": true
     },
     "password": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Password",
       "description": "Bill.com login password.",

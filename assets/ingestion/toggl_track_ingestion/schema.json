@@ -18,6 +18,7 @@
       "required": true
     },
     "api_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Token",
       "description": "Toggl Track API token, used as the HTTP Basic auth username (password is the literal string 'api_token').",

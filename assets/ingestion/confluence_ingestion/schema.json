@@ -30,6 +30,7 @@
       "required": true
     },
     "api_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Token",
       "description": "Atlassian API token, used as the Basic auth password.",

@@ -24,6 +24,7 @@
       "required": true
     },
     "access_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Access Token",
       "description": "BigCommerce API access token, sent as the X-Auth-Token header.",

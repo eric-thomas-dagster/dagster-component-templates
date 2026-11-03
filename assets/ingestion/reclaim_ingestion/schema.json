@@ -18,6 +18,7 @@
       "required": true
     },
     "api_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Token",
       "description": "Reclaim.ai API token (Bearer), generated at app.reclaim.ai/settings/developer.",

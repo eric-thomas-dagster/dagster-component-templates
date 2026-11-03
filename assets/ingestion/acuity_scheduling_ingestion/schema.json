@@ -24,6 +24,7 @@
       "required": true
     },
     "api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
       "description": "Acuity API key, used as the HTTP Basic auth password.",

@@ -18,6 +18,7 @@
       "required": true
     },
     "api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
       "description": "Linear personal API key or OAuth2 access token. Sent raw in the Authorization header (no 'Bearer ' prefix for a personal API key).",

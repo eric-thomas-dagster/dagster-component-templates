@@ -24,6 +24,7 @@
       "required": true
     },
     "access_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Access Token",
       "description": "Amperity JWT access token (Bearer), generated under Settings -> Security -> API keys -> 'Get token'. Short-lived.",

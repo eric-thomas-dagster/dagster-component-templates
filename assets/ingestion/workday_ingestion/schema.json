@@ -39,6 +39,7 @@
       "default": null
     },
     "client_secret": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Client Secret",
       "description": "Workday OAuth2 client secret. Required unless resource_key is set.",
@@ -46,6 +47,7 @@
       "default": null
     },
     "refresh_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Refresh Token",
       "description": "Workday OAuth2 refresh token. Required unless resource_key is set.",

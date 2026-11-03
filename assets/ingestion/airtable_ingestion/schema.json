@@ -18,6 +18,7 @@
       "required": true
     },
     "api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
       "description": "Airtable API key for authentication Required unless resource_key is set.",

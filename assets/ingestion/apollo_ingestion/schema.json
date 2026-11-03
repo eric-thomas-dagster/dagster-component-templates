@@ -18,6 +18,7 @@
       "required": true
     },
     "api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
       "description": "Apollo.io API key, sent as the 'x-api-key' header (created under Settings -> Integrations -> API Keys in the Apollo UI).",

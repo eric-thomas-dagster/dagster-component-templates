@@ -517,11 +517,6 @@ class KlaviyoIngestionComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _column_lineage_md = _column_lineage_metadata(self)
         component = self
-        if not self.resource_key and not self.api_key:
-            raise ValueError(
-                "KlaviyoIngestionComponent: supply resource_key (a registered "
-                "KlaviyoResourceComponent) OR api_key."
-            )
         asset_name = self.asset_name
         description = self.description or "Ingest Klaviyo marketing data using dlt's generic REST API source."
         group_name = self.group_name
@@ -600,6 +595,11 @@ class KlaviyoIngestionComponent(Component, Model, Resolvable):
             required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def klaviyo_ingestion_asset(context: AssetExecutionContext):
+            if not component.resource_key and not component.api_key:
+                raise ValueError(
+                    "KlaviyoIngestionComponent: supply resource_key (a registered "
+                    "KlaviyoResourceComponent) OR api_key."
+                )
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
             from dlt.sources.rest_api import rest_api_source

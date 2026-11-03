@@ -24,6 +24,7 @@
       "required": true
     },
     "access_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Access Token",
       "description": "OAuth2 access token from Egnyte's authorization flow. Egnyte tokens issued to internal/first-party apps are often long-lived; verify your token's actual expiry.",

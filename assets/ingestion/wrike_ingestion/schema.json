@@ -18,6 +18,7 @@
       "required": true
     },
     "access_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Access Token",
       "description": "Wrike permanent access token (Apps & Integrations > API).",

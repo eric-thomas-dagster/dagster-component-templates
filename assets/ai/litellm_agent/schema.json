@@ -139,6 +139,145 @@
       "type": "array",
       "label": "Lineage-Only Deps",
       "required": false
+    },
+    "reasoning_effort": {
+      "type": "string",
+      "label": "Reasoning Effort",
+      "description": "Reasoning-model effort level: 'low' \\| 'medium' \\| 'high'. Forwarded to OpenAI o1/o3 and Gemini 2.5+ reasoning models (silently dropped for other providers).",
+      "required": false
+    },
+    "thinking_budget": {
+      "type": "integer",
+      "label": "Thinking Budget",
+      "description": "Max reasoning-trace tokens. Forwarded to Gemini 2.5+ (native `thinking_budget`) and Anthropic thinking mode (auto-mapped to `thinking: {type: enabled, budget_tokens: N}`). On Gemini, set 0 for short structured outputs to avoid silent truncation (thinking tokens draw from `max_tokens`). Silently dropped for OpenAI / Groq / other non-thinking providers.",
+      "required": false
+    },
+    "prompt_caching": {
+      "type": "boolean",
+      "label": "Prompt Caching",
+      "description": "Anthropic prompt caching. When true AND the model is Anthropic-family (claude / anthropic / bedrock/anthropic.), wraps the system prompt with `cache_control: {type: ephemeral}` so subsequent runs within ~5 min hit the cache. Big win for long system prompts + MCP tool schemas that repeat across loop iterations (~90% cheaper on cached prefix). Silently ignored on non-Anthropic providers.",
+      "required": false
+    },
+    "kinds": {
+      "description": "Asset kinds shown in the Dagster catalog (e.g. snowflake, python). Auto-inferred from component name if empty.",
+      "items": {
+        "type": "string"
+      },
+      "label": "Kinds",
+      "required": false,
+      "type": "array",
+      "ui:widget": "list"
+    },
+    "partition_type": {
+      "default": null,
+      "description": "Enable partitioning: 'daily', 'weekly', 'monthly', 'hourly' for time-based; 'static' for a fixed set of values (e.g. customers); 'multi' for date × static (e.g. day × customer). Leave empty for unpartitioned.",
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "static",
+        "multi"
+      ],
+      "label": "Partition Type",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "partition_cron_schedule": {
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...).",
+      "required": false
+    },
+    "partition_cron_fmt": {
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule.",
+      "required": false
+    },
+    "partition_end_offset": {
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today until tomorrow. Set to 1 to include the current, still-in-progress window.",
+      "required": false
+    },
+    "partition_timezone": {
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
+      "required": false
+    },
+    "partition_start": {
+      "default": null,
+      "description": "ISO date string for the first partition, e.g. '2024-01-01'. Required for time-based and multi partition types.",
+      "label": "Partition Start Date",
+      "required": false,
+      "type": "string"
+    },
+    "partition_values": {
+      "default": null,
+      "description": "Comma-separated values for static or multi partitioning, e.g. 'acme_corp,globex,initech'. Required for static and multi types.",
+      "label": "Partition Values",
+      "required": false,
+      "type": "string"
+    },
+    "dynamic_partition_name": {
+      "default": null,
+      "description": "Name for DynamicPartitionsDefinition (when partition_type='dynamic'), e.g. 'tenants'.",
+      "label": "Dynamic Partition Name",
+      "required": false,
+      "type": "string"
+    },
+    "partition_dimensions": {
+      "default": null,
+      "description": "Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set.",
+      "items": {
+        "type": "object"
+      },
+      "label": "Partition Dimensions",
+      "required": false,
+      "type": "array"
+    },
+    "freshness_max_lag_minutes": {
+      "default": null,
+      "description": "Maximum acceptable lag in minutes before this asset is considered stale.",
+      "label": "Freshness Max Lag (minutes)",
+      "required": false,
+      "type": "integer"
+    },
+    "freshness_cron": {
+      "default": null,
+      "description": "Cron schedule for the freshness policy, e.g. '0 9 * * 1-5' (weekdays 9am).",
+      "label": "Freshness Cron Schedule",
+      "required": false,
+      "type": "string",
+      "x-dagster-widget": "cron"
+    },
+    "retry_policy_max_retries": {
+      "description": "Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc.",
+      "label": "Retry Policy Max Retries",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_delay_seconds": {
+      "description": "Seconds between retries (default 1).",
+      "label": "Retry Policy Delay Seconds",
+      "required": false,
+      "type": "integer"
+    },
+    "retry_policy_backoff": {
+      "default": "exponential",
+      "description": "Backoff strategy: 'linear' or 'exponential'.",
+      "enum": [
+        "exponential",
+        "linear",
+        "fixed"
+      ],
+      "label": "Retry Policy Backoff",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
     }
   }
 }

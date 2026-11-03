@@ -25,6 +25,7 @@
       "default": null
     },
     "api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
       "description": "Braze REST API key. Use ${BRAZE_API_KEY} for env vars. Required unless resource_key is set.",

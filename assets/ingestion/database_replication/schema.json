@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.DatabaseReplicationComponent",
-  "description": "Replicate a table between two SQL databases using Sling under the hood. No data lands in Python memory; suitable for any size table.",
+  "description": "Replicate one or more tables between two SQL databases using Sling under the hood. No data lands in Python memory; suitable for any size table.",
   "category": "ingestion",
   "vertical": "database",
   "icon": "ArrowRightLeft",
@@ -82,14 +82,24 @@
     "source_table": {
       "type": "string",
       "label": "Source Table",
-      "description": "Source table — 'table' or 'schema.table'",
-      "required": true
+      "description": "Source table — 'table' or 'schema.table'. Not used with streams (set either this + target_table, or streams).",
+      "required": false
     },
     "target_table": {
       "type": "string",
       "label": "Target Table",
-      "description": "Target table — 'table' or 'schema.table'",
-      "required": true
+      "description": "Target table — 'table' or 'schema.table'. Defaults to the source table. Not used with streams.",
+      "required": false
+    },
+    "streams": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Streams",
+      "description": "Several tables over one connection pair, one asset each (source_table, target_table, mode, incremental_column, primary_key, select_columns, where_clause, partition_column per entry). Replaces source_table/target_table.",
+      "required": false,
+      "ui:widget": "list"
     },
     "mode": {
       "type": "string",
@@ -111,7 +121,11 @@
       "description": "Watermark column (required when mode='incremental')",
       "required": false,
       "default": null,
-      "x-dagster-widget": "column"
+      "x-dagster-widget": "column",
+      "x-dagster-visible-when": {
+        "field": "mode",
+        "values": ["incremental"]
+      }
     },
     "primary_key": {
       "type": "array",
@@ -119,7 +133,7 @@
         "type": "string"
       },
       "label": "Primary Key",
-      "description": "Primary key for upserts in incremental mode",
+      "description": "Primary key for upserts in incremental mode, and for partition reloads (required whenever partition_type is set, not just in incremental mode -- no single visibility condition covers both, so this stays always visible).",
       "required": false
     },
     "select_columns": {
@@ -198,6 +212,53 @@
       "label": "Target Connection",
       "description": "Full Sling-compatible target connection URL (e.g. 'snowflake://user:pass@account.snowflakecomputing.com/db/schema?warehouse=W'). Set this OR target_connection_env_var.",
       "required": false
+    },
+    "partition_type": {
+      "default": null,
+      "description": "daily, hourly, weekly or monthly. Each partition copies only the rows whose partition_column falls in its window, replacing that window in the target. Leave empty for unpartitioned.",
+      "enum": [
+        "daily",
+        "hourly",
+        "weekly",
+        "monthly"
+      ],
+      "label": "Partition Type",
+      "required": false,
+      "type": "string",
+      "ui:widget": "select"
+    },
+    "partition_start": {
+      "default": null,
+      "description": "First partition, as an ISO date (e.g. '2024-01-01'). Required with partition_type.",
+      "label": "Partition Start Date",
+      "required": false,
+      "type": "string",
+      "x-dagster-visible-when": {
+        "field": "partition_type",
+        "values": ["daily", "hourly", "weekly", "monthly"]
+      }
+    },
+    "partition_column": {
+      "type": "string",
+      "label": "Partition Column",
+      "description": "Date or timestamp column in the source that decides which partition a row belongs to. Required with partition_type unless every stream sets its own.",
+      "required": false,
+      "x-dagster-widget": "column",
+      "x-dagster-visible-when": {
+        "field": "partition_type",
+        "values": ["daily", "hourly", "weekly", "monthly"]
+      }
+    },
+    "partition_replace": {
+      "type": "boolean",
+      "label": "Partition Replace",
+      "description": "Delete the partition's window in the target before loading it, so rows deleted at the source disappear too. If false, a re-run only upserts (requires a primary key).",
+      "required": false,
+      "default": true,
+      "x-dagster-visible-when": {
+        "field": "partition_type",
+        "values": ["daily", "hourly", "weekly", "monthly"]
+      }
     }
   },
   "tags": [

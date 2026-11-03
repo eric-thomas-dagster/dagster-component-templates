@@ -24,6 +24,7 @@
       "required": true
     },
     "api_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Token",
       "description": "Okta API token (SSWS), created under Security > API > Tokens.",

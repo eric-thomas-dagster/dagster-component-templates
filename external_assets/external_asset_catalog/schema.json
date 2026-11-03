@@ -1,0 +1,26 @@
+{
+  "component_type": "dagster_community_components.ExternalAssetCatalogComponent",
+  "name": "External Asset Catalog",
+  "description": "Declare many external (non-executable) assets from one YAML table.",
+  "category": "external",
+  "tags": ["external", "registry", "catalog", "lineage", "ownership"],
+  "icon": "Link",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "AssetSpec",
+      "description": "External asset declarations"
+    }
+  },
+  "attributes": {
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Assets",
+      "description": "Table of external assets to declare.",
+      "required": true,
+      "ui:widget": "list"
+    }
+  }
+}

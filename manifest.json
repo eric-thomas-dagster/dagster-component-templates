@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-10-31",
+  "last_updated": "2026-11-02",
   "components": [
     {
       "id": "ab_controls",
@@ -16545,7 +16545,7 @@
       "path": "assets/ingestion/database_replication",
       "category": "ingestion",
       "icon": "ArrowRightLeft",
-      "description": "Replicate a table between two SQL databases using Sling under the hood. No data lands in Python memory; suitable for any size table.",
+      "description": "Replicate one or more tables between two SQL databases using Sling under the hood. No data lands in Python memory; suitable for any size table.",
       "tags": [
         "ingestion",
         "replication",
@@ -23490,7 +23490,7 @@
       "name": "Enhanced Data Quality Checks",
       "category": "check",
       "description": "Comparison operators for validation checks.",
-      "version": "1.0.1",
+      "version": "1.1.0",
       "author": "Dagster Community",
       "path": "asset_checks/enhanced_data_quality_checks",
       "tags": [
@@ -24418,6 +24418,59 @@
         "mirror"
       ],
       "icon": "ExternalLink"
+    },
+    {
+      "id": "external_asset_catalog",
+      "name": "External Asset Catalog",
+      "category": "external",
+      "description": "Declare many external (non-executable) assets from one YAML table.",
+      "path": "external_assets/external_asset_catalog",
+      "tags": [
+        "external",
+        "registry",
+        "catalog",
+        "lineage",
+        "ownership"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_asset_catalog/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_asset_catalog/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_asset_catalog/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_asset_catalog/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/external_assets/external_asset_catalog/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster"
+        ]
+      },
+      "icon": "Link",
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-02"
+      },
+      "produces": [
+        "asset"
+      ],
+      "agent_hints": {
+        "output_type": "AssetSpec",
+        "outputs": "Declares many external (non-executable) AssetSpecs from one YAML table of key/deps/owners/kinds/tags/metadata entries, for a neighbouring team's assets that live in a different code location.",
+        "requires_pip": [
+          "dagster"
+        ]
+      },
+      "keywords": [
+        "department asset catalog",
+        "asset registry",
+        "many external assets",
+        "lineage mapping table",
+        "ownership table",
+        "other team's assets",
+        "declare only",
+        "declaration",
+        "mirror asset"
+      ],
+      "featured": false
     },
     {
       "id": "external_bigquery_table",
@@ -71364,5 +71417,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1368
+  "total": 1369
 }

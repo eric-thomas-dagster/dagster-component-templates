@@ -590,11 +590,6 @@ class SlackIngestionComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _column_lineage_md = _column_lineage_metadata(self)
         asset_name = self.asset_name
-        if not self.resource_key and not self.api_token:
-            raise ValueError(
-                "SlackIngestionComponent: supply resource_key (a registered "
-                "SlackResourceComponent) OR api_token."
-            )
         resources_list = self.resources
         description = self.description or f"Slack data ({', '.join(resources_list)})"
         group_name = self.group_name
@@ -703,6 +698,11 @@ class SlackIngestionComponent(Component, Model, Resolvable):
             required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def slack_ingestion_asset(context: AssetExecutionContext):
+            if not component.resource_key and not component.api_token:
+                raise ValueError(
+                    "SlackIngestionComponent: supply resource_key (a registered "
+                    "SlackResourceComponent) OR api_token."
+                )
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
             from dlt.sources.slack import slack_source

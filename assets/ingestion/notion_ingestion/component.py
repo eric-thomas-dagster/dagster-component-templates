@@ -591,11 +591,6 @@ class NotionIngestionComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _column_lineage_md = _column_lineage_metadata(self)
         asset_name = self.asset_name
-        if not self.resource_key and not self.api_key:
-            raise ValueError(
-                "NotionIngestionComponent: supply resource_key (a registered "
-                "NotionResourceComponent) OR api_key."
-            )
         database_ids = self.database_ids
         description = self.description or f"Notion data ({len(database_ids)} databases)"
         group_name = self.group_name
@@ -704,6 +699,11 @@ class NotionIngestionComponent(Component, Model, Resolvable):
             required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def notion_ingestion_asset(context: AssetExecutionContext):
+            if not component.resource_key and not component.api_key:
+                raise ValueError(
+                    "NotionIngestionComponent: supply resource_key (a registered "
+                    "NotionResourceComponent) OR api_key."
+                )
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
             from dlt.sources.notion import notion_databases

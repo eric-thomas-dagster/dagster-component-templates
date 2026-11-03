@@ -18,6 +18,7 @@
       "required": true
     },
     "console_api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Console Api Key",
       "description": "Statsig Console API key.",

@@ -53,6 +53,7 @@
       "default": null
     },
     "private_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Private Key",
       "description": "Service account private key (alternative to credentials_json).",

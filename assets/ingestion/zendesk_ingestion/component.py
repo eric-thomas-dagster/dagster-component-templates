@@ -599,11 +599,6 @@ class ZendeskIngestionComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _column_lineage_md = _column_lineage_metadata(self)
         asset_name = self.asset_name
-        if not self.resource_key and not (self.subdomain and self.email and self.api_token):
-            raise ValueError(
-                "ZendeskIngestionComponent: supply resource_key (a registered "
-                "ZendeskResourceComponent) OR all of subdomain/email/api_token."
-            )
         resources_list = self.resources
         description = self.description or f"Zendesk data ({', '.join(resources_list)})"
         group_name = self.group_name
@@ -712,6 +707,11 @@ class ZendeskIngestionComponent(Component, Model, Resolvable):
             required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def zendesk_ingestion_asset(context: AssetExecutionContext):
+            if not component.resource_key and not (component.subdomain and component.email and component.api_token):
+                raise ValueError(
+                    "ZendeskIngestionComponent: supply resource_key (a registered "
+                    "ZendeskResourceComponent) OR all of subdomain/email/api_token."
+                )
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
             from dlt.sources.zendesk import zendesk_support

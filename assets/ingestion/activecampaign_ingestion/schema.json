@@ -24,6 +24,7 @@
       "required": true
     },
     "api_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Token",
       "description": "ActiveCampaign API token. Use ${ACTIVECAMPAIGN_API_TOKEN} for env vars.",

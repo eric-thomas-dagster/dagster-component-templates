@@ -24,6 +24,7 @@
       "required": true
     },
     "client_secret": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Client Secret",
       "description": "ZoomInfo OAuth2 Client Credentials client secret.",

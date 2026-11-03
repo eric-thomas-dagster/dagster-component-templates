@@ -24,6 +24,7 @@
       "required": true
     },
     "api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
       "description": "Frontegg vendor API key/secret.",

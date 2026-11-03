@@ -36,6 +36,7 @@
       "required": true
     },
     "api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
       "description": "Tealium API key, used in place of a password in the v3 auth endpoint's key form field.",

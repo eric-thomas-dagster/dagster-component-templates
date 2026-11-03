@@ -170,6 +170,36 @@
       "required": false,
       "description": "Upstream column to filter on for the current partition (e.g. 'case_id' with partition_values 'c1,c2,c3').",
       "default": null
+    },
+    "use_dynamic_partitions": {
+      "type": "boolean",
+      "label": "Use Dynamic Partitions",
+      "description": "Shape selector. True (default) → dynamic-partitions shape: emits one intermediate 'agent' asset (partitioned per case) PLUS N branch assets, each with its own DynamicPartitionsDefinition. Each branch asset only shows the case keys the router actually registered on it — clean per-branch lineage, no red-failed slots for cases that didn't take that branch. False → the older shape: single @graph_multi_asset with all outputs sharing one partitions_def and is_required=False (sparse slots, all in one asset). IGNORED when fanout_mode=True.",
+      "required": false
+    },
+    "fanout_mode": {
+      "type": "boolean",
+      "label": "Fanout Mode",
+      "description": "Batch fan-out shape. When True the router becomes a @graph_asset that fans out over the upstream DataFrame's rows via DynamicOut. N per-case ReAct triages run in parallel inside ONE run, then collect into a batch result. Branch assets downstream are unpartitioned DataFrames with N rows for the cases that took that branch. Overrides use_dynamic_partitions when True. Compose with `partition_type` (daily/hourly/etc.) for the canonical production shape: daily-partitioned batch, fan-out inside — partition_key is the day, mapping_keys are the row ids within the day's data.",
+      "required": false
+    },
+    "fanout_mapping_key_column": {
+      "type": "string",
+      "label": "Fanout Mapping Key Column",
+      "description": "Only used when fanout_mode=True. Column in the upstream DataFrame to use as the DynamicOutput mapping_key per row (so per-item retries are stable). Falls back to `partition_static_column`, then to the row index.",
+      "required": false
+    },
+    "fanout_batch_filter_column": {
+      "type": "string",
+      "label": "Fanout Batch Filter Column",
+      "description": "Only used when fanout_mode=True AND the upstream is unpartitioned but the batch asset IS partitioned (e.g. daily-partitioned batch reading from an unpartitioned CSV with a date column). Column to filter upstream to `partition_key`'s rows. If upstream shares the same partition scheme, Dagster's IO manager handles the filter automatically — leave this unset.",
+      "required": false
+    },
+    "router_asset_name": {
+      "type": "string",
+      "label": "Router Asset Name",
+      "description": "Only used when use_dynamic_partitions=True. Name for the intermediate 'agent' asset that runs the ReAct loop + registers case keys on branch dynamic partition sets. Defaults to `<asset_name>` (i.e., the base name). If asset_name is 'baggage_triage_agent', the intermediate asset is `baggage_triage_agent` and the branches are the `outputs:` names.",
+      "required": false
     }
   }
 }

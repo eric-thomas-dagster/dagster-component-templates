@@ -18,6 +18,7 @@
       "required": true
     },
     "secret_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Secret Key",
       "description": "Clerk secret key (starts with sk_).",

@@ -18,6 +18,7 @@
       "required": true
     },
     "api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
       "description": "Mailchimp API key. The datacenter suffix (e.g. 'us19') is parsed from it automatically. Use ${MAILCHIMP_API_KEY} for env vars. Required unless resource_key is set.",

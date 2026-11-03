@@ -609,11 +609,6 @@ class GitHubIngestionComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _column_lineage_md = _column_lineage_metadata(self)
         asset_name = self.asset_name
-        if not self.resource_key and not self.access_token:
-            raise ValueError(
-                "GitHubIngestionComponent: supply resource_key (a registered "
-                "GithubResourceComponent) OR access_token."
-            )
         owner = self.owner
         repositories = self.repositories
         resources_list = self.resources
@@ -724,6 +719,11 @@ class GitHubIngestionComponent(Component, Model, Resolvable):
             required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def github_ingestion_asset(context: AssetExecutionContext):
+            if not component.resource_key and not component.access_token:
+                raise ValueError(
+                    "GitHubIngestionComponent: supply resource_key (a registered "
+                    "GithubResourceComponent) OR access_token."
+                )
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
             from dlt.sources.github import github_reactions

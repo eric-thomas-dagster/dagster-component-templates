@@ -24,12 +24,14 @@
       "required": true
     },
     "client_secret": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Client Secret",
       "description": "Zoho app client secret.",
       "required": true
     },
     "refresh_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Refresh Token",
       "description": "OAuth2 refresh token obtained once via Zoho's OAuth consent flow.",

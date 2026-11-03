@@ -18,6 +18,7 @@
       "required": true
     },
     "api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
       "description": "Lattice API key (Bearer token), generated at Admin > Platform > API keys in the Lattice admin UI. Shown in full only once at creation -- store it securely, there is no way to re-reveal it afterward.",

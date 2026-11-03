@@ -18,6 +18,7 @@
       "required": true
     },
     "api_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Token",
       "description": "Front API token. Use ${FRONT_API_TOKEN} for env vars.",

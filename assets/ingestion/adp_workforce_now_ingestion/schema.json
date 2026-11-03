@@ -18,6 +18,7 @@
       "required": true
     },
     "access_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Access Token",
       "description": "ADP OAuth2 access token (obtained via mutual-TLS client credentials flow -- see README). Use ${ADP_ACCESS_TOKEN} for env vars.",

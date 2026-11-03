@@ -36,6 +36,7 @@
       "required": true
     },
     "client_secret": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Client Secret",
       "description": "Azure AD app registration client secret.",

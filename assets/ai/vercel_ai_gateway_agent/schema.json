@@ -101,6 +101,24 @@
       "description": "Lineage-only upstream asset keys (no data passed at runtime).",
       "type": "array",
       "required": false
+    },
+    "reasoning_effort": {
+      "type": "string",
+      "label": "Reasoning Effort",
+      "description": "Reasoning-model effort level: 'low' \\| 'medium' \\| 'high'. Forwarded to OpenAI o-series (openai/o1, openai/o3) and Gemini 2.5+ (google/gemini-2.5-*) via the Vercel gateway. Filtered client-side by provider prefix; ignored for other providers.",
+      "required": false
+    },
+    "thinking_budget": {
+      "type": "integer",
+      "label": "Thinking Budget",
+      "description": "Max reasoning-trace tokens. Forwarded as `thinking_budget` for Gemini 2.5+ models or `thinking: {type: enabled, budget_tokens: N}` for Anthropic models routed through the gateway. Ignored for other providers.",
+      "required": false
+    },
+    "prompt_caching": {
+      "type": "boolean",
+      "label": "Prompt Caching",
+      "description": "Anthropic prompt caching. When true AND the model prefix is 'anthropic/', wraps the system prompt with `cache_control: {type: ephemeral}` so subsequent calls within ~5 min hit the cache. Ignored for non-Anthropic models. Vercel forwards the block through to Anthropic.",
+      "required": false
     }
   }
 }

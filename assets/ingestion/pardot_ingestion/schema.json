@@ -30,12 +30,14 @@
       "required": true
     },
     "client_secret": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Client Secret",
       "description": "Salesforce Connected App Consumer Secret, used for the OAuth2 refresh_token exchange.",
       "required": true
     },
     "refresh_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Refresh Token",
       "description": "OAuth2 refresh token obtained once via the Connected App's OAuth consent flow.",

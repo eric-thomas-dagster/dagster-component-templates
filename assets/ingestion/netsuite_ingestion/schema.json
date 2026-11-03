@@ -30,6 +30,7 @@
       "required": true
     },
     "consumer_secret": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Consumer Secret",
       "description": "OAuth1.0a consumer secret.",
@@ -42,6 +43,7 @@
       "required": true
     },
     "token_secret": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Token Secret",
       "description": "OAuth1.0a access token secret.",

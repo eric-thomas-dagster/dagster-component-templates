@@ -24,6 +24,7 @@
       "required": true
     },
     "client_secret": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Client Secret",
       "description": "RingCentral app client secret.",

@@ -18,6 +18,7 @@
       "required": true
     },
     "access_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Access Token",
       "description": "SurveyMonkey OAuth2 access token. Use ${SURVEYMONKEY_ACCESS_TOKEN} for env vars.",

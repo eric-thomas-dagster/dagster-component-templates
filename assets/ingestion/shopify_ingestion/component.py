@@ -565,11 +565,6 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _column_lineage_md = _column_lineage_metadata(self)
         asset_name = self.asset_name
-        if not self.resource_key and not (self.shop_url and self.private_app_password):
-            raise ValueError(
-                "ShopifyIngestionComponent: supply resource_key (a registered "
-                "ShopifyResourceComponent) OR all of shop_url/private_app_password."
-            )
         resources_list = self.resources
         start_date = self.start_date
         order_status = self.order_status
@@ -679,6 +674,11 @@ class ShopifyIngestionComponent(Component, Model, Resolvable):
             required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def shopify_ingestion_asset(context: AssetExecutionContext):
+            if not component.resource_key and not (component.shop_url and component.private_app_password):
+                raise ValueError(
+                    "ShopifyIngestionComponent: supply resource_key (a registered "
+                    "ShopifyResourceComponent) OR all of shop_url/private_app_password."
+                )
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
             from dlt.sources.shopify_dlt import shopify_source

@@ -18,6 +18,7 @@
       "required": true
     },
     "service_access_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Service Access Token",
       "description": "RudderStack workspace-level Service Access Token (Bearer), created under Workspace Settings -> Access Tokens.",

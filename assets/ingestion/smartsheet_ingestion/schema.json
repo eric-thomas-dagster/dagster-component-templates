@@ -18,6 +18,7 @@
       "required": true
     },
     "access_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Access Token",
       "description": "Smartsheet API access token (personal or from an OAuth2 app).",

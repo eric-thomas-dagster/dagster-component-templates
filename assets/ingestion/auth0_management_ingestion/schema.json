@@ -30,6 +30,7 @@
       "required": true
     },
     "client_secret": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Client Secret",
       "description": "Auth0 M2M application client secret.",

@@ -18,6 +18,7 @@
       "required": true
     },
     "api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
       "description": "ConvertKit (Kit) v4 API key, sent as the X-Kit-Api-Key header.",

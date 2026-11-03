@@ -24,12 +24,14 @@
       "required": true
     },
     "client_secret": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Client Secret",
       "description": "Constant Contact app client secret.",
       "required": true
     },
     "refresh_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Refresh Token",
       "description": "OAuth2 refresh token obtained once via Constant Contact's OAuth consent flow -- no static API-key-only path exists for this API.",

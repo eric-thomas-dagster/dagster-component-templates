@@ -609,11 +609,6 @@ class FacebookAdsIngestionComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _column_lineage_md = _column_lineage_metadata(self)
         asset_name = self.asset_name
-        if not self.resource_key and not (self.account_id and self.access_token):
-            raise ValueError(
-                "FacebookAdsIngestionComponent: supply resource_key (a registered "
-                "FacebookAdsResourceComponent) OR all of account_id/access_token."
-            )
         resources_str = self.resources
         initial_load_past_days = self.initial_load_past_days
         ad_states_str = self.ad_states
@@ -730,6 +725,11 @@ class FacebookAdsIngestionComponent(Component, Model, Resolvable):
             required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def facebook_ads_ingestion_asset(context: AssetExecutionContext):
+            if not component.resource_key and not (component.account_id and component.access_token):
+                raise ValueError(
+                    "FacebookAdsIngestionComponent: supply resource_key (a registered "
+                    "FacebookAdsResourceComponent) OR all of account_id/access_token."
+                )
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
             from dlt.sources.facebook_ads import facebook_ads_source, facebook_insights_source

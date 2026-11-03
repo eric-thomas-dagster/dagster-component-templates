@@ -18,6 +18,7 @@
       "required": true
     },
     "api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
       "description": "Postman API key, sent as the X-Api-Key header. Generated in Postman account settings under API keys.",

@@ -18,6 +18,7 @@
       "required": true
     },
     "api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
       "description": "Orb API key, sent as an HTTP bearer token (Authorization: Bearer <api_key>).",

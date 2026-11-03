@@ -24,6 +24,7 @@
       "required": true
     },
     "partner_user_secret": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Partner User Secret",
       "description": "Expensify partnerUserSecret. Use ${EXPENSIFY_PARTNER_USER_SECRET} for env vars.",

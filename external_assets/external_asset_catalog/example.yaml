@@ -1,0 +1,16 @@
+type: dagster_community_components.ExternalAssetCatalogComponent
+attributes:
+  assets:
+    - key: finance/gl_balances
+      owners: ["team:finance-eng"]
+      kinds: ["snowflake"]
+      tags: {pii: "false"}
+      description: "General ledger balances, owned by Finance Engineering."
+    - key: marketing/campaign_performance
+      deps: ["finance/gl_balances"]
+      owners: ["team:marketing-data"]
+      kinds: ["dbt", "snowflake"]
+      group_name: marketing
+    - key: ops/shipments
+      owners: ["team:ops"]
+      kinds: ["python"]

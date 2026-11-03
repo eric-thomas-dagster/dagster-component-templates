@@ -24,6 +24,7 @@
       "required": true
     },
     "api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
       "description": "Freshsales API key, sent as 'Authorization: Token token=<api_key>' (generated under Settings -> API Settings in the Freshsales UI).",

@@ -18,6 +18,7 @@
       "required": true
     },
     "api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
       "description": "Opsgenie API key. Use ${OPSGENIE_API_KEY} for env vars.",

@@ -24,6 +24,7 @@
       "required": true
     },
     "client_secret": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Client Secret",
       "description": "Culture Amp Partner API OAuth2 client secret, paired with client_id.",

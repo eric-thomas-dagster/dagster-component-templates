@@ -24,6 +24,7 @@
       "required": true
     },
     "access_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Access Token",
       "description": "Basecamp OAuth2 access token. Use ${BASECAMP_ACCESS_TOKEN} for env vars.",

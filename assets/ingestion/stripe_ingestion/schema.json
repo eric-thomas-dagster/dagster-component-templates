@@ -18,6 +18,7 @@
       "required": true
     },
     "api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
       "description": "Stripe API Secret Key. Use ${STRIPE_API_KEY} for env vars. Find in Stripe Dashboard > Developers > API Keys. Required unless resource_key is set.",

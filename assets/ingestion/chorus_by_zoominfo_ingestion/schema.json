@@ -18,6 +18,7 @@
       "required": true
     },
     "api_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Token",
       "description": "Chorus by ZoomInfo API token, sent as the raw 'Authorization' header value (NO 'Bearer ' prefix). Generated under Settings -> API in the Chorus app.",

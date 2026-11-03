@@ -24,6 +24,7 @@
       "required": true
     },
     "api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
       "description": "Metabase API key (newer versions; Settings > Admin > API Keys).",

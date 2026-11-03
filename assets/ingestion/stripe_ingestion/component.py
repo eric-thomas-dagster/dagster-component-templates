@@ -564,11 +564,6 @@ class StripeIngestionComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _column_lineage_md = _column_lineage_metadata(self)
         asset_name = self.asset_name
-        if not self.resource_key and not self.api_key:
-            raise ValueError(
-                "StripeIngestionComponent: supply resource_key (a registered "
-                "StripeResourceComponent) OR api_key."
-            )
         resources_str = self.resources
         start_date = self.start_date
         end_date = self.end_date
@@ -680,6 +675,11 @@ class StripeIngestionComponent(Component, Model, Resolvable):
             required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def stripe_ingestion_asset(context: AssetExecutionContext):
+            if not component.resource_key and not component.api_key:
+                raise ValueError(
+                    "StripeIngestionComponent: supply resource_key (a registered "
+                    "StripeResourceComponent) OR api_key."
+                )
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
             from dlt.sources.stripe_analytics import stripe_source, incremental_stripe_source

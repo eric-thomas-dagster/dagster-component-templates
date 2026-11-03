@@ -18,12 +18,14 @@
       "required": true
     },
     "api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
       "description": "Trello API key. Use ${TRELLO_API_KEY} for env vars.",
       "required": true
     },
     "api_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Token",
       "description": "Trello API token. Use ${TRELLO_API_TOKEN} for env vars.",

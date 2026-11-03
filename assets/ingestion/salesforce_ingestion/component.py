@@ -602,11 +602,6 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _column_lineage_md = _column_lineage_metadata(self)
         asset_name = self.asset_name
-        if not self.resource_key and not (self.username and self.password and self.security_token):
-            raise ValueError(
-                "SalesforceIngestionComponent: supply resource_key (a registered "
-                "SalesforceResourceComponent) OR all of username/password/security_token."
-            )
         sf_objects = self.sf_objects
         description = self.description or f"Salesforce data ({', '.join(sf_objects)})"
         group_name = self.group_name
@@ -715,6 +710,11 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
             required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def salesforce_ingestion_asset(context: AssetExecutionContext):
+            if not component.resource_key and not (component.username and component.password and component.security_token):
+                raise ValueError(
+                    "SalesforceIngestionComponent: supply resource_key (a registered "
+                    "SalesforceResourceComponent) OR all of username/password/security_token."
+                )
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
             from dlt.sources.salesforce import salesforce_source

@@ -591,11 +591,6 @@ class PipedriveIngestionComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _column_lineage_md = _column_lineage_metadata(self)
         asset_name = self.asset_name
-        if not self.resource_key and not self.api_token:
-            raise ValueError(
-                "PipedriveIngestionComponent: supply resource_key (a registered "
-                "PipedriveResourceComponent) OR api_token."
-            )
         resources_list = self.resources
         description = self.description or f"Pipedrive data ({', '.join(resources_list)})"
         group_name = self.group_name
@@ -704,6 +699,11 @@ class PipedriveIngestionComponent(Component, Model, Resolvable):
             required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def pipedrive_ingestion_asset(context: AssetExecutionContext):
+            if not component.resource_key and not component.api_token:
+                raise ValueError(
+                    "PipedriveIngestionComponent: supply resource_key (a registered "
+                    "PipedriveResourceComponent) OR api_token."
+                )
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
             from dlt.sources.pipedrive import pipedrive_source

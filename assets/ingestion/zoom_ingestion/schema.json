@@ -18,6 +18,7 @@
       "required": true
     },
     "access_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Access Token",
       "description": "Zoom OAuth2 access token (Server-to-Server OAuth app). Use ${ZOOM_ACCESS_TOKEN} for env vars.",

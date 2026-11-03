@@ -519,11 +519,6 @@ class LaunchDarklyIngestionComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _column_lineage_md = _column_lineage_metadata(self)
         component = self
-        if not self.resource_key and not self.api_token:
-            raise ValueError(
-                "LaunchDarklyIngestionComponent: supply resource_key (a registered "
-                "LaunchDarklyResourceComponent) OR api_token."
-            )
         asset_name = self.asset_name
         description = self.description or "Ingest LaunchDarkly feature flag and project data using dlt's generic REST API source."
         group_name = self.group_name
@@ -602,6 +597,11 @@ class LaunchDarklyIngestionComponent(Component, Model, Resolvable):
             required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def launchdarkly_ingestion_asset(context: AssetExecutionContext):
+            if not component.resource_key and not component.api_token:
+                raise ValueError(
+                    "LaunchDarklyIngestionComponent: supply resource_key (a registered "
+                    "LaunchDarklyResourceComponent) OR api_token."
+                )
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
             from dlt.sources.rest_api import rest_api_source

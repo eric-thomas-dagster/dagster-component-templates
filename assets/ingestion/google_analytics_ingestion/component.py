@@ -620,12 +620,6 @@ class GoogleAnalyticsIngestionComponent(Component, Model, Resolvable):
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
         _column_lineage_md = _column_lineage_metadata(self)
         asset_name = self.asset_name
-        if not self.resource_key and not self.property_id:
-            raise ValueError(
-                "GoogleAnalyticsIngestionComponent: supply resource_key (a registered "
-                "GoogleAnalyticsResourceComponent) OR property_id (plus service-account or "
-                "OAuth credentials)."
-            )
         project_id = self.project_id
         client_email = self.client_email
         private_key = self.private_key
@@ -747,6 +741,12 @@ class GoogleAnalyticsIngestionComponent(Component, Model, Resolvable):
             required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
         def google_analytics_ingestion_asset(context: AssetExecutionContext):
+            if not component.resource_key and not component.property_id:
+                raise ValueError(
+                    "GoogleAnalyticsIngestionComponent: supply resource_key (a registered "
+                    "GoogleAnalyticsResourceComponent) OR property_id (plus service-account or "
+                    "OAuth credentials)."
+                )
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
             import json

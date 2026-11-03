@@ -30,6 +30,7 @@
       "required": true
     },
     "api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
       "description": "LogRocket API key, sent as `Authorization: token <api_key>` (LogRocket's custom 'token' auth scheme, NOT Bearer). Created in the LogRocket dashboard under Settings > API Keys.",

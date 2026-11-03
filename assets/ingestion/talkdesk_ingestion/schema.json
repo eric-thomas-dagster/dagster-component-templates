@@ -30,6 +30,7 @@
       "required": true
     },
     "client_secret": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Client Secret",
       "description": "Talkdesk OAuth2 client_credentials client secret.",

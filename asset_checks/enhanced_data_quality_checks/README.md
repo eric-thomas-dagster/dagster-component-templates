@@ -283,6 +283,20 @@ custom_sql_check:
     blocking: true
 ```
 
+With `group_by`, the query must already `GROUP BY` in SQL and return exactly
+`(group, metric)` per row -- there's no column-name metadata on the raw rows
+to locate an arbitrary `group_by`-named column within a wider result:
+
+```yaml
+custom_sql_check:
+  - name: "region_revenue_cap"
+    sql_query: "SELECT region, SUM(amount) FROM orders GROUP BY region"
+    expected_result: 100000
+    comparison: "less_than"
+    group_by: "region"
+    allowed_failures: 1  # up to 1 region may exceed the cap
+```
+
 #### 18. Custom Dataframe Check
 Execute custom Python code on dataframes.
 

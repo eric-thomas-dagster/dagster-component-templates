@@ -24,12 +24,14 @@
       "required": true
     },
     "client_secret": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Client Secret",
       "description": "QuickBooks app client secret.",
       "required": true
     },
     "refresh_token": {
+      "ui:widget": "password",
       "type": "string",
       "label": "Refresh Token",
       "description": "OAuth2 refresh token obtained once via QuickBooks' OAuth consent flow. Expires after ~100 days of inactivity.",

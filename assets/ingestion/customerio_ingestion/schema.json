@@ -18,6 +18,7 @@
       "required": true
     },
     "app_api_key": {
+      "ui:widget": "password",
       "type": "string",
       "label": "App Api Key",
       "description": "Customer.io App API bearer token.",

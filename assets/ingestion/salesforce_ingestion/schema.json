@@ -18,6 +18,7 @@
       "required": true
     },
     "username": {
+      "x-dagster-required-unless": ["resource_key"],
       "type": "string",
       "label": "Username",
       "description": "Salesforce username. Required unless resource_key is set.",
@@ -25,6 +26,7 @@
       "default": null
     },
     "password": {
+      "x-dagster-required-unless": ["resource_key"],
       "type": "string",
       "label": "Password",
       "description": "Salesforce password. Required unless resource_key is set.",
@@ -33,6 +35,7 @@
       "default": null
     },
     "security_token": {
+      "x-dagster-required-unless": ["resource_key"],
       "type": "string",
       "label": "Security Token",
       "description": "Salesforce security token (from Settings > Personal Setup > Reset My Security Token). Required unless resource_key is set.",
@@ -41,6 +44,7 @@
       "default": null
     },
     "resource_key": {
+      "x-dagster-required-unless": ["username", "password", "security_token"],
       "type": "string",
       "label": "Resource Key",
       "required": false,

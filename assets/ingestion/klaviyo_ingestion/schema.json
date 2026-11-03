@@ -18,6 +18,7 @@
       "required": true
     },
     "api_key": {
+      "x-dagster-required-unless": ["resource_key"],
       "ui:widget": "password",
       "type": "string",
       "label": "Api Key",
@@ -26,6 +27,7 @@
       "default": null
     },
     "resource_key": {
+      "x-dagster-required-unless": ["api_key"],
       "type": "string",
       "label": "Resource Key",
       "description": "Optional resource key registered by a KlaviyoResourceComponent (that component defaults its own resource_key to 'klaviyo', not 'klaviyo_resource'). When set, api_key is read from that resource at run time instead of api_key above -- lets one Klaviyo credential serve both this ingestion connector and the klaviyo_profile_upsert reverse-ETL sink without configuring it twice.",

@@ -18,6 +18,7 @@
       "required": true
     },
     "shop_url": {
+      "x-dagster-required-unless": ["resource_key"],
       "type": "string",
       "label": "Shop Url",
       "description": "Shopify store URL (e.g., https://my-shop.myshopify.com). Required unless resource_key is set.",
@@ -25,6 +26,7 @@
       "default": null
     },
     "private_app_password": {
+      "x-dagster-required-unless": ["resource_key"],
       "type": "string",
       "label": "Private App Password",
       "description": "Shopify Admin API access token. Required unless resource_key is set.",
@@ -33,6 +35,7 @@
       "default": null
     },
     "resource_key": {
+      "x-dagster-required-unless": ["shop_url", "private_app_password"],
       "type": "string",
       "label": "Resource Key",
       "required": false,

@@ -18,6 +18,7 @@
       "required": true
     },
     "access_token": {
+      "x-dagster-required-unless": ["resource_key"],
       "type": "string",
       "label": "Access Token",
       "description": "GitHub Personal Access Token for API authentication. Required unless resource_key is set.",
@@ -26,6 +27,7 @@
       "ui:widget": "password"
     },
     "resource_key": {
+      "x-dagster-required-unless": ["access_token"],
       "type": "string",
       "label": "Resource Key",
       "required": false,

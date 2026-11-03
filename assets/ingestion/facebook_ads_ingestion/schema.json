@@ -18,6 +18,7 @@
       "required": true
     },
     "account_id": {
+      "x-dagster-required-unless": ["resource_key"],
       "type": "string",
       "label": "Account Id",
       "description": "Facebook Ads Account ID (format: act_123456789). Find in Ads Manager URL. Required unless resource_key is set.",
@@ -25,6 +26,7 @@
       "default": null
     },
     "access_token": {
+      "x-dagster-required-unless": ["resource_key"],
       "type": "string",
       "label": "Access Token",
       "description": "Facebook Access Token with ads_read and lead_retrieval permissions. Use ${FACEBOOK_ACCESS_TOKEN} for env vars. Required unless resource_key is set.",
@@ -48,6 +50,7 @@
       "ui:widget": "password"
     },
     "resource_key": {
+      "x-dagster-required-unless": ["account_id", "access_token"],
       "type": "string",
       "label": "Resource Key",
       "required": false,

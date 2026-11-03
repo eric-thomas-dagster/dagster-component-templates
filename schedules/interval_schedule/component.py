@@ -2,7 +2,8 @@
 
 Friendlier than cron when you just want "every 30 minutes". Generates a cron
 expression under the hood, plus the same job + ScheduleDefinition shape as
-`cron_schedule`.
+`cron_schedule` -- including the same asset_keys/asset_check_keys surface
+(materialize assets, run asset checks, or both on each tick).
 
 Also supports the same partition surface as `cron_schedule` — declare
 `partition_type` (+ related fields) and the component switches to
@@ -16,6 +17,7 @@ from typing import Any, Dict, List, Optional
 
 import dagster as dg
 from dagster import (
+    AssetCheckKey,
     AssetKey,
     AssetSelection,
     DefaultScheduleStatus,
@@ -234,7 +236,7 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 
 
 class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Run an asset selection at a fixed interval (every N minutes / hours / days).
+    """Run an asset and/or asset check selection at a fixed interval (every N minutes / hours / days).
 
     Two modes — same field surface as `cron_schedule`:
       1. Un-partitioned (default): `ScheduleDefinition(job=..., cron_schedule=…)`
@@ -246,7 +248,22 @@ class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
 
     schedule_name: str = Field(description="Unique schedule name.")
     every: str = Field(description="Interval value + unit, e.g. '15m', '2h', '1d', '1w', '1mo'.")
-    asset_keys: List[str] = Field(description="Slash-separated asset keys to materialize on each tick.")
+    asset_keys: Optional[List[str]] = Field(
+        default=None,
+        description="Slash-separated asset keys to materialize on each tick. Set this, asset_check_keys, or both.",
+    )
+    asset_check_keys: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Asset check keys to run on each tick, as '<asset_key>:<check_name>' "
+            "(asset key segments slash-separated, e.g. 'marts/orders:row_count_check'). "
+            "Runs just the check -- via Dagster's real AssetSelection.checks(...), "
+            "confirmed to execute with zero re-materialization of the parent asset "
+            "-- for periodic re-validation without re-running the (possibly "
+            "expensive) materialization. Combine with asset_keys to also "
+            "materialize other assets in the same tick."
+        ),
+    )
     job_name: Optional[str] = Field(default=None, description="Name of the underlying job (defaults to '<schedule_name>_job').")
     execution_timezone: Optional[str] = Field(
         default=None,
@@ -324,8 +341,35 @@ class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
         from dagster.components.resolved.form_config import ComponentFormConfig
         return ComponentFormConfig(label='Interval Schedule', editable=True)
 
+    @staticmethod
+    def _parse_check_key(raw: str) -> AssetCheckKey:
+        """Parse '<asset_key>:<check_name>' (asset key segments slash-separated)
+        into a real AssetCheckKey. Splits on the LAST colon so a check name
+        can't accidentally swallow part of the asset key."""
+        asset_part, sep, check_name = raw.rpartition(":")
+        if not sep or not asset_part or not check_name:
+            raise ValueError(
+                f"asset_check_keys entry {raw!r} must be '<asset_key>:<check_name>', "
+                f"e.g. 'marts/orders:row_count_check'."
+            )
+        return AssetCheckKey(AssetKey.from_user_string(asset_part), check_name)
+
+    def _build_selection(self, targets: List[AssetKey]) -> AssetSelection:
+        """Union of the asset selection and the check selection -- confirmed
+        via dg.AssetSelection.checks(...) that a check-only selection runs
+        just the check, with zero re-materialization of its parent asset."""
+        selection = AssetSelection.assets(*targets) if targets else None
+        if self.asset_check_keys:
+            check_keys = [self._parse_check_key(k) for k in self.asset_check_keys]
+            check_selection = AssetSelection.checks(*check_keys)
+            selection = check_selection if selection is None else selection | check_selection
+        if selection is None:
+            raise ValueError("Set at least one of asset_keys or asset_check_keys.")
+        return selection
+
     def build_defs(self, context: dg.ComponentLoadContext) -> Definitions:
-        targets = [AssetKey.from_user_string(k) for k in self.asset_keys]
+        targets = [AssetKey.from_user_string(k) for k in (self.asset_keys or [])]
+        selection = self._build_selection(targets)
         _job_name = self.job_name or f"{self.schedule_name}_job"
         _default_status = (
             DefaultScheduleStatus.RUNNING
@@ -371,7 +415,7 @@ class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
 
             job = define_asset_job(
                 name=_job_name,
-                selection=AssetSelection.assets(*targets),
+                selection=selection,
                 partitions_def=partitions_def,
             )
             # build_schedule_from_partitioned_job REJECTS cron_schedule and
@@ -388,7 +432,7 @@ class IntervalScheduleComponent(dg.Component, dg.Model, dg.Resolvable):
         else:
             job = define_asset_job(
                 name=_job_name,
-                selection=AssetSelection.assets(*targets),
+                selection=selection,
             )
             sched = ScheduleDefinition(
                 name=self.schedule_name,

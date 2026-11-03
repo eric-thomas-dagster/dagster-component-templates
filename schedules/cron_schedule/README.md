@@ -23,7 +23,6 @@ Two modes — same field surface:
 | Field | Type | Description |
 |---|---|---|
 | `schedule_name` | `str` | Unique schedule name shown in the UI. |
-| `asset_keys` | `List[str]` | Slash-separated asset keys to materialize on each tick. |
 
 ### Catalog metadata
 
@@ -38,6 +37,8 @@ Two modes — same field surface:
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. Note: only time-based types ('daily'/'weekly'/'monthly'/'hourly') work with this schedule's partitioned-job… _(full docs in schema.json + component README)_ |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start in ISO format (e.g. '2024-01-01' or '2024-01-01-00:00' for hourly). Required for time-based types. |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning. Only used if you also set partition_type='multi' (and even then the schedule rejects pure static — see partition_type). |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
@@ -54,6 +55,8 @@ Two modes — same field surface:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `cron_expression` | `str` | — | Cron expression (5 fields: m h dom mon dow). E.g. '0 9 * * *' = daily 09:00. REQUIRED when no partition fields are set; OPTIONAL in the partitioned-job path (cadence is inferred from the partitions_def). If supplied in t… _(full docs in schema.json + component README)_ |
+| `asset_keys` | `List[str]` | — | Slash-separated asset keys to materialize on each tick. Set this, asset_check_keys, or both. |
+| `asset_check_keys` | `List[str]` | — | Asset check keys to run on each tick, as '<asset_key>:<check_name>' (asset key segments slash-separated, e.g. 'marts/orders:row_count_check'). Runs just the check -- via Dagster's real AssetSelection.checks(...), confirm… _(full docs in schema.json + component README)_ |
 | `execution_timezone` | `str` | — | IANA timezone for cron evaluation, e.g. 'America/Los_Angeles'. Applied in the un-partitioned path (Dagster falls back to UTC when None). Silently IGNORED in the partitioned path — Dagster's build_schedule_from_partitione… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (when partition_type='dynamic'). NOTE: the schedule rejects dynamic-only partitions. |
 
@@ -106,6 +109,35 @@ attributes:
 ```
 
 `partition_type: static` and `partition_type: dynamic` raise `ValueError` in the partitioned path — `build_schedule_from_partitioned_job` needs a time-based partitions_def. For non-time partitions, use the un-partitioned schedule and select keys downstream.
+
+### Scheduling asset checks, not just assets
+
+`asset_keys` only ever selected assets -- there was no way to put an asset
+check on its own schedule (e.g. "re-validate this data quality check every
+night without re-materializing the asset"). `asset_check_keys` fixes that:
+set it (as `'<asset_key>:<check_name>'` strings, asset key segments
+slash-separated), `asset_keys`, or both. Confirmed directly against
+Dagster's own `AssetSelection.checks(...)`: a check-only selection really
+does run with zero re-materialization of the parent asset.
+
+```yaml
+# Re-run a data quality check nightly without re-materializing the (expensive) asset
+type: dagster_community_components.CronScheduleComponent
+attributes:
+  schedule_name: nightly_orders_check
+  cron_expression: "0 3 * * *"
+  asset_check_keys: ["marts/orders:row_count_check"]
+```
+
+```yaml
+# Materialize an asset AND run an unrelated asset's check in the same tick
+type: dagster_community_components.CronScheduleComponent
+attributes:
+  schedule_name: nightly_both
+  cron_expression: "0 2 * * *"
+  asset_keys: [daily_revenue]
+  asset_check_keys: ["marts/orders:freshness_check"]
+```
 
 ### Timezone caveat
 

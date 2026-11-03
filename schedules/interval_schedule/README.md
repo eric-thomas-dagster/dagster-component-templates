@@ -79,7 +79,6 @@ If you need a non-boundary fire time (e.g. hourly partitions firing at `:15`), u
 |---|---|---|
 | `schedule_name` | `str` | Unique schedule name. |
 | `every` | `str` | Interval value + unit, e.g. '15m', '2h', '1d', '1w', '1mo'. |
-| `asset_keys` | `List[str]` | Slash-separated asset keys to materialize on each tick. |
 
 ### Catalog metadata
 
@@ -94,6 +93,8 @@ If you need a non-boundary fire time (e.g. hourly partitions firing at `:15`), u
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. Only time-based types ('hourly'/'daily'/'weekly'/'monthly') work with the partitioned-job path; 'static' /… _(full docs in schema.json + component README)_ |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start in ISO format (e.g. '2024-01-01' or '2024-01-01-00:00' for hourly). Required for time-based types. |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for multi-axis partitioning (unused in flat time-based mode). |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
@@ -109,6 +110,8 @@ If you need a non-boundary fire time (e.g. hourly partitions firing at `:15`), u
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_keys` | `List[str]` | — | Slash-separated asset keys to materialize on each tick. Set this, asset_check_keys, or both. |
+| `asset_check_keys` | `List[str]` | — | Asset check keys to run on each tick, as '<asset_key>:<check_name>' (asset key segments slash-separated, e.g. 'marts/orders:row_count_check'). Runs just the check -- via Dagster's real AssetSelection.checks(...), confirm… _(full docs in schema.json + component README)_ |
 | `execution_timezone` | `str` | — | IANA timezone, e.g. 'America/New_York'. Applied in the un-partitioned path (Dagster falls back to UTC when None); silently IGNORED in the partitioned path — build_schedule_from_partitioned_job forbids execution_timezone… _(full docs in schema.json + component README)_ |
 | `dynamic_partition_name` | `str` | — | Name for DynamicPartitionsDefinition (rejected by this schedule — declared for parity with cron_schedule). |
 

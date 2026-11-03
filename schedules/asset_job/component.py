@@ -1,11 +1,12 @@
 """AssetJobComponent.
 
-Creates a job over the configured asset selection so it shows up as a discrete unit in the Dagster UI's Jobs tab. Useful when you want a one-button 'run this subset' experience without committing to a schedule.
+Creates a job over the configured asset and/or asset check selection so it shows up as a discrete unit in the Dagster UI's Jobs tab. Useful when you want a one-button 'run this subset' experience without committing to a schedule.
 """
 from typing import Dict, List, Optional
 
 import dagster as dg
 from dagster import (
+    AssetCheckKey,
     AssetKey,
     AssetSelection,
     DefaultScheduleStatus,
@@ -48,10 +49,24 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 
 
 class AssetJobComponent(dg.Component, dg.Model, dg.Resolvable):
-    """Define a named Dagster job from a set of asset keys (without scheduling it)."""
+    """Define a named Dagster job from a set of asset keys and/or asset check keys (without scheduling it)."""
 
     job_name: str = Field(description="Unique job name shown in the Jobs tab.")
-    asset_keys: List[str] = Field(description="Slash-separated asset keys included in the job.")
+    asset_keys: Optional[List[str]] = Field(
+        default=None,
+        description="Slash-separated asset keys included in the job. Set this, asset_check_keys, or both.",
+    )
+    asset_check_keys: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Asset check keys included in the job, as '<asset_key>:<check_name>' "
+            "(asset key segments slash-separated, e.g. 'marts/orders:row_count_check'). "
+            "Runs just the check -- via Dagster's real AssetSelection.checks(...), "
+            "confirmed to execute with zero re-materialization of the parent asset "
+            "-- for a one-button 'just re-run this check' job. Combine with "
+            "asset_keys to also materialize assets in the same job."
+        ),
+    )
     description: Optional[str] = Field(default=None, description="Description shown in the UI.")
     tags: Optional[Union[Dict[str, Any], List[str]]] = Field(default=None, description="Tags applied to runs of this job.")
 
@@ -68,12 +83,32 @@ class AssetJobComponent(dg.Component, dg.Model, dg.Resolvable):
 
         return ComponentFormConfig(label="Asset Job", editable=True)
 
+    @staticmethod
+    def _parse_check_key(raw: str) -> AssetCheckKey:
+        """Parse '<asset_key>:<check_name>' (asset key segments slash-separated)
+        into a real AssetCheckKey. Splits on the LAST colon so a check name
+        can't accidentally swallow part of the asset key."""
+        asset_part, sep, check_name = raw.rpartition(":")
+        if not sep or not asset_part or not check_name:
+            raise ValueError(
+                f"asset_check_keys entry {raw!r} must be '<asset_key>:<check_name>', "
+                f"e.g. 'marts/orders:row_count_check'."
+            )
+        return AssetCheckKey(AssetKey.from_user_string(asset_part), check_name)
+
     def build_defs(self, context: dg.ComponentLoadContext) -> Definitions:
         _self = self
-        targets = [AssetKey.from_user_string(k) for k in self.asset_keys]
+        targets = [AssetKey.from_user_string(k) for k in (self.asset_keys or [])]
+        selection = AssetSelection.assets(*targets) if targets else None
+        if self.asset_check_keys:
+            check_keys = [self._parse_check_key(k) for k in self.asset_check_keys]
+            check_selection = AssetSelection.checks(*check_keys)
+            selection = check_selection if selection is None else selection | check_selection
+        if selection is None:
+            raise ValueError("Set at least one of asset_keys or asset_check_keys.")
         job = define_asset_job(
             name=self.job_name,
-            selection=AssetSelection.assets(*targets),
+            selection=selection,
             description=self.description,
             tags=self.tags or {},
         )

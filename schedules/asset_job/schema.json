@@ -12,10 +12,10 @@
       "required": true
     },
     "asset_keys": {
-      "description": "Slash-separated asset keys included in the job.",
+      "description": "Slash-separated asset keys included in the job. Set this, asset_check_keys, or both.",
       "type": "array",
       "label": "Asset Keys",
-      "required": true,
+      "required": false,
       "items": {
         "type": "string"
       }
@@ -30,6 +30,15 @@
       "description": "Tags applied to runs of this job.",
       "type": "object",
       "label": "Tags",
+      "required": false
+    },
+    "asset_check_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Asset Check Keys",
+      "description": "Asset check keys included in the job, as '<asset_key>:<check_name>' (asset key segments slash-separated, e.g. 'marts/orders:row_count_check'). Runs just the check -- via Dagster's real AssetSelection.checks(...), confirmed to execute with zero re-materialization of the parent asset -- for a one-button 'just re-run this check' job. Combine with asset_keys to also materialize assets in the same job.",
       "required": false
     }
   },

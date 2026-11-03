@@ -20,11 +20,11 @@
     "asset_keys": {
       "type": "array",
       "label": "Asset Keys",
-      "required": true,
+      "required": false,
       "items": {
         "type": "string"
       },
-      "description": "Slash-separated asset keys to materialize on each tick."
+      "description": "Slash-separated asset keys to materialize on each tick. Set this, asset_check_keys, or both."
     },
     "job_name": {
       "type": "string",
@@ -112,6 +112,15 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "asset_check_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Asset Check Keys",
+      "description": "Asset check keys to run on each tick, as '<asset_key>:<check_name>' (asset key segments slash-separated, e.g. 'marts/orders:row_count_check'). Runs just the check -- via Dagster's real AssetSelection.checks(...), confirmed to execute with zero re-materialization of the parent asset -- for periodic re-validation without re-running the (possibly expensive) materialization. Combine with asset_keys to also materialize other assets in the same tick.",
+      "required": false
     }
   },
   "tags": [

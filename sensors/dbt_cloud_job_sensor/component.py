@@ -2,12 +2,19 @@
 
 Polls the dbt Cloud Admin API and triggers a Dagster job when a specified
 dbt Cloud job run completes successfully.
+
+resource_key, when set, genuinely drives the poll via a registered
+DbtCloudResourceComponent's own (real, dagster-dbt) DbtCloudResource.get_runs(...)
+method -- previously this field was declared and wired into
+required_resource_keys but never actually read, so setting it silently had
+no effect and the sensor always fell back to its own inline requests call
+using account_id/api_token_env_var regardless.
 """
 from typing import Optional
 import dagster as dg
 from dagster import RunRequest, SensorEvaluationContext, SensorResult, sensor
 from dagster._core.definitions.sensor_definition import DefaultSensorStatus
-from pydantic import Field
+from pydantic import Field, model_validator
 
 
 class DbtCloudJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -26,13 +33,29 @@ class DbtCloudJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     sensor_name: str = Field(description="Unique sensor name")
-    account_id: int = Field(description="dbt Cloud account ID")
+    account_id: Optional[int] = Field(default=None, description="dbt Cloud account ID. Required unless resource_key is set.")
     job_id: int = Field(description="dbt Cloud job ID to monitor")
-    api_token_env_var: str = Field(description="Env var containing the dbt Cloud API token")
+    api_token_env_var: Optional[str] = Field(default=None, description="Env var containing the dbt Cloud API token. Required unless resource_key is set.")
     job_name: str = Field(description="Dagster job to trigger when dbt run completes")
     minimum_interval_seconds: int = Field(default=60, description="Seconds between polls")
     default_status: str = Field(default="running", description="running or stopped")
-    resource_key: Optional[str] = Field(default=None, description="Optional Dagster resource key.")
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a DbtCloudResourceComponent. When set, polls "
+            "run via that resource's own get_runs(...) method instead of the inline "
+            "account_id/api_token_env_var below."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _check_credentials(self):
+        if not self.resource_key and not (self.account_id and self.api_token_env_var):
+            raise ValueError(
+                "DbtCloudJobSensorComponent: supply resource_key (a registered "
+                "DbtCloudResourceComponent) OR both account_id and api_token_env_var."
+            )
+        return self
 
     @classmethod
     def get_form_config(cls):
@@ -56,27 +79,36 @@ class DbtCloudJobSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             required_resource_keys=required_resource_keys,
         )
         def dbt_cloud_sensor(context: SensorEvaluationContext, **_resources):
-            import os
-            try:
-                import requests
-            except ImportError:
-                return SensorResult(skip_reason="requests not installed")
+            if resource_key:
+                _res = getattr(context.resources, resource_key, None)
+                if _res is None:
+                    return SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+                try:
+                    runs = _res.get_runs(job_id=_self.job_id, order_by="-id", limit=1)
+                except Exception as e:
+                    return SensorResult(skip_reason=f"dbt Cloud API error (via resource '{resource_key}'): {e}")
+            else:
+                import os
+                try:
+                    import requests
+                except ImportError:
+                    return SensorResult(skip_reason="requests not installed")
 
-            token = os.environ.get(_self.api_token_env_var, "")
-            headers = {"Authorization": f"Token {token}"}
-            base = f"https://cloud.getdbt.com/api/v2/accounts/{_self.account_id}"
+                token = os.environ.get(_self.api_token_env_var, "")
+                headers = {"Authorization": f"Token {token}"}
+                base = f"https://cloud.getdbt.com/api/v2/accounts/{_self.account_id}"
 
-            try:
-                resp = requests.get(
-                    f"{base}/runs/",
-                    headers=headers,
-                    params={"job_definition_id": _self.job_id, "order_by": "-id", "limit": 1},
-                    timeout=30,
-                )
-                resp.raise_for_status()
-                runs = resp.json().get("data", [])
-            except Exception as e:
-                return SensorResult(skip_reason=f"dbt Cloud API error: {e}")
+                try:
+                    resp = requests.get(
+                        f"{base}/runs/",
+                        headers=headers,
+                        params={"job_definition_id": _self.job_id, "order_by": "-id", "limit": 1},
+                        timeout=30,
+                    )
+                    resp.raise_for_status()
+                    runs = resp.json().get("data", [])
+                except Exception as e:
+                    return SensorResult(skip_reason=f"dbt Cloud API error: {e}")
 
             if not runs:
                 return SensorResult(skip_reason="No runs found for this job")

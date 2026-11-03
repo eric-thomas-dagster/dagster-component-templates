@@ -19,26 +19,28 @@
     "host": {
       "type": "string",
       "label": "Host",
-      "description": "SFTP host",
-      "required": true
+      "description": "SFTP host. Required unless resource_key is set.",
+      "required": false,
+      "x-dagster-required-unless": "resource_key"
     },
     "port": {
       "type": "integer",
       "label": "Port",
-      "description": "SFTP port",
+      "description": "SFTP port. Ignored when resource_key is set.",
       "required": false,
       "default": 22
     },
     "username_env_var": {
       "type": "string",
       "label": "Username Env Var",
-      "description": "Env var with SFTP username",
-      "required": true
+      "description": "Env var with SFTP username. Required unless resource_key is set.",
+      "required": false,
+      "x-dagster-required-unless": "resource_key"
     },
     "password_env_var": {
       "type": "string",
       "label": "Password Env Var",
-      "description": "Env var with SFTP password",
+      "description": "Env var with SFTP password. Ignored when resource_key is set.",
       "required": false,
       "default": null,
       "ui:widget": "env_var"
@@ -46,7 +48,7 @@
     "private_key_env_var": {
       "type": "string",
       "label": "Private Key Env Var",
-      "description": "Env var with path to SSH private key file",
+      "description": "Env var with path to SSH private key file. Ignored when resource_key is set.",
       "required": false,
       "default": null
     },
@@ -91,7 +93,7 @@
     "resource_key": {
       "type": "string",
       "label": "Resource Key",
-      "description": "Optional Dagster resource key.",
+      "description": "Optional resource key registered by an SFTPResourceComponent. When set, the connection comes from that resource's own get_client() method instead of the inline host/username_env_var/password_env_var/private_key_env_var above.",
       "required": false,
       "default": null,
       "ui:widget": "resource-picker"

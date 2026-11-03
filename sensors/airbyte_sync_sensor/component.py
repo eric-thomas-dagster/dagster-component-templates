@@ -2,6 +2,22 @@
 
 Polls the Airbyte API and triggers a Dagster job when a connection
 sync job completes successfully.
+
+Two different Airbyte products, two different poll paths:
+
+  - No resource_key (default): self-hosted/OSS Airbyte's Config API
+    (`airbyte_url` + optional Basic auth), polling the single latest job
+    for connection_id via `/api/v1/jobs/list`.
+  - resource_key set: Airbyte CLOUD via a registered AirbyteResourceComponent
+    -- a real `dagster_airbyte.AirbyteCloudWorkspace`. Its client's
+    get_jobs_for_connection(connection_id, created_after=cursor) supports a
+    genuine incremental filter the OSS Config API doesn't expose, so this
+    path can emit one RunRequest per newly-succeeded job since the cursor
+    instead of only ever checking the single latest job.
+
+Previously resource_key was declared and wired into required_resource_keys
+but never actually read, so setting it silently had no effect and the
+sensor always fell back to the OSS Config API path regardless.
 """
 from typing import Optional
 import dagster as dg
@@ -32,7 +48,17 @@ class AirbyteSyncSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     job_name: str = Field(description="Job to trigger when sync completes")
     minimum_interval_seconds: int = Field(default=60, description="Seconds between polls")
     default_status: str = Field(default="running", description="running or stopped")
-    resource_key: Optional[str] = Field(default=None, description="Optional Dagster resource key.")
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by an AirbyteResourceComponent (Airbyte Cloud). "
+            "When set, polls run via that resource's real get_jobs_for_connection(connection_id, "
+            "created_after=cursor) instead of the inline airbyte_url/username_env_var/"
+            "password_env_var OSS Config API path below -- and, since that call supports a real "
+            "incremental filter, can emit one RunRequest per newly-succeeded job instead of only "
+            "ever checking the single latest one."
+        ),
+    )
 
     @classmethod
     def get_form_config(cls):
@@ -56,6 +82,47 @@ class AirbyteSyncSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             required_resource_keys=required_resource_keys,
         )
         def airbyte_sync_sensor(context: SensorEvaluationContext, **_resources):
+            if resource_key:
+                from datetime import datetime, timezone
+
+                _res = getattr(context.resources, resource_key, None)
+                if _res is None:
+                    return SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+
+                cursor = context.cursor or ""
+                created_after = None
+                if cursor:
+                    try:
+                        created_after = datetime.fromisoformat(cursor)
+                    except ValueError:
+                        created_after = None
+
+                try:
+                    jobs = _res.get_client().get_jobs_for_connection(_self.connection_id, created_after=created_after)
+                except Exception as e:
+                    return SensorResult(skip_reason=f"Airbyte API error (via resource '{resource_key}'): {e}")
+
+                succeeded = [j for j in jobs if j.status == "succeeded"]
+                if not succeeded:
+                    return SensorResult(skip_reason=f"No newly-succeeded jobs for connection {_self.connection_id}")
+
+                latest_time = created_after or datetime.fromtimestamp(0, tz=timezone.utc)
+                run_requests = []
+                for job in succeeded:
+                    job_id = str(job.id)
+                    run_requests.append(RunRequest(
+                        run_key=job_id,
+                        run_config={"ops": {"config": {
+                            "connection_id": _self.connection_id,
+                            "airbyte_job_id": job_id,
+                            "created_at": job.start_time.isoformat() if job.start_time else "",
+                        }}},
+                    ))
+                    ts = job.last_updated_at or job.start_time
+                    if ts and ts > latest_time:
+                        latest_time = ts
+                return SensorResult(run_requests=run_requests, cursor=latest_time.isoformat())
+
             import os
             try:
                 import requests

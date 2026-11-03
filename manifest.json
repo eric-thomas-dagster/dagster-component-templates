@@ -4602,6 +4602,50 @@
       "icon": "si:airbyte"
     },
     {
+      "id": "airbyte_resource",
+      "name": "Airbyte Resource",
+      "category": "resource",
+      "description": "Register an Airbyte Cloud workspace (dagster-airbyte) for use by other components.",
+      "path": "resources/airbyte_resource",
+      "tags": [
+        "resource",
+        "airbyte",
+        "ingestion"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/airbyte_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/airbyte_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/airbyte_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/airbyte_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/airbyte_resource/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster-airbyte"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-02"
+      },
+      "produces": [
+        "resource"
+      ],
+      "agent_hints": {
+        "outputs": "Register an Airbyte Cloud workspace (dagster-airbyte) for use by other components.",
+        "requires_pip": [
+          "dagster-airbyte"
+        ]
+      },
+      "keywords": [
+        "airbyte cloud",
+        "connection",
+        "sync",
+        "shared credentials"
+      ],
+      "icon": "si:airbyte"
+    },
+    {
       "id": "airbyte_sync_sensor",
       "name": "Airbyte Sync Sensor",
       "category": "sensor",
@@ -27558,6 +27602,50 @@
         "external system"
       ],
       "icon": "favicon:fivetran.com"
+    },
+    {
+      "id": "fivetran_resource",
+      "name": "Fivetran Resource",
+      "category": "resource",
+      "description": "Register a Fivetran workspace (dagster-fivetran) for use by other components.",
+      "path": "resources/fivetran_resource",
+      "tags": [
+        "resource",
+        "fivetran",
+        "ingestion"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fivetran_resource/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fivetran_resource/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fivetran_resource/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fivetran_resource/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/resources/fivetran_resource/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster-fivetran"
+        ]
+      },
+      "validation": {
+        "level": "code",
+        "last_validated": "2026-11-02"
+      },
+      "produces": [
+        "resource"
+      ],
+      "agent_hints": {
+        "outputs": "Register a Fivetran workspace (dagster-fivetran) for use by other components.",
+        "requires_pip": [
+          "dagster-fivetran"
+        ]
+      },
+      "keywords": [
+        "fivetran",
+        "connector",
+        "sync",
+        "shared credentials"
+      ],
+      "icon": "si:fivetran"
     },
     {
       "id": "fivetran_sync_sensor",
@@ -71466,5 +71554,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1370
+  "total": 1372
 }

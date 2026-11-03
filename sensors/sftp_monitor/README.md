@@ -19,8 +19,6 @@ On each tick, the sensor:
 | Field | Type | Description |
 |---|---|---|
 | `sensor_name` | `str` | Unique sensor name |
-| `host` | `str` | SFTP host |
-| `username_env_var` | `str` | Env var with SFTP username |
 | `remote_path` | `str` | Remote directory path to monitor |
 | `job_name` | `str` | Job to trigger when new files are detected |
 
@@ -28,10 +26,12 @@ On each tick, the sensor:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `port` | `int` | `22` | SFTP port |
-| `password_env_var` | `str` | — | Env var with SFTP password |
-| `private_key_env_var` | `str` | — | Env var with path to SSH private key file |
-| `resource_key` | `str` | — | Optional Dagster resource key. |
+| `host` | `str` | — | SFTP host. Required unless resource_key is set. |
+| `port` | `int` | `22` | SFTP port. Ignored when resource_key is set. |
+| `username_env_var` | `str` | — | Env var with SFTP username. Required unless resource_key is set. |
+| `password_env_var` | `str` | — | Env var with SFTP password. Ignored when resource_key is set. |
+| `private_key_env_var` | `str` | — | Env var with path to SSH private key file. Ignored when resource_key is set. |
+| `resource_key` | `str` | — | Optional resource key registered by an SFTPResourceComponent. When set, the connection comes from that resource's own get_client() method instead of the inline host/username_env_var/password_env_var/private_key_env_var below. |
 
 ### Sensor configuration
 

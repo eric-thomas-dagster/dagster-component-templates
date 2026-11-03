@@ -1,0 +1,6 @@
+type: dagster_community_components.FivetranResourceComponent
+attributes:
+  resource_key: fivetran_resource
+  account_id: my_fivetran_account_id
+  api_key_env_var: FIVETRAN_API_KEY
+  api_secret_env_var: FIVETRAN_API_SECRET

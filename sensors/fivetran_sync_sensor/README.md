@@ -20,15 +20,14 @@ On each tick, the sensor:
 |---|---|---|
 | `sensor_name` | `str` | Unique sensor name |
 | `connector_id` | `str` | Fivetran connector ID |
-| `api_key_env_var` | `str` | Env var containing the Fivetran API key |
-| `api_secret_env_var` | `str` | Env var containing the Fivetran API secret |
 | `job_name` | `str` | Job to trigger when sync completes |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | — | Optional Dagster resource key. |
+| `api_key_env_var` | `str` | — | Env var containing the Fivetran API key. Required unless resource_key is set. |
+| `resource_key` | `str` | — | Optional resource key registered by a FivetranResourceComponent. When set, polls run via that resource's own get_client().get_connector_details(...) method instead of the inline api_key_env_var/api_secret_env_var below. |
 
 ### Sensor configuration
 
@@ -36,6 +35,12 @@ On each tick, the sensor:
 |---|---|---|---|
 | `minimum_interval_seconds` | `int` | `60` | Seconds between polls |
 | `default_status` | `str` | `"running"` | running or stopped |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `api_secret_env_var` | `str` | — | Env var containing the Fivetran API secret. Required unless resource_key is set. |
 
 [//]: # (FIELDS:END)
 

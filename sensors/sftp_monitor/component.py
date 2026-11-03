@@ -3,12 +3,19 @@
 Monitors an SFTP directory for new files and triggers a job
 when new files are detected. Extremely common in regulated industries
 (finance, healthcare, insurance) for file-based integrations.
+
+resource_key, when set, genuinely drives the connection via a registered
+SFTPResourceComponent's own get_client() method (a paramiko SFTPClient) --
+previously this field was declared and wired into required_resource_keys
+but never actually read, so setting it silently had no effect and the
+sensor always built its own ad-hoc paramiko connection from
+username_env_var/password_env_var/private_key_env_var regardless.
 """
 from typing import Optional
 import dagster as dg
 from dagster import RunRequest, SensorEvaluationContext, SensorResult, sensor
 from dagster._core.definitions.sensor_definition import DefaultSensorStatus
-from pydantic import Field
+from pydantic import Field, model_validator
 
 
 class SftpMonitorSensorComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -28,17 +35,33 @@ class SftpMonitorSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     sensor_name: str = Field(description="Unique sensor name")
-    host: str = Field(description="SFTP host")
-    port: int = Field(default=22, description="SFTP port")
-    username_env_var: str = Field(description="Env var with SFTP username")
-    password_env_var: Optional[str] = Field(default=None, description="Env var with SFTP password")
-    private_key_env_var: Optional[str] = Field(default=None, description="Env var with path to SSH private key file")
+    host: Optional[str] = Field(default=None, description="SFTP host. Required unless resource_key is set.")
+    port: int = Field(default=22, description="SFTP port. Ignored when resource_key is set.")
+    username_env_var: Optional[str] = Field(default=None, description="Env var with SFTP username. Required unless resource_key is set.")
+    password_env_var: Optional[str] = Field(default=None, description="Env var with SFTP password. Ignored when resource_key is set.")
+    private_key_env_var: Optional[str] = Field(default=None, description="Env var with path to SSH private key file. Ignored when resource_key is set.")
     remote_path: str = Field(description="Remote directory path to monitor")
     file_pattern: str = Field(default="*", description="Glob-style filename filter (e.g. '*.csv')")
     job_name: str = Field(description="Job to trigger when new files are detected")
     minimum_interval_seconds: int = Field(default=300, description="Seconds between polls")
     default_status: str = Field(default="running", description="running or stopped")
-    resource_key: Optional[str] = Field(default=None, description="Optional Dagster resource key.")
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by an SFTPResourceComponent. When set, the "
+            "connection comes from that resource's own get_client() method instead of the "
+            "inline host/username_env_var/password_env_var/private_key_env_var below."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _check_credentials(self):
+        if not self.resource_key and not (self.host and self.username_env_var):
+            raise ValueError(
+                "SftpMonitorSensorComponent: supply resource_key (a registered "
+                "SFTPResourceComponent) OR both host and username_env_var."
+            )
+        return self
 
     @classmethod
     def get_form_config(cls):
@@ -62,28 +85,40 @@ class SftpMonitorSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             required_resource_keys=required_resource_keys,
         )
         def sftp_sensor(context: SensorEvaluationContext, **_resources):
-            import os, fnmatch
-            try:
-                import paramiko
-            except ImportError:
-                return SensorResult(skip_reason="paramiko not installed. Run: pip install paramiko")
+            import fnmatch
+            ssh = None
 
-            username = os.environ.get(_self.username_env_var, "")
-            password = os.environ.get(_self.password_env_var) if _self.password_env_var else None
-            key_path = os.environ.get(_self.private_key_env_var) if _self.private_key_env_var else None
+            if resource_key:
+                _res = getattr(context.resources, resource_key, None)
+                if _res is None:
+                    return SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+                try:
+                    sftp = _res.get_client()
+                except Exception as e:
+                    return SensorResult(skip_reason=f"SFTP connect failed (via resource '{resource_key}'): {e}")
+            else:
+                import os
+                try:
+                    import paramiko
+                except ImportError:
+                    return SensorResult(skip_reason="paramiko not installed. Run: pip install paramiko")
 
-            try:
-                ssh = paramiko.SSHClient()
-                ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-                connect_kwargs = {"username": username, "port": _self.port, "timeout": 30}
-                if password:
-                    connect_kwargs["password"] = password
-                if key_path:
-                    connect_kwargs["key_filename"] = key_path
-                ssh.connect(_self.host, **connect_kwargs)
-                sftp = ssh.open_sftp()
-            except Exception as e:
-                return SensorResult(skip_reason=f"SFTP connect failed: {e}")
+                username = os.environ.get(_self.username_env_var, "")
+                password = os.environ.get(_self.password_env_var) if _self.password_env_var else None
+                key_path = os.environ.get(_self.private_key_env_var) if _self.private_key_env_var else None
+
+                try:
+                    ssh = paramiko.SSHClient()
+                    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+                    connect_kwargs = {"username": username, "port": _self.port, "timeout": 30}
+                    if password:
+                        connect_kwargs["password"] = password
+                    if key_path:
+                        connect_kwargs["key_filename"] = key_path
+                    ssh.connect(_self.host, **connect_kwargs)
+                    sftp = ssh.open_sftp()
+                except Exception as e:
+                    return SensorResult(skip_reason=f"SFTP connect failed: {e}")
 
             cursor = context.cursor or ""
             run_requests = []
@@ -116,11 +151,14 @@ class SftpMonitorSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             except Exception as e:
                 return SensorResult(skip_reason=f"List dir failed: {e}")
             finally:
-                try:
-                    sftp.close()
-                    ssh.close()
-                except Exception:
-                    pass
+                # Only close a connection we opened ourselves -- a resource-owned
+                # client manages its own lifecycle (and may be reused elsewhere).
+                if not resource_key:
+                    try:
+                        sftp.close()
+                        ssh.close()
+                    except Exception:
+                        pass
 
             if run_requests:
                 return SensorResult(run_requests=run_requests, cursor=latest)

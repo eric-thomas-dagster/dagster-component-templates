@@ -1,0 +1,47 @@
+{
+  "component_type": "dagster_community_components.AirbyteResourceComponent",
+  "description": "Register an Airbyte Cloud workspace (dagster-airbyte) for use by other components.",
+  "summary": "Share one Airbyte Cloud connection with other components.",
+  "category": "resource",
+  "icon": "si:airbyte",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "airbyte_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "airbyte_resource"
+    },
+    "workspace_id": {
+      "type": "string",
+      "label": "Workspace ID",
+      "description": "Airbyte Cloud workspace ID.",
+      "required": true
+    },
+    "client_id_env_var": {
+      "type": "string",
+      "label": "Client Id Env Var",
+      "description": "Env var with the Airbyte client_id.",
+      "required": false,
+      "default": "AIRBYTE_CLIENT_ID"
+    },
+    "client_secret_env_var": {
+      "type": "string",
+      "label": "Client Secret Env Var",
+      "description": "Env var with the Airbyte client_secret.",
+      "required": false,
+      "default": "AIRBYTE_CLIENT_SECRET",
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "airbyte",
+    "ingestion"
+  ],
+  "name": "Airbyte Resource"
+}

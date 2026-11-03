@@ -25,15 +25,17 @@
     "api_key_env_var": {
       "type": "string",
       "label": "Api Key Env Var",
-      "description": "Env var containing the Fivetran API key",
-      "required": true
+      "description": "Env var containing the Fivetran API key. Required unless resource_key is set.",
+      "required": false,
+      "x-dagster-required-unless": "resource_key"
     },
     "api_secret_env_var": {
       "type": "string",
       "label": "Api Secret Env Var",
-      "description": "Env var containing the Fivetran API secret",
-      "required": true,
-      "ui:widget": "env_var"
+      "description": "Env var containing the Fivetran API secret. Required unless resource_key is set.",
+      "required": false,
+      "ui:widget": "env_var",
+      "x-dagster-required-unless": "resource_key"
     },
     "job_name": {
       "type": "string",
@@ -63,7 +65,7 @@
     "resource_key": {
       "type": "string",
       "label": "Resource Key",
-      "description": "Optional Dagster resource key.",
+      "description": "Optional resource key registered by a FivetranResourceComponent. When set, polls run via that resource's own get_client().get_connector_details(...) method instead of the inline api_key_env_var/api_secret_env_var above.",
       "required": false,
       "default": null,
       "ui:widget": "resource-picker"

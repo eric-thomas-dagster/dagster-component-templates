@@ -1,0 +1,6 @@
+type: dagster_community_components.AirbyteResourceComponent
+attributes:
+  resource_key: airbyte_resource
+  workspace_id: aaaabbbb-cccc-dddd-eeee-ffffffffffff
+  client_id_env_var: AIRBYTE_CLIENT_ID
+  client_secret_env_var: AIRBYTE_CLIENT_SECRET

@@ -1,0 +1,48 @@
+{
+  "component_type": "dagster_community_components.FivetranResourceComponent",
+  "description": "Register a Fivetran workspace (dagster-fivetran) for use by other components.",
+  "summary": "Share one Fivetran account connection with other components.",
+  "category": "resource",
+  "icon": "si:fivetran",
+  "x-dagster-io": {},
+  "x-dagster-provides": [
+    "fivetran_resource"
+  ],
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Key used to register this resource. Other components reference it via resource_key.",
+      "required": false,
+      "default": "fivetran_resource"
+    },
+    "account_id": {
+      "type": "string",
+      "label": "Account ID",
+      "description": "Fivetran account ID.",
+      "required": true
+    },
+    "api_key_env_var": {
+      "type": "string",
+      "label": "Api Key Env Var",
+      "description": "Env var with the Fivetran API key.",
+      "required": false,
+      "default": "FIVETRAN_API_KEY",
+      "ui:widget": "env_var"
+    },
+    "api_secret_env_var": {
+      "type": "string",
+      "label": "Api Secret Env Var",
+      "description": "Env var with the Fivetran API secret.",
+      "required": false,
+      "default": "FIVETRAN_API_SECRET",
+      "ui:widget": "env_var"
+    }
+  },
+  "tags": [
+    "resource",
+    "fivetran",
+    "ingestion"
+  ],
+  "name": "Fivetran Resource"
+}

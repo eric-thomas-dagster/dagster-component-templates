@@ -19,21 +19,24 @@
     "instance_env_var": {
       "type": "string",
       "label": "Instance Env Var",
-      "description": "Env var with ServiceNow instance name (e.g. mycompany)",
-      "required": true
+      "description": "Env var with ServiceNow instance name (e.g. mycompany). Required unless resource_key is set.",
+      "required": false,
+      "x-dagster-required-unless": "resource_key"
     },
     "username_env_var": {
       "type": "string",
       "label": "Username Env Var",
-      "description": "Env var with ServiceNow username",
-      "required": true
+      "description": "Env var with ServiceNow username. Required unless resource_key is set.",
+      "required": false,
+      "x-dagster-required-unless": "resource_key"
     },
     "password_env_var": {
       "type": "string",
       "label": "Password Env Var",
-      "description": "Env var with ServiceNow password",
-      "required": true,
-      "ui:widget": "env_var"
+      "description": "Env var with ServiceNow password. Required unless resource_key is set.",
+      "required": false,
+      "ui:widget": "env_var",
+      "x-dagster-required-unless": "resource_key"
     },
     "table": {
       "type": "string",
@@ -83,7 +86,7 @@
     "resource_key": {
       "type": "string",
       "label": "Resource Key",
-      "description": "Optional Dagster resource key.",
+      "description": "Optional resource key registered by a ServiceNowResourceComponent. When set, polls run via that resource's own list_records(...) method instead of the inline instance_env_var/username_env_var/password_env_var above -- shares one ServiceNow credential with servicenow_ingestion and servicenow_record_upsert.",
       "required": false,
       "default": null,
       "ui:widget": "resource-picker"

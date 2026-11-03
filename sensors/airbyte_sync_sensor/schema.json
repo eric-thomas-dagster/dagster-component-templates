@@ -72,7 +72,7 @@
     "resource_key": {
       "type": "string",
       "label": "Resource Key",
-      "description": "Optional Dagster resource key.",
+      "description": "Optional resource key registered by an AirbyteResourceComponent (Airbyte Cloud). When set, polls run via that resource's real get_jobs_for_connection(connection_id, created_after=cursor) instead of the inline airbyte_url/username_env_var/password_env_var OSS Config API path above -- and, since that call supports a real incremental filter, can emit one RunRequest per newly-succeeded job instead of only ever checking the single latest one.",
       "required": false,
       "default": null,
       "ui:widget": "resource-picker"

@@ -19,16 +19,15 @@ On each tick, the sensor:
 | Field | Type | Description |
 |---|---|---|
 | `sensor_name` | `str` | Unique sensor name |
-| `account_id` | `int` | dbt Cloud account ID |
 | `job_id` | `int` | dbt Cloud job ID to monitor |
-| `api_token_env_var` | `str` | Env var containing the dbt Cloud API token |
 | `job_name` | `str` | Dagster job to trigger when dbt run completes |
 
 ### Connection
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | — | Optional Dagster resource key. |
+| `api_token_env_var` | `str` | — | Env var containing the dbt Cloud API token. Required unless resource_key is set. |
+| `resource_key` | `str` | — | Optional resource key registered by a DbtCloudResourceComponent. When set, polls run via that resource's own get_runs(...) method instead of the inline account_id/api_token_env_var below. |
 
 ### Sensor configuration
 
@@ -36,6 +35,12 @@ On each tick, the sensor:
 |---|---|---|---|
 | `minimum_interval_seconds` | `int` | `60` | Seconds between polls |
 | `default_status` | `str` | `"running"` | running or stopped |
+
+### Other
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `account_id` | `int` | — | dbt Cloud account ID. Required unless resource_key is set. |
 
 [//]: # (FIELDS:END)
 

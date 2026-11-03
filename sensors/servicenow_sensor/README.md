@@ -19,9 +19,6 @@ On each tick, the sensor:
 | Field | Type | Description |
 |---|---|---|
 | `sensor_name` | `str` | Unique sensor name |
-| `instance_env_var` | `str` | Env var with ServiceNow instance name (e.g. mycompany) |
-| `username_env_var` | `str` | Env var with ServiceNow username |
-| `password_env_var` | `str` | Env var with ServiceNow password |
 | `table` | `str` | ServiceNow table to query (e.g. change_request, incident) |
 | `sysparm_query` | `str` | ServiceNow encoded query string to filter records |
 | `job_name` | `str` | Job to trigger when matching records are found |
@@ -30,7 +27,9 @@ On each tick, the sensor:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `resource_key` | `str` | — | Optional Dagster resource key. |
+| `username_env_var` | `str` | — | Env var with ServiceNow username. Required unless resource_key is set. |
+| `password_env_var` | `str` | — | Env var with ServiceNow password. Required unless resource_key is set. |
+| `resource_key` | `str` | — | Optional resource key registered by a ServiceNowResourceComponent. When set, polls run via that resource's own list_records(...) method instead of the inline instance_env_var/username_env_var/password_env_var below -- sh… _(full docs in schema.json + component README)_ |
 
 ### Sensor configuration
 
@@ -43,6 +42,7 @@ On each tick, the sensor:
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `instance_env_var` | `str` | — | Env var with ServiceNow instance name (e.g. mycompany). Required unless resource_key is set. |
 | `sysparm_fields` | `str` | `"sys_id,number,state,short_description,sys_updated_on"` | Comma-separated fields to return |
 
 [//]: # (FIELDS:END)

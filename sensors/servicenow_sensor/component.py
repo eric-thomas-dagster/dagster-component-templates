@@ -2,12 +2,20 @@
 
 Polls the ServiceNow Table API and triggers a Dagster job when records
 in a specified table reach a target state (e.g., a change ticket is approved).
+
+resource_key, when set, genuinely drives the poll via a registered
+ServiceNowResourceComponent's own list_records(...) method (shared
+credentials + instance across servicenow_ingestion / servicenow_record_upsert
+/ this sensor) -- previously this field was declared and wired into
+required_resource_keys but never actually read, so setting it silently had
+no effect and the sensor always fell back to instance_env_var/username_env_var/
+password_env_var regardless.
 """
 from typing import Optional
 import dagster as dg
 from dagster import RunRequest, SensorEvaluationContext, SensorResult, sensor
 from dagster._core.definitions.sensor_definition import DefaultSensorStatus
-from pydantic import Field
+from pydantic import Field, model_validator
 
 
 class ServiceNowSensorComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -28,9 +36,9 @@ class ServiceNowSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     """
 
     sensor_name: str = Field(description="Unique sensor name")
-    instance_env_var: str = Field(description="Env var with ServiceNow instance name (e.g. mycompany)")
-    username_env_var: str = Field(description="Env var with ServiceNow username")
-    password_env_var: str = Field(description="Env var with ServiceNow password")
+    instance_env_var: Optional[str] = Field(default=None, description="Env var with ServiceNow instance name (e.g. mycompany). Required unless resource_key is set.")
+    username_env_var: Optional[str] = Field(default=None, description="Env var with ServiceNow username. Required unless resource_key is set.")
+    password_env_var: Optional[str] = Field(default=None, description="Env var with ServiceNow password. Required unless resource_key is set.")
     table: str = Field(description="ServiceNow table to query (e.g. change_request, incident)")
     sysparm_query: str = Field(description="ServiceNow encoded query string to filter records")
     job_name: str = Field(description="Job to trigger when matching records are found")
@@ -40,7 +48,24 @@ class ServiceNowSensorComponent(dg.Component, dg.Model, dg.Resolvable):
     )
     minimum_interval_seconds: int = Field(default=120, description="Seconds between polls")
     default_status: str = Field(default="running", description="running or stopped")
-    resource_key: Optional[str] = Field(default=None, description="Optional Dagster resource key.")
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a ServiceNowResourceComponent. When set, "
+            "polls run via that resource's own list_records(...) method instead of the inline "
+            "instance_env_var/username_env_var/password_env_var below -- shares one ServiceNow "
+            "credential with servicenow_ingestion and servicenow_record_upsert."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _check_credentials(self):
+        if not self.resource_key and not (self.instance_env_var and self.username_env_var and self.password_env_var):
+            raise ValueError(
+                "ServiceNowSensorComponent: supply resource_key (a registered "
+                "ServiceNowResourceComponent) OR all of instance_env_var/username_env_var/password_env_var."
+            )
+        return self
 
     @classmethod
     def get_form_config(cls):
@@ -64,39 +89,54 @@ class ServiceNowSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             required_resource_keys=required_resource_keys,
         )
         def snow_sensor(context: SensorEvaluationContext, **_resources):
-            import os
-            try:
-                import requests
-            except ImportError:
-                return SensorResult(skip_reason="requests not installed")
-
-            instance = os.environ.get(_self.instance_env_var, "")
-            username = os.environ.get(_self.username_env_var, "")
-            password = os.environ.get(_self.password_env_var, "")
-
             cursor = context.cursor or ""
             # Append sys_updated_on > cursor to the query if we have a cursor
             query = _self.sysparm_query
             if cursor:
                 query += f"^sys_updated_on>{cursor}"
+            fields = [f.strip() for f in _self.sysparm_fields.split(",") if f.strip()]
 
-            try:
-                resp = requests.get(
-                    f"https://{instance}.service-now.com/api/now/table/{_self.table}",
-                    auth=(username, password),
-                    params={
-                        "sysparm_query": query,
-                        "sysparm_fields": _self.sysparm_fields,
-                        "sysparm_limit": 100,
-                        "sysparm_order_by": "sys_updated_on",
-                    },
-                    headers={"Accept": "application/json"},
-                    timeout=30,
-                )
-                resp.raise_for_status()
-                records = resp.json().get("result", [])
-            except Exception as e:
-                return SensorResult(skip_reason=f"ServiceNow API error: {e}")
+            if resource_key:
+                _res = getattr(context.resources, resource_key, None)
+                if _res is None:
+                    return SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+                try:
+                    records = _res.list_records(
+                        _self.table,
+                        query=query,
+                        fields=fields,
+                        limit=100,
+                    )
+                except Exception as e:
+                    return SensorResult(skip_reason=f"ServiceNow API error (via resource '{resource_key}'): {e}")
+            else:
+                import os
+                try:
+                    import requests
+                except ImportError:
+                    return SensorResult(skip_reason="requests not installed")
+
+                instance = os.environ.get(_self.instance_env_var, "")
+                username = os.environ.get(_self.username_env_var, "")
+                password = os.environ.get(_self.password_env_var, "")
+
+                try:
+                    resp = requests.get(
+                        f"https://{instance}.service-now.com/api/now/table/{_self.table}",
+                        auth=(username, password),
+                        params={
+                            "sysparm_query": query,
+                            "sysparm_fields": _self.sysparm_fields,
+                            "sysparm_limit": 100,
+                            "sysparm_order_by": "sys_updated_on",
+                        },
+                        headers={"Accept": "application/json"},
+                        timeout=30,
+                    )
+                    resp.raise_for_status()
+                    records = resp.json().get("result", [])
+                except Exception as e:
+                    return SensorResult(skip_reason=f"ServiceNow API error: {e}")
 
             if not records:
                 return SensorResult(skip_reason="No matching records found")

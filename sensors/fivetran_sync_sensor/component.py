@@ -2,12 +2,21 @@
 
 Polls the Fivetran REST API and triggers a Dagster job when a specified
 connector's sync completes successfully.
+
+resource_key, when set, genuinely drives the poll via a registered
+FivetranResourceComponent's own (real, dagster-fivetran) FivetranWorkspace
+-- get_client().get_connector_details(connector_id) returns the exact same
+parsed `data` dict shape this sensor already builds by hand from the raw
+REST response. Previously resource_key was declared and wired into
+required_resource_keys but never actually read, so setting it silently had
+no effect and the sensor always fell back to its own inline Basic-auth
+requests call using api_key_env_var/api_secret_env_var regardless.
 """
 from typing import Optional
 import dagster as dg
 from dagster import RunRequest, SensorEvaluationContext, SensorResult, sensor
 from dagster._core.definitions.sensor_definition import DefaultSensorStatus
-from pydantic import Field
+from pydantic import Field, model_validator
 
 
 class FivetranSyncSensorComponent(dg.Component, dg.Model, dg.Resolvable):
@@ -27,12 +36,28 @@ class FivetranSyncSensorComponent(dg.Component, dg.Model, dg.Resolvable):
 
     sensor_name: str = Field(description="Unique sensor name")
     connector_id: str = Field(description="Fivetran connector ID")
-    api_key_env_var: str = Field(description="Env var containing the Fivetran API key")
-    api_secret_env_var: str = Field(description="Env var containing the Fivetran API secret")
+    api_key_env_var: Optional[str] = Field(default=None, description="Env var containing the Fivetran API key. Required unless resource_key is set.")
+    api_secret_env_var: Optional[str] = Field(default=None, description="Env var containing the Fivetran API secret. Required unless resource_key is set.")
     job_name: str = Field(description="Job to trigger when sync completes")
     minimum_interval_seconds: int = Field(default=60, description="Seconds between polls")
     default_status: str = Field(default="running", description="running or stopped")
-    resource_key: Optional[str] = Field(default=None, description="Optional Dagster resource key.")
+    resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional resource key registered by a FivetranResourceComponent. When set, polls "
+            "run via that resource's own get_client().get_connector_details(...) method instead "
+            "of the inline api_key_env_var/api_secret_env_var below."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _check_credentials(self):
+        if not self.resource_key and not (self.api_key_env_var and self.api_secret_env_var):
+            raise ValueError(
+                "FivetranSyncSensorComponent: supply resource_key (a registered "
+                "FivetranResourceComponent) OR both api_key_env_var and api_secret_env_var."
+            )
+        return self
 
     @classmethod
     def get_form_config(cls):
@@ -56,26 +81,35 @@ class FivetranSyncSensorComponent(dg.Component, dg.Model, dg.Resolvable):
             required_resource_keys=required_resource_keys,
         )
         def fivetran_sync_sensor(context: SensorEvaluationContext, **_resources):
-            import os, base64
-            try:
-                import requests
-            except ImportError:
-                return SensorResult(skip_reason="requests not installed")
+            if resource_key:
+                _res = getattr(context.resources, resource_key, None)
+                if _res is None:
+                    return SensorResult(skip_reason=f"resource '{resource_key}' not found on context")
+                try:
+                    data = _res.get_client().get_connector_details(_self.connector_id)
+                except Exception as e:
+                    return SensorResult(skip_reason=f"Fivetran API error (via resource '{resource_key}'): {e}")
+            else:
+                import os, base64
+                try:
+                    import requests
+                except ImportError:
+                    return SensorResult(skip_reason="requests not installed")
 
-            api_key = os.environ.get(_self.api_key_env_var, "")
-            api_secret = os.environ.get(_self.api_secret_env_var, "")
-            credentials = base64.b64encode(f"{api_key}:{api_secret}".encode()).decode()
+                api_key = os.environ.get(_self.api_key_env_var, "")
+                api_secret = os.environ.get(_self.api_secret_env_var, "")
+                credentials = base64.b64encode(f"{api_key}:{api_secret}".encode()).decode()
 
-            try:
-                resp = requests.get(
-                    f"https://api.fivetran.com/v1/connectors/{_self.connector_id}",
-                    headers={"Authorization": f"Basic {credentials}"},
-                    timeout=30,
-                )
-                resp.raise_for_status()
-                data = resp.json()["data"]
-            except Exception as e:
-                return SensorResult(skip_reason=f"Fivetran API error: {e}")
+                try:
+                    resp = requests.get(
+                        f"https://api.fivetran.com/v1/connectors/{_self.connector_id}",
+                        headers={"Authorization": f"Basic {credentials}"},
+                        timeout=30,
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()["data"]
+                except Exception as e:
+                    return SensorResult(skip_reason=f"Fivetran API error: {e}")
 
             status = data.get("status", {})
             sync_state = status.get("sync_state", "")

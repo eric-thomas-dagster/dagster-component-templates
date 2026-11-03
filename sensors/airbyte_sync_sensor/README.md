@@ -28,7 +28,7 @@ On each tick, the sensor:
 |---|---|---|---|
 | `username_env_var` | `str` | — | Env var with Airbyte username (Cloud) |
 | `password_env_var` | `str` | — | Env var with Airbyte password (Cloud) |
-| `resource_key` | `str` | — | Optional Dagster resource key. |
+| `resource_key` | `str` | — | Optional resource key registered by an AirbyteResourceComponent (Airbyte Cloud). When set, polls run via that resource's real get_jobs_for_connection(connection_id, created_after=cursor) instead of the inline airbyte_url… _(full docs in schema.json + component README)_ |
 
 ### Sensor configuration
 

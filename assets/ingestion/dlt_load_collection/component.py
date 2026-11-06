@@ -72,6 +72,21 @@ from pydantic import Field
 _ASSET_LEVEL_RESOURCE_KEYS = {"asset_key", "description", "owners", "tags", "metadata"}
 
 
+def _resolve_write_disposition(r: Dict[str, Any]) -> Optional[str]:
+    """An explicit 'write_disposition' always wins. Otherwise, a 'primary_key' with no
+    explicit write_disposition infers 'merge' -- dlt's own default ('append') would
+    otherwise silently duplicate rows on every re-materialization of the same data,
+    which is surprising when a natural key is already declared. No primary_key and no
+    explicit write_disposition: return None, so the underlying dlt call keeps its own
+    'append' default unchanged."""
+    wd = r.get("write_disposition")
+    if wd:
+        return wd
+    if r.get("primary_key"):
+        return "merge"
+    return None
+
+
 def _validate_resources(source_type: str, resources: List[Dict[str, Any]]) -> None:
     """Validate the `resources` list with clear, actionable errors instead of a
     raw dlt/pydantic traceback deep inside resource construction."""
@@ -108,6 +123,13 @@ def _validate_resources(source_type: str, resources: List[Dict[str, Any]]) -> No
             raise ValueError(
                 f"DltLoadCollectionComponent: resources[{i}] ({name!r}).write_disposition must be "
                 f"one of 'append'/'replace'/'merge', got {write_disposition!r}."
+            )
+        if write_disposition == "merge" and not (r.get("primary_key") or r.get("merge_key")):
+            raise ValueError(
+                f"DltLoadCollectionComponent: resources[{i}] ({name!r}) sets "
+                f"write_disposition='merge' but has no 'primary_key' or 'merge_key' -- dlt's merge "
+                f"strategy has no natural key to dedupe on and silently falls back to appending "
+                f"(verified: 2 loads of the same 2 rows produced 4). Set one of the two."
             )
         asset_key = r.get("asset_key")
         if asset_key is not None and not isinstance(asset_key, (str, list)):
@@ -386,15 +408,24 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
             "e.g. {id: {data_type: bigint}}. "
             "source_type='filesystem': requires 'file_glob' (e.g. 'orders/*.csv'); optional "
             "per-resource 'file_format' overrides the top-level file_format. "
-            "Optional 'write_disposition' ('append' (dlt's own default) / 'replace' / 'merge', "
-            "the last needing 'primary_key') -- without it every materialization APPENDS, so "
-            "re-materializing the same partition duplicates rows; set 'replace' or 'merge' for "
-            "idempotent re-runs. The remaining keys only take effect in asset_shape='multi_asset' "
-            "mode (single-shape has one asset, so there's no per-resource asset identity to set "
-            "them on): 'description', 'owners' (list of str), 'tags' (dict, merged over the "
-            "component-level asset_tags), 'metadata' (dict, static `AssetOut` metadata), and "
-            "'asset_key' (str, or list of str for a multi-segment key) to fully control that "
-            "resource's asset key instead of the default '{asset_name}_{resource_name}'."
+            "Optional 'write_disposition' ('append' / 'replace' / 'merge', the last needing "
+            "'primary_key' or 'merge_key' -- validated, since merge with neither silently falls "
+            "back to appending). If unset: inferred as 'merge' when 'primary_key' is set (a "
+            "declared natural key implies dedup-on-rerun is wanted), else dlt's own 'append' "
+            "default -- which means every materialization appends, so re-materializing the same "
+            "partition duplicates rows unless a key is declared. Optional 'merge_key' (str or "
+            "list of str), an alternative to 'primary_key' for merge's dedup key. "
+            "Any key prefixed with 'x_' (e.g. 'x_min_rows', 'x_contract_columns') is reserved for "
+            "subclass/user custom metadata -- read it via `self.resources` in a subclass, never "
+            "passed to the underlying dlt call (required for rest_api, whose EndpointResource "
+            "validation rejects unknown keys; sql_database/filesystem already ignore unrecognized "
+            "keys harmlessly, but the 'x_' convention is recommended everywhere for consistency). "
+            "The remaining keys only take effect in asset_shape='multi_asset' mode (single-shape "
+            "has one asset, so there's no per-resource asset identity to set them on): "
+            "'description', 'owners' (list of str), 'tags' (dict, merged over the component-level "
+            "asset_tags), 'metadata' (dict, static `AssetOut` metadata), and 'asset_key' (str, or "
+            "list of str for a multi-segment key) to fully control that resource's asset key "
+            "instead of the default '{asset_name}_{resource_name}'."
         )
     )
 
@@ -719,20 +750,26 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
                     backend=self.sql_backend,
                     defer_table_reflect=True,
                 )
-                if r.get("write_disposition"):
-                    kwargs["write_disposition"] = r["write_disposition"]
+                if r.get("merge_key"):
+                    kwargs["merge_key"] = r["merge_key"]
+                _wd = _resolve_write_disposition(r)
+                if _wd:
+                    kwargs["write_disposition"] = _wd
                 built[name] = sql_table(**kwargs)
 
         elif source_type == "rest_api":
             from dlt.sources.rest_api import rest_api_source
             _resources_cfg = [
-                {k: v for k, v in r.items() if k not in _ASSET_LEVEL_RESOURCE_KEYS}
+                {k: v for k, v in r.items() if k not in _ASSET_LEVEL_RESOURCE_KEYS and not k.startswith("x_")}
                 for r in resources_config if r["name"] in wanted
             ]
             for r in _resources_cfg:
                 dest = dest_table_names[r["name"]]
                 if dest != r["name"]:
                     r["table_name"] = dest
+                _wd = _resolve_write_disposition(r)
+                if _wd:
+                    r["write_disposition"] = _wd
             partition_window_params = self.partition_window_params if source_type == "rest_api" else None
             if partition_window_params and run_context is not None:
                 _apply_partition_window(
@@ -769,10 +806,13 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
                 hint_kwargs: Dict[str, Any] = {}
                 if r.get("primary_key"):
                     hint_kwargs["primary_key"] = r["primary_key"]
+                if r.get("merge_key"):
+                    hint_kwargs["merge_key"] = r["merge_key"]
                 if r.get("columns"):
                     hint_kwargs["columns"] = r["columns"]
-                if r.get("write_disposition"):
-                    hint_kwargs["write_disposition"] = r["write_disposition"]
+                _wd = _resolve_write_disposition(r)
+                if _wd:
+                    hint_kwargs["write_disposition"] = _wd
                 if hint_kwargs:
                     res.apply_hints(**hint_kwargs)
                 built[name] = res

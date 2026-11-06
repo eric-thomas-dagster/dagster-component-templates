@@ -18,8 +18,11 @@ attributes:
       primary_key: id
       endpoint:
         path: customers
-      # write_disposition: merge   # default is 'append' -- re-materializing the same
-      #                            # partition duplicates rows without 'replace'/'merge'
+      # write_disposition is inferred as 'merge' here because primary_key is set --
+      # dlt's own default ('append') would duplicate rows on every re-materialization.
+      # write_disposition: append   # explicit override: keep appending despite the key
+      # x_min_rows: 10              # 'x_' prefix: custom metadata for a subclass's own
+      # x_contract_columns: [id]    # checks; never reaches the underlying dlt call
       # --- Only take effect in asset_shape: multi_asset mode ---
       # description: "Customer records"
       # owners: ["team:crm"]

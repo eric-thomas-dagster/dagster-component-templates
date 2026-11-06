@@ -32,16 +32,34 @@ table_name_map:
 
 ## write_disposition (idempotent re-runs)
 
-Every dlt resource defaults to `write_disposition: append` -- re-materializing the same partition **duplicates rows** (2 materializations of 5 source rows produce 10 rows). Set it per resource for idempotent re-runs:
+dlt's own default is `append` -- with no `primary_key` and no explicit `write_disposition`, every materialization appends, so re-materializing the same partition **duplicates rows** (2 materializations of 5 source rows produce 10 rows). **This component infers `merge` automatically whenever a resource declares `primary_key`** (a natural key implies you want dedup-on-rerun); set `write_disposition` explicitly to override that inference:
 
 ```yaml
 resources:
   - name: orders
-    primary_key: order_id
-    write_disposition: merge   # or 'replace'; 'merge' needs primary_key
+    primary_key: order_id   # -> write_disposition is inferred as 'merge'
+  - name: events
+    primary_key: event_id
+    write_disposition: append   # explicit override: keep appending despite the key
+  - name: snapshot_table
+    write_disposition: replace   # no natural key -- full-refresh every run instead
 ```
 
-Works the same way across all three `source_type` values -- passed to `sql_table(write_disposition=...)`, `DltResource.apply_hints(write_disposition=...)` (filesystem), or straight through into the `rest_api_source` resource config (`EndpointResource.write_disposition`).
+`write_disposition: merge` needs a dedup key -- either `primary_key` or `merge_key` (str or list of str); setting `merge` with neither raises a clear error at `build_defs` time instead of silently falling back to appending (verified: 2 loads of the same 2 rows produced 4 with no key set). Works the same way across all three `source_type` values -- passed to `sql_table(write_disposition=..., merge_key=...)`, `DltResource.apply_hints(write_disposition=..., merge_key=...)` (filesystem), or straight through into the `rest_api_source` resource config (`EndpointResource.write_disposition`/`merge_key`).
+
+## Custom per-resource metadata (`x_` prefix)
+
+A `resources:` entry can carry arbitrary extra keys for a subclass's own use (e.g. a blocking rows-landed check or a column-contract check reading `min_rows`/`contract_columns` off the YAML) by prefixing them with `x_`:
+
+```yaml
+resources:
+  - name: orders
+    endpoint: { path: orders }
+    x_min_rows: 10
+    x_contract_columns: [order_id, customer_id, amount]
+```
+
+`x_`-prefixed keys are guaranteed to never reach the underlying dlt call (required for `rest_api`, whose `EndpointResource` validation rejects any key it doesn't recognize; `sql_database`/`filesystem` already ignore unrecognized keys harmlessly, but the convention is recommended everywhere for consistency). A subclass reads them directly off `self.resources` -- this component does nothing with them beyond guaranteeing they're stripped before any dlt call.
 
 ## Per-resource asset metadata and asset_key (multi_asset mode only)
 

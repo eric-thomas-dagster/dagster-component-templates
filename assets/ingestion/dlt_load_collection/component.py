@@ -6,8 +6,9 @@ required, across three of dlt's own built-in generic source engines:
 This is the sibling to `integrations/dlt_pipeline_assets` (which requires a
 hand-written `@dlt.source` function in a separate module this component
 imports by dotted path) for the subset of dlt sources that are themselves
-pure config, not custom code. A `resources:` list of `{name, primary_key,
-columns, ...}` dicts is all that's needed -- the same declarative shape
+pure config, not custom code. A list of `{name, primary_key, columns, ...}`
+dicts (sql_resources / rest_api_resources / filesystem_resources, depending
+on source_type) is all that's needed -- the same declarative shape
 regardless of which of the three engines is backing it.
 
 Note: `assets/ingestion/dlt_rest_api_source` is this component's predecessor
@@ -71,6 +72,30 @@ from pydantic import Field
 # verbatim and would fail dlt's own strict EndpointResource validation.
 _ASSET_LEVEL_RESOURCE_KEYS = {"asset_key", "description", "owners", "tags", "metadata"}
 
+# Shared across sql_resources/rest_api_resources/filesystem_resources -- every resource dict,
+# regardless of which of the three fields it lives in, supports these same keys.
+_SHARED_RESOURCE_KEY_DOCS = (
+    "Optional 'write_disposition' ('append' / 'replace' / 'merge', the last needing "
+    "'primary_key' or 'merge_key' -- validated, since merge with neither silently falls "
+    "back to appending). If unset: inferred as 'merge' when 'primary_key' is set (a "
+    "declared natural key implies dedup-on-rerun is wanted), else dlt's own 'append' "
+    "default -- which means every materialization appends, so re-materializing the same "
+    "partition duplicates rows unless a key is declared. Optional 'merge_key' (str or "
+    "list of str), an alternative to 'primary_key' for merge's dedup key. "
+    "Any key prefixed with 'x_' (e.g. 'x_min_rows', 'x_contract_columns') is reserved for "
+    "subclass/user custom metadata -- read it off the resources field directly in a "
+    "subclass, never passed to the underlying dlt call (required for rest_api, whose "
+    "EndpointResource validation rejects unknown keys; sql_database/filesystem already "
+    "ignore unrecognized keys harmlessly, but the 'x_' convention is recommended "
+    "everywhere for consistency). The remaining keys only take effect in "
+    "asset_shape='multi_asset' mode (single-shape has one asset, so there's no "
+    "per-resource asset identity to set them on): 'description', 'owners' (list of str), "
+    "'tags' (dict, merged over the component-level asset_tags), 'metadata' (dict, static "
+    "`AssetOut` metadata), and 'asset_key' (str, or list of str for a multi-segment key) "
+    "to fully control that resource's asset key instead of the default "
+    "'{asset_name}_{resource_name}'."
+)
+
 
 def _resolve_write_disposition(r: Dict[str, Any]) -> Optional[str]:
     """An explicit 'write_disposition' always wins. Otherwise, a 'primary_key' with no
@@ -87,46 +112,50 @@ def _resolve_write_disposition(r: Dict[str, Any]) -> Optional[str]:
     return None
 
 
+_RESOURCES_FIELD_NAME = {"sql_database": "sql_resources", "rest_api": "rest_api_resources", "filesystem": "filesystem_resources"}
+
+
 def _validate_resources(source_type: str, resources: List[Dict[str, Any]]) -> None:
-    """Validate the `resources` list with clear, actionable errors instead of a
+    """Validate the active resources list with clear, actionable errors instead of a
     raw dlt/pydantic traceback deep inside resource construction."""
+    field = _RESOURCES_FIELD_NAME[source_type]
     if not resources:
-        raise ValueError("DltLoadCollectionComponent: 'resources' must be a non-empty list.")
+        raise ValueError(f"DltLoadCollectionComponent: '{field}' must be a non-empty list.")
     seen = set()
     for i, r in enumerate(resources):
         if not isinstance(r, dict):
             raise ValueError(
-                f"DltLoadCollectionComponent: resources[{i}] must be a mapping (dict), got {type(r).__name__}."
+                f"DltLoadCollectionComponent: {field}[{i}] must be a mapping (dict), got {type(r).__name__}."
             )
         name = r.get("name")
         if not name:
-            raise ValueError(f"DltLoadCollectionComponent: resources[{i}] is missing the required 'name' field.")
+            raise ValueError(f"DltLoadCollectionComponent: {field}[{i}] is missing the required 'name' field.")
         if name in seen:
-            raise ValueError(f"DltLoadCollectionComponent: duplicate resource name {name!r} in 'resources'.")
+            raise ValueError(f"DltLoadCollectionComponent: duplicate resource name {name!r} in '{field}'.")
         seen.add(name)
         if source_type == "rest_api":
             endpoint = r.get("endpoint")
             if not isinstance(endpoint, dict) or not endpoint.get("path"):
                 raise ValueError(
-                    f"DltLoadCollectionComponent: resources[{i}] ({name!r}) needs "
-                    f"'endpoint: {{path: ...}}' when source_type='rest_api', e.g.\n"
+                    f"DltLoadCollectionComponent: {field}[{i}] ({name!r}) needs "
+                    f"'endpoint: {{path: ...}}', e.g.\n"
                     f"  - name: {name}\n    endpoint:\n      path: {name}"
                 )
         elif source_type == "filesystem":
             if not r.get("file_glob"):
                 raise ValueError(
-                    f"DltLoadCollectionComponent: resources[{i}] ({name!r}) needs 'file_glob' "
-                    f"when source_type='filesystem', e.g. 'orders/*.csv'."
+                    f"DltLoadCollectionComponent: {field}[{i}] ({name!r}) needs 'file_glob', "
+                    f"e.g. 'orders/*.csv'."
                 )
         write_disposition = r.get("write_disposition")
         if write_disposition is not None and write_disposition not in ("append", "replace", "merge"):
             raise ValueError(
-                f"DltLoadCollectionComponent: resources[{i}] ({name!r}).write_disposition must be "
+                f"DltLoadCollectionComponent: {field}[{i}] ({name!r}).write_disposition must be "
                 f"one of 'append'/'replace'/'merge', got {write_disposition!r}."
             )
         if write_disposition == "merge" and not (r.get("primary_key") or r.get("merge_key")):
             raise ValueError(
-                f"DltLoadCollectionComponent: resources[{i}] ({name!r}) sets "
+                f"DltLoadCollectionComponent: {field}[{i}] ({name!r}) sets "
                 f"write_disposition='merge' but has no 'primary_key' or 'merge_key' -- dlt's merge "
                 f"strategy has no natural key to dedupe on and silently falls back to appending "
                 f"(verified: 2 loads of the same 2 rows produced 4). Set one of the two."
@@ -134,7 +163,7 @@ def _validate_resources(source_type: str, resources: List[Dict[str, Any]]) -> No
         asset_key = r.get("asset_key")
         if asset_key is not None and not isinstance(asset_key, (str, list)):
             raise ValueError(
-                f"DltLoadCollectionComponent: resources[{i}] ({name!r}).asset_key must be a string "
+                f"DltLoadCollectionComponent: {field}[{i}] ({name!r}).asset_key must be a string "
                 f"or a list of strings, got {type(asset_key).__name__}."
             )
 
@@ -329,6 +358,15 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
     """Declare a collection of dlt resources (tables / REST endpoints / file
     globs) entirely in YAML -- no custom Python module required.
 
+    Each source_type has its OWN resources field (sql_resources / rest_api_resources /
+    filesystem_resources) instead of one shared 'resources' field -- a single field whose
+    item shape silently changed based on a sibling source_type value turned out to be a
+    real collision for schema-driven UI tooling (no way to express "this array's item
+    shape depends on another field's value" in this repo's schema.json dialect, since
+    `x-dagster-visible-when` only gates top-level fields). Three independently-typed,
+    independently-gated fields are unambiguous the same way connection_string/client/
+    filesystem_bucket_url already are.
+
     Example (sql_database):
 
         ```yaml
@@ -338,7 +376,7 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
           source_type: sql_database
           connection_string: "{{ env('WAREHOUSE_CONNECTION_STRING') }}"
           schema_name: public
-          resources:
+          sql_resources:
             - name: customers
               primary_key: id
             - name: orders
@@ -358,7 +396,7 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
             auth:
               type: bearer
               token: "{{ env('MY_API_TOKEN') }}"
-          resources:
+          rest_api_resources:
             - name: customers
               primary_key: id
               endpoint:
@@ -372,8 +410,8 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
         attributes:
           asset_name: landing_zone_files
           source_type: filesystem
-          bucket_url: "s3://my-bucket/landing"
-          resources:
+          filesystem_bucket_url: "s3://my-bucket/landing"
+          filesystem_resources:
             - name: orders
               file_glob: "orders/*.csv"
               primary_key: order_id
@@ -394,39 +432,33 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
         )
     )
 
-    resources: List[Dict[str, Any]] = Field(
+    sql_resources: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
         description=(
-            "One dict per resource (table / endpoint / file-glob). Always requires 'name' "
-            "(also the destination table name, unless overridden via table_name_map). "
-            "Optional 'primary_key' (str or list of str) and 'columns' on every source_type. "
-            "source_type='sql_database': 'columns' (if set) is a list of column names to "
-            "extract (others excluded) -- or a dict, whose keys are used the same way; types "
-            "always come from the real database via reflection. Optional per-resource 'schema' "
-            "overrides the top-level schema_name. "
-            "source_type='rest_api': requires 'endpoint: {path: ...}' (same shape as "
-            "dlt_rest_api_source's `resources`); 'columns' here is a dlt column-schema dict, "
-            "e.g. {id: {data_type: bigint}}. "
-            "source_type='filesystem': requires 'file_glob' (e.g. 'orders/*.csv'); optional "
-            "per-resource 'file_format' overrides the top-level file_format. "
-            "Optional 'write_disposition' ('append' / 'replace' / 'merge', the last needing "
-            "'primary_key' or 'merge_key' -- validated, since merge with neither silently falls "
-            "back to appending). If unset: inferred as 'merge' when 'primary_key' is set (a "
-            "declared natural key implies dedup-on-rerun is wanted), else dlt's own 'append' "
-            "default -- which means every materialization appends, so re-materializing the same "
-            "partition duplicates rows unless a key is declared. Optional 'merge_key' (str or "
-            "list of str), an alternative to 'primary_key' for merge's dedup key. "
-            "Any key prefixed with 'x_' (e.g. 'x_min_rows', 'x_contract_columns') is reserved for "
-            "subclass/user custom metadata -- read it via `self.resources` in a subclass, never "
-            "passed to the underlying dlt call (required for rest_api, whose EndpointResource "
-            "validation rejects unknown keys; sql_database/filesystem already ignore unrecognized "
-            "keys harmlessly, but the 'x_' convention is recommended everywhere for consistency). "
-            "The remaining keys only take effect in asset_shape='multi_asset' mode (single-shape "
-            "has one asset, so there's no per-resource asset identity to set them on): "
-            "'description', 'owners' (list of str), 'tags' (dict, merged over the component-level "
-            "asset_tags), 'metadata' (dict, static `AssetOut` metadata), and 'asset_key' (str, or "
-            "list of str for a multi-segment key) to fully control that resource's asset key "
-            "instead of the default '{asset_name}_{resource_name}'."
-        )
+            "Required when source_type='sql_database' (ignored otherwise). One dict per table, "
+            "each requiring 'name' (also the destination table name, unless overridden via "
+            "table_name_map). Optional 'primary_key' (str or list of str); 'columns' (if set) is "
+            "a list of column names to extract (others excluded) -- or a dict, whose keys are "
+            "used the same way; types always come from the real database via reflection. Optional "
+            "per-resource 'schema' overrides the top-level schema_name. " + _SHARED_RESOURCE_KEY_DOCS
+        ),
+    )
+    rest_api_resources: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Required when source_type='rest_api' (ignored otherwise). One dict per resource, "
+            "each requiring 'name' and 'endpoint: {path: ...}' (same shape as "
+            "dlt_rest_api_source's `resources`). 'columns' here is a dlt column-schema dict, e.g. "
+            "{id: {data_type: bigint}}. " + _SHARED_RESOURCE_KEY_DOCS
+        ),
+    )
+    filesystem_resources: Optional[List[Dict[str, Any]]] = Field(
+        default=None,
+        description=(
+            "Required when source_type='filesystem' (ignored otherwise). One dict per file-glob, "
+            "each requiring 'name' and 'file_glob' (e.g. 'orders/*.csv'); optional per-resource "
+            "'file_format' overrides the top-level file_format. " + _SHARED_RESOURCE_KEY_DOCS
+        ),
     )
 
     asset_shape: Literal["single", "multi_asset"] = Field(
@@ -484,14 +516,17 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
 
     # --- source_type='filesystem' fields -----------------------------------------
 
-    bucket_url: Optional[str] = Field(
+    filesystem_bucket_url: Optional[str] = Field(
         default=None,
         description=(
             "Bucket/path URL to read SOURCE files from (e.g. 's3://my-bucket/landing', "
             "'gs://my-bucket/landing', 'az://my-container/landing', or 'file:///local/path'). "
             "Required when source_type='filesystem'. Credentials resolve from the cloud "
             "provider's standard env vars (e.g. AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY), same "
-            "as the destination-side filesystem convention in ../DESTINATIONS.md."
+            "as the destination-side filesystem convention in ../DESTINATIONS.md. Named "
+            "'filesystem_bucket_url' (not the shared 'bucket_url') since this is the SOURCE "
+            "bucket -- 'bucket_url' below is the DESTINATION bucket, matching every other "
+            "ingestion component in this repo."
         ),
     )
     file_format: Literal["csv", "parquet", "jsonl"] = Field(
@@ -499,8 +534,7 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
         description="Reader applied to each matched file (filesystem only). Per-resource 'file_format' overrides this.",
     )
 
-    # --- Destination fields (see ../DESTINATIONS.md; bucket_url is taken by the -----
-    # --- filesystem SOURCE above, so the destination-side field is renamed here) ----
+    # --- Destination fields (see ../DESTINATIONS.md) --------------------------------
 
     destination: Optional[str] = Field(
         default=None,
@@ -534,14 +568,14 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
         default=None,
         description="Alternative to destination_credentials_url: name of an env var holding the connection string. Resolved at run-time.",
     )
-    destination_bucket_url: Optional[str] = Field(
+    bucket_url: Optional[str] = Field(
         default=None,
         description=(
-            "Bucket/path URL for filesystem-shaped DESTINATION storage (this is the field "
-            "named 'bucket_url' in every other ingestion component in this repo -- renamed "
-            "here because 'bucket_url' is the filesystem SOURCE field above). Required when "
-            "destination='filesystem' is the final target; also used as the staging area when "
-            "destination='databricks' or 'athena'. See ../DESTINATIONS.md."
+            "Bucket/path URL for filesystem-shaped DESTINATION storage -- same field name/meaning "
+            "as every other ingestion component in this repo. Required when destination='filesystem' "
+            "is the final target; also used as the staging area when destination='databricks' or "
+            "'athena'. See ../DESTINATIONS.md. (The filesystem SOURCE bucket, for "
+            "source_type='filesystem', is the separate 'filesystem_bucket_url' field above.)"
         ),
     )
     athena_query_result_bucket: Optional[str] = Field(
@@ -660,13 +694,13 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
         return self.destination
 
     def _resolve_destination_with_bucket(self):
-        if self.destination == "filesystem" and self.destination_bucket_url:
+        if self.destination == "filesystem" and self.bucket_url:
             creds = None
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
                 creds = os.environ.get(self.destination_credentials_env_var)
-            return dlt.destinations.filesystem(bucket_url=self.destination_bucket_url, credentials=creds)
+            return dlt.destinations.filesystem(bucket_url=self.bucket_url, credentials=creds)
         if self.destination == "athena" and self.athena_query_result_bucket:
             creds = None
             if self.destination_credentials_url:
@@ -682,17 +716,26 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
     def _resolve_staging(self):
         if self.destination not in ("databricks", "athena"):
             return None
-        if self.destination_bucket_url:
-            return dlt.destinations.filesystem(bucket_url=self.destination_bucket_url)
+        if self.bucket_url:
+            return dlt.destinations.filesystem(bucket_url=self.bucket_url)
         return "filesystem"
 
+    def _active_resources(self) -> List[Dict[str, Any]]:
+        """The resources list for whichever source_type is configured --
+        sql_resources / rest_api_resources / filesystem_resources."""
+        return {
+            "sql_database": self.sql_resources,
+            "rest_api": self.rest_api_resources,
+            "filesystem": self.filesystem_resources,
+        }[self.source_type] or []
+
     def _dest_table_names(self) -> Dict[str, str]:
-        resource_names = [r["name"] for r in self.resources]
+        resource_names = [r["name"] for r in self._active_resources()]
         overrides = self.table_name_map or {}
         unknown = set(overrides) - set(resource_names)
         if unknown:
             raise ValueError(
-                f"DltLoadCollectionComponent: table_name_map has key(s) not in 'resources': {sorted(unknown)}."
+                f"DltLoadCollectionComponent: table_name_map has key(s) not in the active resources field: {sorted(unknown)}."
             )
         return {name: overrides.get(name, name) for name in resource_names}
 
@@ -732,7 +775,7 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
         config object has no obligation to expose uniformly.
         """
         source_type = self.source_type
-        resources_config = self.resources
+        resources_config = self._active_resources()
         dest_table_names = self._dest_table_names()
         resource_names = list(dest_table_names.keys())
         wanted = set(selected_names) if selected_names is not None else set(resource_names)
@@ -813,7 +856,7 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
                         f"DltLoadCollectionComponent: resources[{name!r}].file_format must be "
                         f"one of csv/parquet/jsonl, got {fmt!r}."
                     )
-                res = (filesystem(bucket_url=self.bucket_url, file_glob=r["file_glob"]) | reader_factory()).with_name(name)
+                res = (filesystem(bucket_url=self.filesystem_bucket_url, file_glob=r["file_glob"]) | reader_factory()).with_name(name)
                 hint_kwargs: Dict[str, Any] = {}
                 if r.get("primary_key"):
                     hint_kwargs["primary_key"] = r["primary_key"]
@@ -843,7 +886,23 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
         component = self
         asset_name = self.asset_name
         source_type = self.source_type
-        resources_config = self.resources
+
+        _active_field = {
+            "sql_database": "sql_resources", "rest_api": "rest_api_resources", "filesystem": "filesystem_resources",
+        }[source_type]
+        _inactive_fields = {
+            "sql_resources": self.sql_resources, "rest_api_resources": self.rest_api_resources,
+            "filesystem_resources": self.filesystem_resources,
+        }
+        if _inactive_fields.pop(_active_field) is None:
+            raise ValueError(f"DltLoadCollectionComponent: '{_active_field}' is required when source_type={source_type!r}.")
+        _misplaced = [name for name, value in _inactive_fields.items() if value]
+        if _misplaced:
+            raise ValueError(
+                f"DltLoadCollectionComponent: {_misplaced} set but source_type={source_type!r} "
+                f"uses '{_active_field}' instead -- they're ignored. Remove them or set source_type accordingly."
+            )
+        resources_config = self._active_resources()
 
         _validate_resources(source_type, resources_config)
         if source_type == "sql_database" and not (self.connection_string or self.connection_string_env_var):
@@ -853,8 +912,8 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
             )
         if source_type == "rest_api" and not self.client:
             raise ValueError("DltLoadCollectionComponent: 'client' is required when source_type='rest_api'.")
-        if source_type == "filesystem" and not self.bucket_url:
-            raise ValueError("DltLoadCollectionComponent: 'bucket_url' is required when source_type='filesystem'.")
+        if source_type == "filesystem" and not self.filesystem_bucket_url:
+            raise ValueError("DltLoadCollectionComponent: 'filesystem_bucket_url' is required when source_type='filesystem'.")
         if self.partition_window_params and source_type != "rest_api":
             import warnings
             warnings.warn(

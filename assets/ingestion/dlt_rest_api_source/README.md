@@ -1,6 +1,6 @@
 # dlt REST API Source (Advanced)
 
-> **Deprecated -- superseded by `dlt_load_collection`.** `dlt_load_collection` (`source_type: rest_api`) covers the exact same `client`/`resources` config shape as this component, plus the `sql_database` and `filesystem` source engines, and now has every feature this component has. New instances should use `dlt_load_collection` instead. This component's code stays in place for any project that already installed it -- it is not being removed.
+> **Deprecated -- superseded by `dlt_load_collection`.** `dlt_load_collection` (`source_type: rest_api`, `rest_api_resources:` field) covers the exact same `client`/`resources` config shape as this component's `client`/`resources`, plus the `sql_database` and `filesystem` source engines, and now has every feature this component has. New instances should use `dlt_load_collection` instead. This component's code stays in place for any project that already installed it -- it is not being removed.
 
 > **Advanced / escape-hatch component.** If a dedicated hand-built component for your vendor already exists in this catalog (search `manifest.json` or the Designer UI), use that one instead -- it has typed fields and committed tests pinned to that vendor's real, verified API shape. Use `dlt_rest_api_source` for the long tail: a vendor with no dedicated component yet, an internal/private API, or a one-off integration not worth hand-building a whole component for.
 

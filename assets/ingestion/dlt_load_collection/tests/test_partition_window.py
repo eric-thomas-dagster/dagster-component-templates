@@ -49,7 +49,7 @@ def test_partition_window_reaches_every_selected_resource(mod, monkeypatch, capt
     component = mod.DltLoadCollectionComponent(
         asset_name="a", source_type="rest_api",
         client={"base_url": "https://x"},
-        resources=[{"name": "orders", "endpoint": {"path": "orders"}}],
+        rest_api_resources=[{"name": "orders", "endpoint": {"path": "orders"}}],
         partition_type="daily", partition_start="2024-01-01", partition_date_column="created_at",
         partition_window_params={"start_param": "updated_since", "end_param": "updated_until"},
     )
@@ -67,7 +67,7 @@ def test_partition_window_ignored_with_a_warning_for_sql_database(mod, monkeypat
     component = mod.DltLoadCollectionComponent(
         asset_name="a", source_type="sql_database",
         connection_string="sqlite:///:memory:",
-        resources=[{"name": "orders"}],
+        sql_resources=[{"name": "orders"}],
         partition_window_params={"start_param": "updated_since", "end_param": "updated_until"},
     )
     with warnings.catch_warnings(record=True) as caught:

@@ -18,7 +18,7 @@ def _sql_component(mod, **overrides):
         asset_name="test_asset",
         source_type="sql_database",
         connection_string="sqlite:///:memory:",
-        resources=[{"name": "customers", "primary_key": "id"}, {"name": "orders", "primary_key": "order_id"}],
+        sql_resources=[{"name": "customers", "primary_key": "id"}, {"name": "orders", "primary_key": "order_id"}],
     )
     kwargs.update(overrides)
     return mod.DltLoadCollectionComponent(**kwargs)
@@ -29,7 +29,7 @@ def _rest_api_component(mod, **overrides):
         asset_name="test_asset",
         source_type="rest_api",
         client={"base_url": "https://api.example.com"},
-        resources=[
+        rest_api_resources=[
             {"name": "customers", "endpoint": {"path": "customers"}},
             {"name": "orders", "endpoint": {"path": "orders"}},
         ],
@@ -42,8 +42,8 @@ def _filesystem_component(mod, **overrides):
     kwargs = dict(
         asset_name="test_asset",
         source_type="filesystem",
-        bucket_url="s3://fake-bucket",
-        resources=[
+        filesystem_bucket_url="s3://fake-bucket",
+        filesystem_resources=[
             {"name": "customers", "file_glob": "customers/*.csv"},
             {"name": "orders", "file_glob": "orders/*.csv"},
         ],

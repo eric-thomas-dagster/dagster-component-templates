@@ -10,10 +10,9 @@ attributes:
       type: bearer
       token: "{{ env('MY_API_TOKEN') }}"
 
-  # One dict per resource -- works the same way across all three source_type
-  # values (sql_database/rest_api/filesystem), just with different required
-  # per-resource keys (see README.md).
-  resources:
+  # Only rest_api_resources is active when source_type=rest_api (sql_resources/
+  # filesystem_resources below are each only active for their own source_type).
+  rest_api_resources:
     - name: customers
       primary_key: id
       endpoint:
@@ -45,7 +44,7 @@ attributes:
   # source_type: sql_database
   # connection_string: "{{ env('WAREHOUSE_CONNECTION_STRING') }}"
   # schema_name: public
-  # resources:
+  # sql_resources:
   #   - name: customers
   #     primary_key: id
   #   - name: orders
@@ -54,8 +53,8 @@ attributes:
 
   # --- Example: source_type=filesystem instead (uncomment and remove the rest_api fields above) ---
   # source_type: filesystem
-  # bucket_url: "s3://my-bucket/landing"
-  # resources:
+  # filesystem_bucket_url: "s3://my-bucket/landing"
+  # filesystem_resources:
   #   - name: orders
   #     file_glob: "orders/*.csv"
   #     primary_key: order_id

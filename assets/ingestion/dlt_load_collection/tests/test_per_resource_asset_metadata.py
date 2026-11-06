@@ -33,7 +33,7 @@ def test_per_resource_description_owners_tags_metadata(mod, monkeypatch):
     install_fake_dlt(monkeypatch, mod, table_rows={"customers": pd.DataFrame({"id": [1]}), "orders": pd.DataFrame({"id": [1]})})
     component = _component(
         mod,
-        resources=[
+        rest_api_resources=[
             {
                 "name": "customers",
                 "endpoint": {"path": "customers"},
@@ -65,7 +65,7 @@ def test_per_resource_asset_key_override(mod, monkeypatch):
     fake_pipeline = install_fake_dlt(monkeypatch, mod, table_rows={"customers": pd.DataFrame({"id": [1, 2]})})
     component = _component(
         mod,
-        resources=[{"name": "customers", "endpoint": {"path": "customers"}, "asset_key": ["crm", "customers"]}],
+        rest_api_resources=[{"name": "customers", "endpoint": {"path": "customers"}, "asset_key": ["crm", "customers"]}],
     )
     asset_def = component.build_defs(context=None).assets[0]
     assert dg.AssetKey(["crm", "customers"]) in set(asset_def.keys)
@@ -80,13 +80,13 @@ def test_per_resource_asset_key_as_plain_string(mod, monkeypatch):
     install_fake_dlt(monkeypatch, mod, table_rows={"customers": pd.DataFrame({"id": [1]})})
     component = _component(
         mod,
-        resources=[{"name": "customers", "endpoint": {"path": "customers"}, "asset_key": "crm_customers"}],
+        rest_api_resources=[{"name": "customers", "endpoint": {"path": "customers"}, "asset_key": "crm_customers"}],
     )
     asset_def = component.build_defs(context=None).assets[0]
     assert dg.AssetKey("crm_customers") in set(asset_def.keys)
 
 
 def test_invalid_asset_key_type_raises_a_clear_error(mod):
-    component = _component(mod, resources=[{"name": "customers", "endpoint": {"path": "customers"}, "asset_key": 123}])
+    component = _component(mod, rest_api_resources=[{"name": "customers", "endpoint": {"path": "customers"}, "asset_key": 123}])
     with pytest.raises(ValueError, match="asset_key must be"):
         component.build_defs(context=None)

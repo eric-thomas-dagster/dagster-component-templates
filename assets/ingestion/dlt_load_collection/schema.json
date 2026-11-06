@@ -30,14 +30,44 @@
       ],
       "ui:widget": "select"
     },
-    "resources": {
+    "sql_resources": {
+      "x-dagster-group": "sql_database",
       "type": "array",
-      "items": {
-        "type": "object"
-      },
-      "label": "Resources",
-      "description": "One dict per resource (table / endpoint / file-glob). Always requires 'name' (also the destination table name, unless overridden via table_name_map). Optional 'primary_key' (str or list of str) and 'columns' on every source_type. source_type='sql_database': 'columns' (if set) is a list of column names to extract (others excluded) -- or a dict, whose keys are used the same way; types always come from the real database via reflection. Optional per-resource 'schema' overrides the top-level schema_name. source_type='rest_api': requires 'endpoint: {path: ...}' (same shape as dlt_rest_api_source's resources); 'columns' here is a dlt column-schema dict, e.g. {id: {data_type: bigint}}. source_type='filesystem': requires 'file_glob' (e.g. 'orders/*.csv'); optional per-resource 'file_format' overrides the top-level file_format. Optional 'write_disposition' ('append' / 'replace' / 'merge', the last needing 'primary_key' or 'merge_key' -- validated, since merge with neither silently falls back to appending). If unset: inferred as 'merge' when 'primary_key' is set (a declared natural key implies dedup-on-rerun is wanted), else dlt's own 'append' default -- which means every materialization appends, so re-materializing the same partition duplicates rows unless a key is declared. Optional 'merge_key' (str or list of str), an alternative to 'primary_key' for merge's dedup key. Any key prefixed with 'x_' (e.g. 'x_min_rows', 'x_contract_columns') is reserved for subclass/user custom metadata -- read it via self.resources in a subclass, never passed to the underlying dlt call (required for rest_api, whose EndpointResource validation rejects unknown keys; sql_database/filesystem already ignore unrecognized keys harmlessly, but the 'x_' convention is recommended everywhere for consistency). The remaining keys only take effect in asset_shape='multi_asset' mode (single-shape has one asset, so there's no per-resource asset identity to set them on): 'description', 'owners' (list of str), 'tags' (dict, merged over the component-level asset_tags), 'metadata' (dict, static AssetOut metadata), and 'asset_key' (str, or list of str for a multi-segment key) to fully control that resource's asset key instead of the default '{asset_name}_{resource_name}'.",
-      "required": true
+      "items": { "type": "object" },
+      "label": "Sql Resources",
+      "description": "Required when source_type='sql_database' (ignored otherwise). One dict per table, each requiring 'name' (also the destination table name, unless overridden via table_name_map). Optional 'primary_key' (str or list of str); 'columns' (if set) is a list of column names to extract (others excluded) -- or a dict, whose keys are used the same way; types always come from the real database via reflection. Optional per-resource 'schema' overrides the top-level schema_name. Optional 'write_disposition' ('append' / 'replace' / 'merge', the last needing 'primary_key' or 'merge_key' -- validated, since merge with neither silently falls back to appending). If unset: inferred as 'merge' when 'primary_key' is set, else dlt's own 'append' default. Optional 'merge_key' (str or list of str), an alternative to 'primary_key'. Any key prefixed with 'x_' is reserved for subclass/user custom metadata, never passed to the underlying dlt call. The remaining keys only take effect in asset_shape='multi_asset' mode: 'description', 'owners' (list of str), 'tags' (dict), 'metadata' (dict), and 'asset_key' (str, or list of str for a multi-segment key).",
+      "required": false,
+      "default": null,
+      "x-dagster-visible-when": {
+        "field": "source_type",
+        "values": ["sql_database"]
+      }
+    },
+    "rest_api_resources": {
+      "x-dagster-group": "rest_api",
+      "type": "array",
+      "items": { "type": "object" },
+      "label": "Rest Api Resources",
+      "description": "Required when source_type='rest_api' (ignored otherwise). One dict per resource, each requiring 'name' and 'endpoint: {path: ...}' (same shape as dlt_rest_api_source's resources). 'columns' here is a dlt column-schema dict, e.g. {id: {data_type: bigint}}. Optional 'write_disposition' ('append' / 'replace' / 'merge', the last needing 'primary_key' or 'merge_key' -- validated). If unset: inferred as 'merge' when 'primary_key' is set, else dlt's own 'append' default. Optional 'merge_key' (str or list of str). Any key prefixed with 'x_' is reserved for subclass/user custom metadata, never passed to rest_api_source() (whose EndpointResource validation rejects unknown keys). The remaining keys only take effect in asset_shape='multi_asset' mode: 'description', 'owners' (list of str), 'tags' (dict), 'metadata' (dict), and 'asset_key' (str, or list of str for a multi-segment key).",
+      "required": false,
+      "default": null,
+      "x-dagster-visible-when": {
+        "field": "source_type",
+        "values": ["rest_api"]
+      }
+    },
+    "filesystem_resources": {
+      "x-dagster-group": "filesystem",
+      "type": "array",
+      "items": { "type": "object" },
+      "label": "Filesystem Resources",
+      "description": "Required when source_type='filesystem' (ignored otherwise). One dict per file-glob, each requiring 'name' and 'file_glob' (e.g. 'orders/*.csv'); optional per-resource 'file_format' overrides the top-level file_format. Optional 'write_disposition' ('append' / 'replace' / 'merge', the last needing 'primary_key' or 'merge_key' -- validated). If unset: inferred as 'merge' when 'primary_key' is set, else dlt's own 'append' default. Optional 'merge_key' (str or list of str). Any key prefixed with 'x_' is reserved for subclass/user custom metadata, never passed to the underlying dlt call. The remaining keys only take effect in asset_shape='multi_asset' mode: 'description', 'owners' (list of str), 'tags' (dict), 'metadata' (dict), and 'asset_key' (str, or list of str for a multi-segment key).",
+      "required": false,
+      "default": null,
+      "x-dagster-visible-when": {
+        "field": "source_type",
+        "values": ["filesystem"]
+      }
     },
     "asset_shape": {
       "type": "string",
@@ -125,11 +155,11 @@
         "values": ["rest_api"]
       }
     },
-    "bucket_url": {
+    "filesystem_bucket_url": {
       "x-dagster-group": "filesystem",
       "type": "string",
-      "label": "Bucket Url (source)",
-      "description": "Bucket/path URL to read SOURCE files from (e.g. 's3://my-bucket/landing', 'gs://my-bucket/landing', 'az://my-container/landing', or 'file:///local/path'). Required when source_type='filesystem'. Credentials resolve from the cloud provider's standard env vars, same as the destination-side filesystem convention in ../DESTINATIONS.md.",
+      "label": "Filesystem Bucket Url",
+      "description": "Bucket/path URL to read SOURCE files from (e.g. 's3://my-bucket/landing', 'gs://my-bucket/landing', 'az://my-container/landing', or 'file:///local/path'). Required when source_type='filesystem'. Credentials resolve from the cloud provider's standard env vars. Named 'filesystem_bucket_url' (not the shared 'bucket_url') since this is the SOURCE bucket -- 'bucket_url' is the DESTINATION bucket, matching every other ingestion component in this repo.",
       "required": false,
       "default": null,
       "x-dagster-visible-when": {
@@ -291,13 +321,13 @@
       "required": false,
       "default": null
     },
-    "destination_bucket_url": {
+    "bucket_url": {
       "x-dagster-group": "destination",
       "type": "string",
-      "label": "Bucket Url (destination)",
+      "label": "Bucket Url",
       "required": false,
       "default": null,
-      "description": "Bucket/path URL for filesystem-shaped DESTINATION storage (this is the field named 'bucket_url' in every other ingestion component in this repo -- renamed here because 'bucket_url' is the filesystem SOURCE field above). Required when destination='filesystem' is the final target; also used as the staging area when destination='databricks' or 'athena'. See ../DESTINATIONS.md.",
+      "description": "Bucket/path URL for filesystem-shaped DESTINATION storage -- same field name/meaning as every other ingestion component in this repo. Required when destination='filesystem' is the final target; also used as the staging area when destination='databricks' or 'athena'. See ../DESTINATIONS.md. (The filesystem SOURCE bucket, for source_type='filesystem', is the separate 'filesystem_bucket_url' field.)",
       "x-dagster-visible-when": {
         "field": "destination",
         "values": [

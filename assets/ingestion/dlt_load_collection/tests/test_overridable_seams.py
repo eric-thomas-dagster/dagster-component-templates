@@ -20,7 +20,7 @@ def mod():
 def test_build_resources_and_build_pipeline_are_real_overridable_methods(mod):
     component = mod.DltLoadCollectionComponent(
         asset_name="a", source_type="rest_api", client={"base_url": "https://x"},
-        resources=[{"name": "orders", "endpoint": {"path": "orders"}}],
+        rest_api_resources=[{"name": "orders", "endpoint": {"path": "orders"}}],
     )
     assert callable(getattr(component, "_build_resources", None))
     assert callable(getattr(component, "_build_pipeline", None))
@@ -37,7 +37,7 @@ def test_subclass_can_override_build_pipeline(mod, monkeypatch):
     component = DemoModeComponent(
         asset_name="a", source_type="rest_api", client={"base_url": "https://x"},
         destination="snowflake", destination_credentials_env_var="UNSET",
-        resources=[{"name": "orders", "endpoint": {"path": "orders"}}],
+        rest_api_resources=[{"name": "orders", "endpoint": {"path": "orders"}}],
     )
     asset_def = component.build_defs(context=None).assets[0]
     result = dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()})
@@ -63,7 +63,7 @@ def test_subclass_can_override_build_resources(mod, monkeypatch):
     })
     component = TrackingComponent(
         asset_name="a", source_type="rest_api", client={"base_url": "https://x"},
-        resources=[
+        rest_api_resources=[
             {"name": "orders", "endpoint": {"path": "orders"}},
             {"name": "customers", "endpoint": {"path": "customers"}},
         ],

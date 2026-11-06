@@ -26,7 +26,7 @@ def _sql_component(mod, **overrides):
         asset_name="test_asset",
         source_type="sql_database",
         connection_string="sqlite:///:memory:",
-        resources=[{"name": "customers", "primary_key": "id"}, {"name": "orders", "primary_key": "order_id"}],
+        sql_resources=[{"name": "customers", "primary_key": "id"}, {"name": "orders", "primary_key": "order_id"}],
     )
     kwargs.update(overrides)
     return mod.DltLoadCollectionComponent(**kwargs)
@@ -37,7 +37,7 @@ def _rest_api_component(mod, **overrides):
         asset_name="test_asset",
         source_type="rest_api",
         client={"base_url": "https://api.example.com", "auth": {"type": "bearer", "token": "x"}},
-        resources=[
+        rest_api_resources=[
             {"name": "customers", "endpoint": {"path": "customers"}},
             {"name": "orders", "endpoint": {"path": "orders"}},
         ],
@@ -50,8 +50,8 @@ def _filesystem_component(mod, **overrides):
     kwargs = dict(
         asset_name="test_asset",
         source_type="filesystem",
-        bucket_url="s3://fake-bucket",
-        resources=[
+        filesystem_bucket_url="s3://fake-bucket",
+        filesystem_resources=[
             {"name": "customers", "file_glob": "customers/*.csv"},
             {"name": "orders", "file_glob": "orders/*.parquet", "file_format": "parquet"},
         ],
@@ -128,7 +128,7 @@ def test_persist_only_emits_materialize_result(mod, monkeypatch):
 
 def test_non_sql_destination_warns_and_emits_materialize_result(mod, monkeypatch):
     install_fake_dlt(monkeypatch, mod)
-    component = _rest_api_component(mod, destination="filesystem", destination_bucket_url="s3://dest-bucket")
+    component = _rest_api_component(mod, destination="filesystem", bucket_url="s3://dest-bucket")
     asset_def = component.build_defs(context=None).assets[0]
     result = dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()})
     assert result.success

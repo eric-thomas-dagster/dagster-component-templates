@@ -25,7 +25,7 @@ def test_sql_database_write_disposition_reaches_the_real_resource(mod, monkeypat
     fake_pipeline = install_fake_dlt(monkeypatch, mod, table_rows={"orders": pd.DataFrame({"id": [1]})})
     component = mod.DltLoadCollectionComponent(
         asset_name="a", source_type="sql_database", connection_string="sqlite:///:memory:",
-        resources=[{"name": "orders", "primary_key": "id", "write_disposition": "merge"}],
+        sql_resources=[{"name": "orders", "primary_key": "id", "write_disposition": "merge"}],
     )
     asset_def = component.build_defs(context=None).assets[0]
     dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()})
@@ -37,7 +37,7 @@ def test_sql_database_defaults_to_append_when_unset(mod, monkeypatch):
     fake_pipeline = install_fake_dlt(monkeypatch, mod, table_rows={"orders": pd.DataFrame({"id": [1]})})
     component = mod.DltLoadCollectionComponent(
         asset_name="a", source_type="sql_database", connection_string="sqlite:///:memory:",
-        resources=[{"name": "orders"}],
+        sql_resources=[{"name": "orders"}],
     )
     asset_def = component.build_defs(context=None).assets[0]
     dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()})
@@ -49,7 +49,7 @@ def test_rest_api_write_disposition_reaches_the_real_resource(mod, monkeypatch):
     fake_pipeline = install_fake_dlt(monkeypatch, mod, table_rows={"orders": pd.DataFrame({"id": [1]})})
     component = mod.DltLoadCollectionComponent(
         asset_name="a", source_type="rest_api", client={"base_url": "https://x"},
-        resources=[{"name": "orders", "primary_key": "id", "write_disposition": "merge", "endpoint": {"path": "orders"}}],
+        rest_api_resources=[{"name": "orders", "primary_key": "id", "write_disposition": "merge", "endpoint": {"path": "orders"}}],
     )
     asset_def = component.build_defs(context=None).assets[0]
     dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()})
@@ -60,8 +60,8 @@ def test_rest_api_write_disposition_reaches_the_real_resource(mod, monkeypatch):
 def test_filesystem_write_disposition_reaches_the_real_resource(mod, monkeypatch):
     fake_pipeline = install_fake_dlt(monkeypatch, mod, table_rows={"orders": pd.DataFrame({"id": [1]})})
     component = mod.DltLoadCollectionComponent(
-        asset_name="a", source_type="filesystem", bucket_url="s3://fake-bucket",
-        resources=[{"name": "orders", "file_glob": "orders/*.csv", "primary_key": "id", "write_disposition": "replace"}],
+        asset_name="a", source_type="filesystem", filesystem_bucket_url="s3://fake-bucket",
+        filesystem_resources=[{"name": "orders", "file_glob": "orders/*.csv", "primary_key": "id", "write_disposition": "replace"}],
     )
     asset_def = component.build_defs(context=None).assets[0]
     dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()})
@@ -72,10 +72,13 @@ def test_filesystem_write_disposition_reaches_the_real_resource(mod, monkeypatch
 def test_invalid_write_disposition_raises_a_clear_error(mod):
     component = mod.DltLoadCollectionComponent(
         asset_name="a", source_type="sql_database", connection_string="sqlite:///:memory:",
-        resources=[{"name": "orders", "write_disposition": "upsert"}],
+        sql_resources=[{"name": "orders", "write_disposition": "upsert"}],
     )
     with pytest.raises(ValueError, match="write_disposition must be"):
         component.build_defs(context=None)
+
+
+_RESOURCES_FIELD = {"sql_database": "sql_resources", "rest_api": "rest_api_resources", "filesystem": "filesystem_resources"}
 
 
 @pytest.mark.parametrize("source_type,resource", [
@@ -87,13 +90,13 @@ def test_primary_key_with_no_explicit_write_disposition_infers_merge(mod, monkey
     """Real gap: 'append' as the silent default means a declared primary_key does nothing
     to prevent duplicate rows on re-materialization unless write_disposition is also set."""
     fake_pipeline = install_fake_dlt(monkeypatch, mod, table_rows={"orders": pd.DataFrame({"id": [1]})})
-    kwargs = dict(asset_name="a", source_type=source_type, resources=[resource])
+    kwargs = {"asset_name": "a", "source_type": source_type, _RESOURCES_FIELD[source_type]: [resource]}
     if source_type == "sql_database":
         kwargs["connection_string"] = "sqlite:///:memory:"
     elif source_type == "rest_api":
         kwargs["client"] = {"base_url": "https://x"}
     elif source_type == "filesystem":
-        kwargs["bucket_url"] = "s3://fake-bucket"
+        kwargs["filesystem_bucket_url"] = "s3://fake-bucket"
     component = mod.DltLoadCollectionComponent(**kwargs)
     asset_def = component.build_defs(context=None).assets[0]
     dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()})
@@ -105,7 +108,7 @@ def test_explicit_write_disposition_wins_over_the_primary_key_inference(mod, mon
     fake_pipeline = install_fake_dlt(monkeypatch, mod, table_rows={"orders": pd.DataFrame({"id": [1]})})
     component = mod.DltLoadCollectionComponent(
         asset_name="a", source_type="sql_database", connection_string="sqlite:///:memory:",
-        resources=[{"name": "orders", "primary_key": "id", "write_disposition": "append"}],
+        sql_resources=[{"name": "orders", "primary_key": "id", "write_disposition": "append"}],
     )
     asset_def = component.build_defs(context=None).assets[0]
     dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()})
@@ -118,7 +121,7 @@ def test_merge_without_primary_key_or_merge_key_raises_a_clear_error(mod):
     (verified: 2 loads of the same 2 rows produced 4) -- validated at build_defs time instead."""
     component = mod.DltLoadCollectionComponent(
         asset_name="a", source_type="sql_database", connection_string="sqlite:///:memory:",
-        resources=[{"name": "orders", "write_disposition": "merge"}],
+        sql_resources=[{"name": "orders", "write_disposition": "merge"}],
     )
     with pytest.raises(ValueError, match="no natural key to dedupe on"):
         component.build_defs(context=None)
@@ -128,7 +131,7 @@ def test_merge_with_only_merge_key_is_accepted_and_wired(mod, monkeypatch):
     fake_pipeline = install_fake_dlt(monkeypatch, mod, table_rows={"orders": pd.DataFrame({"id": [1]})})
     component = mod.DltLoadCollectionComponent(
         asset_name="a", source_type="sql_database", connection_string="sqlite:///:memory:",
-        resources=[{"name": "orders", "write_disposition": "merge", "merge_key": "id"}],
+        sql_resources=[{"name": "orders", "write_disposition": "merge", "merge_key": "id"}],
     )
     asset_def = component.build_defs(context=None).assets[0]
     dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()})

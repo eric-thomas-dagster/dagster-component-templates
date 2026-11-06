@@ -20947,6 +20947,10 @@
           "tabulate>=0.9.0"
         ]
       },
+      "produces": [
+        "asset",
+        "multi_asset"
+      ],
       "keywords": [
         "advanced",
         "escape-hatch",

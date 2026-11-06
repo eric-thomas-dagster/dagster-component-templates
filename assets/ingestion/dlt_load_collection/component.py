@@ -63,6 +63,15 @@ from dagster import (
 from pydantic import Field
 
 
+# Keys this component attaches to a `resources:` entry that are pure Dagster/catalog
+# concepts (asset description/owners/tags/metadata/key) -- never real dlt resource
+# config. Stripped before a resource dict is handed to a real dlt call (sql_table's
+# kwargs and filesystem's apply_hints() already only pull specific known keys, so
+# this only matters for rest_api, which otherwise passes the dict through almost
+# verbatim and would fail dlt's own strict EndpointResource validation.
+_ASSET_LEVEL_RESOURCE_KEYS = {"asset_key", "description", "owners", "tags", "metadata"}
+
+
 def _validate_resources(source_type: str, resources: List[Dict[str, Any]]) -> None:
     """Validate the `resources` list with clear, actionable errors instead of a
     raw dlt/pydantic traceback deep inside resource construction."""
@@ -94,6 +103,18 @@ def _validate_resources(source_type: str, resources: List[Dict[str, Any]]) -> No
                     f"DltLoadCollectionComponent: resources[{i}] ({name!r}) needs 'file_glob' "
                     f"when source_type='filesystem', e.g. 'orders/*.csv'."
                 )
+        write_disposition = r.get("write_disposition")
+        if write_disposition is not None and write_disposition not in ("append", "replace", "merge"):
+            raise ValueError(
+                f"DltLoadCollectionComponent: resources[{i}] ({name!r}).write_disposition must be "
+                f"one of 'append'/'replace'/'merge', got {write_disposition!r}."
+            )
+        asset_key = r.get("asset_key")
+        if asset_key is not None and not isinstance(asset_key, (str, list)):
+            raise ValueError(
+                f"DltLoadCollectionComponent: resources[{i}] ({name!r}).asset_key must be a string "
+                f"or a list of strings, got {type(asset_key).__name__}."
+            )
 
 
 # BEGIN partition row-filter helper (inlined per component; keep copies identical, see tests/test_partition_port_ingestion.py)
@@ -364,7 +385,16 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
             "dlt_rest_api_source's `resources`); 'columns' here is a dlt column-schema dict, "
             "e.g. {id: {data_type: bigint}}. "
             "source_type='filesystem': requires 'file_glob' (e.g. 'orders/*.csv'); optional "
-            "per-resource 'file_format' overrides the top-level file_format."
+            "per-resource 'file_format' overrides the top-level file_format. "
+            "Optional 'write_disposition' ('append' (dlt's own default) / 'replace' / 'merge', "
+            "the last needing 'primary_key') -- without it every materialization APPENDS, so "
+            "re-materializing the same partition duplicates rows; set 'replace' or 'merge' for "
+            "idempotent re-runs. The remaining keys only take effect in asset_shape='multi_asset' "
+            "mode (single-shape has one asset, so there's no per-resource asset identity to set "
+            "them on): 'description', 'owners' (list of str), 'tags' (dict, merged over the "
+            "component-level asset_tags), 'metadata' (dict, static `AssetOut` metadata), and "
+            "'asset_key' (str, or list of str for a multi-segment key) to fully control that "
+            "resource's asset key instead of the default '{asset_name}_{resource_name}'."
         )
     )
 
@@ -614,6 +644,145 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
             return dlt.destinations.filesystem(bucket_url=self.destination_bucket_url)
         return "filesystem"
 
+    def _dest_table_names(self) -> Dict[str, str]:
+        resource_names = [r["name"] for r in self.resources]
+        overrides = self.table_name_map or {}
+        unknown = set(overrides) - set(resource_names)
+        if unknown:
+            raise ValueError(
+                f"DltLoadCollectionComponent: table_name_map has key(s) not in 'resources': {sorted(unknown)}."
+            )
+        return {name: overrides.get(name, name) for name in resource_names}
+
+    def _resolve_source_credentials(self) -> Optional[str]:
+        if self.connection_string:
+            return self.connection_string
+        if self.connection_string_env_var:
+            return os.environ.get(self.connection_string_env_var)
+        return None
+
+    def _build_pipeline(self, pipeline_name: str, dataset_name: str):
+        """Overridable seam: a subclass can swap in a differently-configured
+        pipeline (e.g. a demo-mode in-memory one) without touching build_defs."""
+        return dlt.pipeline(
+            pipeline_name=pipeline_name,
+            destination=self._resolve_destination_with_bucket(),
+            staging=self._resolve_staging(),
+            dataset_name=dataset_name,
+        )
+
+    def _build_resources(self, selected_names: Optional[List[str]] = None, run_context=None):
+        """Build exactly the requested resources -- unselected ones are never
+        constructed, so a 'multi_asset' run selecting one resource never fetches
+        (or in rest_api's case, even requests) the others.
+
+        Overridable seam: a subclass can wrap or replace this entirely (e.g. to
+        add resources this component doesn't natively support) without touching
+        build_defs.
+
+        Returns (run_arg, names): `run_arg` is what gets passed to
+        `pipeline.run(...)` -- a List[DltResource] for sql_database/filesystem
+        (each resource is built independently), or the single DltSource for
+        rest_api (its resources share one client/auth context, so they're
+        built together from one filtered config). `names` is always the plain
+        list of selected resource names, derived from `resources` config --
+        never from introspecting the built dlt object, which a bring-your-own
+        config object has no obligation to expose uniformly.
+        """
+        source_type = self.source_type
+        resources_config = self.resources
+        dest_table_names = self._dest_table_names()
+        resource_names = list(dest_table_names.keys())
+        wanted = set(selected_names) if selected_names is not None else set(resource_names)
+        built: Dict[str, Any] = {}
+
+        if source_type == "sql_database":
+            from dlt.sources.sql_database import sql_table
+            creds = self._resolve_source_credentials()
+            if not creds:
+                raise ValueError(
+                    "DltLoadCollectionComponent: could not resolve a connection string for "
+                    "source_type='sql_database' (checked connection_string and connection_string_env_var)."
+                )
+            for r in resources_config:
+                name = r["name"]
+                if name not in wanted:
+                    continue
+                cols = r.get("columns")
+                included_columns = list(cols.keys()) if isinstance(cols, dict) else cols
+                kwargs = dict(
+                    credentials=creds,
+                    table=name,
+                    schema=r.get("schema") or self.schema_name,
+                    primary_key=r.get("primary_key"),
+                    included_columns=included_columns,
+                    backend=self.sql_backend,
+                    defer_table_reflect=True,
+                )
+                if r.get("write_disposition"):
+                    kwargs["write_disposition"] = r["write_disposition"]
+                built[name] = sql_table(**kwargs)
+
+        elif source_type == "rest_api":
+            from dlt.sources.rest_api import rest_api_source
+            _resources_cfg = [
+                {k: v for k, v in r.items() if k not in _ASSET_LEVEL_RESOURCE_KEYS}
+                for r in resources_config if r["name"] in wanted
+            ]
+            for r in _resources_cfg:
+                dest = dest_table_names[r["name"]]
+                if dest != r["name"]:
+                    r["table_name"] = dest
+            partition_window_params = self.partition_window_params if source_type == "rest_api" else None
+            if partition_window_params and run_context is not None:
+                _apply_partition_window(
+                    {"resources": _resources_cfg}, run_context, partition_window_params, self.partition_window_resources
+                )
+            elif self.partition_date_column and run_context is not None and (run_context.has_partition_key or run_context.has_partition_key_range):
+                run_context.log.warning(
+                    "partition_date_column filters the rows this asset returns, but the extract "
+                    "still fetches the full source on every partition; set partition_window_params "
+                    "to push the window to the API."
+                )
+            _names = [r["name"] for r in _resources_cfg]
+            if not _resources_cfg:
+                return [], []
+            config = {"client": self.client, "resources": _resources_cfg}
+            source = rest_api_source(config)
+            return source, _names
+
+        elif source_type == "filesystem":
+            from dlt.sources.filesystem import filesystem, read_csv, read_jsonl, read_parquet
+            _readers = {"csv": read_csv, "parquet": read_parquet, "jsonl": read_jsonl}
+            for r in resources_config:
+                name = r["name"]
+                if name not in wanted:
+                    continue
+                fmt = r.get("file_format") or self.file_format
+                reader_factory = _readers.get(fmt)
+                if reader_factory is None:
+                    raise ValueError(
+                        f"DltLoadCollectionComponent: resources[{name!r}].file_format must be "
+                        f"one of csv/parquet/jsonl, got {fmt!r}."
+                    )
+                res = (filesystem(bucket_url=self.bucket_url, file_glob=r["file_glob"]) | reader_factory()).with_name(name)
+                hint_kwargs: Dict[str, Any] = {}
+                if r.get("primary_key"):
+                    hint_kwargs["primary_key"] = r["primary_key"]
+                if r.get("columns"):
+                    hint_kwargs["columns"] = r["columns"]
+                if r.get("write_disposition"):
+                    hint_kwargs["write_disposition"] = r["write_disposition"]
+                if hint_kwargs:
+                    res.apply_hints(**hint_kwargs)
+                built[name] = res
+
+        for name, res in built.items():
+            dest = dest_table_names[name]
+            if dest != name:
+                res.apply_hints(table_name=dest)
+        return list(built.values()), list(built.keys())
+
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
@@ -642,14 +811,8 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
                 f"source_type='rest_api' -- ignored for source_type={source_type!r}."
             )
 
-        resource_names = [r["name"] for r in resources_config]
-        _table_name_map = self.table_name_map or {}
-        _unknown_overrides = set(_table_name_map) - set(resource_names)
-        if _unknown_overrides:
-            raise ValueError(
-                f"DltLoadCollectionComponent: table_name_map has key(s) not in 'resources': {sorted(_unknown_overrides)}."
-            )
-        dest_table_names = {name: _table_name_map.get(name, name) for name in resource_names}
+        dest_table_names = self._dest_table_names()
+        resource_names = list(dest_table_names.keys())
 
         description = self.description or f"Ingest data via dlt's generic {source_type} source engine (bring-your-own config)."
         group_name = self.group_name
@@ -716,108 +879,6 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
-        def _resolve_source_credentials():
-            if component.connection_string:
-                return component.connection_string
-            if component.connection_string_env_var:
-                return os.environ.get(component.connection_string_env_var)
-            return None
-
-        def _build_resources(run_context=None, selected_names=None):
-            """Build exactly the requested resources -- unselected ones are never
-            constructed, so a 'multi_asset' run selecting one resource never fetches
-            (or in rest_api's case, even requests) the others.
-
-            Returns (run_arg, names): `run_arg` is what gets passed to
-            `pipeline.run(...)` -- a List[DltResource] for sql_database/filesystem
-            (each resource is built independently), or the single DltSource for
-            rest_api (its resources share one client/auth context, so they're
-            built together from one filtered config). `names` is always the plain
-            list of selected resource names, derived from `resources` config --
-            never from introspecting the built dlt object, which a bring-your-own
-            config object has no obligation to expose uniformly.
-            """
-            wanted = set(selected_names) if selected_names is not None else set(resource_names)
-            built: Dict[str, Any] = {}
-
-            if source_type == "sql_database":
-                from dlt.sources.sql_database import sql_table
-                creds = _resolve_source_credentials()
-                if not creds:
-                    raise ValueError(
-                        "DltLoadCollectionComponent: could not resolve a connection string for "
-                        "source_type='sql_database' (checked connection_string and connection_string_env_var)."
-                    )
-                for r in resources_config:
-                    name = r["name"]
-                    if name not in wanted:
-                        continue
-                    cols = r.get("columns")
-                    included_columns = list(cols.keys()) if isinstance(cols, dict) else cols
-                    built[name] = sql_table(
-                        credentials=creds,
-                        table=name,
-                        schema=r.get("schema") or component.schema_name,
-                        primary_key=r.get("primary_key"),
-                        included_columns=included_columns,
-                        backend=component.sql_backend,
-                        defer_table_reflect=True,
-                    )
-
-            elif source_type == "rest_api":
-                from dlt.sources.rest_api import rest_api_source
-                _resources_cfg = [dict(r) for r in resources_config if r["name"] in wanted]
-                for r in _resources_cfg:
-                    dest = dest_table_names[r["name"]]
-                    if dest != r["name"]:
-                        r["table_name"] = dest
-                if partition_window_params and run_context is not None:
-                    _apply_partition_window(
-                        {"resources": _resources_cfg}, run_context, partition_window_params, partition_window_resources
-                    )
-                elif partition_date_column and run_context is not None and (run_context.has_partition_key or run_context.has_partition_key_range):
-                    run_context.log.warning(
-                        "partition_date_column filters the rows this asset returns, but the extract "
-                        "still fetches the full source on every partition; set partition_window_params "
-                        "to push the window to the API."
-                    )
-                _names = [r["name"] for r in _resources_cfg]
-                if not _resources_cfg:
-                    return [], []
-                config = {"client": component.client, "resources": _resources_cfg}
-                source = rest_api_source(config)
-                return source, _names
-
-            elif source_type == "filesystem":
-                from dlt.sources.filesystem import filesystem, read_csv, read_jsonl, read_parquet
-                _readers = {"csv": read_csv, "parquet": read_parquet, "jsonl": read_jsonl}
-                for r in resources_config:
-                    name = r["name"]
-                    if name not in wanted:
-                        continue
-                    fmt = r.get("file_format") or component.file_format
-                    reader_factory = _readers.get(fmt)
-                    if reader_factory is None:
-                        raise ValueError(
-                            f"DltLoadCollectionComponent: resources[{name!r}].file_format must be "
-                            f"one of csv/parquet/jsonl, got {fmt!r}."
-                        )
-                    res = (filesystem(bucket_url=component.bucket_url, file_glob=r["file_glob"]) | reader_factory()).with_name(name)
-                    hint_kwargs: Dict[str, Any] = {}
-                    if r.get("primary_key"):
-                        hint_kwargs["primary_key"] = r["primary_key"]
-                    if r.get("columns"):
-                        hint_kwargs["columns"] = r["columns"]
-                    if hint_kwargs:
-                        res.apply_hints(**hint_kwargs)
-                    built[name] = res
-
-            for name, res in built.items():
-                dest = dest_table_names[name]
-                if dest != name:
-                    res.apply_hints(table_name=dest)
-            return list(built.values()), list(built.keys())
-
         def _query_back(client, name: str, context) -> pd.DataFrame:
             dest_table = dest_table_names[name]
             try:
@@ -848,13 +909,8 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
                     f"Starting dlt_load_collection ingestion (source_type={source_type}), "
                     f"destination={destination or 'duckdb (in-memory)'}"
                 )
-                run_arg, built_names = _build_resources(run_context=context)
-                pipeline = dlt.pipeline(
-                    pipeline_name=f"{asset_name}_pipeline",
-                    destination=component._resolve_destination_with_bucket(),
-                    staging=component._resolve_staging(),
-                    dataset_name=dataset_name,
-                )
+                run_arg, built_names = component._build_resources(run_context=context)
+                pipeline = component._build_pipeline(f"{asset_name}_pipeline", dataset_name)
                 context.log.info("Extracting data...")
                 load_info = pipeline.run(run_arg)
                 context.log.info(f"Data loaded: {load_info}")
@@ -913,14 +969,28 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
 
         # --- asset_shape == "multi_asset" ---------------------------------------
 
+        resources_by_name = {r["name"]: r for r in resources_config}
+        # The output name is always this stable, single-segment form -- it's internal
+        # Dagster-op plumbing (selected_output_names / Output(output_name=...)), not
+        # user-facing. A resource's 'asset_key' override only changes the ASSET KEY
+        # (the catalog-facing identity), via AssetOut(key=...) below.
         output_names = {name: f"{asset_name}_{name}" for name in resource_names}
+
+        def _resource_asset_key(name):
+            override = resources_by_name[name].get("asset_key")
+            if override:
+                return AssetKey(override) if isinstance(override, list) else AssetKey.from_user_string(override)
+            return AssetKey.from_user_string(output_names[name])
+
+        asset_keys = {name: _resource_asset_key(name) for name in resource_names}
         outs = {
             output_names[name]: AssetOut(
-                key=AssetKey.from_user_string(output_names[name]),
+                key=asset_keys[name],
                 is_required=False,
-                description=description,
-                owners=owners,
-                tags=_all_tags,
+                description=resources_by_name[name].get("description") or description,
+                owners=resources_by_name[name].get("owners") or owners,
+                tags={**_all_tags, **(resources_by_name[name].get("tags") or {})},
+                metadata=resources_by_name[name].get("metadata"),
                 freshness_policy=_freshness_policy,
             )
             for name in resource_names
@@ -947,13 +1017,8 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
                 f"Starting dlt_load_collection ingestion (source_type={source_type}, "
                 f"resources={selected_resource_names}), destination={destination or 'duckdb (in-memory)'}"
             )
-            run_arg, _ = _build_resources(run_context=context, selected_names=selected_resource_names)
-            pipeline = dlt.pipeline(
-                pipeline_name=f"{asset_name}_pipeline",
-                destination=component._resolve_destination_with_bucket(),
-                staging=component._resolve_staging(),
-                dataset_name=dataset_name,
-            )
+            run_arg, _ = component._build_resources(run_context=context, selected_names=selected_resource_names)
+            pipeline = component._build_pipeline(f"{asset_name}_pipeline", dataset_name)
             load_info = pipeline.run(run_arg)
             context.log.info(f"Data loaded: {load_info}")
 
@@ -968,7 +1033,7 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
             if not with_sql:
                 for name in selected_resource_names:
                     yield MaterializeResult(
-                        asset_key=AssetKey.from_user_string(output_names[name]),
+                        asset_key=asset_keys[name],
                         metadata={
                             "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
                             "dataset_name": MetadataValue.text(dataset_name),

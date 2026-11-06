@@ -18,6 +18,13 @@ attributes:
       primary_key: id
       endpoint:
         path: customers
+      # write_disposition: merge   # default is 'append' -- re-materializing the same
+      #                            # partition duplicates rows without 'replace'/'merge'
+      # --- Only take effect in asset_shape: multi_asset mode ---
+      # description: "Customer records"
+      # owners: ["team:crm"]
+      # tags: { pii: "true" }
+      # asset_key: ["crm", "customers"]   # instead of the default my_rest_api_tables_customers
     - name: orders
       primary_key: order_id
       endpoint:

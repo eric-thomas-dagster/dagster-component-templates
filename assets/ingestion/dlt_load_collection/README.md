@@ -30,6 +30,39 @@ table_name_map:
   customers: raw_customers   # other resources keep their declared name as the destination table
 ```
 
+## write_disposition (idempotent re-runs)
+
+Every dlt resource defaults to `write_disposition: append` -- re-materializing the same partition **duplicates rows** (2 materializations of 5 source rows produce 10 rows). Set it per resource for idempotent re-runs:
+
+```yaml
+resources:
+  - name: orders
+    primary_key: order_id
+    write_disposition: merge   # or 'replace'; 'merge' needs primary_key
+```
+
+Works the same way across all three `source_type` values -- passed to `sql_table(write_disposition=...)`, `DltResource.apply_hints(write_disposition=...)` (filesystem), or straight through into the `rest_api_source` resource config (`EndpointResource.write_disposition`).
+
+## Per-resource asset metadata and asset_key (multi_asset mode only)
+
+In `asset_shape: multi_asset`, each `resources:` entry can set its own `description`, `owners`, `tags` (merged over the component-level `asset_tags`), `metadata` (static `AssetOut` metadata), and `asset_key` (str, or a list of str for a multi-segment key) -- overriding the default single-segment `{asset_name}_{resource_name}` key:
+
+```yaml
+resources:
+  - name: customers
+    endpoint: { path: customers }
+    description: "Customer records"
+    owners: ["team:crm"]
+    tags: { pii: "true" }
+    asset_key: ["crm", "customers"]   # instead of the default my_api_tables_customers
+```
+
+These keys have no effect in `asset_shape: single` -- there's only one asset, so there's no per-resource asset identity to set them on.
+
+## Overridable seams (subclassing)
+
+`_build_resources(self, selected_names=None, run_context=None)` and `_build_pipeline(self, pipeline_name, dataset_name)` are real methods, not closures trapped inside `build_defs` -- a subclass can override either (e.g. to force a demo-mode pipeline regardless of the configured `destination`, or to add a resource kind this component doesn't natively support) without reimplementing the rest of the component. `_resolve_destination`/`_resolve_destination_with_bucket`/`_resolve_staging`/`_dest_table_names` are the other reachable seams.
+
 ## Secrets
 
 - `sql_database`: `connection_string` (or `connection_string_env_var` for an env-var-name indirection) takes any SQLAlchemy connection string. Use `"{{ env('VAR_NAME') }}"` for the inline form.

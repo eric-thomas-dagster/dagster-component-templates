@@ -1,6 +1,11 @@
 """DltRestApiSourceComponent -- Bring-your-own REST API source config, using
 dlt's generic REST API source engine directly (dlt.sources.rest_api.rest_api_source).
 
+DEPRECATED: superseded by DltLoadCollectionComponent (source_type='rest_api'),
+which covers this exact client/resources shape plus sql_database/filesystem
+sources. This component's code stays in place for existing installs; new
+instances should use DltLoadCollectionComponent instead.
+
 This is the escape hatch for the long tail of vendors this catalog will
 never hand-build a dedicated component for. Every hand-built `*_ingestion`
 component in this repo (chargify_ingestion, reclaim_ingestion,
@@ -116,6 +121,54 @@ def _validate_rest_api_config(client: Dict[str, Any], resources: List[Dict[str, 
                 f"dlt_rest_api_source: resources[{i}] ({name!r})'s 'endpoint' is "
                 f"missing the required 'path' field, e.g. endpoint: {{path: 'customers'}}"
             )
+        write_disposition = resource.get("write_disposition")
+        if write_disposition is not None and write_disposition not in ("append", "replace", "merge"):
+            raise ValueError(
+                f"dlt_rest_api_source: resources[{i}] ({name!r}).write_disposition must be "
+                f"one of 'append'/'replace'/'merge', got {write_disposition!r}."
+            )
+        if write_disposition == "merge" and not (resource.get("primary_key") or resource.get("merge_key")):
+            raise ValueError(
+                f"dlt_rest_api_source: resources[{i}] ({name!r}) sets write_disposition='merge' "
+                f"but has no 'primary_key' or 'merge_key' -- dlt's merge strategy has no natural "
+                f"key to dedupe on and silently falls back to appending. Set one of the two."
+            )
+        asset_key = resource.get("asset_key")
+        if asset_key is not None and not isinstance(asset_key, (str, list)):
+            raise ValueError(
+                f"dlt_rest_api_source: resources[{i}] ({name!r}).asset_key must be a string "
+                f"or a list of strings, got {type(asset_key).__name__}."
+            )
+
+
+# Keys this component attaches to a `resources:` entry that are pure Dagster/catalog concepts
+# (asset description/owners/tags/metadata/key) -- never real dlt EndpointResource config.
+# Stripped (along with any 'x_'-prefixed custom key) before a resource dict is handed to
+# rest_api_source(), which rejects any key it doesn't recognize.
+_ASSET_LEVEL_RESOURCE_KEYS = {"asset_key", "description", "owners", "tags", "metadata"}
+
+
+def _resolve_write_disposition(r: Dict[str, Any]) -> Optional[str]:
+    """An explicit 'write_disposition' always wins. Otherwise, a 'primary_key' with no
+    explicit write_disposition infers 'merge' -- dlt's own default ('append') would
+    otherwise silently duplicate rows on every re-materialization of the same data,
+    which is surprising when a natural key is already declared. No primary_key and no
+    explicit write_disposition: return None, so rest_api_source keeps its own 'append'
+    default unchanged."""
+    wd = r.get("write_disposition")
+    if wd:
+        return wd
+    if r.get("primary_key"):
+        return "merge"
+    return None
+
+
+def _table_schema_metadata(df: pd.DataFrame) -> Dict[str, Any]:
+    if df is None or len(df.columns) == 0:
+        return {}
+    import dagster as dg
+    columns = [dg.TableColumn(name=str(c), type=str(df[c].dtype)) for c in df.columns]
+    return {"dagster/column_schema": MetadataValue.table_schema(dg.TableSchema(columns=columns))}
 
 
 # BEGIN partition row-filter helper (inlined per component; keep copies identical, see tests/test_partition_port_ingestion.py)
@@ -374,7 +427,22 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
             "`{survey_id: {type: resolve, resource: surveys, field: id}}` "
             "to issue one request per row of a parent 'surveys' resource "
             "(see hotjar_ingestion in this repo for a full worked example "
-            "of this exact shape). Must be non-empty."
+            "of this exact shape). Must be non-empty. "
+            "Optional 'primary_key' (str or list of str), 'columns' (dlt column-schema dict, "
+            "e.g. {id: {data_type: bigint}}), 'write_disposition' ('append' / 'replace' / 'merge', "
+            "the last needing 'primary_key' or 'merge_key' -- validated, since merge with neither "
+            "silently falls back to appending), and 'merge_key' (alternative to 'primary_key' for "
+            "merge's dedup key). If write_disposition is unset: inferred as 'merge' when "
+            "'primary_key' is set, else dlt's own 'append' default. "
+            "Any key prefixed with 'x_' (e.g. 'x_min_rows', 'x_contract_columns') is reserved for "
+            "subclass/user custom metadata -- read it via `self.resources` in a subclass, never "
+            "passed to rest_api_source() (whose EndpointResource validation rejects unknown keys). "
+            "The remaining keys only take effect in asset_shape='multi_asset' mode (single-shape "
+            "has one asset, so there's no per-resource asset identity to set them on): "
+            "'description', 'owners' (list of str), 'tags' (dict, merged over the component-level "
+            "asset_tags), 'metadata' (dict, static `AssetOut` metadata), and 'asset_key' (str, or "
+            "list of str for a multi-segment key) to fully control that resource's asset key "
+            "instead of the default '{asset_name}_{resource_name}'."
         )
     )
 
@@ -661,6 +729,73 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
             return dlt.destinations.filesystem(bucket_url=self.bucket_url)
         return "filesystem"
 
+    def _dest_table_names(self) -> Dict[str, str]:
+        resource_names = [r["name"] for r in self.resources]
+        overrides = self.table_name_map or {}
+        unknown = set(overrides) - set(resource_names)
+        if unknown:
+            raise ValueError(
+                f"DltRestApiSourceComponent: table_name_map has key(s) not in 'resources': {sorted(unknown)}."
+            )
+        return {name: overrides.get(name, name) for name in resource_names}
+
+    def _build_pipeline(self, pipeline_name: str, dataset_name: str):
+        """Overridable seam: a subclass can swap in a differently-configured
+        pipeline (e.g. a demo-mode in-memory one) without touching build_defs."""
+        return dlt.pipeline(
+            pipeline_name=pipeline_name,
+            destination=self._resolve_destination_with_bucket(),
+            staging=self._resolve_staging(),
+            dataset_name=dataset_name,
+        )
+
+    def _build_resources(self, selected_names: Optional[List[str]] = None, run_context=None):
+        """Build the rest_api_source for exactly the requested resources -- unselected
+        ones are never even included in the config, so a 'multi_asset' run selecting
+        one resource never requests the others.
+
+        Overridable seam: a subclass can wrap or replace this entirely without
+        touching build_defs.
+
+        Returns (source, names): `source` is the single DltSource handed to
+        `pipeline.run(...)` (every resource shares one client/auth context, so
+        they're built together from one filtered config); `names` is the plain
+        list of selected resource names.
+        """
+        dest_table_names = self._dest_table_names()
+        resource_names = list(dest_table_names.keys())
+        wanted = set(selected_names) if selected_names is not None else set(resource_names)
+
+        _resources_cfg = [
+            {k: v for k, v in r.items() if k not in _ASSET_LEVEL_RESOURCE_KEYS and not k.startswith("x_")}
+            for r in self.resources if r["name"] in wanted
+        ]
+        for r in _resources_cfg:
+            dest = dest_table_names[r["name"]]
+            if dest != r["name"]:
+                r["table_name"] = dest
+            _wd = _resolve_write_disposition(r)
+            if _wd:
+                r["write_disposition"] = _wd
+
+        if self.partition_window_params and run_context is not None:
+            _apply_partition_window(
+                {"resources": _resources_cfg}, run_context, self.partition_window_params, self.partition_window_resources
+            )
+        elif self.partition_date_column and run_context is not None and (run_context.has_partition_key or run_context.has_partition_key_range):
+            run_context.log.warning(
+                "partition_date_column filters the rows this asset returns, but the extract "
+                "still fetches the full source on every partition; set partition_window_params "
+                "to push the window to the API."
+            )
+
+        names = [r["name"] for r in _resources_cfg]
+        if not _resources_cfg:
+            return None, []
+        from dlt.sources.rest_api import rest_api_source
+        config = {"client": self.client, "resources": _resources_cfg}
+        return rest_api_source(config), names
+
     @classmethod
     def get_form_config(cls):
         from dagster.components.resolved.form_config import ComponentFormConfig
@@ -684,14 +819,8 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
         # this ever reaches dlt's own (much less friendly) validation.
         _validate_rest_api_config(client_config, resources_config)
 
-        resource_names = [r["name"] for r in resources_config]
-        _table_name_map = self.table_name_map or {}
-        _unknown_overrides = set(_table_name_map) - set(resource_names)
-        if _unknown_overrides:
-            raise ValueError(
-                f"DltRestApiSourceComponent: table_name_map has key(s) not in 'resources': {sorted(_unknown_overrides)}."
-            )
-        dest_table_names = {name: _table_name_map.get(name, name) for name in resource_names}
+        dest_table_names = self._dest_table_names()
+        resource_names = list(dest_table_names.keys())
 
         _kind_map = {
             "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
@@ -750,17 +879,6 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
-        def _resources_with_table_name_overrides():
-            """resources_config with 'table_name' injected for any overridden entries -- a plain
-            dict key EndpointResource already supports, so no apply_hints()/source introspection
-            is needed (see DltLoadCollectionComponent for why introspecting `source.resources`
-            after construction is a trap with dlt's own test fakes)."""
-            out = []
-            for r in resources_config:
-                dest = dest_table_names[r["name"]]
-                out.append({**r, "table_name": dest} if dest != r["name"] else r)
-            return out
-
         if self.asset_shape == "single":
 
             @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
@@ -775,28 +893,11 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
             def dlt_rest_api_source_asset(context: AssetExecutionContext):
                 if _column_lineage_md:
                     context.add_output_metadata(_column_lineage_md)
-                from dlt.sources.rest_api import rest_api_source
 
                 context.log.info(f"Starting dlt_rest_api_source ingestion, destination={destination or 'duckdb (in-memory)'}")
 
-                config = {
-                    "client": client_config,
-                    "resources": _resources_with_table_name_overrides(),
-                }
-
-                pipeline = dlt.pipeline(
-                    pipeline_name=f"{asset_name}_pipeline",
-                    destination=component._resolve_destination_with_bucket(),
-                    staging=component._resolve_staging(),
-                    dataset_name=dataset_name,
-                )
-
-                context.log.info("Creating REST API source from user-supplied config...")
-                if partition_window_params:
-                    _apply_partition_window(config, context, partition_window_params, partition_window_resources)
-                elif partition_date_column and (context.has_partition_key or context.has_partition_key_range):
-                    context.log.warning("partition_date_column filters the rows this asset returns, but the extract still fetches the full source on every partition; set partition_window_params to push the window to the API.")
-                source = rest_api_source(config)
+                source, _ = component._build_resources(run_context=context)
+                pipeline = component._build_pipeline(f"{asset_name}_pipeline", dataset_name)
 
                 context.log.info("Extracting data...")
                 load_info = pipeline.run(source)
@@ -850,6 +951,7 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
                 combined_df = _filter_df_to_partition(combined_df, context, partition_date_column, partition_static_column)
                 metadata = {
                     **base_metadata,
+                    **_table_schema_metadata(combined_df),
                     "row_count": MetadataValue.int(len(combined_df)),
                     "column_count": MetadataValue.int(len(combined_df.columns)),
                     "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
@@ -868,14 +970,28 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
 
         # --- asset_shape == "multi_asset" ---------------------------------------
 
+        resources_by_name = {r["name"]: r for r in resources_config}
+        # The output name is always this stable, single-segment form -- it's internal
+        # Dagster-op plumbing (selected_output_names / Output(output_name=...)), not
+        # user-facing. A resource's 'asset_key' override only changes the ASSET KEY
+        # (the catalog-facing identity), via AssetOut(key=...) below.
         output_names = {name: f"{asset_name}_{name}" for name in resource_names}
+
+        def _resource_asset_key(name):
+            override = resources_by_name[name].get("asset_key")
+            if override:
+                return AssetKey(override) if isinstance(override, list) else AssetKey.from_user_string(override)
+            return AssetKey.from_user_string(output_names[name])
+
+        asset_keys = {name: _resource_asset_key(name) for name in resource_names}
         outs = {
             output_names[name]: AssetOut(
-                key=AssetKey.from_user_string(output_names[name]),
+                key=asset_keys[name],
                 is_required=False,
-                description=description,
-                owners=owners,
-                tags=_all_tags,
+                description=resources_by_name[name].get("description") or description,
+                owners=resources_by_name[name].get("owners") or owners,
+                tags={**_all_tags, **(resources_by_name[name].get("tags") or {})},
+                metadata=resources_by_name[name].get("metadata"),
                 freshness_policy=_freshness_policy,
             )
             for name in resource_names
@@ -892,8 +1008,6 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
         def dlt_rest_api_source_assets(context: AssetExecutionContext):
-            from dlt.sources.rest_api import rest_api_source
-
             try:
                 selected = set(context.op_execution_context.selected_output_names)
             except Exception:
@@ -905,20 +1019,8 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
                 f"destination={destination or 'duckdb (in-memory)'}"
             )
 
-            _resources_cfg = [r for r in _resources_with_table_name_overrides() if r["name"] in selected_resource_names]
-            config = {"client": client_config, "resources": _resources_cfg}
-            if partition_window_params:
-                _apply_partition_window(config, context, partition_window_params, partition_window_resources)
-            elif partition_date_column and (context.has_partition_key or context.has_partition_key_range):
-                context.log.warning("partition_date_column filters the rows this asset returns, but the extract still fetches the full source on every partition; set partition_window_params to push the window to the API.")
-
-            pipeline = dlt.pipeline(
-                pipeline_name=f"{asset_name}_pipeline",
-                destination=component._resolve_destination_with_bucket(),
-                staging=component._resolve_staging(),
-                dataset_name=dataset_name,
-            )
-            source = rest_api_source(config) if _resources_cfg else []
+            source, _ = component._build_resources(selected_names=selected_resource_names, run_context=context)
+            pipeline = component._build_pipeline(f"{asset_name}_pipeline", dataset_name)
             load_info = pipeline.run(source)
             context.log.info(f"Data loaded: {load_info}")
 
@@ -934,7 +1036,7 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
             if not with_sql:
                 for name in selected_resource_names:
                     yield MaterializeResult(
-                        asset_key=AssetKey.from_user_string(output_names[name]),
+                        asset_key=asset_keys[name],
                         metadata={
                             "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
                             "dataset_name": MetadataValue.text(dataset_name),
@@ -959,6 +1061,7 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
                         "table_name": MetadataValue.text(table_name),
                         "row_count": MetadataValue.int(len(df)),
                         "column_count": MetadataValue.int(len(df.columns)),
+                        **_table_schema_metadata(df),
                     }
                     if include_preview and len(df) > 0:
                         try:

@@ -568,6 +568,12 @@
         "linear"
       ],
       "ui:widget": "select"
+    },
+    "column_lineage": {
+      "type": "object",
+      "label": "Column Lineage",
+      "description": "Column-level lineage, emitted as `dagster/column_lineage` metadata: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is the only entry of `deps`; with several upstream assets, name each column '<asset_key>:<column>'. Only applies in asset_shape='single' -- in 'multi_asset' mode there are several output assets and no single obvious upstream-to-output column mapping, so it's ignored there.",
+      "required": false
     }
   },
   "tags": [

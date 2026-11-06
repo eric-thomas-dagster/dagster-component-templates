@@ -1,6 +1,6 @@
 {
   "component_type": "dagster_community_components.DltRestApiSourceComponent",
-  "description": "Bring-your-own REST API source config -- the generic escape hatch for any REST API, using dlt's rest_api_source engine directly. Advanced option: prefer a dedicated hand-built component for your vendor if one exists in this catalog.",
+  "description": "Bring-your-own REST API source config -- the generic escape hatch for any REST API, using dlt's rest_api_source engine directly. Advanced option: prefer a dedicated hand-built component for your vendor if one exists in this catalog. Superseded by dlt_load_collection (source_type: rest_api), which covers the same client/resources shape plus sql_database/filesystem sources; kept for existing installs.",
   "summary": "Connect to any REST API with a configurable, bring-your-own source definition.",
   "category": "ingestion",
   "vertical": "internal",
@@ -30,7 +30,7 @@
         "type": "object"
       },
       "label": "Resources",
-      "description": "dlt rest_api_source `resources` list -- one dict per resource, each requiring `name` and `endpoint` (`endpoint.path` is required; optional `endpoint.data_selector`, `endpoint.params`, `endpoint.paginator`). Supports dlt's dependent-resource `resolve` shape for parent/child chaining, e.g. a child resource's endpoint.params can be {survey_id: {type: resolve, resource: surveys, field: id}} to issue one request per row of a parent 'surveys' resource. Must be non-empty.",
+      "description": "dlt rest_api_source `resources` list -- one dict per resource, each requiring `name` and `endpoint` (`endpoint.path` is required; optional `endpoint.data_selector`, `endpoint.params`, `endpoint.paginator`). Supports dlt's dependent-resource `resolve` shape for parent/child chaining, e.g. a child resource's endpoint.params can be {survey_id: {type: resolve, resource: surveys, field: id}} to issue one request per row of a parent 'surveys' resource. Must be non-empty. Optional 'primary_key' (str or list of str), 'columns' (dlt column-schema dict), 'write_disposition' ('append' / 'replace' / 'merge', the last needing 'primary_key' or 'merge_key' -- validated), and 'merge_key' (alternative to 'primary_key' for merge's dedup key). If write_disposition is unset: inferred as 'merge' when 'primary_key' is set, else dlt's own 'append' default. Any key prefixed with 'x_' is reserved for subclass/user custom metadata, never passed to rest_api_source(). The remaining keys only take effect in asset_shape='multi_asset' mode: 'description', 'owners', 'tags', 'metadata', and 'asset_key' (str, or list of str for a multi-segment key).",
       "required": true
     },
     "destination": {

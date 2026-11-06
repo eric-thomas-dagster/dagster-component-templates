@@ -14,7 +14,7 @@ This is the sibling to `integrations/dlt_pipeline_assets` (which requires a hand
 
 ## Relationship to `dlt_rest_api_source`
 
-`assets/ingestion/dlt_rest_api_source` is also available -- a REST-API-only, single-asset-only bring-your-own `client`/`resources` config component. This component's `source_type: rest_api` mode accepts the same `client`/`resources` shape, but additionally supports `asset_shape: multi_asset` and `table_name_map`, and the same declarative shape also covers `sql_database` and `filesystem` sources. The two components currently coexist in this catalog.
+`assets/ingestion/dlt_rest_api_source` is the predecessor to this component's `source_type: rest_api` mode, and is now **deprecated in favor of it** -- the same `client`/`resources` config shape works unchanged, with `sql_database`/`filesystem` sources and every feature added since also available. `dlt_rest_api_source`'s code stays in place for existing installs; new instances should use `source_type: rest_api` here instead.
 
 ## asset_shape
 
@@ -60,6 +60,16 @@ resources:
 ```
 
 `x_`-prefixed keys are guaranteed to never reach the underlying dlt call (required for `rest_api`, whose `EndpointResource` validation rejects any key it doesn't recognize; `sql_database`/`filesystem` already ignore unrecognized keys harmlessly, but the convention is recommended everywhere for consistency). A subclass reads them directly off `self.resources` -- this component does nothing with them beyond guaranteeing they're stripped before any dlt call.
+
+## column_lineage (single mode only)
+
+```yaml
+deps: [raw_sales]
+column_lineage:
+  revenue: [price, quantity]   # both from raw_sales (the only entry of deps)
+```
+
+Emits `dagster/column_lineage` metadata the same way every other single-asset ingestion component in this catalog does. Only applies in `asset_shape: single` -- `multi_asset` mode has several output assets and no single obvious upstream-to-output column mapping, so it's ignored there.
 
 ## Per-resource asset metadata and asset_key (multi_asset mode only)
 
@@ -137,6 +147,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog. Auto-inferred from source_type/destination if not set. |
 | `deps` | `List[str]` | — | Upstream asset keys this asset depends on (e.g. ['raw_orders', 'schema/asset']) |
 | `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill strategy for a partitioned asset. Unset keeps Dagster's default. |
+| `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage, emitted as `dagster/column_lineage` metadata: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is the only entry of `deps`; with several upstream asse… _(full docs in schema.json + component README)_ |
 
 ### Freshness
 

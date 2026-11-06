@@ -10,11 +10,11 @@ pure config, not custom code. A `resources:` list of `{name, primary_key,
 columns, ...}` dicts is all that's needed -- the same declarative shape
 regardless of which of the three engines is backing it.
 
-Note: for REST APIs specifically, `assets/ingestion/dlt_rest_api_source` is
-also available -- a single-asset-only bring-your-own `client`/`resources`
-config component. This component's `source_type: rest_api` mode accepts the
-same `resources` shape, but additionally supports `asset_shape: multi_asset`
-and `table_name_map` (see below). The two components currently coexist.
+Note: `assets/ingestion/dlt_rest_api_source` is this component's predecessor
+for REST APIs and is now deprecated in favor of this one's `source_type:
+rest_api` mode (same `client`/`resources` shape, with sql_database/filesystem
+sources and every feature added since also available). Its code stays in
+place for existing installs.
 
 Every hand-built vendor-specific `*_ingestion` component in this catalog
 (stripe_ingestion, salesforce_ingestion, zendesk_ingestion, ...) calls a
@@ -629,6 +629,17 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
     retry_policy_delay_seconds: Optional[int] = Field(default=None, description="Seconds between retries (default 1).")
     retry_policy_backoff: str = Field(default="exponential", description="Backoff strategy: 'linear' or 'exponential'.")
 
+    column_lineage: Optional[Dict[str, List[str]]] = Field(
+        default=None,
+        description=(
+            "Column-level lineage, emitted as `dagster/column_lineage` metadata: {output column: "
+            "[upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is the "
+            "only entry of `deps`; with several upstream assets, name each column '<asset_key>:<column>'. "
+            "Only applies in asset_shape='single' -- in 'multi_asset' mode there are several output "
+            "assets and no single obvious upstream-to-output column mapping, so it's ignored there."
+        ),
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
@@ -933,6 +944,7 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
         non_sql_destinations = {"filesystem", "delta", "iceberg"}
 
         if self.asset_shape == "single":
+            _column_lineage_md = _column_lineage_metadata(self)
 
             @asset(
                 retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
@@ -945,6 +957,8 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
                 deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             )
             def dlt_load_collection_asset(context: AssetExecutionContext):
+                if _column_lineage_md:
+                    context.add_output_metadata(_column_lineage_md)
                 context.log.info(
                     f"Starting dlt_load_collection ingestion (source_type={source_type}), "
                     f"destination={destination or 'duckdb (in-memory)'}"
@@ -1172,3 +1186,40 @@ def _apply_partition_window(config, context, window_params, resources=None):
         applied += 1
     return applied > 0
 # END partition window helper
+
+
+# BEGIN column-lineage helper (inlined per component; keep copies identical, see tests/test_column_lineage.py)
+def _column_lineage_metadata(component):
+    """`dagster/column_lineage` metadata from the component's `column_lineage` mapping ({output column: [upstream columns]}).
+
+    The upstream asset is `upstream_asset_key`, or the only entry of `deps`. With several upstream assets, name each
+    column as "<asset_key>:<column>". Returns {} when the mapping is unset, or (with a warning) when no upstream asset
+    can be resolved, since lineage needs an upstream asset to point at."""
+    import warnings
+
+    import dagster as _dg
+
+    mapping = getattr(component, "column_lineage", None)
+    if not mapping:
+        return {}
+    ups = getattr(component, "upstream_asset_key", None) or getattr(component, "deps", None) or []
+    ups = [ups] if isinstance(ups, (str, _dg.AssetKey)) else list(ups)
+    ups = [u.to_user_string() if isinstance(u, _dg.AssetKey) else str(u) for u in ups]
+    deps = {}
+    for out_col, in_cols in mapping.items():
+        refs = []
+        for ic in [in_cols] if isinstance(in_cols, str) else in_cols:
+            key, _, col = str(ic).rpartition(":")
+            if key in ups and col:
+                refs.append(_dg.TableColumnDep(asset_key=_dg.AssetKey.from_user_string(key), column_name=col))
+            elif len(ups) == 1:
+                refs.append(_dg.TableColumnDep(asset_key=_dg.AssetKey.from_user_string(ups[0]), column_name=str(ic)))
+            else:
+                warnings.warn(
+                    f"column_lineage ignored: cannot tell which upstream asset {ic!r} belongs to "
+                    f"(upstream assets: {ups or 'none'}; use '<asset_key>:<column>' with several upstream assets)"
+                )
+                return {}
+        deps[str(out_col)] = refs
+    return {"dagster/column_lineage": _dg.MetadataValue.column_lineage(_dg.TableColumnLineage(deps))}
+# END column-lineage helper

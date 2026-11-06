@@ -1,5 +1,7 @@
 # dlt REST API Source (Advanced)
 
+> **Deprecated -- superseded by `dlt_load_collection`.** `dlt_load_collection` (`source_type: rest_api`) covers the exact same `client`/`resources` config shape as this component, plus the `sql_database` and `filesystem` source engines, and now has every feature this component has. New instances should use `dlt_load_collection` instead. This component's code stays in place for any project that already installed it -- it is not being removed.
+
 > **Advanced / escape-hatch component.** If a dedicated hand-built component for your vendor already exists in this catalog (search `manifest.json` or the Designer UI), use that one instead -- it has typed fields and committed tests pinned to that vendor's real, verified API shape. Use `dlt_rest_api_source` for the long tail: a vendor with no dedicated component yet, an internal/private API, or a one-off integration not worth hand-building a whole component for.
 
 Bring-your-own REST API source config. This component is a thin, config-driven passthrough to dlt's generic REST API source engine (`dlt.sources.rest_api.rest_api_source`) -- the exact same underlying engine every hand-built `*_ingestion` component in this repo (chargify_ingestion, reclaim_ingestion, hotjar_ingestion, and ~20 others) wraps with vendor-specific typed fields. This component skips the typed-fields layer and exposes the underlying config shape directly as resolvable YAML attributes:
@@ -27,6 +29,31 @@ That's the entire `rest_api_source` config contract -- `client` + `resources` --
 - `table_name_map`: override the destination table name per resource, keyed by the resource's declared `name`, e.g. `table_name_map: {customers: raw_customers}`.
 
 See `assets/ingestion/dlt_load_collection`, which shares this same `asset_shape`/`table_name_map` convention and additionally covers `sql_database`/`filesystem` sources (not just REST APIs).
+
+## write_disposition (idempotent re-runs)
+
+dlt's own default is `append` -- with no `primary_key` and no explicit `write_disposition`, every materialization appends, so re-materializing the same partition duplicates rows. **This component infers `merge` automatically whenever a resource declares `primary_key`**; set `write_disposition` explicitly to override:
+
+```yaml
+resources:
+  - name: orders
+    primary_key: order_id   # -> write_disposition is inferred as 'merge'
+    endpoint: { path: orders }
+```
+
+`write_disposition: merge` needs a dedup key -- either `primary_key` or `merge_key` (str or list of str); setting `merge` with neither raises a clear error at `build_defs` time instead of silently falling back to appending.
+
+## Custom per-resource metadata (`x_` prefix)
+
+A `resources:` entry can carry arbitrary extra keys for a subclass's own use (e.g. a blocking rows-landed check reading `min_rows` off the YAML) by prefixing them with `x_`: they're guaranteed to never reach `rest_api_source()` (which otherwise rejects any key it doesn't recognize), and are readable off `self.resources` in a subclass.
+
+## Per-resource asset metadata and asset_key (multi_asset mode only)
+
+In `asset_shape: multi_asset`, each `resources:` entry can set its own `description`, `owners`, `tags` (merged over the component-level `asset_tags`), `metadata` (static `AssetOut` metadata), and `asset_key` (str, or a list of str for a multi-segment key) -- overriding the default single-segment `{asset_name}_{resource_name}` key.
+
+## Overridable seams (subclassing)
+
+`_build_resources(self, selected_names=None, run_context=None)` and `_build_pipeline(self, pipeline_name, dataset_name)` are real methods, not closures trapped inside `build_defs` -- a subclass can override either without reimplementing the rest of the component. `_resolve_destination`/`_resolve_destination_with_bucket`/`_resolve_staging`/`_dest_table_names` are the other reachable seams.
 
 ## Where to find config snippets
 

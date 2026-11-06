@@ -61,6 +61,14 @@ attributes:
   #   - name: events
   #     file_glob: "events/*.parquet"
   #     file_format: parquet
+  # filesystem_bucket_url credentials resolve from S3/GCS/Azure's standard env vars by
+  # default. For SFTP/Azure (or multiple accounts of the same provider), set
+  # filesystem_credentials instead -- see the README's "SFTP and Azure source
+  # credentials" section for the full field list.
+  # filesystem_bucket_url: "sftp://host.example.com/incoming"
+  # filesystem_credentials:
+  #   sftp_username: "{{ env.SFTP_USERNAME }}"
+  #   sftp_password: "{{ env.SFTP_PASSWORD }}"
 
   # Organization
   description: "Customer and order tables from a generic REST API"

@@ -99,7 +99,39 @@ These keys have no effect in `asset_shape: single` -- there's only one asset, so
 
 - `sql_database`: `connection_string` (or `connection_string_env_var` for an env-var-name indirection) takes any SQLAlchemy connection string. Use `"{{ env.VAR_NAME }}"` for the inline form.
 - `rest_api`: same `client`/`resources` secret convention as `dlt_rest_api_source` -- `{{ env.VAR_NAME }}` anywhere inside `client:`/`rest_api_resources:`, resolved by dg's component-YAML loader before this component ever sees it.
-- `filesystem`: `filesystem_bucket_url` credentials resolve from the cloud provider's standard environment variables (e.g. `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` for S3), same as the destination-side filesystem convention in `../DESTINATIONS.md`.
+- `filesystem`: by default, `filesystem_bucket_url` credentials resolve from the cloud provider's standard environment variables (e.g. `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` for S3). For SFTP/Azure (or multiple accounts of the same provider in one project), set `filesystem_credentials` instead -- see "SFTP and Azure source credentials" below.
+
+## SFTP and Azure source credentials
+
+`filesystem_credentials` is an inline alternative to env-var-based resolution, passed straight to dlt's `filesystem()` as `credentials` -- keys are dlt's own credential field names, values may be `"{{ env.VAR_NAME }}"` references. S3/GCS credentials aren't covered here; use their standard environment variables instead.
+
+```yaml
+# SFTP
+filesystem_bucket_url: "sftp://host.example.com/incoming"
+filesystem_credentials:
+  sftp_username: "{{ env.SFTP_USERNAME }}"
+  sftp_password: "{{ env.SFTP_PASSWORD }}"
+  # or key-based auth (sftp_key_filename must be a path already on disk --
+  # dlt has no config-based way to load key material directly from an env var):
+  # sftp_key_filename: "/etc/secrets/sftp_key"
+  # sftp_key_passphrase: "{{ env.SFTP_KEY_PASSPHRASE }}"
+```
+
+```yaml
+# Azure (account key)
+filesystem_bucket_url: "az://my-container/incoming"
+filesystem_credentials:
+  azure_storage_account_name: "{{ env.AZURE_STORAGE_ACCOUNT_NAME }}"
+  azure_storage_account_key: "{{ env.AZURE_STORAGE_ACCOUNT_KEY }}"
+  # or a SAS token instead of the account key:
+  # azure_storage_sas_token: "{{ env.AZURE_STORAGE_SAS_TOKEN }}"
+  # or service-principal auth:
+  # azure_tenant_id: "{{ env.AZURE_TENANT_ID }}"
+  # azure_client_id: "{{ env.AZURE_CLIENT_ID }}"
+  # azure_client_secret: "{{ env.AZURE_CLIENT_SECRET }}"
+```
+
+Use `"{{ env.VAR_NAME }}"` (not the `"{{ env('VAR_NAME') }}"` function form) -- an unset variable then reaches the component as `None` and raises a clear, named error (`filesystem_credentials.<key> resolved to None`) instead of silently sending a credential of the literal string `"None"`.
 
 ## Validation
 
@@ -202,7 +234,8 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 | `schema_name` | `str` | — | Source database schema name (sql_database only). Per-resource 'schema' overrides this. |
 | `sql_backend` | `Literal['sqlalchemy', 'pyarrow', 'pandas', 'connectorx']` | `"sqlalchemy"` | dlt sql_table extraction backend (sql_database only). |
 | `client` | `Dict[str, Any]` | — | dlt rest_api_source 'client' config (base_url required; optional auth, headers, paginator -- see dlt_rest_api_source's README for the full shape reference). Required when source_type='rest_api'. |
-| `filesystem_bucket_url` | `str` | — | Bucket/path URL to read SOURCE files from (e.g. 's3://my-bucket/landing', 'gs://my-bucket/landing', 'az://my-container/landing', or 'file:///local/path'). Required when source_type='filesystem'. Credentials resolve from… _(full docs in schema.json + component README)_ |
+| `filesystem_bucket_url` | `str` | — | Bucket/path URL to read SOURCE files from (e.g. 's3://my-bucket/landing', 'gs://my-bucket/landing', 'az://my-container/landing', 'sftp://host/path', or 'file:///local/path'). Required when source_type='filesystem'. If 'f… _(full docs in schema.json + component README)_ |
+| `filesystem_credentials` | `Dict[str, Any]` | — | Inline credentials for the SOURCE bucket, passed straight to dlt's filesystem() as 'credentials' -- keys are dlt's own credential field names, values may be '{{ env.VAR_NAME }}' references. Only needed when env-var-based… _(full docs in schema.json + component README)_ |
 | `file_format` | `Literal['csv', 'parquet', 'jsonl', 'json', 'auto']` | `"csv"` | Reader applied to each matched file (filesystem only). Per-resource 'file_format' overrides this. 'json' reads a single JSON object or array-of-objects per file (not newline-delimited -- use 'jsonl' for that). 'auto' dis… _(full docs in schema.json + component README)_ |
 | `destination` | `str` | — | dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck', 'sqlalchemy'). 'sqlalchemy' is dlt's generic SQL dest… _(full docs in schema.json + component README)_ |
 | `dataset_name` | `str` | — | Target dataset/schema in the destination. Defaults to the asset name. |

@@ -148,6 +148,24 @@ def _check_client_auth_resolved(client: Optional[Dict[str, Any]]) -> None:
             )
 
 
+def _check_filesystem_credentials_resolved(creds: Optional[Dict[str, Any]]) -> None:
+    """Same unresolved-env-var-reference risk as `_check_client_auth_resolved`, for
+    `filesystem_credentials` -- any value templated via "{{ env.VAR_NAME }}" resolving
+    to None would otherwise reach dlt's filesystem() as a literal None credential
+    field (e.g. a password of None) instead of a clear local error."""
+    if not isinstance(creds, dict):
+        return
+    for key, value in creds.items():
+        if value is None:
+            raise ValueError(
+                f"DltYamlSourceComponent: filesystem_credentials.{key} resolved to None. This "
+                "usually means it references an unset environment variable via "
+                "\"{{ env.VAR_NAME }}\" (attribute form, which returns None silently on a "
+                "missing variable) instead of \"{{ env('VAR_NAME') }}\" (function form, "
+                "which raises immediately). Set the variable, or switch to the function form."
+            )
+
+
 import sys as _sys
 import types as _types
 if __name__ not in _sys.modules:
@@ -656,13 +674,30 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
         default=None,
         description=(
             "Bucket/path URL to read SOURCE files from (e.g. 's3://my-bucket/landing', "
-            "'gs://my-bucket/landing', 'az://my-container/landing', or 'file:///local/path'). "
-            "Required when source_type='filesystem'. Credentials resolve from the cloud "
-            "provider's standard env vars (e.g. AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY), same "
-            "as every other ingestion component's destination-side filesystem credentials. Named "
+            "'gs://my-bucket/landing', 'az://my-container/landing', 'sftp://host/path', or "
+            "'file:///local/path'). Required when source_type='filesystem'. If "
+            "'filesystem_credentials' is unset, credentials resolve from the cloud provider's "
+            "standard env vars (e.g. AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY), same as every "
+            "other ingestion component's destination-side filesystem credentials. Named "
             "'filesystem_bucket_url' (not the shared 'bucket_url') since this is the SOURCE "
             "bucket -- 'bucket_url' below is the DESTINATION bucket, matching every other "
             "ingestion component in this repo."
+        ),
+    )
+    filesystem_credentials: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Inline credentials for the SOURCE bucket, passed straight to dlt's filesystem() "
+            "as 'credentials' -- keys are dlt's own credential field names, values may be "
+            "'{{ env.VAR_NAME }}' references. Only needed when env-var-based resolution (see "
+            "filesystem_bucket_url) isn't being used, e.g. multiple SFTP/Azure accounts in one "
+            "project. SFTP (sftp://...): sftp_username, sftp_password, sftp_key_filename (a "
+            "path to a key file already on disk -- dlt has no config-based way to load key "
+            "material from an env var directly), sftp_key_passphrase, sftp_port (default 22). "
+            "Azure (az://...): azure_storage_account_name plus either "
+            "azure_storage_account_key or azure_storage_sas_token, or the service-principal "
+            "trio azure_tenant_id/azure_client_id/azure_client_secret. S3/GCS credentials are "
+            "not covered here -- use their standard env vars instead."
         ),
     )
     file_format: Literal["csv", "parquet", "jsonl", "json", "auto"] = Field(
@@ -995,6 +1030,7 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
                 "csv": read_csv, "parquet": read_parquet, "jsonl": read_jsonl,
                 "json": _read_json, "auto": _read_auto,
             }
+            _check_filesystem_credentials_resolved(self.filesystem_credentials)
             for r in resources_config:
                 name = r["name"]
                 if name not in wanted:
@@ -1006,7 +1042,15 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
                         f"DltYamlSourceComponent: resources[{name!r}].file_format must be "
                         f"one of csv/parquet/jsonl/json/auto, got {fmt!r}."
                     )
-                res = (filesystem(bucket_url=self.filesystem_bucket_url, file_glob=r["file_glob"]) | reader_factory()).with_name(name)
+                # Only pass `credentials=` at all when explicitly configured -- dlt's own
+                # default for this kwarg is a `dlt.secrets.value` sentinel that triggers its
+                # normal env-var-based injection; passing a literal `None` instead would
+                # replace that injection with "no credentials" and break the existing,
+                # working env-var-only flow for every provider that doesn't set this field.
+                _fs_kwargs: Dict[str, Any] = {"bucket_url": self.filesystem_bucket_url, "file_glob": r["file_glob"]}
+                if self.filesystem_credentials:
+                    _fs_kwargs["credentials"] = self.filesystem_credentials
+                res = (filesystem(**_fs_kwargs) | reader_factory()).with_name(name)
                 hint_kwargs: Dict[str, Any] = {}
                 if r.get("primary_key"):
                     hint_kwargs["primary_key"] = r["primary_key"]

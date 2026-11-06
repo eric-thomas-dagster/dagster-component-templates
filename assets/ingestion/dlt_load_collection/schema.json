@@ -234,7 +234,7 @@
       "x-dagster-group": "filesystem",
       "type": "string",
       "label": "Filesystem Bucket Url",
-      "description": "Bucket/path URL to read SOURCE files from (e.g. 's3://my-bucket/landing', 'gs://my-bucket/landing', 'az://my-container/landing', or 'file:///local/path'). Required when source_type='filesystem'. Credentials resolve from the cloud provider's standard env vars. Named 'filesystem_bucket_url' (not the shared 'bucket_url') since this is the SOURCE bucket -- 'bucket_url' is the DESTINATION bucket, matching every other ingestion component in this repo.",
+      "description": "Bucket/path URL to read SOURCE files from (e.g. 's3://my-bucket/landing', 'gs://my-bucket/landing', 'az://my-container/landing', 'sftp://host/path', or 'file:///local/path'). Required when source_type='filesystem'. If 'filesystem_credentials' is unset, credentials resolve from the cloud provider's standard env vars. Named 'filesystem_bucket_url' (not the shared 'bucket_url') since this is the SOURCE bucket -- 'bucket_url' is the DESTINATION bucket, matching every other ingestion component in this repo.",
       "required": false,
       "default": null,
       "x-dagster-visible-when": {
@@ -244,6 +244,56 @@
       "x-dagster-required-when": {
         "field": "source_type",
         "values": ["filesystem"]
+      }
+    },
+    "filesystem_credentials": {
+      "x-dagster-group": "filesystem",
+      "type": "object",
+      "label": "Filesystem Credentials",
+      "description": "Inline credentials for the SOURCE bucket, passed straight to dlt's filesystem() as 'credentials'. Only needed when env-var-based resolution isn't being used, e.g. multiple SFTP/Azure accounts in one project. S3/GCS credentials are not covered here -- use their standard env vars instead.",
+      "required": false,
+      "default": null,
+      "properties": {
+        "sftp_username": { "type": "string", "description": "SFTP username." },
+        "sftp_password": { "type": "string", "widget": "password", "description": "SFTP password." },
+        "sftp_key_filename": { "type": "string", "description": "Path to a private key file already on disk (dlt has no config-based way to load key material directly from an env var)." },
+        "sftp_key_passphrase": { "type": "string", "widget": "password", "description": "Passphrase for sftp_key_filename, if the key is encrypted." },
+        "sftp_port": { "type": "integer", "description": "SFTP port (default 22)." },
+        "azure_storage_account_name": { "type": "string", "description": "Azure storage account name." },
+        "azure_storage_account_key": { "type": "string", "widget": "password", "description": "Azure storage account key (alternative to azure_storage_sas_token)." },
+        "azure_storage_sas_token": { "type": "string", "widget": "password", "description": "Azure SAS token (alternative to azure_storage_account_key)." },
+        "azure_tenant_id": { "type": "string", "description": "Azure AD tenant id (service-principal auth, with azure_client_id/azure_client_secret)." },
+        "azure_client_id": { "type": "string", "description": "Azure AD application (client) id (service-principal auth)." },
+        "azure_client_secret": { "type": "string", "widget": "password", "description": "Azure AD client secret (service-principal auth)." }
+      },
+      "x-dagster-visible-when": {
+        "field": "source_type",
+        "values": ["filesystem"]
+      },
+      "x-dagster-source-credential-fields": {
+        "trigger_field": "filesystem_bucket_url",
+        "trigger_type": "url_scheme",
+        "options": {
+          "sftp": {
+            "fields": [
+              { "name": "sftp_username", "label": "Username", "required": false },
+              { "name": "sftp_password", "label": "Password", "required": false, "widget": "password" },
+              { "name": "sftp_key_filename", "label": "Private key file path", "required": false },
+              { "name": "sftp_key_passphrase", "label": "Key passphrase", "required": false, "widget": "password" },
+              { "name": "sftp_port", "label": "Port", "required": false, "default": "22" }
+            ]
+          },
+          "az": {
+            "fields": [
+              { "name": "azure_storage_account_name", "label": "Storage account name", "required": true },
+              { "name": "azure_storage_account_key", "label": "Storage account key", "required": false, "widget": "password", "description": "Set this OR azure_storage_sas_token OR the service-principal trio below." },
+              { "name": "azure_storage_sas_token", "label": "SAS token", "required": false, "widget": "password" },
+              { "name": "azure_tenant_id", "label": "Tenant id", "required": false },
+              { "name": "azure_client_id", "label": "Client id", "required": false },
+              { "name": "azure_client_secret", "label": "Client secret", "required": false, "widget": "password" }
+            ]
+          }
+        }
       }
     },
     "file_format": {

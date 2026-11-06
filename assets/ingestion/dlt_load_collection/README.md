@@ -2,13 +2,15 @@
 
 > **Advanced / escape-hatch component.** If a dedicated hand-built component for your vendor already exists in this catalog (search `manifest.json` or the Designer UI), use that one instead -- it has typed fields and committed tests pinned to that vendor's real, verified API shape. Use `dlt_load_collection` for the long tail: a generic SQL database, a generic REST API, or a generic set of files in a bucket, with no custom source vendor behind them.
 
+> **Not the same class as `dagster_dlt.DltLoadCollectionComponent`.** Dagster's official `dagster-dlt` package has its own, differently-designed component by that name (external-module `loads: [{pipeline: ..., source: ...}]` config). This component -- `dagster_community_components.DltYamlSourceComponent` -- is fully YAML-driven and unrelated; it was renamed from an earlier identical name specifically to avoid that collision.
+
 Declare a collection of dlt resources (tables / REST endpoints / file globs) entirely in YAML -- no custom Python module required -- across three of dlt's own built-in generic source engines:
 
 | `source_type` | dlt engine | Resources field | Resource shape |
 |---|---|---|---|
 | `sql_database` | `dlt.sources.sql_database.sql_table` (one call per resource) | `sql_resources` | `{name, primary_key?, columns?, schema?}` |
 | `rest_api` | `dlt.sources.rest_api.rest_api_source` | `rest_api_resources` | `{name, primary_key?, columns?, endpoint: {path, ...}}` (same shape as `dlt_rest_api_source`) |
-| `filesystem` | `dlt.sources.filesystem.filesystem` + a csv/parquet/jsonl reader | `filesystem_resources` | `{name, primary_key?, columns?, file_glob, file_format?}` |
+| `filesystem` | `dlt.sources.filesystem.filesystem` + a csv/parquet/jsonl/json/auto reader | `filesystem_resources` | `{name, primary_key?, columns?, file_glob, file_format?}` |
 
 Each `source_type` has its own resources field (instead of one shared `resources` field) and its own source-config fields (`connection_string`/`client`/`filesystem_bucket_url`) -- only the field matching the active `source_type` is used; setting one of the other two raises a clear error. This keeps every field in this component unambiguous for schema-driven tooling: a single field whose item shape silently changes based on a sibling `source_type` value can't be expressed in this repo's schema.json dialect (`x-dagster-visible-when` only gates whole fields, not array items), so three independently-typed, independently-gated fields are used instead -- the same pattern `connection_string`/`client`/`filesystem_bucket_url` already use.
 
@@ -95,7 +97,7 @@ These keys have no effect in `asset_shape: single` -- there's only one asset, so
 
 ## Secrets
 
-- `sql_database`: `connection_string` (or `connection_string_env_var` for an env-var-name indirection) takes any SQLAlchemy connection string. Use `"{{ env('VAR_NAME') }}"` for the inline form.
+- `sql_database`: `connection_string` (or `connection_string_env_var` for an env-var-name indirection) takes any SQLAlchemy connection string. Use `"{{ env.VAR_NAME }}"` for the inline form.
 - `rest_api`: same `client`/`resources` secret convention as `dlt_rest_api_source` -- `{{ env.VAR_NAME }}` anywhere inside `client:`/`rest_api_resources:`, resolved by dg's component-YAML loader before this component ever sees it.
 - `filesystem`: `filesystem_bucket_url` credentials resolve from the cloud provider's standard environment variables (e.g. `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` for S3), same as the destination-side filesystem convention in `../DESTINATIONS.md`.
 
@@ -134,7 +136,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `connection_string` | `str` | — | SQLAlchemy connection string for the source database, e.g. 'postgresql://user:pass@host:5432/db'. Required when source_type='sql_database' (or connection_string_env_var). Use "{{ env('VAR_NAME') }}" for secrets. |
+| `connection_string` | `str` | — | SQLAlchemy connection string for the source database, e.g. 'postgresql://user:pass@host:5432/db'. Required when source_type='sql_database' (or connection_string_env_var). Use "{{ env.VAR_NAME }}" for secrets. |
 | `connection_string_env_var` | `str` | — | Alternative to connection_string: name of an env var holding the SQLAlchemy connection string. Resolved at run-time. |
 
 ### Catalog metadata
@@ -201,11 +203,11 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 | `sql_backend` | `Literal['sqlalchemy', 'pyarrow', 'pandas', 'connectorx']` | `"sqlalchemy"` | dlt sql_table extraction backend (sql_database only). |
 | `client` | `Dict[str, Any]` | — | dlt rest_api_source 'client' config (base_url required; optional auth, headers, paginator -- see dlt_rest_api_source's README for the full shape reference). Required when source_type='rest_api'. |
 | `filesystem_bucket_url` | `str` | — | Bucket/path URL to read SOURCE files from (e.g. 's3://my-bucket/landing', 'gs://my-bucket/landing', 'az://my-container/landing', or 'file:///local/path'). Required when source_type='filesystem'. Credentials resolve from… _(full docs in schema.json + component README)_ |
-| `file_format` | `Literal['csv', 'parquet', 'jsonl']` | `"csv"` | Reader applied to each matched file (filesystem only). Per-resource 'file_format' overrides this. |
-| `destination` | `str` | — | dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB -> DataFrame mode. |
+| `file_format` | `Literal['csv', 'parquet', 'jsonl', 'json', 'auto']` | `"csv"` | Reader applied to each matched file (filesystem only). Per-resource 'file_format' overrides this. 'json' reads a single JSON object or array-of-objects per file (not newline-delimited -- use 'jsonl' for that). 'auto' dis… _(full docs in schema.json + component README)_ |
+| `destination` | `str` | — | dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck', 'sqlalchemy'). 'sqlalchemy' is dlt's generic SQL dest… _(full docs in schema.json + component README)_ |
 | `dataset_name` | `str` | — | Target dataset/schema in the destination. Defaults to the asset name. |
 | `persist_only` | `bool` | `false` | If True with destination set: emit a MaterializeResult and skip DataFrame return. If False: query the destination back into a DataFrame (only meaningful for SQL destinations -- non-SQL destinations always emit MaterializeResult). |
-| `destination_credentials_url` | `str` | — | Inline connection string passed to dlt's destination factory. Useful when one Dagster project ingests into multiple accounts of the same destination type. If unset, dlt resolves credentials from env vars -- see ../DESTINATIONS.md. |
+| `destination_credentials_url` | `str` | — | Inline connection string passed to dlt's destination factory. Useful when one Dagster project ingests into multiple accounts of the same destination type. If unset, dlt resolves credentials from env vars using the conven… _(full docs in schema.json + component README)_ |
 | `destination_credentials_env_var` | `str` | — | Alternative to destination_credentials_url: name of an env var holding the connection string. Resolved at run-time. |
 | `athena_query_result_bucket` | `str` | — | Optional S3 path where Athena writes query results. Only used when destination='athena'. |
 | `include_preview_metadata` | `bool` | `true` | Include sample data preview in metadata |
@@ -220,11 +222,11 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 ### 1. sql_database
 
 ```yaml
-type: dagster_community_components.DltLoadCollectionComponent
+type: dagster_community_components.DltYamlSourceComponent
 attributes:
   asset_name: warehouse_core_tables
   source_type: sql_database
-  connection_string: "{{ env('WAREHOUSE_CONNECTION_STRING') }}"
+  connection_string: "{{ env.WAREHOUSE_CONNECTION_STRING }}"
   schema_name: public
   sql_resources:
     - name: customers
@@ -238,7 +240,7 @@ attributes:
 ### 2. rest_api
 
 ```yaml
-type: dagster_community_components.DltLoadCollectionComponent
+type: dagster_community_components.DltYamlSourceComponent
 attributes:
   asset_name: my_api_tables
   source_type: rest_api
@@ -246,7 +248,7 @@ attributes:
     base_url: "https://api.example.com"
     auth:
       type: bearer
-      token: "{{ env('MY_API_TOKEN') }}"
+      token: "{{ env.MY_API_TOKEN }}"
   rest_api_resources:
     - name: customers
       primary_key: id
@@ -259,7 +261,7 @@ attributes:
 ### 3. filesystem
 
 ```yaml
-type: dagster_community_components.DltLoadCollectionComponent
+type: dagster_community_components.DltYamlSourceComponent
 attributes:
   asset_name: landing_zone_files
   source_type: filesystem

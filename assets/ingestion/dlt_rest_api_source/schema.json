@@ -20,6 +20,26 @@
     },
     "client": {
       "type": "object",
+      "properties": {
+        "base_url": { "type": "string", "description": "API base URL, e.g. 'https://api.example.com' (required)." },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "enum": ["bearer", "api_key", "http_basic", "oauth2_client_credentials"], "description": "dlt's built-in auth scheme." },
+            "token": { "type": "string", "description": "Bearer token (type='bearer')." },
+            "api_key": { "type": "string", "description": "API key value (type='api_key')." },
+            "name": { "type": "string", "description": "Header/query param name for the key (type='api_key')." },
+            "location": { "type": "string", "enum": ["header", "query"], "description": "Where to send the api key (type='api_key')." },
+            "username": { "type": "string", "description": "Basic auth username (type='http_basic')." },
+            "password": { "type": "string", "description": "Basic auth password (type='http_basic')." },
+            "access_token_url": { "type": "string", "description": "Token endpoint (type='oauth2_client_credentials')." },
+            "client_id": { "type": "string", "description": "OAuth2 client id (type='oauth2_client_credentials')." },
+            "client_secret": { "type": "string", "description": "OAuth2 client secret (type='oauth2_client_credentials')." }
+          }
+        },
+        "headers": { "type": "object", "description": "Extra static request headers, e.g. {'Accept': 'application/json'}." },
+        "paginator": { "type": "object", "description": "dlt paginator override, e.g. {type: cursor, cursor_param: ..., cursor_path: ...} or {type: json_link, next_url_path: ...}." }
+      },
       "label": "Client",
       "description": "dlt rest_api_source `client` config -- required keys/shape: `base_url` (required), `auth` (a dict; supports dlt's built-in auth types: {type: bearer, token: ...}, {type: api_key, name: ..., api_key: ..., location: header|query}, {type: http_basic, username: ..., password: ...}, {type: oauth2_client_credentials, access_token_url: ..., client_id: ..., client_secret: ...}), optional `headers` (dict), optional `paginator` (dict, e.g. {type: cursor, cursor_param: ..., cursor_path: ...} or {type: json_link, next_url_path: ...}). Use '{{ env.VAR_NAME }}' for any secret value -- resolved by dg's component-YAML loader before this component ever sees it.",
       "required": true
@@ -27,7 +47,21 @@
     "resources": {
       "type": "array",
       "items": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "Resource name (required)." },
+          "endpoint": {
+            "type": "object",
+            "properties": {
+              "path": { "type": "string", "description": "API path relative to client.base_url, e.g. 'customers' (required)." }
+            },
+            "required": ["path"]
+          },
+          "primary_key": { "type": "string", "description": "Column name, or comma-separated names for a composite key." },
+          "merge_key": { "type": "string", "description": "Alternative to primary_key for write_disposition='merge'." },
+          "write_disposition": { "type": "string", "enum": ["append", "replace", "merge"], "description": "Defaults to 'merge' if primary_key is set, else dlt's own 'append'." }
+        },
+        "required": ["name", "endpoint"]
       },
       "label": "Resources",
       "description": "dlt rest_api_source `resources` list -- one dict per resource, each requiring `name` and `endpoint` (`endpoint.path` is required; optional `endpoint.data_selector`, `endpoint.params`, `endpoint.paginator`). Supports dlt's dependent-resource `resolve` shape for parent/child chaining, e.g. a child resource's endpoint.params can be {survey_id: {type: resolve, resource: surveys, field: id}} to issue one request per row of a parent 'surveys' resource. Must be non-empty. Optional 'primary_key' (str or list of str), 'columns' (dlt column-schema dict), 'write_disposition' ('append' / 'replace' / 'merge', the last needing 'primary_key' or 'merge_key' -- validated), and 'merge_key' (alternative to 'primary_key' for merge's dedup key). If write_disposition is unset: inferred as 'merge' when 'primary_key' is set, else dlt's own 'append' default. Any key prefixed with 'x_' is reserved for subclass/user custom metadata, never passed to rest_api_source(). The remaining keys only take effect in asset_shape='multi_asset' mode: 'description', 'owners', 'tags', 'metadata', and 'asset_key' (str, or list of str for a multi-segment key).",
@@ -51,7 +85,8 @@
         "athena",
         "clickhouse",
         "mssql",
-        "motherduck"
+        "motherduck",
+        "sqlalchemy"
       ],
       "ui:widget": "select"
     },
@@ -280,6 +315,49 @@
               "query_params": {
                 "encrypt": "encrypt"
               }
+            }
+          },
+          "sqlalchemy": {
+            "description": "dlt's generic SQL destination -- there is no standalone 'mysql'/'mariadb'/'sqlite'/'oracle' destination in dlt; this is how to reach those (and any other SQLAlchemy-supported database) instead.",
+            "fields": [
+              {
+                "name": "drivername",
+                "label": "Driver",
+                "required": true,
+                "description": "SQLAlchemy driver string, e.g. 'mysql+pymysql' (MySQL/MariaDB), 'oracle+cx_oracle', or 'sqlite' (file-based -- leave Host/Port/Username/Password blank and put the file path in Database)"
+              },
+              {
+                "name": "host",
+                "label": "Host",
+                "required": false
+              },
+              {
+                "name": "port",
+                "label": "Port",
+                "required": false
+              },
+              {
+                "name": "username",
+                "label": "Username",
+                "required": false
+              },
+              {
+                "name": "password",
+                "label": "Password",
+                "required": false,
+                "widget": "password"
+              },
+              {
+                "name": "database",
+                "label": "Database",
+                "required": true,
+                "description": "Database name, or the file path when drivername='sqlite'"
+              }
+            ],
+            "template": {
+              "base": "{drivername}://{username}:{password}@{host}:{port}/{database}",
+              "url_encode": ["username", "password"],
+              "note": "username/password must be percent-encoded before interpolation into the connection string -- raw '@', ':', '/', '#' etc. in a password otherwise break URL parsing. Prefer assembling this with SQLAlchemy's own sqlalchemy.engine.URL.create(...) (or urllib.parse.quote_plus on each field) over naive string formatting."
             }
           },
           "motherduck": {
@@ -622,7 +700,8 @@
       "description": "'single' (default, matches every other multi-table ingestion component in this repo): one asset that unions every resource's rows into one DataFrame, tagged with a `_resource_type` column. 'multi_asset': one independently-materializable asset per resource -- materializing one resource never builds, requests, or persists the others.",
       "required": false,
       "default": "single",
-      "ui:widget": "select"
+      "ui:widget": "select",
+      "x-dagster-omit-if-default": true
     },
     "table_name_map": {
       "type": "object",

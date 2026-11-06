@@ -26,7 +26,7 @@ def _component(mod, **overrides):
         asset_tags={"domain": "shared"},
     )
     kwargs.update(overrides)
-    return mod.DltLoadCollectionComponent(**kwargs)
+    return mod.DltYamlSourceComponent(**kwargs)
 
 
 def test_per_resource_description_owners_tags_metadata(mod, monkeypatch):

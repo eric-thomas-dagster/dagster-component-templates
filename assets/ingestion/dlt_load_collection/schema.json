@@ -1,5 +1,5 @@
 {
-  "component_type": "dagster_community_components.DltLoadCollectionComponent",
+  "component_type": "dagster_community_components.DltYamlSourceComponent",
   "description": "Declare a collection of dlt resources (tables, REST endpoints, or file globs) entirely in YAML across dlt's built-in sql_database, rest_api, and filesystem source engines -- no custom Python module required.",
   "summary": "Load a collection of tables/endpoints/files declared entirely in YAML, via dlt's generic sql_database, rest_api, or filesystem source engines.",
   "category": "ingestion",
@@ -33,7 +33,17 @@
     "sql_resources": {
       "x-dagster-group": "sql_database",
       "type": "array",
-      "items": { "type": "object" },
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "Table name (required) -- also the destination table name unless overridden via table_name_map." },
+          "primary_key": { "type": "string", "description": "Column name, or comma-separated names for a composite key." },
+          "merge_key": { "type": "string", "description": "Alternative to primary_key for write_disposition='merge'." },
+          "write_disposition": { "type": "string", "enum": ["append", "replace", "merge"], "description": "Defaults to 'merge' if primary_key is set, else dlt's own 'append'." },
+          "schema": { "type": "string", "description": "Per-resource schema override (defaults to the top-level schema_name)." }
+        },
+        "required": ["name"]
+      },
       "label": "Sql Resources",
       "description": "Required when source_type='sql_database' (ignored otherwise). One dict per table, each requiring 'name' (also the destination table name, unless overridden via table_name_map). Optional 'primary_key' (str or list of str); 'columns' (if set) is a list of column names to extract (others excluded) -- or a dict, whose keys are used the same way; types always come from the real database via reflection. Optional per-resource 'schema' overrides the top-level schema_name. Optional 'write_disposition' ('append' / 'replace' / 'merge', the last needing 'primary_key' or 'merge_key' -- validated, since merge with neither silently falls back to appending). If unset: inferred as 'merge' when 'primary_key' is set, else dlt's own 'append' default. Optional 'merge_key' (str or list of str), an alternative to 'primary_key'. Any key prefixed with 'x_' is reserved for subclass/user custom metadata, never passed to the underlying dlt call. The remaining keys only take effect in asset_shape='multi_asset' mode: 'description', 'owners' (list of str), 'tags' (dict), 'metadata' (dict), and 'asset_key' (str, or list of str for a multi-segment key).",
       "required": false,
@@ -41,12 +51,32 @@
       "x-dagster-visible-when": {
         "field": "source_type",
         "values": ["sql_database"]
+      },
+      "x-dagster-required-when": {
+        "field": "source_type",
+        "values": ["sql_database"]
       }
     },
     "rest_api_resources": {
       "x-dagster-group": "rest_api",
       "type": "array",
-      "items": { "type": "object" },
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "Resource name (required)." },
+          "endpoint": {
+            "type": "object",
+            "properties": {
+              "path": { "type": "string", "description": "API path relative to client.base_url, e.g. 'customers' (required)." }
+            },
+            "required": ["path"]
+          },
+          "primary_key": { "type": "string", "description": "Column name, or comma-separated names for a composite key." },
+          "merge_key": { "type": "string", "description": "Alternative to primary_key for write_disposition='merge'." },
+          "write_disposition": { "type": "string", "enum": ["append", "replace", "merge"], "description": "Defaults to 'merge' if primary_key is set, else dlt's own 'append'." }
+        },
+        "required": ["name", "endpoint"]
+      },
       "label": "Rest Api Resources",
       "description": "Required when source_type='rest_api' (ignored otherwise). One dict per resource, each requiring 'name' and 'endpoint: {path: ...}' (same shape as dlt_rest_api_source's resources). 'columns' here is a dlt column-schema dict, e.g. {id: {data_type: bigint}}. Optional 'write_disposition' ('append' / 'replace' / 'merge', the last needing 'primary_key' or 'merge_key' -- validated). If unset: inferred as 'merge' when 'primary_key' is set, else dlt's own 'append' default. Optional 'merge_key' (str or list of str). Any key prefixed with 'x_' is reserved for subclass/user custom metadata, never passed to rest_api_source() (whose EndpointResource validation rejects unknown keys). The remaining keys only take effect in asset_shape='multi_asset' mode: 'description', 'owners' (list of str), 'tags' (dict), 'metadata' (dict), and 'asset_key' (str, or list of str for a multi-segment key).",
       "required": false,
@@ -54,17 +84,36 @@
       "x-dagster-visible-when": {
         "field": "source_type",
         "values": ["rest_api"]
+      },
+      "x-dagster-required-when": {
+        "field": "source_type",
+        "values": ["rest_api"]
       }
     },
     "filesystem_resources": {
       "x-dagster-group": "filesystem",
       "type": "array",
-      "items": { "type": "object" },
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "Resource name (required)." },
+          "file_glob": { "type": "string", "description": "Glob relative to filesystem_bucket_url, e.g. 'orders/*.csv' (required)." },
+          "file_format": { "type": "string", "enum": ["csv", "parquet", "jsonl", "json", "auto"], "description": "Overrides the top-level file_format for this resource." },
+          "primary_key": { "type": "string", "description": "Column name, or comma-separated names for a composite key." },
+          "merge_key": { "type": "string", "description": "Alternative to primary_key for write_disposition='merge'." },
+          "write_disposition": { "type": "string", "enum": ["append", "replace", "merge"], "description": "Defaults to 'merge' if primary_key is set, else dlt's own 'append'." }
+        },
+        "required": ["name", "file_glob"]
+      },
       "label": "Filesystem Resources",
       "description": "Required when source_type='filesystem' (ignored otherwise). One dict per file-glob, each requiring 'name' and 'file_glob' (e.g. 'orders/*.csv'); optional per-resource 'file_format' overrides the top-level file_format. Optional 'write_disposition' ('append' / 'replace' / 'merge', the last needing 'primary_key' or 'merge_key' -- validated). If unset: inferred as 'merge' when 'primary_key' is set, else dlt's own 'append' default. Optional 'merge_key' (str or list of str). Any key prefixed with 'x_' is reserved for subclass/user custom metadata, never passed to the underlying dlt call. The remaining keys only take effect in asset_shape='multi_asset' mode: 'description', 'owners' (list of str), 'tags' (dict), 'metadata' (dict), and 'asset_key' (str, or list of str for a multi-segment key).",
       "required": false,
       "default": null,
       "x-dagster-visible-when": {
+        "field": "source_type",
+        "values": ["filesystem"]
+      },
+      "x-dagster-required-when": {
         "field": "source_type",
         "values": ["filesystem"]
       }
@@ -79,7 +128,8 @@
         "single",
         "multi_asset"
       ],
-      "ui:widget": "select"
+      "ui:widget": "select",
+      "x-dagster-omit-if-default": true
     },
     "table_name_map": {
       "type": "object",
@@ -92,7 +142,7 @@
       "x-dagster-group": "sql_database",
       "type": "string",
       "label": "Connection String",
-      "description": "SQLAlchemy connection string for the source database, e.g. 'postgresql://user:pass@host:5432/db'. Required when source_type='sql_database' (or connection_string_env_var). Use \"{{ env('VAR_NAME') }}\" for secrets.",
+      "description": "SQLAlchemy connection string for the source database, e.g. 'postgresql://user:pass@host:5432/db'. Required when source_type='sql_database' (or connection_string_env_var). Use \"{{ env.VAR_NAME }}\" for secrets.",
       "required": false,
       "default": null,
       "x-dagster-visible-when": {
@@ -138,6 +188,7 @@
         "connectorx"
       ],
       "ui:widget": "select",
+      "x-dagster-omit-if-default": true,
       "x-dagster-visible-when": {
         "field": "source_type",
         "values": ["sql_database"]
@@ -146,11 +197,35 @@
     "client": {
       "x-dagster-group": "rest_api",
       "type": "object",
+      "properties": {
+        "base_url": { "type": "string", "description": "API base URL, e.g. 'https://api.example.com' (required)." },
+        "auth": {
+          "type": "object",
+          "properties": {
+            "type": { "type": "string", "enum": ["bearer", "api_key", "http_basic", "oauth2_client_credentials"], "description": "dlt's built-in auth scheme." },
+            "token": { "type": "string", "description": "Bearer token (type='bearer')." },
+            "api_key": { "type": "string", "description": "API key value (type='api_key')." },
+            "name": { "type": "string", "description": "Header/query param name for the key (type='api_key')." },
+            "location": { "type": "string", "enum": ["header", "query"], "description": "Where to send the api key (type='api_key')." },
+            "username": { "type": "string", "description": "Basic auth username (type='http_basic')." },
+            "password": { "type": "string", "description": "Basic auth password (type='http_basic')." },
+            "access_token_url": { "type": "string", "description": "Token endpoint (type='oauth2_client_credentials')." },
+            "client_id": { "type": "string", "description": "OAuth2 client id (type='oauth2_client_credentials')." },
+            "client_secret": { "type": "string", "description": "OAuth2 client secret (type='oauth2_client_credentials')." }
+          }
+        },
+        "headers": { "type": "object", "description": "Extra static request headers, e.g. {'Accept': 'application/json'}." },
+        "paginator": { "type": "object", "description": "dlt paginator override, e.g. {type: cursor, cursor_param: ..., cursor_path: ...} or {type: json_link, next_url_path: ...}." }
+      },
       "label": "Client",
       "description": "dlt rest_api_source 'client' config (base_url required; optional auth, headers, paginator -- see dlt_rest_api_source's README for the full shape reference). Required when source_type='rest_api'.",
       "required": false,
       "default": null,
       "x-dagster-visible-when": {
+        "field": "source_type",
+        "values": ["rest_api"]
+      },
+      "x-dagster-required-when": {
         "field": "source_type",
         "values": ["rest_api"]
       }
@@ -165,21 +240,28 @@
       "x-dagster-visible-when": {
         "field": "source_type",
         "values": ["filesystem"]
+      },
+      "x-dagster-required-when": {
+        "field": "source_type",
+        "values": ["filesystem"]
       }
     },
     "file_format": {
       "x-dagster-group": "filesystem",
       "type": "string",
       "label": "File Format",
-      "description": "Reader applied to each matched file (filesystem only). Per-resource 'file_format' overrides this.",
+      "description": "Reader applied to each matched file (filesystem only). Per-resource 'file_format' overrides this. 'json' reads a single JSON object or array-of-objects per file (not newline-delimited -- use 'jsonl' for that). 'auto' dispatches each matched file by its own extension -- for a bucket/prefix that mixes file types.",
       "required": false,
       "default": "csv",
       "enum": [
         "csv",
         "parquet",
-        "jsonl"
+        "jsonl",
+        "json",
+        "auto"
       ],
       "ui:widget": "select",
+      "x-dagster-omit-if-default": true,
       "x-dagster-visible-when": {
         "field": "source_type",
         "values": ["filesystem"]
@@ -203,7 +285,8 @@
         "athena",
         "clickhouse",
         "mssql",
-        "motherduck"
+        "motherduck",
+        "sqlalchemy"
       ],
       "ui:widget": "select"
     },
@@ -305,6 +388,22 @@
               "query_params": { "token": "motherduck_token" }
             }
           },
+          "sqlalchemy": {
+            "description": "dlt's generic SQL destination -- there is no standalone 'mysql'/'mariadb'/'sqlite'/'oracle' destination in dlt; this is how to reach those (and any other SQLAlchemy-supported database) instead.",
+            "fields": [
+              { "name": "drivername", "label": "Driver", "required": true, "description": "SQLAlchemy driver string, e.g. 'mysql+pymysql' (MySQL/MariaDB), 'oracle+cx_oracle', or 'sqlite' (file-based -- leave Host/Port/Username/Password blank and put the file path in Database)" },
+              { "name": "host", "label": "Host", "required": false },
+              { "name": "port", "label": "Port", "required": false },
+              { "name": "username", "label": "Username", "required": false },
+              { "name": "password", "label": "Password", "required": false, "widget": "password" },
+              { "name": "database", "label": "Database", "required": true, "description": "Database name, or the file path when drivername='sqlite'" }
+            ],
+            "template": {
+              "base": "{drivername}://{username}:{password}@{host}:{port}/{database}",
+              "url_encode": ["username", "password"],
+              "note": "username/password must be percent-encoded before interpolation into the connection string -- raw '@', ':', '/', '#' etc. in a password otherwise break URL parsing. Prefer assembling this with SQLAlchemy's own sqlalchemy.engine.URL.create(...) (or urllib.parse.quote_plus on each field) over naive string formatting."
+            }
+          },
           "bigquery": {
             "credential_format": "json_blob",
             "description": "Paste the full GCP service-account key JSON (GCP Console -> IAM & Admin -> Service Accounts -> your account -> Keys -> Add Key -> JSON). Used verbatim -- dlt's GcpServiceAccountCredentials parses a raw JSON string directly, so no connection-string assembly happens here.",
@@ -327,7 +426,7 @@
       "label": "Bucket Url",
       "required": false,
       "default": null,
-      "description": "Bucket/path URL for filesystem-shaped DESTINATION storage -- same field name/meaning as every other ingestion component in this repo. Required when destination='filesystem' is the final target; also used as the staging area when destination='databricks' or 'athena'. See ../DESTINATIONS.md. (The filesystem SOURCE bucket, for source_type='filesystem', is the separate 'filesystem_bucket_url' field.)",
+      "description": "Bucket/path URL for filesystem-shaped DESTINATION storage -- same field name/meaning as every other ingestion component in this repo. Required when destination='filesystem' is the final target; also used as the staging area when destination='databricks' or 'athena'. (The filesystem SOURCE bucket, for source_type='filesystem', is the separate 'filesystem_bucket_url' field.)",
       "x-dagster-visible-when": {
         "field": "destination",
         "values": [

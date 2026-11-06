@@ -1,4 +1,4 @@
-"""Shared test helpers for DltLoadCollectionComponent.
+"""Shared test helpers for DltYamlSourceComponent.
 
 Unlike a vendor source (zendesk_support, salesforce_source, ...), all three
 of this component's source-building calls -- `dlt.sources.sql_database.sql_table`,

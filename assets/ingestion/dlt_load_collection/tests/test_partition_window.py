@@ -46,7 +46,7 @@ def capture_rest_api_source(monkeypatch):
 
 def test_partition_window_reaches_every_selected_resource(mod, monkeypatch, capture_rest_api_source):
     install_fake_dlt(monkeypatch, mod)
-    component = mod.DltLoadCollectionComponent(
+    component = mod.DltYamlSourceComponent(
         asset_name="a", source_type="rest_api",
         client={"base_url": "https://x"},
         rest_api_resources=[{"name": "orders", "endpoint": {"path": "orders"}}],
@@ -64,7 +64,7 @@ def test_partition_window_reaches_every_selected_resource(mod, monkeypatch, capt
 
 def test_partition_window_ignored_with_a_warning_for_sql_database(mod, monkeypatch):
     install_fake_dlt(monkeypatch, mod, table_rows={"orders": pd.DataFrame({"id": [1]})})
-    component = mod.DltLoadCollectionComponent(
+    component = mod.DltYamlSourceComponent(
         asset_name="a", source_type="sql_database",
         connection_string="sqlite:///:memory:",
         sql_resources=[{"name": "orders"}],

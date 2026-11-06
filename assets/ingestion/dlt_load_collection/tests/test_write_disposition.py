@@ -23,7 +23,7 @@ def _resource_schema(run_call, name):
 
 def test_sql_database_write_disposition_reaches_the_real_resource(mod, monkeypatch):
     fake_pipeline = install_fake_dlt(monkeypatch, mod, table_rows={"orders": pd.DataFrame({"id": [1]})})
-    component = mod.DltLoadCollectionComponent(
+    component = mod.DltYamlSourceComponent(
         asset_name="a", source_type="sql_database", connection_string="sqlite:///:memory:",
         sql_resources=[{"name": "orders", "primary_key": "id", "write_disposition": "merge"}],
     )
@@ -35,7 +35,7 @@ def test_sql_database_write_disposition_reaches_the_real_resource(mod, monkeypat
 
 def test_sql_database_defaults_to_append_when_unset(mod, monkeypatch):
     fake_pipeline = install_fake_dlt(monkeypatch, mod, table_rows={"orders": pd.DataFrame({"id": [1]})})
-    component = mod.DltLoadCollectionComponent(
+    component = mod.DltYamlSourceComponent(
         asset_name="a", source_type="sql_database", connection_string="sqlite:///:memory:",
         sql_resources=[{"name": "orders"}],
     )
@@ -47,7 +47,7 @@ def test_sql_database_defaults_to_append_when_unset(mod, monkeypatch):
 
 def test_rest_api_write_disposition_reaches_the_real_resource(mod, monkeypatch):
     fake_pipeline = install_fake_dlt(monkeypatch, mod, table_rows={"orders": pd.DataFrame({"id": [1]})})
-    component = mod.DltLoadCollectionComponent(
+    component = mod.DltYamlSourceComponent(
         asset_name="a", source_type="rest_api", client={"base_url": "https://x"},
         rest_api_resources=[{"name": "orders", "primary_key": "id", "write_disposition": "merge", "endpoint": {"path": "orders"}}],
     )
@@ -59,7 +59,7 @@ def test_rest_api_write_disposition_reaches_the_real_resource(mod, monkeypatch):
 
 def test_filesystem_write_disposition_reaches_the_real_resource(mod, monkeypatch):
     fake_pipeline = install_fake_dlt(monkeypatch, mod, table_rows={"orders": pd.DataFrame({"id": [1]})})
-    component = mod.DltLoadCollectionComponent(
+    component = mod.DltYamlSourceComponent(
         asset_name="a", source_type="filesystem", filesystem_bucket_url="s3://fake-bucket",
         filesystem_resources=[{"name": "orders", "file_glob": "orders/*.csv", "primary_key": "id", "write_disposition": "replace"}],
     )
@@ -70,7 +70,7 @@ def test_filesystem_write_disposition_reaches_the_real_resource(mod, monkeypatch
 
 
 def test_invalid_write_disposition_raises_a_clear_error(mod):
-    component = mod.DltLoadCollectionComponent(
+    component = mod.DltYamlSourceComponent(
         asset_name="a", source_type="sql_database", connection_string="sqlite:///:memory:",
         sql_resources=[{"name": "orders", "write_disposition": "upsert"}],
     )
@@ -97,7 +97,7 @@ def test_primary_key_with_no_explicit_write_disposition_infers_merge(mod, monkey
         kwargs["client"] = {"base_url": "https://x"}
     elif source_type == "filesystem":
         kwargs["filesystem_bucket_url"] = "s3://fake-bucket"
-    component = mod.DltLoadCollectionComponent(**kwargs)
+    component = mod.DltYamlSourceComponent(**kwargs)
     asset_def = component.build_defs(context=None).assets[0]
     dg.materialize([asset_def], resources={"io_manager": dg.InMemoryIOManager()})
     schema = _resource_schema(fake_pipeline.run_calls[-1], "orders")
@@ -106,7 +106,7 @@ def test_primary_key_with_no_explicit_write_disposition_infers_merge(mod, monkey
 
 def test_explicit_write_disposition_wins_over_the_primary_key_inference(mod, monkeypatch):
     fake_pipeline = install_fake_dlt(monkeypatch, mod, table_rows={"orders": pd.DataFrame({"id": [1]})})
-    component = mod.DltLoadCollectionComponent(
+    component = mod.DltYamlSourceComponent(
         asset_name="a", source_type="sql_database", connection_string="sqlite:///:memory:",
         sql_resources=[{"name": "orders", "primary_key": "id", "write_disposition": "append"}],
     )
@@ -119,7 +119,7 @@ def test_explicit_write_disposition_wins_over_the_primary_key_inference(mod, mon
 def test_merge_without_primary_key_or_merge_key_raises_a_clear_error(mod):
     """Real gap: dlt's merge strategy with no key silently falls back to appending
     (verified: 2 loads of the same 2 rows produced 4) -- validated at build_defs time instead."""
-    component = mod.DltLoadCollectionComponent(
+    component = mod.DltYamlSourceComponent(
         asset_name="a", source_type="sql_database", connection_string="sqlite:///:memory:",
         sql_resources=[{"name": "orders", "write_disposition": "merge"}],
     )
@@ -129,7 +129,7 @@ def test_merge_without_primary_key_or_merge_key_raises_a_clear_error(mod):
 
 def test_merge_with_only_merge_key_is_accepted_and_wired(mod, monkeypatch):
     fake_pipeline = install_fake_dlt(monkeypatch, mod, table_rows={"orders": pd.DataFrame({"id": [1]})})
-    component = mod.DltLoadCollectionComponent(
+    component = mod.DltYamlSourceComponent(
         asset_name="a", source_type="sql_database", connection_string="sqlite:///:memory:",
         sql_resources=[{"name": "orders", "write_disposition": "merge", "merge_key": "id"}],
     )

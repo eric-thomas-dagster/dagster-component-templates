@@ -21,7 +21,7 @@ def _sql_component(mod, **overrides):
         sql_resources=[{"name": "customers", "primary_key": "id"}, {"name": "orders", "primary_key": "order_id"}],
     )
     kwargs.update(overrides)
-    return mod.DltLoadCollectionComponent(**kwargs)
+    return mod.DltYamlSourceComponent(**kwargs)
 
 
 def _rest_api_component(mod, **overrides):
@@ -35,7 +35,7 @@ def _rest_api_component(mod, **overrides):
         ],
     )
     kwargs.update(overrides)
-    return mod.DltLoadCollectionComponent(**kwargs)
+    return mod.DltYamlSourceComponent(**kwargs)
 
 
 def _filesystem_component(mod, **overrides):
@@ -49,7 +49,7 @@ def _filesystem_component(mod, **overrides):
         ],
     )
     kwargs.update(overrides)
-    return mod.DltLoadCollectionComponent(**kwargs)
+    return mod.DltYamlSourceComponent(**kwargs)
 
 
 BUILDERS = [_sql_component, _rest_api_component, _filesystem_component]

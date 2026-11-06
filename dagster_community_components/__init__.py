@@ -24,7 +24,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-__version__ = "0.10.123"
+__version__ = "0.10.124"
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent
 
@@ -414,9 +414,9 @@ _CLASS_PATHS: dict[str, str] = {
     "DependencyGraphComponent": "core/dependency_graph/component.py",
     "DetectChangesComponent": "transforms/detect_changes/component.py",
     "DistanceCalculatorComponent": "assets/analytics/distance_calculator/component.py",
-    "DltLoadCollectionComponent": "assets/ingestion/dlt_load_collection/component.py",
     "DltPipelineAssetsComponent": "integrations/dlt_pipeline_assets/component.py",
     "DltRestApiSourceComponent": "assets/ingestion/dlt_rest_api_source/component.py",
+    "DltYamlSourceComponent": "assets/ingestion/dlt_load_collection/component.py",
     "DoceboIngestionComponent": "assets/ingestion/docebo_ingestion/component.py",
     "DockerContainerAssetComponent": "assets/infrastructure/docker_container_asset/component.py",
     "DocuSignEnvelopeSendComponent": "assets/reverse_etl/docusign_envelope_send/component.py",
@@ -1730,6 +1730,24 @@ def _make_stub(name: str) -> type:
             return m()
         return classmethod(_fn)
 
+    def _load(cls, attributes, context):
+        # `Component.load`'s default impl does `issubclass(cls, Resolvable)` —
+        # against the STUB, which never inherits from the real class (that's
+        # the whole point: avoid pulling in its MRO). That check is always
+        # False for a stub, so the default falls through to `cls()` with NO
+        # arguments instead of `cls.resolve_from_model(attributes)` — every
+        # real component gets built with none of its configured attributes,
+        # surfacing as "Field required" on every required field. Delegate
+        # explicitly so the REAL class's `load` (and its real Resolvable
+        # check) runs instead.
+        real = _load_real_class(cls.__name__)
+        if isinstance(real, _MissingDepsPlaceholder):
+            return real(attributes, context)
+        load_fn = getattr(real, "load", None)
+        if load_fn is None or not callable(load_fn):
+            return _ComponentBase.load(attributes, context)
+        return load_fn(attributes, context)
+
     ns: dict = {
         "__module__": "dagster_community_components",
         "__qualname__": name,
@@ -1741,6 +1759,7 @@ def _make_stub(name: str) -> type:
         "get_model_cls": _delegate("get_model_cls"),
         "get_schema": _delegate("get_schema"),
         "get_spec": _delegate("get_spec"),
+        "load": classmethod(_load),
     }
     # Dynamic metaclass composition to avoid conflict with Component's own
     # metaclass (typically pydantic's ModelMetaclass or ABCMeta).

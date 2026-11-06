@@ -1,10 +1,10 @@
 """DltRestApiSourceComponent -- Bring-your-own REST API source config, using
 dlt's generic REST API source engine directly (dlt.sources.rest_api.rest_api_source).
 
-DEPRECATED: superseded by DltLoadCollectionComponent (source_type='rest_api'),
+DEPRECATED: superseded by DltYamlSourceComponent (source_type='rest_api'),
 which covers this exact client/resources shape plus sql_database/filesystem
 sources. This component's code stays in place for existing installs; new
-instances should use DltLoadCollectionComponent instead.
+instances should use DltYamlSourceComponent instead.
 
 This is the escape hatch for the long tail of vendors this catalog will
 never hand-build a dedicated component for. Every hand-built `*_ingestion`
@@ -146,6 +146,45 @@ def _validate_rest_api_config(client: Dict[str, Any], resources: List[Dict[str, 
 # Stripped (along with any 'x_'-prefixed custom key) before a resource dict is handed to
 # rest_api_source(), which rejects any key it doesn't recognize.
 _ASSET_LEVEL_RESOURCE_KEYS = {"asset_key", "description", "owners", "tags", "metadata"}
+
+
+def _resolve_env_var(name: Optional[str], field_name: str) -> Optional[str]:
+    """`os.environ.get()` silently returns None for an unset var, which then flows
+    into a connection string or dlt destination factory as the literal string
+    "None" instead of failing -- confusing at best (a credential-looking value
+    that's actually broken), a silent wrong-destination bug at worst. Raise
+    immediately with the var name and the field that referenced it instead."""
+    if not name:
+        return None
+    val = os.environ.get(name)
+    if val is None:
+        raise ValueError(
+            f"DltRestApiSourceComponent: {field_name}={name!r} references an environment "
+            f"variable that is not set. Set it before materializing, or configure the "
+            f"non-'_env_var' sibling field directly instead."
+        )
+    return val
+
+
+def _check_client_auth_resolved(client: Optional[Dict[str, Any]]) -> None:
+    """`client.auth.<field>` is commonly templated via Dagster's "{{ env.VAR_NAME }}"
+    Jinja syntax -- the attribute form, which returns None silently when VAR_NAME is
+    unset (unlike the "{{ env('VAR_NAME') }}" function form, which raises). An
+    unresolved auth field otherwise reaches dlt's rest_api_source as a literal None,
+    producing a bearer token / API key of "None" sent to the real API instead of a
+    clear local error."""
+    auth = (client or {}).get("auth")
+    if not isinstance(auth, dict):
+        return
+    for key in ("token", "api_key", "username", "password", "client_secret", "client_id"):
+        if key in auth and auth[key] is None:
+            raise ValueError(
+                f"DltRestApiSourceComponent: client.auth.{key} resolved to None. This "
+                "usually means it references an unset environment variable via "
+                "\"{{ env.VAR_NAME }}\" (attribute form, which returns None silently on a "
+                "missing variable) instead of \"{{ env('VAR_NAME') }}\" (function form, "
+                "which raises immediately). Set the variable, or switch to the function form."
+            )
 
 
 def _resolve_write_disposition(r: Dict[str, Any]) -> Optional[str]:
@@ -472,7 +511,10 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
         description=(
             "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', "
             "'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', "
-            "'mssql', 'motherduck'). Leave empty for in-memory DuckDB -> DataFrame mode."
+            "'mssql', 'motherduck', 'sqlalchemy'). 'sqlalchemy' is dlt's generic SQL "
+            "destination -- use it (with a SQLAlchemy connection string) for MySQL/MariaDB/"
+            "SQLite/Oracle and other databases dlt has no dedicated destination for; there is "
+            "no standalone 'mysql' destination. Leave empty for in-memory DuckDB -> DataFrame mode."
         ),
     )
     dataset_name: Optional[str] = Field(
@@ -492,7 +534,7 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
         description=(
             "Inline connection string passed to dlt's destination factory. Useful when one "
             "Dagster project ingests into multiple accounts of the same destination type. "
-            "If unset, dlt resolves credentials from env vars -- see ../DESTINATIONS.md."
+            "If unset, dlt resolves credentials from env vars using the convention DESTINATION__<NAME>__CREDENTIALS__<FIELD>."
         ),
     )
     destination_credentials_env_var: Optional[str] = Field(
@@ -681,7 +723,7 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
         if self.destination_credentials_url:
             creds = self.destination_credentials_url
         elif self.destination_credentials_env_var:
-            creds = os.environ.get(self.destination_credentials_env_var)
+            creds = _resolve_env_var(self.destination_credentials_env_var, "destination_credentials_env_var")
         if creds:
             factory = getattr(dlt.destinations, self.destination, None)
             if factory is not None:
@@ -698,14 +740,14 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = _resolve_env_var(self.destination_credentials_env_var, "destination_credentials_env_var")
             return dlt.destinations.filesystem(bucket_url=self.bucket_url, credentials=creds)
         if self.destination == "athena" and self.athena_query_result_bucket:
             creds = None
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = _resolve_env_var(self.destination_credentials_env_var, "destination_credentials_env_var")
             athena_kwargs = {"query_result_bucket": self.athena_query_result_bucket}
             if creds:
                 athena_kwargs["credentials"] = creds
@@ -793,6 +835,7 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
         if not _resources_cfg:
             return None, []
         from dlt.sources.rest_api import rest_api_source
+        _check_client_auth_resolved(self.client)
         config = {"client": self.client, "resources": _resources_cfg}
         return rest_api_source(config), names
 

@@ -1,6 +1,6 @@
 """Per-resource description/owners/tags/metadata/asset_key (multi_asset mode)
 and overridable _build_resources/_build_pipeline seams -- ported from
-DltLoadCollectionComponent."""
+DltYamlSourceComponent."""
 import dagster as dg
 import pandas as pd
 import pytest

@@ -1,4 +1,4 @@
-"""DltLoadCollectionComponent -- declare a collection of dlt resources (tables,
+"""DltYamlSourceComponent -- declare a collection of dlt resources (tables,
 REST endpoints, or file globs) entirely in YAML, no custom Python module
 required, across three of dlt's own built-in generic source engines:
 `dlt.sources.sql_database`, `dlt.sources.rest_api`, and `dlt.sources.filesystem`.
@@ -10,6 +10,16 @@ pure config, not custom code. A list of `{name, primary_key, columns, ...}`
 dicts (sql_resources / rest_api_resources / filesystem_resources, depending
 on source_type) is all that's needed -- the same declarative shape
 regardless of which of the three engines is backing it.
+
+Naming note: Dagster's own official `dagster-dlt` package ships a REAL
+`dagster_dlt.DltLoadCollectionComponent` with a very different, external-
+module-based design (`loads: [{pipeline: "...", source: "..."}]`, each a
+dotted path to a pre-built `dlt.Pipeline`/`dlt.Source` object defined in your
+own code -- exactly the external-module requirement this component exists to
+avoid). This component was originally named identically; renamed to
+`DltYamlSourceComponent` to eliminate that collision, since class-name-based
+tooling (the Dagster+ Component UI among others) can't distinguish two
+same-named classes from different packages.
 
 Note: `assets/ingestion/dlt_rest_api_source` is this component's predecessor
 for REST APIs and is now deprecated in favor of this one's `source_type:
@@ -41,7 +51,9 @@ servicenow_ingestion, github_ingestion, and others).
 """
 
 import os
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, Dict, Iterable, List, Literal, Optional, Union
+
+from dlt.common.storages.fsspec_filesystem import FileItemDict
 
 import dagster as dg
 import pandas as pd
@@ -97,6 +109,130 @@ _SHARED_RESOURCE_KEY_DOCS = (
 )
 
 
+def _resolve_env_var(name: Optional[str], field_name: str) -> Optional[str]:
+    """`os.environ.get()` silently returns None for an unset var, which then flows
+    into a connection string or dlt destination factory as the literal string
+    "None" instead of failing -- confusing at best (a credential-looking value
+    that's actually broken), a silent wrong-destination bug at worst. Raise
+    immediately with the var name and the field that referenced it instead."""
+    if not name:
+        return None
+    val = os.environ.get(name)
+    if val is None:
+        raise ValueError(
+            f"DltYamlSourceComponent: {field_name}={name!r} references an environment "
+            f"variable that is not set. Set it before materializing, or configure the "
+            f"non-'_env_var' sibling field directly instead."
+        )
+    return val
+
+
+def _check_client_auth_resolved(client: Optional[Dict[str, Any]]) -> None:
+    """`client.auth.<field>` is commonly templated via Dagster's "{{ env.VAR_NAME }}"
+    Jinja syntax -- the attribute form, which returns None silently when VAR_NAME is
+    unset (unlike the "{{ env('VAR_NAME') }}" function form, which raises). An
+    unresolved auth field otherwise reaches dlt's rest_api_source as a literal None,
+    producing a bearer token / API key of "None" sent to the real API instead of a
+    clear local error."""
+    auth = (client or {}).get("auth")
+    if not isinstance(auth, dict):
+        return
+    for key in ("token", "api_key", "username", "password", "client_secret", "client_id"):
+        if key in auth and auth[key] is None:
+            raise ValueError(
+                f"DltYamlSourceComponent: client.auth.{key} resolved to None. This "
+                "usually means it references an unset environment variable via "
+                "\"{{ env.VAR_NAME }}\" (attribute form, which returns None silently on a "
+                "missing variable) instead of \"{{ env('VAR_NAME') }}\" (function form, "
+                "which raises immediately). Set the variable, or switch to the function form."
+            )
+
+
+import sys as _sys
+import types as _types
+if __name__ not in _sys.modules:
+    # `@dlt.transformer` resolves its own module via `inspect.getmodule()`, which
+    # looks up `sys.modules[func.__module__]` -- None when this file is loaded via
+    # `importlib.util.spec_from_file_location(...)` without registering the
+    # resulting module object (this repo's own test-loading convention does
+    # exactly that, across 500+ component test dirs). A no-op in a real install
+    # (already registered there by the normal import machinery); only fills the
+    # gap for this ad-hoc loading path.
+    _sys.modules[__name__] = _types.ModuleType(__name__)
+
+
+def _read_json_rows(items: Iterable[FileItemDict], chunksize: int = 1000):
+    """Plain (non-newline-delimited) JSON files -- a single object or an array of
+    objects per file. dlt's own filesystem readers only cover csv/parquet/jsonl;
+    there's no built-in reader for this shape."""
+    from dlt.common import json as dlt_json
+    for file_obj in items:
+        with file_obj.open() as f:
+            data = dlt_json.load(f)
+        if isinstance(data, list):
+            for i in range(0, len(data), chunksize):
+                yield data[i: i + chunksize]
+        else:
+            yield [data]
+
+
+@dlt.transformer(standalone=True)
+def _read_json(items: Iterable[FileItemDict], chunksize: int = 1000):
+    yield from _read_json_rows(items, chunksize)
+
+
+@dlt.transformer(standalone=True)
+def _read_auto(items: Iterable[FileItemDict], chunksize: int = 1000):
+    """file_format='auto': dispatch each matched file by its own extension instead
+    of applying one fixed reader to the whole glob -- for a bucket/prefix that mixes
+    file types. Re-implements csv/parquet/jsonl reading directly (pandas/pyarrow,
+    both already real deps here) rather than reaching into dlt's underscore-prefixed
+    internals, which carry no API-stability guarantee."""
+    import pandas as pd
+
+    def _csv_rows(group, chunksize):
+        for file_obj in group:
+            with file_obj.open() as f:
+                for df in pd.read_csv(f, chunksize=chunksize):
+                    yield df.to_dict(orient="records")
+
+    def _parquet_rows(group, chunksize):
+        from pyarrow import parquet as pq
+        for file_obj in group:
+            with file_obj.open() as f:
+                parquet_file = pq.ParquetFile(f)
+                for batch in parquet_file.iter_batches(batch_size=chunksize):
+                    yield batch.to_pylist()
+
+    def _jsonl_rows(group, chunksize):
+        from dlt.common import json as dlt_json
+        for file_obj in group:
+            with file_obj.open() as f:
+                chunk = []
+                for line in f:
+                    chunk.append(dlt_json.loadb(line))
+                    if len(chunk) >= chunksize:
+                        yield chunk
+                        chunk = []
+                if chunk:
+                    yield chunk
+
+    _dispatch = {
+        "csv": _csv_rows, "parquet": _parquet_rows,
+        "jsonl": _jsonl_rows, "ndjson": _jsonl_rows,
+        "json": _read_json_rows,
+    }
+    buckets: Dict[str, list] = {}
+    for file_obj in items:
+        suffix = file_obj["file_name"].rsplit(".", 1)[-1].lower()
+        buckets.setdefault(suffix, []).append(file_obj)
+    for suffix, group in buckets.items():
+        fn = _dispatch.get(suffix)
+        if fn is None:
+            continue  # unrecognized extension under file_format='auto' -- skip, don't crash the whole resource
+        yield from fn(group, chunksize)
+
+
 def _resolve_write_disposition(r: Dict[str, Any]) -> Optional[str]:
     """An explicit 'write_disposition' always wins. Otherwise, a 'primary_key' with no
     explicit write_disposition infers 'merge' -- dlt's own default ('append') would
@@ -120,42 +256,42 @@ def _validate_resources(source_type: str, resources: List[Dict[str, Any]]) -> No
     raw dlt/pydantic traceback deep inside resource construction."""
     field = _RESOURCES_FIELD_NAME[source_type]
     if not resources:
-        raise ValueError(f"DltLoadCollectionComponent: '{field}' must be a non-empty list.")
+        raise ValueError(f"DltYamlSourceComponent: '{field}' must be a non-empty list.")
     seen = set()
     for i, r in enumerate(resources):
         if not isinstance(r, dict):
             raise ValueError(
-                f"DltLoadCollectionComponent: {field}[{i}] must be a mapping (dict), got {type(r).__name__}."
+                f"DltYamlSourceComponent: {field}[{i}] must be a mapping (dict), got {type(r).__name__}."
             )
         name = r.get("name")
         if not name:
-            raise ValueError(f"DltLoadCollectionComponent: {field}[{i}] is missing the required 'name' field.")
+            raise ValueError(f"DltYamlSourceComponent: {field}[{i}] is missing the required 'name' field.")
         if name in seen:
-            raise ValueError(f"DltLoadCollectionComponent: duplicate resource name {name!r} in '{field}'.")
+            raise ValueError(f"DltYamlSourceComponent: duplicate resource name {name!r} in '{field}'.")
         seen.add(name)
         if source_type == "rest_api":
             endpoint = r.get("endpoint")
             if not isinstance(endpoint, dict) or not endpoint.get("path"):
                 raise ValueError(
-                    f"DltLoadCollectionComponent: {field}[{i}] ({name!r}) needs "
+                    f"DltYamlSourceComponent: {field}[{i}] ({name!r}) needs "
                     f"'endpoint: {{path: ...}}', e.g.\n"
                     f"  - name: {name}\n    endpoint:\n      path: {name}"
                 )
         elif source_type == "filesystem":
             if not r.get("file_glob"):
                 raise ValueError(
-                    f"DltLoadCollectionComponent: {field}[{i}] ({name!r}) needs 'file_glob', "
+                    f"DltYamlSourceComponent: {field}[{i}] ({name!r}) needs 'file_glob', "
                     f"e.g. 'orders/*.csv'."
                 )
         write_disposition = r.get("write_disposition")
         if write_disposition is not None and write_disposition not in ("append", "replace", "merge"):
             raise ValueError(
-                f"DltLoadCollectionComponent: {field}[{i}] ({name!r}).write_disposition must be "
+                f"DltYamlSourceComponent: {field}[{i}] ({name!r}).write_disposition must be "
                 f"one of 'append'/'replace'/'merge', got {write_disposition!r}."
             )
         if write_disposition == "merge" and not (r.get("primary_key") or r.get("merge_key")):
             raise ValueError(
-                f"DltLoadCollectionComponent: {field}[{i}] ({name!r}) sets "
+                f"DltYamlSourceComponent: {field}[{i}] ({name!r}) sets "
                 f"write_disposition='merge' but has no 'primary_key' or 'merge_key' -- dlt's merge "
                 f"strategy has no natural key to dedupe on and silently falls back to appending "
                 f"(verified: 2 loads of the same 2 rows produced 4). Set one of the two."
@@ -163,7 +299,7 @@ def _validate_resources(source_type: str, resources: List[Dict[str, Any]]) -> No
         asset_key = r.get("asset_key")
         if asset_key is not None and not isinstance(asset_key, (str, list)):
             raise ValueError(
-                f"DltLoadCollectionComponent: {field}[{i}] ({name!r}).asset_key must be a string "
+                f"DltYamlSourceComponent: {field}[{i}] ({name!r}).asset_key must be a string "
                 f"or a list of strings, got {type(asset_key).__name__}."
             )
 
@@ -354,7 +490,7 @@ def _table_schema_metadata(df: pd.DataFrame) -> Dict[str, Any]:
     return {"dagster/column_schema": MetadataValue.table_schema(dg.TableSchema(columns=columns))}
 
 
-class DltLoadCollectionComponent(Component, Model, Resolvable):
+class DltYamlSourceComponent(Component, Model, Resolvable):
     """Declare a collection of dlt resources (tables / REST endpoints / file
     globs) entirely in YAML -- no custom Python module required.
 
@@ -370,11 +506,11 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
     Example (sql_database):
 
         ```yaml
-        type: dagster_community_components.DltLoadCollectionComponent
+        type: dagster_community_components.DltYamlSourceComponent
         attributes:
           asset_name: warehouse_core_tables
           source_type: sql_database
-          connection_string: "{{ env('WAREHOUSE_CONNECTION_STRING') }}"
+          connection_string: "{{ env.WAREHOUSE_CONNECTION_STRING }}"
           schema_name: public
           sql_resources:
             - name: customers
@@ -387,7 +523,7 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
     Example (rest_api):
 
         ```yaml
-        type: dagster_community_components.DltLoadCollectionComponent
+        type: dagster_community_components.DltYamlSourceComponent
         attributes:
           asset_name: my_api_tables
           source_type: rest_api
@@ -395,7 +531,7 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
             base_url: "https://api.example.com"
             auth:
               type: bearer
-              token: "{{ env('MY_API_TOKEN') }}"
+              token: "{{ env.MY_API_TOKEN }}"
           rest_api_resources:
             - name: customers
               primary_key: id
@@ -406,7 +542,7 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
     Example (filesystem):
 
         ```yaml
-        type: dagster_community_components.DltLoadCollectionComponent
+        type: dagster_community_components.DltYamlSourceComponent
         attributes:
           asset_name: landing_zone_files
           source_type: filesystem
@@ -487,7 +623,7 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
         description=(
             "SQLAlchemy connection string for the source database, e.g. "
             "'postgresql://user:pass@host:5432/db'. Required when source_type='sql_database' "
-            "(or connection_string_env_var). Use \"{{ env('VAR_NAME') }}\" for secrets."
+            "(or connection_string_env_var). Use \"{{ env.VAR_NAME }}\" for secrets."
         ),
     )
     connection_string_env_var: Optional[str] = Field(
@@ -523,15 +659,22 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
             "'gs://my-bucket/landing', 'az://my-container/landing', or 'file:///local/path'). "
             "Required when source_type='filesystem'. Credentials resolve from the cloud "
             "provider's standard env vars (e.g. AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY), same "
-            "as the destination-side filesystem convention in ../DESTINATIONS.md. Named "
+            "as every other ingestion component's destination-side filesystem credentials. Named "
             "'filesystem_bucket_url' (not the shared 'bucket_url') since this is the SOURCE "
             "bucket -- 'bucket_url' below is the DESTINATION bucket, matching every other "
             "ingestion component in this repo."
         ),
     )
-    file_format: Literal["csv", "parquet", "jsonl"] = Field(
+    file_format: Literal["csv", "parquet", "jsonl", "json", "auto"] = Field(
         default="csv",
-        description="Reader applied to each matched file (filesystem only). Per-resource 'file_format' overrides this.",
+        description=(
+            "Reader applied to each matched file (filesystem only). Per-resource 'file_format' "
+            "overrides this. 'json' reads a single JSON object or array-of-objects per file "
+            "(not newline-delimited -- use 'jsonl' for that). 'auto' dispatches each matched "
+            "file by its own extension instead of applying one reader to the whole glob -- for "
+            "a bucket/prefix that mixes file types; files whose extension isn't csv/parquet/"
+            "jsonl/json are skipped rather than failing the whole resource."
+        ),
     )
 
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------------
@@ -541,7 +684,10 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
         description=(
             "dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', "
             "'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', "
-            "'mssql', 'motherduck'). Leave empty for in-memory DuckDB -> DataFrame mode."
+            "'mssql', 'motherduck', 'sqlalchemy'). 'sqlalchemy' is dlt's generic SQL "
+            "destination -- use it (with a SQLAlchemy connection string) for MySQL/MariaDB/"
+            "SQLite/Oracle and other databases dlt has no dedicated destination for; there is "
+            "no standalone 'mysql' destination. Leave empty for in-memory DuckDB -> DataFrame mode."
         ),
     )
     dataset_name: Optional[str] = Field(
@@ -561,7 +707,7 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
         description=(
             "Inline connection string passed to dlt's destination factory. Useful when one "
             "Dagster project ingests into multiple accounts of the same destination type. "
-            "If unset, dlt resolves credentials from env vars -- see ../DESTINATIONS.md."
+            "If unset, dlt resolves credentials from env vars using the convention DESTINATION__<NAME>__CREDENTIALS__<FIELD>."
         ),
     )
     destination_credentials_env_var: Optional[str] = Field(
@@ -574,7 +720,7 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
             "Bucket/path URL for filesystem-shaped DESTINATION storage -- same field name/meaning "
             "as every other ingestion component in this repo. Required when destination='filesystem' "
             "is the final target; also used as the staging area when destination='databricks' or "
-            "'athena'. See ../DESTINATIONS.md. (The filesystem SOURCE bucket, for "
+            "'athena'. (The filesystem SOURCE bucket, for "
             "source_type='filesystem', is the separate 'filesystem_bucket_url' field above.)"
         ),
     )
@@ -686,7 +832,7 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
         if self.destination_credentials_url:
             creds = self.destination_credentials_url
         elif self.destination_credentials_env_var:
-            creds = os.environ.get(self.destination_credentials_env_var)
+            creds = _resolve_env_var(self.destination_credentials_env_var, "destination_credentials_env_var")
         if creds:
             factory = getattr(dlt.destinations, self.destination, None)
             if factory is not None:
@@ -699,14 +845,14 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = _resolve_env_var(self.destination_credentials_env_var, "destination_credentials_env_var")
             return dlt.destinations.filesystem(bucket_url=self.bucket_url, credentials=creds)
         if self.destination == "athena" and self.athena_query_result_bucket:
             creds = None
             if self.destination_credentials_url:
                 creds = self.destination_credentials_url
             elif self.destination_credentials_env_var:
-                creds = os.environ.get(self.destination_credentials_env_var)
+                creds = _resolve_env_var(self.destination_credentials_env_var, "destination_credentials_env_var")
             athena_kwargs = {"query_result_bucket": self.athena_query_result_bucket}
             if creds:
                 athena_kwargs["credentials"] = creds
@@ -735,7 +881,7 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
         unknown = set(overrides) - set(resource_names)
         if unknown:
             raise ValueError(
-                f"DltLoadCollectionComponent: table_name_map has key(s) not in the active resources field: {sorted(unknown)}."
+                f"DltYamlSourceComponent: table_name_map has key(s) not in the active resources field: {sorted(unknown)}."
             )
         return {name: overrides.get(name, name) for name in resource_names}
 
@@ -743,7 +889,7 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
         if self.connection_string:
             return self.connection_string
         if self.connection_string_env_var:
-            return os.environ.get(self.connection_string_env_var)
+            return _resolve_env_var(self.connection_string_env_var, "connection_string_env_var")
         return None
 
     def _build_pipeline(self, pipeline_name: str, dataset_name: str):
@@ -786,7 +932,7 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
             creds = self._resolve_source_credentials()
             if not creds:
                 raise ValueError(
-                    "DltLoadCollectionComponent: could not resolve a connection string for "
+                    "DltYamlSourceComponent: could not resolve a connection string for "
                     "source_type='sql_database' (checked connection_string and connection_string_env_var)."
                 )
             for r in resources_config:
@@ -838,13 +984,17 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
             _names = [r["name"] for r in _resources_cfg]
             if not _resources_cfg:
                 return [], []
+            _check_client_auth_resolved(self.client)
             config = {"client": self.client, "resources": _resources_cfg}
             source = rest_api_source(config)
             return source, _names
 
         elif source_type == "filesystem":
             from dlt.sources.filesystem import filesystem, read_csv, read_jsonl, read_parquet
-            _readers = {"csv": read_csv, "parquet": read_parquet, "jsonl": read_jsonl}
+            _readers = {
+                "csv": read_csv, "parquet": read_parquet, "jsonl": read_jsonl,
+                "json": _read_json, "auto": _read_auto,
+            }
             for r in resources_config:
                 name = r["name"]
                 if name not in wanted:
@@ -853,8 +1003,8 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
                 reader_factory = _readers.get(fmt)
                 if reader_factory is None:
                     raise ValueError(
-                        f"DltLoadCollectionComponent: resources[{name!r}].file_format must be "
-                        f"one of csv/parquet/jsonl, got {fmt!r}."
+                        f"DltYamlSourceComponent: resources[{name!r}].file_format must be "
+                        f"one of csv/parquet/jsonl/json/auto, got {fmt!r}."
                     )
                 res = (filesystem(bucket_url=self.filesystem_bucket_url, file_glob=r["file_glob"]) | reader_factory()).with_name(name)
                 hint_kwargs: Dict[str, Any] = {}
@@ -895,11 +1045,11 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
             "filesystem_resources": self.filesystem_resources,
         }
         if _inactive_fields.pop(_active_field) is None:
-            raise ValueError(f"DltLoadCollectionComponent: '{_active_field}' is required when source_type={source_type!r}.")
+            raise ValueError(f"DltYamlSourceComponent: '{_active_field}' is required when source_type={source_type!r}.")
         _misplaced = [name for name, value in _inactive_fields.items() if value]
         if _misplaced:
             raise ValueError(
-                f"DltLoadCollectionComponent: {_misplaced} set but source_type={source_type!r} "
+                f"DltYamlSourceComponent: {_misplaced} set but source_type={source_type!r} "
                 f"uses '{_active_field}' instead -- they're ignored. Remove them or set source_type accordingly."
             )
         resources_config = self._active_resources()
@@ -907,17 +1057,17 @@ class DltLoadCollectionComponent(Component, Model, Resolvable):
         _validate_resources(source_type, resources_config)
         if source_type == "sql_database" and not (self.connection_string or self.connection_string_env_var):
             raise ValueError(
-                "DltLoadCollectionComponent: 'connection_string' or 'connection_string_env_var' "
+                "DltYamlSourceComponent: 'connection_string' or 'connection_string_env_var' "
                 "is required when source_type='sql_database'."
             )
         if source_type == "rest_api" and not self.client:
-            raise ValueError("DltLoadCollectionComponent: 'client' is required when source_type='rest_api'.")
+            raise ValueError("DltYamlSourceComponent: 'client' is required when source_type='rest_api'.")
         if source_type == "filesystem" and not self.filesystem_bucket_url:
-            raise ValueError("DltLoadCollectionComponent: 'filesystem_bucket_url' is required when source_type='filesystem'.")
+            raise ValueError("DltYamlSourceComponent: 'filesystem_bucket_url' is required when source_type='filesystem'.")
         if self.partition_window_params and source_type != "rest_api":
             import warnings
             warnings.warn(
-                "DltLoadCollectionComponent: partition_window_params is only applied for "
+                "DltYamlSourceComponent: partition_window_params is only applied for "
                 f"source_type='rest_api' -- ignored for source_type={source_type!r}."
             )
 

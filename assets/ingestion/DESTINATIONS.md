@@ -229,7 +229,7 @@ dlt's docs — check the linked dlt page above for the authoritative list.
 When running on GCP with workload-identity, you can omit credentials entirely
 and dlt will use Application Default Credentials.
 
-### postgres / redshift / mssql / mysql / clickhouse
+### postgres / redshift / mssql / clickhouse
 
 These all share the same shape:
 
@@ -241,7 +241,27 @@ These all share the same shape:
 | `DESTINATION__<NAME>__CREDENTIALS__PASSWORD` | yes |
 | `DESTINATION__<NAME>__CREDENTIALS__DATABASE` | yes |
 
-`<NAME>` is one of `POSTGRES`, `REDSHIFT`, `MSSQL`, `MYSQL`, `CLICKHOUSE`.
+`<NAME>` is one of `POSTGRES`, `REDSHIFT`, `MSSQL`, `CLICKHOUSE`. There is
+**no** standalone `mysql` destination in dlt (`destination: mysql` raises
+`UnknownDestinationModule`) — use `sqlalchemy` below for MySQL/MariaDB.
+
+### sqlalchemy (MySQL, MariaDB, SQLite, Oracle, and more)
+
+dlt's generic SQL destination, built on SQLAlchemy — the only way to reach
+MySQL, MariaDB, SQLite, Oracle, and anything else dlt has no dedicated
+destination for. It takes a single SQLAlchemy connection string rather than
+split host/port/username/password fields:
+
+| Env var | Required |
+|---|---|
+| `DESTINATION__SQLALCHEMY__CREDENTIALS__CONNECTION_STRING` | yes — a full SQLAlchemy URL, e.g. `mysql+pymysql://user:pass@host:3306/db` or `sqlite:///./local.db` |
+
+The same `destination_credentials_url` / `destination_credentials_env_var`
+fields work here too — set either to the connection string directly instead
+of using the env var above. If a password contains `@`, `:`, `/`, `#`, or
+other URL-reserved characters, percent-encode it (or build the string with
+SQLAlchemy's own `sqlalchemy.engine.URL.create(...)`) before passing it in —
+naive string formatting breaks on those characters.
 
 ### databricks
 

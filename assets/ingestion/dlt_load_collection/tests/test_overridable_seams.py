@@ -18,7 +18,7 @@ def mod():
 
 
 def test_build_resources_and_build_pipeline_are_real_overridable_methods(mod):
-    component = mod.DltLoadCollectionComponent(
+    component = mod.DltYamlSourceComponent(
         asset_name="a", source_type="rest_api", client={"base_url": "https://x"},
         rest_api_resources=[{"name": "orders", "endpoint": {"path": "orders"}}],
     )
@@ -29,7 +29,7 @@ def test_build_resources_and_build_pipeline_are_real_overridable_methods(mod):
 def test_subclass_can_override_build_pipeline(mod, monkeypatch):
     calls = []
 
-    class DemoModeComponent(mod.DltLoadCollectionComponent):
+    class DemoModeComponent(mod.DltYamlSourceComponent):
         def _build_pipeline(self, pipeline_name, dataset_name):
             calls.append((pipeline_name, dataset_name))
             return FakePipeline(table_rows={"orders": pd.DataFrame({"id": [1]})})
@@ -52,7 +52,7 @@ def test_subclass_can_override_build_resources(mod, monkeypatch):
 
     calls = []
 
-    class TrackingComponent(mod.DltLoadCollectionComponent):
+    class TrackingComponent(mod.DltYamlSourceComponent):
         def _build_resources(self, selected_names=None, run_context=None):
             calls.append(selected_names)
             return super()._build_resources(selected_names=selected_names, run_context=run_context)

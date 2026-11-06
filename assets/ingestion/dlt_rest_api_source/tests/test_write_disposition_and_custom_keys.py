@@ -1,5 +1,5 @@
 """write_disposition inference/validation, merge_key, and the 'x_' custom-key
-convention -- ported from DltLoadCollectionComponent (same resources:
+convention -- ported from DltYamlSourceComponent (same resources:
 List[Dict] shape, same risk profile)."""
 import dagster as dg
 import pandas as pd

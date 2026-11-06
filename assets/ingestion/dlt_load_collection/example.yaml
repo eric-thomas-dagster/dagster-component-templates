@@ -1,4 +1,4 @@
-type: dagster_community_components.DltLoadCollectionComponent
+type: dagster_community_components.DltYamlSourceComponent
 attributes:
   asset_name: my_rest_api_tables
   source_type: rest_api
@@ -8,7 +8,7 @@ attributes:
     base_url: "https://api.example.com"
     auth:
       type: bearer
-      token: "{{ env('MY_API_TOKEN') }}"
+      token: "{{ env.MY_API_TOKEN }}"
 
   # Only rest_api_resources is active when source_type=rest_api (sql_resources/
   # filesystem_resources below are each only active for their own source_type).
@@ -42,7 +42,7 @@ attributes:
 
   # --- Example: source_type=sql_database instead (uncomment and remove the rest_api fields above) ---
   # source_type: sql_database
-  # connection_string: "{{ env('WAREHOUSE_CONNECTION_STRING') }}"
+  # connection_string: "{{ env.WAREHOUSE_CONNECTION_STRING }}"
   # schema_name: public
   # sql_resources:
   #   - name: customers

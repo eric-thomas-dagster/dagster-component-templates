@@ -15,7 +15,7 @@ def mod():
 
 def test_column_lineage_emitted_in_single_shape(mod, monkeypatch):
     install_fake_dlt(monkeypatch, mod, table_rows={"orders": pd.DataFrame({"revenue": [10]})})
-    component = mod.DltLoadCollectionComponent(
+    component = mod.DltYamlSourceComponent(
         asset_name="a", source_type="rest_api", client={"base_url": "https://x"},
         rest_api_resources=[{"name": "orders", "endpoint": {"path": "orders"}}],
         deps=["raw_sales"],
@@ -34,7 +34,7 @@ def test_column_lineage_emitted_in_single_shape(mod, monkeypatch):
 
 def test_column_lineage_absent_by_default(mod, monkeypatch):
     install_fake_dlt(monkeypatch, mod, table_rows={"orders": pd.DataFrame({"id": [1]})})
-    component = mod.DltLoadCollectionComponent(
+    component = mod.DltYamlSourceComponent(
         asset_name="a", source_type="rest_api", client={"base_url": "https://x"},
         rest_api_resources=[{"name": "orders", "endpoint": {"path": "orders"}}],
     )

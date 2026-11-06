@@ -414,6 +414,7 @@ _CLASS_PATHS: dict[str, str] = {
     "DependencyGraphComponent": "core/dependency_graph/component.py",
     "DetectChangesComponent": "transforms/detect_changes/component.py",
     "DistanceCalculatorComponent": "assets/analytics/distance_calculator/component.py",
+    "DltLoadCollectionComponent": "assets/ingestion/dlt_load_collection/component.py",
     "DltPipelineAssetsComponent": "integrations/dlt_pipeline_assets/component.py",
     "DltRestApiSourceComponent": "assets/ingestion/dlt_rest_api_source/component.py",
     "DoceboIngestionComponent": "assets/ingestion/docebo_ingestion/component.py",

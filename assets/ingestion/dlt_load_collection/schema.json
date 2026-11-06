@@ -1,0 +1,584 @@
+{
+  "component_type": "dagster_community_components.DltLoadCollectionComponent",
+  "description": "Declare a collection of dlt resources (tables, REST endpoints, or file globs) entirely in YAML across dlt's built-in sql_database, rest_api, and filesystem source engines -- no custom Python module required.",
+  "summary": "Load a collection of tables/endpoints/files declared entirely in YAML, via dlt's generic sql_database, rest_api, or filesystem source engines.",
+  "category": "ingestion",
+  "vertical": "internal",
+  "icon": "Wrench",
+  "x-dagster-io": {
+    "outputs": {
+      "type": "dataframe",
+      "description": "pandas DataFrame with one row per record from the configured resources (one asset per resource in multi_asset mode; or MaterializeResult if destination is non-SQL / persist_only=true)."
+    }
+  },
+  "attributes": {
+    "asset_name": {
+      "type": "string",
+      "label": "Asset Name",
+      "description": "Name of the asset (or asset prefix, in multi_asset mode) that will hold the data",
+      "required": true
+    },
+    "source_type": {
+      "type": "string",
+      "label": "Source Type",
+      "description": "Which dlt built-in generic source engine builds these resources: 'sql_database' (dlt.sources.sql_database.sql_table, one call per declared resource), 'rest_api' (dlt.sources.rest_api.rest_api_source, same config shape as dlt_rest_api_source), or 'filesystem' (dlt.sources.filesystem.filesystem + a csv/parquet/jsonl reader, one per declared resource).",
+      "required": true,
+      "enum": [
+        "sql_database",
+        "rest_api",
+        "filesystem"
+      ],
+      "ui:widget": "select"
+    },
+    "resources": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "label": "Resources",
+      "description": "One dict per resource (table / endpoint / file-glob). Always requires 'name' (also the destination table name, unless overridden via table_name_map). Optional 'primary_key' (str or list of str) and 'columns' on every source_type. source_type='sql_database': 'columns' (if set) is a list of column names to extract (others excluded) -- or a dict, whose keys are used the same way; types always come from the real database via reflection. Optional per-resource 'schema' overrides the top-level schema_name. source_type='rest_api': requires 'endpoint: {path: ...}' (same shape as dlt_rest_api_source's resources); 'columns' here is a dlt column-schema dict, e.g. {id: {data_type: bigint}}. source_type='filesystem': requires 'file_glob' (e.g. 'orders/*.csv'); optional per-resource 'file_format' overrides the top-level file_format.",
+      "required": true
+    },
+    "asset_shape": {
+      "type": "string",
+      "label": "Asset Shape",
+      "description": "'single' (default, matches every other multi-table ingestion component in this repo): one asset that unions every resource's rows into one DataFrame, tagged with a `_resource_type` column. 'multi_asset': one independently-materializable asset per resource -- materializing one resource never builds, fetches, or persists the others.",
+      "required": false,
+      "default": "single",
+      "enum": [
+        "single",
+        "multi_asset"
+      ],
+      "ui:widget": "select"
+    },
+    "table_name_map": {
+      "type": "object",
+      "label": "Table Name Map",
+      "description": "Override the destination table name for specific resources, keyed by the resource's declared 'name': {resource_name: destination_table_name}. Resources not listed keep their declared name as the destination table name.",
+      "required": false,
+      "default": null
+    },
+    "connection_string": {
+      "x-dagster-group": "sql_database",
+      "type": "string",
+      "label": "Connection String",
+      "description": "SQLAlchemy connection string for the source database, e.g. 'postgresql://user:pass@host:5432/db'. Required when source_type='sql_database' (or connection_string_env_var). Use \"{{ env('VAR_NAME') }}\" for secrets.",
+      "required": false,
+      "default": null,
+      "x-dagster-visible-when": {
+        "field": "source_type",
+        "values": ["sql_database"]
+      }
+    },
+    "connection_string_env_var": {
+      "x-dagster-group": "sql_database",
+      "type": "string",
+      "label": "Connection String Env Var",
+      "description": "Alternative to connection_string: name of an env var holding the SQLAlchemy connection string. Resolved at run-time.",
+      "required": false,
+      "default": null,
+      "x-dagster-visible-when": {
+        "field": "source_type",
+        "values": ["sql_database"]
+      }
+    },
+    "schema_name": {
+      "x-dagster-group": "sql_database",
+      "type": "string",
+      "label": "Schema Name",
+      "description": "Source database schema name (sql_database only). Per-resource 'schema' overrides this.",
+      "required": false,
+      "default": null,
+      "x-dagster-visible-when": {
+        "field": "source_type",
+        "values": ["sql_database"]
+      }
+    },
+    "sql_backend": {
+      "x-dagster-group": "sql_database",
+      "type": "string",
+      "label": "Sql Backend",
+      "description": "dlt sql_table extraction backend (sql_database only).",
+      "required": false,
+      "default": "sqlalchemy",
+      "enum": [
+        "sqlalchemy",
+        "pyarrow",
+        "pandas",
+        "connectorx"
+      ],
+      "ui:widget": "select",
+      "x-dagster-visible-when": {
+        "field": "source_type",
+        "values": ["sql_database"]
+      }
+    },
+    "client": {
+      "x-dagster-group": "rest_api",
+      "type": "object",
+      "label": "Client",
+      "description": "dlt rest_api_source 'client' config (base_url required; optional auth, headers, paginator -- see dlt_rest_api_source's README for the full shape reference). Required when source_type='rest_api'.",
+      "required": false,
+      "default": null,
+      "x-dagster-visible-when": {
+        "field": "source_type",
+        "values": ["rest_api"]
+      }
+    },
+    "bucket_url": {
+      "x-dagster-group": "filesystem",
+      "type": "string",
+      "label": "Bucket Url (source)",
+      "description": "Bucket/path URL to read SOURCE files from (e.g. 's3://my-bucket/landing', 'gs://my-bucket/landing', 'az://my-container/landing', or 'file:///local/path'). Required when source_type='filesystem'. Credentials resolve from the cloud provider's standard env vars, same as the destination-side filesystem convention in ../DESTINATIONS.md.",
+      "required": false,
+      "default": null,
+      "x-dagster-visible-when": {
+        "field": "source_type",
+        "values": ["filesystem"]
+      }
+    },
+    "file_format": {
+      "x-dagster-group": "filesystem",
+      "type": "string",
+      "label": "File Format",
+      "description": "Reader applied to each matched file (filesystem only). Per-resource 'file_format' overrides this.",
+      "required": false,
+      "default": "csv",
+      "enum": [
+        "csv",
+        "parquet",
+        "jsonl"
+      ],
+      "ui:widget": "select",
+      "x-dagster-visible-when": {
+        "field": "source_type",
+        "values": ["filesystem"]
+      }
+    },
+    "destination": {
+      "x-dagster-group": "destination",
+      "type": "string",
+      "label": "Destination",
+      "description": "dlt destination identifier. Leave empty for in-memory DuckDB -> DataFrame mode.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "snowflake",
+        "bigquery",
+        "postgres",
+        "redshift",
+        "filesystem",
+        "duckdb",
+        "databricks",
+        "athena",
+        "clickhouse",
+        "mssql",
+        "motherduck"
+      ],
+      "ui:widget": "select"
+    },
+    "dataset_name": {
+      "x-dagster-group": "destination",
+      "type": "string",
+      "label": "Dataset Name",
+      "description": "Target dataset/schema in the destination. Defaults to the asset name.",
+      "required": false,
+      "default": null
+    },
+    "persist_only": {
+      "x-dagster-group": "destination",
+      "type": "boolean",
+      "label": "Persist Only",
+      "description": "If True with destination set: emit a MaterializeResult and skip DataFrame return.",
+      "required": false,
+      "default": false,
+      "ui:widget": "checkbox"
+    },
+    "destination_credentials_url": {
+      "type": "string",
+      "label": "Destination Credentials Url",
+      "description": "Inline connection string passed to dlt's destination factory.",
+      "required": false,
+      "default": null,
+      "x-dagster-destination-fields": {
+        "trigger_field": "destination",
+        "options": {
+          "snowflake": {
+            "fields": [
+              { "name": "account", "label": "Account", "required": true, "description": "e.g. xy12345.us-east-1" },
+              { "name": "username", "label": "Username", "required": true },
+              { "name": "password", "label": "Password", "required": true, "widget": "password" },
+              { "name": "database", "label": "Database", "required": true },
+              { "name": "warehouse", "label": "Warehouse", "required": false },
+              { "name": "role", "label": "Role", "required": false }
+            ],
+            "template": {
+              "base": "snowflake://{username}:{password}@{account}/{database}",
+              "query_params": { "warehouse": "warehouse", "role": "role" }
+            }
+          },
+          "postgres": {
+            "fields": [
+              { "name": "host", "label": "Host", "required": true },
+              { "name": "port", "label": "Port", "required": false, "default": "5432" },
+              { "name": "username", "label": "Username", "required": true },
+              { "name": "password", "label": "Password", "required": true, "widget": "password" },
+              { "name": "database", "label": "Database", "required": true }
+            ],
+            "template": { "base": "postgresql://{username}:{password}@{host}:{port}/{database}" }
+          },
+          "redshift": {
+            "fields": [
+              { "name": "host", "label": "Host", "required": true },
+              { "name": "port", "label": "Port", "required": false, "default": "5439" },
+              { "name": "username", "label": "Username", "required": true },
+              { "name": "password", "label": "Password", "required": true, "widget": "password" },
+              { "name": "database", "label": "Database", "required": true }
+            ],
+            "template": { "base": "redshift://{username}:{password}@{host}:{port}/{database}" }
+          },
+          "clickhouse": {
+            "fields": [
+              { "name": "host", "label": "Host", "required": true },
+              { "name": "port", "label": "Port", "required": false, "default": "9000", "description": "Native TCP port (not the HTTP interface port)" },
+              { "name": "username", "label": "Username", "required": false, "default": "default" },
+              { "name": "password", "label": "Password", "required": true, "widget": "password" },
+              { "name": "database", "label": "Database", "required": true },
+              { "name": "secure", "label": "Secure (TLS)", "required": false, "default": "0", "description": "1 for HTTPS/TLS, 0 otherwise" }
+            ],
+            "template": {
+              "base": "clickhouse://{username}:{password}@{host}:{port}/{database}",
+              "query_params": { "secure": "secure" }
+            }
+          },
+          "mssql": {
+            "fields": [
+              { "name": "host", "label": "Host", "required": true },
+              { "name": "port", "label": "Port", "required": false, "default": "1433" },
+              { "name": "username", "label": "Username", "required": true },
+              { "name": "password", "label": "Password", "required": true, "widget": "password" },
+              { "name": "database", "label": "Database", "required": true },
+              { "name": "encrypt", "label": "Encrypt", "required": false, "default": "no", "description": "'yes' to require SSL (e.g. Azure SQL); 'no' for a local unencrypted instance" }
+            ],
+            "template": {
+              "base": "mssql://{username}:{password}@{host}:{port}/{database}",
+              "query_params": { "encrypt": "encrypt" }
+            }
+          },
+          "motherduck": {
+            "fields": [
+              { "name": "database", "label": "Database", "required": false, "description": "Defaults to 'my_db' on MotherDuck's side if left blank" },
+              { "name": "token", "label": "Service Token", "required": true, "widget": "password" }
+            ],
+            "template": {
+              "base": "md:{database}",
+              "query_params": { "token": "motherduck_token" }
+            }
+          },
+          "bigquery": {
+            "credential_format": "json_blob",
+            "description": "Paste the full GCP service-account key JSON (GCP Console -> IAM & Admin -> Service Accounts -> your account -> Keys -> Add Key -> JSON). Used verbatim -- dlt's GcpServiceAccountCredentials parses a raw JSON string directly, so no connection-string assembly happens here.",
+            "placeholder": "{\n  \"type\": \"service_account\",\n  \"project_id\": \"...\",\n  \"private_key\": \"...\",\n  \"client_email\": \"...\"\n}"
+          }
+        },
+        "related_env_var_field": "destination_credentials_env_var"
+      }
+    },
+    "destination_credentials_env_var": {
+      "type": "string",
+      "label": "Destination Credentials Env Var",
+      "description": "Env var holding the destination connection string.",
+      "required": false,
+      "default": null
+    },
+    "destination_bucket_url": {
+      "x-dagster-group": "destination",
+      "type": "string",
+      "label": "Bucket Url (destination)",
+      "required": false,
+      "default": null,
+      "description": "Bucket/path URL for filesystem-shaped DESTINATION storage (this is the field named 'bucket_url' in every other ingestion component in this repo -- renamed here because 'bucket_url' is the filesystem SOURCE field above). Required when destination='filesystem' is the final target; also used as the staging area when destination='databricks' or 'athena'. See ../DESTINATIONS.md.",
+      "x-dagster-visible-when": {
+        "field": "destination",
+        "values": [
+          "filesystem",
+          "databricks",
+          "athena"
+        ]
+      },
+      "x-dagster-label-by": {
+        "field": "destination",
+        "labels": {
+          "filesystem": "Storage location",
+          "databricks": "Staging bucket",
+          "athena": "Staging bucket"
+        }
+      }
+    },
+    "athena_query_result_bucket": {
+      "type": "string",
+      "label": "Athena Query Result Bucket",
+      "required": false,
+      "default": null,
+      "description": "Optional S3 path where Athena writes query results (e.g. 's3://my-bucket/results/'). Only used when destination='athena'. May be omitted to use Athena-managed query results instead.",
+      "x-dagster-visible-when": {
+        "field": "destination",
+        "values": [
+          "athena"
+        ]
+      }
+    },
+    "description": {
+      "type": "string",
+      "label": "Description",
+      "description": "Asset description",
+      "required": false,
+      "default": null
+    },
+    "group_name": {
+      "type": "string",
+      "label": "Group Name",
+      "description": "Asset group for organization",
+      "required": false,
+      "default": "dlt_load_collection"
+    },
+    "owners": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Owners",
+      "description": "Asset owners",
+      "required": false,
+      "default": null
+    },
+    "asset_tags": {
+      "type": "object",
+      "label": "Asset Tags",
+      "description": "Additional key-value tags",
+      "required": false,
+      "default": null
+    },
+    "kinds": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Kinds",
+      "description": "Asset kinds for the catalog. Auto-inferred from source_type/destination if not set.",
+      "required": false,
+      "default": null
+    },
+    "freshness_max_lag_minutes": {
+      "x-dagster-group": "advanced",
+      "type": "integer",
+      "label": "Freshness Max Lag Minutes",
+      "description": "Maximum acceptable lag in minutes.",
+      "required": false,
+      "default": null
+    },
+    "freshness_cron": {
+      "x-dagster-group": "advanced",
+      "type": "string",
+      "label": "Freshness Cron",
+      "description": "Cron schedule string for the freshness policy.",
+      "required": false,
+      "default": null
+    },
+    "include_preview_metadata": {
+      "x-dagster-group": "advanced",
+      "type": "boolean",
+      "label": "Include Preview Metadata",
+      "description": "Include sample data preview in metadata",
+      "required": false,
+      "default": true,
+      "ui:widget": "checkbox"
+    },
+    "preview_rows": {
+      "x-dagster-group": "advanced",
+      "type": "integer",
+      "label": "Preview Rows",
+      "description": "Rows to include in the preview metadata.",
+      "required": false,
+      "default": 25
+    },
+    "deps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Deps",
+      "description": "Upstream asset keys this asset depends on",
+      "required": false,
+      "default": null
+    },
+    "partition_type": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Type",
+      "description": "Partition type: 'daily' / 'weekly' / 'monthly' / 'hourly' / 'cron' / 'static' / 'multi' / 'dynamic' / None. Set partition_date_column (time partitions) or partition_static_column (static/dynamic/multi) to filter the returned rows to the partition.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "daily",
+        "weekly",
+        "monthly",
+        "hourly",
+        "cron",
+        "static",
+        "multi",
+        "dynamic"
+      ],
+      "ui:widget": "select"
+    },
+    "partition_cron_schedule": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Cron Schedule",
+      "description": "Required when partition_type='cron'.",
+      "required": false,
+      "default": null
+    },
+    "partition_cron_fmt": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Cron Fmt",
+      "description": "strftime format for partition keys produced by partition_type='cron'.",
+      "required": false,
+      "default": "%Y-%m-%d"
+    },
+    "partition_end_offset": {
+      "x-dagster-group": "partitions",
+      "type": "integer",
+      "label": "Partition End Offset",
+      "description": "Passed through to the underlying time-based partitions definition. 0 (default) excludes the current, still-in-progress window.",
+      "required": false,
+      "default": 0
+    },
+    "partition_timezone": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Timezone",
+      "description": "IANA timezone for the underlying partitions definition (defaults to UTC).",
+      "required": false,
+      "default": null
+    },
+    "partition_start": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Start",
+      "description": "Partition start date in ISO format. Required for time-based partition types.",
+      "required": false,
+      "default": null
+    },
+    "partition_values": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Partition Values",
+      "description": "Comma-separated values for static or multi partitioning.",
+      "required": false,
+      "default": null
+    },
+    "dynamic_partition_name": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Dynamic Partition Name",
+      "description": "Name for DynamicPartitionsDefinition.",
+      "required": false,
+      "default": null
+    },
+    "partition_dimensions": {
+      "x-dagster-group": "partitions",
+      "type": "array",
+      "items": { "type": "object" },
+      "label": "Partition Dimensions",
+      "description": "Multi-axis partition spec.",
+      "required": false,
+      "default": null
+    },
+    "partition_date_column": {
+      "description": "Column used to filter the returned DataFrame to the current date partition (time partitions).",
+      "type": "string",
+      "label": "Partition Date Column",
+      "required": false,
+      "x-dagster-widget": "column"
+    },
+    "partition_static_column": {
+      "description": "Column used to filter the returned DataFrame to the current static/dynamic partition key.",
+      "type": "string",
+      "label": "Partition Static Column",
+      "required": false,
+      "x-dagster-widget": "column"
+    },
+    "partition_window_params": {
+      "type": "object",
+      "label": "Partition Window Params",
+      "description": "source_type='rest_api' only: push the partition's time window into the API requests so each partition fetches only its own slice: {start_param, end_param, format (iso | date | epoch | epoch_ms, default iso)}. Ignored (with a warning) for source_type='sql_database'/'filesystem'. Needs a time partition_type.",
+      "required": false,
+      "default": null
+    },
+    "partition_window_resources": {
+      "type": "array",
+      "items": { "type": "string" },
+      "label": "Partition Window Resources",
+      "description": "Resources that take partition_window_params (default: all, rest_api only).",
+      "required": false,
+      "default": null
+    },
+    "backfill_policy": {
+      "x-dagster-group": "partitions",
+      "type": "string",
+      "label": "Backfill Policy",
+      "description": "Backfill strategy for a partitioned asset. Unset keeps Dagster's default.",
+      "required": false,
+      "default": null,
+      "enum": [
+        "single_run",
+        "multi_run"
+      ],
+      "ui:widget": "select"
+    },
+    "backfill_policy_max_partitions_per_run": {
+      "x-dagster-group": "partitions",
+      "type": "integer",
+      "label": "Backfill Max Partitions Per Run",
+      "description": "For backfill_policy='multi_run' only: maximum partitions materialized per run (default 1).",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_max_retries": {
+      "x-dagster-group": "advanced",
+      "type": "integer",
+      "label": "Retry Policy Max Retries",
+      "description": "Max retries on asset failure.",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_delay_seconds": {
+      "x-dagster-group": "advanced",
+      "type": "integer",
+      "label": "Retry Policy Delay Seconds",
+      "description": "Seconds between retries.",
+      "required": false,
+      "default": null
+    },
+    "retry_policy_backoff": {
+      "x-dagster-group": "advanced",
+      "type": "string",
+      "label": "Retry Policy Backoff",
+      "description": "Backoff strategy.",
+      "required": false,
+      "default": "exponential",
+      "enum": [
+        "exponential",
+        "linear"
+      ],
+      "ui:widget": "select"
+    }
+  },
+  "tags": [
+    "ingestion",
+    "generic",
+    "sql_database",
+    "rest_api",
+    "filesystem",
+    "dlt",
+    "advanced",
+    "escape-hatch"
+  ],
+  "name": "dlt Load Collection (Advanced)"
+}

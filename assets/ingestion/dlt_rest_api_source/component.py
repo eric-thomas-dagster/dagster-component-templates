@@ -42,13 +42,14 @@ Set `destination` to persist directly to any dlt-supported destination
 """
 
 import os
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import pandas as pd
 import dlt
 from dagster import (
     AssetExecutionContext,
     AssetKey,
+    AssetOut,
     Component,
     ComponentLoadContext,
     Definitions,
@@ -58,6 +59,7 @@ from dagster import (
     Output,
     Resolvable,
     asset,
+    multi_asset,
 )
 from pydantic import Field
 
@@ -376,6 +378,25 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
         )
     )
 
+    asset_shape: Literal["single", "multi_asset"] = Field(
+        default="single",
+        description=(
+            "'single' (default, matches every other multi-table ingestion component in this "
+            "repo): one asset that unions every resource's rows into one DataFrame, tagged with "
+            "a `_resource_type` column. 'multi_asset': one independently-materializable asset "
+            "per resource -- materializing one resource never builds, requests, or persists the "
+            "others."
+        ),
+    )
+    table_name_map: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "Override the destination table name for specific resources, keyed by the "
+            "resource's declared 'name': {resource_name: destination_table_name}. Resources "
+            "not listed keep their declared name as the destination table name."
+        ),
+    )
+
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------
 
     destination: Optional[str] = Field(
@@ -663,6 +684,15 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
         # this ever reaches dlt's own (much less friendly) validation.
         _validate_rest_api_config(client_config, resources_config)
 
+        resource_names = [r["name"] for r in resources_config]
+        _table_name_map = self.table_name_map or {}
+        _unknown_overrides = set(_table_name_map) - set(resource_names)
+        if _unknown_overrides:
+            raise ValueError(
+                f"DltRestApiSourceComponent: table_name_map has key(s) not in 'resources': {sorted(_unknown_overrides)}."
+            )
+        dest_table_names = {name: _table_name_map.get(name, name) for name in resource_names}
+
         _kind_map = {
             "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
             "postgres": "postgres", "postgresql": "postgres", "mysql": "mysql",
@@ -720,26 +750,167 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
-            key=AssetKey.from_user_string(asset_name),
-            description=description,
-            owners=owners,
-            tags=_all_tags,
-            freshness_policy=_freshness_policy,
+        def _resources_with_table_name_overrides():
+            """resources_config with 'table_name' injected for any overridden entries -- a plain
+            dict key EndpointResource already supports, so no apply_hints()/source introspection
+            is needed (see DltLoadCollectionComponent for why introspecting `source.resources`
+            after construction is a trap with dlt's own test fakes)."""
+            out = []
+            for r in resources_config:
+                dest = dest_table_names[r["name"]]
+                out.append({**r, "table_name": dest} if dest != r["name"] else r)
+            return out
+
+        if self.asset_shape == "single":
+
+            @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
+                key=AssetKey.from_user_string(asset_name),
+                description=description,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+                group_name=group_name,
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            )
+            def dlt_rest_api_source_asset(context: AssetExecutionContext):
+                if _column_lineage_md:
+                    context.add_output_metadata(_column_lineage_md)
+                from dlt.sources.rest_api import rest_api_source
+
+                context.log.info(f"Starting dlt_rest_api_source ingestion, destination={destination or 'duckdb (in-memory)'}")
+
+                config = {
+                    "client": client_config,
+                    "resources": _resources_with_table_name_overrides(),
+                }
+
+                pipeline = dlt.pipeline(
+                    pipeline_name=f"{asset_name}_pipeline",
+                    destination=component._resolve_destination_with_bucket(),
+                    staging=component._resolve_staging(),
+                    dataset_name=dataset_name,
+                )
+
+                context.log.info("Creating REST API source from user-supplied config...")
+                if partition_window_params:
+                    _apply_partition_window(config, context, partition_window_params, partition_window_resources)
+                elif partition_date_column and (context.has_partition_key or context.has_partition_key_range):
+                    context.log.warning("partition_date_column filters the rows this asset returns, but the extract still fetches the full source on every partition; set partition_window_params to push the window to the API.")
+                source = rest_api_source(config)
+
+                context.log.info("Extracting data...")
+                load_info = pipeline.run(source)
+                context.log.info(f"Data loaded: {load_info}")
+
+                base_metadata = {
+                    "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                    "dataset_name": MetadataValue.text(dataset_name),
+                    "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                    "resources_requested": MetadataValue.json(resource_names),
+                }
+
+                non_sql_destinations = {"filesystem", "delta", "iceberg"}
+                is_non_sql = destination in non_sql_destinations
+                if persist_only or is_non_sql:
+                    if is_non_sql and not persist_only:
+                        context.log.warning(
+                            f"destination={destination!r} is not SQL-backed; cannot return DataFrame. "
+                            f"Set persist_only=true to silence this warning."
+                        )
+                    return MaterializeResult(metadata=base_metadata)
+
+                all_data = []
+                resource_metadata = {}
+                with pipeline.sql_client() as client:
+                    try:
+                        with client.execute_query(
+                            f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
+                        ) as cur:
+                            tables_df = cur.df()
+                        table_names = tables_df["table_name"].tolist()
+                    except Exception:
+                        table_names = list(dest_table_names.values())
+
+                    for table_name in table_names:
+                        try:
+                            with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
+                                df = cur.df()
+                            if len(df) > 0:
+                                df["_resource_type"] = table_name
+                                all_data.append(df)
+                                resource_metadata[table_name] = len(df)
+                        except Exception as e:
+                            context.log.warning(f"Could not load {table_name}: {e}")
+
+                if not all_data:
+                    context.log.warning("No data extracted.")
+                    return Output(value=pd.DataFrame(), metadata=base_metadata)
+
+                combined_df = pd.concat(all_data, ignore_index=True)
+                combined_df = _filter_df_to_partition(combined_df, context, partition_date_column, partition_static_column)
+                metadata = {
+                    **base_metadata,
+                    "row_count": MetadataValue.int(len(combined_df)),
+                    "column_count": MetadataValue.int(len(combined_df.columns)),
+                    "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
+                }
+                for resource, rows in resource_metadata.items():
+                    metadata[f"rows_{resource}"] = MetadataValue.int(rows)
+                if include_preview and len(combined_df) > 0:
+                    try:
+                        _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
+                return Output(value=combined_df, metadata=metadata)
+
+            return Definitions(assets=[dlt_rest_api_source_asset])
+
+        # --- asset_shape == "multi_asset" ---------------------------------------
+
+        output_names = {name: f"{asset_name}_{name}" for name in resource_names}
+        outs = {
+            output_names[name]: AssetOut(
+                key=AssetKey.from_user_string(output_names[name]),
+                is_required=False,
+                description=description,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+            )
+            for name in resource_names
+        }
+
+        @multi_asset(
+            outs=outs,
+            name=asset_name,
+            can_subset=True,
+            partitions_def=partitions_def,
+            backfill_policy=_backfill_policy_obj,
+            retry_policy=_retry_policy,
             group_name=group_name,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
         )
-        def dlt_rest_api_source_asset(context: AssetExecutionContext):
-            if _column_lineage_md:
-                context.add_output_metadata(_column_lineage_md)
+        def dlt_rest_api_source_assets(context: AssetExecutionContext):
             from dlt.sources.rest_api import rest_api_source
 
-            context.log.info(f"Starting dlt_rest_api_source ingestion, destination={destination or 'duckdb (in-memory)'}")
+            try:
+                selected = set(context.op_execution_context.selected_output_names)
+            except Exception:
+                selected = set(output_names.values())
+            selected_resource_names = [name for name in resource_names if output_names[name] in selected]
 
-            config = {
-                "client": client_config,
-                "resources": resources_config,
-            }
+            context.log.info(
+                f"Starting dlt_rest_api_source ingestion (resources={selected_resource_names}), "
+                f"destination={destination or 'duckdb (in-memory)'}"
+            )
+
+            _resources_cfg = [r for r in _resources_with_table_name_overrides() if r["name"] in selected_resource_names]
+            config = {"client": client_config, "resources": _resources_cfg}
+            if partition_window_params:
+                _apply_partition_window(config, context, partition_window_params, partition_window_resources)
+            elif partition_date_column and (context.has_partition_key or context.has_partition_key_range):
+                context.log.warning("partition_date_column filters the rows this asset returns, but the extract still fetches the full source on every partition; set partition_window_params to push the window to the API.")
 
             pipeline = dlt.pipeline(
                 pipeline_name=f"{asset_name}_pipeline",
@@ -747,82 +918,57 @@ class DltRestApiSourceComponent(Component, Model, Resolvable):
                 staging=component._resolve_staging(),
                 dataset_name=dataset_name,
             )
-
-            context.log.info("Creating REST API source from user-supplied config...")
-            if partition_window_params:
-                _apply_partition_window(config, context, partition_window_params, partition_window_resources)
-            elif partition_date_column and (context.has_partition_key or context.has_partition_key_range):
-                context.log.warning("partition_date_column filters the rows this asset returns, but the extract still fetches the full source on every partition; set partition_window_params to push the window to the API.")
-            source = rest_api_source(config)
-
-            context.log.info("Extracting data...")
+            source = rest_api_source(config) if _resources_cfg else []
             load_info = pipeline.run(source)
             context.log.info(f"Data loaded: {load_info}")
 
-            resource_names = [r["name"] for r in config["resources"]]
-            base_metadata = {
-                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
-                "dataset_name": MetadataValue.text(dataset_name),
-                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
-                "resources_requested": MetadataValue.json(resource_names),
-            }
-
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
             is_non_sql = destination in non_sql_destinations
-            if persist_only or is_non_sql:
-                if is_non_sql and not persist_only:
-                    context.log.warning(
-                        f"destination={destination!r} is not SQL-backed; cannot return DataFrame. "
-                        f"Set persist_only=true to silence this warning."
+            with_sql = not (persist_only or is_non_sql)
+            if is_non_sql and not persist_only:
+                context.log.warning(
+                    f"destination={destination!r} is not SQL-backed; cannot return DataFrames. "
+                    f"Set persist_only=true to silence this warning."
+                )
+
+            if not with_sql:
+                for name in selected_resource_names:
+                    yield MaterializeResult(
+                        asset_key=AssetKey.from_user_string(output_names[name]),
+                        metadata={
+                            "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                            "dataset_name": MetadataValue.text(dataset_name),
+                            "table_name": MetadataValue.text(dest_table_names[name]),
+                        },
                     )
-                return MaterializeResult(metadata=base_metadata)
+                return
 
-            all_data = []
-            resource_metadata = {}
             with pipeline.sql_client() as client:
-                try:
-                    with client.execute_query(
-                        f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
-                    ) as cur:
-                        tables_df = cur.df()
-                    table_names = tables_df["table_name"].tolist()
-                except Exception:
-                    table_names = resource_names
-
-                for table_name in table_names:
+                for name in selected_resource_names:
+                    table_name = dest_table_names[name]
+                    df = pd.DataFrame()
                     try:
                         with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
                             df = cur.df()
-                        if len(df) > 0:
-                            df["_resource_type"] = table_name
-                            all_data.append(df)
-                            resource_metadata[table_name] = len(df)
                     except Exception as e:
                         context.log.warning(f"Could not load {table_name}: {e}")
+                    df = _filter_df_to_partition(df, context, partition_date_column, partition_static_column)
+                    metadata = {
+                        "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                        "dataset_name": MetadataValue.text(dataset_name),
+                        "table_name": MetadataValue.text(table_name),
+                        "row_count": MetadataValue.int(len(df)),
+                        "column_count": MetadataValue.int(len(df.columns)),
+                    }
+                    if include_preview and len(df) > 0:
+                        try:
+                            _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                            metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                        except Exception as _e:
+                            context.log.warning(f"preview emission failed: {_e}")
+                    yield Output(value=df, output_name=output_names[name], metadata=metadata)
 
-            if not all_data:
-                context.log.warning("No data extracted.")
-                return Output(value=pd.DataFrame(), metadata=base_metadata)
-
-            combined_df = pd.concat(all_data, ignore_index=True)
-            combined_df = _filter_df_to_partition(combined_df, context, partition_date_column, partition_static_column)
-            metadata = {
-                **base_metadata,
-                "row_count": MetadataValue.int(len(combined_df)),
-                "column_count": MetadataValue.int(len(combined_df.columns)),
-                "resources_loaded": MetadataValue.json(list(resource_metadata.keys())),
-            }
-            for resource, rows in resource_metadata.items():
-                metadata[f"rows_{resource}"] = MetadataValue.int(rows)
-            if include_preview and len(combined_df) > 0:
-                try:
-                    _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
-                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                except Exception as _e:
-                    context.log.warning(f"preview emission failed: {_e}")
-            return Output(value=combined_df, metadata=metadata)
-
-        return Definitions(assets=[dlt_rest_api_source_asset])
+        return Definitions(assets=[dlt_rest_api_source_assets])
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

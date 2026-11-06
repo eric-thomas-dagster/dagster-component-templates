@@ -21,6 +21,13 @@ resources:
 
 That's the entire `rest_api_source` config contract -- `client` + `resources` -- so any REST API that fits it can be wired up with zero new Python code.
 
+## asset_shape and table_name_map
+
+- `asset_shape` (default `single`): one asset that unions every resource's rows into one DataFrame, tagged with a `_resource_type` column -- matches every other multi-table ingestion component in this catalog. Set `asset_shape: multi_asset` for one independently-materializable asset per resource (named `{asset_name}_{resource_name}`); materializing one resource never requests or persists the others, since the config handed to `rest_api_source()` only ever contains the selected resource(s).
+- `table_name_map`: override the destination table name per resource, keyed by the resource's declared `name`, e.g. `table_name_map: {customers: raw_customers}`.
+
+See `assets/ingestion/dlt_load_collection`, which shares this same `asset_shape`/`table_name_map` convention and additionally covers `sql_database`/`filesystem` sources (not just REST APIs).
+
 ## Where to find config snippets
 
 [dltHub's Context marketplace](https://dlthub.com/context) (`https://dlthub.com/context/source/<vendor>`) is a real, community-maintained library of pre-researched `rest_api_source` config snippets for specific vendors, generated from their public API docs. This session found it genuinely useful and accurate for several vendors when researching hand-built components -- but not all; always sanity-check a pasted snippet against the vendor's actual API docs (auth flow, pagination shape, required params) before trusting it in production, the same way every hand-built component in this repo cites its own primary-source verification. Paste the `client` / `resources` blocks it generates directly into this component's attributes.
@@ -127,6 +134,8 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', 'static', 'multi', 'dynamic', or None for unpartitioned. |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required for time-based partition types. |
 | `partition_values` | `Union[str, List[str]]` | — | Comma-separated values for static or multi partitioning, e.g. 'acme,globex,initech'. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
@@ -147,12 +156,14 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `table_name_map` | `Dict[str, str]` | — | Override the destination table name for specific resources, keyed by the resource's declared 'name': {resource_name: destination_table_name}. Resources not listed keep their declared name as the destination table name. |
 | `bucket_url` | `str` | — | Bucket/path URL for filesystem-shaped storage (e.g. 's3://my-bucket/path', 'gs://my-bucket/path', 'az://my-container/path', or 'file:///local/path'). Required when destination='filesystem' (the final write target). Also… _(full docs in schema.json + component README)_ |
 
 ### Other
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `asset_shape` | `Literal['single', 'multi_asset']` | `"single"` | 'single' (default, matches every other multi-table ingestion component in this repo): one asset that unions every resource's rows into one DataFrame, tagged with a `_resource_type` column. 'multi_asset': one independentl… _(full docs in schema.json + component README)_ |
 | `destination` | `str` | — | dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB -> DataFrame mode. |
 | `dataset_name` | `str` | — | Target dataset/schema in the destination. Defaults to the asset name. |
 | `persist_only` | `bool` | `false` | If True with destination set: emit a MaterializeResult and skip DataFrame return. If False: query the destination back into a DataFrame (only meaningful for SQL destinations -- non-SQL destinations always emit MaterializeResult). |

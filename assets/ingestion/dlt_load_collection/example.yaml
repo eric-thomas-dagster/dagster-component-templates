@@ -1,0 +1,59 @@
+type: dagster_community_components.DltLoadCollectionComponent
+attributes:
+  asset_name: my_rest_api_tables
+  source_type: rest_api
+
+  # dlt rest_api_source `client` config (same shape as dlt_rest_api_source).
+  client:
+    base_url: "https://api.example.com"
+    auth:
+      type: bearer
+      token: "{{ env('MY_API_TOKEN') }}"
+
+  # One dict per resource -- works the same way across all three source_type
+  # values (sql_database/rest_api/filesystem), just with different required
+  # per-resource keys (see README.md).
+  resources:
+    - name: customers
+      primary_key: id
+      endpoint:
+        path: customers
+    - name: orders
+      primary_key: order_id
+      endpoint:
+        path: orders
+
+  # --- Give each resource its own independently-materializable asset instead ---
+  # asset_shape: multi_asset   # produces my_rest_api_tables_customers, my_rest_api_tables_orders
+  #                             materializing one resource does not fetch or persist the others
+
+  # --- Rename specific destination tables (default: destination table name = resource name) ---
+  # table_name_map:
+  #   customers: raw_customers          # orders keeps its declared name
+
+  # --- Example: source_type=sql_database instead (uncomment and remove the rest_api fields above) ---
+  # source_type: sql_database
+  # connection_string: "{{ env('WAREHOUSE_CONNECTION_STRING') }}"
+  # schema_name: public
+  # resources:
+  #   - name: customers
+  #     primary_key: id
+  #   - name: orders
+  #     primary_key: order_id
+  #     columns: [order_id, customer_id, amount, created_at]
+
+  # --- Example: source_type=filesystem instead (uncomment and remove the rest_api fields above) ---
+  # source_type: filesystem
+  # bucket_url: "s3://my-bucket/landing"
+  # resources:
+  #   - name: orders
+  #     file_glob: "orders/*.csv"
+  #     primary_key: order_id
+  #   - name: events
+  #     file_glob: "events/*.parquet"
+  #     file_format: parquet
+
+  # Organization
+  description: "Customer and order tables from a generic REST API"
+  group_name: "dlt_load_collection"
+  include_preview_metadata: true

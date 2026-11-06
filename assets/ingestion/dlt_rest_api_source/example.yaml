@@ -21,6 +21,14 @@ attributes:
         data_selector: "$"
   group_name: my_vendor_ingestion
 
+  # --- Give each resource its own independently-materializable asset instead ---
+  # asset_shape: multi_asset   # produces my_vendor_ingestion_customers, my_vendor_ingestion_subscriptions
+  #                             materializing one resource does not fetch or persist the others
+
+  # --- Rename specific destination tables (default: destination table name = resource name) ---
+  # table_name_map:
+  #   customers: raw_customers          # subscriptions keeps its declared name
+
 # Example 2: bearer-token auth + cursor pagination (uncomment / use as a
 # separate component instance). Mirrors the shape used by hotjar_ingestion's
 # `surveys` resource in this repo (cursor + next_cursor response field).

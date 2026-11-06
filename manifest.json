@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "repository": "https://github.com/eric-thomas-dagster/dagster-component-templates",
-  "last_updated": "2026-11-03",
+  "last_updated": "2026-11-06",
   "components": [
     {
       "id": "ab_controls",
@@ -20801,6 +20801,57 @@
       "keywords": [
         "write to",
         "output"
+      ]
+    },
+    {
+      "id": "dlt_load_collection",
+      "name": "dlt Load Collection (Advanced)",
+      "category": "ingestion",
+      "description": "Declare a collection of dlt resources (tables, REST endpoints, or file globs) entirely in YAML across dlt's built-in sql_database, rest_api, and filesystem source engines -- no custom Python module required.",
+      "path": "assets/ingestion/dlt_load_collection",
+      "tags": [
+        "ingestion",
+        "generic",
+        "sql_database",
+        "rest_api",
+        "filesystem",
+        "dlt",
+        "advanced",
+        "escape-hatch"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dlt_load_collection/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dlt_load_collection/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dlt_load_collection/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dlt_load_collection/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ingestion/dlt_load_collection/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "tabulate>=0.9.0",
+          "sqlalchemy>=1.4.0"
+        ]
+      },
+      "vertical": "internal",
+      "icon": "Wrench",
+      "agent_hints": {
+        "output_type": "pd.DataFrame",
+        "outputs": "Declare a collection of dlt resources (tables, REST endpoints, or file globs) entirely in YAML across dlt's sql_database, rest_api, and filesystem source engines.",
+        "requires_pip": [
+          "dlt>=1.0.0",
+          "pandas>=1.5.0",
+          "tabulate>=0.9.0",
+          "sqlalchemy>=1.4.0"
+        ]
+      },
+      "keywords": [
+        "advanced",
+        "escape-hatch",
+        "generic",
+        "sql_database",
+        "filesystem"
       ]
     },
     {
@@ -71644,5 +71695,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1374
+  "total": 1375
 }

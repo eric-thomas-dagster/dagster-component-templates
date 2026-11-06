@@ -248,7 +248,7 @@ def test_window_is_only_applied_to_a_partitioned_time_run_and_in_the_chosen_form
 def test_resources_can_be_limited_and_the_helper_is_identical_everywhere():
     blocks = {re.search(r"# BEGIN partition window helper.*?# END partition window helper", (p / "component.py").read_text(), re.S).group(0)
               for p in _window_ported()}
-    assert len(blocks) == 1 and len(_window_ported()) == 108
+    assert len(blocks) == 1 and len(_window_ported()) == 109
     ns = {}
     exec(next(iter(blocks)), ns)
 

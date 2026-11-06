@@ -611,6 +611,24 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "asset_shape": {
+      "type": "string",
+      "enum": [
+        "single",
+        "multi_asset"
+      ],
+      "label": "Asset Shape",
+      "description": "'single' (default, matches every other multi-table ingestion component in this repo): one asset that unions every resource's rows into one DataFrame, tagged with a `_resource_type` column. 'multi_asset': one independently-materializable asset per resource -- materializing one resource never builds, requests, or persists the others.",
+      "required": false,
+      "default": "single",
+      "ui:widget": "select"
+    },
+    "table_name_map": {
+      "type": "object",
+      "label": "Table Name Map",
+      "description": "Override the destination table name for specific resources, keyed by the resource's declared 'name': {resource_name: destination_table_name}. Resources not listed keep their declared name as the destination table name.",
+      "required": false
     }
   },
   "tags": [

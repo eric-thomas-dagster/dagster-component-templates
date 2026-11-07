@@ -98,7 +98,7 @@
         "type": "string"
       },
       "label": "Streams",
-      "description": "Several tables over one connection pair, one asset each (source_table, target_table, mode, incremental_column, primary_key, select_columns, where_clause, partition_column per entry). Replaces source_table/target_table.",
+      "description": "Several tables over one connection pair, one asset each (source_table, target_table, mode, incremental_column, primary_key, select_columns, where_clause, partition_column, column_casing, min_rows per entry). Replaces source_table/target_table.",
       "required": false,
       "ui:widget": "list"
     },
@@ -264,6 +264,29 @@
         "field": "partition_type",
         "values": ["daily", "hourly", "weekly", "monthly"]
       }
+    },
+    "add_loaded_at_column": {
+      "type": "boolean",
+      "label": "Add Loaded At Column",
+      "description": "Add a '_sling_loaded_at' column (unix timestamp of the load) to every target table, via Sling's own SLING_LOADED_AT_COLUMN setting.",
+      "required": false,
+      "default": false,
+      "x-dagster-omit-if-default": true
+    },
+    "column_casing": {
+      "type": "string",
+      "label": "Column Casing",
+      "description": "Normalize target column name casing: 'normalize' (Sling's own default -- match target casing unless a column already has varied casing), 'source', 'target', 'snake', 'upper', or 'lower'. Per-stream column_casing overrides this.",
+      "required": false,
+      "default": null,
+      "enum": ["normalize", "source", "target", "snake", "upper", "lower"],
+      "ui:widget": "select"
+    },
+    "min_rows": {
+      "type": "integer",
+      "label": "Min Rows",
+      "description": "After a successful replication, query the real row count of each target table (via Sling, not a separate client) and emit a failing asset check if it's below this. Per-stream min_rows overrides this. NOT implemented via Sling's own 'check' hooks -- those require a paid Sling CLI Pro license (verified: a 'hooks' block fails at runtime with 'unable to validate CLI Pro token' on a free/open-source Sling CLI install). This uses a plain row-count query instead, which is free.",
+      "required": false
     }
   },
   "tags": [

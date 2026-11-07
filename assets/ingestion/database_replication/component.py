@@ -12,7 +12,8 @@ Snowflake / BigQuery / Redshift / Databricks). Supports time-partitioned
 replication (`partition_type`), where each partition replaces exactly its
 own window in the target.
 """
-from typing import Dict, List, Optional, Union
+import re
+from typing import Dict, List, Literal, Optional, Union
 
 import dagster as dg
 from pydantic import Field
@@ -90,6 +91,14 @@ class StreamSpec(dg.Model, dg.Resolvable):
     partition_column: Optional[str] = Field(
         default=None,
         description="Date/timestamp column that slices this table by partition. Defaults to the component's partition_column.",
+    )
+    column_casing: Optional[Literal["normalize", "source", "target", "snake", "upper", "lower"]] = Field(
+        default=None,
+        description="Overrides the component's column_casing for this table (normalize / source / target / snake / upper / lower).",
+    )
+    min_rows: Optional[int] = Field(
+        default=None,
+        description="Overrides the component's min_rows for this table.",
     )
 
 
@@ -181,6 +190,26 @@ class DatabaseReplicationComponent(dg.Component, dg.Model, dg.Resolvable):
     partition_replace: bool = Field(
         default=True,
         description="Delete the partition's window in the target before loading it, so rows deleted at the source disappear too. If false, a re-run only upserts (requires a primary key).",
+    )
+
+    add_loaded_at_column: bool = Field(
+        default=False,
+        description="Add a '_sling_loaded_at' column (unix timestamp of the load) to every target table, via Sling's own SLING_LOADED_AT_COLUMN setting.",
+    )
+    column_casing: Optional[Literal["normalize", "source", "target", "snake", "upper", "lower"]] = Field(
+        default=None,
+        description="Normalize target column name casing: 'normalize' (Sling's own default -- match target casing unless a column already has varied casing), 'source', 'target', 'snake', 'upper', or 'lower'. Per-stream column_casing overrides this.",
+    )
+    min_rows: Optional[int] = Field(
+        default=None,
+        description=(
+            "After a successful replication, query the real row count of each target table "
+            "(via Sling, not a separate client) and emit a failing asset check if it's below "
+            "this. Per-stream min_rows overrides this. NOT implemented via Sling's own 'check' "
+            "hooks -- those require a paid Sling CLI Pro license (verified: a 'hooks' block "
+            "fails at runtime with 'unable to validate CLI Pro token' on a free/open-source "
+            "Sling CLI install). This uses a plain row-count query instead, which is free."
+        ),
     )
 
     group_name: Optional[str] = Field(default=None, description="Dagster asset group name")
@@ -287,6 +316,11 @@ class DatabaseReplicationComponent(dg.Component, dg.Model, dg.Resolvable):
             config["select"] = select_columns
         if where_clause:
             config["sql"] = f"SELECT * FROM {spec.source_table} WHERE {where_clause}"
+        column_casing = spec.column_casing or self.column_casing
+        if column_casing:
+            target_options = dict(config.get("target_options") or {})
+            target_options["column_casing"] = column_casing
+            config["target_options"] = target_options
         return config
 
     # --------------------------------------------------------------- definitions
@@ -354,7 +388,7 @@ class DatabaseReplicationComponent(dg.Component, dg.Model, dg.Resolvable):
         no_target_yet: set = set()
 
         def _replication_config(window=None):
-            return {
+            config: Dict[str, object] = {
                 "source": source_conn_name,
                 "target": target_conn_name,
                 "streams": {
@@ -362,6 +396,9 @@ class DatabaseReplicationComponent(dg.Component, dg.Model, dg.Resolvable):
                     for spec in specs
                 },
             }
+            if self.add_loaded_at_column:
+                config["env"] = {"SLING_LOADED_AT_COLUMN": "true"}
+            return config
 
         kinds_list = self.kinds or ["sling", source_type, target_type]
         all_tags = dict(self.asset_tags or {})
@@ -420,12 +457,26 @@ class DatabaseReplicationComponent(dg.Component, dg.Model, dg.Resolvable):
                 windowed = _replication_config(_window(context))["streams"]
                 return {name: windowed[name] for name in selected if name in windowed}
 
-        def _replicate(context, sling_resource):
-            return sling_resource.replicate(
-                context=context,
-                replication_config=_replication_config(),
-                dagster_sling_translator=translator,
-            )
+        def _with_numeric_row_count(events):
+            """`stream=True` extracts row_count from Sling's own log text as a plain string
+            (see dagster_sling's `_query_metadata`); re-wrap it as a real int metadata value
+            so it sorts/charts correctly in the Dagster UI instead of showing as text."""
+            for ev in events:
+                row_count_value = (ev.metadata or {}).get("row_count")
+                row_count_text = getattr(row_count_value, "text", row_count_value)
+                if row_count_text is None:
+                    yield ev
+                    continue
+                try:
+                    row_count_int = int(row_count_text)
+                except (TypeError, ValueError):
+                    yield ev
+                    continue
+                new_metadata = {**ev.metadata, "row_count": row_count_int}
+                if isinstance(ev, dg.MaterializeResult):
+                    yield dg.MaterializeResult(asset_key=ev.asset_key, metadata=new_metadata)
+                else:
+                    yield dg.AssetMaterialization(asset_key=ev.asset_key, metadata=new_metadata)
 
         def _target_exists(url: str, table: str) -> bool:
             """Whether the target table exists, asked through Sling so no other client is needed."""
@@ -450,11 +501,16 @@ class DatabaseReplicationComponent(dg.Component, dg.Model, dg.Resolvable):
                     if not _target_exists(target_url, table):
                         context.log.info(f"{table} does not exist yet; loading it without deleting first.")
                         no_target_yet.add(spec.source_table)
-            yield from sling_resource.replicate(
+            yield from _with_numeric_row_count(sling_resource.replicate(
                 context=context,
                 replication_config=_replication_config(),
                 dagster_sling_translator=translator,
-            )
+                # Streams Sling's CLI output live into the Dagster run log (default batch
+                # mode only logs at DEBUG, invisible in a normal run view) and extracts
+                # row_count/elapsed_time/destination_table metadata per stream as it
+                # completes -- the default batch mode reports none of that.
+                stream=True,
+            ))
 
         _ns: dict = {}
         exec(_src, {"_run": _run}, _ns)
@@ -468,8 +524,45 @@ class DatabaseReplicationComponent(dg.Component, dg.Model, dg.Resolvable):
             partitions_def=partitions_def,
         )(_replication_fn)
 
+        def _query_row_count(sling_resource, table: str) -> int:
+            """Real row count via Sling's own connection, not a separate client -- same
+            pattern as `_target_exists`."""
+            import sling as sling_pkg
+
+            target_url = next(c.connection_string for c in sling_resource.connections if c.name == target_conn_name)
+            rows = list(sling_pkg.Sling(src_conn=target_url, src_stream=f"SELECT COUNT(*) as ct FROM {table}").stream())
+            return int(rows[0]["ct"]) if rows else 0
+
+        def _build_min_rows_check(table: str, min_rows: int, asset_key: dg.AssetKey):
+            check_name = f"min_rows_{re.sub(r'[^0-9a-zA-Z_]', '_', table)}"
+            _check_src = (
+                f"def _check(context, {sling_key}):\n"
+                f"    count = _query_row_count({sling_key}, {table!r})\n"
+                f"    return dg.AssetCheckResult(passed=count >= {min_rows}, "
+                f"metadata={{'row_count': count, 'min_rows': {min_rows}}})\n"
+            )
+            _check_ns: dict = {}
+            exec(_check_src, {"_query_row_count": _query_row_count, "dg": dg}, _check_ns)
+            _check_fn = _check_ns["_check"]
+            _check_fn.__annotations__[sling_key] = SlingResource
+            return dg.asset_check(asset=asset_key, name=check_name, blocking=False)(_check_fn)
+
+        # NOT implemented via Sling's own 'check' hooks -- verified those require a paid
+        # Sling CLI Pro license (a 'hooks' block fails at runtime with "unable to validate
+        # CLI Pro token" on a free/open-source Sling CLI install). This queries the real
+        # row count directly instead, which is free.
+        asset_checks = []
+        for spec in specs:
+            effective_min_rows = spec.min_rows if spec.min_rows is not None else self.min_rows
+            if effective_min_rows is None:
+                continue
+            table = spec.target_table or spec.source_table
+            check_asset_key = dg.AssetKey(asset_name) if single else dg.AssetKey([asset_name, *table.split(".")])
+            asset_checks.append(_build_min_rows_check(table, effective_min_rows, check_asset_key))
+
         return dg.Definitions(
             assets=[replication],
+            asset_checks=asset_checks,
             resources={
                 sling_key: _PartitionAwareSling(
                     connections=[source_conn, target_conn],

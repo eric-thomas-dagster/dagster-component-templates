@@ -23,6 +23,11 @@ attributes:
   # select_columns: [employee_id, first_name, last_name, email, hire_date]
   # where_clause: "hire_date >= DATE '2020-01-01'"
 
+  # --- Sling-native enhancements (each has a per-stream override too) ---
+  # add_loaded_at_column: true   # adds a '_sling_loaded_at' column (unix timestamp)
+  # column_casing: snake         # normalize target column name casing
+  # min_rows: 1                  # fail a non-blocking check if the target lands fewer rows
+
   group_name: warehouse_migration
   kinds: [sling, oracle, snowflake]
 

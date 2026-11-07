@@ -51,6 +51,40 @@ sql_resources:
 
 `write_disposition: merge` needs a dedup key -- either `primary_key` or `merge_key` (str or list of str); setting `merge` with neither raises a clear error at `build_defs` time instead of silently falling back to appending (verified: 2 loads of the same 2 rows produced 4 with no key set). Works the same way across all three `source_type` values -- passed to `sql_table(write_disposition=..., merge_key=...)`, `DltResource.apply_hints(write_disposition=..., merge_key=...)` (filesystem), or straight through into the `rest_api_source` resource config (`EndpointResource.write_disposition`/`merge_key`).
 
+## Schema change control (`on_schema_change`)
+
+Maps to dlt's native `schema_contract` (a dict of `{tables, columns, data_type}`, each `'evolve'` or `'freeze'`). `tables` is always `'evolve'` -- **verified** (dlt 1.30.0) that `schema_contract={"tables": "freeze", ...}` rejects creating ANY table dlt's local pipeline state doesn't already know about, including a brand new resource's very first materialization ever; freezing it would make `allow_new_columns`/`block_all` unusable for any resource that hasn't already landed at least one row.
+
+| `on_schema_change` | `tables` | `columns` | `data_type` | Effect |
+|---|---|---|---|---|
+| `allow_all` (default) | evolve | evolve | evolve | Today's behavior -- accept any change. |
+| `allow_new_columns` | evolve | evolve | freeze | New columns are accepted; a column's data type changing is rejected. |
+| `block_all` | evolve | freeze | freeze | Both new columns and data type changes are rejected. |
+
+A resource's own first materialization (and any nested/sub-tables within it, e.g. from a nested JSON array) can always create its initial schema in every mode -- `block_all` only locks down an *already-established* table's columns/types, never blocks a table from being created at all.
+
+```yaml
+on_schema_change: block_all   # component-level default -- applies to every resource
+
+sql_resources:
+  - name: orders
+    primary_key: order_id
+  - name: staging_table
+    on_schema_change: allow_all   # per-resource override: this one stays permissive
+```
+
+A rejected change fails the run with a clear error naming the table and the column (or, for `tables`, just the table):
+
+```
+DltYamlSourceComponent: schema change rejected on table 'orders', column 'new_field' --
+'columns' is 'freeze' under on_schema_change='block_all' (component-level default or a
+per-resource override), and this run's data would have changed it. Set
+on_schema_change='allow_all' (or the matching per-resource override) if this change is
+expected, or fix the upstream data/schema if it isn't.
+```
+
+dlt itself raises `PipelineStepFailed` several layers removed from the actual violation, with a verbose multi-paragraph dump (job ids, `dlt pipeline ... abort-packages` CLI hints, ephemeral-storage notes); this component extracts the table/column/contract-entity/mode from dlt's own message text and re-raises the concise version above instead.
+
 ## Custom per-resource metadata (`x_` prefix)
 
 A resource entry (in `sql_resources`/`rest_api_resources`/`filesystem_resources`) can carry arbitrary extra keys for a subclass's own use (e.g. a blocking rows-landed check or a column-contract check reading `min_rows`/`contract_columns` off the YAML) by prefixing them with `x_`:
@@ -142,6 +176,7 @@ Fails fast with a clear message at `Definitions`-build time, before this ever re
 - `source_type='filesystem'`: every resource needs `file_glob`.
 - `source_type='sql_database'` requires `connection_string`/`connection_string_env_var`; `rest_api` requires `client`; `filesystem` requires `filesystem_bucket_url`.
 - `table_name_map` keys not present in the active resources field raise a clear error naming the offending key(s).
+- `on_schema_change` (component-level or per-resource) must be one of `allow_all`/`allow_new_columns`/`block_all`.
 
 By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Set `destination` to persist directly to any dlt-supported destination (snowflake, bigquery, postgres, filesystem, etc.). See `../DESTINATIONS.md` -- `bucket_url` here means the same thing it does in every other ingestion component in this repo (the DESTINATION bucket); the filesystem SOURCE bucket (for `source_type='filesystem'`) is the separate `filesystem_bucket_url` field.
 
@@ -237,6 +272,7 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 | `filesystem_bucket_url` | `str` | — | Bucket/path URL to read SOURCE files from (e.g. 's3://my-bucket/landing', 'gs://my-bucket/landing', 'az://my-container/landing', 'sftp://host/path', or 'file:///local/path'). Required when source_type='filesystem'. If 'f… _(full docs in schema.json + component README)_ |
 | `filesystem_credentials` | `Dict[str, Any]` | — | Inline credentials for the SOURCE bucket, passed straight to dlt's filesystem() as 'credentials' -- keys are dlt's own credential field names, values may be '{{ env.VAR_NAME }}' references. Only needed when env-var-based… _(full docs in schema.json + component README)_ |
 | `file_format` | `Literal['csv', 'parquet', 'jsonl', 'json', 'auto']` | `"csv"` | Reader applied to each matched file (filesystem only). Per-resource 'file_format' overrides this. 'json' reads a single JSON object or array-of-objects per file (not newline-delimited -- use 'jsonl' for that). 'auto' dis… _(full docs in schema.json + component README)_ |
+| `on_schema_change` | `Literal['allow_all', 'allow_new_columns', 'block_all']` | `"allow_all"` | What to do when incoming data's shape differs from the destination table's established schema (new columns, a column's data type changing, or -- for nested/sub-tables -- a brand new nested table appearing). 'allow_all' (… _(full docs in schema.json + component README)_ |
 | `destination` | `str` | — | dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck', 'sqlalchemy'). 'sqlalchemy' is dlt's generic SQL dest… _(full docs in schema.json + component README)_ |
 | `dataset_name` | `str` | — | Target dataset/schema in the destination. Defaults to the asset name. |
 | `persist_only` | `bool` | `false` | If True with destination set: emit a MaterializeResult and skip DataFrame return. If False: query the destination back into a DataFrame (only meaningful for SQL destinations -- non-SQL destinations always emit MaterializeResult). |

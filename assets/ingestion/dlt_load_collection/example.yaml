@@ -70,6 +70,16 @@ attributes:
   #   sftp_username: "{{ env.SFTP_USERNAME }}"
   #   sftp_password: "{{ env.SFTP_PASSWORD }}"
 
+  # --- Schema change control: reject new columns and data-type changes once a table is
+  # established (a resource's own first materialization can always create its initial
+  # schema, in every mode) -- see the README's "Schema change control" section ---
+  # on_schema_change: block_all   # or allow_new_columns; default is allow_all (today's behavior)
+  # rest_api_resources:
+  #   - name: customers
+  #     endpoint:
+  #       path: customers
+  #     on_schema_change: allow_all   # per-resource override: this one stays permissive
+
   # Organization
   description: "Customer and order tables from a generic REST API"
   group_name: "dlt_load_collection"

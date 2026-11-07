@@ -40,7 +40,8 @@
           "primary_key": { "type": "string", "description": "Column name, or comma-separated names for a composite key." },
           "merge_key": { "type": "string", "description": "Alternative to primary_key for write_disposition='merge'." },
           "write_disposition": { "type": "string", "enum": ["append", "replace", "merge"], "description": "Defaults to 'merge' if primary_key is set, else dlt's own 'append'." },
-          "schema": { "type": "string", "description": "Per-resource schema override (defaults to the top-level schema_name)." }
+          "schema": { "type": "string", "description": "Per-resource schema override (defaults to the top-level schema_name)." },
+          "on_schema_change": { "type": "string", "enum": ["allow_all", "allow_new_columns", "block_all"], "description": "Overrides the top-level on_schema_change for this resource." }
         },
         "required": ["name"]
       },
@@ -73,7 +74,8 @@
           },
           "primary_key": { "type": "string", "description": "Column name, or comma-separated names for a composite key." },
           "merge_key": { "type": "string", "description": "Alternative to primary_key for write_disposition='merge'." },
-          "write_disposition": { "type": "string", "enum": ["append", "replace", "merge"], "description": "Defaults to 'merge' if primary_key is set, else dlt's own 'append'." }
+          "write_disposition": { "type": "string", "enum": ["append", "replace", "merge"], "description": "Defaults to 'merge' if primary_key is set, else dlt's own 'append'." },
+          "on_schema_change": { "type": "string", "enum": ["allow_all", "allow_new_columns", "block_all"], "description": "Overrides the top-level on_schema_change for this resource." }
         },
         "required": ["name", "endpoint"]
       },
@@ -101,7 +103,8 @@
           "file_format": { "type": "string", "enum": ["csv", "parquet", "jsonl", "json", "auto"], "description": "Overrides the top-level file_format for this resource." },
           "primary_key": { "type": "string", "description": "Column name, or comma-separated names for a composite key." },
           "merge_key": { "type": "string", "description": "Alternative to primary_key for write_disposition='merge'." },
-          "write_disposition": { "type": "string", "enum": ["append", "replace", "merge"], "description": "Defaults to 'merge' if primary_key is set, else dlt's own 'append'." }
+          "write_disposition": { "type": "string", "enum": ["append", "replace", "merge"], "description": "Defaults to 'merge' if primary_key is set, else dlt's own 'append'." },
+          "on_schema_change": { "type": "string", "enum": ["allow_all", "allow_new_columns", "block_all"], "description": "Overrides the top-level on_schema_change for this resource." }
         },
         "required": ["name", "file_glob"]
       },
@@ -316,6 +319,21 @@
         "field": "source_type",
         "values": ["filesystem"]
       }
+    },
+    "on_schema_change": {
+      "x-dagster-group": "schema",
+      "type": "string",
+      "label": "On Schema Change",
+      "description": "What to do when incoming data's shape differs from the destination table's established schema. 'allow_all' (default, today's behavior): accept any change. 'allow_new_columns': accept new columns, but reject a column whose data type would change. 'block_all': reject both new columns and data type changes. A resource's own first materialization (and any nested tables within it) can always create its initial schema in every mode. Per-resource 'on_schema_change' (in sql_resources/rest_api_resources/filesystem_resources) overrides this for that one resource. A rejected change fails the run with a clear error naming the table and column -- it is never silently dropped.",
+      "required": false,
+      "default": "allow_all",
+      "enum": [
+        "allow_all",
+        "allow_new_columns",
+        "block_all"
+      ],
+      "ui:widget": "select",
+      "x-dagster-omit-if-default": true
     },
     "destination": {
       "x-dagster-group": "destination",

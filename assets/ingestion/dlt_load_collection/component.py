@@ -51,6 +51,7 @@ servicenow_ingestion, github_ingestion, and others).
 """
 
 import os
+import re
 from typing import Any, Dict, Iterable, List, Literal, Optional, Union
 
 from dlt.common.storages.fsspec_filesystem import FileItemDict
@@ -58,6 +59,7 @@ from dlt.common.storages.fsspec_filesystem import FileItemDict
 import dagster as dg
 import pandas as pd
 import dlt
+from dlt.pipeline.exceptions import PipelineStepFailed
 from dagster import (
     AssetExecutionContext,
     AssetKey,
@@ -266,6 +268,69 @@ def _resolve_write_disposition(r: Dict[str, Any]) -> Optional[str]:
     return None
 
 
+# Maps this component's Fivetran-style `on_schema_change` vocabulary to dlt's native
+# `schema_contract` dict ({tables, columns, data_type}, each 'evolve' or 'freeze').
+#
+# `tables` is deliberately 'evolve' in every mode, never 'freeze' -- VERIFIED empirically
+# (dlt 1.30.0) that `schema_contract={"tables": "freeze", ...}` rejects creating ANY
+# table dlt's local pipeline state doesn't already know about, including a brand new
+# resource's very first materialization ever (DataValidationError: "Can't add table
+# `x` because `tables` are frozen", raised at the `extract` step on the FIRST run of a
+# never-before-run pipeline). Freezing `tables` would make 'allow_new_columns'/
+# 'block_all' unusable for any resource that hasn't already landed at least one row --
+# including one a user just added to sql_resources/rest_api_resources/
+# filesystem_resources, which must always be allowed to create its initial schema.
+_SCHEMA_CONTRACT_MAP: Dict[str, Dict[str, str]] = {
+    "allow_all": {"tables": "evolve", "columns": "evolve", "data_type": "evolve"},
+    "allow_new_columns": {"tables": "evolve", "columns": "evolve", "data_type": "freeze"},
+    "block_all": {"tables": "evolve", "columns": "freeze", "data_type": "freeze"},
+}
+
+
+def _resolve_schema_contract(on_schema_change: str, field_name: str = "on_schema_change") -> Dict[str, str]:
+    contract = _SCHEMA_CONTRACT_MAP.get(on_schema_change)
+    if contract is None:
+        raise ValueError(
+            f"DltYamlSourceComponent: {field_name}={on_schema_change!r} must be one of "
+            f"{sorted(_SCHEMA_CONTRACT_MAP)}."
+        )
+    return dict(contract)
+
+
+_SCHEMA_CONTRACT_VIOLATION_RE = re.compile(
+    r"In Table: `([^`]+)`\s*(?:Column: `([^`]+)`)?\s*\.\s*Contract on `(\w+)` with "
+    r"`contract_mode=(\w+)`"
+)
+
+
+def _reraise_as_clear_schema_contract_error(exc: Exception, on_schema_change: str) -> None:
+    """dlt wraps a schema-contract violation several layers deep (PipelineStepFailed ->
+    NormalizeJobFailed/DataValidationError), and by the time it reaches
+    `PipelineStepFailed.exception` the original structured exception has already been
+    flattened into a plain message string -- there's no object left to pull
+    table_name/column_name off of. Extracts them from the text dlt itself already embeds
+    ("In Table: `X` Column: `Y` ... Contract on `Z` with `contract_mode=...`") instead of
+    letting dlt's full multi-paragraph PipelineStepFailed dump (job ids, retry/
+    abort-packages CLI hints, ephemeral-storage notes, ...) surface as the run's error.
+    Re-raises; never swallows -- a message dlt's own text doesn't match (not a schema
+    contract violation at all) still raises, just without this component's own framing.
+    """
+    inner = getattr(exc, "exception", None)
+    text = str(inner) if inner is not None else str(exc)
+    m = _SCHEMA_CONTRACT_VIOLATION_RE.search(text)
+    if m is None:
+        raise exc
+    table, column, entity, mode = m.groups()
+    where = f"table {table!r}" + (f", column {column!r}" if column else "")
+    raise ValueError(
+        f"DltYamlSourceComponent: schema change rejected on {where} -- '{entity}' is "
+        f"'{mode}' under on_schema_change={on_schema_change!r} (component-level default "
+        "or a per-resource override), and this run's data would have changed it. Set "
+        "on_schema_change='allow_all' (or the matching per-resource override) if this "
+        "change is expected, or fix the upstream data/schema if it isn't."
+    ) from exc
+
+
 _RESOURCES_FIELD_NAME = {"sql_database": "sql_resources", "rest_api": "rest_api_resources", "filesystem": "filesystem_resources"}
 
 
@@ -319,6 +384,12 @@ def _validate_resources(source_type: str, resources: List[Dict[str, Any]]) -> No
             raise ValueError(
                 f"DltYamlSourceComponent: {field}[{i}] ({name!r}).asset_key must be a string "
                 f"or a list of strings, got {type(asset_key).__name__}."
+            )
+        on_schema_change = r.get("on_schema_change")
+        if on_schema_change is not None and on_schema_change not in _SCHEMA_CONTRACT_MAP:
+            raise ValueError(
+                f"DltYamlSourceComponent: {field}[{i}] ({name!r}).on_schema_change must be "
+                f"one of {sorted(_SCHEMA_CONTRACT_MAP)}, got {on_schema_change!r}."
             )
 
 
@@ -712,6 +783,27 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
         ),
     )
 
+    # --- Schema change control --------------------------------------------------
+
+    on_schema_change: Literal["allow_all", "allow_new_columns", "block_all"] = Field(
+        default="allow_all",
+        description=(
+            "What to do when incoming data's shape differs from the destination table's "
+            "established schema (new columns, a column's data type changing, or -- for "
+            "nested/sub-tables -- a brand new nested table appearing). 'allow_all' (default, "
+            "today's behavior): accept any change. 'allow_new_columns': accept new columns, "
+            "but reject (fail the run) a column whose data type would change. 'block_all': "
+            "reject both new columns and data type changes. Nested/sub-table creation is "
+            "always allowed in every mode -- a resource's own first materialization, and any "
+            "nested tables within it, must always be able to create their initial schema; "
+            "'block_all' only locks down an ALREADY-established table's columns/types. "
+            "Per-resource 'on_schema_change' (in sql_resources/rest_api_resources/"
+            "filesystem_resources) overrides this for that one resource. A rejected change "
+            "fails the run with a clear error naming the table and column -- it is never "
+            "silently dropped."
+        ),
+    )
+
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------------
 
     destination: Optional[str] = Field(
@@ -990,21 +1082,30 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
                 _wd = _resolve_write_disposition(r)
                 if _wd:
                     kwargs["write_disposition"] = _wd
-                built[name] = sql_table(**kwargs)
+                resource = sql_table(**kwargs)
+                resource.apply_hints(schema_contract=_resolve_schema_contract(
+                    r.get("on_schema_change") or self.on_schema_change,
+                    field_name=f"sql_resources[{name!r}].on_schema_change" if r.get("on_schema_change") else "on_schema_change",
+                ))
+                built[name] = resource
 
         elif source_type == "rest_api":
             from dlt.sources.rest_api import rest_api_source
             _resources_cfg = [
-                {k: v for k, v in r.items() if k not in _ASSET_LEVEL_RESOURCE_KEYS and not k.startswith("x_")}
+                {k: v for k, v in r.items() if k not in _ASSET_LEVEL_RESOURCE_KEYS and k != "on_schema_change" and not k.startswith("x_")}
                 for r in resources_config if r["name"] in wanted
             ]
-            for r in _resources_cfg:
+            for r, _orig in zip(_resources_cfg, (r for r in resources_config if r["name"] in wanted)):
                 dest = dest_table_names[r["name"]]
                 if dest != r["name"]:
                     r["table_name"] = dest
                 _wd = _resolve_write_disposition(r)
                 if _wd:
                     r["write_disposition"] = _wd
+                if _orig.get("on_schema_change"):
+                    r["schema_contract"] = _resolve_schema_contract(
+                        _orig["on_schema_change"], field_name=f"rest_api_resources[{r['name']!r}].on_schema_change"
+                    )
             partition_window_params = self.partition_window_params if source_type == "rest_api" else None
             if partition_window_params and run_context is not None:
                 _apply_partition_window(
@@ -1020,7 +1121,11 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
             if not _resources_cfg:
                 return [], []
             _check_client_auth_resolved(self.client)
-            config = {"client": self.client, "resources": _resources_cfg}
+            config = {
+                "client": self.client,
+                "resources": _resources_cfg,
+                "resource_defaults": {"schema_contract": _resolve_schema_contract(self.on_schema_change)},
+            }
             source = rest_api_source(config)
             return source, _names
 
@@ -1061,8 +1166,11 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
                 _wd = _resolve_write_disposition(r)
                 if _wd:
                     hint_kwargs["write_disposition"] = _wd
-                if hint_kwargs:
-                    res.apply_hints(**hint_kwargs)
+                hint_kwargs["schema_contract"] = _resolve_schema_contract(
+                    r.get("on_schema_change") or self.on_schema_change,
+                    field_name=f"filesystem_resources[{name!r}].on_schema_change" if r.get("on_schema_change") else "on_schema_change",
+                )
+                res.apply_hints(**hint_kwargs)
                 built[name] = res
 
         for name, res in built.items():
@@ -1219,7 +1327,10 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
                 run_arg, built_names = component._build_resources(run_context=context)
                 pipeline = component._build_pipeline(f"{asset_name}_pipeline", dataset_name)
                 context.log.info("Extracting data...")
-                load_info = pipeline.run(run_arg)
+                try:
+                    load_info = pipeline.run(run_arg)
+                except PipelineStepFailed as _e:
+                    _reraise_as_clear_schema_contract_error(_e, component.on_schema_change)
                 context.log.info(f"Data loaded: {load_info}")
 
                 base_metadata = {
@@ -1326,7 +1437,10 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
             )
             run_arg, _ = component._build_resources(run_context=context, selected_names=selected_resource_names)
             pipeline = component._build_pipeline(f"{asset_name}_pipeline", dataset_name)
-            load_info = pipeline.run(run_arg)
+            try:
+                load_info = pipeline.run(run_arg)
+            except PipelineStepFailed as _e:
+                _reraise_as_clear_schema_contract_error(_e, component.on_schema_change)
             context.log.info(f"Data loaded: {load_info}")
 
             is_non_sql = destination in non_sql_destinations

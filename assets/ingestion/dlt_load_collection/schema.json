@@ -41,7 +41,8 @@
           "merge_key": { "type": "string", "description": "Alternative to primary_key for write_disposition='merge'." },
           "write_disposition": { "type": "string", "enum": ["append", "replace", "merge"], "description": "Defaults to 'merge' if primary_key is set, else dlt's own 'append'." },
           "schema": { "type": "string", "description": "Per-resource schema override (defaults to the top-level schema_name)." },
-          "on_schema_change": { "type": "string", "enum": ["allow_all", "allow_new_columns", "block_all"], "description": "Overrides the top-level on_schema_change for this resource." }
+          "on_schema_change": { "type": "string", "enum": ["allow_all", "allow_new_columns", "block_all"], "description": "Overrides the top-level on_schema_change for this resource." },
+          "hash_columns": { "type": "array", "items": { "type": "string" }, "description": "Overrides the top-level hash_columns for this resource. An empty list ([]) opts this resource out of the top-level default." }
         },
         "required": ["name"]
       },
@@ -75,7 +76,8 @@
           "primary_key": { "type": "string", "description": "Column name, or comma-separated names for a composite key." },
           "merge_key": { "type": "string", "description": "Alternative to primary_key for write_disposition='merge'." },
           "write_disposition": { "type": "string", "enum": ["append", "replace", "merge"], "description": "Defaults to 'merge' if primary_key is set, else dlt's own 'append'." },
-          "on_schema_change": { "type": "string", "enum": ["allow_all", "allow_new_columns", "block_all"], "description": "Overrides the top-level on_schema_change for this resource." }
+          "on_schema_change": { "type": "string", "enum": ["allow_all", "allow_new_columns", "block_all"], "description": "Overrides the top-level on_schema_change for this resource." },
+          "hash_columns": { "type": "array", "items": { "type": "string" }, "description": "Overrides the top-level hash_columns for this resource. An empty list ([]) opts this resource out of the top-level default." }
         },
         "required": ["name", "endpoint"]
       },
@@ -104,7 +106,8 @@
           "primary_key": { "type": "string", "description": "Column name, or comma-separated names for a composite key." },
           "merge_key": { "type": "string", "description": "Alternative to primary_key for write_disposition='merge'." },
           "write_disposition": { "type": "string", "enum": ["append", "replace", "merge"], "description": "Defaults to 'merge' if primary_key is set, else dlt's own 'append'." },
-          "on_schema_change": { "type": "string", "enum": ["allow_all", "allow_new_columns", "block_all"], "description": "Overrides the top-level on_schema_change for this resource." }
+          "on_schema_change": { "type": "string", "enum": ["allow_all", "allow_new_columns", "block_all"], "description": "Overrides the top-level on_schema_change for this resource." },
+          "hash_columns": { "type": "array", "items": { "type": "string" }, "description": "Overrides the top-level hash_columns for this resource. An empty list ([]) opts this resource out of the top-level default." }
         },
         "required": ["name", "file_glob"]
       },
@@ -770,6 +773,28 @@
       "type": "object",
       "label": "Column Lineage",
       "description": "Column-level lineage, emitted as `dagster/column_lineage` metadata: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is the only entry of `deps`; with several upstream assets, name each column '<asset_key>:<column>'. Only applies in asset_shape='single' -- in 'multi_asset' mode there are several output assets and no single obvious upstream-to-output column mapping, so it's ignored there.",
+      "required": false
+    },
+    "hash_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Hash Columns",
+      "description": "Column names to pseudonymize (salted SHA-256, hex-encoded) before the data reaches the destination -- the same deterministic-hashing pattern dlt's own docs recommend for PII (same salt -> same input always hashes to the same output, so joins across hashed datasets still work). Requires 'hash_salt' or 'hash_salt_env_var'. A column missing from a given resource's rows is skipped, not an error (different resources may have different shapes). Per-resource 'hash_columns' (in sql_resources/rest_api_resources/filesystem_resources) overrides this for that one resource; set it to an empty list ([]) on a resource to exempt it from the component-level default.",
+      "required": false
+    },
+    "hash_salt": {
+      "type": "string",
+      "label": "Hash Salt",
+      "description": "Salt for 'hash_columns'. Required (this or hash_salt_env_var) when hash_columns is set anywhere -- a hardcoded/shared salt across installs would let the hash be reversed by dictionary attack on common values (e.g. emails), defeating the point. Use \"{{ env.VAR_NAME }}\" for the inline form. Keep it stable across runs: changing it changes every hash, breaking joins against previously-hashed data.",
+      "required": false,
+      "ui:widget": "password"
+    },
+    "hash_salt_env_var": {
+      "type": "string",
+      "label": "Hash Salt Env Var",
+      "description": "Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time.",
       "required": false
     }
   },

@@ -331,6 +331,31 @@ def _reraise_as_clear_schema_contract_error(exc: Exception, on_schema_change: st
     ) from exc
 
 
+def _resolve_hash_salt(hash_salt: Optional[str], hash_salt_env_var: Optional[str]) -> Optional[str]:
+    if hash_salt:
+        return hash_salt
+    if hash_salt_env_var:
+        return _resolve_env_var(hash_salt_env_var, "hash_salt_env_var")
+    return None
+
+
+def _make_hash_columns_map(columns: List[str], salt: str):
+    """dlt's own documented deterministic-pseudonymization pattern (salted SHA-256,
+    hex-encoded) -- https://dlthub.com/docs/general-usage/customising-pipelines/
+    pseudonymizing_columns -- wired up as a per-resource `add_map` transform instead of
+    requiring a custom Python module, matching this component's whole premise."""
+    import hashlib
+
+    def _hash_map(doc):
+        for col in columns:
+            value = doc.get(col)
+            if value is not None:
+                doc[col] = hashlib.sha256((str(value) + salt).encode()).hexdigest()
+        return doc
+
+    return _hash_map
+
+
 _RESOURCES_FIELD_NAME = {"sql_database": "sql_resources", "rest_api": "rest_api_resources", "filesystem": "filesystem_resources"}
 
 
@@ -390,6 +415,12 @@ def _validate_resources(source_type: str, resources: List[Dict[str, Any]]) -> No
             raise ValueError(
                 f"DltYamlSourceComponent: {field}[{i}] ({name!r}).on_schema_change must be "
                 f"one of {sorted(_SCHEMA_CONTRACT_MAP)}, got {on_schema_change!r}."
+            )
+        hash_columns = r.get("hash_columns")
+        if hash_columns is not None and not isinstance(hash_columns, list):
+            raise ValueError(
+                f"DltYamlSourceComponent: {field}[{i}] ({name!r}).hash_columns must be a "
+                f"list of column names, got {type(hash_columns).__name__}."
             )
 
 
@@ -804,6 +835,37 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
         ),
     )
 
+    # --- Column pseudonymization (hashing) ----------------------------------------
+
+    hash_columns: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Column names to pseudonymize (salted SHA-256, hex-encoded) before the data "
+            "reaches the destination -- the same deterministic-hashing pattern dlt's own docs "
+            "recommend for PII (same salt -> same input always hashes to the same output, so "
+            "joins across hashed datasets still work). Requires 'hash_salt' or "
+            "'hash_salt_env_var'. A column missing from a given resource's rows is skipped, "
+            "not an error (different resources may have different shapes). Per-resource "
+            "'hash_columns' (in sql_resources/rest_api_resources/filesystem_resources) "
+            "overrides this for that one resource; set it to an empty list ([]) on a resource "
+            "to exempt it from the component-level default."
+        ),
+    )
+    hash_salt: Optional[str] = Field(
+        default=None,
+        description=(
+            "Salt for 'hash_columns'. Required (this or hash_salt_env_var) when hash_columns "
+            "is set anywhere -- a hardcoded/shared salt across installs would let the hash be "
+            "reversed by dictionary attack on common values (e.g. emails), defeating the "
+            "point. Use \"{{ env.VAR_NAME }}\" for the inline form. Keep it stable across runs: "
+            "changing it changes every hash, breaking joins against previously-hashed data."
+        ),
+    )
+    hash_salt_env_var: Optional[str] = Field(
+        default=None,
+        description="Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time.",
+    )
+
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------------
 
     destination: Optional[str] = Field(
@@ -1019,6 +1081,15 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
             return _resolve_env_var(self.connection_string_env_var, "connection_string_env_var")
         return None
 
+    def _effective_hash_columns(self, r: Dict[str, Any]) -> List[str]:
+        """Per-resource 'hash_columns' overrides the component-level default; an explicit
+        empty list ([]) on a resource opts it OUT of the component-level default, which a
+        simple `r.get("hash_columns") or self.hash_columns` couldn't distinguish from
+        'not set' (both would fall through to the default)."""
+        if "hash_columns" in r:
+            return r["hash_columns"] or []
+        return self.hash_columns or []
+
     def _build_pipeline(self, pipeline_name: str, dataset_name: str):
         """Overridable seam: a subclass can swap in a differently-configured
         pipeline (e.g. a demo-mode in-memory one) without touching build_defs."""
@@ -1053,6 +1124,7 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
         resource_names = list(dest_table_names.keys())
         wanted = set(selected_names) if selected_names is not None else set(resource_names)
         built: Dict[str, Any] = {}
+        hash_salt = _resolve_hash_salt(self.hash_salt, self.hash_salt_env_var)
 
         if source_type == "sql_database":
             from dlt.sources.sql_database import sql_table
@@ -1087,12 +1159,15 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
                     r.get("on_schema_change") or self.on_schema_change,
                     field_name=f"sql_resources[{name!r}].on_schema_change" if r.get("on_schema_change") else "on_schema_change",
                 ))
+                _hash_cols = self._effective_hash_columns(r)
+                if _hash_cols:
+                    resource.add_map(_make_hash_columns_map(_hash_cols, hash_salt))
                 built[name] = resource
 
         elif source_type == "rest_api":
             from dlt.sources.rest_api import rest_api_source
             _resources_cfg = [
-                {k: v for k, v in r.items() if k not in _ASSET_LEVEL_RESOURCE_KEYS and k != "on_schema_change" and not k.startswith("x_")}
+                {k: v for k, v in r.items() if k not in _ASSET_LEVEL_RESOURCE_KEYS and k not in ("on_schema_change", "hash_columns") and not k.startswith("x_")}
                 for r in resources_config if r["name"] in wanted
             ]
             for r, _orig in zip(_resources_cfg, (r for r in resources_config if r["name"] in wanted)):
@@ -1127,6 +1202,12 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
                 "resource_defaults": {"schema_contract": _resolve_schema_contract(self.on_schema_change)},
             }
             source = rest_api_source(config)
+            for _orig in resources_config:
+                if _orig["name"] not in wanted:
+                    continue
+                _hash_cols = self._effective_hash_columns(_orig)
+                if _hash_cols:
+                    source.resources[_orig["name"]].add_map(_make_hash_columns_map(_hash_cols, hash_salt))
             return source, _names
 
         elif source_type == "filesystem":
@@ -1171,6 +1252,9 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
                     field_name=f"filesystem_resources[{name!r}].on_schema_change" if r.get("on_schema_change") else "on_schema_change",
                 )
                 res.apply_hints(**hint_kwargs)
+                _hash_cols = self._effective_hash_columns(r)
+                if _hash_cols:
+                    res.add_map(_make_hash_columns_map(_hash_cols, hash_salt))
                 built[name] = res
 
         for name, res in built.items():
@@ -1207,6 +1291,13 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
         resources_config = self._active_resources()
 
         _validate_resources(source_type, resources_config)
+        _any_hash_columns = self.hash_columns or any(r.get("hash_columns") for r in resources_config)
+        if _any_hash_columns and not (self.hash_salt or self.hash_salt_env_var):
+            raise ValueError(
+                "DltYamlSourceComponent: 'hash_columns' is set but neither 'hash_salt' nor "
+                "'hash_salt_env_var' is -- a salt is required (see hash_salt's description "
+                "for why a hardcoded/shared salt isn't safe)."
+            )
         if source_type == "sql_database" and not (self.connection_string or self.connection_string_env_var):
             raise ValueError(
                 "DltYamlSourceComponent: 'connection_string' or 'connection_string_env_var' "

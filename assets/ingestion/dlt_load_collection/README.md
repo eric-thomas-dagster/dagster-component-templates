@@ -85,6 +85,25 @@ expected, or fix the upstream data/schema if it isn't.
 
 dlt itself raises `PipelineStepFailed` several layers removed from the actual violation, with a verbose multi-paragraph dump (job ids, `dlt pipeline ... abort-packages` CLI hints, ephemeral-storage notes); this component extracts the table/column/contract-entity/mode from dlt's own message text and re-raises the concise version above instead.
 
+## Column pseudonymization (`hash_columns`)
+
+Replaces a column's value with a salted SHA-256 hex digest before it reaches the destination -- the same deterministic-hashing pattern [dlt's own docs recommend for PII](https://dlthub.com/docs/general-usage/customising-pipelines/pseudonymizing_columns), wired up as a config option instead of a custom Python module (`DltResource.add_map(...)` under the hood, applied per resource across all three `source_type`s). Deterministic means the same input always hashes to the same output under a given salt, so joins across hashed datasets still work -- this pseudonymizes, it does not anonymize.
+
+```yaml
+hash_columns: [email, ssn]   # component-level default -- applies to every resource
+hash_salt: "{{ env.PII_HASH_SALT }}"   # or hash_salt_env_var: PII_HASH_SALT
+
+sql_resources:
+  - name: customers
+    primary_key: id
+  - name: internal_staff
+    hash_columns: []   # per-resource override: exempt this one from hashing
+```
+
+- `hash_salt`/`hash_salt_env_var` is **required** once `hash_columns` is set anywhere (component-level or per-resource) -- a hardcoded or shared-across-installs salt would let the hash be reversed by a dictionary attack on common values like emails, defeating the point. Keep the salt stable across runs: changing it changes every hash, breaking joins against previously-hashed data.
+- A column missing from a given resource's rows is skipped, not an error -- different resources commonly have different shapes. A `None` value is left as `None`, not hashed to a string.
+- Per-resource `hash_columns` overrides the component-level default entirely for that resource; set it to `[]` (not omitted) to opt a specific resource *out* of an otherwise component-wide default.
+
 ## Custom per-resource metadata (`x_` prefix)
 
 A resource entry (in `sql_resources`/`rest_api_resources`/`filesystem_resources`) can carry arbitrary extra keys for a subclass's own use (e.g. a blocking rows-landed check or a column-contract check reading `min_rows`/`contract_columns` off the YAML) by prefixing them with `x_`:
@@ -273,6 +292,9 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 | `filesystem_credentials` | `Dict[str, Any]` | — | Inline credentials for the SOURCE bucket, passed straight to dlt's filesystem() as 'credentials' -- keys are dlt's own credential field names, values may be '{{ env.VAR_NAME }}' references. Only needed when env-var-based… _(full docs in schema.json + component README)_ |
 | `file_format` | `Literal['csv', 'parquet', 'jsonl', 'json', 'auto']` | `"csv"` | Reader applied to each matched file (filesystem only). Per-resource 'file_format' overrides this. 'json' reads a single JSON object or array-of-objects per file (not newline-delimited -- use 'jsonl' for that). 'auto' dis… _(full docs in schema.json + component README)_ |
 | `on_schema_change` | `Literal['allow_all', 'allow_new_columns', 'block_all']` | `"allow_all"` | What to do when incoming data's shape differs from the destination table's established schema (new columns, a column's data type changing, or -- for nested/sub-tables -- a brand new nested table appearing). 'allow_all' (… _(full docs in schema.json + component README)_ |
+| `hash_columns` | `List[str]` | — | Column names to pseudonymize (salted SHA-256, hex-encoded) before the data reaches the destination -- the same deterministic-hashing pattern dlt's own docs recommend for PII (same salt -> same input always hashes to the… _(full docs in schema.json + component README)_ |
+| `hash_salt` | `str` | — | Salt for 'hash_columns'. Required (this or hash_salt_env_var) when hash_columns is set anywhere -- a hardcoded/shared salt across installs would let the hash be reversed by dictionary attack on common values (e.g. emails… _(full docs in schema.json + component README)_ |
+| `hash_salt_env_var` | `str` | — | Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time. |
 | `destination` | `str` | — | dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck', 'sqlalchemy'). 'sqlalchemy' is dlt's generic SQL dest… _(full docs in schema.json + component README)_ |
 | `dataset_name` | `str` | — | Target dataset/schema in the destination. Defaults to the asset name. |
 | `persist_only` | `bool` | `false` | If True with destination set: emit a MaterializeResult and skip DataFrame return. If False: query the destination back into a DataFrame (only meaningful for SQL destinations -- non-SQL destinations always emit MaterializeResult). |

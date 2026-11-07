@@ -80,6 +80,11 @@ attributes:
   #       path: customers
   #     on_schema_change: allow_all   # per-resource override: this one stays permissive
 
+  # --- Column pseudonymization: salted SHA-256, same pattern dlt's own docs recommend
+  # for PII -- see the README's "Column pseudonymization" section ---
+  # hash_columns: [email]
+  # hash_salt: "{{ env.PII_HASH_SALT }}"   # required once hash_columns is set anywhere
+
   # Organization
   description: "Customer and order tables from a generic REST API"
   group_name: "dlt_load_collection"

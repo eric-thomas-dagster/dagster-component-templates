@@ -107,7 +107,38 @@ _SHARED_RESOURCE_KEY_DOCS = (
     "'tags' (dict, merged over the component-level asset_tags), 'metadata' (dict, static "
     "`AssetOut` metadata), and 'asset_key' (str, or list of str for a multi-segment key) "
     "to fully control that resource's asset key instead of the default "
-    "'{asset_name}_{resource_name}'."
+    "'{asset_name}_{resource_name}'. Optional 'incremental' ({cursor_path: required str, "
+    "initial_value: optional, lag: optional seconds of overlap for clock-skew/late-"
+    "arriving rows}, plus 'start_param'/'end_param' for rest_api only -- the query param "
+    "name(s) the cursor value is sent as, since a REST API has no WHERE-clause or file-"
+    "mtime equivalent to filter server-side by) -- only loads rows past the last synced "
+    "cursor value instead of the full resource every run. Pairs with write_disposition "
+    "'merge' and a primary_key to upsert changed rows (without one, matching rows "
+    "accumulate as duplicates every run, same as any other resource). Deletes in the "
+    "source are never detected -- a row removed upstream simply stops being re-synced, "
+    "it is not removed from the destination. The cursor lives in dlt's own pipeline "
+    "state, synced into the destination automatically on every run (dlt's "
+    "'restore_from_destination', on by default) when a real destination is configured -- "
+    "with the default in-memory/local DuckDB mode (no 'destination' set), state only "
+    "survives between runs if the local DuckDB file and dlt's pipelines directory "
+    "persist on the same filesystem, which most ephemeral/serverless run environments "
+    "do not guarantee. Lost state is not an error: the next run just starts over from "
+    "'initial_value' (or the very beginning, if unset), silently re-loading everything "
+    "-- harmless under 'merge', duplicative under 'append'. For rest_api, "
+    "'endpoint.incremental' (dlt's own native, nested location) already works too; the "
+    "top-level 'incremental' here is a convenience that's translated into it, so set it "
+    "in exactly one place, not both. For rest_api specifically, prefer 'incremental' "
+    "over partition_window_params on the same resource -- the two are different "
+    "range-narrowing mechanisms (a persistent dlt-state cursor vs. a Dagster-partition-"
+    "driven API query window) and setting both on one resource is rejected. Optional "
+    "'exclude_columns' (list of column names) -- dropped from every row before it "
+    "reaches the destination, applied the same way and before 'hash_columns' (so a "
+    "column in both ends up excluded, not hashed-then-excluded); overrides the "
+    "component-level 'exclude_columns' default the same way 'hash_columns' does (set it "
+    "to an empty list ([]) to exempt one resource from a component-level default). "
+    "Optional 'max_rows_per_resource' (int) -- caps how many rows this one resource "
+    "loads, overriding the component-level default the same way; see the component-"
+    "level field's description for what this is (and isn't) for."
 )
 
 
@@ -356,6 +387,89 @@ def _make_hash_columns_map(columns: List[str], salt: str):
     return _hash_map
 
 
+def _make_exclude_columns_map(columns: List[str]):
+    """Drops `columns` from every row before it reaches the destination -- same
+    per-resource `add_map` mechanism as `_make_hash_columns_map`, applied first in the
+    chain (see `_build_resources`) so a column in both `exclude_columns` and
+    `hash_columns` ends up excluded: `_make_hash_columns_map`'s own `doc.get(col) is
+    None` check already no-ops on a column this already popped, with no special-case
+    code needed."""
+    def _exclude_map(doc):
+        for col in columns:
+            doc.pop(col, None)
+        return doc
+
+    return _exclude_map
+
+
+def _make_row_cap_yield_map(max_rows: int):
+    """`DltResource.add_limit(..., count_rows=True)` is dlt's documented row-count cap --
+    used for sql_database/rest_api below -- but VERIFIED (dlt 1.30.0) to be a silent
+    no-op on a TRANSFORMER (dlt's own warning: "Setting add_limit to a transformer ...
+    has no effect. Set the limit on the top level resource" -- and setting it on the
+    pre-pipe top-level resource instead does not propagate through the pipe either,
+    confirmed via a real pipeline.run() + destination row count: still all 10 rows from
+    5 files of 2 rows each, uncapped). filesystem_resources' resource IS a transformer
+    (`filesystem() | reader_factory()`), so it needs this `add_yield_map`-based
+    alternative instead -- add_yield_map has no such transformer restriction (same real
+    test, with this applied: destination lands exactly 4 rows), and dlt auto-enumerates
+    a yielded list/DataFrame into individual rows before calling `item_map`, so this
+    closure's count really is a ROW count, not a page/file count, regardless of which
+    reader (csv/parquet/jsonl/json/auto) produced the batch."""
+    state = {"count": 0}
+
+    def _cap(item):
+        if state["count"] >= max_rows:
+            return
+        state["count"] += 1
+        yield item
+
+    return _cap
+
+
+# IncrementalArgs fields (dlt.common.incremental.typing) shared by sql_database's
+# `dlt.sources.incremental(...)` object and rest_api's `endpoint.incremental` dict --
+# verified identical across both call shapes in dlt 1.30.0 (the version pinned here).
+_INCREMENTAL_SHARED_KEYS = {"cursor_path", "initial_value", "lag"}
+# rest_api-only: how the cursor value is sent to the API (a query param), since REST
+# APIs have no WHERE-clause or file-mtime equivalent to filter server-side by.
+_INCREMENTAL_REST_API_ONLY_KEYS = {"start_param", "end_param"}
+
+
+def _validate_incremental(incr: Any, source_type: str, field_name: str) -> None:
+    if not isinstance(incr, dict):
+        raise ValueError(f"DltYamlSourceComponent: {field_name} must be a mapping (dict), got {type(incr).__name__}.")
+    if not incr.get("cursor_path"):
+        raise ValueError(f"DltYamlSourceComponent: {field_name}.cursor_path is required.")
+    if source_type != "rest_api":
+        _rest_only = _INCREMENTAL_REST_API_ONLY_KEYS & set(incr)
+        if _rest_only:
+            raise ValueError(
+                f"DltYamlSourceComponent: {field_name} sets {sorted(_rest_only)}, which only make "
+                f"sense for source_type='rest_api' (how the cursor value is sent as a query param) "
+                f"-- {source_type} has no query-param equivalent; it filters via "
+                f"{'a SQL WHERE clause' if source_type == 'sql_database' else 'file modification time'} "
+                f"directly."
+            )
+        _unknown = set(incr) - _INCREMENTAL_SHARED_KEYS
+    else:
+        _unknown = set(incr) - _INCREMENTAL_SHARED_KEYS - _INCREMENTAL_REST_API_ONLY_KEYS
+    if _unknown:
+        raise ValueError(f"DltYamlSourceComponent: {field_name} has unrecognized key(s) {sorted(_unknown)}.")
+
+
+def _build_incremental(incr: Dict[str, Any]):
+    """`dlt.sources.incremental(...)` for sql_database/filesystem -- `cursor_path`/
+    `initial_value`/`lag` map directly onto it (already validated by
+    `_validate_incremental`)."""
+    kwargs: Dict[str, Any] = {"cursor_path": incr["cursor_path"]}
+    if "initial_value" in incr:
+        kwargs["initial_value"] = incr["initial_value"]
+    if "lag" in incr:
+        kwargs["lag"] = incr["lag"]
+    return dlt.sources.incremental(**kwargs)
+
+
 _RESOURCES_FIELD_NAME = {"sql_database": "sql_resources", "rest_api": "rest_api_resources", "filesystem": "filesystem_resources"}
 
 
@@ -422,6 +536,27 @@ def _validate_resources(source_type: str, resources: List[Dict[str, Any]]) -> No
                 f"DltYamlSourceComponent: {field}[{i}] ({name!r}).hash_columns must be a "
                 f"list of column names, got {type(hash_columns).__name__}."
             )
+        exclude_columns = r.get("exclude_columns")
+        if exclude_columns is not None and not isinstance(exclude_columns, list):
+            raise ValueError(
+                f"DltYamlSourceComponent: {field}[{i}] ({name!r}).exclude_columns must be a "
+                f"list of column names, got {type(exclude_columns).__name__}."
+            )
+        max_rows = r.get("max_rows_per_resource")
+        if max_rows is not None and (not isinstance(max_rows, int) or isinstance(max_rows, bool) or max_rows < 1):
+            raise ValueError(
+                f"DltYamlSourceComponent: {field}[{i}] ({name!r}).max_rows_per_resource must be "
+                f"a positive integer, got {max_rows!r}."
+            )
+        incremental = r.get("incremental")
+        if incremental is not None:
+            _validate_incremental(incremental, source_type, f"{field}[{i}] ({name!r}).incremental")
+            if source_type == "rest_api" and (r.get("endpoint") or {}).get("incremental"):
+                raise ValueError(
+                    f"DltYamlSourceComponent: {field}[{i}] ({name!r}) sets both the top-level "
+                    f"'incremental' and 'endpoint.incremental' -- set it in exactly one place "
+                    f"(the top-level form is translated into 'endpoint.incremental' for you)."
+                )
 
 
 # BEGIN partition row-filter helper (inlined per component; keep copies identical, see tests/test_partition_port_ingestion.py)
@@ -835,6 +970,38 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
         ),
     )
 
+    # --- Row sampling cap -------------------------------------------------------
+
+    max_rows_per_resource: Optional[int] = Field(
+        default=None,
+        description=(
+            "Caps how many rows EACH resource loads, across every resource that doesn't "
+            "set its own per-resource 'max_rows_per_resource' override. Unset (default): no "
+            "cap. This still loads real rows into the real destination -- it is not a dry "
+            "run or a preview -- meant for a first run to check a connection and the shape "
+            "of the data cheaply, not for routine use. Never applied unless you set it. "
+            "For filesystem_resources specifically: counted the same way (real rows, not "
+            "files or pages) but applied via a different dlt mechanism under the hood, "
+            "since dlt's usual row-limiting call is a documented no-op on this resource "
+            "(it pipes through a csv/parquet/jsonl reader, making it a 'transformer' in "
+            "dlt's terms, and dlt does not allow limiting those directly)."
+        ),
+    )
+
+    # --- Column exclusion -------------------------------------------------------
+
+    exclude_columns: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Column names to drop from every row before it reaches the destination, across "
+            "every resource that doesn't set its own per-resource 'exclude_columns' override. "
+            "Applied before 'hash_columns' in the same per-resource chain (see "
+            "'hash_columns' for that), so a column in both is excluded, not hashed first. A "
+            "column missing from a given resource's rows is skipped, not an error, matching "
+            "'hash_columns'."
+        ),
+    )
+
     # --- Column pseudonymization (hashing) ----------------------------------------
 
     hash_columns: Optional[List[str]] = Field(
@@ -1090,6 +1257,23 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
             return r["hash_columns"] or []
         return self.hash_columns or []
 
+    def _effective_exclude_columns(self, r: Dict[str, Any]) -> List[str]:
+        """Same per-resource-overrides-component-level-default pattern as
+        `_effective_hash_columns`, for 'exclude_columns'."""
+        if "exclude_columns" in r:
+            return r["exclude_columns"] or []
+        return self.exclude_columns or []
+
+    def _effective_max_rows_per_resource(self, r: Dict[str, Any]) -> Optional[int]:
+        """Same per-resource-overrides-component-level-default pattern as
+        `_effective_hash_columns`, for 'max_rows_per_resource' -- an explicit `null` on
+        a resource opts it OUT of a component-level cap (unlike hash_columns/
+        exclude_columns, `None` here already means 'no cap', so no `or []` normalization
+        is needed)."""
+        if "max_rows_per_resource" in r:
+            return r["max_rows_per_resource"]
+        return self.max_rows_per_resource
+
     def _build_pipeline(self, pipeline_name: str, dataset_name: str):
         """Overridable seam: a subclass can swap in a differently-configured
         pipeline (e.g. a demo-mode in-memory one) without touching build_defs."""
@@ -1154,20 +1338,29 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
                 _wd = _resolve_write_disposition(r)
                 if _wd:
                     kwargs["write_disposition"] = _wd
+                if r.get("incremental"):
+                    kwargs["incremental"] = _build_incremental(r["incremental"])
                 resource = sql_table(**kwargs)
                 resource.apply_hints(schema_contract=_resolve_schema_contract(
                     r.get("on_schema_change") or self.on_schema_change,
                     field_name=f"sql_resources[{name!r}].on_schema_change" if r.get("on_schema_change") else "on_schema_change",
                 ))
+                _exclude_cols = self._effective_exclude_columns(r)
+                if _exclude_cols:
+                    resource.add_map(_make_exclude_columns_map(_exclude_cols))
                 _hash_cols = self._effective_hash_columns(r)
                 if _hash_cols:
                     resource.add_map(_make_hash_columns_map(_hash_cols, hash_salt))
+                _max_rows = self._effective_max_rows_per_resource(r)
+                if _max_rows:
+                    resource.add_limit(max_items=_max_rows, count_rows=True)
                 built[name] = resource
 
         elif source_type == "rest_api":
             from dlt.sources.rest_api import rest_api_source
+            _NON_REST_API_KEYS = ("on_schema_change", "hash_columns", "exclude_columns", "max_rows_per_resource", "incremental")
             _resources_cfg = [
-                {k: v for k, v in r.items() if k not in _ASSET_LEVEL_RESOURCE_KEYS and k not in ("on_schema_change", "hash_columns") and not k.startswith("x_")}
+                {k: v for k, v in r.items() if k not in _ASSET_LEVEL_RESOURCE_KEYS and k not in _NON_REST_API_KEYS and not k.startswith("x_")}
                 for r in resources_config if r["name"] in wanted
             ]
             for r, _orig in zip(_resources_cfg, (r for r in resources_config if r["name"] in wanted)):
@@ -1181,6 +1374,13 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
                     r["schema_contract"] = _resolve_schema_contract(
                         _orig["on_schema_change"], field_name=f"rest_api_resources[{r['name']!r}].on_schema_change"
                     )
+                if _orig.get("incremental"):
+                    # Translated here rather than mutated onto `_orig["endpoint"]` directly --
+                    # `_resources_cfg`'s dict comprehension only shallow-copies each resource
+                    # dict, so `r["endpoint"]` is still the SAME nested dict object as
+                    # `_orig["endpoint"]`; a new dict keeps this from leaking back onto
+                    # `self.rest_api_resources` and persisting across future calls.
+                    r["endpoint"] = {**r["endpoint"], "incremental": _orig["incremental"]}
             partition_window_params = self.partition_window_params if source_type == "rest_api" else None
             if partition_window_params and run_context is not None:
                 _apply_partition_window(
@@ -1205,9 +1405,18 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
             for _orig in resources_config:
                 if _orig["name"] not in wanted:
                     continue
+                _exclude_cols = self._effective_exclude_columns(_orig)
                 _hash_cols = self._effective_hash_columns(_orig)
+                _max_rows = self._effective_max_rows_per_resource(_orig)
+                if not (_exclude_cols or _hash_cols or _max_rows):
+                    continue
+                _res = source.resources[_orig["name"]]
+                if _exclude_cols:
+                    _res.add_map(_make_exclude_columns_map(_exclude_cols))
                 if _hash_cols:
-                    source.resources[_orig["name"]].add_map(_make_hash_columns_map(_hash_cols, hash_salt))
+                    _res.add_map(_make_hash_columns_map(_hash_cols, hash_salt))
+                if _max_rows:
+                    _res.add_limit(max_items=_max_rows, count_rows=True)
             return source, _names
 
         elif source_type == "filesystem":
@@ -1236,6 +1445,11 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
                 _fs_kwargs: Dict[str, Any] = {"bucket_url": self.filesystem_bucket_url, "file_glob": r["file_glob"]}
                 if self.filesystem_credentials:
                     _fs_kwargs["credentials"] = self.filesystem_credentials
+                if r.get("incremental"):
+                    # Applied to the filesystem() FileItem stream itself, before the `|
+                    # reader_factory()` pipe -- an unchanged file's content is never even
+                    # opened/read, not just filtered out after the fact.
+                    _fs_kwargs["incremental"] = _build_incremental(r["incremental"])
                 res = (filesystem(**_fs_kwargs) | reader_factory()).with_name(name)
                 hint_kwargs: Dict[str, Any] = {}
                 if r.get("primary_key"):
@@ -1252,9 +1466,18 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
                     field_name=f"filesystem_resources[{name!r}].on_schema_change" if r.get("on_schema_change") else "on_schema_change",
                 )
                 res.apply_hints(**hint_kwargs)
+                _exclude_cols = self._effective_exclude_columns(r)
+                if _exclude_cols:
+                    res.add_map(_make_exclude_columns_map(_exclude_cols))
                 _hash_cols = self._effective_hash_columns(r)
                 if _hash_cols:
                     res.add_map(_make_hash_columns_map(_hash_cols, hash_salt))
+                _max_rows = self._effective_max_rows_per_resource(r)
+                if _max_rows:
+                    # Not add_limit -- see _make_row_cap_yield_map's docstring: it's a
+                    # verified no-op on this resource, which is a transformer
+                    # (filesystem() | reader_factory()).
+                    res.add_yield_map(_make_row_cap_yield_map(_max_rows))
                 built[name] = res
 
         for name, res in built.items():
@@ -1291,6 +1514,25 @@ class DltYamlSourceComponent(Component, Model, Resolvable):
         resources_config = self._active_resources()
 
         _validate_resources(source_type, resources_config)
+        if source_type == "rest_api" and self.partition_window_params:
+            _window_targets = set(self.partition_window_resources) if self.partition_window_resources else None
+            for r in resources_config:
+                _name = r["name"]
+                _has_incremental = r.get("incremental") or (r.get("endpoint") or {}).get("incremental")
+                _targeted = _window_targets is None or _name in _window_targets
+                if _has_incremental and _targeted:
+                    raise ValueError(
+                        f"DltYamlSourceComponent: rest_api_resources[{_name!r}] sets 'incremental' "
+                        f"and is also targeted by partition_window_params (partition_window_resources="
+                        f"{self.partition_window_resources!r}) -- these are two different range-"
+                        f"narrowing mechanisms (a persistent dlt-state cursor vs. a Dagster-"
+                        f"partition-driven API query window); combining both on one resource means "
+                        f"they would both try to filter the same request. Use 'incremental' for a "
+                        f"plain 'just load what's new' sync, or partition_window_params for a "
+                        f"Dagster-partitioned, backfillable extraction window -- not both on this "
+                        f"resource. Narrow partition_window_resources to exclude it, or drop its "
+                        f"'incremental'."
+                    )
         _any_hash_columns = self.hash_columns or any(r.get("hash_columns") for r in resources_config)
         if _any_hash_columns and not (self.hash_salt or self.hash_salt_env_var):
             raise ValueError(

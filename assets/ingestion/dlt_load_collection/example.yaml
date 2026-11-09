@@ -85,6 +85,25 @@ attributes:
   # hash_columns: [email]
   # hash_salt: "{{ env.PII_HASH_SALT }}"   # required once hash_columns is set anywhere
 
+  # --- Incremental loading: only load rows past the last synced cursor value, instead
+  # of the full resource every run -- see the README's "Incremental loading" section ---
+  # rest_api_resources:
+  #   - name: orders
+  #     endpoint:
+  #       path: orders
+  #     incremental:
+  #       cursor_path: updated_at
+  #       initial_value: "2024-01-01T00:00:00Z"
+  #       start_param: updated_since
+
+  # --- Row sampling cap: a real cap on real rows loaded, for cheaply checking a
+  # connection/shape on a first run -- see the README's "Row sampling cap" section ---
+  # max_rows_per_resource: 100
+
+  # --- Column exclusion: drop columns before they reach the destination -- see the
+  # README's "Column exclusion" section ---
+  # exclude_columns: [internal_notes]
+
   # Organization
   description: "Customer and order tables from a generic REST API"
   group_name: "dlt_load_collection"

@@ -796,6 +796,21 @@
       "label": "Hash Salt Env Var",
       "description": "Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time.",
       "required": false
+    },
+    "max_rows_per_resource": {
+      "type": "integer",
+      "label": "Max Rows Per Resource",
+      "description": "Caps how many rows EACH resource loads, across every resource that doesn't set its own per-resource 'max_rows_per_resource' override. Unset (default): no cap. This still loads real rows into the real destination -- it is not a dry run or a preview -- meant for a first run to check a connection and the shape of the data cheaply, not for routine use. Never applied unless you set it. For filesystem_resources specifically: counted the same way (real rows, not files or pages) but applied via a different dlt mechanism under the hood, since dlt's usual row-limiting call is a documented no-op on this resource (it pipes through a csv/parquet/jsonl reader, making it a 'transformer' in dlt's terms, and dlt does not allow limiting those directly).",
+      "required": false
+    },
+    "exclude_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Exclude Columns",
+      "description": "Column names to drop from every row before it reaches the destination, across every resource that doesn't set its own per-resource 'exclude_columns' override. Applied before 'hash_columns' in the same per-resource chain (see 'hash_columns' for that), so a column in both is excluded, not hashed first. A column missing from a given resource's rows is skipped, not an error, matching 'hash_columns'.",
+      "required": false
     }
   },
   "tags": [

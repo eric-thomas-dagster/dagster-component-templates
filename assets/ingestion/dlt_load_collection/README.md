@@ -104,6 +104,79 @@ sql_resources:
 - A column missing from a given resource's rows is skipped, not an error -- different resources commonly have different shapes. A `None` value is left as `None`, not hashed to a string.
 - Per-resource `hash_columns` overrides the component-level default entirely for that resource; set it to `[]` (not omitted) to opt a specific resource *out* of an otherwise component-wide default.
 
+## Incremental loading (`incremental`)
+
+Per-resource, opt-in -- only loads rows (or, for `filesystem`, files) past the last synced cursor value, instead of the full resource every run. Uses dlt's own native incremental mechanism directly (`dlt.sources.incremental(...)` for `sql_database`/`filesystem`; a real, pre-existing `endpoint.incremental` for `rest_api`, which the top-level `incremental` key here is translated into for a consistent shape across all three `source_type`s):
+
+```yaml
+sql_resources:
+  - name: orders
+    primary_key: id
+    write_disposition: merge   # pair incremental with merge + a key to upsert changed rows
+    incremental:
+      cursor_path: updated_at
+      initial_value: "2024-01-01T00:00:00Z"   # omit to start from the very beginning
+
+rest_api_resources:
+  - name: orders
+    endpoint: { path: orders }
+    incremental:
+      cursor_path: updated_at   # a JSON path into the response, not a column name
+      initial_value: "2024-01-01T00:00:00Z"
+      start_param: updated_since   # the query param the cursor value is sent as
+
+filesystem_resources:
+  - name: records
+    file_glob: "orders/*.csv"
+    incremental:
+      cursor_path: modification_date   # the only sensible value here -- see below
+      initial_value: "2024-01-01T00:00:00Z"
+```
+
+- `cursor_path` is required. For `sql_database` it's a column name; for `rest_api` it's a JSON path into each response item; for `filesystem` it should be `modification_date` (the file's own mtime -- the only field dlt's `FileItem` exposes that's suited to this).
+- `initial_value` is optional -- omit it to start from the beginning on the very first run and establish the high-water mark from there.
+- `lag` (seconds) is optional on all three -- tolerates clock skew or late-arriving rows by re-including a small overlap window on every run.
+- `start_param`/`end_param` are **rest_api only** (the query param name(s) the cursor value is sent as -- a REST API has no WHERE-clause or file-mtime equivalent to filter server-side by); setting either for `sql_database`/`filesystem` is rejected.
+- **Pairs with `write_disposition: merge` and a `primary_key`** to upsert changed rows. Without one, a row that changed upstream and gets re-synced lands as an *additional* row, not a replacement, same as any other resource without a key.
+- **Deletes in the source are never detected.** A row removed upstream simply stops being re-synced -- it is not removed from the destination.
+- **Where the cursor state lives:** dlt's own pipeline state, synced into the destination automatically on every run (dlt's `restore_from_destination`, on by default) *when a real `destination` is configured*. With the default in-memory/local DuckDB mode (`destination` unset), state only survives between runs if the local DuckDB file and dlt's pipelines directory persist on the same filesystem -- which most ephemeral/serverless Dagster run environments do not guarantee. Losing state is not an error: the next run just starts over from `initial_value` (or the very beginning, if unset) -- harmless under `merge`, duplicative under `append`.
+- For `rest_api`, dlt's own native, nested `endpoint.incremental` already works with zero code here -- the top-level `incremental` shown above is a convenience translated into it, so set it in exactly one place, never both.
+- **Don't combine with `partition_window_params` on the same resource** (`rest_api` only) -- they're two different range-narrowing mechanisms (a persistent dlt-state cursor vs. a Dagster-partition-driven API query window); setting both on one resource is rejected with a clear error. Use `incremental` for a plain "just load what's new" sync; use `partition_window_params` when you need a Dagster-partitioned, backfillable extraction window.
+
+## Row sampling cap (`max_rows_per_resource`)
+
+Caps how many rows a resource loads -- a real cap on real rows landed in the real destination, never a dry run or a preview. Meant for a first run to cheaply check a connection and the shape of the data, not for routine use; never applied unless set.
+
+```yaml
+max_rows_per_resource: 100   # component-level default -- applies to every resource
+
+sql_resources:
+  - name: orders
+  - name: huge_table
+    max_rows_per_resource: 10   # per-resource override: an even smaller cap for this one
+```
+
+- Unset (default, both component- and resource-level): no cap.
+- Per-resource `max_rows_per_resource` overrides the component-level default; an explicit `null` on a resource opts it *out* of a component-level cap.
+- Counts actual rows everywhere, including `filesystem` (not files, and not "pages" within one file).
+
+## Column exclusion (`exclude_columns`)
+
+Drops named columns from every row before it reaches the destination -- the same per-resource `add_map` mechanism as `hash_columns` above, applied *before* it in the chain:
+
+```yaml
+exclude_columns: [internal_notes]   # component-level default -- applies to every resource
+
+sql_resources:
+  - name: customers
+  - name: audit_log
+    exclude_columns: [internal_notes, raw_payload]   # per-resource override: extra exclusions
+```
+
+- A column in both `exclude_columns` and `hash_columns` ends up excluded, not hashed-then-excluded.
+- A column missing from a given resource's rows is skipped, not an error -- matching `hash_columns`.
+- Per-resource `exclude_columns` overrides the component-level default; set it to `[]` (not omitted) to opt a specific resource *out* of an otherwise component-wide default.
+
 ## Custom per-resource metadata (`x_` prefix)
 
 A resource entry (in `sql_resources`/`rest_api_resources`/`filesystem_resources`) can carry arbitrary extra keys for a subclass's own use (e.g. a blocking rows-landed check or a column-contract check reading `min_rows`/`contract_columns` off the YAML) by prefixing them with `x_`:
@@ -292,6 +365,8 @@ By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Se
 | `filesystem_credentials` | `Dict[str, Any]` | — | Inline credentials for the SOURCE bucket, passed straight to dlt's filesystem() as 'credentials' -- keys are dlt's own credential field names, values may be '{{ env.VAR_NAME }}' references. Only needed when env-var-based… _(full docs in schema.json + component README)_ |
 | `file_format` | `Literal['csv', 'parquet', 'jsonl', 'json', 'auto']` | `"csv"` | Reader applied to each matched file (filesystem only). Per-resource 'file_format' overrides this. 'json' reads a single JSON object or array-of-objects per file (not newline-delimited -- use 'jsonl' for that). 'auto' dis… _(full docs in schema.json + component README)_ |
 | `on_schema_change` | `Literal['allow_all', 'allow_new_columns', 'block_all']` | `"allow_all"` | What to do when incoming data's shape differs from the destination table's established schema (new columns, a column's data type changing, or -- for nested/sub-tables -- a brand new nested table appearing). 'allow_all' (… _(full docs in schema.json + component README)_ |
+| `max_rows_per_resource` | `int` | — | Caps how many rows EACH resource loads, across every resource that doesn't set its own per-resource 'max_rows_per_resource' override. Unset (default): no cap. This still loads real rows into the real destination -- it is… _(full docs in schema.json + component README)_ |
+| `exclude_columns` | `List[str]` | — | Column names to drop from every row before it reaches the destination, across every resource that doesn't set its own per-resource 'exclude_columns' override. Applied before 'hash_columns' in the same per-resource chain… _(full docs in schema.json + component README)_ |
 | `hash_columns` | `List[str]` | — | Column names to pseudonymize (salted SHA-256, hex-encoded) before the data reaches the destination -- the same deterministic-hashing pattern dlt's own docs recommend for PII (same salt -> same input always hashes to the… _(full docs in schema.json + component README)_ |
 | `hash_salt` | `str` | — | Salt for 'hash_columns'. Required (this or hash_salt_env_var) when hash_columns is set anywhere -- a hardcoded/shared salt across installs would let the hash be reversed by dictionary attack on common values (e.g. emails… _(full docs in schema.json + component README)_ |
 | `hash_salt_env_var` | `str` | — | Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time. |

@@ -6,6 +6,13 @@ Ingest GitHub repository activity (issues, pull requests, comments, reactions) u
 
 dlt handles API authentication, pagination, rate limiting, and incremental loading. This component wraps it as a Dagster asset that returns a pandas DataFrame by default, or persists directly to a destination if you set one.
 
+Nested array fields on a resource (e.g. an issue's `labels`, `assignees`) are automatically split by dlt into separate child tables (`issues__labels`, `issues__assignees`, ...) linked back to the parent — this component merges them back onto the parent rows as list-of-dict columns before returning the DataFrame, so that data isn't silently dropped.
+
+`asset_shape` picks how multiple resources show up in Dagster:
+
+- **`single`** (default, matches every other multi-resource ingestion component in this repo, e.g. `salesforce_ingestion`/`zendesk_ingestion`): one asset, keyed `asset_name`, covering every resource as a single unit — rows from every resource are unioned into one returned DataFrame tagged by a `_resource_type` column.
+- **`multi_asset`**: each resource is instead its own independently-materializable asset, keyed `{asset_name}_{resource}` — materializing one resource does not fetch or persist the others. `repositories`/`owner` remain shared construction parameters either way, not a second subsettable axis — every resource already covers all configured repositories in one dlt resource.
+
 ## Source-specific fields
 
 | Field | Type | Required | Description |
@@ -16,6 +23,8 @@ dlt handles API authentication, pagination, rate limiting, and incremental loadi
 | `owner` | `str` | yes | Repository owner (username or organization) |
 | `repositories` | `List[str]` | yes | List of repository names to extract from |
 | `resources` | `List[str]` | no | Subset of resources to extract — defaults to `["issues", "pull_requests"]`. Available: `issues`, `pull_requests`, `comments`, `reactions` |
+| `asset_shape` | `str` | no | `"single"` (default) = one asset covering every resource, unioned with a `_resource_type` column; `"multi_asset"` = one independently-materializable asset per resource |
+| `table_name_map` | `dict` | no | Override the destination table name for specific resources, e.g. `{issues: raw_issues}`. Unlisted resources keep their GitHub name |
 
 ## Standard fields
 
@@ -86,6 +95,8 @@ Credentials come from env vars (`DESTINATION__SNOWFLAKE__CREDENTIALS__*`) or, fo
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key is exposed via context.partition_key for use in filtering / templating. |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
@@ -105,6 +116,7 @@ Credentials come from env vars (`DESTINATION__SNOWFLAKE__CREDENTIALS__*`) or, fo
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `table_name_map` | `Dict[str, str]` | — | Override the destination table name for specific GitHub resources, e.g. {'issues': 'raw_issues'}. dlt otherwise names each destination table after its GitHub resource. Resources in `resources` that aren't listed here kee… _(full docs in schema.json + component README)_ |
 | `bucket_url` | `str` | — | Bucket/path URL for filesystem-shaped storage (e.g. 's3://my-bucket/path', 'gs://my-bucket/path', 'az://my-container/path', or 'file:///local/path'). Required when destination='filesystem' (the final write target). Also… _(full docs in schema.json + component README)_ |
 
 ### Other
@@ -113,6 +125,10 @@ Credentials come from env vars (`DESTINATION__SNOWFLAKE__CREDENTIALS__*`) or, fo
 |---|---|---|---|
 | `access_token` | `str` | — | GitHub Personal Access Token for API authentication. Required unless resource_key is set. |
 | `resources` | `List[str]` | `['issues', 'pull_requests']` | GitHub resources to extract (issues, pull_requests, comments, reactions) |
+| `hash_columns` | `List[str]` | — | Column names to pseudonymize (salted SHA-256, hex-encoded) before the data reaches the destination -- same deterministic-hashing pattern dlt's own docs recommend for PII (https://dlthub.com/docs/general-usage/customising… _(full docs in schema.json + component README)_ |
+| `hash_salt` | `str` | — | Salt for hash_columns. Required (this or hash_salt_env_var) when hash_columns is set -- a hardcoded/shared salt would let the hash be reversed by dictionary attack on common values. Use "{{ env.VAR_NAME }}" for the inlin… _(full docs in schema.json + component README)_ |
+| `hash_salt_env_var` | `str` | — | Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time. |
+| `asset_shape` | `Literal['single', 'multi_asset']` | `"single"` | 'single' (default, matches every other multi-resource ingestion component in this repo): one asset, keyed `asset_name`, covering every resource in `resources` as a single unit -- rows from every resource are unioned into… _(full docs in schema.json + component README)_ |
 | `destination` | `str` | — | dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB → DataFrame mode. |
 | `dataset_name` | `str` | — | Target dataset/schema in the destination. Defaults to the asset name. |
 | `persist_only` | `bool` | `false` | If True with destination set: emit a MaterializeResult and skip DataFrame return. If False: query the destination back into a DataFrame (only meaningful for SQL destinations — non-SQL destinations always emit MaterializeResult). |

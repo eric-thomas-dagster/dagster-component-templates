@@ -5,13 +5,23 @@ attributes:
   username_env_var: SNOW_USERNAME
   password_env_var: SNOW_PASSWORD
 
-  table: incident
+  tables: incident
   sysparm_query: "sys_created_on>=javascript:gs.daysAgoStart(30)"
   sysparm_fields: number,short_description,priority,state,assigned_to,sys_created_on,sys_updated_on
   sysparm_display_value: "false"          # 'false' = sys_id; 'true' = display; 'all' = both
   page_size: 1000
   max_records: 50000
   group_name: servicenow
+
+  # --- Multiple tables: by default (asset_shape: single), all land under this ONE asset,
+  #     unioned into one DataFrame tagged by a `_table` column -- same convention as
+  #     salesforce_ingestion/zendesk_ingestion. ---
+  # tables: incident,change_request,sys_user   # same sysparm_query/sysparm_fields applies to all;
+  #                                              for per-table filters use a separate instance per table
+
+  # --- Or: give each table its own independently-materializable asset instead ---
+  # asset_shape: multi_asset   # produces 3 assets: incidents_last_30d_incident, etc.
+  #                             materializing one table does not fetch or persist the others
 
   # --- Share credentials with servicenow_record_upsert / servicenow_sensor ---
   # resource_key: servicenow_resource  # registered by ServiceNowResourceComponent
@@ -26,9 +36,14 @@ attributes:
   # dataset_name: servicenow
   # persist_only: true                 # see ../DESTINATIONS.md
 
+  # --- Rename specific destination tables (default: destination table name = ServiceNow table name) ---
+  # tables: incident,change_request
+  # table_name_map:
+  #   incident: raw_incidents          # change_request keeps its ServiceNow name
+
   # --- Other common tables ---
-  # table: change_request
-  # table: sc_request          # Service Catalog requests
-  # table: sys_user            # users
-  # table: cmdb_ci             # configuration items (CMDB)
-  # table: <custom_table_name>
+  # tables: change_request
+  # tables: sc_request          # Service Catalog requests
+  # tables: sys_user            # users
+  # tables: cmdb_ci             # configuration items (CMDB)
+  # tables: <custom_table_name>

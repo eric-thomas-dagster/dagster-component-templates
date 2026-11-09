@@ -8,6 +8,14 @@ attributes:
   # Resources to extract
   resources: ["messages", "channels", "users"]
 
+  # --- Give each resource its own independently-materializable asset instead ---
+  # asset_shape: multi_asset   # produces slack_data_messages, _channels, _users
+  #                             materializing one resource does not fetch or persist the others
+
+  # --- Rename specific destination tables (default: destination table name = resource name) ---
+  # table_name_map:
+  #   messages: raw_messages          # other resources keep their Slack name
+
   # Organization
   description: "Slack messages, channels, and user data"
   group_name: "slack"

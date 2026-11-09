@@ -30,6 +30,57 @@ from dagster import (
 from pydantic import Field
 
 
+# BEGIN column-hashing helper (inlined per component; keep copies identical, see tests/test_column_hashing_ingestion.py)
+def _resolve_hash_salt(hash_salt, hash_salt_env_var):
+    if hash_salt:
+        return hash_salt
+    if hash_salt_env_var:
+        val = os.environ.get(hash_salt_env_var)
+        if val is None:
+            raise ValueError(
+                f"hash_salt_env_var={hash_salt_env_var!r} references an environment "
+                "variable that is not set."
+            )
+        return val
+    return None
+
+
+def _make_hash_columns_map(columns, salt):
+    import hashlib
+
+    def _hash_map(doc):
+        for col in columns:
+            value = doc.get(col)
+            if value is not None:
+                doc[col] = hashlib.sha256((str(value) + salt).encode()).hexdigest()
+        return doc
+
+    return _hash_map
+
+
+def _apply_hash_columns(resources, hash_columns, hash_salt, hash_salt_env_var):
+    """Pseudonymizes `hash_columns` (salted SHA-256, hex-encoded) on every resource in
+    `resources` (an iterable of DltResource objects -- e.g. source.resources.values()
+    or a selected_resources list) before the data reaches the destination -- dlt's own
+    documented deterministic-hashing pattern for PII (https://dlthub.com/docs/
+    general-usage/customising-pipelines/pseudonymizing_columns), via
+    DltResource.add_map(), wired up as a config option instead of requiring a custom
+    Python module."""
+    if not hash_columns:
+        return
+    salt = _resolve_hash_salt(hash_salt, hash_salt_env_var)
+    if not salt:
+        raise ValueError(
+            "hash_columns is set but neither hash_salt nor hash_salt_env_var is -- a "
+            "salt is required (a hardcoded/shared salt would let the hash be reversed "
+            "by dictionary attack on common values, e.g. emails)."
+        )
+    hash_map = _make_hash_columns_map(hash_columns, salt)
+    for resource in resources:
+        resource.add_map(hash_map)
+# END column-hashing helper
+
+
 def _filter_df_to_partition(df: pd.DataFrame, context, partition_date_column, partition_static_column) -> pd.DataFrame:
     """Filter a fully-fetched DataFrame down to the current partition's rows.
 
@@ -223,6 +274,16 @@ class AirtableIngestionComponent(Component, Model, Resolvable):
     extracts data from Airtable tables via dlt's verified `airtable_source`. dlt
     handles API pagination, rate limiting, and incremental loading automatically.
 
+    By default (`asset_shape='single'`), every table lands under ONE asset keyed
+    `asset_name`, unioned into one DataFrame tagged by a `_resource_type` column.
+    Set `asset_shape='multi_asset'` to instead give each table its own
+    independently-materializable asset, keyed `{asset_name}_{normalized_table}`
+    (Airtable table names are free-text, normalized to spaces/dashes->underscores,
+    lowercased) -- materializing one table then does not fetch or persist the
+    others. `table_name_map` renames a table's destination table name
+    independent of asset_shape, keyed by the RAW table name, e.g.
+    `{Customers: raw_customers}`.
+
     Example:
 
         ```yaml
@@ -258,6 +319,57 @@ class AirtableIngestionComponent(Component, Model, Resolvable):
     base_id: str = Field(description="Airtable base ID (starts with 'app')")
 
     table_names: List[str] = Field(description="List of table names to extract from the base")
+
+    asset_shape: Literal["single", "multi_asset"] = Field(
+        default="single",
+        description=(
+            "'single' (default, matches every other multi-resource ingestion component in this "
+            "repo): one asset, keyed `asset_name`, covering every table in `table_names` as a "
+            "single unit -- rows from every table are unioned into one returned DataFrame tagged "
+            "by a `_resource_type` column. 'multi_asset': each table in `table_names` is instead "
+            "its own independently-materializable asset, keyed `{asset_name}_{normalized_table}` "
+            "(table names are normalized -- spaces/dashes to underscores, lowercased -- since "
+            "Airtable table names are free-text) -- select just the table(s) you want; "
+            "materializing several together still batches them through one shared dlt pipeline "
+            "call (one Dagster step), not parallel per-table execution. Opt into 'multi_asset' "
+            "when you want to select/retry/schedule individual tables separately."
+        ),
+    )
+    table_name_map: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "Override the destination table name for specific Airtable tables, e.g. "
+            "{'Customers': 'raw_customers'}. Keys must match the RAW entries in `table_names` "
+            "(before normalization). dlt otherwise names each destination table after its "
+            "normalized Airtable table name (spaces/dashes to underscores, lowercased). Tables "
+            "in `table_names` not listed here keep their normalized name. Every key must also "
+            "appear in `table_names`."
+        ),
+    )
+
+    hash_columns: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Column names to pseudonymize (salted SHA-256, hex-encoded) before the data "
+            "reaches the destination -- same deterministic-hashing pattern dlt's own docs "
+            "recommend for PII (https://dlthub.com/docs/general-usage/customising-pipelines/"
+            "pseudonymizing_columns). A column missing from a given resource's rows is "
+            "skipped, not an error. Requires hash_salt or hash_salt_env_var."
+        ),
+    )
+    hash_salt: Optional[str] = Field(
+        default=None,
+        description=(
+            "Salt for hash_columns. Required (this or hash_salt_env_var) when hash_columns "
+            "is set -- a hardcoded/shared salt would let the hash be reversed by dictionary "
+            "attack on common values. Use \"{{ env.VAR_NAME }}\" for the inline form. Keep it "
+            "stable across runs: changing it changes every hash."
+        ),
+    )
+    hash_salt_env_var: Optional[str] = Field(
+        default=None,
+        description="Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time.",
+    )
 
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------
 
@@ -607,6 +719,25 @@ class AirtableIngestionComponent(Component, Model, Resolvable):
         persist_only = self.persist_only
         component = self
 
+        # Airtable table names are free-text ("Customers", "Order Items") -- dlt normalizes
+        # them into SQL-safe resource/table names (spaces/dashes -> underscores, lowercased).
+        # This is the SAME normalization the original code already used to query the
+        # destination back; reused here for asset keys, with_resources() selection, and
+        # apply_hints() targeting.
+        def _normalize(t):
+            return t.replace(" ", "_").replace("-", "_").lower()
+
+        normalized_names = {t: _normalize(t) for t in table_names}
+        output_names = {t: f"{asset_name}_{normalized_names[t]}" for t in table_names}
+        _table_name_map = self.table_name_map or {}
+        _unknown_overrides = set(_table_name_map) - set(table_names)
+        if _unknown_overrides:
+            raise ValueError(
+                f"AirtableIngestionComponent: table_name_map has key(s) not in 'table_names': "
+                f"{sorted(_unknown_overrides)}."
+            )
+        dest_table_names = {t: _table_name_map.get(t, normalized_names[t]) for t in table_names}
+
         # Infer kinds from destination + asset name
         _kind_map = {
             "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
@@ -693,35 +824,185 @@ class AirtableIngestionComponent(Component, Model, Resolvable):
 
         partition_date_column = self.partition_date_column
         partition_static_column = self.partition_static_column
+        hash_columns = self.hash_columns
+        hash_salt = self.hash_salt
+        hash_salt_env_var = self.hash_salt_env_var
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
-            key=AssetKey.from_user_string(asset_name),
-            description=description,
-            owners=owners,
-            tags=_all_tags,
-            freshness_policy=_freshness_policy,
-            group_name=group_name,
+        def _resolve_credentials(component, context):
+            if component.resource_key:
+                _res = getattr(context.resources, component.resource_key)
+                return _res.api_key
+            return component.api_key
+
+        def _apply_table_name_overrides(source, raw_names):
+            for t in raw_names:
+                norm = normalized_names[t]
+                if dest_table_names[t] != norm and hasattr(source, norm):
+                    getattr(source, norm).apply_hints(table_name=dest_table_names[t])
+
+        if self.asset_shape == "single":
+            @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
+                key=AssetKey.from_user_string(asset_name),
+                description=description,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+                group_name=group_name,
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+                required_resource_keys={component.resource_key} if component.resource_key else set(),
+            )
+            def airtable_ingestion_asset(context: AssetExecutionContext):
+                if not component.resource_key and not component.api_key:
+                    raise ValueError(
+                        "AirtableIngestionComponent: supply resource_key (a registered "
+                        "AirtableResourceComponent) OR api_key."
+                    )
+                if _column_lineage_md:
+                    context.add_output_metadata(_column_lineage_md)
+                from dlt.sources.airtable import airtable_source
+
+                api_key = _resolve_credentials(component, context)
+
+                context.log.info(
+                    f"Starting Airtable ingestion: base_id={base_id}, tables={table_names}, "
+                    f"destination={destination or 'duckdb (in-memory)'}"
+                )
+
+                pipeline = dlt.pipeline(
+                    pipeline_name=f"{asset_name}_pipeline",
+                    destination=component._resolve_destination_with_bucket(),
+                    staging=component._resolve_staging(),
+                    dataset_name=dataset_name,
+                )
+
+                source = airtable_source(
+                    base_id=base_id,
+                    table_names=table_names,
+                    access_token=api_key,
+                )
+                _apply_table_name_overrides(source, table_names)
+                if hash_columns:
+                    _apply_hash_columns(source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
+
+                load_info = pipeline.run(source)
+                context.log.info(f"Airtable data loaded: {load_info}")
+
+                base_metadata = {
+                    "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                    "dataset_name": MetadataValue.text(dataset_name),
+                    "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                    "resources_extracted": MetadataValue.json(list(dest_table_names.values())),
+                    "destination_table_names": MetadataValue.json(dest_table_names),
+                }
+
+                non_sql_destinations = {
+                    "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
+                    "delta", "iceberg",
+                }
+                is_non_sql = destination in non_sql_destinations
+
+                if persist_only or is_non_sql:
+                    if is_non_sql and not persist_only:
+                        context.log.warning(
+                            f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                            f"Set persist_only=true to silence this warning."
+                        )
+                    return MaterializeResult(metadata=base_metadata)
+
+                all_data = []
+                for t in table_names:
+                    resource_name = dest_table_names[t]
+                    try:
+                        query = f"SELECT * FROM {dataset_name}.{resource_name}"
+                        with pipeline.sql_client() as client:
+                            with client.execute_query(query) as cursor:
+                                columns = [d[0] for d in cursor.description]
+                                rows = cursor.fetchall()
+                        if rows:
+                            df = pd.DataFrame(rows, columns=columns)
+                            df["_resource_type"] = resource_name
+                            all_data.append(df)
+                            context.log.info(f"Extracted {len(df)} rows from {resource_name}")
+                    except Exception as e:
+                        context.log.warning(f"Could not extract {resource_name}: {e}")
+
+                if not all_data:
+                    context.log.warning("No data extracted.")
+                    return Output(value=pd.DataFrame(), metadata=base_metadata)
+
+                combined_df = pd.concat(all_data, ignore_index=True)
+                combined_df = _filter_df_to_partition(
+                    combined_df, context, partition_date_column, partition_static_column
+                )
+                context.log.info(
+                    f"Ingestion complete: {len(combined_df)} total rows from {len(all_data)} resources"
+                )
+
+                metadata = {
+                    **base_metadata,
+                    "row_count": MetadataValue.int(len(combined_df)),
+                    "resource_types": MetadataValue.json(
+                        list(combined_df["_resource_type"].unique())
+                        if "_resource_type" in combined_df.columns
+                        else []
+                    ),
+                }
+                if include_preview and len(combined_df) > 0:
+                    try:
+                        _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
+                return Output(value=combined_df, metadata=metadata)
+
+            return Definitions(assets=[airtable_ingestion_asset])
+
+        from dagster import AssetOut, multi_asset
+
+        outs = {
+            output_names[t]: AssetOut(
+                description=f"Airtable table reader: {t}",
+                is_required=False,
+                group_name=group_name,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+            )
+            for t in table_names
+        }
+
+        @multi_asset(
+            outs=outs,
+            name=asset_name,
+            can_subset=True,
+            partitions_def=partitions_def,
+            backfill_policy=_backfill_policy_obj,
+            retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
             required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
-        def airtable_ingestion_asset(context: AssetExecutionContext):
+        def airtable_ingestion_assets(context: AssetExecutionContext):
             if not component.resource_key and not component.api_key:
                 raise ValueError(
                     "AirtableIngestionComponent: supply resource_key (a registered "
                     "AirtableResourceComponent) OR api_key."
                 )
-            if _column_lineage_md:
-                context.add_output_metadata(_column_lineage_md)
+
+            try:
+                selected_output_names = set(context.op_execution_context.selected_output_names)
+            except Exception:  # noqa: BLE001
+                selected_output_names = set(output_names.values())
+            selected_tables = [t for t in table_names if output_names[t] in selected_output_names]
+            if not selected_tables:
+                context.log.info("airtable_ingestion: no tables selected; skipping.")
+                return
+
             from dlt.sources.airtable import airtable_source
 
-            if component.resource_key:
-                _res = getattr(context.resources, component.resource_key)
-                api_key = _res.api_key
-            else:
-                api_key = component.api_key
+            api_key = _resolve_credentials(component, context)
 
             context.log.info(
-                f"Starting Airtable ingestion: base_id={base_id}, tables={table_names}, "
+                f"Starting Airtable ingestion for {selected_tables!r}, "
                 f"destination={destination or 'duckdb (in-memory)'}"
             )
 
@@ -732,26 +1013,21 @@ class AirtableIngestionComponent(Component, Model, Resolvable):
                 dataset_name=dataset_name,
             )
 
+            # airtable_source always takes the FULL table_names list (it builds one dlt
+            # resource per table); with_resources() then subsets which ones actually run.
             source = airtable_source(
                 base_id=base_id,
                 table_names=table_names,
                 access_token=api_key,
             )
+            _apply_table_name_overrides(source, selected_tables)
+            selected_normalized = [normalized_names[t] for t in selected_tables]
+            subset_source = source.with_resources(*selected_normalized)
+            if hash_columns:
+                _apply_hash_columns(subset_source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
 
-            load_info = pipeline.run(source)
+            load_info = pipeline.run(subset_source)
             context.log.info(f"Airtable data loaded: {load_info}")
-
-            # Airtable table names need normalization for SQL identifiers
-            resource_keys = [
-                t.replace(" ", "_").replace("-", "_").lower() for t in table_names
-            ]
-
-            base_metadata = {
-                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
-                "dataset_name": MetadataValue.text(dataset_name),
-                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
-                "resources_extracted": MetadataValue.json(list(resource_keys)),
-            }
 
             non_sql_destinations = {
                 "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
@@ -762,57 +1038,55 @@ class AirtableIngestionComponent(Component, Model, Resolvable):
             if persist_only or is_non_sql:
                 if is_non_sql and not persist_only:
                     context.log.warning(
-                        f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                        f"destination='{destination}' is not SQL-backed; cannot return a DataFrame. "
                         f"Set persist_only=true to silence this warning."
                     )
-                return MaterializeResult(metadata=base_metadata)
+                for t in selected_tables:
+                    yield MaterializeResult(
+                        asset_key=AssetKey.from_user_string(output_names[t]),
+                        metadata={
+                            "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                            "dataset_name": MetadataValue.text(dataset_name),
+                            "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                            "table": MetadataValue.text(t),
+                            "destination_table_name": MetadataValue.text(dest_table_names[t]),
+                        },
+                    )
+                return
 
-            all_data = []
-            for resource_name in resource_keys:
-                try:
-                    query = f"SELECT * FROM {dataset_name}.{resource_name}"
-                    with pipeline.sql_client() as client:
+            with pipeline.sql_client() as client:
+                for t in selected_tables:
+                    resource_name = dest_table_names[t]
+                    try:
+                        query = f"SELECT * FROM {dataset_name}.{resource_name}"
                         with client.execute_query(query) as cursor:
                             columns = [d[0] for d in cursor.description]
                             rows = cursor.fetchall()
-                    if rows:
                         df = pd.DataFrame(rows, columns=columns)
-                        df["_resource_type"] = resource_name
-                        all_data.append(df)
-                        context.log.info(f"Extracted {len(df)} rows from {resource_name}")
-                except Exception as e:
-                    context.log.warning(f"Could not extract {resource_name}: {e}")
+                    except Exception as e:
+                        context.log.warning(f"Could not extract {t} (destination table {resource_name!r}): {e}")
+                        df = pd.DataFrame()
 
-            if not all_data:
-                context.log.warning("No data extracted.")
-                return Output(value=pd.DataFrame(), metadata=base_metadata)
+                    df = _filter_df_to_partition(df, context, partition_date_column, partition_static_column)
 
-            combined_df = pd.concat(all_data, ignore_index=True)
-            combined_df = _filter_df_to_partition(
-                combined_df, context, partition_date_column, partition_static_column
-            )
-            context.log.info(
-                f"Ingestion complete: {len(combined_df)} total rows from {len(all_data)} resources"
-            )
+                    metadata = {
+                        "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                        "dataset_name": MetadataValue.text(dataset_name),
+                        "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                        "table": MetadataValue.text(t),
+                        "destination_table_name": MetadataValue.text(resource_name),
+                        "row_count": MetadataValue.int(len(df)),
+                    }
+                    if include_preview and len(df) > 0:
+                        try:
+                            _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                            metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                        except Exception as _e:
+                            context.log.warning(f"preview emission failed: {_e}")
 
-            metadata = {
-                **base_metadata,
-                "row_count": MetadataValue.int(len(combined_df)),
-                "resource_types": MetadataValue.json(
-                    list(combined_df["_resource_type"].unique())
-                    if "_resource_type" in combined_df.columns
-                    else []
-                ),
-            }
-            if include_preview and len(combined_df) > 0:
-                try:
-                    _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
-                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                except Exception as _e:
-                    context.log.warning(f"preview emission failed: {_e}")
-            return Output(value=combined_df, metadata=metadata)
+                    yield Output(value=df, output_name=output_names[t], metadata=metadata)
 
-        return Definitions(assets=[airtable_ingestion_asset])
+        return Definitions(assets=[airtable_ingestion_assets])
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

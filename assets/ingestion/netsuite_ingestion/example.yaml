@@ -7,3 +7,11 @@ attributes:
   token_id: "${NETSUITE_TOKEN_ID}"
   token_secret: "${NETSUITE_TOKEN_SECRET}"
   resources: "customer,invoice"
+
+  # --- Give each resource its own independently-materializable asset instead ---
+  # asset_shape: multi_asset   # produces netsuite_ingestion_customer, _invoice, etc.
+  #                             materializing one resource does not fetch or persist the others
+
+  # --- Rename specific destination tables (default: destination table name = resource name) ---
+  # table_name_map:
+  #   customer: raw_customers      # other resources keep their NetSuite name

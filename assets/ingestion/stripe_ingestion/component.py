@@ -30,6 +30,57 @@ from dagster import (
 from pydantic import Field
 
 
+# BEGIN column-hashing helper (inlined per component; keep copies identical, see tests/test_column_hashing_ingestion.py)
+def _resolve_hash_salt(hash_salt, hash_salt_env_var):
+    if hash_salt:
+        return hash_salt
+    if hash_salt_env_var:
+        val = os.environ.get(hash_salt_env_var)
+        if val is None:
+            raise ValueError(
+                f"hash_salt_env_var={hash_salt_env_var!r} references an environment "
+                "variable that is not set."
+            )
+        return val
+    return None
+
+
+def _make_hash_columns_map(columns, salt):
+    import hashlib
+
+    def _hash_map(doc):
+        for col in columns:
+            value = doc.get(col)
+            if value is not None:
+                doc[col] = hashlib.sha256((str(value) + salt).encode()).hexdigest()
+        return doc
+
+    return _hash_map
+
+
+def _apply_hash_columns(resources, hash_columns, hash_salt, hash_salt_env_var):
+    """Pseudonymizes `hash_columns` (salted SHA-256, hex-encoded) on every resource in
+    `resources` (an iterable of DltResource objects -- e.g. source.resources.values()
+    or a selected_resources list) before the data reaches the destination -- dlt's own
+    documented deterministic-hashing pattern for PII (https://dlthub.com/docs/
+    general-usage/customising-pipelines/pseudonymizing_columns), via
+    DltResource.add_map(), wired up as a config option instead of requiring a custom
+    Python module."""
+    if not hash_columns:
+        return
+    salt = _resolve_hash_salt(hash_salt, hash_salt_env_var)
+    if not salt:
+        raise ValueError(
+            "hash_columns is set but neither hash_salt nor hash_salt_env_var is -- a "
+            "salt is required (a hardcoded/shared salt would let the hash be reversed "
+            "by dictionary attack on common values, e.g. emails)."
+        )
+    hash_map = _make_hash_columns_map(hash_columns, salt)
+    for resource in resources:
+        resource.add_map(hash_map)
+# END column-hashing helper
+
+
 def _build_partitions_def(
     partition_type,
     partition_start,
@@ -190,6 +241,14 @@ class StripeIngestionComponent(Component, Model, Resolvable):
     `products`, `prices`, `payment_intents`, `balance_transactions`, `events`.
     Toggle `incremental` for append-mode loading from `start_date` forward.
 
+    By default (`asset_shape='single'`), every resource lands under ONE asset
+    keyed `asset_name`, unioned into one DataFrame tagged by a `_resource_type`
+    column. Set `asset_shape='multi_asset'` to instead give each resource its
+    own independently-materializable asset, keyed `{asset_name}_{resource}` --
+    materializing one resource then does not fetch or persist the others.
+    `table_name_map` renames a resource's destination table independent of
+    asset_shape, e.g. `{customers: raw_customers}`.
+
     Example:
 
         ```yaml
@@ -224,11 +283,59 @@ class StripeIngestionComponent(Component, Model, Resolvable):
 
     resources: str = Field(default="customers,subscriptions,charges", description="Comma-separated list: customers, subscriptions, charges, invoices, products, prices, payment_intents, balance_transactions, events")
 
+    asset_shape: Literal["single", "multi_asset"] = Field(
+        default="single",
+        description=(
+            "'single' (default, matches every other multi-resource ingestion component in this "
+            "repo): one asset, keyed `asset_name`, covering every resource in `resources` as a "
+            "single unit -- rows from every resource are unioned into one returned DataFrame "
+            "tagged by a `_resource_type` column. 'multi_asset': each resource in `resources` is "
+            "instead its own independently-materializable asset, keyed `{asset_name}_{resource}` "
+            "-- select just the resource(s) you want; materializing several together still "
+            "batches them through one shared dlt pipeline call (one Dagster step), not parallel "
+            "per-resource execution. Opt into 'multi_asset' when you want to select/retry/schedule "
+            "individual resources separately."
+        ),
+    )
+    table_name_map: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "Override the destination table name for specific Stripe resources, e.g. "
+            "{'customers': 'raw_customers'}. dlt otherwise names each destination table after its "
+            "Stripe resource. Resources in `resources` that aren't listed here keep their Stripe "
+            "name as-is. Every key must also appear in the comma-separated `resources` list."
+        ),
+    )
+
     start_date: Optional[str] = Field(default=None, description="Start date for data extraction (YYYY-MM-DD). Defaults to all historical data.")
 
     end_date: Optional[str] = Field(default=None, description="End date for data extraction (YYYY-MM-DD). Defaults to today.")
 
     incremental: bool = Field(default=False, description="Use incremental loading (append mode) instead of full refresh")
+
+    hash_columns: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Column names to pseudonymize (salted SHA-256, hex-encoded) before the data "
+            "reaches the destination -- same deterministic-hashing pattern dlt's own docs "
+            "recommend for PII (https://dlthub.com/docs/general-usage/customising-pipelines/"
+            "pseudonymizing_columns). A column missing from a given resource's rows is "
+            "skipped, not an error. Requires hash_salt or hash_salt_env_var."
+        ),
+    )
+    hash_salt: Optional[str] = Field(
+        default=None,
+        description=(
+            "Salt for hash_columns. Required (this or hash_salt_env_var) when hash_columns "
+            "is set -- a hardcoded/shared salt would let the hash be reversed by dictionary "
+            "attack on common values. Use \"{{ env.VAR_NAME }}\" for the inline form. Keep it "
+            "stable across runs: changing it changes every hash."
+        ),
+    )
+    hash_salt_env_var: Optional[str] = Field(
+        default=None,
+        description="Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time.",
+    )
 
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------
 
@@ -568,7 +675,19 @@ class StripeIngestionComponent(Component, Model, Resolvable):
         start_date = self.start_date
         end_date = self.end_date
         incremental = self.incremental
+        hash_columns = self.hash_columns
+        hash_salt = self.hash_salt
+        hash_salt_env_var = self.hash_salt_env_var
         resources_list = [r.strip() for r in resources_str.split(",")]
+        output_names = {r: f"{asset_name}_{r}" for r in resources_list}
+        _table_name_map = self.table_name_map or {}
+        _unknown_overrides = set(_table_name_map) - set(resources_list)
+        if _unknown_overrides:
+            raise ValueError(
+                f"StripeIngestionComponent: table_name_map has key(s) not in 'resources': "
+                f"{sorted(_unknown_overrides)}."
+            )
+        dest_table_names = {r: _table_name_map.get(r, r) for r in resources_list}
         description = self.description or f"Stripe data ({', '.join(resources_list)})"
         group_name = self.group_name
         include_preview = self.include_preview_metadata
@@ -663,36 +782,15 @@ class StripeIngestionComponent(Component, Model, Resolvable):
 
 
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
-            backfill_policy=backfill_policy, 
-            key=AssetKey.from_user_string(asset_name),
-            description=description,
-            owners=owners,
-            tags=_all_tags,
-            freshness_policy=_freshness_policy,
-            group_name=group_name,
-            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
-            required_resource_keys={component.resource_key} if component.resource_key else set(),
-        )
-        def stripe_ingestion_asset(context: AssetExecutionContext):
-            if not component.resource_key and not component.api_key:
-                raise ValueError(
-                    "StripeIngestionComponent: supply resource_key (a registered "
-                    "StripeResourceComponent) OR api_key."
-                )
-            if _column_lineage_md:
-                context.add_output_metadata(_column_lineage_md)
-            from dlt.sources.stripe_analytics import stripe_source, incremental_stripe_source
-
+        def _resolve_api_key(component, context):
             if component.resource_key:
                 _res = getattr(context.resources, component.resource_key)
-                api_key = _res.api_key
-            else:
-                api_key = component.api_key
+                return _res.api_key
+            return component.api_key
 
-            # A time-based partition (daily/weekly/monthly/hourly) means this run should
-            # fetch exactly that slice, not whatever the static start_date/end_date config
-            # says -- otherwise every partition would re-pull the same (open-ended) range.
+        def _resolve_partition_window(context):
+            """Returns (start_date, end_date, incremental) -- a time partition overrides the
+            static start_date/end_date config with exactly that slice."""
             _start_date, _end_date, _incremental = start_date, end_date, incremental
             if context.has_partition_key or context.has_partition_key_range:
                 try:
@@ -702,11 +800,189 @@ class StripeIngestionComponent(Component, Model, Resolvable):
                     _incremental = True
                 except Exception:
                     pass  # static/dynamic/multi partition -- no natural time window
+            return _start_date, _end_date, _incremental
+
+        def _build_source(api_key, names, _start_date, _end_date, _incremental):
+            from dlt.sources.stripe_analytics import stripe_source, incremental_stripe_source
+
+            if _incremental and _start_date:
+                return incremental_stripe_source(
+                    initial_start_date=_start_date,
+                    end_date=_end_date,
+                    endpoints=tuple(names),
+                )
+            source_config = {"stripe_secret_key": api_key, "endpoints": tuple(names)}
+            if _start_date:
+                source_config["start_date"] = _start_date
+            if _end_date:
+                source_config["end_date"] = _end_date
+            return stripe_source(**source_config)
+
+        def _apply_table_name_overrides(source, names):
+            for r in names:
+                if r in dest_table_names and dest_table_names[r] != r and hasattr(source, r):
+                    getattr(source, r).apply_hints(table_name=dest_table_names[r])
+
+        if self.asset_shape == "single":
+            @asset(retry_policy=_retry_policy, partitions_def=partitions_def,
+                backfill_policy=backfill_policy,
+                key=AssetKey.from_user_string(asset_name),
+                description=description,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+                group_name=group_name,
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+                required_resource_keys={component.resource_key} if component.resource_key else set(),
+            )
+            def stripe_ingestion_asset(context: AssetExecutionContext):
+                if not component.resource_key and not component.api_key:
+                    raise ValueError(
+                        "StripeIngestionComponent: supply resource_key (a registered "
+                        "StripeResourceComponent) OR api_key."
+                    )
+                if _column_lineage_md:
+                    context.add_output_metadata(_column_lineage_md)
+
+                api_key = _resolve_api_key(component, context)
+                _start_date, _end_date, _incremental = _resolve_partition_window(context)
+
+                context.log.info(
+                    f"Starting Stripe ingestion: resources={resources_list}, "
+                    f"incremental={_incremental}, destination={destination or 'duckdb (in-memory)'}"
+                    + (f", partition window=[{_start_date}, {_end_date})" if context.has_partition_key and _start_date != start_date else "")
+                )
+
+                pipeline = dlt.pipeline(
+                    pipeline_name=f"{asset_name}_pipeline",
+                    destination=component._resolve_destination_with_bucket(),
+                    staging=component._resolve_staging(),
+                    dataset_name=dataset_name,
+                )
+
+                source = _build_source(api_key, resources_list, _start_date, _end_date, _incremental)
+                _apply_table_name_overrides(source, resources_list)
+                if hash_columns:
+                    _apply_hash_columns(source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
+
+                load_info = pipeline.run(source)
+                context.log.info(f"Stripe data loaded: {load_info}")
+
+                base_metadata = {
+                    "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                    "dataset_name": MetadataValue.text(dataset_name),
+                    "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                    "resources_extracted": MetadataValue.json(list(resources_list)),
+                    "destination_table_names": MetadataValue.json(dest_table_names),
+                }
+
+                non_sql_destinations = {
+                    "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
+                    "delta", "iceberg",
+                }
+                is_non_sql = destination in non_sql_destinations
+
+                if persist_only or is_non_sql:
+                    if is_non_sql and not persist_only:
+                        context.log.warning(
+                            f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                            f"Set persist_only=true to silence this warning."
+                        )
+                    return MaterializeResult(metadata=base_metadata)
+
+                all_data = []
+                for resource_name in resources_list:
+                    try:
+                        query = f"SELECT * FROM {dataset_name}.{dest_table_names[resource_name]}"
+                        with pipeline.sql_client() as client:
+                            with client.execute_query(query) as cursor:
+                                columns = [d[0] for d in cursor.description]
+                                rows = cursor.fetchall()
+                        if rows:
+                            df = pd.DataFrame(rows, columns=columns)
+                            df["_resource_type"] = resource_name
+                            all_data.append(df)
+                            context.log.info(f"Extracted {len(df)} rows from {resource_name}")
+                    except Exception as e:
+                        context.log.warning(f"Could not extract {resource_name} (destination table {dest_table_names[resource_name]!r}): {e}")
+
+                if not all_data:
+                    context.log.warning("No data extracted.")
+                    return Output(value=pd.DataFrame(), metadata=base_metadata)
+
+                combined_df = pd.concat(all_data, ignore_index=True)
+                context.log.info(
+                    f"Ingestion complete: {len(combined_df)} total rows from {len(all_data)} resources"
+                )
+
+                metadata = {
+                    **base_metadata,
+                    "row_count": MetadataValue.int(len(combined_df)),
+                    "resource_types": MetadataValue.json(
+                        list(combined_df["_resource_type"].unique())
+                        if "_resource_type" in combined_df.columns
+                        else []
+                    ),
+                }
+                if include_preview and len(combined_df) > 0:
+                    try:
+                        _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
+                return Output(value=combined_df, metadata=metadata)
+
+            return Definitions(assets=[stripe_ingestion_asset])
+
+        from dagster import AssetOut, multi_asset
+
+        # Each resource gets its own independently-materializable asset (can_subset=True):
+        # picking just "customers" builds the Stripe source with ONLY that endpoint, never
+        # fetching the others.
+        outs = {
+            output_names[r]: AssetOut(
+                description=f"Stripe resource reader: {r}",
+                is_required=False,
+                group_name=group_name,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+            )
+            for r in resources_list
+        }
+
+        @multi_asset(
+            outs=outs,
+            name=asset_name,
+            can_subset=True,
+            partitions_def=partitions_def,
+            backfill_policy=backfill_policy,
+            retry_policy=_retry_policy,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
+        )
+        def stripe_ingestion_assets(context: AssetExecutionContext):
+            if not component.resource_key and not component.api_key:
+                raise ValueError(
+                    "StripeIngestionComponent: supply resource_key (a registered "
+                    "StripeResourceComponent) OR api_key."
+                )
+
+            try:
+                selected_output_names = set(context.op_execution_context.selected_output_names)
+            except Exception:  # noqa: BLE001
+                selected_output_names = set(output_names.values())
+            selected_resources_names = [r for r in resources_list if output_names[r] in selected_output_names]
+            if not selected_resources_names:
+                context.log.info("stripe_ingestion: no resources selected; skipping.")
+                return
+
+            api_key = _resolve_api_key(component, context)
+            _start_date, _end_date, _incremental = _resolve_partition_window(context)
 
             context.log.info(
-                f"Starting Stripe ingestion: resources={resources_list}, "
-                f"incremental={_incremental}, destination={destination or 'duckdb (in-memory)'}"
-                + (f", partition window=[{_start_date}, {_end_date})" if context.has_partition_key and _start_date != start_date else "")
+                f"Starting Stripe ingestion for {selected_resources_names!r}, incremental={_incremental}, "
+                f"destination={destination or 'duckdb (in-memory)'}"
             )
 
             pipeline = dlt.pipeline(
@@ -716,32 +992,13 @@ class StripeIngestionComponent(Component, Model, Resolvable):
                 dataset_name=dataset_name,
             )
 
-            if _incremental and _start_date:
-                source = incremental_stripe_source(
-                    initial_start_date=_start_date,
-                    end_date=_end_date,
-                    endpoints=tuple(resources_list),
-                )
-            else:
-                source_config = {
-                    "stripe_secret_key": api_key,
-                    "endpoints": tuple(resources_list),
-                }
-                if _start_date:
-                    source_config["start_date"] = _start_date
-                if _end_date:
-                    source_config["end_date"] = _end_date
-                source = stripe_source(**source_config)
+            source = _build_source(api_key, selected_resources_names, _start_date, _end_date, _incremental)
+            _apply_table_name_overrides(source, selected_resources_names)
+            if hash_columns:
+                _apply_hash_columns(source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
 
             load_info = pipeline.run(source)
             context.log.info(f"Stripe data loaded: {load_info}")
-
-            base_metadata = {
-                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
-                "dataset_name": MetadataValue.text(dataset_name),
-                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
-                "resources_extracted": MetadataValue.json(list(resources_list)),
-            }
 
             non_sql_destinations = {
                 "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
@@ -752,54 +1009,52 @@ class StripeIngestionComponent(Component, Model, Resolvable):
             if persist_only or is_non_sql:
                 if is_non_sql and not persist_only:
                     context.log.warning(
-                        f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                        f"destination='{destination}' is not SQL-backed; cannot return a DataFrame. "
                         f"Set persist_only=true to silence this warning."
                     )
-                return MaterializeResult(metadata=base_metadata)
+                for r in selected_resources_names:
+                    yield MaterializeResult(
+                        asset_key=AssetKey.from_user_string(output_names[r]),
+                        metadata={
+                            "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                            "dataset_name": MetadataValue.text(dataset_name),
+                            "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                            "resource": MetadataValue.text(r),
+                            "destination_table_name": MetadataValue.text(dest_table_names[r]),
+                        },
+                    )
+                return
 
-            all_data = []
-            for resource_name in resources_list:
-                try:
-                    query = f"SELECT * FROM {dataset_name}.{resource_name}"
-                    with pipeline.sql_client() as client:
+            with pipeline.sql_client() as client:
+                for r in selected_resources_names:
+                    try:
+                        query = f"SELECT * FROM {dataset_name}.{dest_table_names[r]}"
                         with client.execute_query(query) as cursor:
                             columns = [d[0] for d in cursor.description]
                             rows = cursor.fetchall()
-                    if rows:
                         df = pd.DataFrame(rows, columns=columns)
-                        df["_resource_type"] = resource_name
-                        all_data.append(df)
-                        context.log.info(f"Extracted {len(df)} rows from {resource_name}")
-                except Exception as e:
-                    context.log.warning(f"Could not extract {resource_name}: {e}")
+                    except Exception as e:
+                        context.log.warning(f"Could not extract {r} (destination table {dest_table_names[r]!r}): {e}")
+                        df = pd.DataFrame()
 
-            if not all_data:
-                context.log.warning("No data extracted.")
-                return Output(value=pd.DataFrame(), metadata=base_metadata)
+                    metadata = {
+                        "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                        "dataset_name": MetadataValue.text(dataset_name),
+                        "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                        "resource": MetadataValue.text(r),
+                        "destination_table_name": MetadataValue.text(dest_table_names[r]),
+                        "row_count": MetadataValue.int(len(df)),
+                    }
+                    if include_preview and len(df) > 0:
+                        try:
+                            _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                            metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                        except Exception as _e:
+                            context.log.warning(f"preview emission failed: {_e}")
 
-            combined_df = pd.concat(all_data, ignore_index=True)
-            context.log.info(
-                f"Ingestion complete: {len(combined_df)} total rows from {len(all_data)} resources"
-            )
+                    yield Output(value=df, output_name=output_names[r], metadata=metadata)
 
-            metadata = {
-                **base_metadata,
-                "row_count": MetadataValue.int(len(combined_df)),
-                "resource_types": MetadataValue.json(
-                    list(combined_df["_resource_type"].unique())
-                    if "_resource_type" in combined_df.columns
-                    else []
-                ),
-            }
-            if include_preview and len(combined_df) > 0:
-                try:
-                    _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
-                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                except Exception as _e:
-                    context.log.warning(f"preview emission failed: {_e}")
-            return Output(value=combined_df, metadata=metadata)
-
-        return Definitions(assets=[stripe_ingestion_asset])
+        return Definitions(assets=[stripe_ingestion_assets])
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

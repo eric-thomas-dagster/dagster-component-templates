@@ -1,8 +1,13 @@
 # ServiceNowIngestionComponent
 
-Read records from any ServiceNow table (incident, change_request, sc_request, sys_user, cmdb_ci, custom tables) using dlt's generic REST API source (`dlt.sources.rest_api.rest_api_source`). ServiceNow has no official dlt-maintained verified source, so this uses the same config-driven REST connector pattern as `workday_ingestion` and the ad-platform ingestion components in this repo. ServiceNow's Table API pagination (`sysparm_offset` + `sysparm_limit`, stop on an empty page) maps onto dlt's `OffsetPaginator`.
+Read records from one or more ServiceNow tables (incident, change_request, sc_request, sys_user, cmdb_ci, custom tables — `tables` is a comma-separated list) using dlt's generic REST API source (`dlt.sources.rest_api.rest_api_source`). ServiceNow has no official dlt-maintained verified source, so this uses the same config-driven REST connector pattern as `workday_ingestion` and the ad-platform ingestion components in this repo. ServiceNow's Table API pagination (`sysparm_offset` + `sysparm_limit`, stop on an empty page) maps onto dlt's `OffsetPaginator`.
 
-By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Set `destination` to persist directly to any dlt-supported destination (Snowflake, BigQuery, Postgres, filesystem, etc.) instead — see `../DESTINATIONS.md`.
+`asset_shape` picks how multiple tables show up in Dagster:
+
+- **`single`** (default, matches every other multi-table ingestion component in this repo, e.g. `salesforce_ingestion`/`zendesk_ingestion`): one asset, keyed `asset_name`, covering every table as a single unit — rows from every table are unioned into one returned DataFrame tagged by a `_table` column. Pick this when you just want to monitor "did the ServiceNow pipeline run," not select or retry individual tables.
+- **`multi_asset`**: each table is instead its own **independently-materializable asset**, keyed `{asset_name}_{table}` (`@multi_asset(can_subset=True)`) — materializing one table does not fetch or persist the others. Materializing several together still batches them through one shared dlt pipeline call (one Dagster step), not parallel per-table execution.
+
+By default, runs an in-memory DuckDB pipeline and returns a pandas DataFrame. Set `destination` to persist directly to any dlt-supported destination (Snowflake, BigQuery, Postgres, filesystem, etc.) instead — see `../DESTINATIONS.md`. Each table lands at `{dataset_name}.{table}` by default (the same convention every ingestion component in this repo relies on, e.g. `salesforce_ingestion`); set `table_name_map` to rename specific destination tables (e.g. `{incident: raw_incidents}`).
 
 Auth is either direct env vars (`instance_env_var` + `username_env_var`/`password_env_var`, or `instance_env_var` + `bearer_token_env_var`), or a shared `resource_key` pointing at a `ServiceNowResourceComponent` — the same resource `servicenow_record_upsert` and `servicenow_sensor` use, so one set of credentials can serve all three.
 
@@ -30,7 +35,9 @@ Auth is either direct env vars (`instance_env_var` + `username_env_var`/`passwor
 | `username_env_var` | `str` | Conditional | — | Required unless `bearer_token_env_var` is set |
 | `password_env_var` | `str` | Conditional | — | Required unless `bearer_token_env_var` is set |
 | `bearer_token_env_var` | `str` | Conditional | — | OAuth bearer token. When set, basic-auth fields are ignored |
-| `table` | `str` | Yes | — | ServiceNow table name (`incident`, `change_request`, `sc_request`, `sys_user`, `cmdb_ci`, custom) |
+| `tables` | `str` | Yes | — | Comma-separated ServiceNow table names (`incident`, `change_request`, `sc_request`, `sys_user`, `cmdb_ci`, custom) |
+| `asset_shape` | `str` | No | `"single"` | `"single"` = one asset covering every table, unioned with a `_table` column; `"multi_asset"` = one independently-materializable asset per table |
+| `table_name_map` | `dict` | No | — | Override the destination table name for specific tables, e.g. `{incident: raw_incidents}`. Unlisted tables keep their ServiceNow name |
 | `sysparm_query` | `str` | No | — | ServiceNow encoded query (e.g. `state=approved^priority=1`) |
 | `sysparm_fields` | `str` | No | — | Comma-separated field list. Defaults to all fields |
 | `sysparm_display_value` | `str` | No | `"false"` | `"false"` = sys_id only, `"true"` = display only, `"all"` = both |
@@ -80,7 +87,7 @@ See <https://www.servicenow.com/docs/bundle/yokohama-platform-user-interface/pag
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
-| `table` | `str` | ServiceNow table to query (e.g. 'incident', 'change_request', 'sc_request', 'sys_user', 'cmdb_ci', or a custom table name). |
+| `tables` | `str` | Comma-separated list of ServiceNow tables to query (e.g. 'incident,change_request,sys_user,cmdb_ci'). With asset_shape='single' (default), all tables are fetched together under one asset keyed `asset_name`. With asset_sh… _(full docs in schema.json + component README)_ |
 
 ### Connection
 
@@ -107,7 +114,6 @@ See <https://www.servicenow.com/docs/bundle/yokohama-platform-user-interface/pag
 | `owners` | `List[str]` | — | Asset owners — list of team names or email addresses, e.g. ['team:analytics', 'user@company.com'] |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags to apply to the asset, e.g. {'domain': 'finance', 'tier': 'gold'} |
 | `kinds` | `List[str]` | — | Asset kinds for the Dagster catalog, e.g. ['snowflake', 'python']. Auto-inferred from destination/component name if not set. |
-| `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']} |
 | `description` | `str` | — | Asset description shown in the Dagster catalog. |
 
 ### Freshness
@@ -145,6 +151,7 @@ See <https://www.servicenow.com/docs/bundle/yokohama-platform-user-interface/pag
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `table_name_map` | `Dict[str, str]` | — | Override the destination table name for specific ServiceNow tables, e.g. {'incident': 'raw_incidents'}. dlt otherwise names each destination table after its ServiceNow table (the default every ingestion component in this… _(full docs in schema.json + component README)_ |
 | `bucket_url` | `str` | — | Bucket/path URL for filesystem-shaped storage (e.g. 's3://my-bucket/path', 'gs://my-bucket/path', 'az://my-container/path', or 'file:///local/path'). Required when destination='filesystem' (the final write target). Also… _(full docs in schema.json + component README)_ |
 
 ### Other
@@ -153,10 +160,14 @@ See <https://www.servicenow.com/docs/bundle/yokohama-platform-user-interface/pag
 |---|---|---|---|
 | `instance_env_var` | `str` | — | Env var with the ServiceNow instance subdomain (e.g. 'mycompany' or 'dev123456'). Required unless resource_key is set. |
 | `bearer_token_env_var` | `str` | — | Env var with ServiceNow OAuth bearer token. When set, basic-auth env vars are ignored. |
-| `sysparm_query` | `str` | — | ServiceNow encoded query string filter (e.g. 'state=approved^priority=1'). See ServiceNow docs on encoded queries. |
-| `sysparm_fields` | `str` | — | Comma-separated list of fields to return. Defaults to all fields if unset. |
+| `asset_shape` | `Literal['single', 'multi_asset']` | `"single"` | 'single' (default, matches every other multi-table ingestion component in this repo, e.g. salesforce_ingestion/zendesk_ingestion): one asset, keyed `asset_name`, covering every table in `tables` as a single unit -- rows… _(full docs in schema.json + component README)_ |
+| `sysparm_query` | `str` | — | ServiceNow encoded query string filter (e.g. 'state=approved^priority=1'), applied to every table in `tables`. See ServiceNow docs on encoded queries. |
+| `sysparm_fields` | `str` | — | Comma-separated list of fields to return, applied to every table in `tables`. Defaults to all fields if unset. |
 | `sysparm_display_value` | `str` | `"false"` | Reference field display: 'false' = sys_id only, 'true' = display value only, 'all' = both. Default 'false' (raw). |
 | `verify_ssl` | `bool` | `true` | Enable TLS verification. Set false only for self-signed dev instances. Ignored when resource_key is set (the resource's own verify_ssl applies). |
+| `hash_columns` | `List[str]` | — | Column names to pseudonymize (salted SHA-256, hex-encoded) before the data reaches the destination -- same deterministic-hashing pattern dlt's own docs recommend for PII (https://dlthub.com/docs/general-usage/customising… _(full docs in schema.json + component README)_ |
+| `hash_salt` | `str` | — | Salt for hash_columns. Required (this or hash_salt_env_var) when hash_columns is set -- a hardcoded/shared salt would let the hash be reversed by dictionary attack on common values. Use "{{ env.VAR_NAME }}" for the inlin… _(full docs in schema.json + component README)_ |
+| `hash_salt_env_var` | `str` | — | Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time. |
 | `destination` | `str` | — | dlt destination identifier (e.g. 'snowflake', 'bigquery', 'postgres', 'redshift', 'filesystem', 'duckdb', 'databricks', 'athena', 'clickhouse', 'mssql', 'motherduck'). Leave empty for in-memory DuckDB -> DataFrame mode. |
 | `dataset_name` | `str` | — | Target dataset/schema in the destination. Defaults to the asset name. |
 | `persist_only` | `bool` | `false` | If True with destination set: emit a MaterializeResult and skip DataFrame return. If False: query the destination back into a DataFrame (only meaningful for SQL destinations -- non-SQL destinations always emit MaterializeResult). |

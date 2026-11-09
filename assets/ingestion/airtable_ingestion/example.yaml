@@ -7,6 +7,15 @@ attributes:
   base_id: "appXXXXXXXXXXXXXX"
   table_names: ["Contacts", "Projects", "Tasks"]
 
+  # --- Give each table its own independently-materializable asset instead ---
+  # asset_shape: multi_asset   # produces airtable_data_contacts, _projects, _tasks
+  #                             (normalized table names); materializing one table
+  #                             does not fetch or persist the others
+
+  # --- Rename specific destination tables (keyed by the RAW table name) ---
+  # table_name_map:
+  #   Contacts: raw_contacts          # other tables keep their normalized name
+
   # Organization
   description: "Airtable base data ingestion"
   group_name: "airtable"

@@ -31,6 +31,57 @@ from dagster import (
 from pydantic import Field
 
 
+# BEGIN column-hashing helper (inlined per component; keep copies identical, see tests/test_column_hashing_ingestion.py)
+def _resolve_hash_salt(hash_salt, hash_salt_env_var):
+    if hash_salt:
+        return hash_salt
+    if hash_salt_env_var:
+        val = os.environ.get(hash_salt_env_var)
+        if val is None:
+            raise ValueError(
+                f"hash_salt_env_var={hash_salt_env_var!r} references an environment "
+                "variable that is not set."
+            )
+        return val
+    return None
+
+
+def _make_hash_columns_map(columns, salt):
+    import hashlib
+
+    def _hash_map(doc):
+        for col in columns:
+            value = doc.get(col)
+            if value is not None:
+                doc[col] = hashlib.sha256((str(value) + salt).encode()).hexdigest()
+        return doc
+
+    return _hash_map
+
+
+def _apply_hash_columns(resources, hash_columns, hash_salt, hash_salt_env_var):
+    """Pseudonymizes `hash_columns` (salted SHA-256, hex-encoded) on every resource in
+    `resources` (an iterable of DltResource objects -- e.g. source.resources.values()
+    or a selected_resources list) before the data reaches the destination -- dlt's own
+    documented deterministic-hashing pattern for PII (https://dlthub.com/docs/
+    general-usage/customising-pipelines/pseudonymizing_columns), via
+    DltResource.add_map(), wired up as a config option instead of requiring a custom
+    Python module."""
+    if not hash_columns:
+        return
+    salt = _resolve_hash_salt(hash_salt, hash_salt_env_var)
+    if not salt:
+        raise ValueError(
+            "hash_columns is set but neither hash_salt nor hash_salt_env_var is -- a "
+            "salt is required (a hardcoded/shared salt would let the hash be reversed "
+            "by dictionary attack on common values, e.g. emails)."
+        )
+    hash_map = _make_hash_columns_map(hash_columns, salt)
+    for resource in resources:
+        resource.add_map(hash_map)
+# END column-hashing helper
+
+
 def _filter_df_to_partition(df: pd.DataFrame, context, partition_date_column, partition_static_column) -> pd.DataFrame:
     """Filter a fully-fetched DataFrame down to the current partition's rows.
 
@@ -242,6 +293,30 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
     asset_name: str = Field(description="Name of the asset to create")
 
     platform: str = Field(description="Support platform (zendesk, freshdesk, etc.)")
+
+    hash_columns: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Column names to pseudonymize (salted SHA-256, hex-encoded) before the data "
+            "reaches the destination -- same deterministic-hashing pattern dlt's own docs "
+            "recommend for PII (https://dlthub.com/docs/general-usage/customising-pipelines/"
+            "pseudonymizing_columns). A column missing from a given resource's rows is "
+            "skipped, not an error. Requires hash_salt or hash_salt_env_var."
+        ),
+    )
+    hash_salt: Optional[str] = Field(
+        default=None,
+        description=(
+            "Salt for hash_columns. Required (this or hash_salt_env_var) when hash_columns "
+            "is set -- a hardcoded/shared salt would let the hash be reversed by dictionary "
+            "attack on common values. Use \"{{ env.VAR_NAME }}\" for the inline form. Keep it "
+            "stable across runs: changing it changes every hash."
+        ),
+    )
+    hash_salt_env_var: Optional[str] = Field(
+        default=None,
+        description="Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time.",
+    )
 
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------
 
@@ -668,6 +743,9 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
 
         partition_date_column = self.partition_date_column
         partition_static_column = self.partition_static_column
+        hash_columns = self.hash_columns
+        hash_salt = self.hash_salt
+        hash_salt_env_var = self.hash_salt_env_var
 
         @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
             key=AssetKey.from_user_string(asset_name),
@@ -752,6 +830,8 @@ class SupportTicketIngestionComponent(Component, Model, Resolvable):
                         "password": api_token,
                     }
                 )
+                if hash_columns:
+                    _apply_hash_columns([source.tickets], hash_columns, hash_salt, hash_salt_env_var)
 
                 load_info = pipeline.run([source.tickets])
                 context.log.info(f"Zendesk data loaded: {load_info}")

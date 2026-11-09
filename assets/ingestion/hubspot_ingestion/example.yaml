@@ -16,6 +16,14 @@ attributes:
   include_history: false
   include_custom_props: true
 
+  # --- Give each resource its own independently-materializable asset instead ---
+  # asset_shape: multi_asset   # produces hubspot_crm_data_contacts, _companies, etc.
+  #                             materializing one resource does not fetch or persist the others
+
+  # --- Rename specific destination tables (default: destination table name = resource name) ---
+  # table_name_map:
+  #   contacts: raw_contacts          # other resources keep their HubSpot name
+
   # Organization
   description: "HubSpot CRM and marketing data"
   group_name: "hubspot"

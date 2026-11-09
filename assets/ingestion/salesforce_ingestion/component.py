@@ -30,6 +30,57 @@ from dagster import (
 from pydantic import Field
 
 
+# BEGIN column-hashing helper (inlined per component; keep copies identical, see tests/test_column_hashing_ingestion.py)
+def _resolve_hash_salt(hash_salt, hash_salt_env_var):
+    if hash_salt:
+        return hash_salt
+    if hash_salt_env_var:
+        val = os.environ.get(hash_salt_env_var)
+        if val is None:
+            raise ValueError(
+                f"hash_salt_env_var={hash_salt_env_var!r} references an environment "
+                "variable that is not set."
+            )
+        return val
+    return None
+
+
+def _make_hash_columns_map(columns, salt):
+    import hashlib
+
+    def _hash_map(doc):
+        for col in columns:
+            value = doc.get(col)
+            if value is not None:
+                doc[col] = hashlib.sha256((str(value) + salt).encode()).hexdigest()
+        return doc
+
+    return _hash_map
+
+
+def _apply_hash_columns(resources, hash_columns, hash_salt, hash_salt_env_var):
+    """Pseudonymizes `hash_columns` (salted SHA-256, hex-encoded) on every resource in
+    `resources` (an iterable of DltResource objects -- e.g. source.resources.values()
+    or a selected_resources list) before the data reaches the destination -- dlt's own
+    documented deterministic-hashing pattern for PII (https://dlthub.com/docs/
+    general-usage/customising-pipelines/pseudonymizing_columns), via
+    DltResource.add_map(), wired up as a config option instead of requiring a custom
+    Python module."""
+    if not hash_columns:
+        return
+    salt = _resolve_hash_salt(hash_salt, hash_salt_env_var)
+    if not salt:
+        raise ValueError(
+            "hash_columns is set but neither hash_salt nor hash_salt_env_var is -- a "
+            "salt is required (a hardcoded/shared salt would let the hash be reversed "
+            "by dictionary attack on common values, e.g. emails)."
+        )
+    hash_map = _make_hash_columns_map(hash_columns, salt)
+    for resource in resources:
+        resource.add_map(hash_map)
+# END column-hashing helper
+
+
 def _filter_df_to_partition(df: pd.DataFrame, context, partition_date_column, partition_static_column) -> pd.DataFrame:
     """Filter a fully-fetched DataFrame down to the current partition's rows.
 
@@ -223,6 +274,14 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
     Campaign, Task, Event, etc.) via the Salesforce API. Authenticates with
     username + password + security token.
 
+    By default (`asset_shape='single'`), every object lands under ONE asset
+    keyed `asset_name`, unioned into one DataFrame tagged by a `_resource_type`
+    column. Set `asset_shape='multi_asset'` to instead give each object its
+    own independently-materializable asset, keyed `{asset_name}_{object}`
+    (lowercased) -- materializing one object then does not fetch or persist
+    the others. `table_name_map` renames an object's destination table
+    independent of asset_shape, e.g. `{Account: raw_accounts}`.
+
     Example:
 
         ```yaml
@@ -264,6 +323,55 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
     )
 
     sf_objects: List[str] = Field(default=["Account", "Opportunity", "Contact", "Lead"], description="Salesforce objects to extract (Account, Opportunity, Contact, Lead, Campaign, Task, Event, etc.)")
+
+    hash_columns: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Column names to pseudonymize (salted SHA-256, hex-encoded) before the data "
+            "reaches the destination -- same deterministic-hashing pattern dlt's own docs "
+            "recommend for PII (https://dlthub.com/docs/general-usage/customising-pipelines/"
+            "pseudonymizing_columns). A column missing from a given resource's rows is "
+            "skipped, not an error. Requires hash_salt or hash_salt_env_var."
+        ),
+    )
+    hash_salt: Optional[str] = Field(
+        default=None,
+        description=(
+            "Salt for hash_columns. Required (this or hash_salt_env_var) when hash_columns "
+            "is set -- a hardcoded/shared salt would let the hash be reversed by dictionary "
+            "attack on common values. Use \"{{ env.VAR_NAME }}\" for the inline form. Keep it "
+            "stable across runs: changing it changes every hash."
+        ),
+    )
+    hash_salt_env_var: Optional[str] = Field(
+        default=None,
+        description="Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time.",
+    )
+
+    asset_shape: Literal["single", "multi_asset"] = Field(
+        default="single",
+        description=(
+            "'single' (default, matches every other multi-object ingestion component in this "
+            "repo): one asset, keyed `asset_name`, covering every object in `sf_objects` as a "
+            "single unit -- rows from every object are unioned into one returned DataFrame "
+            "tagged by a `_resource_type` column. 'multi_asset': each object in `sf_objects` is "
+            "instead its own independently-materializable asset, keyed `{asset_name}_{object}` "
+            "(lowercased, e.g. `{asset_name}_account`) -- select just the object(s) you want; "
+            "materializing several together still batches them through one shared dlt pipeline "
+            "call (one Dagster step), not parallel per-object execution. Opt into 'multi_asset' "
+            "when you want to select/retry/schedule individual objects separately."
+        ),
+    )
+    table_name_map: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "Override the destination table name for specific Salesforce objects, e.g. "
+            "{'Account': 'raw_accounts'}. Keys are matched case-insensitively against "
+            "`sf_objects`. dlt otherwise names each destination table after its lowercased "
+            "object name (e.g. 'Account' -> 'account'). Objects not listed here keep that "
+            "default name. Every key must also appear (any case) in `sf_objects`."
+        ),
+    )
 
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------
 
@@ -603,6 +711,9 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
         _column_lineage_md = _column_lineage_metadata(self)
         asset_name = self.asset_name
         sf_objects = self.sf_objects
+        hash_columns = self.hash_columns
+        hash_salt = self.hash_salt
+        hash_salt_env_var = self.hash_salt_env_var
         description = self.description or f"Salesforce data ({', '.join(sf_objects)})"
         group_name = self.group_name
         include_preview = self.include_preview_metadata
@@ -611,6 +722,21 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
         dataset_name = self.dataset_name or asset_name
         persist_only = self.persist_only
         component = self
+        # dlt's salesforce_source exposes resources by lowercased object name (e.g. "Account" ->
+        # .account), and that lowercased name is also the default destination table name -- the
+        # existing code already relies on this (`resource_keys = [o.lower() for o in sf_objects]`).
+        # Every lookup below (asset-key suffix, table_name_map, with_resources subsetting) is
+        # anchored on this lowercased resource_keys list, not the as-typed sf_objects casing.
+        resource_keys = [o.lower() for o in sf_objects]
+        output_names = {rk: f"{asset_name}_{rk}" for rk in resource_keys}
+        _table_name_map = {k.lower(): v for k, v in (self.table_name_map or {}).items()}
+        _unknown_overrides = set(_table_name_map) - set(resource_keys)
+        if _unknown_overrides:
+            raise ValueError(
+                f"SalesforceIngestionComponent: table_name_map has key(s) not in 'sf_objects': "
+                f"{sorted(_unknown_overrides)}."
+            )
+        dest_table_names = {rk: _table_name_map.get(rk, rk) for rk in resource_keys}
 
         # Infer kinds from destination + asset name
         _kind_map = {
@@ -699,26 +825,7 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
         partition_date_column = self.partition_date_column
         partition_static_column = self.partition_static_column
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj, 
-            key=AssetKey.from_user_string(asset_name),
-            description=description,
-            owners=owners,
-            tags=_all_tags,
-            freshness_policy=_freshness_policy,
-            group_name=group_name,
-            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
-            required_resource_keys={component.resource_key} if component.resource_key else set(),
-        )
-        def salesforce_ingestion_asset(context: AssetExecutionContext):
-            if not component.resource_key and not (component.username and component.password and component.security_token):
-                raise ValueError(
-                    "SalesforceIngestionComponent: supply resource_key (a registered "
-                    "SalesforceResourceComponent) OR all of username/password/security_token."
-                )
-            if _column_lineage_md:
-                context.add_output_metadata(_column_lineage_md)
-            from dlt.sources.salesforce import salesforce_source
-
+        def _resolve_credentials(component, context):
             if component.resource_key:
                 # SalesforceResourceComponent eagerly resolves env vars into the
                 # runtime SalesforceResource's plain attributes at build_defs time
@@ -726,16 +833,191 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
                 # *name* and defer resolution) -- so these are already the real
                 # secret values, not names to look up.
                 _res = getattr(context.resources, component.resource_key)
-                username = _res.username
-                password = _res.password
-                security_token = _res.security_token
-            else:
-                username = component.username
-                password = component.password
-                security_token = component.security_token
+                return _res.username, _res.password, _res.security_token
+            return component.username, component.password, component.security_token
+
+        def _apply_table_name_overrides(source, keys):
+            for rk in keys:
+                if rk in dest_table_names and dest_table_names[rk] != rk and hasattr(source, rk):
+                    getattr(source, rk).apply_hints(table_name=dest_table_names[rk])
+
+        if self.asset_shape == "single":
+            @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
+                key=AssetKey.from_user_string(asset_name),
+                description=description,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+                group_name=group_name,
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+                required_resource_keys={component.resource_key} if component.resource_key else set(),
+            )
+            def salesforce_ingestion_asset(context: AssetExecutionContext):
+                if not component.resource_key and not (component.username and component.password and component.security_token):
+                    raise ValueError(
+                        "SalesforceIngestionComponent: supply resource_key (a registered "
+                        "SalesforceResourceComponent) OR all of username/password/security_token."
+                    )
+                if _column_lineage_md:
+                    context.add_output_metadata(_column_lineage_md)
+                from dlt.sources.salesforce import salesforce_source
+
+                username, password, security_token = _resolve_credentials(component, context)
+
+                context.log.info(
+                    f"Starting Salesforce ingestion: objects={sf_objects}, "
+                    f"destination={destination or 'duckdb (in-memory)'}"
+                )
+
+                pipeline = dlt.pipeline(
+                    pipeline_name=f"{asset_name}_pipeline",
+                    destination=component._resolve_destination_with_bucket(),
+                    staging=component._resolve_staging(),
+                    dataset_name=dataset_name,
+                )
+
+                source = salesforce_source(
+                    user_name=username,
+                    password=password,
+                    security_token=security_token,
+                )
+                _apply_table_name_overrides(source, resource_keys)
+
+                selected_resources = []
+                for resource_name in sf_objects:
+                    attr = resource_name.lower()
+                    if hasattr(source, attr):
+                        selected_resources.append(getattr(source, attr))
+                    elif hasattr(source, resource_name):
+                        selected_resources.append(getattr(source, resource_name))
+                    else:
+                        context.log.warning(
+                            f"Object '{resource_name}' not found in Salesforce source; skipping."
+                        )
+                if not selected_resources:
+                    raise ValueError("No valid Salesforce objects selected.")
+                _apply_hash_columns(selected_resources, hash_columns, hash_salt, hash_salt_env_var)
+
+                load_info = pipeline.run(selected_resources)
+                context.log.info(f"Salesforce data loaded: {load_info}")
+
+                base_metadata = {
+                    "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                    "dataset_name": MetadataValue.text(dataset_name),
+                    "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                    "resources_extracted": MetadataValue.json(list(resource_keys)),
+                    "destination_table_names": MetadataValue.json(dest_table_names),
+                }
+
+                non_sql_destinations = {
+                    "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
+                    "delta", "iceberg",
+                }
+                is_non_sql = destination in non_sql_destinations
+
+                if persist_only or is_non_sql:
+                    if is_non_sql and not persist_only:
+                        context.log.warning(
+                            f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                            f"Set persist_only=true to silence this warning."
+                        )
+                    return MaterializeResult(metadata=base_metadata)
+
+                all_data = []
+                for resource_name in resource_keys:
+                    try:
+                        query = f"SELECT * FROM {dataset_name}.{dest_table_names[resource_name]}"
+                        with pipeline.sql_client() as client:
+                            with client.execute_query(query) as cursor:
+                                columns = [d[0] for d in cursor.description]
+                                rows = cursor.fetchall()
+                        if rows:
+                            df = pd.DataFrame(rows, columns=columns)
+                            df["_resource_type"] = resource_name
+                            all_data.append(df)
+                            context.log.info(f"Extracted {len(df)} rows from {resource_name}")
+                    except Exception as e:
+                        context.log.warning(f"Could not extract {resource_name} (destination table {dest_table_names[resource_name]!r}): {e}")
+
+                if not all_data:
+                    context.log.warning("No data extracted.")
+                    return Output(value=pd.DataFrame(), metadata=base_metadata)
+
+                combined_df = pd.concat(all_data, ignore_index=True)
+                combined_df = _filter_df_to_partition(
+                    combined_df, context, partition_date_column, partition_static_column
+                )
+                context.log.info(
+                    f"Ingestion complete: {len(combined_df)} total rows from {len(all_data)} resources"
+                )
+
+                metadata = {
+                    **base_metadata,
+                    "row_count": MetadataValue.int(len(combined_df)),
+                    "resource_types": MetadataValue.json(
+                        list(combined_df["_resource_type"].unique())
+                        if "_resource_type" in combined_df.columns
+                        else []
+                    ),
+                }
+                if include_preview and len(combined_df) > 0:
+                    try:
+                        _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
+                return Output(value=combined_df, metadata=metadata)
+
+            return Definitions(assets=[salesforce_ingestion_asset])
+
+        from dagster import AssetOut, multi_asset
+
+        # Each object gets its own independently-materializable asset (can_subset=True):
+        # picking just "account" only fetches/loads the Account object, not the others.
+        outs = {
+            output_names[rk]: AssetOut(
+                description=f"Salesforce object reader: {rk}",
+                is_required=False,
+                group_name=group_name,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+            )
+            for rk in resource_keys
+        }
+
+        @multi_asset(
+            outs=outs,
+            name=asset_name,
+            can_subset=True,
+            partitions_def=partitions_def,
+            backfill_policy=_backfill_policy_obj,
+            retry_policy=_retry_policy,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys={component.resource_key} if component.resource_key else set(),
+        )
+        def salesforce_ingestion_assets(context: AssetExecutionContext):
+            if not component.resource_key and not (component.username and component.password and component.security_token):
+                raise ValueError(
+                    "SalesforceIngestionComponent: supply resource_key (a registered "
+                    "SalesforceResourceComponent) OR all of username/password/security_token."
+                )
+
+            try:
+                selected_output_names = set(context.op_execution_context.selected_output_names)
+            except Exception:  # noqa: BLE001
+                selected_output_names = set(output_names.values())
+            selected_keys = [rk for rk in resource_keys if output_names[rk] in selected_output_names]
+            if not selected_keys:
+                context.log.info("salesforce_ingestion: no objects selected; skipping.")
+                return
+
+            from dlt.sources.salesforce import salesforce_source
+
+            username, password, security_token = _resolve_credentials(component, context)
 
             context.log.info(
-                f"Starting Salesforce ingestion: objects={sf_objects}, "
+                f"Starting Salesforce ingestion for {selected_keys!r}, "
                 f"destination={destination or 'duckdb (in-memory)'}"
             )
 
@@ -751,32 +1033,13 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
                 password=password,
                 security_token=security_token,
             )
+            _apply_table_name_overrides(source, selected_keys)
+            subset_source = source.with_resources(*selected_keys)
+            if hash_columns:
+                _apply_hash_columns(subset_source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
 
-            selected_resources = []
-            for resource_name in sf_objects:
-                attr = resource_name.lower()
-                if hasattr(source, attr):
-                    selected_resources.append(getattr(source, attr))
-                elif hasattr(source, resource_name):
-                    selected_resources.append(getattr(source, resource_name))
-                else:
-                    context.log.warning(
-                        f"Object '{resource_name}' not found in Salesforce source; skipping."
-                    )
-            if not selected_resources:
-                raise ValueError("No valid Salesforce objects selected.")
-
-            load_info = pipeline.run(selected_resources)
+            load_info = pipeline.run(subset_source)
             context.log.info(f"Salesforce data loaded: {load_info}")
-
-            resource_keys = [o.lower() for o in sf_objects]
-
-            base_metadata = {
-                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
-                "dataset_name": MetadataValue.text(dataset_name),
-                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
-                "resources_extracted": MetadataValue.json(list(resource_keys)),
-            }
 
             non_sql_destinations = {
                 "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
@@ -787,57 +1050,54 @@ class SalesforceIngestionComponent(Component, Model, Resolvable):
             if persist_only or is_non_sql:
                 if is_non_sql and not persist_only:
                     context.log.warning(
-                        f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                        f"destination='{destination}' is not SQL-backed; cannot return a DataFrame. "
                         f"Set persist_only=true to silence this warning."
                     )
-                return MaterializeResult(metadata=base_metadata)
+                for rk in selected_keys:
+                    yield MaterializeResult(
+                        asset_key=AssetKey.from_user_string(output_names[rk]),
+                        metadata={
+                            "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                            "dataset_name": MetadataValue.text(dataset_name),
+                            "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                            "resource": MetadataValue.text(rk),
+                            "destination_table_name": MetadataValue.text(dest_table_names[rk]),
+                        },
+                    )
+                return
 
-            all_data = []
-            for resource_name in resource_keys:
-                try:
-                    query = f"SELECT * FROM {dataset_name}.{resource_name}"
-                    with pipeline.sql_client() as client:
+            with pipeline.sql_client() as client:
+                for rk in selected_keys:
+                    try:
+                        query = f"SELECT * FROM {dataset_name}.{dest_table_names[rk]}"
                         with client.execute_query(query) as cursor:
                             columns = [d[0] for d in cursor.description]
                             rows = cursor.fetchall()
-                    if rows:
                         df = pd.DataFrame(rows, columns=columns)
-                        df["_resource_type"] = resource_name
-                        all_data.append(df)
-                        context.log.info(f"Extracted {len(df)} rows from {resource_name}")
-                except Exception as e:
-                    context.log.warning(f"Could not extract {resource_name}: {e}")
+                    except Exception as e:
+                        context.log.warning(f"Could not extract {rk} (destination table {dest_table_names[rk]!r}): {e}")
+                        df = pd.DataFrame()
 
-            if not all_data:
-                context.log.warning("No data extracted.")
-                return Output(value=pd.DataFrame(), metadata=base_metadata)
+                    df = _filter_df_to_partition(df, context, partition_date_column, partition_static_column)
 
-            combined_df = pd.concat(all_data, ignore_index=True)
-            combined_df = _filter_df_to_partition(
-                combined_df, context, partition_date_column, partition_static_column
-            )
-            context.log.info(
-                f"Ingestion complete: {len(combined_df)} total rows from {len(all_data)} resources"
-            )
+                    metadata = {
+                        "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                        "dataset_name": MetadataValue.text(dataset_name),
+                        "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                        "resource": MetadataValue.text(rk),
+                        "destination_table_name": MetadataValue.text(dest_table_names[rk]),
+                        "row_count": MetadataValue.int(len(df)),
+                    }
+                    if include_preview and len(df) > 0:
+                        try:
+                            _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                            metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                        except Exception as _e:
+                            context.log.warning(f"preview emission failed: {_e}")
 
-            metadata = {
-                **base_metadata,
-                "row_count": MetadataValue.int(len(combined_df)),
-                "resource_types": MetadataValue.json(
-                    list(combined_df["_resource_type"].unique())
-                    if "_resource_type" in combined_df.columns
-                    else []
-                ),
-            }
-            if include_preview and len(combined_df) > 0:
-                try:
-                    _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
-                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                except Exception as _e:
-                    context.log.warning(f"preview emission failed: {_e}")
-            return Output(value=combined_df, metadata=metadata)
+                    yield Output(value=df, output_name=output_names[rk], metadata=metadata)
 
-        return Definitions(assets=[salesforce_ingestion_asset])
+        return Definitions(assets=[salesforce_ingestion_assets])
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

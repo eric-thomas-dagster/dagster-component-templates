@@ -42,12 +42,6 @@
       "required": false,
       "description": "Env var with ServiceNow OAuth bearer token. When set, basic-auth fields are ignored."
     },
-    "table": {
-      "type": "string",
-      "label": "Table",
-      "required": true,
-      "description": "ServiceNow table name (e.g. incident, change_request, sc_request, sys_user, cmdb_ci, or a custom table)."
-    },
     "sysparm_query": {
       "type": "string",
       "label": "Sysparm Query",
@@ -273,12 +267,6 @@
       "required": false,
       "x-dagster-widget": "column"
     },
-    "column_lineage": {
-      "type": "object",
-      "label": "Column Lineage",
-      "description": "Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
-      "required": false
-    },
     "partition_cron_schedule": {
       "x-dagster-group": "partitions",
       "type": "string",
@@ -371,6 +359,50 @@
       "type": "integer",
       "label": "Backfill Policy Max Partitions Per Run",
       "description": "For backfill_policy='multi_run' only: maximum partitions materialized per run (default 1).",
+      "required": false
+    },
+    "tables": {
+      "type": "string",
+      "label": "Tables",
+      "description": "Comma-separated list of ServiceNow tables to query (e.g. 'incident,change_request,sys_user,cmdb_ci'). With asset_shape='single' (default), all tables are fetched together under one asset keyed `asset_name`. With asset_shape='multi_asset', each table instead becomes its own independently-materializable Dagster asset, keyed `{asset_name}_{table}` -- materializing one table does not fetch or persist the others. sysparm_query/sysparm_fields/sysparm_display_value apply identically to every table listed -- for per-table filters, use a separate component instance per table.",
+      "required": true
+    },
+    "asset_shape": {
+      "type": "string",
+      "enum": [
+        "single",
+        "multi_asset"
+      ],
+      "label": "Asset Shape",
+      "description": "'single' (default, matches every other multi-table ingestion component in this repo, e.g. salesforce_ingestion/zendesk_ingestion): one asset, keyed `asset_name`, covering every table in `tables` as a single unit -- rows from every table are unioned into one returned DataFrame tagged by a `_table` column. 'multi_asset': each table in `tables` is instead its own independently-materializable asset -- select just the table(s) you want; materializing several together still batches them through one shared dlt pipeline call (one Dagster step), not parallel per-table execution. Opt into 'multi_asset' when you want to select/retry/schedule individual tables separately; stay on 'single' when you just want to monitor 'did the ServiceNow pipeline run'.",
+      "required": false,
+      "default": "single"
+    },
+    "table_name_map": {
+      "type": "object",
+      "label": "Table Name Map",
+      "description": "Override the destination table name for specific ServiceNow tables, e.g. {'incident': 'raw_incidents'}. dlt otherwise names each destination table after its ServiceNow table (the default every ingestion component in this repo relies on -- see salesforce_ingestion). Tables in `tables` that aren't listed here keep their ServiceNow name as-is. Every key must also appear in `tables`.",
+      "required": false
+    },
+    "hash_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Hash Columns",
+      "description": "Column names to pseudonymize (salted SHA-256, hex-encoded) before the data reaches the destination -- same deterministic-hashing pattern dlt's own docs recommend for PII (https://dlthub.com/docs/general-usage/customising-pipelines/pseudonymizing_columns). A column missing from a given resource's rows is skipped, not an error. Requires hash_salt or hash_salt_env_var.",
+      "required": false
+    },
+    "hash_salt": {
+      "type": "string",
+      "label": "Hash Salt",
+      "description": "Salt for hash_columns. Required (this or hash_salt_env_var) when hash_columns is set -- a hardcoded/shared salt would let the hash be reversed by dictionary attack on common values. Use \"{{ env.VAR_NAME }}\" for the inline form. Keep it stable across runs: changing it changes every hash.",
+      "required": false
+    },
+    "hash_salt_env_var": {
+      "type": "string",
+      "label": "Hash Salt Env Var",
+      "description": "Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time.",
       "required": false
     }
   },

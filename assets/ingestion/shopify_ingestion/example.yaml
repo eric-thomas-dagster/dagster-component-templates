@@ -9,6 +9,14 @@ attributes:
   # Resources to extract
   resources: ["customers", "orders", "products"]
 
+  # --- Give each resource its own independently-materializable asset instead ---
+  # asset_shape: multi_asset   # produces shopify_data_customers, _orders, _products
+  #                             materializing one resource does not fetch or persist the others
+
+  # --- Rename specific destination tables (default: destination table name = resource name) ---
+  # table_name_map:
+  #   orders: raw_orders          # other resources keep their Shopify name
+
   # Optional: Start date for incremental loading
   # start_date: "2024-01-01"
 

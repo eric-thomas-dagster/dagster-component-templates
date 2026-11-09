@@ -36,6 +36,21 @@ def load_component_module() -> ModuleType:
     return mod
 
 
+class _Permissive:
+    """Generic duck-typed stand-in for a dlt source object -- every
+    attribute access or call returns another permissive object, so
+    whatever this component does to the source object (attribute-based
+    resource selection, .with_resources(*names), .apply_hints(...), etc.)
+    succeeds without needing to replicate the real dlt source's actual
+    shape."""
+
+    def __getattr__(self, name):
+        return self
+
+    def __call__(self, *args, **kwargs):
+        return self
+
+
 class FakeCursor:
     """Stands in for the DBAPI cursor `pipeline.sql_client().execute_query()`
     yields -- `.description` (column name tuples) and `.fetchall()` (row
@@ -100,7 +115,7 @@ def install_fake_dlt(monkeypatch, mod, table_rows: Optional[Dict[str, pd.DataFra
 
     def fake_airtable_source(**kwargs):
         captured["kwargs"] = kwargs
-        return object()
+        return _Permissive()
 
     fake_airtable_mod = types.ModuleType("dlt.sources.airtable")
     fake_airtable_mod.airtable_source = fake_airtable_source

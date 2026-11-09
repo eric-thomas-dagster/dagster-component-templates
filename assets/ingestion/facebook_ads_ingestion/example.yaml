@@ -13,6 +13,15 @@ attributes:
   # Resources to extract
   resources: "campaigns,ads,insights"
 
+  # --- Give each resource its own independently-materializable asset instead ---
+  # asset_shape: multi_asset   # produces facebook_ads_data_campaigns, _ads, _insights, etc.
+  #                             materializing one resource does not fetch or persist the others
+  #                             (selecting only standard resources never runs the insights source, or vice versa)
+
+  # --- Rename specific destination tables (default: destination table name = resource name) ---
+  # table_name_map:
+  #   insights: raw_insights          # other resources keep their default name
+
   # Historical data to load (days)
   initial_load_past_days: 30
 

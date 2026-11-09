@@ -1,10 +1,18 @@
 """ServiceNow Ingestion Component.
 
-Read records from any ServiceNow table (incident, change_request, sc_request,
-sys_user, cmdb_ci, custom tables, etc.) using dlt's generic REST API source
-(dlt.sources.rest_api.rest_api_source). ServiceNow has no official
-dlt-maintained verified-source package (confirmed against dlthub's own
-ServiceNow scaffold, which is itself built the same way -- a plain
+Read records from one or more ServiceNow tables (incident, change_request,
+sc_request, sys_user, cmdb_ci, custom tables, etc. -- `tables` is a
+comma-separated list) using dlt's generic REST API source
+(dlt.sources.rest_api.rest_api_source). By default (`asset_shape='single'`,
+matching every other multi-table ingestion component in this repo, e.g.
+salesforce_ingestion/zendesk_ingestion), every table lands under ONE asset
+keyed `asset_name`, unioned into one returned DataFrame tagged by a `_table`
+column. Set `asset_shape='multi_asset'` to instead give each table its OWN
+independently-materializable Dagster asset (`@multi_asset(can_subset=True)`,
+asset-keyed `{asset_name}_{table}`) and its own dlt resource -- materializing
+just one table then does not fetch or persist the others. ServiceNow has no
+official dlt-maintained verified-source package (confirmed against dlthub's
+own ServiceNow scaffold, which is itself built the same way -- a plain
 rest_api_source config, not an installable connector), so this uses the same
 config-driven REST connector pattern as workday_ingestion / the ad-platform
 ingestions in this repo. ServiceNow's Table API pagination (`sysparm_offset`
@@ -72,6 +80,55 @@ def _filter_df_to_partition(df, context, partition_date_column, partition_static
 # END partition row-filter helper
 
 
+# BEGIN column-hashing helper (inlined per component; keep copies identical, see tests/test_column_hashing_ingestion.py)
+def _resolve_hash_salt(hash_salt, hash_salt_env_var):
+    if hash_salt:
+        return hash_salt
+    if hash_salt_env_var:
+        val = os.environ.get(hash_salt_env_var)
+        if val is None:
+            raise ValueError(
+                f"hash_salt_env_var={hash_salt_env_var!r} references an environment "
+                "variable that is not set."
+            )
+        return val
+    return None
+
+
+def _make_hash_columns_map(columns, salt):
+    import hashlib
+
+    def _hash_map(doc):
+        for col in columns:
+            value = doc.get(col)
+            if value is not None:
+                doc[col] = hashlib.sha256((str(value) + salt).encode()).hexdigest()
+        return doc
+
+    return _hash_map
+
+
+def _apply_hash_columns(resources, hash_columns, hash_salt, hash_salt_env_var):
+    """Pseudonymizes `hash_columns` (salted SHA-256, hex-encoded) on every resource in
+    `resources` (an iterable of DltResource objects -- e.g. source.resources.values()
+    or a selected_resources list) before the data reaches the destination -- dlt's own
+    documented deterministic-hashing pattern for PII (https://dlthub.com/docs/
+    general-usage/customising-pipelines/pseudonymizing_columns), via
+    DltResource.add_map(), wired up as a config option instead of requiring a custom
+    Python module."""
+    if not hash_columns:
+        return
+    salt = _resolve_hash_salt(hash_salt, hash_salt_env_var)
+    if not salt:
+        raise ValueError(
+            "hash_columns is set but neither hash_salt nor hash_salt_env_var is -- a "
+            "salt is required (a hardcoded/shared salt would let the hash be reversed "
+            "by dictionary attack on common values, e.g. emails)."
+        )
+    hash_map = _make_hash_columns_map(hash_columns, salt)
+    for resource in resources:
+        resource.add_map(hash_map)
+# END column-hashing helper
 def _require_env(name: str) -> str:
     """Read an env var via dagster.EnvVar, with an actionable message when it is unset."""
     from dagster import EnvVar
@@ -237,7 +294,17 @@ def coerce_field_shapes(data, *, lists=(), csv=(), tags=()):
 
 
 class ServiceNowIngestionComponent(Component, Model, Resolvable):
-    """Read records from a ServiceNow table using dlt's generic REST API source.
+    """Read records from one or more ServiceNow tables using dlt's generic REST API source.
+
+    By default (`asset_shape='single'`), every table in `tables` lands under ONE
+    asset keyed `asset_name`, unioned into one DataFrame tagged by a `_table`
+    column -- matching every other multi-table ingestion component in this repo
+    (salesforce_ingestion, zendesk_ingestion, workday_ingestion). Set
+    `asset_shape='multi_asset'` to instead give each table its own asset, keyed
+    `{asset_name}_{table}` -- e.g. `tables: incident,change_request` with
+    `asset_name: snow` then produces `snow_incident` and `snow_change_request`
+    as two independently-materializable assets (`can_subset=True`): materializing
+    one does not fetch or persist the other.
 
     Example (basic auth — dev instance, DataFrame mode):
         ```yaml
@@ -247,7 +314,7 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
           instance_env_var: SNOW_INSTANCE
           username_env_var: SNOW_USERNAME
           password_env_var: SNOW_PASSWORD
-          table: incident
+          tables: incident
           sysparm_query: "sys_created_on>=javascript:gs.daysAgoStart(30)"
           sysparm_fields: number,short_description,priority,state,assigned_to,sys_created_on
           page_size: 1000
@@ -255,13 +322,14 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
           group_name: servicenow
         ```
 
-    Example (shared resource, persisted to Snowflake):
+    Example (two independently-materializable tables, shared resource, persisted to Snowflake):
         ```yaml
         type: dagster_community_components.ServiceNowIngestionComponent
         attributes:
-          asset_name: change_requests_open
+          asset_name: change_management
+          asset_shape: multi_asset
           resource_key: servicenow_resource
-          table: change_request
+          tables: change_request,change_task
           sysparm_query: "state!=closed"
           destination: snowflake
           dataset_name: servicenow
@@ -297,16 +365,48 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
             "three times."
         ),
     )
-    table: str = Field(
-        description="ServiceNow table to query (e.g. 'incident', 'change_request', 'sc_request', 'sys_user', 'cmdb_ci', or a custom table name).",
+    tables: str = Field(
+        description=(
+            "Comma-separated list of ServiceNow tables to query (e.g. 'incident,change_request,"
+            "sys_user,cmdb_ci'). With asset_shape='single' (default), all tables are fetched "
+            "together under one asset keyed `asset_name`. With asset_shape='multi_asset', each "
+            "table instead becomes its own independently-materializable Dagster asset, keyed "
+            "`{asset_name}_{table}` -- materializing one table does not fetch or persist the "
+            "others. sysparm_query/sysparm_fields/sysparm_display_value apply identically to every "
+            "table listed -- for per-table filters, use a separate component instance per table."
+        ),
+    )
+    asset_shape: Literal["single", "multi_asset"] = Field(
+        default="single",
+        description=(
+            "'single' (default, matches every other multi-table ingestion component in this repo, "
+            "e.g. salesforce_ingestion/zendesk_ingestion): one asset, keyed `asset_name`, covering "
+            "every table in `tables` as a single unit -- rows from every table are unioned into one "
+            "returned DataFrame tagged by a `_table` column. 'multi_asset': each table in `tables` "
+            "is instead its own independently-materializable asset -- select just the table(s) you "
+            "want; materializing several together still batches them through one shared dlt "
+            "pipeline call (one Dagster step), not parallel per-table execution. Opt into "
+            "'multi_asset' when you want to select/retry/schedule individual tables separately; "
+            "stay on 'single' when you just want to monitor 'did the ServiceNow pipeline run'."
+        ),
+    )
+    table_name_map: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "Override the destination table name for specific ServiceNow tables, e.g. "
+            "{'incident': 'raw_incidents'}. dlt otherwise names each destination table after its "
+            "ServiceNow table (the default every ingestion component in this repo relies on -- "
+            "see salesforce_ingestion). Tables in `tables` that aren't listed here keep their "
+            "ServiceNow name as-is. Every key must also appear in `tables`."
+        ),
     )
     sysparm_query: Optional[str] = Field(
         default=None,
-        description="ServiceNow encoded query string filter (e.g. 'state=approved^priority=1'). See ServiceNow docs on encoded queries.",
+        description="ServiceNow encoded query string filter (e.g. 'state=approved^priority=1'), applied to every table in `tables`. See ServiceNow docs on encoded queries.",
     )
     sysparm_fields: Optional[str] = Field(
         default=None,
-        description="Comma-separated list of fields to return. Defaults to all fields if unset.",
+        description="Comma-separated list of fields to return, applied to every table in `tables`. Defaults to all fields if unset.",
     )
     sysparm_display_value: str = Field(
         default="false",
@@ -323,6 +423,30 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
     verify_ssl: bool = Field(
         default=True,
         description="Enable TLS verification. Set false only for self-signed dev instances. Ignored when resource_key is set (the resource's own verify_ssl applies).",
+    )
+
+    hash_columns: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Column names to pseudonymize (salted SHA-256, hex-encoded) before the data "
+            "reaches the destination -- same deterministic-hashing pattern dlt's own docs "
+            "recommend for PII (https://dlthub.com/docs/general-usage/customising-pipelines/"
+            "pseudonymizing_columns). A column missing from a given resource's rows is "
+            "skipped, not an error. Requires hash_salt or hash_salt_env_var."
+        ),
+    )
+    hash_salt: Optional[str] = Field(
+        default=None,
+        description=(
+            "Salt for hash_columns. Required (this or hash_salt_env_var) when hash_columns "
+            "is set -- a hardcoded/shared salt would let the hash be reversed by dictionary "
+            "attack on common values. Use \"{{ env.VAR_NAME }}\" for the inline form. Keep it "
+            "stable across runs: changing it changes every hash."
+        ),
+    )
+    hash_salt_env_var: Optional[str] = Field(
+        default=None,
+        description="Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time.",
     )
 
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------
@@ -472,10 +596,9 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
         default=None,
         description="Cron schedule string for the freshness policy, e.g. '0 9 * * 1-5' (weekdays at 9am).",
     )
-    column_lineage: Optional[Dict[str, List[str]]] = Field(
-        default=None,
-        description="Column-level lineage mapping: output column name → list of upstream column names it was derived from, e.g. {'revenue': ['price', 'quantity']}",
-    )
+    # No column_lineage field: this component can produce several independently-schemaed
+    # table-assets from one instance (`tables`), and column_lineage's mapping is inherently
+    # single-upstream-asset-shaped -- it doesn't generalize across heterogeneous tables.
 
     include_preview_metadata: bool = Field(
         default=False,
@@ -565,12 +688,22 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
         return ComponentFormConfig(label='Service Now Ingestion', editable=True)
 
     def build_defs(self, context: ComponentLoadContext) -> Definitions:
-        _column_lineage_md = _column_lineage_metadata(self)
         component = self
         asset_name = self.asset_name
         include_preview = self.include_preview_metadata
         preview_rows = self.preview_rows
-        table = self.table
+        tables_list = [t.strip() for t in self.tables.split(",") if t.strip()]
+        if not tables_list:
+            raise ValueError("ServiceNowIngestionComponent: 'tables' must list at least one ServiceNow table.")
+        output_names = {t: f"{asset_name}_{t}" for t in tables_list}
+        _table_name_map = self.table_name_map or {}
+        _unknown_overrides = set(_table_name_map) - set(tables_list)
+        if _unknown_overrides:
+            raise ValueError(
+                f"ServiceNowIngestionComponent: table_name_map has key(s) not in 'tables': "
+                f"{sorted(_unknown_overrides)}."
+            )
+        dest_table_names = {t: _table_name_map.get(t, t) for t in tables_list}
         sysparm_query = self.sysparm_query
         sysparm_fields = self.sysparm_fields
         sysparm_display_value = self.sysparm_display_value
@@ -593,6 +726,9 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
         )
         partition_date_column = self.partition_date_column
         partition_static_column = self.partition_static_column
+        hash_columns = self.hash_columns
+        hash_salt = self.hash_salt
+        hash_salt_env_var = self.hash_salt_env_var
 
         _backfill_policy_obj = None
         if partitions_def is not None and self.backfill_policy == "single_run":
@@ -639,17 +775,202 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
-            key=AssetKey.from_user_string(asset_name),
-            description=self.description or (f"ServiceNow table reader: {table}"),
-            owners=owners,
-            tags=_all_tags,
-            freshness_policy=_freshness_policy,
-            group_name=group_name,
+        if self.asset_shape == "single":
+            @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
+                key=AssetKey.from_user_string(asset_name),
+                description=self.description or f"ServiceNow pipeline: {', '.join(tables_list)}",
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+                group_name=group_name,
+                deps=[AssetKey.from_user_string(d) for d in (deps or [])],
+                required_resource_keys={component.resource_key} if component.resource_key else set(),
+            )
+            def servicenow_pipeline_asset(context: AssetExecutionContext):
+                if context.has_partition_key:
+                    context.log.info(f"Running for partition: {context.partition_key}")
+                if not component.resource_key and not (
+                    component.instance_env_var
+                    and (component.bearer_token_env_var or (component.username_env_var and component.password_env_var))
+                ):
+                    raise ValueError(
+                        "ServiceNowIngestionComponent: supply resource_key (a registered "
+                        "ServiceNowResourceComponent) OR instance_env_var + (username_env_var + "
+                        "password_env_var OR bearer_token_env_var)."
+                    )
+
+                import requests as _requests
+                from dlt.sources.helpers.rest_client.paginators import OffsetPaginator
+                from dlt.sources.rest_api import rest_api_source
+
+                context.log.info(f"Starting ServiceNow ingestion, destination={destination or 'duckdb (in-memory)'}")
+
+                if component.resource_key:
+                    _res = getattr(context.resources, component.resource_key)
+                    instance = _res.instance
+                    username = _res.username
+                    password = _res.password
+                    bearer_token = _res.bearer_token
+                    verify_ssl = _res.verify_ssl
+                else:
+                    instance = _require_env(component.instance_env_var)
+                    bearer_token = os.environ.get(component.bearer_token_env_var) if component.bearer_token_env_var else None
+                    if bearer_token:
+                        username = password = None
+                    else:
+                        username = _require_env(component.username_env_var)
+                        password = _require_env(component.password_env_var)
+                    verify_ssl = component.verify_ssl
+
+                auth = {"type": "bearer", "token": bearer_token} if bearer_token else {"type": "http_basic", "username": username, "password": password}
+                session = _requests.Session()
+                session.verify = verify_ssl
+
+                endpoint_params: Dict[str, Any] = {"sysparm_display_value": sysparm_display_value}
+                if sysparm_query:
+                    endpoint_params["sysparm_query"] = sysparm_query
+                if sysparm_fields:
+                    endpoint_params["sysparm_fields"] = sysparm_fields
+
+                paginator = OffsetPaginator(
+                    limit=page_size,
+                    offset_param="sysparm_offset",
+                    limit_param="sysparm_limit",
+                    total_path=None,
+                    stop_after_empty_page=True,
+                    maximum_offset=max_records,
+                )
+
+                config = {
+                    "client": {
+                        "base_url": f"https://{instance}.service-now.com/api",
+                        "auth": auth,
+                        "session": session,
+                        "paginator": paginator,
+                    },
+                    "resources": [
+                        {
+                            "name": t,
+                            "table_name": dest_table_names[t],
+                            "endpoint": {
+                                "path": f"now/table/{t}",
+                                "data_selector": "result",
+                                "params": endpoint_params,
+                            },
+                        }
+                        for t in tables_list
+                    ],
+                }
+
+                pipeline = dlt.pipeline(
+                    pipeline_name=f"{asset_name}_pipeline",
+                    destination=component._resolve_destination_with_bucket(),
+                    staging=component._resolve_staging(),
+                    dataset_name=dataset_name,
+                )
+
+                context.log.info(f"Creating ServiceNow REST API source for tables {tables_list!r}...")
+                source = rest_api_source(config)
+                if hash_columns:
+                    _apply_hash_columns(source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
+
+                context.log.info("Extracting ServiceNow data...")
+                load_info = pipeline.run(source)
+                context.log.info(f"ServiceNow data loaded: {load_info}")
+
+                base_metadata = {
+                    "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                    "dataset_name": MetadataValue.text(dataset_name),
+                    "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                    "tables_requested": MetadataValue.json(tables_list),
+                    "destination_table_names": MetadataValue.json(dest_table_names),
+                }
+
+                non_sql_destinations = {"filesystem", "delta", "iceberg"}
+                is_non_sql = destination in non_sql_destinations
+                if persist_only or is_non_sql:
+                    if is_non_sql and not persist_only:
+                        context.log.warning(
+                            f"destination={destination!r} is not SQL-backed; cannot return a DataFrame. "
+                            f"Set persist_only=true to silence this warning."
+                        )
+                    return MaterializeResult(metadata=base_metadata)
+
+                from dagster import TableColumn, TableSchema
+
+                all_data = []
+                resource_metadata = {}
+                with pipeline.sql_client() as client:
+                    for t in tables_list:
+                        try:
+                            with client.execute_query(f"SELECT * FROM {dataset_name}.{dest_table_names[t]}") as cur:
+                                df = cur.df()
+                            if len(df) > 0:
+                                df["_table"] = t
+                                all_data.append(df)
+                                resource_metadata[t] = len(df)
+                        except Exception as e:
+                            context.log.warning(f"Could not load {t} (destination table {dest_table_names[t]!r}): {e}")
+
+                if not all_data:
+                    context.log.warning(f"No data extracted from ServiceNow tables {tables_list!r}.")
+                    return Output(value=pd.DataFrame(), metadata=base_metadata)
+
+                pipeline_df = pd.concat(all_data, ignore_index=True)
+                pipeline_df = _filter_df_to_partition(pipeline_df, context, partition_date_column, partition_static_column)
+                if max_records is not None and len(pipeline_df) > max_records:
+                    pipeline_df = pipeline_df.head(max_records)
+
+                metadata = {
+                    **base_metadata,
+                    "row_count": MetadataValue.int(len(pipeline_df)),
+                    "column_count": MetadataValue.int(len(pipeline_df.columns)),
+                    "tables_loaded": MetadataValue.json(list(resource_metadata.keys())),
+                    "dagster/column_schema": MetadataValue.table_schema(TableSchema(columns=[
+                        TableColumn(name=str(col), type=str(pipeline_df.dtypes[col])) for col in pipeline_df.columns
+                    ])),
+                }
+                for _table_name, _rows in resource_metadata.items():
+                    metadata[f"rows_{_table_name}"] = MetadataValue.int(_rows)
+                if include_preview and len(pipeline_df) > 0:
+                    try:
+                        _prev = pipeline_df.sample(min(preview_rows, len(pipeline_df))) if len(pipeline_df) > preview_rows * 10 else pipeline_df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
+                return Output(value=pipeline_df, metadata=metadata)
+
+            return Definitions(assets=[servicenow_pipeline_asset])
+
+        from dagster import AssetOut, multi_asset
+
+        # Each table gets its own independently-materializable asset (can_subset=True):
+        # picking just "incidents" only fetches/loads the incident table, not the others.
+        # is_required=False lets the compute yield only the selected table(s) per run.
+        outs = {
+            output_names[t]: AssetOut(
+                description=self.description or f"ServiceNow table reader: {t}",
+                is_required=False,
+                group_name=group_name,
+                owners=owners,
+                tags=_all_tags,
+                kinds=set(_inferred_kinds),
+                freshness_policy=_freshness_policy,
+            )
+            for t in tables_list
+        }
+
+        @multi_asset(
+            outs=outs,
+            name=asset_name,
+            can_subset=True,
+            partitions_def=partitions_def,
+            backfill_policy=_backfill_policy_obj,
+            retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(d) for d in (deps or [])],
             required_resource_keys={component.resource_key} if component.resource_key else set(),
         )
-        def servicenow_ingestion_asset(context: AssetExecutionContext):
+        def servicenow_ingestion_assets(context: AssetExecutionContext):
             if context.has_partition_key:
                 context.log.info(f"Running for partition: {context.partition_key}")
             if not component.resource_key and not (
@@ -661,14 +982,24 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
                     "ServiceNowResourceComponent) OR instance_env_var + (username_env_var + "
                     "password_env_var OR bearer_token_env_var)."
                 )
-            if _column_lineage_md:
-                context.add_output_metadata(_column_lineage_md)
+
+            try:
+                selected_output_names = set(context.op_execution_context.selected_output_names)
+            except Exception:  # noqa: BLE001
+                selected_output_names = set(output_names.values())
+            selected_tables = [t for t in tables_list if output_names[t] in selected_output_names]
+            if not selected_tables:
+                context.log.info("servicenow_ingestion: no tables selected; skipping.")
+                return
 
             import requests as _requests
             from dlt.sources.helpers.rest_client.paginators import OffsetPaginator
             from dlt.sources.rest_api import rest_api_source
 
-            context.log.info(f"Starting ServiceNow ingestion, destination={destination or 'duckdb (in-memory)'}")
+            context.log.info(
+                f"Starting ServiceNow ingestion for {selected_tables!r}, "
+                f"destination={destination or 'duckdb (in-memory)'}"
+            )
 
             if component.resource_key:
                 _res = getattr(context.resources, component.resource_key)
@@ -697,6 +1028,8 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
             if sysparm_fields:
                 endpoint_params["sysparm_fields"] = sysparm_fields
 
+            # A single paginator/auth/session is shared across every selected table -- only the
+            # per-table resource (name + endpoint path) differs.
             paginator = OffsetPaginator(
                 limit=page_size,
                 offset_param="sysparm_offset",
@@ -715,13 +1048,15 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
                 },
                 "resources": [
                     {
-                        "name": table,
+                        "name": t,
+                        "table_name": dest_table_names[t],
                         "endpoint": {
-                            "path": f"now/table/{table}",
+                            "path": f"now/table/{t}",
                             "data_selector": "result",
                             "params": endpoint_params,
                         },
                     }
+                    for t in selected_tables
                 ],
             }
 
@@ -732,79 +1067,74 @@ class ServiceNowIngestionComponent(Component, Model, Resolvable):
                 dataset_name=dataset_name,
             )
 
-            context.log.info(f"Creating ServiceNow REST API source for table {table!r}...")
+            context.log.info(f"Creating ServiceNow REST API source for tables {selected_tables!r}...")
             source = rest_api_source(config)
+            if hash_columns:
+                _apply_hash_columns(source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
 
             context.log.info("Extracting ServiceNow data...")
             load_info = pipeline.run(source)
             context.log.info(f"ServiceNow data loaded: {load_info}")
 
-            base_metadata = {
-                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
-                "dataset_name": MetadataValue.text(dataset_name),
-                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
-                "table": MetadataValue.text(table),
-            }
-
             non_sql_destinations = {"filesystem", "delta", "iceberg"}
             is_non_sql = destination in non_sql_destinations
+
             if persist_only or is_non_sql:
                 if is_non_sql and not persist_only:
                     context.log.warning(
-                        f"destination={destination!r} is not SQL-backed; cannot return DataFrame. "
+                        f"destination={destination!r} is not SQL-backed; cannot return a DataFrame. "
                         f"Set persist_only=true to silence this warning."
                     )
-                return MaterializeResult(metadata=base_metadata)
+                for t in selected_tables:
+                    yield MaterializeResult(
+                        asset_key=AssetKey.from_user_string(output_names[t]),
+                        metadata={
+                            "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                            "dataset_name": MetadataValue.text(dataset_name),
+                            "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                            "table": MetadataValue.text(t),
+                            "destination_table_name": MetadataValue.text(dest_table_names[t]),
+                        },
+                    )
+                return
 
-            all_data = []
-            resource_metadata = {}
+            from dagster import TableColumn, TableSchema
+
             with pipeline.sql_client() as client:
-                try:
-                    with client.execute_query(
-                        f"SELECT table_name FROM information_schema.tables WHERE table_schema = '{dataset_name}'"
-                    ) as cur:
-                        tables_df = cur.df()
-                    table_names = tables_df["table_name"].tolist()
-                except Exception:
-                    table_names = [table]
-
-                for table_name in table_names:
+                for t in selected_tables:
                     try:
-                        with client.execute_query(f"SELECT * FROM {dataset_name}.{table_name}") as cur:
+                        with client.execute_query(f"SELECT * FROM {dataset_name}.{dest_table_names[t]}") as cur:
                             df = cur.df()
-                        if len(df) > 0:
-                            all_data.append(df)
-                            resource_metadata[table_name] = len(df)
                     except Exception as e:
-                        context.log.warning(f"Could not load {table_name}: {e}")
+                        context.log.warning(f"Could not load {t} (destination table {dest_table_names[t]!r}): {e}")
+                        df = pd.DataFrame()
 
-            if not all_data:
-                context.log.warning(f"No data extracted from ServiceNow table '{table}'.")
-                return Output(value=pd.DataFrame(), metadata=base_metadata)
+                    df = _filter_df_to_partition(df, context, partition_date_column, partition_static_column)
+                    if max_records is not None and len(df) > max_records:
+                        df = df.head(max_records)
 
-            combined_df = pd.concat(all_data, ignore_index=True)
-            combined_df = _filter_df_to_partition(combined_df, context, partition_date_column, partition_static_column)
+                    metadata = {
+                        "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                        "dataset_name": MetadataValue.text(dataset_name),
+                        "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                        "table": MetadataValue.text(t),
+                        "destination_table_name": MetadataValue.text(dest_table_names[t]),
+                        "dagster/row_count": MetadataValue.int(len(df)),
+                        "column_count": MetadataValue.int(len(df.columns)),
+                        "dagster/column_schema": MetadataValue.table_schema(TableSchema(columns=[
+                            TableColumn(name=str(col), type=str(df.dtypes[col])) for col in df.columns
+                        ])),
+                    }
+                    if include_preview and len(df) > 0:
+                        try:
+                            _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                            metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                        except Exception as _e:
+                            context.log.warning(f"preview emission failed: {_e}")
 
-            if max_records is not None and len(combined_df) > max_records:
-                combined_df = combined_df.head(max_records)
+                    yield Output(value=df, output_name=output_names[t], metadata=metadata)
 
-            metadata = {
-                **base_metadata,
-                "row_count": MetadataValue.int(len(combined_df)),
-                "column_count": MetadataValue.int(len(combined_df.columns)),
-            }
-            if include_preview and len(combined_df) > 0:
-                try:
-                    _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
-                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                except Exception as _e:
-                    context.log.warning(f"preview emission failed: {_e}")
-            return Output(value=combined_df, metadata=metadata)
-
-        from dagster import build_column_schema_change_checks
-        _schema_checks = build_column_schema_change_checks(assets=[servicenow_ingestion_asset])
-
-        return Definitions(assets=[servicenow_ingestion_asset], asset_checks=list(_schema_checks))
+        return Definitions(assets=[servicenow_ingestion_assets])
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)
@@ -821,39 +1151,3 @@ def _freshness_policy_compat(max_lag_minutes, cron_schedule=None):
         return FreshnessPolicy.time_window(fail_window=lag)
     return FreshnessPolicy(maximum_lag_minutes=max_lag_minutes, cron_schedule=cron_schedule)
 # END freshness-policy compat
-
-# BEGIN column-lineage helper (inlined per component; keep copies identical, see tests/test_column_lineage.py)
-def _column_lineage_metadata(component):
-    """`dagster/column_lineage` metadata from the component's `column_lineage` mapping ({output column: [upstream columns]}).
-
-    The upstream asset is `upstream_asset_key`, or the only entry of `deps`. With several upstream assets, name each
-    column as "<asset_key>:<column>". Returns {} when the mapping is unset, or (with a warning) when no upstream asset
-    can be resolved, since lineage needs an upstream asset to point at."""
-    import warnings
-
-    import dagster as _dg
-
-    mapping = getattr(component, "column_lineage", None)
-    if not mapping:
-        return {}
-    ups = getattr(component, "upstream_asset_key", None) or getattr(component, "deps", None) or []
-    ups = [ups] if isinstance(ups, (str, _dg.AssetKey)) else list(ups)
-    ups = [u.to_user_string() if isinstance(u, _dg.AssetKey) else str(u) for u in ups]
-    deps = {}
-    for out_col, in_cols in mapping.items():
-        refs = []
-        for ic in [in_cols] if isinstance(in_cols, str) else in_cols:
-            key, _, col = str(ic).rpartition(":")
-            if key in ups and col:
-                refs.append(_dg.TableColumnDep(asset_key=_dg.AssetKey.from_user_string(key), column_name=col))
-            elif len(ups) == 1:
-                refs.append(_dg.TableColumnDep(asset_key=_dg.AssetKey.from_user_string(ups[0]), column_name=str(ic)))
-            else:
-                warnings.warn(
-                    f"column_lineage ignored: cannot tell which upstream asset {ic!r} belongs to "
-                    f"(upstream assets: {ups or 'none'}; use '<asset_key>:<column>' with several upstream assets)"
-                )
-                return {}
-        deps[str(out_col)] = refs
-    return {"dagster/column_lineage": _dg.MetadataValue.column_lineage(_dg.TableColumnLineage(deps))}
-# END column-lineage helper

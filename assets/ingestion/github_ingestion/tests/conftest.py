@@ -50,6 +50,9 @@ class _Permissive:
     def __call__(self, *args, **kwargs):
         return self
 
+    def __iter__(self):
+        return iter([self])
+
 
 class FakeCursor:
     """Stands in for the DBAPI cursor `pipeline.sql_client().execute_query()`
@@ -81,6 +84,9 @@ class FakeSqlClient:
     @contextmanager
     def execute_query(self, sql: str):
         self.queries.append(sql)
+        if "information_schema.tables" in sql:
+            yield FakeCursor(pd.DataFrame({"table_name": list(self.table_rows.keys())}))
+            return
         for table_name, df in self.table_rows.items():
             if sql.strip().endswith(f".{table_name}"):
                 yield FakeCursor(df)

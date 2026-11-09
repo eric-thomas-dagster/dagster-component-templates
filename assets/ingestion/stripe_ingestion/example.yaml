@@ -8,6 +8,14 @@ attributes:
   # Resources to extract
   resources: "customers,subscriptions,charges,invoices"
 
+  # --- Give each resource its own independently-materializable asset instead ---
+  # asset_shape: multi_asset   # produces stripe_data_customers, _subscriptions, etc.
+  #                             materializing one resource does not fetch or persist the others
+
+  # --- Rename specific destination tables (default: destination table name = resource name) ---
+  # table_name_map:
+  #   customers: raw_customers      # other resources keep their Stripe name
+
   # Date Range (optional)
   # start_date: "2024-01-01"
   # end_date: "2024-12-31"

@@ -16,6 +16,14 @@ attributes:
     - issues
     - pull_requests
 
+  # --- Give each resource its own independently-materializable asset instead ---
+  # asset_shape: multi_asset   # produces github_repo_data_issues, github_repo_data_pull_requests
+  #                             materializing one resource does not fetch or persist the others
+
+  # --- Rename specific destination tables (default: destination table name = resource name) ---
+  # table_name_map:
+  #   issues: raw_issues          # pull_requests keeps its GitHub name
+
   # Organization
   description: "GitHub repository issues and pull requests"
   group_name: "github"

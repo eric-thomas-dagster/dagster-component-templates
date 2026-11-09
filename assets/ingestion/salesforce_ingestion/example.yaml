@@ -16,6 +16,14 @@ attributes:
     - Campaign
     - Task
 
+  # --- Give each object its own independently-materializable asset instead ---
+  # asset_shape: multi_asset   # produces salesforce_crm_data_account, _opportunity, etc.
+  #                             materializing one object does not fetch or persist the others
+
+  # --- Rename specific destination tables (default: lowercased object name) ---
+  # table_name_map:
+  #   Account: raw_accounts          # other objects keep their default lowercased name
+
   # Organization
   description: "Salesforce CRM data"
   group_name: "salesforce"

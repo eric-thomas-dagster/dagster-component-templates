@@ -7,6 +7,14 @@ attributes:
   database: "my_database"
   collection_names: ["users", "products", "orders"]
 
+  # --- Give each collection its own independently-materializable asset instead ---
+  # asset_shape: multi_asset   # produces mongodb_data_users, mongodb_data_products, etc.
+  #                             materializing one collection does not fetch or persist the others
+
+  # --- Rename specific destination tables (default: destination table name = collection name) ---
+  # table_name_map:
+  #   orders: raw_orders          # other collections keep their MongoDB name
+
   # Organization
   description: "MongoDB collection data ingestion"
   group_name: "mongodb"

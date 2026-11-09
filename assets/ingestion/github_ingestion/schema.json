@@ -627,6 +627,44 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "asset_shape": {
+      "type": "string",
+      "enum": [
+        "single",
+        "multi_asset"
+      ],
+      "label": "Asset Shape",
+      "description": "'single' (default, matches every other multi-resource ingestion component in this repo): one asset, keyed `asset_name`, covering every resource in `resources` as a single unit -- rows from every resource are unioned into one returned DataFrame tagged by a `_resource_type` column. 'multi_asset': each resource in `resources` is instead its own independently-materializable asset, keyed `{asset_name}_{resource}` -- select just the resource(s) you want; materializing several together still batches them through one shared dlt pipeline call (one Dagster step), not parallel per-resource execution. `repositories`/`owner` are shared construction parameters, not a second subsettable axis -- every resource already covers all configured repositories in one dlt resource.",
+      "required": false,
+      "default": "single"
+    },
+    "table_name_map": {
+      "type": "object",
+      "label": "Table Name Map",
+      "description": "Override the destination table name for specific GitHub resources, e.g. {'issues': 'raw_issues'}. dlt otherwise names each destination table after its GitHub resource. Resources in `resources` that aren't listed here keep their GitHub name as-is. Every key must also appear in `resources`. Nested child tables dlt creates for array fields (e.g. 'issues__labels', 'issues__assignees') are automatically merged back into the parent resource's rows (as list-of-dict columns) and are not named independently here.",
+      "required": false
+    },
+    "hash_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Hash Columns",
+      "description": "Column names to pseudonymize (salted SHA-256, hex-encoded) before the data reaches the destination -- same deterministic-hashing pattern dlt's own docs recommend for PII (https://dlthub.com/docs/general-usage/customising-pipelines/pseudonymizing_columns). A column missing from a given resource's rows is skipped, not an error. Requires hash_salt or hash_salt_env_var.",
+      "required": false
+    },
+    "hash_salt": {
+      "type": "string",
+      "label": "Hash Salt",
+      "description": "Salt for hash_columns. Required (this or hash_salt_env_var) when hash_columns is set -- a hardcoded/shared salt would let the hash be reversed by dictionary attack on common values. Use \"{{ env.VAR_NAME }}\" for the inline form. Keep it stable across runs: changing it changes every hash.",
+      "required": false
+    },
+    "hash_salt_env_var": {
+      "type": "string",
+      "label": "Hash Salt Env Var",
+      "description": "Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time.",
+      "required": false
     }
   },
   "tags": [

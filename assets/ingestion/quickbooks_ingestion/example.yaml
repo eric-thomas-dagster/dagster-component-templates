@@ -6,3 +6,11 @@ attributes:
   refresh_token: "${QUICKBOOKS_REFRESH_TOKEN}"
   realm_id: "${QUICKBOOKS_REALM_ID}"
   resources: "Customer,Invoice"
+
+  # --- Give each resource its own independently-materializable asset instead ---
+  # asset_shape: multi_asset   # produces quickbooks_ingestion_Customer, quickbooks_ingestion_Invoice
+  #                             materializing one resource does not fetch or persist the others
+
+  # --- Rename specific destination tables (default: destination table name = resource name) ---
+  # table_name_map:
+  #   Customer: raw_customers    # other resources keep their QuickBooks name

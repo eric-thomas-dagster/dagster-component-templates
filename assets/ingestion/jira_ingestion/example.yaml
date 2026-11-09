@@ -12,6 +12,14 @@ attributes:
     - issues
     - projects
 
+  # --- Give each resource its own independently-materializable asset instead ---
+  # asset_shape: multi_asset   # produces jira_issue_data_issues, jira_issue_data_projects, etc.
+  #                             materializing one resource does not fetch or persist the others
+
+  # --- Rename specific destination tables (default: destination table name = resource name) ---
+  # table_name_map:
+  #   issues: raw_issues          # other resources keep their Jira name
+
   # Organization
   description: "Jira issue tracking and project data"
   group_name: "jira"

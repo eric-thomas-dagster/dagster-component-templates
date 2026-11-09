@@ -10,6 +10,14 @@ attributes:
   # Resources to extract
   resources: ["tickets", "users", "organizations", "groups"]
 
+  # --- Give each resource its own independently-materializable asset instead ---
+  # asset_shape: multi_asset   # produces zendesk_support_data_tickets, _users, etc.
+  #                             materializing one resource does not fetch or persist the others
+
+  # --- Rename specific destination tables (default: destination table name = resource name) ---
+  # table_name_map:
+  #   tickets: raw_tickets          # other resources keep their Zendesk name
+
   # Organization
   description: "Zendesk support tickets and customer service data"
   group_name: "zendesk"

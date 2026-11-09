@@ -30,6 +30,57 @@ from dagster import (
 from pydantic import Field
 
 
+# BEGIN column-hashing helper (inlined per component; keep copies identical, see tests/test_column_hashing_ingestion.py)
+def _resolve_hash_salt(hash_salt, hash_salt_env_var):
+    if hash_salt:
+        return hash_salt
+    if hash_salt_env_var:
+        val = os.environ.get(hash_salt_env_var)
+        if val is None:
+            raise ValueError(
+                f"hash_salt_env_var={hash_salt_env_var!r} references an environment "
+                "variable that is not set."
+            )
+        return val
+    return None
+
+
+def _make_hash_columns_map(columns, salt):
+    import hashlib
+
+    def _hash_map(doc):
+        for col in columns:
+            value = doc.get(col)
+            if value is not None:
+                doc[col] = hashlib.sha256((str(value) + salt).encode()).hexdigest()
+        return doc
+
+    return _hash_map
+
+
+def _apply_hash_columns(resources, hash_columns, hash_salt, hash_salt_env_var):
+    """Pseudonymizes `hash_columns` (salted SHA-256, hex-encoded) on every resource in
+    `resources` (an iterable of DltResource objects -- e.g. source.resources.values()
+    or a selected_resources list) before the data reaches the destination -- dlt's own
+    documented deterministic-hashing pattern for PII (https://dlthub.com/docs/
+    general-usage/customising-pipelines/pseudonymizing_columns), via
+    DltResource.add_map(), wired up as a config option instead of requiring a custom
+    Python module."""
+    if not hash_columns:
+        return
+    salt = _resolve_hash_salt(hash_salt, hash_salt_env_var)
+    if not salt:
+        raise ValueError(
+            "hash_columns is set but neither hash_salt nor hash_salt_env_var is -- a "
+            "salt is required (a hardcoded/shared salt would let the hash be reversed "
+            "by dictionary attack on common values, e.g. emails)."
+        )
+    hash_map = _make_hash_columns_map(hash_columns, salt)
+    for resource in resources:
+        resource.add_map(hash_map)
+# END column-hashing helper
+
+
 def _filter_df_to_partition(df: pd.DataFrame, context, partition_date_column, partition_static_column) -> pd.DataFrame:
     """Filter a fully-fetched DataFrame down to the current partition's rows.
 
@@ -222,6 +273,14 @@ class GoogleAdsIngestionComponent(Component, Model, Resolvable):
     Supports both OAuth and service-account authentication. dlt handles API
     pagination, rate limiting, and incremental loading automatically.
 
+    By default (`asset_shape='single'`), every resource lands under ONE asset
+    keyed `asset_name`, unioned into one DataFrame tagged by a `_resource_type`
+    column. Set `asset_shape='multi_asset'` to instead give each resource its
+    own independently-materializable asset, keyed `{asset_name}_{resource}` --
+    materializing one resource then does not fetch or persist the others.
+    `table_name_map` renames a resource's destination table independent of
+    asset_shape, e.g. `{campaigns: raw_campaigns}`.
+
     Example:
 
         ```yaml
@@ -267,9 +326,58 @@ class GoogleAdsIngestionComponent(Component, Model, Resolvable):
 
     resources: str = Field(default="customers,campaigns", description="Comma-separated list of resources to extract: customers, campaigns, ad_groups, ads, keywords, change_events")
 
+    asset_shape: Literal["single", "multi_asset"] = Field(
+        default="single",
+        description=(
+            "'single' (default, matches every other multi-resource ingestion component in this "
+            "repo): one asset, keyed `asset_name`, covering every resource in `resources` as a "
+            "single unit -- rows from every resource are unioned into one returned DataFrame "
+            "tagged by a `_resource_type` column. 'multi_asset': each resource in `resources` is "
+            "instead its own independently-materializable asset, keyed `{asset_name}_{resource}` "
+            "-- select just the resource(s) you want; materializing several together still "
+            "batches them through one shared dlt pipeline call (one Dagster step), not parallel "
+            "per-resource execution. Opt into 'multi_asset' when you want to select/retry/schedule "
+            "individual resources separately."
+        ),
+    )
+    table_name_map: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "Override the destination table name for specific Google Ads resources, e.g. "
+            "{'campaigns': 'raw_campaigns'}. Keys must match individual resource names parsed out "
+            "of `resources` (not the raw comma-separated string). dlt otherwise names each "
+            "destination table after its resource. Resources in `resources` that aren't listed "
+            "here keep their resource name as-is. Every key must also appear in `resources`."
+        ),
+    )
+
     start_date: Optional[str] = Field(default=None, description="Start date for performance metrics (YYYY-MM-DD). Defaults to 30 days ago.")
 
     end_date: Optional[str] = Field(default=None, description="End date for performance metrics (YYYY-MM-DD). Defaults to today.")
+
+    hash_columns: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Column names to pseudonymize (salted SHA-256, hex-encoded) before the data "
+            "reaches the destination -- same deterministic-hashing pattern dlt's own docs "
+            "recommend for PII (https://dlthub.com/docs/general-usage/customising-pipelines/"
+            "pseudonymizing_columns). A column missing from a given resource's rows is "
+            "skipped, not an error. Requires hash_salt or hash_salt_env_var."
+        ),
+    )
+    hash_salt: Optional[str] = Field(
+        default=None,
+        description=(
+            "Salt for hash_columns. Required (this or hash_salt_env_var) when hash_columns "
+            "is set -- a hardcoded/shared salt would let the hash be reversed by dictionary "
+            "attack on common values. Use \"{{ env.VAR_NAME }}\" for the inline form. Keep it "
+            "stable across runs: changing it changes every hash."
+        ),
+    )
+    hash_salt_env_var: Optional[str] = Field(
+        default=None,
+        description="Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time.",
+    )
 
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------
 
@@ -630,6 +738,15 @@ class GoogleAdsIngestionComponent(Component, Model, Resolvable):
         dataset_name = self.dataset_name or asset_name
         persist_only = self.persist_only
         component = self
+        output_names = {r: f"{asset_name}_{r}" for r in resources_list}
+        _table_name_map = self.table_name_map or {}
+        _unknown_overrides = set(_table_name_map) - set(resources_list)
+        if _unknown_overrides:
+            raise ValueError(
+                f"GoogleAdsIngestionComponent: table_name_map has key(s) not in 'resources': "
+                f"{sorted(_unknown_overrides)}."
+            )
+        dest_table_names = {r: _table_name_map.get(r, r) for r in resources_list}
 
         # Infer kinds from destination + asset name
         _kind_map = {
@@ -717,33 +834,11 @@ class GoogleAdsIngestionComponent(Component, Model, Resolvable):
 
         partition_date_column = self.partition_date_column
         partition_static_column = self.partition_static_column
+        hash_columns = self.hash_columns
+        hash_salt = self.hash_salt
+        hash_salt_env_var = self.hash_salt_env_var
 
-        @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj, 
-            key=AssetKey.from_user_string(asset_name),
-            description=description,
-            owners=owners,
-            tags=_all_tags,
-            freshness_policy=_freshness_policy,
-            group_name=group_name,
-            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
-        )
-        def google_ads_ingestion_asset(context: AssetExecutionContext):
-            if _column_lineage_md:
-                context.add_output_metadata(_column_lineage_md)
-            from dlt.sources.google_ads import google_ads
-
-            context.log.info(
-                f"Starting Google Ads ingestion: customer={customer_id}, "
-                f"resources={resources_list}, destination={destination or 'duckdb (in-memory)'}"
-            )
-
-            pipeline = dlt.pipeline(
-                pipeline_name=f"{asset_name}_pipeline",
-                destination=component._resolve_destination_with_bucket(),
-                staging=component._resolve_staging(),
-                dataset_name=dataset_name,
-            )
-
+        def _build_auth_config():
             auth_config = {
                 "dev_token": developer_token,
                 "customer_id": customer_id,
@@ -763,24 +858,178 @@ class GoogleAdsIngestionComponent(Component, Model, Resolvable):
                     "refresh_token": refresh_token,
                     "project_id": project_id or "default",
                 })
+            return auth_config
 
+        def _build_source():
+            from dlt.sources.google_ads import google_ads
             query_params = {}
             if start_date:
                 query_params["start_date"] = start_date
             if end_date:
                 query_params["end_date"] = end_date
+            return google_ads(**_build_auth_config(), **query_params)
 
-            source = google_ads(**auth_config, **query_params)
-            load_data = source.with_resources(*resources_list)
-            load_info = pipeline.run(load_data)
+        def _apply_table_name_overrides(source, names):
+            for r in names:
+                if r in dest_table_names and dest_table_names[r] != r and hasattr(source, r):
+                    getattr(source, r).apply_hints(table_name=dest_table_names[r])
+
+        if self.asset_shape == "single":
+            @asset(retry_policy=_retry_policy, partitions_def=partitions_def, backfill_policy=_backfill_policy_obj,
+                key=AssetKey.from_user_string(asset_name),
+                description=description,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+                group_name=group_name,
+                deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            )
+            def google_ads_ingestion_asset(context: AssetExecutionContext):
+                if _column_lineage_md:
+                    context.add_output_metadata(_column_lineage_md)
+
+                context.log.info(
+                    f"Starting Google Ads ingestion: customer={customer_id}, "
+                    f"resources={resources_list}, destination={destination or 'duckdb (in-memory)'}"
+                )
+
+                pipeline = dlt.pipeline(
+                    pipeline_name=f"{asset_name}_pipeline",
+                    destination=component._resolve_destination_with_bucket(),
+                    staging=component._resolve_staging(),
+                    dataset_name=dataset_name,
+                )
+
+                source = _build_source()
+                _apply_table_name_overrides(source, resources_list)
+                load_data = source.with_resources(*resources_list)
+                if hash_columns:
+                    _apply_hash_columns(load_data.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
+                load_info = pipeline.run(load_data)
+                context.log.info(f"Google Ads data loaded: {load_info}")
+
+                base_metadata = {
+                    "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                    "dataset_name": MetadataValue.text(dataset_name),
+                    "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                    "resources_extracted": MetadataValue.json(list(resources_list)),
+                    "destination_table_names": MetadataValue.json(dest_table_names),
+                }
+
+                non_sql_destinations = {
+                    "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
+                    "delta", "iceberg",
+                }
+                is_non_sql = destination in non_sql_destinations
+
+                if persist_only or is_non_sql:
+                    if is_non_sql and not persist_only:
+                        context.log.warning(
+                            f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                            f"Set persist_only=true to silence this warning."
+                        )
+                    return MaterializeResult(metadata=base_metadata)
+
+                all_data = []
+                for resource_name in resources_list:
+                    try:
+                        query = f"SELECT * FROM {dataset_name}.{dest_table_names[resource_name]}"
+                        with pipeline.sql_client() as client:
+                            with client.execute_query(query) as cursor:
+                                columns = [d[0] for d in cursor.description]
+                                rows = cursor.fetchall()
+                        if rows:
+                            df = pd.DataFrame(rows, columns=columns)
+                            df["_resource_type"] = resource_name
+                            all_data.append(df)
+                            context.log.info(f"Extracted {len(df)} rows from {resource_name}")
+                    except Exception as e:
+                        context.log.warning(f"Could not extract {resource_name} (destination table {dest_table_names[resource_name]!r}): {e}")
+
+                if not all_data:
+                    context.log.warning("No data extracted.")
+                    return Output(value=pd.DataFrame(), metadata=base_metadata)
+
+                combined_df = pd.concat(all_data, ignore_index=True)
+                combined_df = _filter_df_to_partition(
+                    combined_df, context, partition_date_column, partition_static_column
+                )
+                context.log.info(
+                    f"Ingestion complete: {len(combined_df)} total rows from {len(all_data)} resources"
+                )
+
+                metadata = {
+                    **base_metadata,
+                    "row_count": MetadataValue.int(len(combined_df)),
+                    "resource_types": MetadataValue.json(
+                        list(combined_df["_resource_type"].unique())
+                        if "_resource_type" in combined_df.columns
+                        else []
+                    ),
+                }
+                if include_preview and len(combined_df) > 0:
+                    try:
+                        _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
+                        metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                    except Exception as _e:
+                        context.log.warning(f"preview emission failed: {_e}")
+                return Output(value=combined_df, metadata=metadata)
+
+            return Definitions(assets=[google_ads_ingestion_asset])
+
+        from dagster import AssetOut, multi_asset
+
+        outs = {
+            output_names[r]: AssetOut(
+                description=f"Google Ads resource reader: {r}",
+                is_required=False,
+                group_name=group_name,
+                owners=owners,
+                tags=_all_tags,
+                freshness_policy=_freshness_policy,
+            )
+            for r in resources_list
+        }
+
+        @multi_asset(
+            outs=outs,
+            name=asset_name,
+            can_subset=True,
+            partitions_def=partitions_def,
+            backfill_policy=_backfill_policy_obj,
+            retry_policy=_retry_policy,
+            deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+        )
+        def google_ads_ingestion_assets(context: AssetExecutionContext):
+            try:
+                selected_output_names = set(context.op_execution_context.selected_output_names)
+            except Exception:  # noqa: BLE001
+                selected_output_names = set(output_names.values())
+            selected_resources = [r for r in resources_list if output_names[r] in selected_output_names]
+            if not selected_resources:
+                context.log.info("google_ads_ingestion: no resources selected; skipping.")
+                return
+
+            context.log.info(
+                f"Starting Google Ads ingestion for {selected_resources!r}, "
+                f"destination={destination or 'duckdb (in-memory)'}"
+            )
+
+            pipeline = dlt.pipeline(
+                pipeline_name=f"{asset_name}_pipeline",
+                destination=component._resolve_destination_with_bucket(),
+                staging=component._resolve_staging(),
+                dataset_name=dataset_name,
+            )
+
+            source = _build_source()
+            _apply_table_name_overrides(source, selected_resources)
+            subset_source = source.with_resources(*selected_resources)
+            if hash_columns:
+                _apply_hash_columns(subset_source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
+
+            load_info = pipeline.run(subset_source)
             context.log.info(f"Google Ads data loaded: {load_info}")
-
-            base_metadata = {
-                "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
-                "dataset_name": MetadataValue.text(dataset_name),
-                "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
-                "resources_extracted": MetadataValue.json(list(resources_list)),
-            }
 
             non_sql_destinations = {
                 "filesystem", "weaviate", "qdrant", "lancedb", "lance", "huggingface",
@@ -791,57 +1040,54 @@ class GoogleAdsIngestionComponent(Component, Model, Resolvable):
             if persist_only or is_non_sql:
                 if is_non_sql and not persist_only:
                     context.log.warning(
-                        f"destination='{destination}' is not SQL-backed; cannot return DataFrame. "
+                        f"destination='{destination}' is not SQL-backed; cannot return a DataFrame. "
                         f"Set persist_only=true to silence this warning."
                     )
-                return MaterializeResult(metadata=base_metadata)
+                for r in selected_resources:
+                    yield MaterializeResult(
+                        asset_key=AssetKey.from_user_string(output_names[r]),
+                        metadata={
+                            "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                            "dataset_name": MetadataValue.text(dataset_name),
+                            "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                            "resource": MetadataValue.text(r),
+                            "destination_table_name": MetadataValue.text(dest_table_names[r]),
+                        },
+                    )
+                return
 
-            all_data = []
-            for resource_name in resources_list:
-                try:
-                    query = f"SELECT * FROM {dataset_name}.{resource_name}"
-                    with pipeline.sql_client() as client:
+            with pipeline.sql_client() as client:
+                for r in selected_resources:
+                    try:
+                        query = f"SELECT * FROM {dataset_name}.{dest_table_names[r]}"
                         with client.execute_query(query) as cursor:
                             columns = [d[0] for d in cursor.description]
                             rows = cursor.fetchall()
-                    if rows:
                         df = pd.DataFrame(rows, columns=columns)
-                        df["_resource_type"] = resource_name
-                        all_data.append(df)
-                        context.log.info(f"Extracted {len(df)} rows from {resource_name}")
-                except Exception as e:
-                    context.log.warning(f"Could not extract {resource_name}: {e}")
+                    except Exception as e:
+                        context.log.warning(f"Could not extract {r} (destination table {dest_table_names[r]!r}): {e}")
+                        df = pd.DataFrame()
 
-            if not all_data:
-                context.log.warning("No data extracted.")
-                return Output(value=pd.DataFrame(), metadata=base_metadata)
+                    df = _filter_df_to_partition(df, context, partition_date_column, partition_static_column)
 
-            combined_df = pd.concat(all_data, ignore_index=True)
-            combined_df = _filter_df_to_partition(
-                combined_df, context, partition_date_column, partition_static_column
-            )
-            context.log.info(
-                f"Ingestion complete: {len(combined_df)} total rows from {len(all_data)} resources"
-            )
+                    metadata = {
+                        "destination": MetadataValue.text(destination or "duckdb (in-memory)"),
+                        "dataset_name": MetadataValue.text(dataset_name),
+                        "pipeline_name": MetadataValue.text(f"{asset_name}_pipeline"),
+                        "resource": MetadataValue.text(r),
+                        "destination_table_name": MetadataValue.text(dest_table_names[r]),
+                        "row_count": MetadataValue.int(len(df)),
+                    }
+                    if include_preview and len(df) > 0:
+                        try:
+                            _prev = df.sample(min(preview_rows, len(df))) if len(df) > preview_rows * 10 else df.head(preview_rows)
+                            metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
+                        except Exception as _e:
+                            context.log.warning(f"preview emission failed: {_e}")
 
-            metadata = {
-                **base_metadata,
-                "row_count": MetadataValue.int(len(combined_df)),
-                "resource_types": MetadataValue.json(
-                    list(combined_df["_resource_type"].unique())
-                    if "_resource_type" in combined_df.columns
-                    else []
-                ),
-            }
-            if include_preview and len(combined_df) > 0:
-                try:
-                    _prev = combined_df.sample(min(preview_rows, len(combined_df))) if len(combined_df) > preview_rows * 10 else combined_df.head(preview_rows)
-                    metadata["preview"] = MetadataValue.md(_prev.to_markdown(index=False))
-                except Exception as _e:
-                    context.log.warning(f"preview emission failed: {_e}")
-            return Output(value=combined_df, metadata=metadata)
+                    yield Output(value=df, output_name=output_names[r], metadata=metadata)
 
-        return Definitions(assets=[google_ads_ingestion_asset])
+        return Definitions(assets=[google_ads_ingestion_assets])
 
 
 # BEGIN freshness-policy compat (inlined per component; keep copies identical, see tests/test_freshness_policy_compat.py)

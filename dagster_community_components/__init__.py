@@ -24,7 +24,7 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
-__version__ = "0.10.128"
+__version__ = "0.10.129"
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent
 

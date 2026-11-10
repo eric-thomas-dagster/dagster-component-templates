@@ -42,7 +42,19 @@
           "write_disposition": { "type": "string", "enum": ["append", "replace", "merge"], "description": "Defaults to 'merge' if primary_key is set, else dlt's own 'append'." },
           "schema": { "type": "string", "description": "Per-resource schema override (defaults to the top-level schema_name)." },
           "on_schema_change": { "type": "string", "enum": ["allow_all", "allow_new_columns", "block_all"], "description": "Overrides the top-level on_schema_change for this resource." },
-          "hash_columns": { "type": "array", "items": { "type": "string" }, "description": "Overrides the top-level hash_columns for this resource. An empty list ([]) opts this resource out of the top-level default." }
+          "hash_columns": { "type": "array", "items": { "type": "string" }, "description": "Overrides the top-level hash_columns for this resource. An empty list ([]) opts this resource out of the top-level default." },
+          "exclude_columns": { "type": "array", "items": { "type": "string" }, "description": "Overrides the top-level exclude_columns for this resource. An empty list ([]) opts this resource out of the top-level default." },
+          "max_rows_per_resource": { "type": "integer", "description": "Overrides the top-level max_rows_per_resource for this resource. null opts this resource out of a top-level cap." },
+          "incremental": {
+            "type": "object",
+            "properties": {
+              "cursor_path": { "type": "string", "description": "Column name to use as the incremental cursor (required)." },
+              "initial_value": { "description": "Starting cursor value. Omit to start from the beginning and establish the high-water mark from there." },
+              "lag": { "type": "number", "description": "Seconds of overlap to tolerate clock skew or late-arriving rows." }
+            },
+            "required": ["cursor_path"],
+            "description": "Only loads rows past the last synced cursor value, instead of the full table every run. Pairs with write_disposition='merge' and a primary_key to upsert changed rows."
+          }
         },
         "required": ["name"]
       },
@@ -77,7 +89,21 @@
           "merge_key": { "type": "string", "description": "Alternative to primary_key for write_disposition='merge'." },
           "write_disposition": { "type": "string", "enum": ["append", "replace", "merge"], "description": "Defaults to 'merge' if primary_key is set, else dlt's own 'append'." },
           "on_schema_change": { "type": "string", "enum": ["allow_all", "allow_new_columns", "block_all"], "description": "Overrides the top-level on_schema_change for this resource." },
-          "hash_columns": { "type": "array", "items": { "type": "string" }, "description": "Overrides the top-level hash_columns for this resource. An empty list ([]) opts this resource out of the top-level default." }
+          "hash_columns": { "type": "array", "items": { "type": "string" }, "description": "Overrides the top-level hash_columns for this resource. An empty list ([]) opts this resource out of the top-level default." },
+          "exclude_columns": { "type": "array", "items": { "type": "string" }, "description": "Overrides the top-level exclude_columns for this resource. An empty list ([]) opts this resource out of the top-level default." },
+          "max_rows_per_resource": { "type": "integer", "description": "Overrides the top-level max_rows_per_resource for this resource. null opts this resource out of a top-level cap." },
+          "incremental": {
+            "type": "object",
+            "properties": {
+              "cursor_path": { "type": "string", "description": "JSON path into each response item to use as the incremental cursor (required)." },
+              "initial_value": { "description": "Starting cursor value. Omit to start from the beginning and establish the high-water mark from there." },
+              "start_param": { "type": "string", "description": "Query param name the cursor value is sent as, e.g. 'updated_since'." },
+              "end_param": { "type": "string", "description": "Query param name for the end of the range, if the API supports one." },
+              "lag": { "type": "number", "description": "Seconds of overlap to tolerate clock skew or late-arriving rows." }
+            },
+            "required": ["cursor_path"],
+            "description": "Only loads rows past the last synced cursor value, instead of the full resource every run. A convenience translated into dlt's own native 'endpoint.incremental' -- set it here, not in both places."
+          }
         },
         "required": ["name", "endpoint"]
       },
@@ -107,7 +133,19 @@
           "merge_key": { "type": "string", "description": "Alternative to primary_key for write_disposition='merge'." },
           "write_disposition": { "type": "string", "enum": ["append", "replace", "merge"], "description": "Defaults to 'merge' if primary_key is set, else dlt's own 'append'." },
           "on_schema_change": { "type": "string", "enum": ["allow_all", "allow_new_columns", "block_all"], "description": "Overrides the top-level on_schema_change for this resource." },
-          "hash_columns": { "type": "array", "items": { "type": "string" }, "description": "Overrides the top-level hash_columns for this resource. An empty list ([]) opts this resource out of the top-level default." }
+          "hash_columns": { "type": "array", "items": { "type": "string" }, "description": "Overrides the top-level hash_columns for this resource. An empty list ([]) opts this resource out of the top-level default." },
+          "exclude_columns": { "type": "array", "items": { "type": "string" }, "description": "Overrides the top-level exclude_columns for this resource. An empty list ([]) opts this resource out of the top-level default." },
+          "max_rows_per_resource": { "type": "integer", "description": "Overrides the top-level max_rows_per_resource for this resource. null opts this resource out of a top-level cap." },
+          "incremental": {
+            "type": "object",
+            "properties": {
+              "cursor_path": { "type": "string", "description": "Should almost always be 'modification_date' -- the only FileItem field suited to this (required)." },
+              "initial_value": { "description": "Starting cursor value. Omit to start from the beginning and establish the high-water mark from there." },
+              "lag": { "type": "number", "description": "Seconds of overlap to tolerate clock skew or late-arriving files." }
+            },
+            "required": ["cursor_path"],
+            "description": "Only reads files whose modification time is past the last synced cursor value, instead of every matched file every run."
+          }
         },
         "required": ["name", "file_glob"]
       },

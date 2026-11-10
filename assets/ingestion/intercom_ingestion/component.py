@@ -110,6 +110,54 @@ def _apply_hash_columns(resources, hash_columns, hash_salt, hash_salt_env_var):
     for resource in resources:
         resource.add_map(hash_map)
 # END column-hashing helper
+# BEGIN dlt-advanced-options helper (inlined per component; keep copies identical, see tests/test_dlt_advanced_options_ingestion.py)
+_SCHEMA_CONTRACT_MAP = {
+    "allow_all": {"tables": "evolve", "columns": "evolve", "data_type": "evolve"},
+    "allow_new_columns": {"tables": "evolve", "columns": "evolve", "data_type": "freeze"},
+    "block_all": {"tables": "evolve", "columns": "freeze", "data_type": "freeze"},
+}
+
+
+def _resolve_schema_contract(on_schema_change):
+    contract = _SCHEMA_CONTRACT_MAP.get(on_schema_change)
+    if contract is None:
+        raise ValueError(
+            f"on_schema_change={on_schema_change!r} must be one of {sorted(_SCHEMA_CONTRACT_MAP)}."
+        )
+    return dict(contract)
+
+
+def _make_exclude_columns_map(columns):
+    def _exclude_map(doc):
+        for col in columns:
+            doc.pop(col, None)
+        return doc
+
+    return _exclude_map
+
+
+def _apply_exclude_columns(resources, exclude_columns):
+    """Drops `exclude_columns` from every row in every resource before the data
+    reaches the destination -- same per-resource add_map mechanism as
+    _apply_hash_columns, applied first (see call sites) so a column in both ends up
+    excluded, not hashed-then-excluded."""
+    if not exclude_columns:
+        return
+    exclude_map = _make_exclude_columns_map(exclude_columns)
+    for resource in resources:
+        resource.add_map(exclude_map)
+
+
+def _apply_max_rows_per_resource(resources, max_rows_per_resource):
+    """Caps how many rows each resource loads -- a real cap on real rows landed in the
+    real destination, never a dry run. DltResource.add_limit(count_rows=True) counts
+    actual rows, not pages/yields (verified against dlt 1.30.0)."""
+    if not max_rows_per_resource:
+        return
+    for resource in resources:
+        resource.add_limit(max_items=max_rows_per_resource, count_rows=True)
+# END dlt-advanced-options helper
+
 
 
 
@@ -318,6 +366,38 @@ class IntercomIngestionComponent(Component, Model, Resolvable):
     hash_salt_env_var: Optional[str] = Field(
         default=None,
         description="Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time.",
+    )
+    on_schema_change: Literal["allow_all", "allow_new_columns", "block_all"] = Field(
+        default="allow_all",
+        description=(
+            "What to do when incoming data's shape differs from the destination table's "
+            "established schema (new columns, or a column's data type changing). "
+            "'allow_all' (default, today's behavior): accept any change. "
+            "'allow_new_columns': accept new columns, but reject (fail the run) a column "
+            "whose data type would change. 'block_all': reject both new columns and data "
+            "type changes. A resource's own first materialization can always create its "
+            "initial schema in every mode -- 'block_all' only locks down an ALREADY-"
+            "established table's columns/types. A rejected change fails the run with a "
+            "clear error naming the table and column -- it is never silently dropped."
+        ),
+    )
+    exclude_columns: Optional[List[str]] = Field(
+        default=None,
+        description=(
+            "Column names to drop from every row before it reaches the destination. "
+            "Applied before hash_columns (so a column in both ends up excluded, not "
+            "hashed-then-excluded). A column missing from a given resource's rows is "
+            "skipped, not an error, matching hash_columns."
+        ),
+    )
+    max_rows_per_resource: Optional[int] = Field(
+        default=None,
+        description=(
+            "Caps how many rows each resource loads. Unset (default): no cap. This still "
+            "loads real rows into the real destination -- it is not a dry run or a preview "
+            "-- meant for a first run to check a connection and the shape of the data "
+            "cheaply, not for routine use. Never applied unless you set it."
+        ),
     )
 
     # --- Destination fields (see ../DESTINATIONS.md) --------------------------
@@ -604,6 +684,9 @@ class IntercomIngestionComponent(Component, Model, Resolvable):
         hash_columns = self.hash_columns
         hash_salt = self.hash_salt
         hash_salt_env_var = self.hash_salt_env_var
+        on_schema_change = self.on_schema_change
+        exclude_columns = self.exclude_columns
+        max_rows_per_resource = self.max_rows_per_resource
 
         _kind_map = {
             "snowflake": "snowflake", "bigquery": "bigquery", "redshift": "redshift",
@@ -721,11 +804,17 @@ class IntercomIngestionComponent(Component, Model, Resolvable):
                 _apply_partition_window(config, context, partition_window_params, partition_window_resources)
             elif partition_date_column and (context.has_partition_key or context.has_partition_key_range):
                 context.log.warning("partition_date_column filters the rows this asset returns, but the extract still fetches the full source on every partition; set partition_window_params to push the window to the API.")
+            if on_schema_change != "allow_all":
+                config["resource_defaults"] = {"schema_contract": _resolve_schema_contract(on_schema_change)}
             source = rest_api_source(config)
 
             context.log.info("Extracting Intercom data...")
+            if exclude_columns:
+                _apply_exclude_columns(source.resources.values(), exclude_columns)
             if hash_columns:
                 _apply_hash_columns(source.resources.values(), hash_columns, hash_salt, hash_salt_env_var)
+            if max_rows_per_resource:
+                _apply_max_rows_per_resource(source.resources.values(), max_rows_per_resource)
             load_info = pipeline.run(source)
             context.log.info(f"Intercom data loaded: {load_info}")
 

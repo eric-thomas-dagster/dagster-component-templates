@@ -49,6 +49,9 @@ class _Permissive:
     def __call__(self, *args, **kwargs):
         return self
 
+    def __iter__(self):
+        return iter([self])
+
 
 class FakeCursor:
     def __init__(self, df: pd.DataFrame):

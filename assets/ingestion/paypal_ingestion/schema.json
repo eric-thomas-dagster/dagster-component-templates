@@ -606,6 +606,32 @@
       "label": "Hash Salt Env Var",
       "description": "Alternative to hash_salt: name of an env var holding the salt. Resolved at run-time.",
       "required": false
+    },
+    "on_schema_change": {
+      "type": "string",
+      "enum": [
+        "allow_all",
+        "allow_new_columns",
+        "block_all"
+      ],
+      "label": "On Schema Change",
+      "description": "What to do when incoming data's shape differs from the destination table's established schema (new columns, or a column's data type changing). 'allow_all' (default, today's behavior): accept any change. 'allow_new_columns': accept new columns, but reject (fail the run) a column whose data type would change. 'block_all': reject both new columns and data type changes. A resource's own first materialization can always create its initial schema in every mode -- 'block_all' only locks down an ALREADY-established table's columns/types. A rejected change fails the run with a clear error naming the table and column -- it is never silently dropped.",
+      "required": false
+    },
+    "exclude_columns": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "label": "Exclude Columns",
+      "description": "Column names to drop from every row before it reaches the destination. Applied before hash_columns (so a column in both ends up excluded, not hashed-then-excluded). A column missing from a given resource's rows is skipped, not an error, matching hash_columns.",
+      "required": false
+    },
+    "max_rows_per_resource": {
+      "type": "integer",
+      "label": "Max Rows Per Resource",
+      "description": "Caps how many rows each resource loads. Unset (default): no cap. This still loads real rows into the real destination -- it is not a dry run or a preview -- meant for a first run to check a connection and the shape of the data cheaply, not for routine use. Never applied unless you set it.",
+      "required": false
     }
   },
   "tags": [

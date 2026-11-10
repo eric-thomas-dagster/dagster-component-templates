@@ -101,6 +101,44 @@ class FakePipeline:
         return self.sql_client_instance
 
 
+class FakeResource:
+    """Minimal stand-in for a real DltResource -- enough surface for
+    add_map()/add_limit()/apply_hints(schema_contract=...) to record what was
+    applied, for tests that check on_schema_change/exclude_columns/hash_columns/
+    max_rows_per_resource wiring (see test_dlt_advanced_options.py)."""
+
+    def __init__(self):
+        self.steps = []
+        self._schema_contract = None
+
+    def add_map(self, fn):
+        self.steps.append(("map", fn))
+        return self
+
+    def add_limit(self, max_items=None, count_rows=False):
+        self.steps.append(("limit", max_items))
+        return self
+
+    def apply_hints(self, **kwargs):
+        if "schema_contract" in kwargs:
+            self._schema_contract = kwargs["schema_contract"]
+        return self
+
+    def compute_table_schema(self):
+        return {"schema_contract": self._schema_contract} if self._schema_contract else {}
+
+
+class FakeRestApiSource:
+    def __init__(self, config):
+        default_contract = config.get("resource_defaults", {}).get("schema_contract")
+        self.resources = {}
+        for r in config.get("resources", []):
+            res = FakeResource()
+            if default_contract is not None:
+                res._schema_contract = default_contract
+            self.resources[r["name"]] = res
+
+
 def install_fake_dlt(monkeypatch, mod, table_rows: Optional[Dict[str, pd.DataFrame]] = None):
     """Monkeypatches `dlt.pipeline` and
     `dlt.sources.rest_api.rest_api_source` on the loaded component module
@@ -108,6 +146,8 @@ def install_fake_dlt(monkeypatch, mod, table_rows: Optional[Dict[str, pd.DataFra
     DuckDB file. Returns the `FakePipeline` instance and a `captured`
     dict holding the exact `config` passed to `rest_api_source`, so tests
     can assert on resource shape / auth / params without any real HTTP.
+    The returned fake source's `.resources` dict is real enough (FakeResource)
+    for add_map()/add_limit()/apply_hints() wiring checks too.
     """
     captured: Dict[str, Any] = {}
     fake_pipeline = FakePipeline(table_rows=table_rows)
@@ -118,7 +158,7 @@ def install_fake_dlt(monkeypatch, mod, table_rows: Optional[Dict[str, pd.DataFra
 
     def fake_rest_api_source(config):
         captured["config"] = config
-        return object()
+        return FakeRestApiSource(config)
 
     monkeypatch.setattr(mod.dlt, "pipeline", fake_pipeline_factory)
     monkeypatch.setattr(

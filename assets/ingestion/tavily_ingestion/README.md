@@ -103,7 +103,7 @@ to persist directly to any dlt-supported destination. See `../DESTINATIONS.md`.
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `queries` | `str` | — | Comma-separated list of search queries to run, e.g. 'dagster asset checks, snowflake dynamic tables'. Set this, `upstream_asset_key`, or both -- at least one is required. |
-| `upstream_asset_key` | `str` | — | Optional upstream asset providing a DataFrame with one search query per row (column named by `query_column`). Combined with `queries` when both are set (deduplicated, order preserved: static queries first). |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Optional upstream asset providing a DataFrame with one search query per row (column named by `query_column`). Combined with `queries` when both are set (deduplicated, order preserved: static queries first). |
 | `query_column` | `str` | `"query"` | Column in the upstream DataFrame holding each row's search query text. Only used when `upstream_asset_key` is set. |
 | `search_depth` | `Literal['basic', 'advanced', 'fast', 'ultra-fast']` | `"basic"` | Tavily search depth. 'basic' (default) and 'fast'/'ultra-fast' cost 1 API credit per query; 'advanced' costs 2 credits but returns more relevant, better-ranked results. 'ultra-fast' returns one summary result per URL ins… _(full docs in schema.json + component README)_ |
 | `max_results` | `int` | `10` | Maximum number of results Tavily returns per query (0-20). |

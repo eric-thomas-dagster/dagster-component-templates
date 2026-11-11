@@ -75,6 +75,8 @@ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa.json
 | `partition_type` | `str` | — | — |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | — |
 | `partition_values` | `Union[str, List[str]]` | — | — |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | — |
@@ -93,9 +95,10 @@ export GOOGLE_APPLICATION_CREDENTIALS=/path/to/sa.json
 |---|---|---|---|
 | `credentials` | `Dict[str, Any]` | — | — |
 | `credentials_path` | `str` | — | Path to service-account JSON. Falls back to GOOGLE_APPLICATION_CREDENTIALS. |
-| `doc_ids` | `List[str]` | — | Explicit list of Google Doc IDs. Mutually exclusive with upstream_asset_key. |
-| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream DataFrame asset key. Each row's id_column value is treated as a Doc ID. |
+| `doc_ids` | `List[str]` | — | Explicit list of Google Doc IDs. Mutually exclusive with upstream_asset_key/drive_folder_id. |
+| `upstream_asset_key` | `Union[str, List[str]]` | — | Upstream DataFrame asset key. Each row's id_column value is treated as a Doc ID. Mutually exclusive with doc_ids/drive_folder_id. |
 | `id_column` | `Union[str, int]` | `"id"` | When upstream_asset_key is set, the column with the Doc IDs. |
+| `drive_folder_id` | `str` | — | Google Drive folder ID: lists every Google Doc directly inside it (via the Drive API, non-recursive) and extracts each one -- no separate Drive-listing component needed. Mutually exclusive with doc_ids/upstream_asset_key… _(full docs in schema.json + component README)_ |
 | `include_headings` | `bool` | `true` | Include `headings` list column. |
 | `include_text` | `bool` | `true` | Include the full plain-text `text` column. |
 | `rate_limit_delay` | `float` | `0.2` | Seconds between Doc fetches. |

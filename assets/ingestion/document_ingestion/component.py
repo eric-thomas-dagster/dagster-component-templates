@@ -227,15 +227,17 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
         description="Name of the asset to create"
     )
 
-    source_path: Optional[str] = Field(
-        default=None,
+    source_path: str = Field(
         description=(
-            "Documents directory or file. Local paths (`/data/docs/`) and "
-            "cloud URIs (`s3://bucket/docs/`, `gs://bucket/docs/`, "
-            "`az://container/docs/`, `abfs://`) both work — cloud sources "
-            "route through fsspec, so install the matching backend "
-            "(`s3fs` / `gcsfs` / `adlfs`). Walks recursively for "
-            "`.txt`, `.md`, `.pdf`, `.doc`, `.docx`, `.html`."
+            "Documents directory or file. Required -- a missing/empty value or an "
+            "unreachable path raises rather than silently falling back to sample data. "
+            "Local paths (`/data/docs/`) and cloud URIs (`s3://bucket/docs/`, "
+            "`gs://bucket/docs/`, `az://container/docs/`, `abfs://`) both work — cloud "
+            "sources route through fsspec, so install the matching backend "
+            "(`s3fs` / `gcsfs` / `adlfs`). Walks recursively for `.txt`, `.md`, `.pdf`, "
+            "`.docx`, `.html` (real text extraction via pdfplumber/python-docx/"
+            "BeautifulSoup); legacy `.doc` has no extraction library available here and "
+            "is skipped (counted in `skipped_files` metadata), not read as raw bytes."
         ),
     )
 
@@ -366,7 +368,7 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
 
     kinds: Optional[List[str]] = Field(
         default=None,
-        description="Asset kinds for the catalog (e.g. ['snowflake', 'python']). Auto-inferred from component name when unset.",
+        description="Asset kinds for the catalog (e.g. ['snowflake', 'python']). Not auto-inferred -- defaults to ['rag', 'documents'] when unset (the second tag is how a knowledge-base UI finds every document-source asset in a project, regardless of vendor).",
     )
 
     freshness_max_lag_minutes: Optional[int] = Field(
@@ -463,7 +465,7 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
             from dagster import FreshnessPolicy
             _freshness_policy = _freshness_policy_compat(self.freshness_max_lag_minutes, self.freshness_cron)
         _all_tags = dict(self.asset_tags or {})
-        for _k in (self.kinds or []):
+        for _k in (self.kinds or ["rag", "documents"]):
             _all_tags[f"dagster/kind/{_k}"] = ""
         asset_name = self.asset_name
         include_preview = self.include_preview_metadata
@@ -585,6 +587,39 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
                 with open(uri, "r", encoding="utf-8") as f:
                     return f.read()
 
+            def _read_bytes(uri: str):
+                if "://" in uri:
+                    import fsspec
+                    with fsspec.open(uri, "rb") as f:
+                        return f.read()
+                with open(uri, "rb") as f:
+                    return f.read()
+
+            def _extract_content(uri: str, ext: str) -> str:
+                """Real text extraction by extension (same libraries as document_corpus:
+                pdfplumber, python-docx, BeautifulSoup). Raises on a genuine extraction
+                failure -- the caller decides whether to skip or fail the run. `.doc`
+                (legacy binary Word) has no extraction library available here; raises
+                NotImplementedError so the caller skips it rather than reading raw bytes
+                as if they were text."""
+                if ext == ".pdf":
+                    import io
+                    import pdfplumber
+                    with pdfplumber.open(io.BytesIO(_read_bytes(uri))) as pdf:
+                        return "\n\n".join(page.extract_text() or "" for page in pdf.pages)
+                if ext == ".docx":
+                    import io
+                    import docx
+                    d = docx.Document(io.BytesIO(_read_bytes(uri)))
+                    return "\n".join(p.text for p in d.paragraphs)
+                if ext == ".html":
+                    from bs4 import BeautifulSoup
+                    soup = BeautifulSoup(_read_text(uri), "html.parser")
+                    return soup.get_text(separator="\n")
+                if ext == ".doc":
+                    raise NotImplementedError("legacy .doc format has no extraction library available")
+                return _read_text(uri)
+
             def _is_source_available(root: str) -> bool:
                 if not root:
                     return False
@@ -597,130 +632,85 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
                         return False
                 return os.path.exists(root)
 
-            if source_path and _is_source_available(source_path):
+            if not source_path or not source_path.strip():
+                raise ValueError("document_ingestion: source_path is required and cannot be empty.")
+            if not _is_source_available(source_path):
+                raise ValueError(f"document_ingestion: source_path does not exist or is not reachable: {source_path!r}")
+
+            skipped_files: List[Dict[str, str]] = []
+
+            if _is_source_available(source_path):
                 context.log.info(f"Reading documents from: {source_path}")
 
                 # Look for common document types
                 extensions = ['.txt', '.md', '.pdf', '.doc', '.docx', '.html']
-                text_exts = {'.txt', '.md'}
 
                 # Directory-walk for both local and cloud. For a single file,
                 # _list_files still works if `source_path` is the file itself
                 # AND the extension matches — otherwise fall through to the
                 # single-file branch below.
                 candidate_paths = _list_files(source_path, extensions) if _is_uri_source or Path(source_path).is_dir() else []
+                if not candidate_paths and not _is_uri_source and Path(source_path).is_file():
+                    candidate_paths = [str(Path(source_path))]
 
-                if candidate_paths:
-                    for file_path in candidate_paths:
-                        ext = ("." + file_path.rsplit(".", 1)[-1]).lower() if "." in file_path else ""
-                        try:
-                            filename = file_path.rsplit("/", 1)[-1] if "://" in file_path else Path(file_path).name
-                            if ext in text_exts:
-                                content = _read_text(file_path)
-                                documents.append({
-                                    'doc_id': str(file_path),
-                                    'filename': filename,
-                                    'file_type': ext,
-                                    'content': content,
-                                    'content_length': len(content),
-                                    'source_path': str(file_path),
-                                })
-                                context.log.info(f"Ingested: {filename}")
-                            else:
-                                documents.append({
-                                    'doc_id': str(file_path),
-                                    'filename': filename,
-                                    'file_type': ext,
-                                    'content': f'[Document: {filename}]',
-                                    'content_length': 0,
-                                    'source_path': str(file_path),
-                                    'needs_extraction': True,
-                                })
-                        except Exception as e:  # noqa: BLE001
-                            context.log.warning(f"Could not read {file_path}: {e}")
-
-                # Single-file branch (local only — cloud single-files are
-                # handled by the walk above if the ext matches).
-                elif not _is_uri_source and Path(source_path).is_file():
-                    path = Path(source_path)
+                for file_path in candidate_paths:
+                    ext = ("." + file_path.rsplit(".", 1)[-1]).lower() if "." in file_path else ""
+                    filename = file_path.rsplit("/", 1)[-1] if "://" in file_path else Path(file_path).name
                     try:
-                        content = _read_text(str(path))
+                        content = _extract_content(file_path, ext)
                         documents.append({
-                            'doc_id': str(path),
-                            'filename': path.name,
-                            'file_type': path.suffix,
+                            'doc_id': str(file_path),
+                            'filename': filename,
+                            'file_type': ext,
                             'content': content,
                             'content_length': len(content),
-                            'source_path': str(path),
+                            'source_path': str(file_path),
                         })
-                        context.log.info(f"Ingested single document: {path.name}")
+                        context.log.info(f"Ingested: {filename}")
                     except Exception as e:  # noqa: BLE001
-                        context.log.warning(f"Could not read {path}: {e}")
+                        context.log.warning(f"Skipping {filename} ({e})")
+                        skipped_files.append({'filename': filename, 'source_path': str(file_path), 'reason': str(e)})
 
-            # If no documents found, create sample documents
             if not documents:
-                context.log.info("No documents found at source path. Creating sample knowledge base.")
-                documents = [
-                    {
-                        'doc_id': 'doc_1',
-                        'filename': 'product_guide.md',
-                        'file_type': '.md',
-                        'content': 'Product Guide: Our product helps teams collaborate effectively. Features include real-time chat, file sharing, and video conferencing.',
-                        'content_length': 150,
-                        'source_path': 'sample'
-                    },
-                    {
-                        'doc_id': 'doc_2',
-                        'filename': 'faq.md',
-                        'file_type': '.md',
-                        'content': 'FAQ: Q: How do I reset my password? A: Click on "Forgot Password" on the login page. Q: What payment methods do you accept? A: We accept credit cards and PayPal.',
-                        'content_length': 180,
-                        'source_path': 'sample'
-                    },
-                    {
-                        'doc_id': 'doc_3',
-                        'filename': 'api_docs.md',
-                        'file_type': '.md',
-                        'content': 'API Documentation: Our REST API provides endpoints for user management, data access, and webhooks. Authentication uses API keys.',
-                        'content_length': 140,
-                        'source_path': 'sample'
-                    },
-                    {
-                        'doc_id': 'doc_4',
-                        'filename': 'pricing.md',
-                        'file_type': '.md',
-                        'content': 'Pricing: Starter plan is $10/month for up to 5 users. Pro plan is $50/month for unlimited users with advanced features.',
-                        'content_length': 130,
-                        'source_path': 'sample'
-                    },
-                    {
-                        'doc_id': 'doc_5',
-                        'filename': 'support.md',
-                        'file_type': '.md',
-                        'content': 'Support: Contact our support team via email at support@company.com or chat with us during business hours 9am-5pm EST.',
-                        'content_length': 125,
-                        'source_path': 'sample'
-                    },
-                ]
+                context.log.warning(f"No extractable documents found at source_path={source_path!r}.")
 
-            df = pd.DataFrame(documents)
+            now_iso = pd.Timestamp.now(tz="UTC").isoformat()
+            for _d in documents:
+                _d['title'] = Path(_d['filename']).stem
+                _d['url'] = _d['source_path']
+                _d['source_type'] = 'local_file' if not _is_uri_source else 'cloud_file'
+                _d['updated_at'] = now_iso
+
+            df = pd.DataFrame(
+                documents,
+                columns=[
+                    'doc_id', 'content', 'title', 'url', 'source_type', 'updated_at',
+                    'filename', 'file_type', 'content_length', 'source_path',
+                ],
+            )
 
             # Add metadata
             df['ingested_at'] = pd.Timestamp.now()
 
             df = _filter_df_to_partition(df, context, partition_date_column, partition_static_column)
 
-            context.log.info(f"Successfully ingested {len(df)} documents")
+            context.log.info(f"Successfully ingested {len(df)} documents ({len(skipped_files)} skipped)")
 
             # Calculate statistics
             total_chars = df['content_length'].sum() if 'content_length' in df.columns else 0
             file_types = df['file_type'].value_counts().to_dict() if 'file_type' in df.columns else {}
 
+            from dagster import TableColumn, TableSchema
             context.add_output_metadata({
                     "document_count": len(df),
+                    "skipped_files": len(skipped_files),
+                    "skipped_files_detail": MetadataValue.json(skipped_files[:200]),
                     "total_characters": int(total_chars),
                     "file_types": file_types,
                     "columns": list(df.columns),
+                    "dagster/column_schema": MetadataValue.table_schema(
+                        TableSchema(columns=[TableColumn(name=str(c), type=str(df.dtypes[c])) for c in df.columns])
+                    ),
                     "preview": MetadataValue.md(df.head(5).to_markdown())
                 })
             return df

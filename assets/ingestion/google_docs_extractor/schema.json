@@ -255,6 +255,12 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "drive_folder_id": {
+      "type": "string",
+      "label": "Drive Folder Id",
+      "description": "Google Drive folder ID: lists every Google Doc directly inside it (via the Drive API, non-recursive) and extracts each one -- no separate Drive-listing component needed. Mutually exclusive with doc_ids/upstream_asset_key. Requires the service account to also have Drive API access (same credentials, an additional drive.readonly scope is requested automatically when this is set).",
+      "required": false
     }
   },
   "tags": [

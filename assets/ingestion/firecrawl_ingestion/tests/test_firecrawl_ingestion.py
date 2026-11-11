@@ -89,6 +89,30 @@ def test_scrape_mode_single_url_builds_expected_row(mod, monkeypatch):
     assert rows[0]["scraped_at"]
 
 
+def test_scrape_mode_emits_the_document_source_contract_columns(mod, monkeypatch):
+    def fake_post(url, json=None, headers=None, timeout=None):
+        return FakeResponse(json_body={
+            "success": True,
+            "data": {
+                "markdown": "# Hello\n\nworld",
+                "metadata": {"title": "Hello Page", "sourceURL": "https://example.com/a"},
+            },
+        })
+
+    install_fake_requests(monkeypatch, mod, post=fake_post)
+    fake_pipeline = install_fake_dlt(monkeypatch, mod)
+    component = _build_component(mod, urls="https://example.com/a")
+    result = _materialize(component)
+    assert result.success
+
+    row = list(fake_pipeline.run_calls[-1][0])[0]
+    assert row["doc_id"] == "https://example.com/a"
+    assert "world" in row["content"]
+    assert row["source_type"] == "firecrawl"
+    assert row["updated_at"]
+    assert row["content_hash"]
+
+
 def test_scrape_mode_multiple_urls_returns_one_row_each(mod, monkeypatch):
     def fake_post(url, json=None, headers=None, timeout=None):
         requested = json["url"]

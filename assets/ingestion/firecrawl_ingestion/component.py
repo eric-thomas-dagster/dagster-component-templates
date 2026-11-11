@@ -767,6 +767,10 @@ class FirecrawlIngestionComponent(Component, Model, Resolvable):
                 _inferred_kinds.append(_kind_map[destination])
         if not _inferred_kinds:
             _inferred_kinds = ["firecrawl", "python"]
+        if "rag" not in _inferred_kinds:
+            _inferred_kinds.append("rag")
+        if "documents" not in _inferred_kinds:
+            _inferred_kinds.append("documents")
         _inferred_kinds = list(dict.fromkeys(_inferred_kinds))
 
         _all_tags = dict(self.asset_tags or {})
@@ -827,11 +831,24 @@ class FirecrawlIngestionComponent(Component, Model, Resolvable):
             formats_list = [f.strip() for f in output_format.split(",") if f.strip()] or ["markdown"]
 
             def _row_from_page(requested_url, data):
+                import hashlib
+
                 _page_metadata = data.get("metadata") or {}
+                _url = _page_metadata.get("sourceURL") or _page_metadata.get("url") or requested_url
+                _fetched_at = dt.datetime.now(dt.timezone.utc).isoformat()
+                _content = data.get(formats_list[0]) or ""
                 row = {
-                    "url": _page_metadata.get("sourceURL") or _page_metadata.get("url") or requested_url,
+                    # Document source contract (shared by every document-source ingestion
+                    # component feeding document_chunker): doc_id/content/title/url/
+                    # source_type/updated_at/content_hash.
+                    "doc_id": _url,
+                    "content": _content,
                     "title": _page_metadata.get("title"),
-                    "scraped_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+                    "url": _url,
+                    "source_type": "firecrawl",
+                    "updated_at": _fetched_at,
+                    "content_hash": hashlib.sha256(_content.encode("utf-8")).hexdigest(),
+                    "scraped_at": _fetched_at,
                 }
                 for fmt in formats_list:
                     row[fmt] = data.get(fmt)
@@ -964,10 +981,14 @@ class FirecrawlIngestionComponent(Component, Model, Resolvable):
                     context.log.warning(f"Could not read back pages table: {e}")
                     df = pd.DataFrame(rows)
 
+            from dagster import TableColumn, TableSchema
             metadata = {
                 **base_metadata,
                 "row_count": MetadataValue.int(len(df)),
                 "column_count": MetadataValue.int(len(df.columns)),
+                "dagster/column_schema": MetadataValue.table_schema(
+                    TableSchema(columns=[TableColumn(name=str(c), type=str(df.dtypes[c])) for c in df.columns])
+                ),
             }
             if include_preview and len(df) > 0:
                 try:

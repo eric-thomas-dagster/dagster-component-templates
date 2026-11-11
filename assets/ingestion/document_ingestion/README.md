@@ -15,6 +15,7 @@ The Document Ingestion component scans a directory for documents, extracts metad
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset to create |
+| `source_path` | `str` | Documents directory or file. Required -- a missing/empty value or an unreachable path raises rather than silently falling back to sample data. Local paths (`/data/docs/`) and cloud URIs (`s3://bucket/docs/`, `gs://bucket… _(full docs in schema.json + component README)_ |
 
 ### Catalog metadata
 
@@ -25,7 +26,7 @@ The Document Ingestion component scans a directory for documents, extracts metad
 | `group_name` | `str` | — | Dagster asset group name. |
 | `owners` | `List[str]` | — | Asset owners — team names ('team:analytics') or email addresses. |
 | `asset_tags` | `Union[Dict[str, Any], List[str]]` | — | Additional key-value tags applied to the asset in the Dagster catalog. |
-| `kinds` | `List[str]` | — | Asset kinds for the catalog (e.g. ['snowflake', 'python']). Auto-inferred from component name when unset. |
+| `kinds` | `List[str]` | — | Asset kinds for the catalog (e.g. ['snowflake', 'python']). Not auto-inferred -- defaults to ['rag', 'documents'] when unset (the second tag is how a knowledge-base UI finds every document-source asset in a project, regardless of vendor). |
 | `column_lineage` | `Dict[str, List[str]]` | — | Column-level lineage, emitted as `dagster/column_lineage` metadata on every materialization: {output column: [upstream columns]}, e.g. {'revenue': ['price', 'quantity']}. The upstream asset is `upstream_asset_key`, or th… _(full docs in schema.json + component README)_ |
 | `backfill_policy` | `Literal['single_run', 'multi_run']` | — | Backfill execution strategy for a partitioned asset. 'single_run' materializes an entire backfill range in one run: the full dataset is fetched once (as always) and then filtered down to the whole range via partition_dat… _(full docs in schema.json + component README)_ |
 
@@ -43,6 +44,8 @@ The Document Ingestion component scans a directory for documents, extracts metad
 | `partition_type` | `str` | — | Partition type: 'daily', 'weekly', 'monthly', 'hourly', or None for unpartitioned. With a partition type set, the partition key is exposed via context.partition_key for use in filtering / templating. |
 | `partition_cron_schedule` | `str` | — | Required when partition_type='cron'. A cron expression restricting the date axis to a custom cadence, e.g. '0 0 * * 1-5' for weekdays only (business-day cadence). Built on Dagster's TimeWindowPartitionsDefinition(cron_schedule=...). |
 | `partition_cron_fmt` | `str` | `"%Y-%m-%d"` | strftime format for partition keys produced by partition_type='cron'. Only change this for a sub-daily cron_schedule. |
+| `partition_end_offset` | `int` | `0` | Passed through to the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition. 0 (the Dagster default) means a time-based partition set only ever holds COMPLETED windows -- e.g. a daily set never includes today… _(full docs in schema.json + component README)_ |
+| `partition_timezone` | `str` | — | IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default). |
 | `partition_start` | `str` | — | Partition start date in ISO format, e.g. '2024-01-01'. Required when partition_type is set. |
 | `partition_date_column` | `Union[str, int]` | — | Column used to filter the upstream DataFrame to the current date partition key. |
 | `partition_dimensions` | `List[Dict[str, Any]]` | — | Multi-axis partition spec: list of {name, type, start, values, dynamic_partition_name} dicts. Overrides flat fields when set. |
@@ -57,12 +60,6 @@ The Document Ingestion component scans a directory for documents, extracts metad
 | `retry_policy_max_retries` | `int` | — | Max retries on asset failure. Defines a RetryPolicy. Useful for transient network failures, rate limits, etc. |
 | `retry_policy_delay_seconds` | `int` | — | Seconds between retries (default 1). |
 | `retry_policy_backoff` | `str` | `"exponential"` | Backoff strategy: 'linear' or 'exponential'. |
-
-### Source / target
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `source_path` | `str` | — | Documents directory or file. Local paths (`/data/docs/`) and cloud URIs (`s3://bucket/docs/`, `gs://bucket/docs/`, `az://container/docs/`, `abfs://`) both work — cloud sources route through fsspec, so install the matchin… _(full docs in schema.json + component README)_ |
 
 ### Other
 

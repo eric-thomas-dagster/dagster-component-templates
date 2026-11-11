@@ -65,6 +65,27 @@ def test_multi_url_fetch_returns_one_row_per_url(mod, monkeypatch, tmp_path):
     assert meta["urls_succeeded"] == 2
 
 
+def test_emits_the_document_source_contract_columns(mod, monkeypatch, tmp_path):
+    install_fake_requests_get(
+        monkeypatch, mod,
+        {
+            "https://example.com/a": FakeResponse(json_body={
+                "data": {"url": "https://example.com/a", "title": "Page A", "content": "# A\n\nhello"}
+            }),
+        },
+    )
+    component = _build_component(mod, tmp_path, urls="https://example.com/a")
+    result = _materialize(component)
+    assert result.success
+    df = result.output_for_node("test_asset")
+    row = df.iloc[0]
+    assert row["doc_id"] == "https://example.com/a"
+    assert "hello" in row["content"]
+    assert row["source_type"] == "jina_reader"
+    assert row["updated_at"]
+    assert row["content_hash"]
+
+
 def test_non_json_response_falls_back_to_raw_text(mod, monkeypatch, tmp_path):
     """Accept: application/json can be ignored by some front-end proxy -- the
     component must not crash, and should keep the raw markdown as `text`."""

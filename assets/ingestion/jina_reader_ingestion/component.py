@@ -198,22 +198,36 @@ def _fetch_jina_page(url, api_key, target_selector, wait_for_selector, timeout_s
     resp = requests.get(f"https://r.jina.ai/{url}", headers=headers, timeout=http_timeout)
     resp.raise_for_status()
 
+    import hashlib
+
     fetched_at = datetime.now(timezone.utc).isoformat()
+
+    def _contract_row(resolved_url, title, text):
+        return {
+            # Document source contract (shared by every document-source ingestion
+            # component feeding document_chunker): doc_id/content/title/url/
+            # source_type/updated_at/content_hash.
+            "doc_id": resolved_url,
+            "content": text,
+            "title": title,
+            "url": resolved_url,
+            "source_type": "jina_reader",
+            "updated_at": fetched_at,
+            "content_hash": hashlib.sha256((text or "").encode("utf-8")).hexdigest(),
+            "fetched_at": fetched_at,
+            "text": text,
+            "error": None,
+        }
+
     try:
         payload = resp.json()
     except ValueError:
-        return {"url": url, "title": None, "text": resp.text, "fetched_at": fetched_at, "error": None}
+        return _contract_row(url, None, resp.text)
 
     data = payload.get("data") if isinstance(payload, dict) else None
     if not isinstance(data, dict):
         data = payload if isinstance(payload, dict) else {}
-    return {
-        "url": data.get("url") or url,
-        "title": data.get("title"),
-        "text": data.get("content"),
-        "fetched_at": fetched_at,
-        "error": None,
-    }
+    return _contract_row(data.get("url") or url, data.get("title"), data.get("content"))
 
 
 def _build_partitions_def(
@@ -792,6 +806,10 @@ class JinaReaderIngestionComponent(Component, Model, Resolvable):
             _inferred_kinds.append(_kind_map[destination])
         if not _inferred_kinds:
             _inferred_kinds = ["jina_reader", "python"]
+        if "rag" not in _inferred_kinds:
+            _inferred_kinds.append("rag")
+        if "documents" not in _inferred_kinds:
+            _inferred_kinds.append("documents")
         _inferred_kinds = list(dict.fromkeys(_inferred_kinds))
 
         _all_tags = dict(self.asset_tags or {})
@@ -874,6 +892,8 @@ class JinaReaderIngestionComponent(Component, Model, Resolvable):
                 columns={
                     "title": {"data_type": "text", "nullable": True},
                     "text": {"data_type": "text", "nullable": True},
+                    "content": {"data_type": "text", "nullable": True},
+                    "content_hash": {"data_type": "text", "nullable": True},
                     "error": {"data_type": "text", "nullable": True},
                 },
             )
@@ -886,11 +906,17 @@ class JinaReaderIngestionComponent(Component, Model, Resolvable):
                         )
                     except Exception as e:  # noqa: BLE001 -- one bad URL must not fail the whole run
                         context.log.warning(f"Jina Reader fetch failed for {url!r}: {e}")
+                        _failed_at = datetime.now(timezone.utc).isoformat()
                         yield {
-                            "url": url,
+                            "doc_id": url,
+                            "content": None,
                             "title": None,
+                            "url": url,
+                            "source_type": "jina_reader",
+                            "updated_at": _failed_at,
+                            "content_hash": None,
+                            "fetched_at": _failed_at,
                             "text": None,
-                            "fetched_at": datetime.now(timezone.utc).isoformat(),
                             "error": str(e),
                         }
 
@@ -946,6 +972,7 @@ class JinaReaderIngestionComponent(Component, Model, Resolvable):
                 context.log.warning("No data extracted from Jina Reader.")
                 return Output(value=df, metadata=base_metadata)
 
+            from dagster import TableColumn, TableSchema
             failed = int(df["error"].notna().sum()) if "error" in df.columns else 0
             metadata = {
                 **base_metadata,
@@ -953,6 +980,9 @@ class JinaReaderIngestionComponent(Component, Model, Resolvable):
                 "column_count": MetadataValue.int(len(df.columns)),
                 "urls_failed": MetadataValue.int(failed),
                 "urls_succeeded": MetadataValue.int(len(df) - failed),
+                "dagster/column_schema": MetadataValue.table_schema(
+                    TableSchema(columns=[TableColumn(name=str(c), type=str(df.dtypes[c])) for c in df.columns])
+                ),
             }
             if include_preview and len(df) > 0:
                 try:

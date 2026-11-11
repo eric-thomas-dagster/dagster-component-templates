@@ -817,6 +817,10 @@ class TavilyIngestionComponent(Component, Model, Resolvable):
             _inferred_kinds.append(_kind_map[destination])
         if not _inferred_kinds:
             _inferred_kinds = ["tavily", "python"]
+        if "rag" not in _inferred_kinds:
+            _inferred_kinds.append("rag")
+        if "documents" not in _inferred_kinds:
+            _inferred_kinds.append("documents")
         _inferred_kinds = list(dict.fromkeys(_inferred_kinds))
 
         _all_tags = dict(self.asset_tags or {})
@@ -906,18 +910,32 @@ class TavilyIngestionComponent(Component, Model, Resolvable):
         def _make_tavily_resource(context, queries, api_key):
             @dlt.resource(name=table_name)
             def _tavily_results():
+                import datetime as dt
+                import hashlib
+
                 for query in queries:
                     context.log.info(f"Tavily search: {query!r}")
                     data = _run_search(api_key, query)
                     answer = data.get("answer")
+                    fetched_at = dt.datetime.now(dt.timezone.utc).isoformat()
                     for r in data.get("results", []) or []:
+                        result_id = r.get("id")
+                        url = r.get("url")
+                        content = r.get("content") or ""
                         row = {
+                            # Document source contract (shared by every document-source
+                            # ingestion component feeding document_chunker): doc_id/
+                            # content/title/url/source_type/updated_at/content_hash.
+                            "doc_id": result_id or url or hashlib.sha256((query + content).encode("utf-8")).hexdigest(),
+                            "source_type": "tavily",
+                            "updated_at": fetched_at,
+                            "content_hash": hashlib.sha256(content.encode("utf-8")).hexdigest(),
                             "query": query,
                             "title": r.get("title"),
-                            "url": r.get("url"),
-                            "content": r.get("content"),
+                            "url": url,
+                            "content": content,
                             "score": r.get("score"),
-                            "result_id": r.get("id"),
+                            "result_id": result_id,
                         }
                         if include_raw_content != "none":
                             row["raw_content"] = r.get("raw_content")
@@ -991,10 +1009,14 @@ class TavilyIngestionComponent(Component, Model, Resolvable):
                 context.log.warning(f"Could not read back {table_name}: {e}")
                 df = pd.DataFrame()
 
+            from dagster import TableColumn, TableSchema
             metadata = {
                 **base_metadata,
                 "row_count": MetadataValue.int(len(df)),
                 "column_count": MetadataValue.int(len(df.columns)),
+                "dagster/column_schema": MetadataValue.table_schema(
+                    TableSchema(columns=[TableColumn(name=str(c), type=str(df.dtypes[c])) for c in df.columns])
+                ),
             }
             if include_preview and len(df) > 0:
                 try:

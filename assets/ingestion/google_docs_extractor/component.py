@@ -270,15 +270,25 @@ class GoogleDocsExtractorComponent(Component, Model, Resolvable):
     # Source: explicit list OR upstream DataFrame
     doc_ids: Optional[List[str]] = Field(
         default=None,
-        description="Explicit list of Google Doc IDs. Mutually exclusive with upstream_asset_key.",
+        description="Explicit list of Google Doc IDs. Mutually exclusive with upstream_asset_key/drive_folder_id.",
     )
     upstream_asset_key: Optional[Union[str, List[str]]] = Field(
         default=None,
-        description="Upstream DataFrame asset key. Each row's id_column value is treated as a Doc ID.",
+        description="Upstream DataFrame asset key. Each row's id_column value is treated as a Doc ID. Mutually exclusive with doc_ids/drive_folder_id.",
     )
     id_column: Union[str, int] = Field(
         default="id",
         description="When upstream_asset_key is set, the column with the Doc IDs.",
+    )
+    drive_folder_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "Google Drive folder ID: lists every Google Doc directly inside it (via the Drive API, "
+            "non-recursive) and extracts each one -- no separate Drive-listing component needed. "
+            "Mutually exclusive with doc_ids/upstream_asset_key. Requires the service account to "
+            "also have Drive API access (same credentials, an additional drive.readonly scope is "
+            "requested automatically when this is set)."
+        ),
     )
 
     include_headings: bool = Field(default=True, description="Include `headings` list column.")
@@ -389,13 +399,10 @@ class GoogleDocsExtractorComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
-        if not self.doc_ids and not self.upstream_asset_key:
+        _input_modes = [bool(self.doc_ids), bool(self.upstream_asset_key), bool(self.drive_folder_id)]
+        if sum(_input_modes) != 1:
             raise ValueError(
-                "GoogleDocsExtractorComponent: set either doc_ids or upstream_asset_key."
-            )
-        if self.doc_ids and self.upstream_asset_key:
-            raise ValueError(
-                "GoogleDocsExtractorComponent: set doc_ids OR upstream_asset_key, not both."
+                "GoogleDocsExtractorComponent: set exactly one of doc_ids, upstream_asset_key, or drive_folder_id."
             )
 
         # Resolve credentials.
@@ -422,6 +429,7 @@ class GoogleDocsExtractorComponent(Component, Model, Resolvable):
         asset_name = self.asset_name
         explicit_doc_ids = list(self.doc_ids) if self.doc_ids else None
         upstream_asset_key = self.upstream_asset_key
+        drive_folder_id = self.drive_folder_id
         id_column = self.id_column
         include_headings = self.include_headings
         include_text = self.include_text
@@ -455,14 +463,36 @@ class GoogleDocsExtractorComponent(Component, Model, Resolvable):
                 )
 
             scopes = ["https://www.googleapis.com/auth/documents.readonly"]
+            if drive_folder_id or not explicit_doc_ids:
+                # Folder listing needs Drive outright; doc_ids/upstream modes also use Drive
+                # (read-only) to fetch each doc's modifiedTime, which the Docs API itself
+                # doesn't expose.
+                scopes.append("https://www.googleapis.com/auth/drive.readonly")
             sa_creds = service_account.Credentials.from_service_account_info(
                 creds_dict, scopes=scopes,
             )
             svc = build("docs", "v1", credentials=sa_creds, cache_discovery=False)
+            drive_svc = build("drive", "v3", credentials=sa_creds, cache_discovery=False)
 
-            # Build the doc-id list.
-            if explicit_doc_ids is not None:
-                ids: List[str] = list(explicit_doc_ids)
+            # Build the doc-id list (and, for the folder mode, its modifiedTime for free).
+            modified_at_by_id: Dict[str, Optional[str]] = {}
+            if drive_folder_id:
+                query = f"'{drive_folder_id}' in parents and mimeType='application/vnd.google-apps.document' and trashed=false"
+                ids: List[str] = []
+                page_token = None
+                while True:
+                    resp = drive_svc.files().list(
+                        q=query, fields="nextPageToken, files(id, modifiedTime)",
+                        pageToken=page_token,
+                    ).execute()
+                    for f in resp.get("files", []):
+                        ids.append(f["id"])
+                        modified_at_by_id[f["id"]] = f.get("modifiedTime")
+                    page_token = resp.get("nextPageToken")
+                    if not page_token:
+                        break
+            elif explicit_doc_ids is not None:
+                ids = list(explicit_doc_ids)
             else:
                 upstream = kwargs.get("upstream")
                 if upstream is None or not isinstance(upstream, pd.DataFrame):
@@ -476,15 +506,27 @@ class GoogleDocsExtractorComponent(Component, Model, Resolvable):
             context.log.info(f"Extracting {len(ids)} Google Docs")
 
             rows = []
-            errors = []
+            failed: List[Dict[str, str]] = []
             import time as _time
             for i, doc_id in enumerate(ids):
                 try:
                     doc = svc.documents().get(documentId=doc_id).execute()
                     parsed = _extract_doc_text(doc)
+                    if not parsed["text"] or not parsed["text"].strip():
+                        context.log.warning(f"doc {doc_id}: empty body, dropping (not emitted as a null-text row)")
+                        failed.append({"id": doc_id, "reason": "empty body"})
+                        continue
+                    modified_at = modified_at_by_id.get(doc_id)
+                    if modified_at is None:
+                        try:
+                            modified_at = drive_svc.files().get(fileId=doc_id, fields="modifiedTime").execute().get("modifiedTime")
+                        except Exception as _e:  # noqa: BLE001
+                            context.log.warning(f"doc {doc_id}: could not fetch modifiedTime from Drive: {_e}")
                     row = {
                         "id":         doc_id,
                         "title":      parsed["title"],
+                        "url":        f"https://docs.google.com/document/d/{doc_id}/edit",
+                        "updated_at": modified_at,
                         "word_count": parsed["word_count"],
                     }
                     if include_text:
@@ -492,7 +534,6 @@ class GoogleDocsExtractorComponent(Component, Model, Resolvable):
                     if include_headings:
                         row["headings"] = parsed["headings"]
                     rows.append(row)
-                    errors.append(None)
                 except Exception as e:
                     err_str = str(e)
                     if "403" in err_str and "SERVICE_DISABLED" in err_str:
@@ -511,18 +552,15 @@ class GoogleDocsExtractorComponent(Component, Model, Resolvable):
                         context.log.error(f"doc {doc_id}: 404. ID may be wrong.")
                     else:
                         context.log.error(f"doc {doc_id}: {e}")
-                    fallback = {"id": doc_id, "title": None, "word_count": 0}
-                    if include_text:
-                        fallback["text"] = None
-                    if include_headings:
-                        fallback["headings"] = None
-                    rows.append(fallback)
-                    errors.append(err_str)
+                    # Dropped, not emitted as a null-text row -- a doc that failed to fetch
+                    # has nothing a downstream chunker could meaningfully index anyway.
+                    failed.append({"id": doc_id, "reason": err_str})
                 _time.sleep(rate_limit_delay)
 
-            df = pd.DataFrame(rows)
-            if any(errors):
-                df["_error"] = errors
+            df = pd.DataFrame(
+                rows,
+                columns=["id", "title", "url", "updated_at", "word_count"] + (["text"] if include_text else []) + (["headings"] if include_headings else []),
+            )
 
             _preview_rows = self.preview_rows
             preview_md = (
@@ -530,9 +568,10 @@ class GoogleDocsExtractorComponent(Component, Model, Resolvable):
                 if self.include_preview_metadata and not df.empty else "(empty)"
             )
             md = {
-                "rows":         MetadataValue.int(len(df)),
-                "successful":   MetadataValue.int(int(df.get("title", pd.Series(dtype=object)).notna().sum())),
-                "preview":      MetadataValue.md(preview_md or ""),
+                "rows":           MetadataValue.int(len(df)),
+                "failed":         MetadataValue.int(len(failed)),
+                "failed_detail":  MetadataValue.json(failed[:200]),
+                "preview":        MetadataValue.md(preview_md or ""),
             }
             return Output(value=df, metadata=md)
 

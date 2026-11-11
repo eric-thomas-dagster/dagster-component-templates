@@ -62,6 +62,25 @@ def test_multi_query_search_lands_one_row_per_result(mod, monkeypatch):
     assert all(h["Authorization"] == "Bearer test-key" for h in seen_headers)
 
 
+def test_emits_the_document_source_contract_columns(mod, monkeypatch):
+    monkeypatch.setenv("TAVILY_API_KEY", "test-key")
+    install_fake_tavily_search(monkeypatch, lambda url, headers, payload: _two_result_responder(None, headers, payload))
+    fake_pipeline = install_fake_dlt(monkeypatch, mod, consume=True)
+
+    component = _build(mod, queries="dagster")
+    asset_def = component.build_defs(context=None).assets[0]
+    dg.materialize([asset_def])
+
+    rows = fake_pipeline.captured_rows
+    assert len(rows) == 2
+    for r in rows:
+        assert r["doc_id"] == r["result_id"]
+        assert r["content"] in ("snippet one", "snippet two")
+        assert r["source_type"] == "tavily"
+        assert r["updated_at"]
+        assert r["content_hash"]
+
+
 def test_include_answer_duplicates_answer_onto_every_row_for_that_query(mod, monkeypatch):
     monkeypatch.setenv("TAVILY_API_KEY", "test-key")
 

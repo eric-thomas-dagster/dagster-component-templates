@@ -72,13 +72,19 @@ def test_chunk_step_emits_document_chunk_counts_settings_and_sample(mod, tmp_pat
     # per_step_ops=True's separate per-step assets would be.
     chunk_meta = result.get_asset_materialization_events()[-1].materialization.metadata
     assert chunk_meta["document_count"].value == 2
-    assert chunk_meta["chunk_count"].value > 0
+    assert chunk_meta["chunks_created"].value > 0
     settings = chunk_meta["chunking_settings"].data
     assert settings["chunk_size"] == 40
     assert settings["chunk_overlap"] == 5
     assert settings["strategy"] == "fixed"  # the op's own default, confirmed present even when unset in YAML
-    sample_md = chunk_meta["sample_chunks"].value
-    assert "chunk_text" in sample_md or "chunk_id" in sample_md
+    # sample_chunks is real JSON (sampled across documents, full chunk_text, not a markdown
+    # table -- a chunk whose text contains a literal "|" would otherwise break a markdown
+    # table's columns), with a separate markdown preview under its own key.
+    sample = chunk_meta["sample_chunks"].data
+    assert isinstance(sample, list) and len(sample) > 0
+    assert {"doc_id", "chunk_id", "chunk_index", "chunk_text"} <= set(sample[0])
+    assert set(row["doc_id"] for row in sample) == {"A", "B"}  # sampled across both documents, not just the first
+    assert chunk_meta["sample_chunks_preview"].value  # the markdown version still exists, under its own key
 
 
 @requires_sentence_transformers
@@ -101,6 +107,86 @@ def test_write_vector_store_step_emits_store_type(mod, tmp_path):
     assert result.success
     last_meta = result.get_asset_materialization_events()[-1].materialization.metadata
     assert last_meta["store_type"].value == "chromadb"
+
+
+@requires_sentence_transformers
+@requires_chromadb
+def test_chunks_indexed_step_order_and_document_summary(mod, tmp_path):
+    df = pd.DataFrame({
+        "doc_id": ["A", "B"],
+        "txt": [
+            "Document A's full text, long enough to split into more than one chunk easily given a small chunk_size.",
+            "Document B's full text, equally long so it also produces more than one real chunk for this test.",
+        ],
+    })
+    component = mod.ContextEngineeringPipelineComponent(
+        asset_name="test_kb3",
+        upstream_asset_key="raw_docs",
+        id_column="doc_id",
+        text_column="txt",
+        steps=[
+            {"id": "chunks", "op": "chunk", "chunk_size": 40, "chunk_overlap": 5},
+            {"id": "embedded", "op": "embed", "provider": "sentence_transformers", "model": "all-MiniLM-L6-v2"},
+            {"id": "indexed", "op": "write_vector_store", "provider": "chromadb",
+             "connection_string": str(tmp_path / "chroma3"), "collection_name": "test_kb3_collection"},
+        ],
+    )
+    result = _materialize(component, df)
+    assert result.success
+    meta = result.get_asset_materialization_events()[-1].materialization.metadata
+
+    assert meta["chunks_indexed"].value == meta["dagster/row_count"].value
+    assert meta["step_order"].data == ["chunks", "embedded", "indexed"]
+
+    summary = meta["document_summary"].data
+    assert {row["doc_id"] for row in summary} == {"A", "B"}
+    assert all(row["status"] == "indexed" and row["chunks"] > 0 and row["reason"] is None for row in summary)
+    totals = meta["document_summary_totals"].data
+    assert totals == {"total_documents": 2, "truncated": False, "indexed": 2, "skipped": 0, "failed": 0}
+
+    # embedding stats are real numeric MetadataValue types, not stringified text, and
+    # embedding_tokens is OMITTED (sentence_transformers has no token-billing concept) rather
+    # than present as a literal "none" string.
+    assert meta["embedding_time_seconds"].value >= 0
+    assert isinstance(meta["embedding_time_seconds"].value, float)
+    assert "embedding_tokens" not in meta
+
+    # Stable marker tag, independent of `kinds`.
+    asset_def = list(component.build_defs(context=None).assets)[0]
+    _key = next(iter(asset_def.keys))
+    assert asset_def.specs_by_key[_key].tags.get("dagster-community/knowledge-base") == "true"
+
+
+@requires_sentence_transformers
+@requires_chromadb
+def test_document_summary_marks_a_fully_filtered_document_skipped(mod, tmp_path):
+    df = pd.DataFrame({
+        "doc_id": ["A", "B"],
+        "txt": [
+            "Document A's full text, long enough to split into more than one chunk easily given a small chunk_size.",
+            "short",  # too short to survive a min_chunk_chars filter below
+        ],
+    })
+    component = mod.ContextEngineeringPipelineComponent(
+        asset_name="test_kb4",
+        upstream_asset_key="raw_docs",
+        id_column="doc_id",
+        text_column="txt",
+        steps=[
+            {"id": "chunks", "op": "chunk", "chunk_size": 200, "chunk_overlap": 0},
+            {"id": "filtered", "op": "filter", "text_column": "chunk_text", "min_chars": 20},
+            {"id": "embedded", "op": "embed", "provider": "sentence_transformers", "model": "all-MiniLM-L6-v2"},
+            {"id": "indexed", "op": "write_vector_store", "provider": "chromadb",
+             "connection_string": str(tmp_path / "chroma4"), "collection_name": "test_kb4_collection"},
+        ],
+    )
+    result = _materialize(component, df)
+    assert result.success
+    summary = {row["doc_id"]: row for row in result.get_asset_materialization_events()[-1].materialization.metadata["document_summary"].data}
+    assert summary["A"]["status"] == "indexed"
+    assert summary["B"]["status"] == "skipped"
+    assert summary["B"]["chunks"] == 0
+    assert summary["B"]["reason"] == "filtered_or_deduped_after_chunking"
 
 
 def test_do_embed_raw_litellm_reports_tokens_model_and_time(mod):

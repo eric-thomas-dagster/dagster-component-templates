@@ -883,12 +883,26 @@ def _chunk_run_metadata(upstream_df: pd.DataFrame, df: pd.DataFrame, step: dict,
                 _settings[_k] = step[_k]
     md: Dict[str, Any] = {
         "document_count": MetadataValue.int(int(upstream_df[id_column].nunique())),
-        "chunk_count": MetadataValue.int(len(df)),
+        # Renamed from chunk_count: this is the count right after the chunk step, BEFORE
+        # filter/dedupe -- a UI comparing it against the final dagster/row_count
+        # (chunks_indexed) needs the two to be unambiguously distinct names, not two
+        # different numbers both plausibly called "chunk count".
+        "chunks_created": MetadataValue.int(len(df)),
         "chunking_settings": MetadataValue.json(_settings),
     }
     if len(df) > 0:
         _sample_cols = [c for c in (id_column, "chunk_id", "chunk_index", output_column) if c in df.columns]
-        md["sample_chunks"] = MetadataValue.md(df[_sample_cols].head(20).to_markdown(index=False) or "")
+        # Sampled ACROSS documents (not just the first N rows, which -- since chunks from the
+        # same document are contiguous -- previously meant every sample came from one
+        # document). Real chunk_text in full, as JSON: a markdown table breaks when a chunk's
+        # own text contains a literal "|" (splits the table's columns), and a markdown table
+        # is awkward for a UI to parse back into structured rows anyway.
+        _sampled = df[_sample_cols].sample(n=min(20, len(df)), random_state=0) if len(df) > 20 else df[_sample_cols]
+        _rename = {id_column: "doc_id", output_column: "chunk_text"}
+        md["sample_chunks"] = MetadataValue.json(
+            _sampled.rename(columns=_rename).to_dict(orient="records")
+        )
+        md["sample_chunks_preview"] = MetadataValue.md(df[_sample_cols].head(20).to_markdown(index=False) or "")
     return md
 
 
@@ -3168,9 +3182,16 @@ def _apply_receipt_feedback(df: pd.DataFrame, write_step: dict, cfg: Dict[str, A
         for r, n in v.get("excluded", {}).items():
             reasons[r] = reasons.get(r, 0) + n
     summary = {
+        # Versioned so a UI can tell which shape it's reading -- bump this whenever a key is
+        # renamed or removed (adding a new key is backward compatible and doesn't need a bump).
+        "schema_version": 1,
         "window_days": float(cfg["window_days"]), "scoped_to_recipe": recipe, "receipts_in_window": receipts_total,
         "chunks_in_build": len(in_frame), "chunks_with_feedback": sum(1 for i in in_frame if fb.get(i, {}).get("retrievals", 0) > 0),
         "chunks_rated": sum(1 for i in in_frame if fb.get(i, {}).get("rated", 0) > 0),
+        # Total outcome EVENTS (thumbs up/down, etc.) across this build's chunks in the window
+        # -- distinct from chunks_rated (how many chunks have at least one outcome): a UI
+        # wanting to say "learning from N outcomes" needs the event count, not the chunk count.
+        "outcomes_in_window": sum(int(fb.get(i, {}).get("rated", 0)) for i in in_frame),
         "quarantine_mode": q["mode"] if q else None, "quarantined": len(quarantined), "quarantined_ids": quarantined[:50],
         "never_retrieved": len(never) if receipts_total >= int(cfg["dead_weight_min_receipts"]) else None,
         "exclusion_reasons": reasons,
@@ -4114,6 +4135,11 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
         for _kind in _inferred_kinds:
             _all_tags[f"dagster/kind/{_kind}"] = ""
         _all_tags.setdefault("insights/metrics", "context_engineering_pipeline")  # opt-in for insights_custom_metrics_sync `presets: auto`
+        if any(s.get("op") == "write_vector_store" for s in steps_cfg):
+            # Stable marker so a knowledge-base UI can find every such asset by tag alone, even
+            # when `kinds` is overridden away from its own default ("ai", "context-engineering")
+            # -- `dagster/kind/*` tags depend on kinds; this one never does.
+            _all_tags.setdefault("dagster-community/knowledge-base", "true")
 
         if context_policy is not None:
             _all_tags["context/sensitivity"] = context_policy.get("sensitivity", "internal")
@@ -4231,6 +4257,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             partition = context.partition_key if context.has_partition_key else None
             receipts_summary: Optional[Dict[str, Any]] = None
             chunk_run_md: Dict[str, Any] = {}
+            _chunked_doc_ids: Optional[set] = None  # doc ids that survived the chunk step itself
 
             for step in steps_cfg:
                 import time as _time
@@ -4243,6 +4270,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                 if op == "chunk":
                     df = _do_chunk(upstream, step, id_column, text_column, metadata_columns, context)
                     chunk_run_md = _chunk_run_metadata(upstream, df, step, id_column)
+                    _chunked_doc_ids = set(df[id_column].unique()) if id_column in df.columns else set()
                 elif op == "write_vector_store":
                     if source_id is None:
                         raise ValueError(f"step {step_id!r} (op=write_vector_store) has no source and is not preceded by another step.")
@@ -4280,22 +4308,67 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
             for _step, _sid in zip(steps_cfg, (s["id"] for s in steps_cfg)):
                 _sm = step_metadata.get(_sid, {})
                 if _step["op"] == "embed":
-                    for _k in ("embedding_model", "embedding_tokens", "embedding_time_seconds"):
-                        if _k in _sm:
-                            _top_level_promoted[_k] = MetadataValue.text(str(_sm[_k])) if _sm[_k] is not None else MetadataValue.text("none")
+                    if "embedding_model" in _sm and _sm["embedding_model"] is not None:
+                        _top_level_promoted["embedding_model"] = MetadataValue.text(str(_sm["embedding_model"]))
+                    if "embedding_time_seconds" in _sm and _sm["embedding_time_seconds"] is not None:
+                        _top_level_promoted["embedding_time_seconds"] = MetadataValue.float(float(_sm["embedding_time_seconds"]))
+                    # Omitted entirely (not a "none" string) when unknown -- not every provider
+                    # reports token usage (e.g. sentence_transformers' local inference has no
+                    # token-billing concept at all), and a UI expecting a number should never
+                    # have to special-case a literal "none" string in a numeric field.
+                    if _sm.get("embedding_tokens") is not None:
+                        _top_level_promoted["embedding_tokens"] = MetadataValue.int(int(_sm["embedding_tokens"]))
                 elif _step["op"] == "write_vector_store" and "store_type" in _sm:
                     _top_level_promoted["store_type"] = MetadataValue.text(str(_sm["store_type"]))
 
             metadata: Dict[str, Any] = {
                 "dagster/row_count": MetadataValue.int(len(final_df)),
+                # Same value as dagster/row_count, under a name unambiguous against
+                # chunk_run_md's chunks_created (the chunk step's own pre-filter/dedupe count --
+                # these two numbers legitimately differ and a UI needs distinct names for them).
+                "chunks_indexed": MetadataValue.int(len(final_df)),
                 "source_rows": MetadataValue.int(len(upstream)),
                 "source_rows_available": MetadataValue.int(source_rows_available),
                 "n_steps": MetadataValue.int(len(steps_cfg)),
                 "step_chain": MetadataValue.text(" → ".join(s["id"] for s in steps_cfg)),
                 "step_metadata": MetadataValue.json(step_metadata),
+                # step_metadata's own keys are step ids in whatever order a UI's JSON
+                # rendering happens to iterate/display them -- this list is the REAL execution
+                # order, so a UI never has to guess.
+                "step_order": MetadataValue.json([s["id"] for s in steps_cfg]),
                 **chunk_run_md,
                 **_top_level_promoted,
             }
+
+            # Per-document summary: a UI showing "the list of documents" needs to know what
+            # happened to EACH one, not just an aggregate count. Derived from two real
+            # checkpoints (never guessed): the chunk step's own surviving doc ids
+            # (_chunked_doc_ids), and the final output's surviving doc ids -- a doc missing
+            # from the final output but present right after chunking was filtered/deduped out
+            # later ("skipped"); a doc missing even from the chunk step's own output never
+            # produced a single chunk at all (e.g. a Q&A generation failure, or empty source
+            # text) -- "failed". Capped at 200 rows (matching this repo's other per-item
+            # summary metadata conventions) with totals so a UI isn't handed an unbounded list
+            # on a large corpus.
+            if _chunked_doc_ids is not None and id_column in upstream.columns:
+                _final_doc_counts = final_df[id_column].value_counts().to_dict() if id_column in final_df.columns else {}
+                _all_doc_ids = list(dict.fromkeys(upstream[id_column].tolist()))  # preserve order, dedupe
+                _doc_summary = []
+                _status_counts = {"indexed": 0, "skipped": 0, "failed": 0}
+                for _doc_id in _all_doc_ids:
+                    _chunks = int(_final_doc_counts.get(_doc_id, 0))
+                    if _chunks > 0:
+                        _status, _reason = "indexed", None
+                    elif _doc_id in _chunked_doc_ids:
+                        _status, _reason = "skipped", "filtered_or_deduped_after_chunking"
+                    else:
+                        _status, _reason = "failed", "chunking_produced_no_chunks"
+                    _status_counts[_status] += 1
+                    _doc_summary.append({"doc_id": _doc_id, "chunks": _chunks, "status": _status, "reason": _reason})
+                metadata["document_summary"] = MetadataValue.json(_doc_summary[:200])
+                metadata["document_summary_totals"] = MetadataValue.json({
+                    "total_documents": len(_all_doc_ids), "truncated": len(_doc_summary) > 200, **_status_counts,
+                })
             if content_version is not None:
                 metadata["context_version"] = MetadataValue.text(content_version)
             if receipts_summary is not None:

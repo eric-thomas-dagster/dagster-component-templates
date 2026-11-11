@@ -92,6 +92,17 @@ def test_real_traffic_flows_back_into_the_next_build(mod, tmp_path, store):
     assert s["worst"][0]["chunk_id"] == "d1_1" and s["best"][0]["chunk_id"] == "d1_0"
 
 
+def test_receipts_feedback_is_versioned_and_reports_outcome_event_count(mod, tmp_path, store):
+    build(mod, tmp_path, store)
+    serve(store, tmp_path, "d1_1", 3, outcome=-1)  # 3 outcome EVENTS on one chunk
+    serve(store, tmp_path, "d1_0", 2, outcome=+1)  # 2 outcome events on a different chunk
+    result, _ = build(mod, tmp_path, store)
+    s = kb_md(result)["receipts_feedback"].value
+    assert s["schema_version"] == 1
+    assert s["chunks_rated"] == 2          # 2 DISTINCT chunks have an outcome
+    assert s["outcomes_in_window"] == 5    # but 5 outcome EVENTS total (3 + 2) -- a different number
+
+
 def test_quarantine_flag_marks_the_bad_chunk_but_keeps_it_indexed(mod, tmp_path, store):
     build(mod, tmp_path, store)
     serve(store, tmp_path, "d1_1", 6, outcome=-1)

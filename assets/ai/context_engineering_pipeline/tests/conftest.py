@@ -46,6 +46,14 @@ def _chromadb_available() -> bool:
         return False
 
 
+def _lancedb_available() -> bool:
+    try:
+        import lancedb  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
 def _duckdb_available() -> bool:
     try:
         import duckdb  # noqa: F401
@@ -95,6 +103,9 @@ requires_hf_models = pytest.mark.skipif(
 
 requires_chromadb = pytest.mark.skipif(
     not _chromadb_available(), reason="requires chromadb (pip install chromadb)",
+)
+requires_lancedb = pytest.mark.skipif(
+    not _lancedb_available(), reason="requires lancedb (pip install lancedb)",
 )
 requires_duckdb = pytest.mark.skipif(
     not _duckdb_available(),

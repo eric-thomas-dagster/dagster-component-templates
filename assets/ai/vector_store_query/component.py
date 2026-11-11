@@ -578,6 +578,19 @@ def _increment_retrieval_counts(
                     vectorBucketName=vector_bucket_name, indexName=collection_name,
                     vectors=[{"key": r["key"], "data": vec["data"], "metadata": metadata}],
                 )
+
+        elif provider == "lancedb":
+            import lancedb
+            db = lancedb.connect(connection_string or "./lancedb_data")
+            tbl = db.open_table(collection_name)
+            if "retrieval_count" not in tbl.schema.names:
+                tbl.add_columns({"retrieval_count": "0"})
+            for r in results:
+                chunk_id = (r.get("metadata") or {}).get("chunk_id")
+                if chunk_id is None:
+                    continue
+                quoted = str(chunk_id).replace("'", "''")
+                tbl.update(where=f"chunk_id = '{quoted}'", values_sql={"retrieval_count": "COALESCE(retrieval_count, 0) + 1"})
     except Exception as e:
         context.log.warning(f"track_retrieval_count: failed to write back retrieval_count for provider={provider}: {e}")
 
@@ -600,7 +613,7 @@ class VectorStoreQueryComponent(Component, Model, Resolvable):
     """
 
     asset_name: str = Field(description="Name of the asset")
-    provider: str = Field(description="Provider: 'pinecone', 'chromadb', 'faiss', 'qdrant', 's3vectors'")
+    provider: str = Field(description="Provider: 'pinecone', 'chromadb', 'faiss', 'qdrant', 's3vectors', 'lancedb'")
     collection_name: str = Field(description="Collection/index name")
     query_text: Optional[str] = Field(default=None, description="Direct query text (alternative to embedding)")
     top_k: int = Field(default=10, description="Number of results")
@@ -1290,6 +1303,43 @@ group_name=group_name,
                             result["query"] = row[query_text_column]
                         if include_distances and "distance" in v:
                             result["distance"] = v["distance"]
+                        results.append(result)
+
+                elif provider == "lancedb":
+                    import json as _json
+                    import lancedb
+
+                    db_conn = lancedb.connect(connection_string or "./lancedb_data")
+                    tbl = db_conn.open_table(collection_name)
+                    search = tbl.search(query_embedding).limit(_fetch_k)
+                    if filter_metadata:
+                        # Same JSON-filter contract as s3vectors ({"field": value} equality
+                        # matches) -- translated to lancedb's own SQL WHERE predicate here,
+                        # since lancedb has no separate structured-filter API like the others.
+                        _filter_dict = _json.loads(filter_metadata)
+                        _clauses = []
+                        for _k, _v in _filter_dict.items():
+                            _col = str(_k).replace('"', '""')
+                            if isinstance(_v, bool):
+                                _clauses.append(f'"{_col}" = {str(_v).upper()}')
+                            elif isinstance(_v, (int, float)):
+                                _clauses.append(f'"{_col}" = {_v}')
+                            else:
+                                _clauses.append(f""""{_col}" = '{str(_v).replace("'", "''")}'""")
+                        search = search.where(" AND ".join(_clauses))
+                    hits_df = search.to_pandas()
+
+                    for _, hit in hits_df.iterrows():
+                        metadata = {c: hit[c] for c in hits_df.columns if c not in ("vector", "_distance")}
+                        result = {
+                            "query_row_index": idx,
+                            "id": metadata.get("chunk_id"),
+                            "metadata": metadata,
+                        }
+                        if query_text_column and query_text_column in row.index:
+                            result["query"] = row[query_text_column]
+                        if include_distances and "_distance" in hits_df.columns:
+                            result["distance"] = float(hit["_distance"])
                         results.append(result)
 
                 else:

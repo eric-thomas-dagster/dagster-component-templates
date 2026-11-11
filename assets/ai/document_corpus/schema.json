@@ -248,6 +248,12 @@
       "description": "IANA timezone for the underlying Daily/Weekly/Monthly/Hourly/cron partitions definition (defaults to UTC when unset, matching Dagster's own default).",
       "required": false,
       "default": null
+    },
+    "storage_options_env_vars": {
+      "type": "object",
+      "label": "Storage Options Env Vars",
+      "description": "Only used when source_dir is a remote fsspec URI. Maps an fsspec storage_option key to the env var name holding its value, e.g. {'key': 'AWS_ACCESS_KEY_ID', 'secret': 'AWS_SECRET_ACCESS_KEY'} for s3://, {'account_name': 'AZURE_STORAGE_ACCOUNT', 'account_key': 'AZURE_STORAGE_KEY'} for az:///abfs://, {'username': 'SFTP_USER', 'password': 'SFTP_PASSWORD'} for sftp://. Resolved via dg.EnvVar at materialization time only -- never baked into the code location at load time. Omit to use fsspec's ambient auth (e.g. the cloud SDK's own default credential chain).",
+      "required": false
     }
   }
 }

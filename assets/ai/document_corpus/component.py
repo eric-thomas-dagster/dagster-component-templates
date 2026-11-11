@@ -19,26 +19,34 @@ import pandas as pd
 from pydantic import Field
 
 
-def _extract_text(path: Path, encoding: str) -> str:
+def _extract_text_from_bytes(data: bytes, suffix: str, encoding: str) -> str:
     """Dispatches by file extension. .pdf/.docx get real text extraction (same libraries as
     structured_document_extractor/pdf_text_extractor: pdfplumber, python-docx); .html strips
     tags via BeautifulSoup; everything else (.md/.txt/...) is read as plain text. Raises on a
     real extraction failure (a corrupt/unsupported file) rather than silently skipping it --
-    the caller decides whether to skip or fail the run."""
-    suffix = path.suffix.lower()
+    the caller decides whether to skip or fail the run. Takes raw bytes (not a path) so the
+    same dispatch works for both local files and fsspec-backed remote reads."""
+    import io
+
+    suffix = suffix.lower()
     if suffix == ".pdf":
         import pdfplumber
-        with pdfplumber.open(path) as pdf:
+        with pdfplumber.open(io.BytesIO(data)) as pdf:
             return "\n\n".join(page.extract_text() or "" for page in pdf.pages)
     if suffix == ".docx":
         import docx
-        d = docx.Document(str(path))
+        d = docx.Document(io.BytesIO(data))
         return "\n".join(p.text for p in d.paragraphs)
     if suffix in (".html", ".htm"):
         from bs4 import BeautifulSoup
-        soup = BeautifulSoup(path.read_text(encoding=encoding), "html.parser")
+        soup = BeautifulSoup(data.decode(encoding), "html.parser")
         return soup.get_text(separator="\n")
-    return path.read_text(encoding=encoding)
+    return data.decode(encoding)
+
+
+def _extract_text(path: Path, encoding: str) -> str:
+    """Local-file convenience wrapper around `_extract_text_from_bytes`."""
+    return _extract_text_from_bytes(path.read_bytes(), path.suffix.lower(), encoding)
 
 
 def _build_partitions_def(
@@ -170,8 +178,26 @@ class DocumentCorpusComponent(dg.Component, dg.Model, dg.Resolvable):
     """Materialize a directory of documents as a versioned corpus asset."""
 
     asset_name: str = Field(description="Dagster asset name")
-    source_dir: str = Field(description="Absolute path to the directory of docs")
+    source_dir: str = Field(
+        description=(
+            "Absolute path to the directory of docs, or an fsspec URI for a remote source "
+            "(s3://, gs://, az://, abfs://, sftp://, ...). Remote sources route through "
+            "fsspec, so install the matching backend (s3fs / gcsfs / adlfs / paramiko)."
+        )
+    )
     file_glob: str = Field(default="**/*.md", description="Glob relative to source_dir (default '**/*.md')")
+    storage_options_env_vars: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "Only used when source_dir is a remote fsspec URI. Maps an fsspec storage_option "
+            "key to the env var name holding its value, e.g. {'key': 'AWS_ACCESS_KEY_ID', "
+            "'secret': 'AWS_SECRET_ACCESS_KEY'} for s3://, {'account_name': 'AZURE_STORAGE_ACCOUNT', "
+            "'account_key': 'AZURE_STORAGE_KEY'} for az:///abfs://, {'username': 'SFTP_USER', "
+            "'password': 'SFTP_PASSWORD'} for sftp://. Resolved via dg.EnvVar at materialization "
+            "time only -- never baked into the code location at load time. Omit to use fsspec's "
+            "ambient auth (e.g. the cloud SDK's own default credential chain)."
+        ),
+    )
     encoding: str = Field(default="utf-8", description="Text file encoding for plain-text files (.md/.txt/.html -- ignored for .pdf/.docx, which are always read as binary and text-extracted)")
     min_doc_count: int = Field(
         default=1,
@@ -269,7 +295,7 @@ class DocumentCorpusComponent(dg.Component, dg.Model, dg.Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=('owners', 'kinds'), csv=('partition_values',), tags=('asset_tags',))
+        return coerce_field_shapes(data, lists=('owners', 'kinds'), csv=('partition_values',), tags=('asset_tags', 'storage_options_env_vars'))
 
     @classmethod
     def get_form_config(cls):
@@ -338,33 +364,85 @@ class DocumentCorpusComponent(dg.Component, dg.Model, dg.Resolvable):
             if _column_lineage_md:
                 context.add_output_metadata(_column_lineage_md)
             _tokens = _partition_vars(context)
-            root = Path(_substitute_partition(source_dir, _tokens)).expanduser().resolve()
-            if not root.is_dir():
-                raise dg.Failure(description=f"source_dir does not exist or is not a directory: {root}")
+            root_str = _substitute_partition(source_dir, _tokens)
+            glob_pattern = _substitute_partition(file_glob, _tokens)
+            is_remote = "://" in root_str
 
-            paths = sorted(root.glob(_substitute_partition(file_glob, _tokens)))
-            context.log.info(f"Scanning {root} with glob {file_glob!r} — found {len(paths)} files")
+            # file_entries: (doc_id, url, source_type, raw_bytes, updated_at_iso)
+            file_entries: List[tuple] = []
+
+            if is_remote:
+                try:
+                    import fsspec
+                except ImportError:
+                    raise ImportError(
+                        "document_corpus: a remote source_dir (s3://, gs://, az://, abfs://, "
+                        "sftp://, ...) requires fsspec + the matching backend "
+                        "(pip install 's3fs' / 'gcsfs' / 'adlfs' / 'paramiko')."
+                    )
+                storage_options = {}
+                for key, env_var in (self.storage_options_env_vars or {}).items():
+                    val = dg.EnvVar(env_var).get_value()
+                    if val is None:
+                        raise ValueError(
+                            f"document_corpus: storage_options_env_vars[{key!r}] names env var "
+                            f"{env_var!r}, which is not set."
+                        )
+                    storage_options[key] = val
+                fs, fs_root = fsspec.core.url_to_fs(root_str, **storage_options)
+                if not fs.exists(fs_root):
+                    raise dg.Failure(description=f"source_dir does not exist or is not reachable: {root_str}")
+                proto = fs.protocol if isinstance(fs.protocol, str) else fs.protocol[0]
+                matches = sorted(fs.glob(f"{fs_root.rstrip('/')}/{glob_pattern}"))
+                context.log.info(f"Scanning {root_str} with glob {file_glob!r} — found {len(matches)} files")
+                for m in matches:
+                    if not fs.isfile(m):
+                        continue
+                    doc_id = m[len(fs_root.rstrip("/")) + 1:]
+                    # fsspec backends disagree on the mtime field name (s3fs: LastModified,
+                    # gcsfs: updated, adlfs: last_modified) -- best-effort across the common
+                    # ones, falling back to ingestion time rather than guessing a wrong field.
+                    info = fs.info(m)
+                    mtime = info.get("LastModified") or info.get("last_modified") or info.get("updated") or info.get("mtime")
+                    if hasattr(mtime, "isoformat"):
+                        updated_at = mtime.isoformat()
+                    elif mtime:
+                        updated_at = str(mtime)
+                    else:
+                        updated_at = datetime.now(timezone.utc).isoformat()
+                    with fs.open(m, "rb") as f:
+                        raw_bytes = f.read()
+                    file_entries.append((doc_id, f"{proto}://{m}", proto, raw_bytes, updated_at))
+            else:
+                root = Path(root_str).expanduser().resolve()
+                if not root.is_dir():
+                    raise dg.Failure(description=f"source_dir does not exist or is not a directory: {root}")
+                paths = sorted(root.glob(glob_pattern))
+                context.log.info(f"Scanning {root} with glob {file_glob!r} — found {len(paths)} files")
+                for p in paths:
+                    if not p.is_file():
+                        continue
+                    updated_at = datetime.fromtimestamp(p.stat().st_mtime, tz=timezone.utc).isoformat()
+                    file_entries.append((str(p.relative_to(root)), p.as_uri(), "local_file", p.read_bytes(), updated_at))
 
             rows = []
             now_iso = datetime.now(timezone.utc).isoformat()
-            for p in paths:
-                if not p.is_file():
-                    continue
+            for doc_id, url, source_type, raw_bytes, updated_at in file_entries:
+                suffix = Path(doc_id).suffix.lower()
                 try:
-                    content = _extract_text(p, encoding)
+                    content = _extract_text_from_bytes(raw_bytes, suffix, encoding)
                 except UnicodeDecodeError:
-                    context.log.warning(f"Skipping (encoding): {p}")
+                    context.log.warning(f"Skipping (encoding): {doc_id}")
                     continue
                 content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
-                updated_at = datetime.fromtimestamp(p.stat().st_mtime, tz=timezone.utc).isoformat()
                 rows.append({
-                    "doc_id": str(p.relative_to(root)),
+                    "doc_id": doc_id,
                     "content": content,
-                    "title": p.stem,
-                    "url": p.as_uri(),
-                    "source_type": "local_file",
+                    "title": Path(doc_id).stem,
+                    "url": url,
+                    "source_type": source_type,
                     "updated_at": updated_at,
-                    "source_path": str(p),
+                    "source_path": url,
                     "content_hash": content_hash,
                     "byte_size": len(content.encode("utf-8")),
                     "ingested_at": now_iso,
@@ -387,7 +465,7 @@ class DocumentCorpusComponent(dg.Component, dg.Model, dg.Resolvable):
                 "doc_count": dg.MetadataValue.int(len(df)),
                 "total_bytes": dg.MetadataValue.int(int(df["byte_size"].sum()) if len(df) else 0),
                 "corpus_hash": dg.MetadataValue.text(corpus_hash),
-                "source_dir": dg.MetadataValue.path(str(root)),
+                "source_dir": dg.MetadataValue.text(root_str) if is_remote else dg.MetadataValue.path(str(root)),
                 "file_glob": dg.MetadataValue.text(file_glob),
                 "dagster/column_schema": dg.MetadataValue.table_schema(
                     dg.TableSchema(columns=[

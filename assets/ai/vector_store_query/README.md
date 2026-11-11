@@ -63,7 +63,7 @@ Returns a Pandas DataFrame with search results containing:
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Name of the asset |
-| `provider` | `str` | Provider: 'pinecone', 'chromadb', 'faiss', 'qdrant', 's3vectors' |
+| `provider` | `str` | Provider: 'pinecone', 'chromadb', 'faiss', 'qdrant', 's3vectors', 'lancedb' |
 | `collection_name` | `str` | Collection/index name |
 
 ### Connection

@@ -626,10 +626,31 @@ class _SafeFormat(dict):
         return ""
 
 
-def _generate_qa_pairs_llm(text: str, model: str, num_pairs: int, api_key_env_var: str, prompt_prefix: Optional[str]) -> List[Dict[str, str]]:
+def _litellm_extra_kwargs(step: dict, prefix: str = "") -> Dict[str, Any]:
+    """`api_base` + a free-form `litellm_params` mapping, passed straight through to
+    litellm.completion/embedding so non-OpenAI endpoints work: `api_base` for a custom/
+    self-hosted endpoint (Ollama, vLLM, an Azure resource's own base URL), and
+    `litellm_params` for anything provider-specific litellm itself accepts as a kwarg
+    (api_version for Azure, aws_region_name for Bedrock, vertex_project/vertex_location
+    for Vertex, etc.) -- never guessed or validated here, passed through verbatim.
+    `prefix` lets the chunk op's qa_* knobs share this helper (qa_api_base, qa_litellm_params)
+    without colliding with the unprefixed enrich/classify/embed knobs."""
+    kwargs: Dict[str, Any] = {}
+    api_base = step.get(f"{prefix}api_base")
+    if api_base:
+        kwargs["api_base"] = api_base
+    kwargs.update(step.get(f"{prefix}litellm_params") or {})
+    return kwargs
+
+
+def _generate_qa_pairs_llm(
+    text: str, model: str, num_pairs: int, api_key_env_var: str, prompt_prefix: Optional[str],
+    extra_kwargs: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, str]]:
     """Calls `model` (litellm) once to generate `num_pairs` question/answer pairs from `text` --
     same litellm.completion + JSON-with-markdown-fence-stripping convention as this component's
-    own classify op mode='llm'."""
+    own classify op mode='llm'. `extra_kwargs` (built by `_litellm_extra_kwargs`) carries
+    api_base/litellm_params through to non-OpenAI endpoints (Azure, Bedrock, Vertex, Ollama, vLLM)."""
     import os
     import json
     try:
@@ -649,6 +670,7 @@ def _generate_qa_pairs_llm(text: str, model: str, num_pairs: int, api_key_env_va
         model=model,
         messages=[{"role": "user", "content": "\n\n".join(prompt_parts)}],
         api_key=os.environ.get(api_key_env_var),
+        **(extra_kwargs or {}),
     )
     raw = resp.choices[0].message.content.strip()
     if raw.startswith("```"):
@@ -690,6 +712,7 @@ def _do_chunk_qa(df: pd.DataFrame, step: dict, id_column: str, text_column: str,
         num_pairs = int(step.get("qa_num_pairs", 5))
         api_key_env_var = step.get("qa_api_key_env_var", "OPENAI_API_KEY")
         prompt_prefix = step.get("qa_prompt_prefix")
+        qa_extra_kwargs = _litellm_extra_kwargs(step, prefix="qa_")
     else:
         raise ValueError(f"chunk op strategy='qa': qa_source must be 'column' or 'llm', got {qa_source!r}")
 
@@ -705,7 +728,7 @@ def _do_chunk_qa(df: pd.DataFrame, step: dict, id_column: str, text_column: str,
                 skipped += 1
                 continue
             try:
-                pairs = _generate_qa_pairs_llm(text, model, num_pairs, api_key_env_var, prompt_prefix)
+                pairs = _generate_qa_pairs_llm(text, model, num_pairs, api_key_env_var, prompt_prefix, qa_extra_kwargs)
             except Exception as e:
                 context.log.warning(f"chunk (qa, llm): generation failed for source {source_id!r}: {e}")
                 pairs = []
@@ -1063,7 +1086,12 @@ def _do_enrich(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
     chunk so it is part of what gets embedded (and hashed, so the version reflects it); otherwise it is just
     a column that travels to the vector store as metadata. One model call per chunk, so it costs money and
     time; `model` is required (any litellm model). For `context` mode the passage's `parent_text` is shown
-    to the model when the chunk has one. on_error: raise (default) | skip (leave the field empty)."""
+    to the model when the chunk has one. on_error: raise (default) | skip (leave the field empty).
+    `api_key_env_var` names the env var holding the API key (litellm falls back to its own provider-default
+    env var, e.g. OPENAI_API_KEY, when unset). `api_base` + a free-form `litellm_params` mapping (api_version,
+    aws_region_name, vertex_project, ...) are passed straight through to litellm.completion so Azure, Bedrock,
+    Vertex and Ollama/vLLM endpoints work, same as classify op mode='llm' and embed op provider='litellm'."""
+    import os
     col = _text_column(df, step)
     mode = step.get("mode", "context")
     if mode not in _ENRICH_PROMPTS:
@@ -1077,6 +1105,9 @@ def _do_enrich(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
         import litellm
     except ImportError:
         raise ImportError("enrich op requires: pip install litellm")
+    api_key_env_var = step.get("api_key_env_var")
+    api_key = os.environ.get(api_key_env_var) if api_key_env_var else None
+    extra_kwargs = _litellm_extra_kwargs(step)
     out_col = step.get("output_column", f"enrichment_{mode}")
     out = df.copy()
     values: List[str] = []
@@ -1089,6 +1120,7 @@ def _do_enrich(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
             resp = litellm.completion(
                 model=step["model"], temperature=0, max_tokens=int(step.get("max_tokens", 200)),
                 messages=[{"role": "system", "content": _ENRICH_PROMPTS[mode]}, {"role": "user", "content": user}],
+                api_key=api_key, **extra_kwargs,
             )
             values.append(str(resp.choices[0].message.content).strip())
         except Exception as exc:
@@ -1229,7 +1261,10 @@ def _do_classify(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
     - mode='llm': any litellm-supported model judges the category via a
       real completion call -- costs money per chunk, but can apply real
       judgment a fixed zero-shot label set can't (nuanced/ambiguous
-      categories, multi-factor rules described in the prompt).
+      categories, multi-factor rules described in the prompt). `api_base` +
+      a free-form `litellm_params` mapping (api_version, aws_region_name,
+      vertex_project, ...) are passed straight through to litellm.completion
+      so Azure, Bedrock, Vertex and Ollama/vLLM endpoints work.
     - mode='custom': bring your own classifier -- `fn` is a
       'module.path:function_name' reference, called as
       `fn(text, candidate_labels) -> str` once per chunk. For anything a
@@ -1286,6 +1321,7 @@ def _do_classify(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
         api_key_env_var = step.get("api_key_env_var", "OPENAI_API_KEY")
         llm_max_retries = step.get("llm_max_retries", 2)
         prompt_prefix = step.get("prompt_prefix")
+        extra_kwargs = _litellm_extra_kwargs(step)
 
         categories: List[Optional[str]] = []
         for text in texts:
@@ -1303,6 +1339,7 @@ def _do_classify(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
                     messages=[{"role": "user", "content": "\n\n".join(prompt_parts)}],
                     api_key=os.environ.get(api_key_env_var),
                     num_retries=llm_max_retries,
+                    **extra_kwargs,
                 )
                 raw = resp.choices[0].message.content.strip()
                 if raw.startswith("```"):
@@ -1429,6 +1466,9 @@ def _do_embed_raw(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
         # provider. model is litellm's own "<provider>/<model>" format,
         # e.g. "text-embedding-3-small", "azure/my-embed-deployment",
         # "ollama/nomic-embed-text", "bedrock/amazon.titan-embed-text-v2:0".
+        # `api_base` + a free-form `litellm_params` mapping (api_version,
+        # aws_region_name, vertex_project, ...) are passed straight through
+        # so Azure, Bedrock, Vertex and Ollama/vLLM endpoints work.
         import os
         try:
             import litellm
@@ -1437,9 +1477,10 @@ def _do_embed_raw(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
         model_name = model or "text-embedding-3-small"
         api_key_env_var = step.get("api_key_env_var")
         api_key = os.environ.get(api_key_env_var) if api_key_env_var else None
+        extra_kwargs = _litellm_extra_kwargs(step)
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i + batch_size]
-            resp = litellm.embedding(model=model_name, input=batch, api_key=api_key)
+            resp = litellm.embedding(model=model_name, input=batch, api_key=api_key, **extra_kwargs)
             embeddings.extend([d["embedding"] for d in resp.data])
             # litellm normalizes every provider's response to an OpenAI-shaped `usage` -- verified
             # against litellm.types.utils.EmbeddingResponse (installed version) -- but a provider
@@ -1535,19 +1576,42 @@ def _delete_in_batches(delete_fn, ids: List[str], size: int = 500) -> None:
         delete_fn(ids[i:i + size])
 
 
+def _per_step_tags(all_tags: Dict[str, str], asset_name: str, step_id: str, is_last: bool) -> Dict[str, str]:
+    """per_step_ops=True: only the FINAL step's asset should carry the
+    `dagster-community/knowledge-base` marker (it's the one terminal, queryable index a gateway
+    actually searches) -- every step still shares the rest of `all_tags` (kind/catalog/context
+    tags), plus two tags naming which knowledge base they feed and their own stage, so a UI can
+    group every step of one recipe together even though only the last one is itself searchable.
+    A no-op (returns `all_tags` unchanged) when this pipeline doesn't build a knowledge base at
+    all (no write_vector_store step -- the marker was never set on `all_tags` in the first place)."""
+    if "dagster-community/knowledge-base" not in all_tags:
+        return all_tags
+    tags = dict(all_tags)
+    tags["dagster-community/knowledge-base-name"] = asset_name
+    tags["dagster-community/knowledge-base-stage"] = step_id
+    if not is_last:
+        del tags["dagster-community/knowledge-base"]
+    return tags
+
+
 def _do_write_vector_store(df: pd.DataFrame, step: dict, id_column: str, context, stamp: Optional[Dict[str, Any]] = None) -> pd.DataFrame:
-    """Index chunks. Knobs: provider (chromadb|pinecone|qdrant), sync_mode (replace_sources default |
-    upsert | replace_all), batch_size, metadata_columns. `stamp` (see the component's stamp_provenance)
-    writes source_asset_key / source_version / source_partition / chunk_id / content_hash /
-    embedding_model / source_id onto every chunk so a retrieval gateway can build receipts straight from
-    index hits. purge_expired (chromadb) deletes this asset's chunks whose valid_until has passed.
-    sync_mode=replace_sources deletes chunks of the source rows in this run that no longer
-    exist (a shrunk document no longer leaves stale chunks behind); replace_all makes this asset's
-    chunks exactly this run (the whole collection when provenance is not stamped; refused for partitioned
-    assets). With provenance stamped, sync only touches this asset's chunks, and a chunk id that already
-    belongs to a different asset is an error (set chunk_id_prefix). chromadb is exercised by tests; qdrant and
-    pinecone are not exercised against live services; pinecone cannot delete by filter so it
-    falls back to upsert with a warning."""
+    """Index chunks. Knobs: provider (chromadb|pinecone|qdrant|s3vectors|lancedb), sync_mode
+    (replace_sources default | upsert | replace_all), batch_size, metadata_columns. `stamp` (see
+    the component's stamp_provenance) writes source_asset_key / source_version / source_partition /
+    chunk_id / content_hash / embedding_model / source_id onto every chunk so a retrieval gateway
+    can build receipts straight from index hits. purge_expired (chromadb) deletes this asset's
+    chunks whose valid_until has passed. sync_mode=replace_sources deletes chunks of the source
+    rows in this run that no longer exist (a shrunk document no longer leaves stale chunks behind);
+    replace_all makes this asset's chunks exactly this run (the whole collection when provenance is
+    not stamped; refused for partitioned assets). With provenance stamped, sync only touches this
+    asset's chunks, and a chunk id that already belongs to a different asset is an error (set
+    chunk_id_prefix). chromadb is exercised by tests; qdrant and pinecone are not exercised against
+    live services; pinecone and s3vectors cannot delete by metadata filter, so both fall back to
+    upsert with a warning when sync_mode isn't already 'upsert'. provider='s3vectors' requires
+    `vector_bucket_name` and `aws_region` (real AWS S3 Vectors API: CreateVectorBucket/CreateIndex/
+    PutVectors). provider='lancedb' (embedded, local/on-disk -- no account or API key needed) stores
+    the embedding under a fixed 'vector' column and supports real sync (merge_insert for upsert,
+    SQL-predicate delete for orphan cleanup), same as chromadb."""
     provider = step.get("provider", "chromadb")
     text_column = step.get("text_column", "chunk_text")
     embedding_column = step.get("embedding_column", "embedding")
@@ -1695,8 +1759,81 @@ def _do_write_vector_store(df: pd.DataFrame, step: dict, id_column: str, context
                 )),
             )
         context.log.info(f"write_vector_store: upserted {len(df)} chunks into qdrant collection {step['collection_name']!r} ({sync_mode})")
+
+    elif provider == "s3vectors":
+        try:
+            import boto3
+        except ImportError:
+            raise ImportError("write_vector_store op provider='s3vectors' requires: pip install boto3")
+        vector_bucket_name = step.get("vector_bucket_name")
+        aws_region = step.get("aws_region")
+        if not vector_bucket_name or not aws_region:
+            raise ValueError("write_vector_store op provider='s3vectors' requires `vector_bucket_name` and `aws_region`.")
+        index_name = step["collection_name"]
+        client = boto3.client("s3vectors", region_name=aws_region)
+        try:
+            client.create_vector_bucket(vectorBucketName=vector_bucket_name)
+        except client.exceptions.ConflictException:
+            pass
+        try:
+            client.create_index(
+                vectorBucketName=vector_bucket_name, indexName=index_name, dataType="float32",
+                dimension=len(df[embedding_column].iloc[0]), distanceMetric=step.get("distance_metric", "cosine"),
+            )
+        except client.exceptions.ConflictException:
+            pass
+        vectors = []
+        for pos in range(len(df)):
+            meta = dict(metadatas[pos])
+            meta[text_column] = str(df[text_column].iloc[pos])
+            vectors.append({
+                "key": ids[pos],
+                "data": {"float32": [float(x) for x in df[embedding_column].iloc[pos]]},
+                "metadata": meta,
+            })
+        for i in range(0, len(vectors), 500):  # put_vectors hard limit
+            client.put_vectors(vectorBucketName=vector_bucket_name, indexName=index_name, vectors=vectors[i:i + 500])
+        if sync_mode != "upsert":
+            context.log.warning(
+                "write_vector_store: s3vectors has no server-side metadata filter for list/delete; "
+                "stale chunks of changed documents are NOT removed (behaves as sync_mode='upsert')."
+            )
+        context.log.info(f"write_vector_store: upserted {len(df)} chunks into s3vectors index {index_name!r} (bucket {vector_bucket_name!r})")
+
+    elif provider == "lancedb":
+        try:
+            import lancedb
+        except ImportError:
+            raise ImportError("write_vector_store op provider='lancedb' requires: pip install lancedb")
+        connection_string = step.get("connection_string") or "./lancedb_data"
+        table_name = step["collection_name"]
+        db_conn = lancedb.connect(connection_string)
+        write_df = pd.DataFrame(metadatas)
+        write_df[text_column] = df[text_column].astype(str).values
+        write_df["vector"] = [[float(x) for x in v] for v in df[embedding_column]]
+        try:
+            tbl = db_conn.open_table(table_name)
+            tbl.merge_insert("chunk_id").when_matched_update_all().when_not_matched_insert_all().execute(write_df)
+        except ValueError:
+            tbl = db_conn.create_table(table_name, write_df)
+        orphans_deleted = 0
+        if sync_mode in ("replace_sources", "replace_all"):
+            before = len(tbl)
+            new_ids_sql = ",".join("'" + i.replace("'", "''") + "'" for i in new_ids) or "''"
+            if sync_mode == "replace_sources":
+                source_ids_sql = ",".join("'" + s.replace("'", "''") + "'" for s in source_ids) or "''"
+                predicate = f"source_id IN ({source_ids_sql}) AND chunk_id NOT IN ({new_ids_sql})"
+            else:
+                predicate = f"chunk_id NOT IN ({new_ids_sql})"
+            tbl.delete(predicate)
+            orphans_deleted = before - len(tbl)
+        stats["orphans_deleted"] = orphans_deleted
+        context.log.info(
+            f"write_vector_store: upserted {len(df)} chunks into lancedb table {table_name!r} at "
+            f"{connection_string!r} ({sync_mode}); removed {orphans_deleted} stale chunk(s)"
+        )
     else:
-        raise ValueError(f"write_vector_store op: unsupported provider {provider!r}. Valid: chromadb, pinecone, qdrant.")
+        raise ValueError(f"write_vector_store op: unsupported provider {provider!r}. Valid: chromadb, pinecone, qdrant, s3vectors, lancedb.")
 
     out = df.copy()
     out.attrs["stats"] = stats
@@ -4647,7 +4784,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                 self.description or f"Context-engineering pipeline step {step_id!r} ({step['op']})")
             if self.owners:
                 owners_by_output_name[output_name] = list(self.owners)
-            tags_by_output_name[output_name] = all_tags
+            tags_by_output_name[output_name] = _per_step_tags(all_tags, asset_name, step_id, step_id == last_step_id)
             if i == 0:
                 internal_asset_deps[output_name] = (
                     {AssetKey.from_user_string(self.upstream_asset_key)} if self.upstream_asset_key else set()
@@ -4858,7 +4995,7 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                 self.description or f"Context-engineering pipeline step {step_id!r} ({step['op']}, execution_mode=sql)")
             if self.owners:
                 owners_by_output_name[output_name] = list(self.owners)
-            tags_by_output_name[output_name] = all_tags
+            tags_by_output_name[output_name] = _per_step_tags(all_tags, asset_name, step_id, step_id == last_step_id)
             internal_asset_deps[output_name] = (
                 {AssetKey.from_user_string(_step_asset_key(prev_step_id))} if prev_step_id is not None else set()
             )

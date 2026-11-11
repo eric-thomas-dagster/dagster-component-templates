@@ -18,7 +18,7 @@ Materialize a directory of documents as a versioned Dagster asset. Every materia
 | Field | Type | Description |
 |---|---|---|
 | `asset_name` | `str` | Dagster asset name |
-| `source_dir` | `str` | Absolute path to the directory of docs |
+| `source_dir` | `str` | Absolute path to the directory of docs, or an fsspec URI for a remote source (s3://, gs://, az://, abfs://, sftp://, ...). Remote sources route through fsspec, so install the matching backend (s3fs / gcsfs / adlfs / paramiko). |
 
 ### Catalog metadata
 
@@ -67,6 +67,7 @@ Materialize a directory of documents as a versioned Dagster asset. Every materia
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `file_glob` | `str` | `"**/*.md"` | Glob relative to source_dir (default '**/*.md') |
+| `storage_options_env_vars` | `Dict[str, str]` | — | Only used when source_dir is a remote fsspec URI. Maps an fsspec storage_option key to the env var name holding its value, e.g. {'key': 'AWS_ACCESS_KEY_ID', 'secret': 'AWS_SECRET_ACCESS_KEY'} for s3://, {'account_name'… _(full docs in schema.json + component README)_ |
 | `encoding` | `str` | `"utf-8"` | Text file encoding for plain-text files (.md/.txt/.html -- ignored for .pdf/.docx, which are always read as binary and text-extracted) |
 | `min_doc_count` | `int` | `1` | Asset check fails if fewer docs than this — guards against empty corpus regressions. |
 | `include_preview_metadata` | `bool` | `true` | Include a `preview` metadata key (markdown table of first rows). |

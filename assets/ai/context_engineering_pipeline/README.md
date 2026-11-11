@@ -74,10 +74,11 @@ cd prospect-recon-demo
 ## Ops
 
 - **chunk** (must be first): fixed-size chunking with sentence-boundary snapping and configurable overlap. Threads `id_column` (and any `metadata_columns`) through to every chunk row as a citation back to the source row.
-- **classify**: tags each chunk with a category **before** embedding — a relevance-vs-similarity fix: raw cosine similarity ranks short boilerplate over long relevant analysis unless chunks are pre-filtered by category first. Three modes: `mode: zero_shot` (default — HuggingFace zero-shot, local, free, no API key), `mode: llm` (any litellm model judges the category — costs money per chunk, but applies real judgment a fixed label set can't for nuanced/ambiguous cases), or `mode: custom` (bring your own classifier — `fn: "module.path:function_name"`, called as `fn(text, candidate_labels) -> str` once per chunk; same `module.path:function_name` convention as `langgraph_agent`'s `graph_fn`). `mode: custom` is python mode only — a Python function can't run inside `execution_mode: sql`'s warehouse-native statement.
-- **embed**: `provider: sentence_transformers` (default, local, free), `openai`, `cohere`, or `litellm` (universal gateway — one interface across every provider litellm supports: Azure, Bedrock, Vertex, Ollama, VoyageAI, Mistral, etc., via litellm's `"<provider>/<model>"` naming).
+- **classify**: tags each chunk with a category **before** embedding — a relevance-vs-similarity fix: raw cosine similarity ranks short boilerplate over long relevant analysis unless chunks are pre-filtered by category first. Three modes: `mode: zero_shot` (default — HuggingFace zero-shot, local, free, no API key), `mode: llm` (any litellm model judges the category — costs money per chunk, but applies real judgment a fixed label set can't for nuanced/ambiguous cases; `api_base` + `litellm_params` work the same as `embed`'s `litellm` provider, so Azure/Bedrock/Vertex/Ollama/vLLM endpoints work here too), or `mode: custom` (bring your own classifier — `fn: "module.path:function_name"`, called as `fn(text, candidate_labels) -> str` once per chunk; same `module.path:function_name` convention as `langgraph_agent`'s `graph_fn`). `mode: custom` is python mode only — a Python function can't run inside `execution_mode: sql`'s warehouse-native statement.
+- **embed**: `provider: sentence_transformers` (default, local, free), `openai`, `cohere`, or `litellm` (universal gateway — one interface across every provider litellm supports: Azure, Bedrock, Vertex, Ollama, VoyageAI, Mistral, etc., via litellm's `"<provider>/<model>"` naming, plus `api_base` and a free-form `litellm_params` mapping for provider-specific kwargs like `api_version` (Azure), `aws_region_name` (Bedrock) or `vertex_project` (Vertex)).
+- **enrich**: adds an LLM-written field to every chunk (`mode: summary|keywords|questions|context`, any litellm `model`). `api_key_env_var` names the env var holding the API key; `api_base` + `litellm_params` work the same as `embed`'s `litellm` provider, so Azure/Bedrock/Vertex/Ollama/vLLM endpoints work here too.
 - **custom**: bring your own Python callable — `fn: "module.path:function_name"`, called once per chunk as `fn(text, **params) -> str` (same `module.path:function_name` convention as `classify`'s `mode: custom`). The generic escape hatch for anything `filter`/`dedupe`/`sensitivity`/`stamp`/`enrich` can't express — e.g. wiring in `log_redaction.pii_log_redaction:redact_text` for NER-based PII redaction beyond the regex-only `sensitivity` op. Python mode only.
-- **write_vector_store**: `provider: chromadb` (default, local, free), `pinecone`, or `qdrant`.
+- **write_vector_store**: `provider: chromadb` (default, local, free), `pinecone`, `qdrant`, `s3vectors` (real AWS S3 Vectors — needs `vector_bucket_name` + `aws_region`; can't delete by metadata filter, so non-`upsert` sync_modes fall back to upsert with a warning, same as `pinecone`), or `lancedb` (embedded, local/on-disk — no account needed; full sync support like `chromadb`).
 
 ## Knobs (all configured in YAML)
 
@@ -348,6 +349,14 @@ pointing at this component's output elsewhere keeps working unchanged — and ev
 `receipts_feedback`, the retrieval-quality/recipe-outcomes asset checks) all still land on that one final
 asset, same as today; every step additionally gets its own `op` / `elapsed_seconds` / row-count metadata on
 its own node.
+
+Tags: when the recipe has a `write_vector_store` step, the `dagster-community/knowledge-base` marker
+(a stable tag so a knowledge-base UI can find every such asset by tag alone) is set **only on the
+final step's asset** — it's the one terminal,
+queryable index a gateway actually searches, not an intermediate step like `chunks` or `embedded`. Every
+step (including the final one) additionally gets `dagster-community/knowledge-base-name` (this recipe's
+`asset_name`) and `dagster-community/knowledge-base-stage` (that step's own `id`), so a UI can group every
+stage of one recipe together even though only the last one is itself searchable.
 
 ### `per_step_ops` with `execution_mode: sql`
 

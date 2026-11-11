@@ -1,0 +1,54 @@
+{
+  "component_type": "dagster_community_components.DagsterWorkflowToolsComponent",
+  "description": "\"Workflow as tool\": WRITE-capable tools over the Dagster instance (materialize_assets, run_job) for agents -- each a real, synchronous dagster.execute_job run, not a read-only query. Registers a resource and ships a stdio MCP server (python -m <module>) for agentic_pipeline's tool_use_loop / mcp_call. A deliberately separate component from the read-only dagster_instance_tools.",
+  "category": "ai",
+  "icon": "Zap",
+  "x-dagster-io": {},
+  "attributes": {
+    "resource_key": {
+      "type": "string",
+      "label": "Resource Key",
+      "description": "Resource key the toolset is registered under",
+      "required": false,
+      "default": "dagster_workflow_tools"
+    },
+    "definitions_module": {
+      "type": "string",
+      "label": "Definitions Module",
+      "description": "Required 'pkg.module[:attr]' that yields the Definitions this tool is allowed to materialize/run (attr defaults to `defs`). Unlike dagster_instance_tools (read-only), a write tool must know its own scope -- there is no 'degrade gracefully without it' mode here.",
+      "required": true,
+      "default": null
+    },
+    "allow": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Allow",
+      "description": "Hard allow-list of tools (default: all). Valid: materialize_assets, run_job.",
+      "required": false,
+      "default": null
+    },
+    "allow_assets": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Allow Assets",
+      "description": "Hard allow-list of asset keys materialize_assets may target (default: any asset in definitions_module). Recommended in production -- an agent should materialize specific, intended assets, not anything in the repo.",
+      "required": false,
+      "default": null
+    },
+    "allow_jobs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "label": "Allow Jobs",
+      "description": "Hard allow-list of job names run_job may target (default: any job in definitions_module).",
+      "required": false,
+      "default": null
+    },
+    "default_tags": {
+      "type": "object",
+      "label": "Default Tags",
+      "description": "Tags merged onto every triggered run, alongside dagster-community/workflow-tool=true (e.g. {'triggered_by': 'support-agent'}) -- for run-tag attribution/audit.",
+      "required": false,
+      "default": null
+    }
+  }
+}

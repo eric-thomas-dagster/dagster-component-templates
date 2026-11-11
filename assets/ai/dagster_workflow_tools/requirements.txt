@@ -1,0 +1,6 @@
+dagster
+pydantic
+
+# only for the stdio MCP server entrypoint (python -m <module>); verified with
+# mcp 1.30.0 and 2.3.0. The toolset + resource do not need it
+mcp>=1.30,<3

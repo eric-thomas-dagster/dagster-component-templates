@@ -1,0 +1,9 @@
+type: dagster_community_components.DagsterWorkflowToolsComponent
+attributes:
+  resource_key: dagster_workflow_tools
+  definitions_module: my_project.definitions
+  # allow: [materialize_assets]            # hard allow-list of tools (default: both)
+  allow_assets: [orders, orders_summary]   # hard allow-list of asset keys (strongly recommended)
+  # allow_jobs: [nightly_refresh]          # hard allow-list of job names
+  default_tags:
+    team: support

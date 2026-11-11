@@ -43,7 +43,7 @@ class VectorStoreQueryRunConfig(Config):
 def _embed_query_text(text: str, provider: str, model: Optional[str], api_key_env_var: Optional[str]) -> List[float]:
     """Embeds ONE query string with the given provider/model -- same dispatch convention as
     `context_engineering_pipeline`'s `_do_embed_raw` and `resources/context_receipt_store/
-    gateway.py`'s `KnowledgeSearch._embed_query` (single query, not batched, since this runs
+    component.py`'s `KnowledgeSearch._embed_query` (single query, not batched, since this runs
     once per asset materialization, not once per upstream row)."""
     if provider == "sentence_transformers":
         try:

@@ -143,9 +143,29 @@ def _extract_content_from_bytes(raw: bytes, ext: str, encoding: str = "utf-8") -
 
         soup = BeautifulSoup(raw.decode(encoding, errors="replace"), "html.parser")
         return soup.get_text(separator="\n")
+    if ext in (".pptx", ".xlsx", ".xls", ".epub", ".mp3", ".wav", ".m4a"):
+        return _extract_with_markitdown(raw, ext)
     if ext == ".doc":
         raise NotImplementedError("legacy .doc format has no extraction library available")
     return raw.decode(encoding)
+
+
+def _extract_with_markitdown(raw: bytes, ext: str) -> str:
+    """Formats pdfplumber/python-docx/BeautifulSoup don't cover: PowerPoint, Excel, EPub and
+    audio. Uses Microsoft's `markitdown` library (verified real API:
+    `MarkItDown(enable_plugins=False).convert_stream(stream, file_extension=...).markdown`) --
+    no LLM required for any of these formats."""
+    import io
+
+    try:
+        from markitdown import MarkItDown
+    except ImportError:
+        raise ImportError(
+            f"cloud_documents: extracting {ext!r} files requires: pip install "
+            f"'markitdown[pptx,xlsx,docx,pdf]' (or markitdown[all])."
+        )
+    result = MarkItDown(enable_plugins=False).convert_stream(io.BytesIO(raw), file_extension=ext)
+    return result.markdown
 
 
 # BEGIN column-hashing helper (inlined per component; keep copies identical, see tests/test_column_hashing_ingestion.py)
@@ -460,6 +480,20 @@ class CloudDocumentsComponent(Component, Model, Resolvable):
             "provider='webdav', this is instead a path RELATIVE to webdav_base_url (e.g. "
             "'/Documents/'); defaults to '/' (the share root) if unset. Ignored for "
             "onedrive/sharepoint/box/dropbox, which use their own listing fields below."
+        ),
+    )
+
+    storage_options_env_vars: Optional[Dict[str, str]] = Field(
+        default=None,
+        description=(
+            "Only used for provider='s3'/'gcs'/'azure_blob'. Maps an fsspec storage_option key "
+            "to the env var name holding its value, e.g. {'endpoint_url': 'S3_ENDPOINT_URL'} "
+            "for an S3-compatible endpoint (Cloudflare R2, MinIO, Rustfs, ...), or "
+            "{'key': 'AWS_ACCESS_KEY_ID', 'secret': 'AWS_SECRET_ACCESS_KEY'} to override s3fs's "
+            "own ambient credential chain explicitly. Resolved via dg.EnvVar at materialization "
+            "time only -- never baked into the code location at load time. Omit to keep using "
+            "fsspec's ambient auth (the cloud SDK's own default credential chain), which already "
+            "works for real S3/GCS/Azure without this field."
         ),
     )
 
@@ -813,7 +847,7 @@ class CloudDocumentsComponent(Component, Model, Resolvable):
     @model_validator(mode="before")
     @classmethod
     def _coerce_field_shapes(cls, data):
-        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=('partition_values',), tags=('asset_tags',))
+        return coerce_field_shapes(data, lists=('owners', 'kinds', 'deps'), csv=('partition_values',), tags=('asset_tags', 'storage_options_env_vars'))
 
     @model_validator(mode="after")
     def _check_provider_requirements(self):
@@ -1006,7 +1040,7 @@ class CloudDocumentsComponent(Component, Model, Resolvable):
 
             context.log.info(f"Starting cloud_documents ingestion, provider={provider}, destination={destination or 'duckdb (in-memory)'}")
 
-            extensions = ['.txt', '.md', '.pdf', '.doc', '.docx', '.html', '.htm']
+            extensions = ['.txt', '.md', '.pdf', '.doc', '.docx', '.html', '.htm', '.pptx', '.xlsx', '.xls', '.epub', '.mp3', '.wav', '.m4a']
             rows: List[Dict[str, Any]] = []
             skipped_files: List[Dict[str, str]] = []
 
@@ -1034,8 +1068,17 @@ class CloudDocumentsComponent(Component, Model, Resolvable):
                 import fsspec
 
                 _backend_hint = {"s3": "s3fs", "gcs": "gcsfs", "azure_blob": "adlfs"}[provider]
+                _storage_options: Dict[str, Any] = {}
+                for _key, _env_var in (self.storage_options_env_vars or {}).items():
+                    _val = EnvVar(_env_var).get_value()
+                    if _val is None:
+                        raise ValueError(
+                            f"cloud_documents: storage_options_env_vars[{_key!r}] names env var "
+                            f"{_env_var!r}, which is not set."
+                        )
+                    _storage_options[_key] = _val
                 try:
-                    fs, root = fsspec.core.url_to_fs(source_path)
+                    fs, root = fsspec.core.url_to_fs(source_path, **_storage_options)
                 except ImportError as e:
                     raise ImportError(
                         f"cloud_documents: provider={provider!r} requires the matching fsspec "

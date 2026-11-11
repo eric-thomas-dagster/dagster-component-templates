@@ -41,7 +41,28 @@ def _extract_text_from_bytes(data: bytes, suffix: str, encoding: str) -> str:
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(data.decode(encoding), "html.parser")
         return soup.get_text(separator="\n")
+    if suffix in (".pptx", ".xlsx", ".xls", ".epub", ".mp3", ".wav", ".m4a"):
+        return _extract_with_markitdown(data, suffix)
     return data.decode(encoding)
+
+
+def _extract_with_markitdown(data: bytes, suffix: str) -> str:
+    """Formats pdfplumber/python-docx/BeautifulSoup don't cover here: PowerPoint, Excel,
+    EPub and audio (transcription). Uses Microsoft's `markitdown` library (verified real API:
+    `MarkItDown(enable_plugins=False).convert_stream(stream, file_extension=...).markdown`) --
+    no LLM required for any of these formats (image/PPTX-picture captioning, the only part of
+    markitdown that needs one, is opt-in via a separate `llm_client` kwarg this component never
+    passes)."""
+    import io
+    try:
+        from markitdown import MarkItDown
+    except ImportError:
+        raise ImportError(
+            f"document_corpus: extracting {suffix!r} files requires: pip install "
+            f"'markitdown[pptx,xlsx,docx,pdf]' (or markitdown[all])."
+        )
+    result = MarkItDown(enable_plugins=False).convert_stream(io.BytesIO(data), file_extension=suffix)
+    return result.markdown
 
 
 def _extract_text(path: Path, encoding: str) -> str:

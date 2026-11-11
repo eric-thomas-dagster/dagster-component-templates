@@ -109,6 +109,7 @@ Every row, every provider, carries the same columns so `document_chunker` and ot
 
 | Field | Type | Default | Description |
 |---|---|---|---|
+| `storage_options_env_vars` | `Dict[str, str]` | — | Only used for provider='s3'/'gcs'/'azure_blob'. Maps an fsspec storage_option key to the env var name holding its value, e.g. {'endpoint_url': 'S3_ENDPOINT_URL'} for an S3-compatible endpoint (Cloudflare R2, MinIO, Rustf… _(full docs in schema.json + component README)_ |
 | `webdav_base_url` | `str` | — | Required when provider='webdav': the WebDAV server/share root, e.g. 'https://dav.example.com/remote.php/dav/files/user/'. Routes through fsspec's 'webdav' protocol, which this environment's fsspec already knows how to re… _(full docs in schema.json + component README)_ |
 | `webdav_username` | `str` | — | WebDAV basic-auth username. Pairs with webdav_password_env_var. Optional if your WebDAV server allows anonymous/token-only access. |
 | `webdav_password_env_var` | `str` | — | Env var holding the WebDAV basic-auth password, resolved via dagster.EnvVar. Pairs with webdav_username. |

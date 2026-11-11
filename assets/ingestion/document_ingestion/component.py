@@ -595,6 +595,22 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
                 with open(uri, "rb") as f:
                     return f.read()
 
+            def _extract_with_markitdown(uri: str, ext: str) -> str:
+                """Formats pdfplumber/python-docx/BeautifulSoup don't cover: PowerPoint, Excel,
+                EPub and audio. Uses Microsoft's `markitdown` library (verified real API:
+                `MarkItDown(enable_plugins=False).convert_stream(stream, file_extension=...).markdown`)
+                -- no LLM required for any of these formats."""
+                import io
+                try:
+                    from markitdown import MarkItDown
+                except ImportError:
+                    raise ImportError(
+                        f"document_ingestion: extracting {ext!r} files requires: pip install "
+                        f"'markitdown[pptx,xlsx,docx,pdf]' (or markitdown[all])."
+                    )
+                result = MarkItDown(enable_plugins=False).convert_stream(io.BytesIO(_read_bytes(uri)), file_extension=ext)
+                return result.markdown
+
             def _extract_content(uri: str, ext: str) -> str:
                 """Real text extraction by extension (same libraries as document_corpus:
                 pdfplumber, python-docx, BeautifulSoup). Raises on a genuine extraction
@@ -616,6 +632,8 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
                     from bs4 import BeautifulSoup
                     soup = BeautifulSoup(_read_text(uri), "html.parser")
                     return soup.get_text(separator="\n")
+                if ext in (".pptx", ".xlsx", ".xls", ".epub", ".mp3", ".wav", ".m4a"):
+                    return _extract_with_markitdown(uri, ext)
                 if ext == ".doc":
                     raise NotImplementedError("legacy .doc format has no extraction library available")
                 return _read_text(uri)
@@ -643,7 +661,7 @@ class DocumentIngestionComponent(Component, Model, Resolvable):
                 context.log.info(f"Reading documents from: {source_path}")
 
                 # Look for common document types
-                extensions = ['.txt', '.md', '.pdf', '.doc', '.docx', '.html']
+                extensions = ['.txt', '.md', '.pdf', '.doc', '.docx', '.html', '.pptx', '.xlsx', '.xls', '.epub', '.mp3', '.wav', '.m4a']
 
                 # Directory-walk for both local and cloud. For a single file,
                 # _list_files still works if `source_path` is the file itself

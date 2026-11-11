@@ -2507,6 +2507,61 @@ def _resolve_mcp_headers(cfg: Dict[str, Any], server_name: str) -> Dict[str, str
     return headers
 
 
+def _resolve_mcp_server_cfg(cfg: Dict[str, Any], context, *, where: str) -> Dict[str, Any]:
+    """Resolve a step-declared MCP server config -- either inline (today's shape: `name` +
+    transport fields) or, when `server_resource_key` is set, from a shared MCPServerResource
+    registered via a resources/mcp_server_resource component -- lets `mcp_call`/`tool_use_loop`
+    steps (and `plan`'s `executor.mcp_servers`, which `tool_use_loop` also handles) share one
+    registered server instead of repeating the same inline spec. Exactly one of the two is
+    required; `where` names the op + step id in the error message."""
+    resource_key = cfg.get("server_resource_key")
+    has_inline = bool(cfg.get("name"))
+    if bool(resource_key) == has_inline:
+        raise ValueError(
+            f"{where}: MCP server config requires exactly one of inline connection fields "
+            f"(`name` + command/url/...) or `server_resource_key` (an MCPServerResource "
+            f"component's resource_key); got {cfg!r}"
+        )
+    if resource_key:
+        resource = getattr(context.resources, resource_key)
+        return resource.model_dump()
+    return cfg
+
+
+def _collect_mcp_server_resource_keys(steps: List[Dict[str, Any]]) -> "set[str]":
+    """Static union of every `server_resource_key` referenced by a `mcp_call` step's
+    `server` or a `tool_use_loop` step's `mcp_servers` entries, across `steps` AND any
+    `sub_pipeline` step's nested `steps:` (recursively -- a sub_pipeline can nest another
+    sub_pipeline). Used to set `required_resource_keys` on the asset(s) that execute these
+    steps, since the YAML is static at build_defs time even though which path (inline vs.
+    shared resource) each entry takes is only read at materialization time.
+
+    `plan` steps forward `executor.mcp_servers` into a synthetic `tool_use_loop` step dict
+    at RUN time (see `_do_plan`), not via `self.steps`, so they are covered here too --
+    `executor` is just a step-level dict, same as any other op's config.
+
+    `delegate` steps are deliberately NOT covered: their MCP server comes from a
+    DISCOVERED AgentCardComponent's `invocation.mcp_server`, owned by that sibling
+    component, not declared on this component's own step config.
+    """
+    keys: "set[str]" = set()
+    for step in steps or []:
+        server = step.get("server")
+        if isinstance(server, dict) and server.get("server_resource_key"):
+            keys.add(server["server_resource_key"])
+        for entry in (step.get("mcp_servers") or []):
+            if isinstance(entry, dict) and entry.get("server_resource_key"):
+                keys.add(entry["server_resource_key"])
+        executor = step.get("executor")
+        if isinstance(executor, dict):
+            for entry in (executor.get("mcp_servers") or []):
+                if isinstance(entry, dict) and entry.get("server_resource_key"):
+                    keys.add(entry["server_resource_key"])
+        if step.get("op") == "sub_pipeline":
+            keys |= _collect_mcp_server_resource_keys(step.get("steps") or [])
+    return keys
+
+
 def _validate_tool_args_against_schema(
     tool_args: Dict[str, Any], schema: Optional[Dict[str, Any]], tool_name: str
 ) -> None:
@@ -2885,7 +2940,10 @@ async def _call_mcp_tool_async(
 def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
     """Direct MCP tool call — no LLM, deterministic step in the pipeline.
 
-    server: {name, type: stdio|http|sse|fastmcp, command|url, env|headers|headers_env}
+    server: {name, type: stdio|http|sse|fastmcp, command|url, env|headers|headers_env} OR
+            {server_resource_key: <an MCPServerResource component's resource_key>} to share
+            one registered server across steps/components instead of declaring it inline --
+            exactly one of the two is required.
     mcp_tool_name: <tool name as the MCP server exposes it>
     tool_args: {arg_name: value}      (string values are `{text}`-templated against source)
     parse_as: 'auto' | 'json' | 'text'  (default 'auto')
@@ -2905,7 +2963,8 @@ def _do_mcp_call(step: dict, state: Dict[str, Any], context) -> Dict[str, Any]:
 
     server_cfg = step.get("server") or {}
     if not server_cfg:
-        raise ValueError("mcp_call requires `server: {name, type, ...}`")
+        raise ValueError("mcp_call requires `server: {name, type, ...}` or `server: {server_resource_key: <key>}`")
+    server_cfg = _resolve_mcp_server_cfg(server_cfg, context, where=f"mcp_call step {step.get('id')!r}")
     tool_name = step.get("mcp_tool_name")
     if not tool_name:
         raise ValueError("mcp_call requires `mcp_tool_name: <name-on-the-server>`")
@@ -3108,7 +3167,8 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
 
     Config:
       model, api_key_env_var: LLM the agent runs on
-      mcp_servers: list of MCP server configs (same shape as mcp_call.server)
+      mcp_servers: list of MCP server configs; each entry is the same shape as mcp_call.server
+                   (inline, or {server_resource_key: <key>} to share a registered server)
       max_iterations: hard cap on loop iterations (default 10)
       system_prompt: agent instructions
       allowed_tools: optional allowlist (defaults to all discovered tools)
@@ -3159,6 +3219,10 @@ def _do_tool_use_loop(step: dict, state: Dict[str, Any], context) -> Dict[str, A
     mcp_servers = step.get("mcp_servers") or []
     if not mcp_servers:
         raise ValueError("tool_use_loop requires `mcp_servers: [...]`.")
+    mcp_servers = [
+        _resolve_mcp_server_cfg(s, context, where=f"tool_use_loop step {step.get('id', '?')!r}")
+        for s in mcp_servers
+    ]
 
     context.log.info(
         f"[tool_use_loop:{step.get('id', '?')}] discovering tools across "
@@ -7831,12 +7895,16 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
             "Prefer `inputs:` for named typed joins (Prefect-style execution-plan "
             "shape); `sources:` for positional legacy shape.\n"
             "  - **mcp_call**: {server: {name, type: stdio|http|sse|fastmcp, "
-            "command|url, env|headers|headers_env}, mcp_tool_name, tool_args, "
+            "command|url, env|headers|headers_env} OR {server_resource_key: <an "
+            "MCPServerResource component's resource_key>, to share one registered "
+            "server instead of declaring it inline -- exactly one of the two is "
+            "required}, mcp_tool_name, tool_args, "
             "parse_as: auto|json|text}. Direct MCP tool call (no LLM); "
             "string `tool_args` support `{text}` substitution against source "
             "AND `{port_name}` substitution from `inputs:`.\n"
             "  - **tool_use_loop**: {model, api_key_env_var, mcp_servers: "
-            "[...], max_iterations, [system_prompt, allowed_tools, "
+            "[...] (each entry the same shape as mcp_call.server, inline or "
+            "server_resource_key), max_iterations, [system_prompt, allowed_tools, "
             "finalize_tool_name, temperature, max_tokens]}. Open-ended "
             "tool-use loop — LLM sees MCP tools, picks one, tool runs, "
             "LLM sees result, picks next tool, etc. Bounded by "
@@ -8266,6 +8334,7 @@ class AgenticPipelineComponent(dg.Component, dg.Model, dg.Resolvable):
         if _park_dirs(steps):  # a run whose steps all park ends SUCCESS: this is what says work is pending (both build paths take _asset_checks)
             _asset_checks.append(_build_pending_approvals_check(dg.AssetKey([_receipt_asset]), prefix, _park_dirs(steps), float(self.park_warn_after_hours)))
         _required_keys = {_receipts_cfg["resource_key"]} if _receipts_cfg else set()
+        _required_keys |= _collect_mcp_server_resource_keys(steps)
 
         # ── Branch: per_step_ops selects the emitted shape ────────────
         # (True → graph_multi_asset with N+2 ops; False → single multi_asset)

@@ -60,12 +60,14 @@
     "mcp_servers": {
       "type": "array",
       "label": "MCP Servers",
+      "description": "MCP servers to expose as tools. Each entry is declared inline (name + transport fields) or shared via server_resource_key (an MCPServerResource component's resource_key) -- exactly one of the two per entry.",
       "required": false,
       "items": {
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "Short name used to prefix tool names. Required when declaring the server inline; leave unset when using server_resource_key."
           },
           "type": {
             "type": "string",
@@ -93,6 +95,10 @@
           },
           "headers_env": {
             "type": "object"
+          },
+          "server_resource_key": {
+            "type": "string",
+            "description": "Resource key of an MCPServerResource component to use instead of declaring this server inline -- lets several agent components share one registered server. Exactly one of `name` (inline spec) or `server_resource_key` is required."
           }
         }
       }

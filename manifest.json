@@ -16199,6 +16199,44 @@
       "icon": "favicon:dagster.io"
     },
     {
+      "id": "dagster_workflow_tools",
+      "name": "dagster_workflow_tools",
+      "category": "ai",
+      "description": "\"Workflow as tool\": WRITE-capable tools over the Dagster instance (materialize_assets, run_job) for agents -- each a real, synchronous dagster.execute_job run, not a read-only query. Registers a resource and ships a stdio MCP server (python -m <module>) for agentic_pipeline's tool_use_loop / mcp_call. A deliberately separate component from the read-only dagster_instance_tools.",
+      "path": "assets/ai/dagster_workflow_tools",
+      "tags": [],
+      "icon": "Zap",
+      "agent_hints": {
+        "inputs": "None -- declares which Definitions module this tool is allowed to materialize/run.",
+        "outputs": "{success, run_id, asset_keys|job_name} per tool call -- the real result of a synchronous dagster.execute_job run.",
+        "side_effects": "Triggers a REAL Dagster run (materialize_assets or run_job) against the configured instance. Scope it with allow_assets/allow_jobs."
+      },
+      "produces": [
+        "resource"
+      ],
+      "keywords": [
+        "agent tools",
+        "mcp server",
+        "trigger run",
+        "materialize",
+        "workflow as tool"
+      ],
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_workflow_tools/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_workflow_tools/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_workflow_tools/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_workflow_tools/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/dagster_workflow_tools/requirements.txt",
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "dagster",
+          "pydantic",
+          "mcp>=1.30,<3"
+        ]
+      }
+    },
+    {
       "id": "dagstermill_notebook_asset",
       "name": "DagstermillNotebookAsset",
       "category": "infrastructure",
@@ -46772,6 +46810,74 @@
       "vertical": "internal"
     },
     {
+      "id": "openapi_tool_server",
+      "name": "OpenAPI Tool Server",
+      "category": "ai",
+      "description": "Turn an OpenAPI/Swagger spec's operations into agent-callable tools, gated by an operationId allow-list.",
+      "path": "assets/ai/openapi_tool_server",
+      "tags": [
+        "ai",
+        "openapi",
+        "agent",
+        "mcp",
+        "tool",
+        "asset"
+      ],
+      "icon": "Workflow",
+      "component_type": "dagster_community_components.OpenApiToolServerComponent",
+      "readme_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openapi_tool_server/README.md",
+      "component_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openapi_tool_server/component.py",
+      "schema_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openapi_tool_server/schema.json",
+      "example_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openapi_tool_server/example.yaml",
+      "requirements_url": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/assets/ai/openapi_tool_server/requirements.txt",
+      "validation": {
+        "level": "code",
+        "evidence": "Component tests (tests/) pass against a real small OpenAPI spec dict, mocked HTTP boundary (mode=assets) and the real installed fastmcp package (mode=mcp_server). No live third-party API validated.",
+        "last_validated": "2026-11-11"
+      },
+      "version": "1.0.0",
+      "author": "Dagster Community",
+      "dependencies": {
+        "pip": [
+          "requests>=2.31.0",
+          "pyyaml>=6.0.0",
+          "fastmcp>=2.0  # optional, only for mode=\"mcp_server\" -- lazily imported, see component.py docstring"
+        ]
+      },
+      "agent_hints": {
+        "inputs": "None -- reads an OpenAPI/Swagger spec (spec_url or spec_path) and an operationId allow-list (operation_ids).",
+        "outputs": "mode='assets' (default): one asset per allow-listed operation, the parsed HTTP response (dict/list/str depending on parse_as). mode='mcp_server': a resource exposing a lazily-built fastmcp.FastMCP server + a small inspection asset listing its tool names.",
+        "side_effects": "mode='assets': makes a real HTTP call to the target API per operation per materialization. mode='mcp_server': no network call at build time or when listing tools -- only when a tool is actually invoked by whatever hosts the server.",
+        "anti_uses": "For pulling GET endpoints into a warehouse table on a schedule, use openapi_ingestion instead. For calling one already-known MCP tool (not derived from an OpenAPI spec), use mcp_tool_call. For an LLM that picks which tool/args to call, use mcp_tool_picker or an *_agent component pointed at the mode='mcp_server' resource.",
+        "requires_resources": [],
+        "requires_pip": [
+          "fastmcp>=2.0 (mode='mcp_server' only)"
+        ],
+        "output_type": "mode='assets': dict/list/str per operation. mode='mcp_server': resource+asset"
+      },
+      "produces": [
+        "multi_asset",
+        "resource",
+        "asset"
+      ],
+      "emitted_assets": {
+        "pattern": "mode='assets' (default): one Dagster asset per OpenAPI operation whose operationId is allow-listed via operation_ids (or every operation in the spec when operation_ids is unset). Asset key = '{asset_name_prefix}_{operation_id}' (sanitized) when asset_name_prefix is set, else the sanitized operationId alone. mode='mcp_server': exactly one inspection asset (inspection_asset_name) plus one resource (resource_key) -- not one per operation.",
+        "source_field": "paths.*.*.operationId",
+        "key_template": "{asset_name_prefix}_{operation_id}"
+      },
+      "keywords": [
+        "openapi",
+        "swagger",
+        "model context protocol",
+        "mcp server",
+        "agent tools",
+        "tool calling",
+        "rest api",
+        "function calling"
+      ],
+      "vertical": "internal"
+    },
+    {
       "id": "openlineage_emitter",
       "name": "openlineage_emitter",
       "category": "check",
@@ -72328,5 +72434,5 @@
   ],
   "schema_spec": "https://raw.githubusercontent.com/eric-thomas-dagster/dagster-component-templates/main/schema-spec.json",
   "schema_spec_local": "schema-spec.json",
-  "total": 1389
+  "total": 1391
 }

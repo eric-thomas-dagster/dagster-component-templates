@@ -64,7 +64,53 @@
     "mcp_servers": {
       "label": "Mcp Servers",
       "type": "array",
-      "required": false
+      "required": false,
+      "description": "MCP servers to expose as tools. Each entry is declared inline (name + transport fields) or shared via server_resource_key (an MCPServerResource component's resource_key) -- exactly one of the two per entry.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Tool-name prefix. Required when declaring the server inline; leave unset when using server_resource_key."
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "stdio",
+              "http",
+              "sse"
+            ],
+            "default": "stdio"
+          },
+          "command": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "stdio: [executable, ...args]."
+          },
+          "url": {
+            "type": "string",
+            "description": "http / sse: full URL of the MCP endpoint."
+          },
+          "env": {
+            "type": "object",
+            "description": "stdio: extra env vars."
+          },
+          "headers": {
+            "type": "object",
+            "description": "http / sse: literal headers."
+          },
+          "headers_env": {
+            "type": "object",
+            "description": "http / sse: header_name → env_var_name."
+          },
+          "server_resource_key": {
+            "type": "string",
+            "description": "Resource key of an MCPServerResource component to use instead of declaring this server inline -- lets several agent components share one registered server. Exactly one of `name` (inline spec) or `server_resource_key` is required."
+          }
+        }
+      }
     },
     "group_name": {
       "label": "Group Name",

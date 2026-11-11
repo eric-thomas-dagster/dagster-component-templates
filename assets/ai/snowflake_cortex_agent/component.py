@@ -34,12 +34,20 @@ from dagster import (
     Resolvable,
     asset,
 )
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, model_validator
 
 
 class MCPServerSpec(dg.Model, dg.Resolvable):
-    """Same MCPServerSpec shape as the other *_agent components."""
-    name: str = Field(description="Tool-name prefix.")
+    """Same MCPServerSpec shape as the other *_agent components.
+
+    Declared inline (set `name` + the transport-specific fields), or shared via
+    `server_resource_key` (an MCPServerResource component's resource_key) instead --
+    exactly one of the two is required per entry.
+    """
+    name: Optional[str] = Field(
+        default=None,
+        description="Tool-name prefix. Required when declaring the server inline; leave unset when using `server_resource_key`. Exactly one of `name` (inline spec) or `server_resource_key` is required.",
+    )
     type: str = Field(default="stdio", description="'stdio' | 'http' | 'sse'.")
     command: Optional[List[str]] = Field(default=None, description="stdio: [executable, ...args].")
     url: Optional[str] = Field(default=None, description="http / sse: full URL.")
@@ -48,6 +56,24 @@ class MCPServerSpec(dg.Model, dg.Resolvable):
     headers_env: Optional[Dict[str, str]] = Field(
         default=None, description="http / sse: header_name → env_var_name."
     )
+    server_resource_key: Optional[str] = Field(
+        default=None,
+        description=(
+            "Resource key of an MCPServerResource component to use instead of declaring "
+            "this server inline -- lets several agent components (and mcp_tool_call / "
+            "mcp_tool_picker) share one registered server. Exactly one of `name` (inline "
+            "spec) or `server_resource_key` is required."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def _exactly_one_server_source(self):
+        if bool(self.name) == bool(self.server_resource_key):
+            raise ValueError(
+                "MCPServerSpec requires exactly one of `name` (+ transport fields, declared "
+                "inline) or `server_resource_key` (an MCPServerResource component's resource_key)."
+            )
+        return self
 
 
 
@@ -236,6 +262,11 @@ class SnowflakeCortexAgentComponent(Component, Model, Resolvable):
                 backoff=Backoff[self.retry_policy_backoff.upper()],
             )
 
+        # Union of every mcp_servers[].server_resource_key in use -- resolved once at
+        # build_defs time (the YAML is static even though which path each entry takes
+        # is only read at materialization time).
+        _mcp_resource_keys = {s.server_resource_key for s in mcp_servers if s.server_resource_key}
+
         @asset(
             key=AssetKey.from_user_string(asset_name),
             partitions_def=partitions_def,
@@ -246,9 +277,19 @@ class SnowflakeCortexAgentComponent(Component, Model, Resolvable):
             freshness_policy=_freshness_policy,
             retry_policy=_retry_policy,
             deps=[AssetKey.from_user_string(k) for k in (self.deps or [])],
+            required_resource_keys=_mcp_resource_keys or None,
         )
         def _agent_asset(context: AssetExecutionContext) -> Dict[str, Any]:
             import asyncio
+
+            # Resolved once per run: each entry's shared MCPServerResource config, or
+            # its own inline spec -- either way the same dict shape _run_agent expects.
+            resolved_mcp_servers = [
+                getattr(context.resources, s.server_resource_key).model_dump()
+                if s.server_resource_key
+                else s.model_dump()
+                for s in mcp_servers
+            ]
 
             substitutions = {"run_id": context.run_id}
             if context.has_partition_key:
@@ -274,7 +315,7 @@ class SnowflakeCortexAgentComponent(Component, Model, Resolvable):
                     max_tokens=max_tokens,
                     max_iterations=max_iterations,
                     request_timeout_seconds=request_timeout_seconds,
-                    mcp_servers=[s.model_dump() for s in mcp_servers],
+                    mcp_servers=resolved_mcp_servers,
                 )
             )
 

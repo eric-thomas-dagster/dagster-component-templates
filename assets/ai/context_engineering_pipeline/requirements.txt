@@ -24,6 +24,16 @@ pandas>=1.5.0
 # write_vector_store op provider='lancedb':
 #   pip install lancedb
 
+# embed op reuse_from.provider='qdrant' / 'pinecone' / 'lancedb' (reuse_from.provider='chromadb'
+# needs nothing beyond the chromadb install above):
+#   pip install qdrant-client
+#   pip install pinecone
+#   pip install lancedb
+
+# sensitivity op engine='presidio':
+#   pip install presidio-analyzer presidio-anonymizer spacy
+#   python -m spacy download en_core_web_sm
+
 # source: {kind: warehouse_query, resource_key: ...} against DuckDB (via a registered Dagster resource):
 #   pip install dagster-duckdb duckdb
 # source: {kind: warehouse_query, database_url_env_var: ...} (bare SQLAlchemy, no Dagster resource):

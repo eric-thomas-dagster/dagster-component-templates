@@ -1037,17 +1037,74 @@ def _find_pii(text: str, detectors: List[str]) -> List[Tuple[str, int, int]]:
     return hits
 
 
+_PRESIDIO_DEFAULT_ENTITIES = ("PERSON", "EMAIL_ADDRESS", "PHONE_NUMBER", "US_SSN", "CREDIT_CARD", "LOCATION")
+
+_presidio_analyzer = None  # lazy-initialized, module-level cache -- same convention as log_redaction's own
+
+
+def _get_presidio_analyzer():
+    """Build (once) a Presidio AnalyzerEngine for ML-based entity detection (PERSON, LOCATION,
+    etc. -- things no regex can reliably catch). Same construction as log_redaction's own
+    `_get_presidio_analyzer` (duplicated, not imported -- no shared files across components in
+    this repo). Raises ImportError with a clear message if the optional deps aren't installed."""
+    global _presidio_analyzer
+    if _presidio_analyzer is None:
+        from presidio_analyzer import AnalyzerEngine
+        from presidio_analyzer.nlp_engine import SpacyNlpEngine
+
+        nlp_engine = SpacyNlpEngine(models=[{"lang_code": "en", "model_name": "en_core_web_sm"}])
+        _presidio_analyzer = AnalyzerEngine(nlp_engine=nlp_engine, supported_languages=["en"])
+    return _presidio_analyzer
+
+
+def _find_pii_presidio(text: str, entities: List[str], score_threshold: float) -> List[Tuple[str, int, int]]:
+    """Same (entity_type, start, end) tuple shape `_find_pii` returns, so the rest of
+    `_do_sensitivity` (tag/redact/drop) works unchanged regardless of which engine ran.
+    Non-overlapping, highest-scoring spans only -- same overlap resolution as log_redaction's
+    own `_redact_with_presidio`."""
+    try:
+        analyzer = _get_presidio_analyzer()
+    except ImportError as e:
+        raise ImportError(
+            "sensitivity op engine='presidio' requires the optional 'presidio-analyzer', "
+            "'presidio-anonymizer', and 'spacy' packages (plus `python -m spacy download "
+            f"en_core_web_sm`). Install them, or use engine='regex' instead. Original error: {e}"
+        ) from e
+    results = analyzer.analyze(text=text, language="en", entities=list(entities), score_threshold=score_threshold)
+    results = sorted(results, key=lambda r: r.start)
+    kept = []
+    for r in results:
+        if kept and r.start < kept[-1].end:
+            if r.score > kept[-1].score:
+                kept[-1] = r
+            continue
+        kept.append(r)
+    return [(r.entity_type, r.start, r.end) for r in kept]
+
+
 def _do_sensitivity(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
-    """Detect PII with regexes (email, phone, ssn, credit_card [Luhn-checked], ipv4). action:
-    tag (default) adds `sensitivity` ('pii'|'none') and `pii_types`; redact also replaces matches with
-    [EMAIL]/[PHONE]/...; drop removes affected chunks. The `sensitivity` column is what a gateway
-    policy keys on to withhold chunks (receipt exclusion reason 'pii'). Regex detection, not NER:
-    it misses names and free-form identifiers, so treat it as a floor, not a guarantee."""
+    """Detect PII. engine='regex' (default): email, phone, ssn, credit_card [Luhn-checked], ipv4
+    -- no ML dependency, but misses names and free-form identifiers (treat it as a floor, not a
+    guarantee). engine='presidio': Microsoft Presidio + spaCy NLP-based entity detection (PERSON,
+    LOCATION, DATE_TIME, ... -- anything no regex can reliably catch); `detectors` becomes a list
+    of Presidio entity names (default: PERSON, EMAIL_ADDRESS, PHONE_NUMBER, US_SSN, CREDIT_CARD,
+    LOCATION), and `presidio_score_threshold` (default 0.3) sets its confidence cutoff. Requires
+    the optional presidio-analyzer/presidio-anonymizer/spacy packages. action: tag (default) adds
+    `sensitivity` ('pii'|'none') and `pii_types`; redact also replaces matches with [EMAIL]/
+    [PHONE]/[PERSON]/...; drop removes affected chunks. The `sensitivity` column is what a
+    gateway policy keys on to withhold chunks (receipt exclusion reason 'pii')."""
     col = _text_column(df, step)
-    detectors = step.get("detectors") or list(_PII_DETECTORS)
-    unknown = [d for d in detectors if d not in _PII_DETECTORS]
-    if unknown:
-        raise ValueError(f"sensitivity op: unknown detector(s) {unknown}; valid: {sorted(_PII_DETECTORS)}")
+    engine = step.get("engine", "regex")
+    if engine not in ("regex", "presidio"):
+        raise ValueError(f"sensitivity op: engine must be 'regex' or 'presidio', got {engine!r}")
+    if engine == "presidio":
+        detectors = step.get("detectors") or list(_PRESIDIO_DEFAULT_ENTITIES)
+        score_threshold = float(step.get("presidio_score_threshold", 0.3))
+    else:
+        detectors = step.get("detectors") or list(_PII_DETECTORS)
+        unknown = [d for d in detectors if d not in _PII_DETECTORS]
+        if unknown:
+            raise ValueError(f"sensitivity op: unknown detector(s) {unknown}; valid: {sorted(_PII_DETECTORS)}")
     action = step.get("action", "tag")
     if action not in ("tag", "redact", "drop"):
         raise ValueError(f"sensitivity op: action must be tag, redact or drop, got {action!r}")
@@ -1056,7 +1113,7 @@ def _do_sensitivity(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
     out = df.copy()
     flags, types, texts = [], [], []
     for text in out[col].astype(str):
-        hits = _find_pii(text, detectors)
+        hits = _find_pii_presidio(text, detectors, score_threshold) if engine == "presidio" else _find_pii(text, detectors)
         flags.append("pii" if hits else "none")
         types.append(",".join(sorted({h[0] for h in hits})))
         if action == "redact" and hits:
@@ -1503,30 +1560,96 @@ def _do_embed_raw(df: pd.DataFrame, step: dict, context) -> pd.DataFrame:
     return out
 
 
+def _fetch_existing_embeddings(ids: List[str], cfg: dict) -> Dict[str, Tuple[Optional[str], Optional[str], Optional[List[float]]]]:
+    """provider-dispatched lookup: {chunk_id: (content_hash, embedding_model, embedding_vector)}
+    for whichever of `ids` already exist in the target store. chromadb/qdrant/pinecone/lancedb
+    each have their own "fetch by id, with vector and metadata" API -- s3vectors is deliberately
+    not included here: it has no bulk "list all ids" or metadata-filter API to check staleness
+    against (same gap documented on write_vector_store's own sync_mode limitation for s3vectors),
+    so reuse_from would need a get_vectors call per id with no way to know which ids are even
+    worth checking -- not supported rather than guessed at."""
+    import os
+    provider = cfg.get("provider", "chromadb")
+    collection_name = cfg.get("collection_name", "context_engineering_kb")
+    connection_string = cfg.get("connection_string")
+
+    if provider == "chromadb":
+        import chromadb
+        client = chromadb.PersistentClient(path=connection_string or "./chroma_db")
+        try:
+            collection = client.get_collection(name=collection_name)
+        except Exception:
+            return {}
+        existing = {}
+        for i in range(0, len(ids), 500):
+            got = collection.get(ids=ids[i:i + 500], include=["metadatas", "embeddings"])
+            for cid, meta, emb in zip(got["ids"], got["metadatas"], got["embeddings"]):
+                existing[cid] = ((meta or {}).get("content_hash"), (meta or {}).get("embedding_model"), emb)
+        return existing
+
+    if provider == "qdrant":
+        import uuid as _uuid
+        from qdrant_client import QdrantClient
+        client = QdrantClient(url=connection_string or "localhost", api_key=os.environ.get(cfg.get("api_key_env_var")) if cfg.get("api_key_env_var") else None)
+        point_ids = [str(_uuid.uuid5(_uuid.NAMESPACE_URL, cid)) for cid in ids]
+        id_by_point_id = dict(zip(point_ids, ids))
+        try:
+            points = client.retrieve(collection_name=collection_name, ids=point_ids, with_payload=True, with_vectors=True)
+        except Exception:
+            return {}
+        existing = {}
+        for p in points:
+            payload = p.payload or {}
+            existing[id_by_point_id.get(str(p.id), str(p.id))] = (payload.get("content_hash"), payload.get("embedding_model"), p.vector)
+        return existing
+
+    if provider == "pinecone":
+        from pinecone import Pinecone
+        pc = Pinecone(api_key=os.environ.get(cfg.get("api_key_env_var") or "PINECONE_API_KEY"))
+        index = pc.Index(collection_name)
+        existing = {}
+        for i in range(0, len(ids), 500):
+            try:
+                resp = index.fetch(ids=ids[i:i + 500])
+            except Exception:
+                continue
+            for cid, v in (resp.vectors or {}).items():
+                meta = v.metadata or {}
+                existing[cid] = (meta.get("content_hash"), meta.get("embedding_model"), v.values)
+        return existing
+
+    if provider == "lancedb":
+        import lancedb
+        db = lancedb.connect(connection_string or "./lancedb_data")
+        try:
+            tbl = db.open_table(collection_name)
+        except ValueError:
+            return {}
+        quoted_ids = ",".join("'" + i.replace("'", "''") + "'" for i in ids) or "''"
+        hits = tbl.search().where(f"chunk_id IN ({quoted_ids})").to_pandas()
+        existing = {}
+        for _, row in hits.iterrows():
+            existing[row["chunk_id"]] = (row.get("content_hash"), row.get("embedding_model"), list(row["vector"]))
+        return existing
+
+    raise ValueError(f"embed op reuse_from: unsupported provider {provider!r}. Valid: chromadb, qdrant, pinecone, lancedb.")
+
+
 def _reuse_embeddings(df: pd.DataFrame, step: dict, output_column: str, context) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    """Split df into (already-embedded, still-needs-embedding) using an existing ChromaDB collection:
-    a chunk is reused when the collection holds the same chunk_id with the same content_hash AND the
-    same embedding_model, so only new or changed chunks pay for an embedding call."""
+    """Split df into (already-embedded, still-needs-embedding) using an existing vector store
+    (chromadb/qdrant/pinecone/lancedb): a chunk is reused when the store holds the same chunk_id
+    with the same content_hash AND the same embedding_model, so only new or changed chunks pay
+    for an embedding call."""
     cfg = step["reuse_from"]
-    if cfg.get("provider", "chromadb") != "chromadb":
-        raise ValueError("embed op reuse_from: only provider='chromadb' is supported")
     for needed in ("chunk_id", "content_hash"):
         if needed not in df.columns:
             raise ValueError(f"embed op reuse_from needs column {needed!r} (produced by the chunk op)")
-    import chromadb
     model_name = step.get("model") or {"sentence_transformers": "all-MiniLM-L6-v2", "openai": "text-embedding-3-small",
                                          "cohere": "embed-english-v3.0", "litellm": "text-embedding-3-small"}.get(step.get("provider", "sentence_transformers"))
-    client = chromadb.PersistentClient(path=cfg.get("connection_string") or "./chroma_db")
-    try:
-        collection = client.get_collection(name=cfg.get("collection_name", "context_engineering_kb"))
-    except Exception:
-        return df.iloc[0:0], df  # nothing indexed yet
-    existing: Dict[str, Tuple[str, str, Any]] = {}
     ids = df["chunk_id"].astype(str).tolist()
-    for i in range(0, len(ids), 500):
-        got = collection.get(ids=ids[i:i + 500], include=["metadatas", "embeddings"])
-        for cid, meta, emb in zip(got["ids"], got["metadatas"], got["embeddings"]):
-            existing[cid] = ((meta or {}).get("content_hash"), (meta or {}).get("embedding_model"), emb)
+    existing = _fetch_existing_embeddings(ids, cfg)
+    if not existing:
+        return df.iloc[0:0], df  # nothing indexed yet
     reusable = []
     for cid, digest in zip(ids, df["content_hash"].astype(str)):
         hit = existing.get(cid)
@@ -4459,6 +4582,13 @@ class ContextEngineeringPipelineComponent(Component, Model, Resolvable):
                     # have to special-case a literal "none" string in a numeric field.
                     if _sm.get("embedding_tokens") is not None:
                         _top_level_promoted["embedding_tokens"] = MetadataValue.int(int(_sm["embedding_tokens"]))
+                    # Only present when the embed step used reuse_from -- a run with no
+                    # reuse_from configured never reports these at all (not 0/0), since
+                    # "0 reused, N computed" would misleadingly claim reuse was attempted.
+                    if "embeddings_reused" in _sm:
+                        _top_level_promoted["embeddings_reused"] = MetadataValue.int(int(_sm["embeddings_reused"]))
+                    if "embeddings_computed" in _sm:
+                        _top_level_promoted["embeddings_computed"] = MetadataValue.int(int(_sm["embeddings_computed"]))
                 elif _step["op"] == "write_vector_store" and "store_type" in _sm:
                     _top_level_promoted["store_type"] = MetadataValue.text(str(_sm["store_type"]))
 

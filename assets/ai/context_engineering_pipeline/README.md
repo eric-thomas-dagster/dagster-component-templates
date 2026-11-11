@@ -130,10 +130,16 @@ use `execution_mode: python`.
 works in `execution_mode: sql`** (one more CTE with `QUALIFY ROW_NUMBER() OVER (PARTITION BY ... ORDER BY chunk_id) =
 1`, the same pattern the incremental-reuse logic already uses) — no caveats, fully portable.
 
-**`sensitivity`**: regex PII detection (email, phone, ssn, Luhn-checked credit_card, ipv4); `action: tag | redact | drop`.
-`tag` adds `sensitivity` (`pii`/`none`) and `pii_types` columns that a gateway can withhold on (receipt exclusion reason
-`pii`). Regex only, not NER: it misses names and free-form identifiers, so treat it as a floor. **Partially works in
-`execution_mode: sql`**: `detectors: [email, ssn, ipv4]` and `action: tag | drop` are plain, portable SQL. `phone`'s
+**`sensitivity`**: `engine: regex` (default): email, phone, ssn, Luhn-checked credit_card, ipv4 -- no ML dependency,
+but it misses names and free-form identifiers, so treat it as a floor. `engine: presidio`: Microsoft Presidio + spaCy
+NLP-based entity detection (PERSON, LOCATION, DATE_TIME, ... -- anything no regex can reliably catch); `detectors`
+becomes a list of Presidio entity names (default: `PERSON`, `EMAIL_ADDRESS`, `PHONE_NUMBER`, `US_SSN`, `CREDIT_CARD`,
+`LOCATION`), and `presidio_score_threshold` (default `0.3`) sets its confidence cutoff -- requires
+`pip install presidio-analyzer presidio-anonymizer spacy` + `python -m spacy download en_core_web_sm`. Either engine:
+`action: tag | redact | drop`. `tag` adds `sensitivity` (`pii`/`none`) and `pii_types` columns that a gateway can
+withhold on (receipt exclusion reason `pii`). **Partially works in `execution_mode: sql`** (engine='regex' only --
+engine='presidio' needs a real NLP model, which can't run inside a warehouse statement): `detectors: [email, ssn,
+ipv4]` and `action: tag | drop` are plain, portable SQL. `phone`'s
 pattern needs a negative lookahead/lookbehind RE2 can't express, and `credit_card`'s precision in python mode comes
 from a Luhn check with no portable SQL equivalent built here (a regex-only match would have a much higher
 false-positive rate) — both detectors, and `action: redact` (which would need `content_hash` recomputed mid-statement),
@@ -166,9 +172,12 @@ the earlier ones materialize as their own CTE first). None of `filter`/`dedupe`/
 yet supported together with `per_step_ops: true` in SQL mode (that path stays chunk/classify/embed-only, one table
 per step).
 
-**`embed`**: `reuse_from: {connection_string, collection_name}` (chromadb) skips chunks whose `chunk_id`, `content_hash`
-and embedding model already exist in the index, so only new or changed chunks pay for an embedding call. Every embedded
-row records its `embedding_model`.
+**`embed`**: `reuse_from: {provider, connection_string, collection_name}` (`provider`: `chromadb` default, `qdrant`,
+`pinecone`, or `lancedb` -- not `s3vectors`, which has no bulk list/filter API to check staleness against) skips
+chunks whose `chunk_id`, `content_hash` and embedding model already exist in the index, so only new or changed chunks
+pay for an embedding call. Every embedded row records its `embedding_model`. `embeddings_reused`/`embeddings_computed`
+are promoted to the asset's top-level materialization metadata (alongside `embedding_model`/`embedding_time_seconds`),
+not just nested inside `step_metadata` -- present only when `reuse_from` is configured.
 
 **`write_vector_store`**: `purge_expired: true` (chromadb) also deletes this asset's chunks whose `valid_until` has passed; `sync_mode: replace_sources` (default; deletes chunks of the source rows in this run that no
 longer exist, so a shrunk document leaves no stale chunks) | `upsert` (never deletes) | `replace_all` (collection becomes

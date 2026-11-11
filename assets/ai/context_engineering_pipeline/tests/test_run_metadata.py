@@ -228,6 +228,55 @@ def test_do_embed_raw_sentence_transformers_reports_tokens_as_none(mod):
     assert stats["embedding_model"] == "all-MiniLM-L6-v2"
 
 
+@requires_sentence_transformers
+@requires_chromadb
+def test_embeddings_reused_and_computed_promoted_to_top_level_metadata(mod, tmp_path):
+    """embed op's reuse_from stats (embeddings_reused/embeddings_computed) were only ever
+    visible nested inside step_metadata's JSON blob -- promoted to the top level alongside
+    embedding_model/embedding_time_seconds, same convention, so a UI doesn't have to parse
+    step_metadata to find them."""
+    import chromadb
+
+    chroma_path = str(tmp_path / "chroma_reuse")
+    # Pre-seed the collection with chunk "A_0" already indexed, so the first run's chunk
+    # step produces exactly one chunk per doc and the embed step can genuinely reuse A's.
+    df = pd.DataFrame({"doc_id": ["A"], "txt": ["Document A short body."]})
+    component = mod.ContextEngineeringPipelineComponent(
+        asset_name="test_kb_reuse", upstream_asset_key="raw_docs", id_column="doc_id", text_column="txt",
+        steps=[
+            {"id": "chunks", "op": "chunk", "chunk_size": 200},
+            {"id": "embedded", "op": "embed", "provider": "sentence_transformers", "model": "all-MiniLM-L6-v2"},
+            {"id": "indexed", "op": "write_vector_store", "provider": "chromadb",
+             "connection_string": chroma_path, "collection_name": "test_kb_reuse_collection"},
+        ],
+    )
+    first = _materialize(component, df)
+    assert first.success
+    first_meta = first.get_asset_materialization_events()[-1].materialization.metadata
+    assert "embeddings_reused" not in first_meta  # no reuse_from configured on this run
+
+    client = chromadb.PersistentClient(path=chroma_path)
+    collection = client.get_collection("test_kb_reuse_collection")
+    assert collection.count() == 1
+    chunk_id = collection.get(include=[])["ids"][0]
+
+    component_with_reuse = mod.ContextEngineeringPipelineComponent(
+        asset_name="test_kb_reuse", upstream_asset_key="raw_docs", id_column="doc_id", text_column="txt",
+        steps=[
+            {"id": "chunks", "op": "chunk", "chunk_size": 200},
+            {"id": "embedded", "op": "embed", "provider": "sentence_transformers", "model": "all-MiniLM-L6-v2",
+             "reuse_from": {"connection_string": chroma_path, "collection_name": "test_kb_reuse_collection"}},
+            {"id": "indexed", "op": "write_vector_store", "provider": "chromadb",
+             "connection_string": chroma_path, "collection_name": "test_kb_reuse_collection"},
+        ],
+    )
+    second = _materialize(component_with_reuse, df)
+    assert second.success
+    meta = second.get_asset_materialization_events()[-1].materialization.metadata
+    assert meta["embeddings_reused"].value == 1
+    assert meta["embeddings_computed"].value == 0
+
+
 def test_do_embed_reuse_from_path_with_nothing_to_compute_reports_zero_stats(mod, tmp_path):
     """The reuse_from branch when every chunk is already indexed (todo is empty) never calls
     _do_embed_raw at all -- must still report well-typed (not missing) embedding_stats."""
